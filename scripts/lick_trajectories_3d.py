@@ -60,6 +60,18 @@ def session_job(item):
     return session, acc
 
 
+def trial_set_sentence() -> str:
+    """THE lick set of the figures (Priya 11-09): the 3-D trial licks of the pose3d snapshot this script reads."""
+    from wfield_local import trial_set_text as tst
+    return tst.events("trial licks of the pose3d kinematics/licks snapshot (pose3d_kin_licks_snapshot_20261023) with a "
+                      "3-D peak time", keep=[
+                          "August-on sessions (June early pre dropped, config.early_pre)",
+                          "finite 3-D tip position (side_ml, out_ap, down_dv)",
+                          f"sessions: every pre, acute and subacute session + up to {MAX_CHRONIC} evenly spaced chronic "
+                          "sessions per animal", "grouped by target spout (far-contra licks also by dominant landing bin)"],
+                      excluded=["June early-pre sessions", "licks without a 3-D peak or tip position"])
+
+
 def main(argv=None) -> int:
     from wfield_local import config
     from wfield_local import run_mode as _rm_guard
@@ -72,6 +84,8 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--jobs", type=int, default=4)
     a = ap.parse_args(argv)
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())
     K = pd.read_csv(I / "pose3d_kin_licks_snapshot_20261023.csv.gz",
                     usecols=["animal", "session", "epoch", "trial_id", "position", "t_peak_3d", "side_ml", "out_ap",
                              "down_dv", "date"])

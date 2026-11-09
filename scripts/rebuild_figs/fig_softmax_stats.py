@@ -99,9 +99,15 @@ def draw(fd: dict, OUT: str) -> None:
     print(T[T.significant & T.target.eq("far_contra")].round(2).to_string(index=False))
     print("significant cells per epoch:", T.groupby("epoch").significant.sum().to_dict())
 
+def trial_set_sentence() -> str:
+    """The licks the soft executed-bin landing is computed from (`combined_encoding.exec_bins`)."""
+    return _common.usable_licks()
+
+
 def main(argv=None) -> int:
     ap = _common.parser(__doc__)
     a = ap.parse_args(argv)
+    _common.declare(trial_set_sentence())          # THE TRIAL SET of every figure (Priya 11-09)
     a.out.mkdir(parents=True, exist_ok=True)
     fd = _common.load_figdata(a.out, NAME) if a.plot_only else compute()
     if not a.plot_only:

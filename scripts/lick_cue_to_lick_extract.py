@@ -106,6 +106,40 @@ def sess_dir(var: str = "restw"):
     return SESS if var == "restw" else SESS_NL
 
 
+# ------------------------------------------------------------------------------------------------ trial-set captions
+# Priya 11-09: "EVERY figure must state EXACTLY which trials were included / excluded". The trials of this cache (and of
+# iti_licks.extract's first licks) are `combined_encoding.load_behaviour`'s trials.engaged = the ENGAGEMENT gate of
+# `orofacial_cohort.engagement_keep` (OROFACIAL_GATE), NOT the camera working classes; the words come from that switch.
+def engaged_text() -> str:
+    """The engaged-trial gate (trials.engaged of `combined_encoding.load_behaviour`) in words, for this process."""
+    from wfield_local import orofacial_cohort as oc
+    if not oc.ENGAGED_ONLY:
+        return "all trials (no engagement gate)"
+    g = oc.ENGAGEMENT_GATE
+    if g == "reference":
+        try:
+            tail = f" (>= {oc._eng_cfg('tail_min_misses')} trailing misses)"
+        except Exception:                                              # noqa: BLE001 - a caption never kills a figure
+            tail = ""
+        return ("engaged trials (behavior pipeline reference-position gate, spout_behavior.reference_engagement: "
+                f"terminal non-recovering collapse and sated tail{tail} removed; not the camera classes)")
+    import trial_attempts as ta
+    att = " + ".join(ta.ATTEMPT_CLASSES)
+    if g == "canonical_attempted":
+        return f"attempted trials ({att}, trial_attempts.csv) inside the reference-gate engaged period"
+    return f"attempted trials ({att}, trial_attempts.csv)"
+
+
+def first_lick_rule() -> str:
+    """The first-lick rule of this cache (`_first_licks`, revup_neural.session_worker's rule) in words."""
+    return "first lick = the first behavior-table lick onset in cue..trial stop (revup_neural rule)"
+
+
+def rest_text(var: str = "restw") -> str:
+    return ("sessions with a RESTnl (lick-free rest) level" if var == "restnl"
+            else "sessions with a RESTW level (restw_ok; trial set = the precue_restw cache's engaged trials)")
+
+
 def _first_licks(label: str, B, T, cue: np.ndarray, stop: np.ndarray, t_end: float) -> dict:
     """revup_neural.session_worker's first-lick rule, verbatim: in_window = first behavior lick onset in cue..stop;
     else late = first ITI video lick (licks_all.csv context iti) after stop and before the next trial's strobe; quiet =

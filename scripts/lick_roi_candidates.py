@@ -35,7 +35,15 @@ LIT = {"ALM (Guo 2014)": (2.5, 1.5, "k"), "tjM1 (Mayrhofer 2019)": (1.8, 2.6, "g
        "tjM1 (Esmaeili 2021)": (2.0, 2.0, "lime"), "wM1 (Esmaeili 2021)": (1.0, 1.0, "y")}
 
 
+def trial_set_sentence() -> str:
+    """THE lick set of the figure (Priya 11-09): the licks behind the PRE Haufe maps it reads."""
+    import lick_refit_decoders as rd
+    return rd.pre_pattern_sets()
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt

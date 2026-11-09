@@ -66,7 +66,16 @@ def components(T: pd.DataFrame) -> pd.DataFrame:
     return S
 
 
+def trial_set_sentence() -> str:
+    """THE lick set of the figure (Priya 11-09): the KEY per-lick cache licks behind terms_sessions_<TAG> (lateral
+    contribution run, no ITI filter) + the recovery axes."""
+    import lick_refit_decoders as rd
+    return rd.key_sets(filt="", more=[rd.recovery_axes()])
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())
     T = pd.read_csv(il.OUT_W / "offset_contrib" / f"terms_sessions_{TAG}.csv")
     S = components(T)
     R = pd.read_csv(il.OUT_W / "recmark_sessions.csv", usecols=["label", "day", "aim", "iti_ang"]).drop_duplicates("label")

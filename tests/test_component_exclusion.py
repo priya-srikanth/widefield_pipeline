@@ -255,7 +255,8 @@ def test_the_CD_notes_carry_the_ARTEFACT_WARNING_not_just_the_method():
         if "lick_or_working" in pat:
             # the second gate's panels must say WHAT THE GATE IS, since that is the only thing
             # distinguishing them from the success-only panels beside them on the deck
-            assert "MISS-WHILE-WORKING" in legend, pat
+            assert "NO-LICK trials outside the terminal quit period" in legend, pat
+            assert "MISS-WHILE-WORKING" not in legend.upper(), pat   # stale DAQ-era wording (Priya 11-09)
             assert "NO LICK-ALIGNED VERSION" in legend, pat
         assert "0.289" in legend, pat                 # the measured near-cancellation
         assert "artefact" in legend.lower() or "artifact" in legend.lower(), pat

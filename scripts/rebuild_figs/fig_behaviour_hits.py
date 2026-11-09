@@ -156,12 +156,27 @@ def draw(fd: dict, png: Path, name: str = NAME) -> None:
     plt.close(fig)
 
 
+def trial_set_sentence(name: str = NAME) -> str:
+    """The trials of each hit-rate figure: the camera working period (primary) / the DAQ engagement gate (robustness)."""
+    if name == NAME:
+        return _common.working_period_trials(extra=["hit = camera contact"])
+    from wfield_local import config
+    from wfield_local import trial_set_text as tst
+    eng = config.defaults()["behavior"]["engagement"]
+    return tst.events("DAQ-strobe trials before the session's engagement cut (spout_behavior.reference_engagement, "
+                      "judged at close_L / close_center only: a non-recovering response-rate collapse, or the last "
+                      f"{int(eng['tail_min_misses'])} reference trials all misses)", unit="trials",
+                      keep=["hit = a DAQ lick inside the session's response window"],
+                      excluded=["free-reward trials", "every trial from the engagement cut on"])
+
+
 def main(argv=None) -> int:
     ap = _common.parser(__doc__)
     ap.add_argument("--metrics", type=Path, default=SRC, help="cohort_session_metrics.csv (the DAQ robustness row)")
     ap.add_argument("--attempts", type=Path, default=None,
                     help="trial_attempts_sessions.csv of the camera run (default: run_mode.attempts_dir())")
     a = ap.parse_args(argv)
+    _common.declare(trial_set_sentence(NAME))          # THE TRIAL SET of every figure (Priya 11-09)
     a.out.mkdir(parents=True, exist_ok=True)
     for name in (NAME, NAME_DAQ):                 # the primary first, then the labelled robustness row
         if a.plot_only:
@@ -180,7 +195,9 @@ def main(argv=None) -> int:
                   .reindex(EP, level=1).to_string())
             print(T.groupby(["animal", "epoch"]).n_sessions.max().unstack()[EP].to_string())
             _common.save_figdata(a.out, name, fd)
-        draw(fd, a.out / f"{name}.png", name)
+        from wfield_local import trial_set_text as tst
+        with tst.active(None, text=trial_set_sentence(name)):          # each figure's own set (Priya 11-09)
+            draw(fd, a.out / f"{name}.png", name)
         print("wrote", a.out / f"{name}.png")
     return 0
 

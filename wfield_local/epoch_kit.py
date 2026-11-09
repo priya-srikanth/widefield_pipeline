@@ -206,3 +206,149 @@ def _scalar_figure(out_dir, *, name, title, ylabel, keys, values, points, tick_l
 #: one value per session (every session once). Same figure shape, different weighting.
 _MEAN_NOTE = ("pooled as a MEAN OVER SESSIONS: these values are already reduced per session, so a "
               "session is the unit and cannot be re-weighted by its trial count")
+
+
+# ------------------------------------------------------------------ the trial set of each family
+# Priya 11-09: "EVERY figure must state EXACTLY which trials were included / excluded". The arm loop of
+# `epoch_grant_figures.main` activates the ARM's class (`trial_set_text.activate(variant, align)`), which is exact only
+# for a family that draws that class on BOTH sides of the pre/post comparison. These return the sentence a family
+# really draws, from the selection rules the collectors apply (cited per function); the driver wraps each family in
+# `trial_set_text.active(None, text=...)`. Captions only: nothing here is in a cache key.
+#: what the pre side of a pattern family is (`grant_kit._collect_7`: pre-stroke trials are the LICK set in every class)
+PATTERN_PRE_ROLE = "pre-stroke reference + PRE panel"
+#: the pre side of a frozen spout decoder outside the camera working frame (`grant_kit._frozen_frame` sel "engaged")
+DECODER_PRE_ROLE = "frozen decoder training set + PRE panel (held-out pre-stroke sessions)"
+#: the pre side of the within-session refit decoder (5cr) outside the camera working frame
+REFIT_PRE_ROLE = "PRE panel (each pre-stroke session refit on itself)"
+
+
+def _body(sentence: str) -> str:
+    return sentence.split(": ", 1)[1] if ": " in sentence else sentence
+
+
+def _two_sides(post_variant: str, pre_variant: str, pre_role: str) -> str:
+    """POST-stroke trials of ``post_variant`` and PRE-stroke trials of ``pre_variant`` in one sentence."""
+    from wfield_local import trial_set_text as tst
+    return tst.union(f"post-stroke = {_body(tst.sentence(post_variant))}",
+                     f"{pre_role} = {_body(tst.sentence(pre_variant))}", unit="trials")
+
+
+def working_frame_on() -> bool:
+    """True when the frozen spout decoder of the `working` class trains and scores on the camera WORKING rows on both
+    sides (`grant_kit._working_masks`: camera gate on AND a camera working selection); else it trains on the engaged
+    (lick) rows and its pre panel is the lick set (the DAQ gate)."""
+    from wfield_local import trial_classes as tc
+    from wfield_local import working_trials as wt
+    return bool(tc.camera_gate_on() and wt.is_camera(tc.working_selection()))
+
+
+def decoder_trial_text(align: str, variant: str, *, refit_only: bool = False) -> str:
+    """Families acc / 5c / 5cr / 5r / 5rm / 5ro / 5rmo (`grant_confusion._collect_5c`, frozen / refit / paired /
+    paired_matched): post-stroke rows = the arm's class (`_class_select`). The frozen model's training rows and the pre
+    panel are the arm's class too under the camera working frame (`_frozen_frame(sel="working")`), else the ENGAGED
+    (lick) rows. The within-session refit (5cr, the refit column of 5r*) is fitted and block-CV scored on the scored
+    session's own rows, i.e. the same set; ``refit_only`` (5cr) = no frozen model on the figure."""
+    from wfield_local import frozen_models
+    from wfield_local import trial_set_text as tst
+    if variant == "lick" or align == "lick" or (variant == "working" and working_frame_on()):
+        out = tst.sentence(variant)
+    else:
+        out = _two_sides(variant, "lick", REFIT_PRE_ROLE if refit_only else DECODER_PRE_ROLE)
+    if not refit_only and frozen_models.daq_trained_in_lp():
+        # WIDEFIELD_LP_FROZEN=daq cross-check: the LP arm LOADS the DAQ run's model (its own pre trials)
+        out += "; frozen decoder = the DAQ-TRAINED model (fitted on the DAQ arm's pre-stroke trials, DAQ licks)"
+    return out
+
+
+def pattern_trial_text(align: str, variant: str) -> str:
+    """Families mat (6 / 7 / 8 / 8rc / 10c / 8rz), scal (8g / 9 / 10 / 10b / 11 / 11c / 11cpos), 10e, 10cs: all built on
+    `grant_kit._collect_7`, whose post-stroke side is the arm's class and whose PRE-STROKE side (the reference and the
+    PRE panel) is the LICK set in every class, camera gate included."""
+    from wfield_local import trial_set_text as tst
+    if variant == "lick":
+        return tst.sentence("lick")
+    return _two_sides(variant, "lick", PATTERN_PRE_ROLE)
+
+
+def stopped_trial_text(align: str, family: str = "12s") -> str:
+    """Families 12s / 12b (`grant_figures._collect_stopped` / `_collect_stopped_pooled`): the STOPPED trials,
+    post-stroke per session and pre-stroke pooled (12s; per session, leave-one-out, 12b), each scored against the
+    animal's pre-stroke ENGAGED template, built from its LICK trials (`_session_trials(..., "lick")`). The floors are
+    the collectors' own (`MIN_STOPPED` / `MIN_STOPPED_REF`; `_collect_stopped_pooled`'s ``min_trials`` default)."""
+    from wfield_local import grant_figures as G
+    from wfield_local import trial_set_text as tst
+    if family == "12b":
+        n = (getattr(G._collect_stopped_pooled, "__wrapped__", G._collect_stopped_pooled).__defaults__ or (20,))[0]
+        floor = f"a session enters with >= {n} stopped trials (all positions pooled)"
+    else:
+        floor = (f"a session x position cell enters with >= {G.MIN_STOPPED} stopped trials (>= 2 positions); the "
+                 f"pre-stroke stopped control only for animals with >= {G.MIN_STOPPED_REF} pre-stroke stopped trials")
+    return tst.union(f"post-stroke + pre-stroke = {_body(tst.sentence('stopped'))}; {floor}",
+                     f"scored against the pre-stroke template = {_body(tst.sentence('lick'))}", unit="trials")
+
+
+def _rest_text() -> str:
+    from wfield_local import config
+    try:
+        seg = config.defaults()["segmentation"]
+        r, run = seg["rest"], seg["running"]
+    except Exception:                                                  # noqa: BLE001 - a caption never kills a figure
+        return "REST (behavior_events rest mask), RUNNING (treadmill running bouts)"
+    dock = ", spout docked (dock -> next trial start)" if r.get("docked") else ""
+    lb = r.get("lick_buffer_s", ("?", "?"))
+    tb = r.get("treadmill_buffer_s", ("?", "?"))
+    return (f"REST (behavior_events rest mask {r.get('variant', '')}: outside trials{dock}, treadmill below "
+            f"{r.get('speed_mm_s', '?')} mm/s (buffer {tb[0]} s before / {tb[1]} s after), no DAQ lick from {lb[0]} s "
+            f"before to {lb[1]} s after), RUNNING "
+            f"(treadmill >= {run.get('thresh_speed_mm_s', '?')} mm/s for >= {run.get('min_duration_s', '?')} s)")
+
+
+def state_segment_text() -> str:
+    """Family 13s (`locomotor_decoder.by_animal_day`): 1 s SEGMENTS, not trials (`locomotor_state.three_way_segments`
+    with lick_mode="postcue", `locomotor_features.segment_features`)."""
+    from wfield_local import locomotor_decoder as ld
+    from wfield_local import locomotor_state as ls
+    from wfield_local import trial_set_text as tst
+    excl = ["segments where running and licking overlap",
+            f"sessions with < {ld.MIN_PER_CLASS} segments of any class"]
+    if ls.EXCLUDE_SESSIONS:
+        excl.append("sessions " + ", ".join(ls.EXCLUDE_SESSIONS))
+    return tst.events(
+        f"{ls.SEGMENT_S:g} s windows ({ls.SEGMENT_BINS} bins), at most {ls.MAX_SEGMENTS_PER_PERIOD} per period, of "
+        f"three mutually exclusive states: {_rest_text()}, LICKING ({ls.LICK_POSTCUE_S:g} s from each trial's first "
+        f"DAQ lick within {ls.LICK_MAX_LATENCY_S:g} s of the cue)",
+        keep=["every pre- and post-stroke session (no trial class gate)"], excluded=excl, unit="segments (not trials)")
+
+
+def state_vs_position_text() -> str:
+    """Figure 13n: the state decoder's segments AND the post-cue frozen position decoder's trials (5c, cue /
+    working)."""
+    return f"{state_segment_text()}  AND  position bar {decoder_trial_text('cue', 'working')}"
+
+
+def evoked_trial_text() -> str:
+    """Family 15e (`position_evoked_maps` <- `framemap_event_maps.run_cue` npz): EVERY cued trial at each position."""
+    from wfield_local import position_evoked_maps as pem
+    return (f"trials: every cued trial at each position (framemap_event_maps cue maps, field {pem.FIELD}: no "
+            "engagement / camera class / lick gate), cue inside the imaging coverage with contiguous frames over the "
+            "pre / post window; excluded: cues outside the imaging span or across a frame gap, cues without a "
+            "position code")
+
+
+def behaviour_trial_text(period: str = "camera", *, min_trials: int = 5) -> str:
+    """Families 1b (``period`` "camera" = primary, "daq" = the quit-tail robustness row) and 1c ("daq": the series the
+    epoch boundaries were drawn from). ``min_trials`` = the per-session per-position floor of the figure."""
+    from wfield_local import trial_set_text as tst
+    floor = f"a session's position counts with >= {min_trials} trials"
+    if period == "camera":
+        # the camera working period whatever the run's trial gate (`trial_classes.camera_period_trials` reads the video
+        # classes directly); `sentence("working_period")` names it under the camera gate only
+        try:
+            per = tst.sentence(tst.WORKING_PERIOD)
+        except ValueError:
+            from wfield_local import trial_classes as tc
+            per = (f"trials: all trials in the camera working period (first-{tc.end_anchor()} anchor; trial_classes "
+                   f"OUT_OF_WORKING_PERIOD removed: {', '.join(tc.OUT_OF_WORKING_PERIOD)})")
+        return f"{per}; hit = camera contact; {floor}; sessions without camera classes (no video) left out"
+    return ("trials: behavior-pipeline ENGAGED trials (position_metrics.csv trials_engaged / trials.csv engaged: DAQ "
+            f"quit-tail rule on DAQ licks); hit = DAQ hit; {floor}; excluded: the terminal quit period")

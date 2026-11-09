@@ -2417,5 +2417,111 @@ def _fan(jobs, n):
     return res, fail
 
 
+# ----------------------------------------------------------------------------------------------- trial-set captions
+# Priya 11-09: "EVERY figure must state EXACTLY which trials were included / excluded". The frozen_* figure scripts
+# caption their figures with the trials / frames THIS module models and scores (`session_design`, `predict_job`,
+# `_predict_spatial`, `musall_r2`, `musall_moments`). Pure text: no fit, prediction or cache reads it. ``tag`` = the
+# run folder (or its tag) the reader draws from: its engagement gate ("gate-<g>"), lick design ("spont" segment) and
+# TE design ("_te" segment) are read from it, else from this environment.
+def _tag_gate(tag=None) -> str:
+    from wfield_local import orofacial_cohort as oc
+    t = str(tag or "")
+    for g in sorted(oc.GATES, key=len, reverse=True):
+        if f"gate-{g}" in t:
+            return g
+    return oc.ENGAGEMENT_GATE
+
+
+def _tag_te(tag=None) -> bool:
+    import re
+    return TE if tag is None else bool(re.search(r"(?:^|_)te(?:_|$)", str(tag)))
+
+
+def _tag_spont(tag=None) -> bool:
+    return SPONT if tag is None else tag_is_spont(tag)
+
+
+def modeled_trials_text(tag=None) -> str:
+    """The trials `session_design` models: ``Behaviour.trials.engaged`` (`orofacial_cohort.engagement_keep` under the
+    run's OROFACIAL_GATE) with a cue time, in the words of `trial_set_text`."""
+    from wfield_local import orofacial_cohort as oc
+    from wfield_local import trial_set_text as tst
+    g = _tag_gate(tag)
+    if not oc.ENGAGED_ONLY:
+        return "trials: every trial with a cue time (ungated run)"
+    if g == "reference":
+        return ("trials: the behavior pipeline's engaged trials (OROFACIAL_GATE reference: terminal sated tail and "
+                "response-rate collapse removed) with a cue time")
+    if tst._camera():
+        # trial_attempts.csv under the camera gate: attempted = the run classes contact | incomplete, the stopped runs,
+        # stopped-licking, early-run and after-end trials already re-classed out of them (`trial_classes.classify_session`)
+        return (f"trials: camera contact + incomplete ({tst.lick_text()}; trial_attempts 'attempted', gate {g}), "
+                f"{tst._period()}, {tst._removed()}; {tst._excluded(('contact', 'incomplete'))}")
+    can = ", inside the reference engaged period" if g == "canonical_attempted" else ""
+    return (f"trials: contact + incomplete trials (trial_attempts 'attempted', gate {g}{can}; trial-level classes, "
+            "no working-period cut); excluded: jaw-only, no response, unknown")
+
+
+def modeled_frames_text(tag=None) -> str:
+    """The imaging frames `session_design` puts in the model (and in every all-frames R2 / moment)."""
+    if _tag_te(tag):
+        return ("frames: every frame from the first modeled trial's strobe - 0.5 s to the last one's stop + 3 s (ITI "
+                "frames included)")
+    return ("frames: each modeled trial's strobe (no strobe: cue - 3 s) - 0.5 s .. stop + 1 s; ITI frames outside "
+            "those spans excluded")
+
+
+def first_lick_text(tag=None) -> str:
+    """The lick alignment of the lick-aligned PETH / window (`first_lick_s`)."""
+    if _tag_spont(tag):
+        return ("first post-cue lick = the trial's lick timing (first camera lick onset, cam4 + cam1-only, in cue .. "
+                "stop; at a close spout the first DAQ contact when that onset is missing or > "
+                f"{_ce().LP_DAQ_TOL_S * 1e3:g} ms later; at a far spout a missing onset falls back to the contact)")
+    return "first post-cue lick = the first camera lick onset (cam4 + cam1-only) in cue .. stop (no stop: cue + 3.5 s)"
+
+
+def _spout_text(spout) -> str:
+    if not spout:
+        return ""
+    if spout == "all":
+        return "; spout: mean over the session's spouts (sessions with >= 4 spouts)"
+    if spout == "each":
+        return "; spout: each spout's own trials"
+    return f"; spout: {spout} trials only"
+
+
+def trial_set_sentence(scope: str, *, tag=None, align=None, spout=None, pixel: bool = False) -> str:
+    """THE trial / frame set of a frozen-encoder figure (`trial_set_text.declare(text=...)`). ``scope``:
+      all     R2 / moments over ALL modeled frames (`resid_mom` / `data_mom`, the "all" window)
+      fit     the frozen kernels: fitted on the modeled frames of the animal's pre sessions
+      musall  `musall_r2` / `musall_moments` window ``align`` (cue: cue 0 .. +1.5 s; lick: first post-cue lick
+              -0.1 .. +1.0 s); ``pixel`` = the basis moments, which keep only trials whose whole window is recorded
+      peth    the per-spout PETH / evoked response aligned on ``align`` (cue or the first post-cue lick)
+      own     per-position scores on each spout's OWN trial frames (frozen drop-one-spout)
+    ``spout`` = a spout name, "all" (mean over spouts) or "each" (one row per spout)."""
+    trials = modeled_trials_text(tag) + _spout_text(spout)
+    if scope in ("all", "fit"):
+        head = "fit on the animal's pre sessions; " if scope == "fit" else ""
+        return f"{head}{trials}; {modeled_frames_text(tag)}"
+    if scope == "own":
+        return f"{trials}; {modeled_frames_text(tag)}; per position: frames of that spout's own trials"
+    if align not in MUSALL_WINDOWS:
+        raise ValueError(f"trial_set_sentence: align must be one of {tuple(MUSALL_WINDOWS)}, not {align!r}")
+    if scope == "musall":
+        a0, a1 = MUSALL_WINDOWS[align]
+        rec = ", trials whose window runs past the recording" if pixel else ""
+        if align == "cue":
+            return (f"{trials}; frames: cue {a0:g} .. {a1:+g} s of each modeled trial"
+                    + (f"; excluded: {rec[2:]}" if pixel else ""))
+        return (f"{trials}; frames: first post-cue lick {a0:+g} .. {a1:+g} s of each modeled trial with one ("
+                f"{first_lick_text(tag)}); excluded: trials without a first lick{rec}")
+    if scope == "peth":
+        if align == "cue":
+            return f"{trials}; cue-aligned PETH over every modeled trial"
+        return (f"{trials}; lick-aligned PETH over the modeled trials with a first post-cue lick ({first_lick_text(tag)});"
+                " excluded: trials without a first lick")
+    raise ValueError(f"trial_set_sentence: unknown scope {scope!r}")
+
+
 if __name__ == "__main__":
     raise SystemExit(main())

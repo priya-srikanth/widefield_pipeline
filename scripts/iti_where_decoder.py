@@ -48,6 +48,74 @@ LAB = {"areas": il.basis_label(), "locanmf": "joint LocaNMF (unmasked)",
        "areas_split": il.basis_label("split"), "areas_plain": il.basis_label("plain")}
 AREA_SOURCES = {"areas": None, "areas_split": "split", "areas_plain": "plain"}     # source -> basis (None = il.AREA_BASIS)
 ZHEAD = "Z-SCORED FEATURES (each area / its frame-wise SD in the session, pre and post alike; iti_zscore_check.py)\n"
+#: a session enters a decoder of a lick set with >= this many scored licks of the set (decode, iti_where_scatter)
+MIN_SESSION_LICKS = 20
+
+
+# ------------------------------------------------------------------------------------------------ trial-set captions
+# Priya 11-09: "EVERY figure must state EXACTLY which trials were included / excluded". The decoders of this family draw
+# LICK EVENTS of the ITI session files (`iti_licks.extract`): ITI licks (3-D table context iti) and post-cue licks (context
+# post_cue, capped at il.N_TRIAL_MAX per session), each with its peak >= il.LAGS_D[-1] s inside the imaging. ONE
+# wording for every driver of the family, built from those constants (wfield_local.trial_set_text holds the words).
+def _edge() -> str:
+    return f"lick peak >= {max(abs(float(il.LAGS_D[0])), float(il.LAGS_D[-1])):g} s inside the imaging"
+
+
+def _keep(tracked: str, min_n: int | None, unit: str) -> list[str]:
+    out = [f"3-D tip tracked ({tracked})" if tracked else "", _edge()]
+    if min_n:
+        out.append(f"sessions with >= {int(min_n)} such licks{unit}")
+    return [k for k in out if k]
+
+
+def iti_caption(filt: str = "", *, tracked: str = "lateral + sagittal", min_n: int | None = MIN_SESSION_LICKS,
+                unit: str = "", spout: str = "spout = the previous trial's spout", extra=()) -> str:
+    """The ITI licks of the session files as a driver of this family uses them. ``filt`` = the ITI filter that ACTUALLY
+    applies to this driver's rows ("" = none; never read from the env here: most drivers do not apply one)."""
+    from wfield_local import trial_set_text as tst
+    return tst.iti_licks(filt=filt, extra=[*_keep(tracked, min_n, unit), spout, *extra])
+
+
+def cued_caption(*, first_only: bool = False, tracked: str = "lateral + sagittal",
+                 min_n: int | None = MIN_SESSION_LICKS, unit: str = "", spout: str = "spout = the trial's target spout",
+                 extra=()) -> str:
+    """The post-cue licks of the session files (every trial, no engagement / camera-class gate; random cap per session)."""
+    from wfield_local import trial_set_text as tst
+    keep = ["every trial (no engagement / camera-class gate)",
+            f"at most {int(il.N_TRIAL_MAX)} per session (random draw, seed 0)", *_keep(tracked, min_n, unit), spout,
+            *extra]
+    return tst.cued_licks(first_only=first_only, extra=keep)
+
+
+def both_caption(filt: str = "", *, iti_extra=(), cued_extra=(), **kw) -> str:
+    """ITI AND cued licks drawn together (one decoder per set)."""
+    from wfield_local import trial_set_text as tst
+    ck = {k: v for k, v in kw.items() if k != "spout"}
+    return tst.union(iti_caption(filt, extra=iti_extra, **kw), cued_caption(extra=cued_extra, **ck))
+
+
+def subset_in(path) -> str:
+    """The SUBSET ITI filter (il.ITI_SUBSET) when ``path`` -- a table the driver reads -- is the filtered copy under
+    il.OUT_W (iti_dock_where_preds.py / il.pred_file), else "" (the driver then draws every ITI lick)."""
+    if not il.ITI_SUBSET or Path(il.OUT_W) == Path(il.OUT):
+        return ""
+    try:
+        Path(path).resolve().relative_to(Path(il.OUT_W).resolve())
+    except ValueError:
+        return ""
+    return il.ITI_SUBSET
+
+
+def trial_set_sentence(z: bool = False) -> str:
+    """This driver's lick set: ITI + cued licks, every ITI lick (main / --plot-only: no filter is applied), or under
+    --z the subset copy of the r table (iti_dock_where_preds.py) when a subset filter is active."""
+    filt = subset_in((il.OUT_W if il.ITI_SUBSET else il.OUT) / "zscore_check" / "x") if z else ""
+    return both_caption(filt, tracked="lateral + sagittal + outward + reach")
+
+
+def declare_trial_set(z: bool = False) -> None:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence(z))
 
 
 def coords(label: str, t: np.ndarray) -> np.ndarray:
@@ -217,7 +285,7 @@ def decode(source: str) -> pd.DataFrame:
                     continue
                 X, C = d[st]
                 ok = np.isfinite(C).all(1)
-                if ok.sum() >= 20:
+                if ok.sum() >= MIN_SESSION_LICKS:
                     # columns: lateral, SAGITTAL, angle = atan2(lateral, sagittal) (the encoder's exec_angle; the old
                     # horizontal atan2(lateral, outward) wraps when outward ~ 0, licks running mostly down), reach,
                     # outward (kept for continuity with the 10-26 outward version)
@@ -368,7 +436,8 @@ def plot(R: pd.DataFrame, T: pd.DataFrame, tag: str = "") -> None:
 
 
 if __name__ == "__main__":
-    if "--z" in sys.argv:                    # redraw from the z-scored run (iti_zscore_check.py); Allen areas only
+    declare_trial_set("--z" in sys.argv)     # every figure of every path below carries the lick set (Priya 11-09)
+    if "--z" in sys.argv:                   # redraw from the z-scored run (iti_zscore_check.py); Allen areas only
         Z = (il.OUT_W if il.ITI_SUBSET else il.OUT) / "zscore_check"   # subset: iti_dock_where_preds.py's r table
         Rz = pd.read_csv(Z / il.tagged("where_decoder_z.csv"))
         Tz = tests(Rz)

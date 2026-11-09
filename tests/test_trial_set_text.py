@@ -339,3 +339,83 @@ def test_pooled_jaw_only_panel(camera, monkeypatch, tmp_path):
     assert em.jaw_only_panels(tmp_path, "cue", "x") == []        # camera classes: nothing under the DAQ rule
     assert em.supplement_panels(tmp_path, "cue", str) == []
     assert em.supplement_panels(tmp_path, "lick", str) == []
+
+
+# ------------------------------------------------------------------------------------------------ driver-level declare
+def test_declare_reaches_a_plain_savefig(camera, tmp_path):
+    """One declaration per driver: a figure written with a PLAIN ``fig.savefig`` / ``plt.savefig`` carries it too."""
+    tst.declare("lick")
+    fig, ax = plt.subplots(figsize=(4, 3))
+    ax.plot([0, 1])
+    fig.savefig(tmp_path / "plain.png", dpi=40)
+    plt.savefig(tmp_path / "plain2.png", dpi=40)                  # pyplot path: the same Figure.savefig
+    hits = [t for t in fig.texts if t.get_gid() == tst.GID]
+    assert len(hits) == 1 and hits[0].get_text().replace("\n", " ") == tst.sentence("lick")
+    plt.close(fig)
+
+
+def test_hook_is_byte_identical_without_a_set(camera, tmp_path):
+    tst.install_savefig_hook()
+    fig, ax = plt.subplots(figsize=(3, 2))
+    ax.plot([0, 1])
+    fig.savefig(tmp_path / "a.png", dpi=40, metadata={"Software": None})
+    from matplotlib.figure import Figure
+    Figure.savefig.__wrapped__(fig, tmp_path / "b.png", dpi=40, metadata={"Software": None})
+    assert fig.texts == []
+    assert (tmp_path / "a.png").read_bytes() == (tmp_path / "b.png").read_bytes()
+    plt.close(fig)
+
+
+def test_narrower_activation_wins_and_none_hides_the_declaration(camera):
+    tst.declare(text="events: X")
+    assert tst.current_sentence() == "events: X"
+    with tst.active("working"):
+        assert tst.current_sentence() == tst.sentence("working")
+    with tst.active(None):
+        assert tst.current() is None                              # a replot of a bundle that named no set
+    assert tst.current_sentence() == "events: X"
+    tst.declare()
+    assert tst.current() is None
+
+
+def test_declaration_is_visible_from_a_worker_thread(camera):
+    import threading
+    tst.declare("working")
+    got = []
+    th = threading.Thread(target=lambda: got.append(tst.current_sentence()))
+    th.start()
+    th.join()
+    assert got == [tst.sentence("working")]
+
+
+# ------------------------------------------------------------------------------------------------ event / frame sets
+def test_event_sentences(monkeypatch):
+    monkeypatch.delenv("WFIELD_ITI_FILTER", raising=False)
+    assert tst.iti_licks() == (
+        "events: ITI licks (3-D whole-session lick table, context iti: after a trial's response window and before the "
+        "next spout arrival; no cue); excluded: post-cue (trial) licks")
+    b = tst.iti_bout_starts(2.0, (-2.0, 0.75))
+    assert "no lick onset in the preceding 2 s" in b and "within [-2, +0.75] s of the onset" in b
+    assert b.endswith("excluded: later licks of a bout, post-cue (trial) licks")
+    assert tst.cued_licks(first_only=True).startswith("events: FIRST post-cue lick of each trial")
+    u = tst.union(tst.iti_licks(), tst.cued_licks())
+    assert u.startswith("events: ITI licks") and "  AND  post-cue licks" in u and u.count("events:") == 1
+    assert tst.frames("RESTnl rest").startswith("frames: RESTnl rest")
+    assert tst.events("x", keep=["", "k"], excluded=["a", "b"]) == "events: x; k; excluded: a, b"
+
+
+@pytest.mark.parametrize("name", sorted(tst.ITI_FILTER_TEXT))
+def test_iti_filter_from_the_env(monkeypatch, name):
+    monkeypatch.setenv("WFIELD_ITI_FILTER", name)
+    assert f"; ITI filter {name}: {tst.ITI_FILTER_TEXT[name]};" in tst.iti_licks()
+    monkeypatch.setenv("WFIELD_ITI_FILTER", "nonsense")             # the drivers ignore an unknown name too
+    assert "ITI filter" not in tst.iti_licks()
+
+
+def test_filter_names_match_the_drivers():
+    from pathlib import Path
+    src = (Path(__file__).resolve().parents[1] / "scripts" / "iti_licks.py").read_text(encoding="utf-8")
+    assert "ITI_SUBSET_FILTERS = " + repr(tst.ITI_SUBSET_FILTERS).replace("'", '"') in src
+    src2 = (Path(__file__).resolve().parents[1] / "scripts" / "iti_lick_order.py").read_text(encoding="utf-8")
+    assert '{"gap2": gap2, "far1": far1, "gap2far1": gap2 & far1}' in src2
+    assert set(tst.ITI_REFIT_FILTERS) | set(tst.ITI_SUBSET_FILTERS) == set(tst.ITI_FILTER_TEXT)

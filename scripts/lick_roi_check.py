@@ -25,7 +25,15 @@ import iti_licks as il  # noqa: E402
 FRACS = (0.2, 0.3, 0.4, 0.5, 0.6)
 
 
+def trial_set_sentence() -> str:
+    """THE lick set of the figure (Priya 11-09): the licks behind the PRE Haufe maps it reads."""
+    import lick_refit_decoders as rd
+    return rd.pre_pattern_sets()
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt

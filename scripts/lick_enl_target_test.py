@@ -717,7 +717,8 @@ def _fig_classmatched_epochs(CM: pd.DataFrame, col: dict, mk: dict) -> None:
                  f"({'/'.join(AN)}) under each rule. Shaded pre = the pre-stroke LEVEL; few pre deviated trials.", fontsize=10)
     _wrap_titles(fig, sup_width=170)
     fig.tight_layout(rect=(0, 0.035, 1, 1))
-    save_png_svg(fig, FIG / "lick_enl_target_classmatched_epochs.png", dpi=110)
+    with _trial_set_for("A"):
+        save_png_svg(fig, FIG / "lick_enl_target_classmatched_epochs.png", dpi=110)
     plt.close(fig)
 
 
@@ -767,7 +768,8 @@ def figures() -> None:
                  "spans 0); clipped to [-3, 4]", fontsize=10)
     _wrap_titles(fig)
     fig.tight_layout(rect=(0, 0.04, 1, 1))
-    save_png_svg(fig, FIG / "lick_enl_target_tracking.png", dpi=110)
+    with _trial_set_for("C"):
+        save_png_svg(fig, FIG / "lick_enl_target_tracking.png", dpi=110)
     plt.close(fig)
     # 2 confusion pre vs acute (mean of animals) + change
     CF, CC = pd.read_csv(OUT / "confusion.csv"), pd.read_csv(OUT / "confusion_change.csv")
@@ -893,6 +895,41 @@ def figures() -> None:
     print(f"== figures in {FIG}")
 
 
+# ------------------------------------------------------------------------------------------------------------ CAPTIONS
+#: the attempt_coding classes PART A keeps (`precue_trials`)
+A_CLASSES = ("pre_hit", "hit", "incomplete")
+
+
+def trial_set_sentence(part: str = "all") -> str:
+    """The trials of this driver's figures (Priya 11-09): ``part`` "A" = the frozen position decoder's attempt_coding
+    trials, "C" = the ENL ridge trials at W 1.0 (tracking figure, + its settled subset), "all" = A + the ENL trials of
+    every window (confusion / off-target / decodability)."""
+    from wfield_local import trial_set_text as tst
+    lf = _LF_ARG or ead.LF_PRIMARY
+    a = tst.events("attempt_coding per-trial tables of the frozen pre-stroke POSITION decoder (windows precue = its "
+                   "lick-free ENL window, cue, lick; method dom)", unit="trials",
+                   keep=["attempt classes " + " + ".join(A_CLASSES), "executed bin = argmax of the 3-D landing / "
+                         "trajectory softmax (trials without 3-D licks have none)"],
+                   excluded=["other attempt classes", "early (June) pre sessions"])
+    settled = (f"settled subset: cue - spout strobe >= W + {SETTLE_GAP:g} s")
+    if part == "A":
+        return a
+    if part == "C":
+        return ead.trial_set_sentence(1.0, lf).replace("; excluded: ", f"; {settled}; excluded: ", 1)
+    enl = [ead.trial_set_sentence(W, lf) for W in sorted({W for W, _lf in VARIANTS}, reverse=True)]
+    return tst.union(a, *enl, unit="trials") + f"; {settled}"
+
+
+def _trial_set_for(part: str):
+    """Narrow the process declaration to ``part`` while a figure is saved (no-op when main() declared nothing)."""
+    import contextlib
+
+    from wfield_local import trial_set_text as tst
+    if tst.current() is None:
+        return contextlib.nullcontext()
+    return tst.active(None, text=trial_set_sentence(part))
+
+
 # ------------------------------------------------------------------------------------------------------------ MAIN
 def main() -> int:
     from wfield_local import config
@@ -903,6 +940,8 @@ def main() -> int:
     OUT.mkdir(parents=True, exist_ok=True)
     FIG.mkdir(parents=True, exist_ok=True)
     writeguard.assert_writable(OUT / "tracking.csv")
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())
     if "--plot-only" in sys.argv:
         figures()
         return 0

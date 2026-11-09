@@ -150,9 +150,23 @@ def check(S: pd.DataFrame, Dec: pd.DataFrame) -> None:
                   f"table {TABLE[f'dec_{name}'][i]:.2f}{flag}")
 
 
+def trial_set_sentence() -> str:
+    """The three sets of the validation panels (agreement over licks / jaw over trials / decoding over August licks)."""
+    from wfield_local import trial_set_text as tst
+    lat = tst.events("agreement r (lateral, angle): every v36 cam4 lick with a 3-D point at its peak, every session with "
+                     "3-D frames (June included; no trial gate)", unit="licks")
+    jaw = tst.events("agreement r (jaw): position-matched trials of the camera working period (cam4 jaw_lateral table)",
+                     unit="trials")
+    dec = tst.events("decoding: 3-D licks of the August pre sessions on camera working-period trials (contact + "
+                     "incomplete + jaw-only + no response), matched to v36 cam4 licks", unit="licks",
+                     excluded=["sessions without camera classes"])
+    return tst.union(lat, jaw, dec, unit="licks / trials")
+
+
 def main(argv=None) -> int:
     ap = _common.parser(__doc__)
     a = ap.parse_args(argv)
+    _common.declare(trial_set_sentence())          # THE TRIAL SET of every figure (Priya 11-09)
     OUT = a.out
     if a.plot_only:
         S, Dec = _common.load_figdata(OUT, NAME)

@@ -627,16 +627,44 @@ CAP_REST = (f"{lih.REST_TXT}. Lick-set panels: {lih.RAW_TXT} -- rest is a separa
             "and the lick-set numbers do not depend on the rest variant.")
 
 
-def _save(fig, path, dpi) -> None:
-    """save_png_svg with the rest set stated on the last title line (Priya 11-09)."""
+def _save(fig, path, dpi, sets=None) -> None:
+    """save_png_svg with the rest set stated on the last title line (Priya 11-09); ``sets`` = the event sets this
+    figure draws when they are not the driver's declared SETS1 (its trial-set caption, `trial_set_sentence`)."""
+    from wfield_local import trial_set_text as tst
     t = fig._suptitle
     if t is not None:
         t.set_text(t.get_text() + chr(10) + CAP_REST)
-    save_png_svg(fig, path, dpi=dpi)
+    if sets is None:
+        save_png_svg(fig, path, dpi=dpi)
+        return
+    with tst.active(None, text=trial_set_sentence(sets)):
+        save_png_svg(fig, path, dpi=dpi)
 
 
 SET_LAB = {"rest": lih.REST_SHORT, "iti_dock": "ITI LICKS, spout docked", "iti_all": "ITI LICKS, all",
            "cued": "CUED first licks"}
+#: the sets each figure group draws: plot1 (ihf_*) = SETS1; plot2's summary / change matrices = rest, iti_dock, cued;
+#: its recovery heatmap = every set of SETS2
+PLOT2_SETS = ("rest", "iti_dock", "cued")
+
+
+def set_sentence(st: str) -> str:
+    """One set in words: lick_interhemispheric's sets as there; iti_dock = the decoder ITI licks flagged docked."""
+    from wfield_local import trial_set_text as tst
+    if st != "iti_dock":
+        return lih.set_sentence(st)
+    return tst.events(f"iti_dock = the decoder's {tst.ITI_LICK_WHAT}",
+                      keep=[tst.iti_filter_text("dock") + " (iti_dock_audit.csv flag 'dock', matched on the peak time)",
+                            "finite side_ml and DAQ onset", "peak inside the imaging record by "
+                            f"{-il.LAGS_D[0]:g} s on each side", "finite 3-D lick angle (arcsin(side_ml / reach_mm)), "
+                            "reach_mm from the covref ITI table"],
+                      excluded=["ITI licks while the spout moves", "post-cue (trial) licks"])
+
+
+def trial_set_sentence(sets=tuple(SETS1)) -> str:
+    """The events of a figure that draws ``sets``, plus the per-session minimum that decides whether a set enters."""
+    from wfield_local import trial_set_text as tst
+    return f"{tst.union(*(set_sentence(s) for s in sets))}; a set enters a session only with >= {MIN_N} events"
 
 
 def _dots(ax, T, sel, xs, xlabels, per_animal=True):
@@ -759,7 +787,7 @@ def plot2() -> None:
                        "= low-dimensional synchrony (first-PC variance fraction, mean R2 on the global mean) for the slow "
                        f"(noise) and fast (within-window) units. Rest pre level all-pairs z = {pre:.2f}. PROVISIONAL n = 4"),
                  fontsize=9.5)
-    _save(fig, O2 / "figures" / "xa_summary.png", dpi=120)
+    _save(fig, O2 / "figures" / "xa_summary.png", dpi=120, sets=PLOT2_SETS)
     plt.close(fig)
     # FIGURES 2/3: change matrices (slow), raw and GS
     names = CM["names"]
@@ -802,7 +830,7 @@ def plot2() -> None:
                            "IPSILESIONAL (left hemisphere) block top / left, contralesional bottom / right, frontal -> "
                            "posterior within each; pooled = mean of per-animal changes; faded = fewer than 3 of 4 animals "
                            "share the pooled sign. PROVISIONAL n = 4", 170), fontsize=9.5)
-        _save(fig, O2 / "figures" / f"xa_change_matrices_{var}.png", dpi=110)
+        _save(fig, O2 / "figures" / f"xa_change_matrices_{var}.png", dpi=110, sets=PLOT2_SETS)
         plt.close(fig)
     # FIGURE 4 (supplement): recovery tests heatmap
     q = Rc.copy()
@@ -828,7 +856,7 @@ def plot2() -> None:
     fig.suptitle(_wrap(f"Does cross-area coupling track recovery within animals? {n_sig} of {n_all} tests p < 0.05 "
                        f"(uncorrected; ~{0.05 * n_all:.0f} expected by chance). * = p < 0.05; k/4 = animals with the pooled sign."),
                  fontsize=9.5)
-    _save(fig, O2 / "figures" / "xa_recovery.png", dpi=120)
+    _save(fig, O2 / "figures" / "xa_recovery.png", dpi=120, sets=SETS2)
     plt.close(fig)
 
 
@@ -842,6 +870,8 @@ def main() -> None:
                     help="rest set (lick_interhemispheric rest cache): restdock05 (default, SUPPLEMENT) / restnl (PRIMARY)")
     a = ap.parse_args()
     assert a.rest_variant == lih.REST_VARIANT
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence(SETS1))     # plot1; plot2's figures name their own sets (_save sets=)
     if a.plot_only:
         plot1()
         plot2()

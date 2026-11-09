@@ -230,12 +230,23 @@ def compute(labels: list, var: str = "restw") -> None:
             draw(stem)
 
 
+def trial_set_sentence(spout: str | None = None, var: str = "restw") -> str:
+    """THE trial + frame set of a figure (Priya 11-09): `lick_precue_restw.trial_set_sentence` (the same engaged trials,
+    checked equal to its cache per session, and the same rest baseline)."""
+    import lick_precue_restw as pr
+    return pr.trial_set_sentence(spout, var)
+
+
 def draw(stem: str) -> None:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     from wfield_local.orofacial_cohort import EPOCH_LINE
+
+    from wfield_local import trial_set_text as tst
     F = load_fd(stem)
+    tst.activate(None, text=trial_set_sentence("far_contra" if F.get("tag") else None,
+                                               "restnl" if F.get("sfx") else "restw"))   # this figure's set (11-09)
     ch = F["change"]
     rl = restnl.relabel if F.get("sfx") else (lambda t: t)
     fig, axs = plt.subplots(len(AREAS), 2, figsize=(11, 2.3 * len(AREAS)), sharex=True, squeeze=False,
@@ -293,6 +304,8 @@ def main() -> int:
     from wfield_local import analysis_kit as ak
     var = restnl.variant()
     sfx = restnl.SFX if var == "restnl" else ""
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence(None, var))             # draw() narrows it per figure
     if plot_only():
         for _sp, _mn, tag in SETS:
             for c in ("", "_change"):

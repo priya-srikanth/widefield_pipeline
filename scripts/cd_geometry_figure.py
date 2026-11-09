@@ -390,6 +390,12 @@ def figure(got, out, nulls=None, normalise=False):
     return out
 
 
+def trial_set_sentence(aligns, gate="lick") -> str:
+    """The trial set of the geometry figures: `cd_trajectories.trial_set_sentence` over the drawn alignments (the
+    lick-aligned arm is lick trials only whatever the gate)."""
+    return cdt.trial_set_sentence(list(aligns), gate)
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -412,6 +418,10 @@ def main(argv=None) -> int:
                             reference=args.reference,
                             mask_occluded=args.occluded == "drop")
     nulls = load_nulls(d, aligns=tuple(args.align), gate=args.gate)
+    # THE TRIAL SET on both figures (Priya 11-09): the alignments actually drawn, under this gate
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence([al for al in ALIGNS if any(k[1] == al for k in got)] or list(args.align),
+                                        args.gate))
     print(table(got, nulls))
     for p in problems:
         print(f"!! {p}")

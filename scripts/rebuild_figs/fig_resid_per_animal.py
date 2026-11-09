@@ -93,10 +93,16 @@ def draw(fd: dict, OUT: Path) -> None:
         plt.close(fig)
 
 
+def trial_set_sentence() -> str:
+    """The trials of the per-animal frozen-encoder residual change: far contra only."""
+    return _common.evoked_trials("far contra")
+
+
 def main(argv=None) -> int:
     ap = _common.parser(__doc__)
     ap.add_argument("--encoder-tag", default=_design_tag("gate-attempted_v7g3_t3d_basis"), help="frozen_encoder_<tag> run of this run")
     a = ap.parse_args(argv)
+    _common.declare(trial_set_sentence())          # THE TRIAL SET of every figure (Priya 11-09)
     a.out.mkdir(parents=True, exist_ok=True)
     fd = _common.load_figdata(a.out, NAME) if a.plot_only else compute(encoder_run(a.encoder_tag))
     if not a.plot_only:

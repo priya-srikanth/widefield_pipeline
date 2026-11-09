@@ -211,7 +211,28 @@ def plot(F: dict) -> None:
     plt.close(fig)
 
 
+def trial_set_sentence() -> str:
+    """THE lick sets of the figure (Priya 11-09): lick_balance_subsets' cued FIRST post-cue lick and ITI first lick after
+    >= il.GAP_MAIN s quiet (KEY per-lick cache rows, the run's ITI filter), + the recovery axes."""
+    import lick_refit_decoders as rd
+    tst = rd._tst()
+    extra = ["post-stroke licks outside the animal's pre 2.5-97.5 % angle range dropped (WFIELD_BAL_INSIDE=1)"] \
+        if INSIDE else []
+    if os.environ.get("WFIELD_BAL_FULL", "") == "1":
+        cued = tst.cued_licks(first_only=True, extra=["EVERY first post-cue lick (lick_firstlick_extract, no cap; "
+                                                      "WFIELD_BAL_FULL=1)", *extra])
+    else:
+        cued = rd.cued_set(first_only=True, extra=[*rd.KEY_ROWS, *extra])
+    return tst.union(
+        cued,
+        rd.iti_set(filt=None, extra=[*rd.KEY_ROWS, f"no lick onset (licks_all.csv) in the preceding {il.GAP_MAIN:g} s",
+                                     *extra]),
+        rd.recovery_axes())
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())
     if plot_only():
         plot(load_fd(f"lick_recovery_primary{SFX}"))
         return 0

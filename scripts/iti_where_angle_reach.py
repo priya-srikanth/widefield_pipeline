@@ -59,7 +59,7 @@ def predictions() -> pd.DataFrame:
                 elev = np.degrees(np.arctan2(C[:, 4], np.hypot(C[:, 0], C[:, 1])))   # below the axial plane
                 Y = np.column_stack([np.degrees(np.arctan2(C[:, 0], C[:, 3])), C[:, 2], elev, C[:, 3]])  # +sag
                 ok = np.isfinite(Y).all(1)
-                if ok.sum() >= 20:
+                if ok.sum() >= wd.MIN_SESSION_LICKS:
                     S[x] = (d["epoch"], X[ok] / SD.loc[x, names].to_numpy(float)[None, :], Y[ok],
                             np.asarray(d[f"{st}_pos"])[ok])
             pre = [x for x, v in S.items() if v[0] == "pre"]
@@ -150,12 +150,22 @@ def plot(F: dict) -> None:
     plt.close(fig)
 
 
+PREDS = "where_angle_reach_preds.csv.gz"
+
+
+def trial_set_sentence() -> str:
+    """ITI + cued licks (Priya 11-09); the subset ITI filter only when il.pred_file resolves to its filtered copy."""
+    return wd.both_caption(wd.subset_in(il.pred_file(PREDS)), tracked="angle, reach, elevation, sagittal")
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())
     if plot_only():                       # redraw from figdata only: no data, no bootstrap
         plot(load_fd("lick_where_angle_reach"))
         return 0
     il.split_only("iti_where_angle_reach")
-    f = il.pred_file("where_angle_reach_preds.csv.gz")      # basis-specific cache name (a plain cache is never reused)
+    f = il.pred_file(PREDS)      # basis-specific cache name (a plain cache is never reused)
     P = pd.read_csv(f) if f.exists() else predictions()
     if not f.exists():
         P.to_csv(f, index=False)

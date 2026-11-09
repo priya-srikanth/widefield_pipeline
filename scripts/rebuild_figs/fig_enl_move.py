@@ -85,11 +85,27 @@ def draw(d: pd.DataFrame, png: Path) -> None:
     plt.close(fig)
 
 
+def trial_set_sentence(csv=None, min_trials: int = 60) -> str:
+    """The trials of the movement-removal ENL decode (`scripts/enl_movement_multisession.enl_table`)."""
+    from wfield_local import lp_licks
+    from wfield_local import trial_set_text as tst
+    if csv is None or Path(csv) == CSV_DEF:
+        src, w = "DAQ licks (the 10-13 CSV)", 2.0
+    else:
+        src, w = f"{tst.lick_text()} of this run", lp_licks.enl_post_s()
+    return tst.events(f"engaged trials (next lick within the engaged cut; {src})", unit="trials",
+                      keep=[f"a lick-free {w:g} s window before the cue (slid; spout strobe >= {w:g} s before the cue)",
+                            ">= 90 % of the window's imaging frames present",
+                            f"sessions with >= {int(min_trials)} such trials", "no camera classes, no quit-tail removal"],
+                      excluded=["no-lick trials", "trials without a lick-free window"])
+
+
 def main(argv=None) -> int:
     ap = _common.parser(__doc__)
     ap.add_argument("--csv", type=Path, default=CSV_DEF, help="enl_movement_multisession CSV")
     ap.add_argument("--min-trials", type=int, default=60)
     a = ap.parse_args(argv)
+    _common.declare(trial_set_sentence(a.csv, a.min_trials))          # THE TRIAL SET of every figure (Priya 11-09)
     a.out.mkdir(parents=True, exist_ok=True)
     if a.plot_only:
         d = _common.load_figdata(a.out, NAME)["d"]

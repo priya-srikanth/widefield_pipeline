@@ -564,34 +564,39 @@ def _fig_13_state(out_dir, align, variant, wname):
             # produced a numpy truth-value error, which was the right failure: the honest fix is
             # not to fake points but to draw the bars with NO marks and say in the subtitle that
             # there are none, rather than to emit error bars the data cannot support.
-            q = ef.bar_row(
-                cvals, out_dir, name="epoch_13n_state_vs_position_cue",
-                title=("Of the performance each readout had ABOVE CHANCE, how much survived? "
-                       "-- frozen decoders, post-cue"),
-                ylabel="fraction of above-chance performance retained",
-                positions=["position (6-way)", "state (3-way)"],
-                tick_labels=["position\n(6-way)", "state\n(3-way)"], ylim=(0.0, 1.05),
-                # THE COUNTS ARE THE STATE ARM'S, and they are the honest ones to print: the
-                # position bar pools the same sessions minus PS92 8/12, which only this arm
-                # excludes. Passing {} printed "N=0 animals, n=0 sessions" over a figure built
-                # from eighty-nine.
-                subtitle=ef.stats_line(counts, notes=[
-                    "(accuracy - chance) / (1 - chance). Chance is 1/6 for the six-way position "
-                    "decoder and 1/3 for the three-way state decoder, so raw accuracies -- and raw "
-                    "DROPS -- are not comparable",
-                    "BOTH BARS ARE BALANCED ACCURACY: mean of the row recalls for position, "
-                    "sklearn balanced_accuracy_score for state. Both frozen on pre-stroke, pre "
-                    "column leave-one-session-out",
-                    "WHY NOT TRIAL-WEIGHTED for position (Priya asked): because THIS figure divides "
-                    "by (1 - chance), and a trial-weighted chance level is not 1/6 -- it moves with "
-                    "the trial mix, and the post-stroke mix is skewed by construction (PS93's "
-                    "trials are 49% far_center, where always-guess-far_center scores 0.490). "
-                    "Balanced accuracy has a null of exactly 1/6 however skewed either side is. The "
-                    "trial-weighted accuracies are 0.859 / 0.525 / 0.749 / 0.833 -- they barely "
-                    "differ here, so nothing in the reading turns on it; the 5c panel prints them",
-                    _acute_line(cvals, run_rec),
-                    "NO INTERVALS AND NO MARKS: each bar is one pooled number. The per-session "
-                    "distribution is on the figures either side of this one"]))
+            # TWO SETS ON ONE FIGURE (Priya 11-09: every figure states its trials): the state arm's segments AND the
+            # position decoder's post-cue trials; the rest of family 13 draws the segments alone (the driver's set)
+            from wfield_local import trial_set_text as _tst
+            from wfield_local.epoch_kit import state_vs_position_text
+            with _tst.active(None, text=state_vs_position_text()):
+                q = ef.bar_row(
+                    cvals, out_dir, name="epoch_13n_state_vs_position_cue",
+                    title=("Of the performance each readout had ABOVE CHANCE, how much survived? "
+                           "-- frozen decoders, post-cue"),
+                    ylabel="fraction of above-chance performance retained",
+                    positions=["position (6-way)", "state (3-way)"],
+                    tick_labels=["position\n(6-way)", "state\n(3-way)"], ylim=(0.0, 1.05),
+                    # THE COUNTS ARE THE STATE ARM'S, and they are the honest ones to print: the
+                    # position bar pools the same sessions minus PS92 8/12, which only this arm
+                    # excludes. Passing {} printed "N=0 animals, n=0 sessions" over a figure built
+                    # from eighty-nine.
+                    subtitle=ef.stats_line(counts, notes=[
+                        "(accuracy - chance) / (1 - chance). Chance is 1/6 for the six-way position "
+                        "decoder and 1/3 for the three-way state decoder, so raw accuracies -- and raw "
+                        "DROPS -- are not comparable",
+                        "BOTH BARS ARE BALANCED ACCURACY: mean of the row recalls for position, "
+                        "sklearn balanced_accuracy_score for state. Both frozen on pre-stroke, pre "
+                        "column leave-one-session-out",
+                        "WHY NOT TRIAL-WEIGHTED for position (Priya asked): because THIS figure divides "
+                        "by (1 - chance), and a trial-weighted chance level is not 1/6 -- it moves with "
+                        "the trial mix, and the post-stroke mix is skewed by construction (PS93's "
+                        "trials are 49% far_center, where always-guess-far_center scores 0.490). "
+                        "Balanced accuracy has a null of exactly 1/6 however skewed either side is. The "
+                        "trial-weighted accuracies are 0.859 / 0.525 / 0.749 / 0.833 -- they barely "
+                        "differ here, so nothing in the reading turns on it; the 5c panel prints them",
+                        _acute_line(cvals, run_rec),
+                        "NO INTERVALS AND NO MARKS: each bar is one pooled number. The per-session "
+                        "distribution is on the figures either side of this one"]))
             if q:
                 made.append(q)
 

@@ -137,7 +137,16 @@ def plot_by_epoch(F: dict) -> None:
     plt.close(fig)
 
 
+def trial_set_sentence() -> str:
+    """THE lick set of the figures (Priya 11-09): KEY per-lick cache rows (run's ITI filter), session x spout cells with
+    >= MIN licks."""
+    import lick_refit_decoders as rd
+    return rd.key_sets(filt=None, extra=[f"session x spout cells with >= {MIN} licks"])
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())
     if plot_only():
         F = load_fd("lick_position_per_spout")
         plot(F)

@@ -144,6 +144,12 @@ def draw(D: pd.DataFrame, T: pd.DataFrame, png: Path) -> None:
     plt.close(fig)
 
 
+def trial_set_sentence() -> str:
+    """The figure's trials (the WORKING sessions CSV; the lick-trial table has no figure)."""
+    return _common.working_trials(extra=["cue window; each session and its pre controls subsampled to common position "
+                                         "counts (whole blocks)"])
+
+
 def main(argv=None) -> int:
     ap = _common.parser(__doc__)
     ap.add_argument("--data-dir", type=Path, default=None, help="epoch data folder (default: this run's)")
@@ -153,6 +159,7 @@ def main(argv=None) -> int:
     ap.add_argument("--table-out", type=Path, default=None,
                     help="where the lick table + caption go (default --out)")
     a = ap.parse_args(argv)
+    _common.declare(trial_set_sentence())          # THE TRIAL SET of every figure (Priya 11-09)
     a.out.mkdir(parents=True, exist_ok=True)
     tab = a.table_out or a.out
     tab.mkdir(parents=True, exist_ok=True)

@@ -456,12 +456,20 @@ def pix_r(pix: dict) -> dict:
 
 
 # ------------------------------------------------------------------------------------------------ main / plot
+def trial_set_sentence() -> str:
+    """The lick set of this driver's figures (Priya 11-09; `wfield_local.trial_set_text`): the licks `iti_lick_order.predictions` selects (CONTRIB_HOOK), = the KEY set."""
+    import lick_covariate_reference as cv
+    return cv.key_lick_set()
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--jobs", type=int, default=6)
     ap.add_argument("--cache", type=Path, default=None)
     ap.add_argument("--plot-only", action="store_true")
     a = ap.parse_args()
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())          # every figure states its lick set (Priya 11-09)
     pd.set_option("display.width", 250)
     if a.plot_only:
         plot()

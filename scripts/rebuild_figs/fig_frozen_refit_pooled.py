@@ -9,7 +9,8 @@ PROVENANCE: recreated 2026-11-03 (cohort-1 rebuild, step 3) from the share-only
 
 INPUT (no decoding re-run): the per-session sidecar of the matched pooled-over-positions family (5rmo) written by
   wfield_local/epoch_accuracy.py::_frozen_vs_refit_overall(matched=True), cue window 0-2 s, working trials
-  (lick + miss-while-working; terminal quit excluded), the decoders of imaging Figs 4.1 / 4.2:
+  (camera gate: contact + incomplete inside the working period, stopped runs and quit tail removed), the decoders of
+  imaging Figs 4.1 / 4.2:
     labcams/grant_figures/epoch/data/epoch_5rmo_frozen_refit_overall_cue_working_sessions.csv
   Default = the original's hard-coded M: path (kept; --src overrides). Each session's value is TRIAL-POOLED over
   positions; gap = refit - frozen on the same trials. Pre = June + August (11 per animal). Cohort 1 only.
@@ -143,10 +144,18 @@ def plot(w, st, lv, png):
     plt.close(fig)
 
 
+def trial_set_sentence() -> str:
+    """The 5rmo sidecar's trials: camera working rows, cue window, pooled over positions."""
+    return _common.working_trials(extra=["cue window 0-2 s, trial-pooled over positions",
+                                         "frozen arm trained on a size-matched subset of pre blocks; refit and frozen "
+                                         "scored on the same trials"])
+
+
 def main(argv=None) -> int:
     ap = _common.parser(__doc__)
     ap.add_argument("--src", type=Path, default=SRC, help="epoch_5rmo_..._sessions.csv sidecar")
     a = ap.parse_args(argv)
+    _common.declare(trial_set_sentence())          # THE TRIAL SET of every figure (Priya 11-09)
     a.out.mkdir(parents=True, exist_ok=True)
     if a.plot_only:
         fd = _common.load_figdata(a.out, NAME)

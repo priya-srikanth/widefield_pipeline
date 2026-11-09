@@ -29,7 +29,17 @@ EPS = ["pre", "acute", "subacute", "chronic"]
 SETS = ["cued", "ITI"]
 
 
+def trial_set_sentence() -> str:
+    """The lick sets of lick_balance_order_primary (Priya 11-09): every KEY cued / ITI lick by lick order (balsub_order.csv
+    of lick_balance_subsets' default run), session x order cells with >= MIN_N licks."""
+    import lick_balance_subsets as lbs
+    cell = f"session x lick-order cells (orders 0-8, 9+ pooled) with >= {MIN_N} licks"
+    return lbs.set_sentence(("trial", "iti"), full=False, inside=False, extra=[cell])
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())          # every figure states its lick set (Priya 11-09)
     O = pd.read_csv(il.OUT_W / "balsub_order.csv")
     O = O[O.set.isin(SETS) & (O.n >= MIN_N)].copy()
     ok = (O.obs_c > 0) & (O.pred_c > 0) & (O.obs_i > 0) & (O.pred_i > 0)

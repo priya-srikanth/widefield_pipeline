@@ -236,7 +236,17 @@ def plot() -> None:
     plt.close(fig)
 
 
+def trial_set_sentence() -> str:
+    """The lick set of lick_ci_spout_epoch (Priya 11-09): baltarget_licks (lick_balance_target_model), session x spout
+    cells with >= MIN_LICKS licks."""
+    import lick_balance_target_model as tm
+    keep = [f"session x spout cells with >= {MIN_LICKS} licks"]
+    return tm.lick_set_sentence(cued_extra=keep, iti_extra=keep)
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())          # every figure states its lick set (Priya 11-09)
     if "--plot-only" not in sys.argv:
         L = pd.read_csv(OUT / "baltarget_licks.csv.gz")
         S = sessions(L)

@@ -136,7 +136,49 @@ XLAB = {"aim": f"aim deficit: {rm.AIM_LABEL[rm.AIM]} weighted signed aim, pre - 
 DEFICIT = "aim"
 
 
+def _order_filter() -> str:
+    """The ITI filter of the lick-order / like-for-like tables: a refit filter (iti_lick_order.ITI_FILTER) or a subset
+    filter (il.ITI_SUBSET, rows dropped downstream)."""
+    import iti_lick_order as lo
+    return lo.ITI_FILTER or il.ITI_SUBSET
+
+
+def trial_set_sentence(name: str) -> str:
+    """The lick events of one figure group (Priya 11-09), from the producing tables' own rules."""
+    import iti_where_decoder as wd
+    from wfield_local import trial_set_text as tst
+    of = _order_filter()
+    if name == "response":         # iti_hemo_check: the session files' bout starts, bout_gap >= GAP_MAIN, never subset
+        return tst.iti_bout_starts(il.GAP_MAIN, il.CUE_EXCL, filt="", extra=[
+            f"PETH window {il.LAGS_P[0]:+g}..{il.LAGS_P[-1]:+g} s inside the imaging"])
+    if name == "behaviour":
+        return rm.aim_caption(rm.AIM)
+    order = dict(tracked="lateral", spout="spout = the previous trial's spout (one of the six)", iti_extra=[],
+                 cued_extra=[])
+    if name == "lickclass":
+        order["iti_extra"] = [f"FIRST = the first lick of its bout (bouts split at gaps >= {il.BOUT_GAP:g} s), "
+                              "LATER = the rest"]
+        order["cued_extra"] = ["FIRST = lick_idx 0 of the trial, LATER = the rest"]
+    if name == "readout":
+        order["cued_extra"] = ["one panel: the FIRST post-cue lick of each trial only"]
+        if of and of != il.ITI_SUBSET:
+            # a REFIT filter reaches the like-for-like panels (lick-order cache) but not the decoder-r panels
+            # (where_decoder_z, filtered only in a subset run)
+            order["iti_extra"] = ["the ITI filter applies to the like-for-like panels only (decoder-r panels: every "
+                                  "ITI lick)"]
+    s = wd.both_caption(of, **order)
+    if name == "lickclass":
+        s += "; panels: all spouts, and far-contra licks only"
+    return s
+
+
 def run_group(name: str, dfc: dict) -> pd.DataFrame:
+    from wfield_local import trial_set_text as tst
+    with tst.active(None, text=trial_set_sentence(name)):
+        return _run_group(name, dfc)
+
+
+def _run_group(name: str, dfc: dict) -> pd.DataFrame:
     build, models, ncols, title = GROUPS[name]
     print(f"\n==================== {name} ====================")
     items = build()

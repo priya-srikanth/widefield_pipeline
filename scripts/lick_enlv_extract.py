@@ -45,6 +45,8 @@ POOL = ["ALM", "tjM1", "SSp-m", "SSp-n", "SSs"]          # lick_recovery_primary
 LAGS_A = np.round(np.arange(-1.0, 4.0001, 0.05), 3)       # arrival-aligned lags
 POS6 = ["close_ipsi", "close_mid", "close_contra", "far_ipsi", "far_mid", "far_contra"]
 VERSION = 1
+ARR_FREE_PRE_S = 1.0         # ARRIVAL check: no lick onset of any context from this long before the strobe to the cue
+ARR_MIN_SETTLE_S = 2.0       # ARRIVAL check: cue >= strobe + this
 
 
 def _wm(lo_, hi_):
@@ -92,8 +94,8 @@ def one(item) -> dict:
     # ARRIVAL: lick-free trials (no onset of any context in [strobe - 1, cue]), cue >= strobe + 2
     on = np.sort(A.daq_on_s.to_numpy(float)[np.isfinite(A.daq_on_s.to_numpy(float))])
     s, c = T.strobe_s.to_numpy(float), T.cue_s.to_numpy(float)
-    n_in = np.searchsorted(on, c, side="right") - np.searchsorted(on, s - 1.0)
-    free = np.isfinite(s) & np.isfinite(c) & (c - s >= 2.0) & (n_in == 0) & (s + LAGS_A[0] > ft[0]) & \
+    n_in = np.searchsorted(on, c, side="right") - np.searchsorted(on, s - ARR_FREE_PRE_S)
+    free = np.isfinite(s) & np.isfinite(c) & (c - s >= ARR_MIN_SETTLE_S) & (n_in == 0) & (s + LAGS_A[0] > ft[0]) & \
         (s + LAGS_A[-1] < ft[-1])
     # per spout (+ index 6 = all spouts): mean trace and trial count per lag; samples at / after the cue masked
     arr_mean = np.full((7, len(LAGS_A), len(cols)), np.nan)

@@ -229,3 +229,16 @@ def pinned_epoch_boundaries(monkeypatch):
     epochs.clear_resolved()
     yield
     epochs.clear_resolved()
+
+
+@pytest.fixture(autouse=True)
+def no_leaked_trial_set():
+    """A driver-level `trial_set_text.declare` (Priya 11-09) is PROCESS state: a test that calls a driver's main would
+    otherwise stamp every later test's figures (and break the byte-identical no-trial-set checks). Cleared around
+    every test, together with any context activation."""
+    from wfield_local import trial_set_text as tst
+    tst.declare()
+    tok = tst._ACTIVE.set(None)
+    yield
+    tst._ACTIVE.reset(tok)
+    tst.declare()

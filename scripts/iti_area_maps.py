@@ -556,21 +556,41 @@ def compare_draw(F: dict) -> None:
     plt.close(fig)
 
 
-if __name__ == "__main__":
+def trial_set_sentence(split: bool = False, cued: bool = False, spout: str | None = None) -> str:
+    """The lick set of this run's figures (Priya 11-09). ITI: bout starts (gap >= GAP_MAIN) with the ITI SUBSET filter
+    (`il.subset_bouts`), >= 10 per session (>= 5 for one previous spout, `split_maps`); cued (--split --cued): the trial
+    first licks of the session files (engaged trials), one target spout when --spout is given."""
+    min_n = 10 if spout is None else 5
+    if split and cued:
+        return il.trial_set_first_licks(min_n=min_n, extra=[f"target spout {spout} only"] if spout else [])
+    return il.trial_set_bouts(il.GAP_MAIN, min_n=min_n, filt=il.ITI_SUBSET,
+                              extra=[f"previous trial at {spout} only"] if split and spout else [])
+
+
+def cli() -> int:
+    """The command line (sys.argv): every figure of the run states its lick set (`trial_set_sentence`, declared before
+    any draw, so the --plot-only replot carries it too)."""
+    from wfield_local import trial_set_text as _tst
     if "--split" in sys.argv:                            # ALM / tjM1 split maps; --spout <pos> for one previous spout
         sp_ = sys.argv[sys.argv.index("--spout") + 1] if "--spout" in sys.argv else None
         cu_ = "--cued" in sys.argv                       # first cued lick instead of ITI bout starts
+        _tst.declare(text=trial_set_sentence(True, cu_, sp_))
         if plot_only():
             draw_maps(f"lick_{'cued' if cu_ else 'iti'}_area_maps_split" + ("" if sp_ is None else "_" + sp_.replace("_", "")))
             draw_levels(f"lick_{'cued' if cu_ else 'iti'}_area_maps_split" + ("" if sp_ is None else "_" + sp_.replace("_", "")))
         else:
             split_maps(sp_, cued=cu_)
-        raise SystemExit(0)
+        return 0
+    _tst.declare(text=trial_set_sentence())              # the four ITI figures (and --compare / --plot-only)
     if plot_only():                                      # redraw from figdata only
         draw_all(("compare",) if "--compare" in sys.argv else ("maps", "peth", "groups", "compare"))
-        raise SystemExit(0)
+        return 0
     if "--compare" in sys.argv:                          # only the comparison figure
         labels_ = il.labels()
         compare(*session_table({x: il.subset_bouts(il._load(x), x) for x in labels_}))
-        raise SystemExit(0)
-    raise SystemExit(main())
+        return 0
+    return main()
+
+
+if __name__ == "__main__":
+    raise SystemExit(cli())

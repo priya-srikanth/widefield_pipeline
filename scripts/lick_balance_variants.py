@@ -242,7 +242,16 @@ def plot(F: dict) -> None:
     plt.close(fig)
 
 
+def trial_set_sentence() -> str:
+    """The lick sets of the balance-definition sweep (Priya 11-09): all cued, first cued, all ITI and ITI-after-quiet
+    licks of the KEY set (SETS)."""
+    import lick_balance_subsets as lbs
+    return lbs.set_sentence(tuple(SETS), full=False, inside=False, subset=False)
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())          # every figure states its lick set (Priya 11-09)
     if plot_only():
         plot(load_fd("lick_balance_variants"))
         return 0

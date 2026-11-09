@@ -231,13 +231,126 @@ def variant_from_name(stem: str):
     return None, None
 
 
+# ----------------------------------------------------------------------------------------------- event / frame sets
+# NOT EVERY FIGURE IS DRAWN ON A TRIAL CLASS (Priya 11-09: "EVERY figure must state EXACTLY which trials were included
+# / excluded"). The lick families draw LICK EVENTS (cued first licks, ITI licks with their filters, bout starts), the
+# rest families draw REST FRAMES, the interhemispheric family both. Their sentence is built here from the defining
+# parameters the driver passes (its own constants, never a copy), in the same "<what>: ...; excluded: ..." shape, and
+# declared like a trial class (`declare(text=...)`).
+
+#: the ITI lick filters by name (WFIELD_ITI_FILTER), their definitions in words. REFIT filters (`iti_lick_order`:
+#: decoder refit on the filtered set) and SUBSET filters (`iti_licks.ITI_SUBSET_FILTERS`: frozen all-ITI decoder,
+#: rows dropped downstream; flags from `iti_dock_audit.flags`).
+ITI_FILTER_TEXT = {
+    "gap2": "no lick onset in the preceding 2 s",
+    "far1": ">= 1 s after the response-window end and >= 1 s before the next spout arrival",
+    "gap2far1": "no lick onset in the preceding 2 s, and >= 1 s after the response-window end and >= 1 s before the "
+                "next spout arrival",
+    "dock": "onset while the spout is DOCKED (dock .. next trial_start)",
+    "dock01": "onset while the spout is docked, >= 0.1 s after the dock and >= 0.1 s before the next trial_start",
+    "gap2dock": "onset while the spout is docked and no lick onset in the preceding 2 s",
+    "far1s": ">= 1 s after the response-window end and >= 1 s before the next spout arrival (subset of the frozen "
+             "all-ITI predictions, no refit)",
+    "notdock": "onset while the spout MOVES (before / during retraction, outbound to the next target)",
+    "notdock_n": "onset while the spout moves, randomly drawn to the number of docked licks per session x gap stratum "
+                 "(seed 0)",
+}
+ITI_REFIT_FILTERS = ("gap2", "far1", "gap2far1")
+ITI_SUBSET_FILTERS = ("dock", "dock01", "gap2dock", "far1s", "notdock", "notdock_n")
+#: what an ITI lick is, in the 3-D whole-session lick table (`iti_licks.lick_table`, context "iti")
+ITI_CONTEXT = ("3-D whole-session lick table, context iti: after a trial's response window and before the next spout "
+               "arrival; no cue")
+ITI_LICK_WHAT = f"ITI licks ({ITI_CONTEXT})"
+CUED_LICK_WHAT = "post-cue licks (3-D lick table, context post_cue: inside a trial's response window)"
+
+
+def iti_filter() -> str:
+    """The ITI lick filter this run applies (WFIELD_ITI_FILTER), "" for none / an unknown name (as the drivers read it)."""
+    import os
+    f = os.environ.get("WFIELD_ITI_FILTER", "")
+    return f if f in ITI_FILTER_TEXT else ""
+
+
+def iti_filter_text(name: str | None = None) -> str:
+    """``"ITI filter <name>: <definition>"`` for ``name`` (default: the run's), "" when no filter applies."""
+    name = iti_filter() if name is None else name
+    if not name:
+        return ""
+    return f"ITI filter {name}: {ITI_FILTER_TEXT.get(name, name)}"
+
+
+def events(what: str, *, keep=(), excluded=None, unit: str = "events") -> str:
+    """THE event-set sentence: ``"<unit>: <what>; <keep 1>; <keep 2>; excluded: <excluded>"`` (empty parts dropped).
+    ``keep`` = the inclusion rules beyond ``what`` (a filter, a window), each a phrase; ``excluded`` a phrase or list."""
+    parts = [f"{unit}: {what}"] + [str(k) for k in (keep or ()) if k]
+    if excluded:
+        ex = excluded if isinstance(excluded, str) else ", ".join(str(e) for e in excluded if e)
+        if ex:
+            parts.append(f"excluded: {ex}")
+    return "; ".join(parts)
+
+
+def frames(what: str, *, keep=(), excluded=None) -> str:
+    """A frame-set sentence (rest baselines, quiet periods): `events` with the unit "frames"."""
+    return events(what, keep=keep, excluded=excluded, unit="frames")
+
+
+def iti_licks(*, filt: str | None = None, extra=(), excluded=("post-cue (trial) licks",)) -> str:
+    """Every ITI lick of the 3-D table (+ the run's ITI filter, or ``filt``; ``extra`` = the driver's own rules)."""
+    return events(ITI_LICK_WHAT, keep=[iti_filter_text(filt), *extra], excluded=excluded)
+
+
+def iti_bout_starts(gap_s: float, cue_excl=(-2.0, 0.75), *, filt: str | None = None, extra=()) -> str:
+    """ITI BOUT-START licks (`iti_licks.extract` (A)): onset with no lick onset in the preceding ``gap_s`` and no cue /
+    spout strobe within ``cue_excl`` of the onset."""
+    a, b = (float(x) for x in cue_excl)
+    return events(f"ITI bout-start licks ({ITI_CONTEXT})",
+                  keep=[f"no lick onset in the preceding {float(gap_s):g} s",
+                        f"no cue / spout strobe within [{a:+g}, {b:+g}] s of the onset", iti_filter_text(filt), *extra],
+                  excluded=("later licks of a bout", "post-cue (trial) licks"))
+
+
+def cued_licks(*, first_only: bool = False, extra=(), excluded=None) -> str:
+    """Post-cue (trial) licks of the 3-D table; ``first_only`` = the first post-cue lick of each trial (lick_idx 0)."""
+    what = CUED_LICK_WHAT if not first_only else CUED_LICK_WHAT.replace("post-cue licks", "FIRST post-cue lick of each "
+                                                                        "trial (lick_idx 0)")
+    return events(what, keep=extra, excluded=excluded if excluded is not None
+                  else (["later licks of the trial"] if first_only else []) + ["ITI licks"])
+
+
+def union(*sentences: str, unit: str = "events") -> str:
+    """Two or more sets drawn together, e.g. ITI and cued licks: ``"events: A; ...  AND  B; ..."``."""
+    body = [s.split(": ", 1)[1] if s.startswith(unit + ": ") else s for s in sentences if s]
+    return f"{unit}: " + "  AND  ".join(body)
+
+
 # ----------------------------------------------------------------------------------------------- the active set
+#: A driver-level declaration (`declare`): the trial set of EVERY figure this process draws, unless a renderer
+#: activated a narrower one (`activate` / `active`, a context variable) -- and visible from worker THREADS too, which
+#: do not inherit context variables.
+_PROCESS = None
+#: `activate(None)` = "no trial set here", which also hides a process declaration (a replot of a bundle that named none)
+_OFF = ("off",)
+
+
 def activate(variant: str | None, align: str | None = None, *, text: str | None = None):
     """Declare the trial set the figures drawn from now on show; returns a token for `deactivate`. ``text`` = a
-    literal sentence (a replot of a bundle that recorded one). ``variant`` None clears it."""
+    literal sentence (a replot of a bundle that recorded one, or an event / frame set). ``variant`` None clears it."""
     if variant is not None and text is None and variant not in VARIANTS:
         raise ValueError(f"trial_set_text: unknown trial class {variant!r}")
-    return _ACTIVE.set(None if (variant is None and text is None) else (variant, align, text))
+    install_savefig_hook()
+    return _ACTIVE.set(_OFF if (variant is None and text is None) else (variant, align, text))
+
+
+def declare(variant: str | None = None, align: str | None = None, *, text: str | None = None) -> None:
+    """THE DRIVER-LEVEL DECLARATION: every figure this process saves from now on carries this set (a narrower
+    `activate` / `active` wins while it is open). ``declare()`` with nothing clears it. Covers figures saved by a plain
+    ``fig.savefig`` / ``plt.savefig`` as well (`install_savefig_hook`)."""
+    global _PROCESS
+    if variant is not None and text is None and variant not in VARIANTS:
+        raise ValueError(f"trial_set_text: unknown trial class {variant!r}")
+    install_savefig_hook()
+    _PROCESS = None if (variant is None and text is None) else (variant, align, text)
 
 
 def deactivate(token=None) -> None:
@@ -257,16 +370,51 @@ def active(variant: str | None, align: str | None = None, *, text: str | None = 
 
 
 def current():
-    """``(variant, align, text)`` of the active trial set, or None."""
-    return _ACTIVE.get()
+    """``(variant, align, text)`` of the active trial set (the open `activate`, else the process `declare`), or None."""
+    cur = _ACTIVE.get()
+    if cur is _OFF:
+        return None
+    return cur if cur is not None else _PROCESS
 
 
 def current_sentence() -> str | None:
-    cur = _ACTIVE.get()
+    cur = current()
     if not cur:
         return None
     variant, _align, text = cur
     return text if text else sentence(variant)
+
+
+# ----------------------------------------------------------------------------------------------- every savefig
+_HOOKED = False
+
+
+def install_savefig_hook() -> None:
+    """Make ``matplotlib.figure.Figure.savefig`` stamp the active trial set (idempotent; installed by the first
+    `activate` / `declare`). Drivers that write with a plain ``fig.savefig`` / ``plt.savefig`` are then covered by their
+    one declaration; the stamp itself is idempotent (gid mark), so the shared save paths that stamp first are unchanged,
+    and with no active set the hook does nothing (a PNG is byte-identical to a plain savefig)."""
+    global _HOOKED
+    if _HOOKED:
+        return
+    try:
+        from matplotlib.figure import Figure
+    except Exception:                                                  # noqa: BLE001 - no matplotlib, no figures
+        return
+    orig = Figure.savefig
+
+    def savefig(self, fname, *args, **kwargs):
+        if current() is not None:
+            try:
+                stamp(self, below=kwargs.get("bbox_inches") == "tight")
+            except Exception:                                          # noqa: BLE001 - never cost the figure
+                pass
+        return orig(self, fname, *args, **kwargs)
+
+    savefig.__wrapped__ = orig
+    savefig.__doc__ = orig.__doc__
+    Figure.savefig = savefig
+    _HOOKED = True
 
 
 # ----------------------------------------------------------------------------------------------- on the figure

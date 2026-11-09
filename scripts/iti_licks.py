@@ -1073,7 +1073,8 @@ def direction_draw(F: dict) -> None:
                  "sessions +- SEM.\n" + SIG_NOTE + "\nRight: " + FROZEN_TAG + ", applied unchanged to every session (pre "
                  "scored leave-one-session-out).", fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.88))
-    save_png_svg(fig, OUT / "figures" / tagged("lick_direction_decoding.png"), dpi=110)
+    with _ts("direction"):
+        save_png_svg(fig, OUT / "figures" / tagged("lick_direction_decoding.png"), dpi=110)
     plt.close(fig)
 
 
@@ -1091,11 +1092,12 @@ def ramp_figures(D: dict | None, RR: pd.DataFrame | None, plot_only: bool = Fals
 
     from wfield_local.orofacial_cohort import EPOCH_LINE as colors   # the epoch palette used across the page
     for kind, iso, fname, what in RAMP_FIGS:
-        if plot_only:
-            from figdata import load_fd
-            ramp_draw(plt, load_fd(Path(fname).stem), colors, OUT / "figures" / fname)
-        else:
-            ramp_figure(plt, D, RR, kind, iso, colors, OUT / "figures" / fname, what)
+        with _ts("ramp_isolated" if iso else "ramp"):
+            if plot_only:
+                from figdata import load_fd
+                ramp_draw(plt, load_fd(Path(fname).stem), colors, OUT / "figures" / fname)
+            else:
+                ramp_figure(plt, D, RR, kind, iso, colors, OUT / "figures" / fname, what)
 
 
 def summarise(labels: list[str]) -> None:
@@ -1259,7 +1261,8 @@ def roi_draw(F: dict) -> None:
                  f"{F['roi_frac']:.0%} of MOp\nimage left = ipsilesional", fontsize=9)
     ax.axis("off")
     (OUT / "figures").mkdir(parents=True, exist_ok=True)
-    save_png_svg(fig, OUT / "figures" / "lick_iti_rois.png", dpi=120, bbox_inches="tight")
+    with _ts("rois"):
+        save_png_svg(fig, OUT / "figures" / "lick_iti_rois.png", dpi=120, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -1479,7 +1482,8 @@ def frozen_tc_draw(F: dict) -> None:
                  "sessions leave-one-session-out), applied unchanged to every session. Line = mean over sessions (all animals "
                  "pooled), band = SEM.\n" + SIG_NOTE, fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.91))
-    save_png_svg(fig, OUT / "figures" / tagged("lick_frozen_timecourse.png"), dpi=110)
+    with _ts("frozen"):
+        save_png_svg(fig, OUT / "figures" / tagged("lick_frozen_timecourse.png"), dpi=110)
     plt.close(fig)
 
 
@@ -1628,7 +1632,8 @@ def key_figures_plot(only: tuple = KEY_STEMS) -> None:
                      "within animal to its own pre mean. * = change from pre with "
                      "95% nested-bootstrap CI (animals > sessions) excluding 0.", fontsize=9.5, wrap=True)
         fig.tight_layout(rect=(0.01, 0, 0.99, 0.9))
-        save_png_svg(fig, OUT / "figures" / tagged("lick_frozen_summary.png"), dpi=110)
+        with _ts("frozen"):
+            save_png_svg(fig, OUT / "figures" / tagged("lick_frozen_summary.png"), dpi=110)
         plt.close(fig)
     if "lick_iti_ramp_sessions" in only:
         F = load_fd("lick_iti_ramp_sessions")
@@ -1661,7 +1666,8 @@ def key_figures_plot(only: tuple = KEY_STEMS) -> None:
                      "each session divided by its animal's PRE amplitude at the lick (within-animal normalized).\n" + SIG_NOTE,
                      fontsize=9.5, wrap=True)
         fig.tight_layout(rect=(0, 0, 1, 0.9))
-        save_png_svg(fig, OUT / "figures" / "lick_iti_ramp_sessions.png", dpi=110)
+        with _ts("ramp"):
+            save_png_svg(fig, OUT / "figures" / "lick_iti_ramp_sessions.png", dpi=110)
         plt.close(fig)
     if "lick_iti_ramp_summary" in only:
         F = load_fd("lick_iti_ramp_summary")
@@ -1682,7 +1688,8 @@ def key_figures_plot(only: tuple = KEY_STEMS) -> None:
                      "-1.0..-0.5 s, build-up -1.5..-1.0 s before the lick. * = change from pre with 95% "
                      "nested-bootstrap CI (animals > sessions) excluding 0.", fontsize=9.5, wrap=True)
         fig.tight_layout(rect=(0.01, 0, 0.99, 0.93))
-        save_png_svg(fig, OUT / "figures" / "lick_iti_ramp_summary.png", dpi=110)
+        with _ts("ramp"):
+            save_png_svg(fig, OUT / "figures" / "lick_iti_ramp_summary.png", dpi=110)
         plt.close(fig)
 
 
@@ -2037,7 +2044,8 @@ def controls_plot(only: tuple = tuple(CTRL_FIGS)) -> None:
         fig.suptitle(title, fontsize=9.5, wrap=True)
         fig.tight_layout(rect=rect)
         (OUT_W / "figures").mkdir(parents=True, exist_ok=True)
-        save_png_svg(fig, OUT_W / "figures" / f"{stem}.png", dpi=110)
+        with _ts("first" if stem == "fr_lick_variance" else "ramp"):
+            save_png_svg(fig, OUT_W / "figures" / f"{stem}.png", dpi=110)
         plt.close(fig)
 
 
@@ -2198,7 +2206,8 @@ def binned_plot() -> None:
                  "on PRE r only). Left: pre-stroke leave-one-session-out r; right: chronic r normalized to each animal's pre.",
                  fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.93))
-    save_png_svg(fig, OUT / "figures" / tagged("lick_binned_sweep.png"), dpi=110)
+    with _ts("frozen"):
+        save_png_svg(fig, OUT / "figures" / tagged("lick_binned_sweep.png"), dpi=110)
     plt.close(fig)
     F = load_fd(tagged("lick_binned_summary"))
     fig, axs = plt.subplots(2, 6, figsize=(22, 8))
@@ -2221,8 +2230,95 @@ def binned_plot() -> None:
                  "actual lateral tongue-tip position.\n(One number per session; dots = sessions, all animals pooled; black = mean +- SEM). * = nested-bootstrap change "
                  "from pre (animals > sessions) excluding 0.", fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0.01, 0, 0.99, 0.91))
-    save_png_svg(fig, OUT / "figures" / tagged("lick_binned_summary.png"), dpi=110)
+    with _ts("frozen"):
+        save_png_svg(fig, OUT / "figures" / tagged("lick_binned_summary.png"), dpi=110)
     plt.close(fig)
+
+
+# ------------------------------------------------------------------------------------------------ THE LICK SET OF EACH FIGURE
+# (Priya 11-09: "EVERY figure must state EXACTLY which trials were included / excluded"). The sentences are built from this
+# module's own constants (GAP_MAIN, BOUT_GAP, CUE_EXCL, N_TRIAL_MAX) through `wfield_local.trial_set_text`; the drivers of
+# the ITI family compose theirs from these helpers. Nothing is declared at import (127 scripts import this module): `main`
+# switches the per-figure captions on (env `TS_ENV`), and every other driver declares its own set in its main.
+def trial_set_bouts(gap: float = GAP_MAIN, *, isolated: bool = False, min_n: int | None = 10, filt: str = "",
+                    extra=()) -> str:
+    """Bout-start ITI licks of the session files (`extract` (A)): no lick onset in the preceding ``gap`` s, no cue /
+    spout strobe within CUE_EXCL of the onset; ``isolated`` = also no lick following (the 'iti_isolated' kind);
+    ``filt`` = the ITI filter actually applied (a SUBSET filter through `subset_bouts`), "" = none."""
+    from wfield_local import trial_set_text as tst
+    keep = (["ISOLATED: no lick onset following within 0.75 s"] if isolated else []) + list(extra)
+    if min_n:
+        keep.append(f"sessions with >= {min_n} such licks")
+    return tst.iti_bout_starts(gap, CUE_EXCL, filt=filt, extra=keep)
+
+
+def trial_set_iti(*, min_n: int | None = None, filt: str = "", extra=()) -> str:
+    """The ITI licks of the session files (`extract` (B), `iti_X`): every 3-D ITI lick with a lateral tongue-tip
+    position inside the imaging; ``filt`` = the ITI filter actually applied ("" = none)."""
+    from wfield_local import trial_set_text as tst
+    keep = ["with a 3-D lateral position", *extra] + ([f"sessions with >= {min_n} such licks"] if min_n else [])
+    return tst.iti_licks(filt=filt, extra=keep)
+
+
+def trial_set_cued(*, min_n: int | None = None, n_matched: bool = False, extra=()) -> str:
+    """The post-cue licks of the session files (`extract` (B), `tr_X`): a random N_TRIAL_MAX per session when there
+    are more (seed 0); ``n_matched`` = then drawn to the session's ITI-lick count (`decode_session`)."""
+    from wfield_local import trial_set_text as tst
+    keep = ["with a 3-D lateral position", f"a random {N_TRIAL_MAX} per session when there are more (seed 0)"]
+    if n_matched:
+        keep.append("then randomly drawn to the session's ITI-lick count")
+    keep += list(extra) + ([f"sessions with >= {min_n} such licks"] if min_n else [])
+    return tst.cued_licks(extra=keep)
+
+
+def trial_set_first_licks(*, min_n: int | None = None, extra=()) -> str:
+    """Trial FIRST licks of the session files (`extract`, first_*): per engaged trial (the orofacial engagement gate of
+    `combined_encoding.load_behaviour`), the first behavior lick onset between the cue and the trial stop."""
+    from wfield_local import orofacial_cohort as oc
+    from wfield_local import trial_set_text as tst
+    gate = oc.ENGAGEMENT_GATE if oc.ENGAGED_ONLY else "off (all trials)"
+    keep = [f"engaged trials only (orofacial engagement gate {gate})",
+            "the first lick onset (orofacial licks.csv) between the cue and the trial stop (cue + 3.5 s without one)",
+            *extra] + ([f"sessions with >= {min_n} such licks"] if min_n else [])
+    return tst.events("trial FIRST licks (one per trial, onset-aligned)", keep=keep,
+                      excluded=["later licks of the trial", "trials with no lick in that window", "non-engaged trials",
+                                "ITI licks"])
+
+
+def trial_set_sentence(group: str) -> str | None:
+    """The lick set of each figure group of THIS script (None = the figure shows no lick set: the ROI placement)."""
+    from wfield_local import trial_set_text as tst
+    if group == "rois":
+        return None
+    if group == "ramp":                     # lick_iti_ramp_peth, lick_iti_ramp_sessions / _summary, the two controls
+        return trial_set_bouts(GAP_MAIN)
+    if group == "ramp_isolated":
+        return trial_set_bouts(GAP_MAIN, isolated=True)
+    if group == "direction":                # page 3.7: per-session decoder ITI vs n-matched in-trial + frozen ITI panel
+        return tst.union(trial_set_iti(extra=["per-session decoder: sessions with >= 50 ITI licks; frozen panel: "
+                                              "sessions with >= 20, animals with >= 3 pre sessions"]),
+                         trial_set_cued(n_matched=True, extra=["sessions with >= 50 ITI licks"]))
+    if group == "frozen":                   # 3.8 time course + summary, binned sweep + summary
+        ex = ["animals with >= 3 pre sessions"]
+        return tst.union(trial_set_iti(min_n=20, extra=ex), trial_set_cued(min_n=20, extra=ex))
+    if group == "first":                    # fr_lick_variance: the cue / first-lick windows of trial first licks
+        return trial_set_first_licks()
+    raise ValueError(f"iti_licks.trial_set_sentence: unknown figure group {group!r}")
+
+
+#: per-figure captions on (set by `main` in the ENVIRONMENT, so spawned workers see the same switch -- never a module
+#: global, which a spawned child would re-import as False): importers that call a draw function draw without one
+TS_ENV = "WFIELD_ITI_TRIAL_SET_CAPTIONS"
+
+
+def _ts(group: str):
+    """The context that stamps figure group ``group``'s lick set on every save inside it (a no-op unless `main` ran)."""
+    import contextlib
+    if os.environ.get(TS_ENV) != "1":
+        return contextlib.nullcontext()
+    from wfield_local import trial_set_text as tst
+    txt = trial_set_sentence(group)
+    return tst.active(None, text=txt) if txt else tst.active(None)
 
 
 def main(argv=None) -> int:
@@ -2246,6 +2342,7 @@ def main(argv=None) -> int:
                          "this script, or only the family of --rois-only / --ramp / --plot-direction / --plot-frozen-tc / "
                          "--key / --controls / --binned when one is given")
     a = ap.parse_args(argv)
+    os.environ[TS_ENV] = "1"              # every figure below states its lick set (`trial_set_sentence`, Priya 11-09)
     if a.plot_only:
         fam = {"rois": a.rois_only, "ramp": a.ramp, "dir": a.plot_direction, "tc": a.plot_frozen_tc, "key": a.key,
                "ctrl": a.controls, "bin": a.binned}

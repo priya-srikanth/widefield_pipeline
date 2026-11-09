@@ -183,6 +183,14 @@ def draw(fd: dict, out_png: Path) -> Path:
     return out_png
 
 
+def trial_set_sentence() -> str:
+    """THE FRAME SET of fig 4 (Priya 11-09): R5 rest frames throughout; panel C's y-axis = the still and far-from-quiet-
+    event R5 chunks (summarise_gain_bio `still_far`)."""
+    import gain_bio as gb
+    import summarise_gain_bio as sgb
+    return gb.frame_set_sentence("R5", extra=[f"panel C y-axis: {sgb.still_text()} AND {gb._far_text()}"])
+
+
 def main(argv=None) -> int:
     import argparse
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
@@ -192,6 +200,8 @@ def main(argv=None) -> int:
     ap.add_argument("--plot-only", action="store_true", help="redraw from <out>/data/gain_fig4_figdata.pkl")
     a = ap.parse_args(argv)
     gb_common.apply_args(a)
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())
     out = gb_common.out_root()
     fd = _common.load_figdata(out, NAME) if a.plot_only else load(out / "tables")
     if not a.plot_only:

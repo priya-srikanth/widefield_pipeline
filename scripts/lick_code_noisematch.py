@@ -661,12 +661,19 @@ def figures():
     print("figures written", flush=True)
 
 
+def trial_set_sentence() -> str:
+    """The lick sets of the noise-matched transfer test = lick_code_subspace's (this run's LICK_CODE_FAMILY)."""
+    return lcs.lick_sets_sentence()
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--jobs", type=int, default=4)
     ap.add_argument("--plot-only", action="store_true")
     ap.add_argument("--tables-only", action="store_true", help="re-derive tables + figures from units.csv")
     a = ap.parse_args()
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())          # every figure states its lick set (Priya 11-09)
     if il.ITI_SUBSET or il.AREA_BASIS != "split":
         raise SystemExit("run without WFIELD_ITI_FILTER / with the split basis")
     if a.tables_only:

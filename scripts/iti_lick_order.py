@@ -132,6 +132,21 @@ def preds_path() -> Path:
     return il.OUT / f"lick_order_preds{KEY_TAG}{roi}.csv.gz"
 
 
+def trial_set_sentence(extra=()) -> str:
+    """The lick set of the lick-order figures and of every reader of `preds_path` (Priya 11-09: every figure states its
+    set): the session files' ITI and post-cue licks the `predictions` decoder kept, with the ITI filter actually applied
+    -- the REFIT filter ITI_FILTER, or the SUBSET filter il.ITI_SUBSET (rows dropped downstream). ``extra`` = a reader's
+    own rule (e.g. a per-spout minimum)."""
+    from wfield_local import trial_set_text as tst
+    keep = ["sessions with >= 20 such licks, animals with >= 3 pre sessions", *extra]
+    return tst.union(
+        il.trial_set_iti(filt=il.ITI_SUBSET or ITI_FILTER,
+                         extra=[f"order = index within its lick bout (all licks_all.csv onsets split at gaps >= "
+                                f"{il.BOUT_GAP:g} s)", "previous trial's spout known", *keep]),
+        il.trial_set_cued(extra=["order = lick_idx of the 3-D lick table (0 = first post-cue lick)",
+                                 "target spout known", *keep]))
+
+
 VALS = ("landing", "decoded", "lfl")
 VLAB = {"landing": "landing vs pre at the spout (BEHAVIOR)", "decoded": "decoded position vs pre at the spout (NEURAL)",
         "lfl": "like-for-like offset, same place (NEURAL)"}
@@ -433,6 +448,8 @@ def plot_slope(P: pd.DataFrame, T: pd.DataFrame) -> None:
 
 
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())          # the lick set of both figures (Priya 11-09)
     f = preds_path()
     if f.exists():
         P = pd.read_csv(f)

@@ -66,6 +66,17 @@ def load_session(spec: str, rv, pm: dict, pt: dict, movement_removed: bool) -> d
     return {"label": label, "licks": L[ok].reset_index(drop=True), "V": V[ok], "labs": labs}
 
 
+def trial_set_sentence(pre, post, positions, min_reach_px) -> str:
+    """THE lick set of a figure (Priya 11-09): the post-stroke DLC licks cued to ``positions`` scored against templates
+    of the pre sessions' executed licks."""
+    from wfield_local import trial_set_text as tst
+    return tst.events(f"post-stroke trial licks cued to {', '.join(positions)} in {', '.join(post)}", keep=[
+        f"DLC-detected tongue licks executed with reach >= {float(min_reach_px):g} px (movement_encoding min_reach_px)",
+        "complete activity window (lick_templates.lick_vectors)",
+        f"templates: the executed licks of the pre-stroke session(s) {', '.join(pre)}"],
+        excluded=["licks below the reach floor", "other cued positions"])
+
+
 def main(argv=None) -> int:
     import matplotlib
     matplotlib.use("Agg")
@@ -82,6 +93,8 @@ def main(argv=None) -> int:
     rv = PathResolver()
     pm, pt = MI.params(), LT.params({"baseline": a.baseline} if a.baseline else None)
     cued = LT.POS_ORDER if a.cued == ["all"] else a.cued
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence(a.pre, a.post, cued, pm["min_reach_px"]))
     from wfield_local import run_mode
     out_dir = run_mode.session_poses_out(       # the rebuild's derived pose area (coordinator 11-04); old place by default
         "lick_template_match", Path(rv.root("microscope")) / "DeepLabCut" / "Widefield" / "session_poses")
@@ -150,6 +163,7 @@ def main(argv=None) -> int:
     D.to_csv(out_dir / f"lick_template_match{sfx}.csv", index=False)
     S.to_csv(out_dir / f"lick_template_match{sfx}_stats.csv", index=False)
     for pos in cued:
+        tst.activate(None, text=trial_set_sentence(a.pre, a.post, [pos], pm["min_reach_px"]))   # this position's figure
         g0 = D[D.position == pos] if len(D) else D
         if not len(g0):
             continue

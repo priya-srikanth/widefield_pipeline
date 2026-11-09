@@ -113,10 +113,22 @@ def draw(tabs: dict, png: Path) -> None:
     plt.close(fig)
 
 
+def trial_set_sentence() -> str:
+    """Template amplitude / captured (camera working post, lick-trial pre) and the state decoder's 1 s segments."""
+    from wfield_local import trial_set_text as tst
+    post_inc, post_exc = _common._split(tst.sentence("working"))
+    pre_inc, pre_exc = _common._split(tst.sentence("lick"))
+    tmpl = tst.events(f"template panels, cue window: POST sessions = {post_inc} (>= 10 trials per position; not: "
+                      f"{post_exc}); PRE sessions = {pre_inc} (not: {pre_exc}), each left out against the other pre "
+                      "sessions (the 11amp / 11c pre side is the lick class, not camera working)", unit="trials")
+    return tst.union(tmpl, _common.state_segments(), unit="trials / frames")
+
+
 def main(argv=None) -> int:
     ap = _common.parser(__doc__)
     ap.add_argument("--data-dir", type=Path, default=D_DEF, help="grant_figures/epoch/data folder with the sidecars")
     a = ap.parse_args(argv)
+    _common.declare(trial_set_sentence())          # THE TRIAL SET of every figure (Priya 11-09)
     a.out.mkdir(parents=True, exist_ok=True)
     if a.plot_only:
         tabs = _common.load_figdata(a.out, NAME)["tables"]

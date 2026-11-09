@@ -301,7 +301,49 @@ def subset_values(S: pd.DataFrame) -> pd.DataFrame:
                      axis=1)
 
 
+def full_first_licks(extra=()) -> str:
+    """WFIELD_BAL_FULL's first-lick set (lick_firstlick_extract: every 3-D tracked post-cue lick that STARTS its bout,
+    no N_TRIAL_MAX cap)."""
+    import lick_covariate_reference as cv
+    from wfield_local import trial_set_text as tst
+    return tst.events(f"post-cue licks that START their lick bout (bouts split at onset gaps >= {il.BOUT_GAP:g} s; "
+                      f"lick_firstlick_extract, no {il.N_TRIAL_MAX} cap)",
+                      keep=[*cv.session_file_rules(), *extra], excluded=["later licks of a bout", "ITI licks"])
+
+
+def set_sentence(sets=tuple(SETS), *, full: bool | None = None, inside: bool | None = None,
+                 subset: bool | None = None, extra=()) -> str:
+    """The lick sets of the primary balance (Priya 11-09; `wfield_local.trial_set_text`): trial_1 = first post-cue lick
+    (lick_idx 0) of the KEY set (WFIELD_BAL_FULL: `full_first_licks`), trial = every KEY post-cue lick, iti_q = KEY ITI
+    licks with no lick onset in the preceding il.GAP_MAIN s, iti = every KEY ITI lick; WFIELD_BAL_INSIDE drops post
+    licks outside the animal's pre 2.5-97.5 % angle range; a SUBSET ITI filter drops ITI rows. Defaults = this run's
+    switches (FULL / INSIDE / il.ITI_SUBSET); the drivers that build their own sets pass False."""
+    import lick_covariate_reference as cv
+    from wfield_local import trial_set_text as tst
+    full = FULL if full is None else full
+    inside = INSIDE if inside is None else inside
+    subset = bool(il.ITI_SUBSET) if subset is None else subset
+    n = cv._pred_min_licks()
+    filt = cv.key_iti_filter(subset)
+    ins = (["post-stroke licks only inside the animal's pre 2.5-97.5 % lick-angle range of the set"] if inside else [])
+    ex = [*ins, *extra]
+    gap = f"no lick onset (any licks_all.csv lick) in the preceding {il.GAP_MAIN:g} s"
+    parts = {"trial_1": full_first_licks(ex) if full else cv.session_cued(first_only=True, min_n=n, extra=ex),
+             "trial": cv.session_cued(min_n=n, extra=ex),
+             "iti_q": cv.session_iti(filt, min_n=n, extra=[gap, *ex],
+                                     excluded=["post-cue (trial) licks", f"ITI licks < {il.GAP_MAIN:g} s after a lick onset"]),
+             "iti": cv.session_iti(filt, min_n=n, extra=ex)}
+    return tst.union(*[parts[s] for s in sets])
+
+
+def trial_set_sentence() -> str:
+    """The lick sets of lick_balance_subsets' figure (all four, under this run's switches)."""
+    return set_sentence()
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())          # every figure states its lick set (Priya 11-09)
     S = sessions()
     S.to_csv(il.OUT_W / f"balsub_sessions{SFX}.csv", index=False)
     if "--sessions-only" in sys.argv:

@@ -1743,7 +1743,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                             continue
                         s = slide()
                         title(s, f"G9c. {_an} — {_w} window, {_tag} — {_clsn}",
-                              _blurb + "  READ THE CLASS: miss-while-working is position-specific, "
+                              _blurb + "  READ THE CLASS: no-lick working trials (no lick, outside the terminal quit period) are position-specific, "
                               "STOPPED is the animal having quit and is position-GENERAL, so a row "
                               "that moves in STOPPED at every position is a state change and not a "
                               "remapping.")
