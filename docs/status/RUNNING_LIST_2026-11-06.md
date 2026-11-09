@@ -938,3 +938,7 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   full-suite pushes. Helper fixing on fix/test-stamp-order-1109 (find the polluting test, isolate state, full suite,
   push). Caption-branch push (chain_v14, WTS=wf_trialset) still in its pre-push tests since 07:32 -- may hit the same
   failure; re-run after the fix. Note: two push runs had written into push7.wf_grantmemo.log (old retry loop + helper).
+- 09:10 MAP RE-RENDERS LAUNCHED without waiting for the caption-branch push: queue_daqlk14a.sh from a DETACHED worktree
+  wf_render_v14a at the reviewed commit 0899267d (all fixes; csig 3d7bbe921e): g5_restnl_maps_lp_ts (MP) +
+  g5_lpfinal_maps_ts (LF) -- primary + working-period supplement + jaw-only (pooled per epoch) + exact trial-set captions.
+  Same step names as chain_v14's queue, so its lanes (if the push lands) skip them via claims. ETA ~13:00-14:00.
