@@ -4,7 +4,9 @@ WORKING (contact + incomplete, either DAQ arm) vs the RAW camera class NO_RESPON
 by the raw class; "unknown" is never trained on, nor are stopped / stopped_licking / jaw_only / after_end rows); the
 scored "no-lick" set is the rows whose raw class is no_response, the engaged comparison the camera WORKING rows; every
 camera group (and no_response / unknown apart) is scored on its own; the stored ids carry the class set
-("cls-work-v-noresp"). The DAQ grouping keeps the old training set, ids and scored sets; G4 keeps its "none" negative.
+("cls-work-v-noresp"). The DAQ grouping keeps the old training set, ids and scored sets. Priya 11-09: G4 (`g4_camclass`)
+trains the same classes (WORKING vs raw no_response, unknown never trained), scores no_response / unknown apart, and
+its stored id changes ("neg-no_response"); its DAQ path is unchanged.
 """
 import numpy as np
 import pytest
@@ -95,8 +97,8 @@ def _n_post(d, cg, which):
 def test_tag_and_negative_class():
     assert pc.G13_TAG == "cls-work-v-noresp"
     assert pc.G13_NEG == ("no_response",)
-    # G4 is a separate, open question: its negative stays section G's whole "none" group
-    assert pc.G4_NEG == ("none",) and pc.G4_POS == ("contact", "incomplete")
+    # Priya 11-09: G4 trains the same negative class as G1-G3
+    assert pc.G4_NEG == ("no_response",) == pc.G13_NEG and pc.G4_POS == ("contact", "incomplete")
 
 
 def test_sample_is_working_vs_no_response_never_unknown_or_stopped(env):
@@ -122,14 +124,86 @@ def test_sample_is_working_vs_no_response_never_unknown_or_stopped(env):
         np.testing.assert_array_equal(a, b)
 
 
-def test_g4_sampler_unchanged_keeps_none_with_unknown(env):
+def test_sampler_default_negative_is_no_response(env):
+    """`cam_balanced_sample`'s default negative is G4_NEG = no_response (Priya 11-09): on the raw-split groups it is the
+    G1-G3 sample draw for draw; on unsplit groups it finds no negative (a caller there must name its own)."""
     d, state, _, _ = env
     cg = state["cg"]
-    a = pc.cam_balanced_sample(d, cg["grp_e"], cg["grp_u"], KEEP, np.random.RandomState(0))
-    b = pc.cam_balanced_sample(d, cg["grp_e"], cg["grp_u"], KEEP, np.random.RandomState(0), neg=pc.G4_NEG)
+    ge, gu = pc._g13_split(cg)
+    a = pc.cam_balanced_sample(d, ge, gu, KEEP, np.random.RandomState(0))
+    b = pc._g13_sample(d, cg, KEEP, np.random.RandomState(0))
     for u, v in zip(a, b):
         np.testing.assert_array_equal(u, v)
-    assert np.any(a[0][a[1] == 0][:, -1] == SENTINEL)         # G4's "none" still holds the unknown rows
+    assert pc.cam_balanced_sample(d, cg["grp_e"], cg["grp_u"], KEEP, np.random.RandomState(0)) is None
+
+
+@pytest.fixture
+def g4env(env, monkeypatch):
+    """`env` with the G4 frame set to the production z (identity), so the sentinel column survives into training."""
+    d, state, specs, _ = env
+    monkeypatch.setenv(pc.G4_CENTRE_ENV, "engaged")
+    monkeypatch.delenv(pc.G4_DISC_ENV, raising=False)
+    drawn = []
+    real = pc.cam_balanced_sample
+
+    def _spy(*a, **k):
+        got = real(*a, **k)
+        if got is not None:
+            drawn.append((got, k.get("neg")))
+        return got
+
+    monkeypatch.setattr(pc, "cam_balanced_sample", _spy)
+    return d, state, specs, drawn
+
+
+def test_g4_trains_working_vs_no_response_never_unknown(g4env):
+    d, state, specs, drawn = g4env
+    cg = state["cg"]
+    r = pc.g4_camclass(d, KEEP)
+    assert drawn and all(neg == ("no_response",) for _s, neg in drawn)
+    # every fold (LOSO + full): no unknown / stopped / jaw_only / after_end row; negatives = "none" rows of raw no_response
+    Xall = np.vstack([d["XE"], d["XU"]])
+    neg_ok = {r_.tobytes() for r_ in Xall[np.concatenate([(cg["grp_e"] == "none") & (cg["raw_e"] == "no_response"),
+                                                          (cg["grp_u"] == "none") & (cg["raw_u"] == "no_response")])]}
+    for (X, y, _g), _neg in drawn:
+        assert not np.any(X[:, -1] == SENTINEL)
+        assert all(x.tobytes() in neg_ok for x in X[y == 0])
+    # the stored id is new: "neg-no_response", never the old "neg-none"
+    kind, extra = specs[-1]
+    assert kind == "g_cam_disc" and "neg-no_response" in extra and "neg-none" not in extra
+    assert r["frame"].endswith("/neg-no_response")
+    tc = r["train_classes"]
+    assert tc["positive"] == ["contact", "incomplete"] and tc["negative"] == ["no_response"]
+    assert "unknown" in tc["scored_only"] and "none" in tc["scored_only"]
+
+
+def test_g4_scores_no_response_and_unknown_apart(g4env):
+    d, state, _specs, _ = g4env
+    cg = state["cg"]
+    r = pc.g4_camclass(d, KEEP)
+    post = r["post"]
+    assert set(post) == set(pc.g4_groups()) >= {"none", "no_response", "unknown", "stopped", "after_end"}
+    assert post["no_response"]["n"] > 0 and post["unknown"]["n"] > 0
+    assert post["no_response"]["n"] + post["unknown"]["n"] == post["none"]["n"]
+    n_nr = int(sum(((np.isin(d[G], list(d["post_i"])) & np.isin(d[Y], KEEP) & (cg[g] == "none")
+                     & (cg[rr] == "no_response")).sum()
+                    for G, Y, g, rr in (("GE", "YE", "grp_e", "raw_e"), ("GU", "YU", "grp_u", "raw_u")))))
+    assert post["no_response"]["n"] == n_nr
+    assert set(r["pre_reference"]) == set(pc.g4_groups())
+    assert post["no_response"]["pre_reference_is"] == "no_response"
+    assert r["group_labels"]["unknown"].startswith("unknown")
+
+
+def test_g4_daq_path_unchanged(g4env, monkeypatch):
+    """No camera grouping -> no G4 camera model (None, nothing stored); WIDEFIELD_G4_DISC=daq still selects the DAQ
+    readouts; the DAQ G1-G3 ids are untouched."""
+    d, state, specs, drawn = g4env
+    state["cg"] = None
+    assert pc.g4_camclass(d, KEEP) is None and not drawn and not specs
+    monkeypatch.setenv(pc.G4_DISC_ENV, "daq")
+    assert pc.g4_disc() == "daq"
+    pc.looks_like_which(d, KEEP)
+    assert specs[0] == ("g_lick_disc", "keep0-1-2-3-4-5-seed0")
 
 
 @pytest.mark.parametrize("fn,kw,kind,extra", [
@@ -246,3 +320,12 @@ def test_row_groups_with_raw_tells_no_response_from_unknown(monkeypatch):
     assert list(got[1]) == ["none", "none", "after_end", "after_end"]
     assert list(got[5]) == ["contact", "incomplete"]
     assert list(got[6]) == ["no_response", "unknown", "no_response", "unknown"]
+
+
+def test_g4_figure_draws_no_response_and_unknown_apart():
+    import pandas as pd
+    from wfield_local import g4_figures as gf
+    C = pd.DataFrame({"group": ["contact", "none", "no_response", "unknown"]})
+    order = gf.g4_order(C)
+    assert "none" not in order and order.index("no_response") + 1 == order.index("unknown")
+    assert "none" in gf.g4_order(pd.DataFrame({"group": ["contact", "none"]}))       # records from before 11-09

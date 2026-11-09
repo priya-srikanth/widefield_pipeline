@@ -12,6 +12,8 @@
   recorded at the 11-03 (night) camera-gate entry in the root DECISIONS.md.
 - (2026-11-08) Section G G1-G3 (Priya 11-08): train camera WORKING vs NO_RESPONSE (unknown excluded), score post
   no_response rows as the no-lick set, working rows as the engaged comparison; DAQ-grouping supplement not run.
+- (2026-11-09) Section G G4 (Priya 11-09): G4 trains working vs no_response, as G1-G3 (unknown never trained; no_response
+  and unknown scored apart; stored id "neg-no_response"; DAQ path unchanged).
 
 ## 2026-11-07 -- FaceRhythm factor matching, map statistics, per-session tests (Priya; a8 window)
 - MATCHING RULE v2 (`face_rhythm_epoch_shape.MATCH_RULES`, `--match-rule v2`; v1 stays the code default until the page /
