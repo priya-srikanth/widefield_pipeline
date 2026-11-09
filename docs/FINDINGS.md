@@ -38,6 +38,22 @@ window larger in orofacial cortex but shared with non-orofacial cortex), a contr
 cortex-wide and grows with time -- not concentrated in orofacial cortex; whether it is a stroke effect (diaschisis, state)
 or slow drift cannot be decided without a time-matched no-stroke reference.
 
+**Where things stand, state-space maps with movement removed (11-09; 0c items 7-10, running list B28-B39):** the
+post-stroke change in cortical lick responses has two layers. (1) ACTIVITY: the cortex responds MORE after the first
+lick, most over bilateral anterolateral orofacial cortex (chronic SSp-m / tjM1 contra +.65-.69, 4/4), and that is NOT
+movement -- regressing out face movement (FaceRhythm), tongue / jaw kinematics + contact, or both (frozen pre-only fits,
+spout-centered so the covariates carry no spout identity) keeps 0.96-1.05 of it; what movement explains is mostly a
+whole-cortex fluctuation (70-90 % along the cortex-wide mode), i.e. session noise, not the change. (2) BETWEEN-SPOUT
+(coding-like) change: ACUTELY a far-contra deficit over ipsilesional orofacial cortex (SSp-m / SSp-n / tjM1 ipsi) that
+mostly SURVIVES every movement control (0.73-1.08 kept; SSp-m ipsi -.63 -> -.49 with all movement removed, 4/4);
+CHRONICALLY the far-contra difference is mostly MOVEMENT-LINKED (0.24 kept with kinematics + contact + face, no pixel
+significant), while the across-spout spread in contralesional SSp-m keeps RISING (4/4, every control) -- the same
+direction as the encoder's contralesional SSp-m position effect. Reading: after the stroke the shared lick response
+grows; acutely the far-contra pattern is disrupted beyond what the movement explains; chronically what differs between
+spouts mostly reflects how each spout is now licked, plus a contralesional SSp-m spread that is not movement.
+"Movement-linked" is not "artifact": linear frozen fits cannot say whether movement drives cortex or both follow one
+command. EXPLORATORY / PROVISIONAL (n = 4; bout-summary kinematics, not the encoder's lick-locked kernels).
+
 **Where things stand, face movement (FaceRhythm, updated 11-07; claim 5.10, DECISIONS 2026-11-07):** tested per
 session against each animal's own pre (within-animal shuffles, Holm across every epoch and measure, drift-controlled),
 both lateral lick factors CHANGE SHAPE after the stroke and lose side specificity at every epoch (lick_right spatial
@@ -1078,6 +1094,36 @@ August-only pre, every readout vs the animal's OWN pre; `*` = boot_delta, LMM as
 6. **Within a session:** behavior -> see "WITHIN-SESSION DECLINE OF AIM / LATENCY vs QUITTING" (section 0b list). Neural:
    post-stroke, sessions whose far landings drift more ipsilesionally also drift more back toward pre on the
    pre -> chronic line (r .51 within animal, 4/4 positive, shuffle p < .0005); no such link pre-stroke. PROVISIONAL.
+7. **The activity change is not movement; the chronic between-spout change mostly is; the acute far-contra deficit is
+   not (11-09, running list B34-B39; page Figs 9.1-9.3 b-d + supplements).** Cohort SVD basis, lick-aligned 0.1-0.5 s,
+   RESTnl reference, change vs own pre in units of the animal's full pre response RMS. Per animal a PRE-ONLY lstsq fit of
+   every trial's response (100 components) on movement covariates, subtracted from every trial (pre sessions
+   leave-session-out), compared with a same-trials control; covariates SPOUT-CENTERED (minus the animal's pre mean at
+   the trial's spout) because raw face covariates decode the spout (.40-.87, chance .17). Kept along the control's own
+   direction, face / kinematics + contact / both: spout-mean activity 0.99 / 1.01 / 1.01 chronic (0.96-1.05 acute);
+   spout-specific far contra ACUTE 1.08 / 0.91 / 0.73 (ipsilesional orofacial loss significant in all), CHRONIC 0.57 /
+   0.76 / 0.24 (no pixel significant with both); chronic close ipsi 0.60 / 1.01 / 0.62. Removed variation lies 70-90 %
+   along the cortex-wide mode (why minus-cortex-wide versions match and the activity contours grow). Contralesional
+   SSp-m across-spout spread +.07 chronic, 4/4, every control. Vs the encoder (4.x / ENCODING_FINDINGS 8.19): chronic
+   agrees (per-session position R2 rise +22 -> +4 with FR); acute differs in readout (encoder: TOTAL evoked far-contra
+   drop -> lick + contact groups; here the far-contra spout-specific pattern) and covariates are bout summaries, not
+   lick-locked kernels -- open. Code `state_space_chronic_maps.py` (WF_SS_FR = Bs / Ks / KBs / ..., controls 0 / K0).
+   EXPLORATORY.
+8. **The tonic pre-cue orofacial elevation is mostly the rest level falling; the phasic post-lick increase is real
+   (11-09, B29-B32).** Against the session mean (dF/F zero), raw RESTnl falls -.48 / -.53 / -.76 (contra orofacial,
+   acute / subacute / chronic) vs raw pre-cue -.46 / -.35 / -.37, so "pre-cue minus rest" (+.02 / +.17 / +.39) is 78 % rest
+   and its link with far-contra aim recovery is entirely the rest level's (raw pre-lick vs aim p .88). The phasic
+   post-lick increase survives that reference (+.68 / +.72 / +.59), is shared across all six spouts (split-half
+   cross-validated shared energy .18 -> 1.6-2.0 vs spout-specific .04 -> .15-.34), and its late half (0.3-0.7 s) needs
+   spout contact (lost on acute far-contra misses) while its early half does not. No absolute fluorescence level exists
+   across days (hand-set LED power). PROVISIONAL.
+9. **Hemispheric balance, motor vs orofacial (11-09, B33 / B35; page Figs 5.3-5.8).** At matched target + landing the
+   motor balance (ALM + tjM1) moves contralesionally at contra-side and middle targets like the orofacial one (SSp-m,
+   SSp-n, SSs) but smaller (far contra +.23 / +.25 subacute / chronic, 4/4), WITHOUT the orofacial acute reversal at
+   ipsi-side targets and WITHOUT the orofacial compression of the across-spout spread; same in the first-lick window
+   (0.1-0.5 s, the encoder's window). EXPLORATORY.
+10. **Pages: every caption carries its figure file name** (`scripts/page_file_names.py`, docs/templates/README.md rule).
+
 Open: close-spout PC2 transient (posterior-medial vs contralesional orofacial) unexplained; chronic - pre partly lies
 along the August pre drift (PS92-94) -- June reference (contact-only first licks, joint-LocaNMF basis, O2 job
 `ss_lnmf_20261108`, `state_space_june_drift.py`) runs when its outputs land; cohort 2 pre stays separate.

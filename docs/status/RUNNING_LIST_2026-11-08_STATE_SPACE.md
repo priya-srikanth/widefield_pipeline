@@ -63,6 +63,120 @@ merged to main (no conflicts); A5 applied to FINDINGS 0c item 4 and the page cap
 
 ## B. Findings (newest first; exploratory)
 
+44. **It is the movement MODEL, not the window (Priya 11-09 "yes run"; `scripts/state_space_encoder_window_kbs.py`,
+   `encoder_subtract/window_kbs.csv`).** On the SAME trials, window (-0.1..+1.0 s after the first lick) and targets (the
+   frozen encoder's own per-trial Allen-area values, trials with the KBs covariates, joined on cue time), spout-specific
+   far contra, acute: kept along the data change -- encoder prediction removed .44 (PS92-95 .04 / .58 / .64 / .49), KBs
+   bout-summary regression removed .87 (.46 / .72 / 1.41 / .91). SSp-m ipsi -2.07 [-2.97, -1.19] (4/4) -> -0.64
+   [-1.26, -.05] (3/4, PS95 +.22) encoder vs -1.66 [-2.77, -.99] (4/4) KBs; SSp-n ipsi -1.79 -> -.44 (CI incl. 0) vs
+   -1.51. So the bout summaries under-model the movement that carries the acute far-contra difference; the lick-locked
+   kernels (with contact) capture it. Implication for Figs 9.1-9.3 b-d: they bound movement from BELOW -- "survives KBs"
+   is not evidence that a between-spout change is not movement. The activity result (9.1) is unaffected: it holds under
+   every model, including the epoch-own coupling (item 43). EXPLORATORY.
+
+43. **Letting the movement -> cortex coupling change with epoch removes most of the between-spout change; the activity
+   increase stays (handoff item b, second half; `WF_SS_FR=KBw|KBe`, `chronic_maps_lick_svd_rest_fr{KBw,KBe}`, page_figs
+   `ss_cmap_*_rest_fr{KBw,KBe}_lick_svd.png`).** Kept along the same-trials control's (K0) change, cohort mean of
+   per-animal projections over stat-mask pixels (significant share of the stat mask, control -> corrected):
+   KBs (frozen pre fit) / KBw (pre fit on within-session x spout variation only) / KBe (each epoch's OWN within-spout
+   coupling, leave-session-out). Mean activity acute 1.03 / 1.01 / 1.09, chronic .98 / .98 / 1.02 (46 -> 68 / 67 / 80 %).
+   Far contra spout-specific acute .76 / .79 / .42 (16 -> 9 / 8 / 0 %), chronic .49 / .45 / .03. Close ipsi chronic
+   .71 / .63 / .46 (40 -> 7 / 5 / 0 %). KBs ~ KBw: the within-centering does not matter; the frozen-coupling ASSUMPTION
+   does. With the post-stroke coupling (reach coupling grown, contact coupling lost, item 41), the acute far-contra
+   spout-specific deficit falls to .42 with no pixel significant -- converging with the encoder's own prediction (item
+   40: .35 kept). Caveat: KBe fits the coupling on the same epoch it corrects (leave-that-session-out, within-spout
+   only, so no session-level change can be fitted directly), so it is the upper bound on what movement can explain.
+   Reading across items 38-43: the ACTIVITY increase is not movement under any model; the BETWEEN-SPOUT change (acute
+   far-contra deficit, chronic spout differences) is largely accounted for by movement once movement is modeled with
+   lick-locked kernels (encoder) or with the post-stroke coupling (KBe); a residual acute far-contra deficit in
+   ipsilesional SSp-m survives only the frozen models (3/4 under the encoder). EXPLORATORY.
+
+42. **June no-stroke reference on the maps: the lick response SHRANK June -> August, and the post-stroke increase runs
+   the OPPOSITE way (handoff 11-09 ~12:15 item c; Priya "go ahead with all"; `scripts/state_space_june_maps.py`,
+   `june_maps_lick_svd/{maps.npz,animals.csv}`, page_figs `ss_june_maps_{full,nocw,spout}_lick_svd.png`).** Contact first
+   licks everywhere (June rows = first DAQ contacts), lick-aligned 0.1-0.5 s minus RESTnl (June has RESTnl), cohort SVD,
+   units = own August-pre response RMS, nested-bootstrap contours. June -> August pre (no stroke, ~64 d): a significant
+   DECREASE over bilateral lateral orofacial / anterolateral cortex and posterior cortex, every spout. August pre ->
+   acute / chronic: the increase over overlapping territory. Per animal over stat-mask pixels, mean over spouts: cos(drift,
+   chronic) -.84 / -.71 / -.46 / -.63 (PS92-95), chronic along the drift direction -1.03 / -2.05 / -.51 / -.67, RMS
+   chronic / drift 1.2 / 2.9 / 1.1 / 1.1. Minus cortex-wide: cos -.44 / -.57 / -.62 / +.20. Spout-specific far contra:
+   mixed (cos +.38 / -.55 / -.46 / -.21; chronic 1.0 / 3.0 / 2.3 / .55 x drift). Reading: no-stroke drift cannot produce
+   the post-stroke increase (opposite sign); the increase looks like a partial REVERSAL of a June -> August shrinkage
+   (consistent with practice-related sparsening undone by the stroke) -- an interpretation, not a test. Caveats: June ->
+   August includes learning + a room / rig move; the RESTnl reference itself may differ June vs August (item d); 3 June
+   sessions per animal. EXPLORATORY.
+
+41. **The movement -> cortex relation: face coupling holds, kinematics coupling shifts (handoff item b;
+   `scripts/state_space_fr_coupling.py`, `fr_coupling_lick_svd/{sessions,changes}.csv`, maps.npz; page_figs
+   `ss_fr_coupling_lick_svd.png`).** KBs covariates (8 kinematics + contact, 7 face), within-session x spout trial-to-trial
+   variation only, covariates in pre-SD units; per-session coupling vs the animal's pre coupling (pre sessions vs the
+   other pre sessions). Gain along the pre coupling (1 = unchanged; pre .99): change -.11 / -.20 / -.14 (acute / subacute
+   / chronic, CIs incl. 0); kinematics block chronic -.34 [-.68, -.03] (4/4 lower); face block -.11 / -.20 / -.13 (ns).
+   Off-axis coupling energy / pre energy (split-half unbiased; pre .14): +.09 / +.04 / +.13 [+.005, +.28] chronic (3/4).
+   Within-spout variance explained by the PRE coupling (pre .185): -.04 / -.09 [-.14, -.04] (4/4) / -.06. Maps: the
+   FaceRhythm lick-sum coupling (dominant, peak ~1.0 per SD) unchanged every epoch; contact-count coupling over bilateral
+   sensorimotor cortex (peak .13 pre) largely gone after the stroke (.04-.08); reach coupling grows (.04 pre -> .17 / .23
+   subacute / chronic) over the same territory. Caveat: reach and contact are correlated, so a joint fit can move weight
+   between them (one relation re-split, not necessarily two changes). Figure scale: one per row over all epochs (Priya
+   11-09: the first draw, scaled to pre, saturated acute n_licks / chronic reach). Whether this matters for Figs 9.1-9.3:
+   `WF_SS_FR=KBw` (within-centered pre coupling) vs `KBe` (each epoch's own coupling) -- see the next item when done.
+
+40. **Subtracting the ENCODER's own lick-locked prediction removes much more of the acute far-contra deficit than the
+   bout-summary controls (handoff item a; `scripts/state_space_encoder_subtract.py`, `encoder_subtract/{kept,areas}.csv`,
+   page_figs `ss_encoder_subtract.png`).** No frame-level predictions are saved, so the state-space readouts were computed
+   on the frozen encoder's OWN per-trial values (run `frozen_encoder_gate-attempted_v7g3_t3d_spont_frA`, `trial_parts`,
+   Allen areas, first-lick window -0.1..+1.0 s -- NOT 0.1-0.5 s; attempted gate = contact + incomplete; pre sessions with
+   leave-session-out betas), before / after removing its predicted lick + exec_locked + exec_within + contact ("-lick"),
+   fr + fr_dir ("-face"), or both. Spout-specific far contra, kept along the data change: acute .63 / .73 / .35 (-lick /
+   -face / -both), chronic .54 / .57 / .11. SSp-m ipsi far contra acute -2.06 [-2.85, -1.28] (4/4) -> -1.12 (4/4) /
+   -1.58 (4/4) / -.64 [-1.20, -.13] (3/4; PS95 +.10). Mean over spouts (reference-dependent here: the encoder's signal is
+   drift-removed with no RESTnl): kept acute 1.07 / .95 / 1.01, subacute .70 / .58 / .28, chronic .77 / .78 / .56.
+   Reading: with lick-locked kernels (onset, tongue / jaw magnitude, spout-locked templates, direction, contact) about two
+   thirds of the acute far-contra spout-specific deficit is predicted movement; a third remains (SSp-m ipsi, 3/4). That
+   reconciles the gap with the encoder (lick + contact groups carry the acute far-contra drop): the bout-summary controls
+   (Ks / KBs: kept .91 / .73) under-model lick-locked movement. Caveat: the encoder window includes the late,
+   contact-dependent part (B31) that the 0.1-0.5 s maps mostly exclude, and contact is in "-lick". EXPLORATORY.
+
+39. **Why the 9.2 movement versions are identical (Priya 11-09 "why do the 9.2 versions all look identical?"):** what
+   the movement covariates remove lies mostly along the cortex-wide mode that 9.2 projects out first -- share of the
+   removed session-to-session variation along it: face (Bs) .88 (.66-.97 per animal), kinematics + contact .72, both .90;
+   of the removed chronic change .91 / .68 / .71; vs .53 for the pre responses' own session variation. Same fact as the
+   9.1 contours growing (the removed whole-cortex fluctuation was noise in the pre reference). v37 layout (Priya "1. ok;
+   collapsible supplemental; 2. ok"): 9.1 / 9.3 main b = face, c = kinematics + contact, d = both; S1-S5 collapsed
+   (`details.supp-levels`); 9.2 original + 8 collapsed versions. `scripts/page_file_names.py` now covers supplements.
+
+38. **Tongue / jaw kinematics + contact control (Priya 11-09 "yes"): activity untouched; acute far-contra spout-specific
+   loss mostly survives; chronic spout differences = kinematics + face together.** `WF_SS_FR=K0|Ks|KBs` (8 per-trial
+   covariates: bout licks, contacts, latency, reach, speed + first-lick 3-D landing; spout-centered; KBs adds the Bs face
+   covariates; K0 = same-trials control; 96 % of trials). Kept along the control's direction (Ks / KBs), sig % K0 -> Ks /
+   KBs: 9.1 mean 0.96 / 1.05 acute, 1.01 / 1.01 chronic (areas identical: SSp-m contra +.69 -> +.67 / +.67); 9.2 mean
+   0.96-0.98. 9.3 ACUTE far contra 0.91 / 0.73, contour 16 -> 21 / 9 %, ipsilesional orofacial loss still significant
+   (SSp-m ipsi -.63 -> -.48 / -.49, SSp-n -.55 -> -.42 / -.41, tjM1 -.46 -> -.36 / -.37): kinematics + contact take ~25 %,
+   PREDICTION (absorbs much) NOT MET. 9.3 CHRONIC far contra 0.76 / 0.24, contour 10 -> 1 / 0 % (SSp-tr contra -.33 -> -.27
+   * / -.13; VISa -.23 -> -.18 * / -.07); close ipsi 1.01 / 0.62 (40 -> 32 / 7 %). Contralesional SSp-m spread +.07 4/4
+   in every mode. Vs encoder (acute far-contra cortex evoked DROP carried by its LICK + contact groups): different readout
+   (cortex-total evoked vs the spout-specific ipsilesional orofacial pattern) and our covariates are bout summaries, not
+   the encoder's time-resolved lick-locked kernels -- a remaining gap, not a contradiction yet. Figures on the share
+   (page_figs ss_cmap_{full,nocw,spout}_rest_fr{K0,Ks,KBs}_lick_svd.png, family scales); page v37 build pending.
+
+37. **Spout-centered face covariates (no spout information): activity unchanged; acute far-contra loss untouched; chronic
+   far-contra loss PARTLY face (Priya 11-09 "add the covariate relative to spout's pre-stroke mean, and relabel frB").**
+   `WF_SS_FR=Bs|As` = B / A covariates minus the animal's pre mean at the trial's spout (training sessions only). WHY: raw
+   B / A covariates decode the spout on pre trials (B .40-.60, side .71-.86, ring .64-.86; A .61-.87; lick sum alone
+   .22-.27; chance .17 / .50 / .50) -- the non-lick factors follow the spout, so B was NOT target-free (B36's 9.3 reading
+   was partly circular). Results (kept along the control's direction, Bs / As; sig % of stat mask): 9.1 mean 0.96 / 0.83
+   acute, 0.99 / 0.90 chronic; 9.2 mean 0.95 / 0.98 (Bs acute / chronic); 9.3 acute far contra 1.08 (SSp-m ipsi -.64 ->
+   -.64, SSp-n -.56 -> -.59, tjM1 -.47 -> -.48, all *); 9.3 chronic far contra 0.57 / 0.76, contour 10 -> 0 / 1 %, area
+   level SSp-tr contra -.34 -> -.22 * and VISa contra -.23 -> -.14 * survive, SSp-ll contra -.31 -> -.19 n.s.; chronic
+   close ipsi 0.60 (35 -> 10 %). SIGN vs encoder: across-spout spread (SD over 6 spouts) of the spout-specific response
+   in contralesional SSp-m rises chronically 4/4 (+.07 control, +.06 Bs, +.07 As) = same direction as the encoder's
+   contralesional SSp-m position rise (8.19 B, landing frame, FR-A); far contra's -.12 there is one spout leaving the
+   others. Also: pre-stroke response row on EVERY cohort map (all versions / baselines; `--pre-map` merges per-version
+   pre rows into pre_maps.npz via the response cache), shared scales per family (full +-0.9 pre 0-2.3; nocw +-0.6 pre
+   -0.6-0.9; spout +-0.43 pre -0.4-0.45; WF_SS_PREMIN / PREMAX). Page v37 BUILT LOCALLY, NOT PUBLISHED (account switch:
+   the page belongs to the other claude.ai account): scratchpad state_space_page/index.html, page script
+   `rebuild_fr_section9.py` (9.1b-e, 9.2b-e, 9.3b-e = Bs / As / B relabeled / A).
+
 36. **The CHRONIC spout-specific change is mostly face movement; the ACUTE far-contra loss is not (Priya 11-09 "yes 1
    and 2", "how do we reconcile the encoder map and state space map results"; `WF_SS_VERSIONS=nocw,spout WF_SS_FR=B|0|A`;
    page v36 Figs 9.3b-c, section 9 take + summary row rewritten).** Along the control's own direction (B / A): chronic far
