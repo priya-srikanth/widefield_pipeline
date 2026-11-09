@@ -835,3 +835,10 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
 - OPEN for Priya: contact-only (DAQ) section G supplement (g5_section_g_contact_r4 + figs) -- audit dropped it (pre-fix
   code, not in the plan); run on fixed main (~3 h) only if wanted. V8_NOTES caveats carried: l_nl_* commands marked
   UNVERIFIED; l_interhemi* use restdock05 rest set (RNP 2a(d) decision pending).
+- Priya 11-09 ~05:45: (1) contactOnly section G arm DEFERRED; when it is run it SUPERSEDES the mistaken DAQ-source r4
+  section G, and r4's outputs may then be deleted (Priya OK; derived outputs, keep a list). Note: r4 = hybrid (lick
+  window on DAQ contact, cue / precue on camera contact + incomplete); contactOnly = contact only throughout. (2)
+  Interhemispheric / cross-area / coupling rest set (RNP 11-01 category (d), Figs 14.18 S10 / S17 / S18): PRIMARY =
+  RESTnl (docked rest x lick-free mask: camera + DAQ licks); SUPPLEMENT = current restdock05 (DAQ licks only; the v11
+  l_interhemi* / l_xa* / l_cv_sm* _r5 steps). Code change on feat/interhemi-restnl-1109 (helper). (3) l_nl_* "unverified"
+  caveat resolved: iti_lick_order supports WFIELD_LICK_DECODER=nonlinear (own preds + _nonlinear-tagged outputs).
