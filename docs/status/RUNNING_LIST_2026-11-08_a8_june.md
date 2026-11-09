@@ -147,6 +147,24 @@ classes; 3 = FaceRhythm June face regions; 4 = FaceRhythm June O2 run. Backgroun
   - Proposed slide (hidden, supporting; not made): "Chronic contralesional face changes exceed a 2-month pre-stroke
     drift floor; chronic jaw changes do not", with task 1's 3-D numbers in the same frame.
   - Optional next: the June-only cohort factor fit on O2 for the lick_right SHAPE angle vs June (not prepared yet).
+- **11-09 (Priya "1. yes 2. yes"):**
+  1. **Hidden deck slide 95 ADDED** (after the FR per-session drift slide 94; deck now 202 slides): "Chronic
+     contralesional changes exceed a 2-month pre-stroke drift floor; jaw changes do not". Picture
+     fig:june_drift_summary (`scripts/june_drift_summary_fig.py`; FR asymmetry + composition + 3-D in one figure, 3-D
+     beyond-floor bootstrap in data/june_drift_3d.csv). Notes: 7-line Data block + numbers + source. Scripts beside
+     the deck: `add_june_drift_slide_1109.py` (backup_before_june_drift_1109), then layout fixes
+     `fix_june_drift_slide_1109b.py` (full-width bullet band) and `_1109c.py` (14 pt); hidden-state asserts passed.
+     3-D chronic vs June: endpoint out close_R / far_R +0.39 / +0.47 mm and lateral error close_R / far_R beyond the
+     floor (Holm); jaw opening close_L / far_R (-0.22 / -0.34 mm) = June's (-0.22 / -0.35).
+  2. **June-only cohort factor fit READY for O2** (`scripts/face_rhythm_june_fit.py plan`): session_rows drawn with
+     the production params and seed rule (60 trials per session, as August), code deployed, `run_fitjune.sbatch` (5
+     tasks: COHORT + 4 LOAO, 16 CPU / 96 GB) and `run_fitsession8_june.sbatch` (12 per-session own fits, as production
+     own8), commands in the set folder's COMMANDS_JUNE_FIT.md. Waits on Priya to submit.
+- **11-09 Priya: "can we also do the frozen pre-stroke analysis on june sessions (using august frozen reference) - for
+  fr and other analyses".** FR: done (frozen projection + peak / composition / asymmetry readouts; per-session own fits
+  queued above). Other arms with an August-frozen reference: imaging position decoder (5r / 5ro frozen-vs-refit),
+  behavioral-state decoder, frozen encoder (needs June encoding inputs on O2), no-lick decoder, CD trajectories.
+  `june_august_drift.py` exists but runs the OTHER direction (trains on June, scores August). Scope question to Priya.
 - **SUPERSEDED (wrong June meshes, item 0):** June FaceRhythm O2 outputs: complete and clean except PS95's mesh rim (Priya copied out/ 11-08; `o2_face_rhythm.py
   collect` -> `face_rhythm/cam4/o2_fr_cam4_june_20261108_index.csv`; `qc --jobs 2` -> `o2_fr_cam4_june_20261108_qc.png`
   + data/ csv). Compared with each animal's August pre sessions of the production run:
