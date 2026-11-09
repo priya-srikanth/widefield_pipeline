@@ -124,7 +124,14 @@ FR = __import__("os").environ.get("WF_SS_FR", "")
 # (side_ml, out_ap, down_dv; first_lick_landing.csv). Ks = spout-centered (landing -> landing ERROR vs the spout's pre
 # mean: execution, not target); KBs = Ks + the Bs face covariates; K0 = the control on the SAME trials (FR AND kinematics
 # present), nothing regressed. Trials without both are dropped in every K mode.
-FR_MODES = ("", "0", "A", "B", "As", "Bs", "K0", "Ks", "KBs")
+# KBw / KBe (handoff 11-09 open item b, Priya "go ahead with all": does the face -> cortex relation itself change?): the
+# KBs covariates, but the coupling is fitted on WITHIN-session x spout trial-to-trial variation only (covariates and
+# responses centered on each session x spout mean, so no session-level neural change can be absorbed as "movement"),
+# then applied, as KBs, to the covariates minus the pre mean at the trial's spout. KBw = the coupling from the PRE
+# sessions (leave-session-out for pre); KBe = the coupling from the trial's OWN EPOCH (leave-that-session-out), so a
+# post-stroke change in the relation is allowed. KBw vs KBe isolates the frozen-coupling assumption; KBw vs KBs isolates
+# the within-centering. Spout means for the centering: pre sessions (leave-session-out) in both.
+FR_MODES = ("", "0", "A", "B", "As", "Bs", "K0", "Ks", "KBs", "KBw", "KBe")
 if FR not in FR_MODES or (FR and WIN != "resp"):
     raise ValueError(f"WF_SS_FR={FR!r} (needs one of {FR_MODES} and WF_SS_MAPWIN=resp)")
 KIN = FR.startswith("K")
@@ -259,7 +266,7 @@ def apply_fr(data):
                 ok &= np.isfinite(Kc).all(1)
                 if FR == "Ks":
                     D = Kc
-                elif FR == "KBs" and D is not None:
+                elif FR in ("KBs", "KBw", "KBe") and D is not None:
                     D = np.column_stack([Kc, D])
             rows.append([lab, ep, day, Y, np.where(ok, pos, "none"), D, ok, pos])
         if FR not in ("0", "K0"):
@@ -268,6 +275,20 @@ def apply_fr(data):
                 if not r[6].any():
                     continue
                 train = [q for q in pre if q[0] != r[0]]
+                if FR in ("KBw", "KBe"):
+                    fit = train if FR == "KBw" or r[1] == "pre" else [q for q in rows if q[1] == r[1] and q[0] != r[0]
+                                                                     and q[6].any()] or train
+                    Xw, Rw = zip(*[_within(q, resp_b) for q in fit])
+                    Bw = np.linalg.lstsq(np.concatenate(Xw), np.concatenate(Rw), rcond=None)[0]
+                    Xp = np.concatenate([q[5][q[6]] for q in train])
+                    pp = np.concatenate([q[7][q[6]] for q in train])
+                    smu = {sp: Xp[pp == sp].mean(0) for sp in np.unique(pp)}
+                    pt = r[7][r[6]]
+                    Xt = np.nan_to_num(r[5][r[6]] - np.stack([smu.get(sp, np.full(Xp.shape[1], np.nan)) for sp in pt]))
+                    Y = r[3].copy()
+                    Y[r[6], resp_b] -= (Xt @ Bw)[:, None, :]
+                    r[3] = Y
+                    continue
                 Xp = np.concatenate([q[5][q[6]] for q in train])
                 Rp = np.concatenate([q[3][q[6]][:, resp_b].mean(1) for q in train])
                 Xt = r[5][r[6]]
@@ -287,6 +308,21 @@ def apply_fr(data):
         print(f"  FR {FR} {an}: trials with FR {sum(r[6].sum() for r in rows)} / {sum(len(r[4]) for r in rows)}",
               flush=True)
     return out
+
+
+def _within(q, resp_b):
+    """(X, R) of one session's covariate-matched trials, each centered on its session x spout mean (spouts with < 3
+    trials dropped): the trial-to-trial covariation only."""
+    X, R, sp = q[5][q[6]], q[3][q[6]][:, resp_b].mean(1), q[7][q[6]]
+    keep = np.zeros(len(sp), bool)
+    X, R = X.copy(), R.copy()
+    for v in np.unique(sp):
+        m = sp == v
+        if m.sum() >= 3:
+            keep |= m
+            X[m] -= X[m].mean(0)
+            R[m] -= R[m].mean(0)
+    return X[keep], R[keep]
 
 
 def session_spouts(lab, an, Y, pos):
