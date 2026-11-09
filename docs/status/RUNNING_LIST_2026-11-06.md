@@ -1020,3 +1020,12 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   night: gain ratio 0.1..0.5 s, primary; nested held-out selection over window x difference/ratio picked the ratio).
 - 12:15 all 4 helpers hit the session limit (~11:55) and were resumed after the reset (nothing deleted; partial work
   intact). chain_v14 caption push still losing push races (main busy); chain_v15 waits on it.
+- 12:25 STYLE LEAK + BUGS + GATE DONE: fix/style-leak-misc-1109 (wf_misc1109, on the wiring branch): 4d3c4488 wfield
+  imports via wfield_local/wfield_import.no_style_leak (rc_context; static test fails on any unwrapped import);
+  ced5eff7 iti_where_decoder refuses non-z subset draws (no unfiltered subset PNG found on M:); 8845ea31 fig_softmax
+  WEIGHT BUG CONFIRMED (to_dict() keyed by executed bin -> weighted by landed, not aimed licks) -> fig9 / fig9b data
+  change; 4614add8 lick_enl_target_test titles read the LP ENL window; 0ea2da57 rebuild_figs encoder gate read from
+  the producers' records (23 records, all "attempted"; caption-only effect). csig 3d7bbe921e; profile unchanged.
+  Style-affected families: anything that built Allen ROI masks cold in-process (iti_* / lick_balance_* / lick_cue_to_lick
+  / lick_enlv / gain_bio / encoder area masks / cohort2 quiet_*) + alignment QC figs -> look changes on re-render.
+  Push queued: chain_v16 after chain_v15 ALL PUSHED.
