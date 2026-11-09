@@ -77,6 +77,8 @@ thinning, matched-pre --lick-dir); dff97e56 interhemi RESTnl + raw. PUSHING: fea
 NOT yet: feat/trial-set-wiring-1109 (helper wiring the trial-set sentence into grant, section G, other epoch families,
 cd chain, ITI / lick, encoding, interhemi + stale deck wording).
 
+**UPDATED 11-09 ~10:25: still no failures. The v14a map steps went silent after 108/108 ref-maps (09:30): MEASURED as CPU starvation (main thread 'Ready'; 3 random-split jobs x 47 threads on 24 cores) during the serial RESTnl baseline attach (restnl_mask.base_maps, 3-9 s per session even on a cache hit). Not restarted; split PIDs 2184/37244/26396 set BelowNormal (map CPU 0.03 -> 0.26 core). Caption push retrying (10:19 attempt in tests). Stamp fix ready: fix/test-stamp-order-1109 6bb2a103 -> push after captions, then memos (wf_grantmemo). Trial-set wiring helper still running (wf_tswire).**
+
 **UPDATED 11-09 ~09:30: no new failures since 06:25 (all earlier ones fixed: offset_primary _r3, ENL-v table _r3 / balance + curves _r4, v12 relaunched). Map re-renders RUNNING from a DETACHED worktree wf_render_v14a at the reviewed caption commit 0899267d (queue_daqlk14a.sh: g5_restnl_maps_lp_ts + g5_lpfinal_maps_ts; reference maps 107/108 after 20 min -- warm caches; new period / jaw-only sets next). Caption-branch push (chain_v14) passed its tests but lost a push race, retrying; its lanes will skip the v14a steps (claims). Grant memos blocked only by the ORDER-DEPENDENT test test_grant_stamp_fit (helper fixing on fix/test-stamp-order-1109). Caption wiring for the remaining families: helper on feat/trial-set-wiring-1109. Random splits 3 lanes in parallel; interhemi RESTnl rest extract done 08:11. test_cohorts fix ON MAIN 98e6a353.**
 
 #### 3. Render state (~07:50)
