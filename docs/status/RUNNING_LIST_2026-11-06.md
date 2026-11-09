@@ -910,3 +910,13 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   expectations (cohort2 per-animal reference dates, c926d713) -> test-side fix proposed, Priya to decide. v13 queue
   (wf_render_v13 @ dff97e56, csig 3d7bbe921e) running: RB encoding re-summaries (4/9 done) + matched-pre LP table; GR LP
   grant re-render (~5.5 h) -- PROPOSED to stop it and re-render grant once after the caption branch (grant has no figdata).
+- 07:23 STOPPED v13-GR grant re-render (lane 1420911 + winpid 26656 tree, mine) per Priya: grant re-renders ONCE after
+  the trial-set caption wiring + grant memos. v13-RB DONE 07:19 (9 encoding re-summaries + matched-pre LP table, all
+  EXIT 0).
+- Trial-set captions + option (c) map variants: feat/trial-set-captions-jaw-panel-1109 f1e5fba9 (21 new + 440 related
+  tests; all existing cache keys unchanged, measured). Jaw-only per-session coverage too sparse (6 / 259 cells, none pre)
+  -> Priya: POOL jaw-only PER EPOCH per animal (helper adding, same branch). Priya OK: fix the 2 stale test_cohorts
+  expectations (test-side only; helper on fix/test-cohorts-stale-refs-1109) -> then push the grant memos; push the caption
+  branch + launch the 3 map re-renders (LP restnl maps, LPfinal maps, epoch 15r; ~4-5 h in parallel) after the pooling
+  commit. Still to do: wire trial_set_text.active() into the remaining families (grant, section G, other epoch families,
+  rebuild_figs) + fix stale "miss-while-working" deck-note wording; then the grant re-render.
