@@ -63,6 +63,23 @@ merged to main (no conflicts); A5 applied to FINDINGS 0c item 4 and the page cap
 
 ## B. Findings (newest first; exploratory)
 
+45. **Why the raw rest level falls: everything else rises relative to rest; the time budget barely moves (handoff item d;
+   `scripts/state_space_rest_decomp.py`, `rest_decomp_svd/{<label>.npz,sessions.csv,changes.csv}`, page_figs
+   `ss_rest_decomp_lick_svd.png`).** The signal is relative to the session's slow mean, so rest = -sum_k f_k (m_k -
+   m_rest) over frame classes (identity checked: sum f_k m_k = 0 to 1e-15; RESTnl level vs rest-frame mean cos .998).
+   Classes on the drift-removed SVT: RESTnl frames (pre .03 of frames), in-trial (cue to +3.5 s, engaged; .26), other
+   lick-buffered (+/- RESTnl's [0.5, 2.0] s lick buffer, outside trials; .52), quit (.02), pretask (~0), other (.17).
+   Orofacial contra (B32 units), acute / subacute / chronic: RESTnl -.48 / -.53 / -.76 (rest-frame mean -.41 / -.45 /
+   -.77); split -> via time budget (epoch fractions, pre gaps) -.06 / -.01 / -.03 (ns); via gaps (pre fractions,
+   epoch gaps) -.37 / -.45 / -.73 (all CIs exclude 0). Gaps above rest: in-trial +.26 / +.68 / +1.21 (pre .96; chronic
+   [+.87, +1.52], 4/4), other lick-buffered +.63 / +.39 / +.63 (pre .28). Fractions: rest +.02 acute only, in-trial
+   +.04 acute only, else ~0. Ipsi and whole brain the same pattern. Reading: the raw rest level falls because the
+   task and licking periods (~80 % of frames) sit further above rest, not because the session holds more of them --
+   the same increase as the post-lick response (Figs 9.1, 10.25), seen through the session-mean reference, and it
+   extends to licking outside cued trials. Whether rest itself moves in absolute terms cannot be measured (no absolute
+   level across days, B32). Consequence: the tonic "pre-cue minus rest" elevation and the raw rest fall are two faces
+   of one change in the task-vs-rest contrast. EXPLORATORY.
+
 44. **It is the movement MODEL, not the window (Priya 11-09 "yes run"; `scripts/state_space_encoder_window_kbs.py`,
    `encoder_subtract/window_kbs.csv`).** On the SAME trials, window (-0.1..+1.0 s after the first lick) and targets (the
    frozen encoder's own per-trial Allen-area values, trials with the KBs covariates, joined on cue time), spout-specific

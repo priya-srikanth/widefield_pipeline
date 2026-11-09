@@ -48,7 +48,20 @@ running list `docs/status/RUNNING_LIST_2026-11-08_STATE_SPACE.md` sections A (de
   after the sweep.
 - **11-08 ~11:45:** page v15 has section 9 (maps, all baselines, why-cleaner). "Why cleaner" answered for the 15r
   activity maps (B19: window, not denoising); the residual-map half not done.
-- **11-09 ~12:15 -- START HERE (B28-B39 consolidated into FINDINGS 0 "Where things stand, state-space maps with
+- **11-09 ~16:00 -- START HERE (open items a-d DONE, B40-B45; FINDINGS 0 "Where things stand, state-space maps with
+  movement removed" + 0c items 7-8 REWRITTEN).** Headline revised: the activity increase is not movement under any model
+  (incl. the encoder and each epoch's own coupling) and runs opposite to the June -> August change; the rest fall = task /
+  licking periods further above rest; the BETWEEN-SPOUT change (acute far-contra deficit included) is largely accounted
+  for by movement once modeled with lick-locked kernels (encoder, B40 / B44) or the post-stroke coupling (KBe, B43); the
+  bout-summary maps (9.1-9.3 b-d) are a LOWER bound on movement (B44). New scripts: state_space_encoder_subtract.py,
+  state_space_encoder_window_kbs.py, state_space_fr_coupling.py, state_space_june_maps.py, state_space_rest_decomp.py;
+  WF_SS_FR=KBw|KBe in state_space_chronic_maps.py. Figures on the share (page_figs): ss_encoder_subtract,
+  ss_fr_coupling_lick_svd, ss_june_maps_{full,nocw,spout}_lick_svd, ss_cmap_*_rest_fr{KBw,KBe}_lick_svd,
+  ss_rest_decomp_lick_svd. PAGE: v37 build still unpublished (other account) AND its 9.3 b-d captions / take row say
+  the acute deficit "survives movement" -- rewrite to the lower-bound wording and add the new figures before publishing.
+  Open: (1) encoder subtraction with contact LEFT IN (motor groups only) to split motor from the sensory consequence of
+  missing; (2) contralesional SSp-m spread under the encoder / KBe; (3) reach vs contact coupling with the two combined.
+- **11-09 ~12:15 -- (superseded by ~16:00) (B28-B39 consolidated into FINDINGS 0 "Where things stand, state-space maps with
   movement removed" + 0c items 7-10).** Headline: activity change not movement; acute far-contra spout-specific deficit
   survives movement controls; chronic between-spout change mostly movement-linked; contralesional SSp-m spread rises.
   PUBLISH PENDING: page v37 (account switch -- the page belongs to the other claude.ai account). Rebuild: `python
