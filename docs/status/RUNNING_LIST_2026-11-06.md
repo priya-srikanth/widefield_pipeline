@@ -798,3 +798,9 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   figure values + PNG IDENTICAL, csig 3d7bbe921e, 559 tests pass. Awaiting Priya OK to push.
 - Decisions for Priya: A accept the two near-identical LP lick decoder sets (recommended) vs make bit-identical; B push
   grant memos.
+- 04:36 x_enlv_balance_r3 EXIT 1 = missing producer #4: it reads, per ITI folder (all / dock / notdock),
+  matched_loclin_tests + balmatch_tests + recprim_sessions + ci_spout_epoch_tests; the NOTDOCK folder lacked balmatch /
+  recprim / ci (only prep + loclin were ever defined for notdock). This time ALL 12 balance inputs + every curves input
+  were checked on disk before re-queueing. 04:37 launched queue_daqlk9zz5.sh lane ND (b83f376d): e_dock_{balerr, ci,
+  subsets, recov}_notdock_r2 (dock-filter defs + notdock env) -> x_enlv_balance_r4 -> x_enlv_curves_r4.
+  (x_enlv_regress_r2 + x_enlv_table_r3 EXIT 0.)
