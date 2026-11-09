@@ -1089,3 +1089,6 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   mask sig 5f9eb36f36b2 (same at default root). Helper resumed to commit the second sweep (cued_wide, firstlick_full,
   revup, traces, lick_correction, enlv, ...), cover the pooled caches by guard or move-aside, finish the move-aside
   scan and update GLUE_MASK_FIX doc. Follow-up: precue_enl_lp1s cache on feat/precue-enl-window-1109 needs the stamp.
+- 12:08 PRIYA "ok to push": frozen spout D (wf_frozenD) + precue ENL (wf_precueenl) via chain_v17 (after chain_v16 =
+  style-leak branch, which follows chain_v15 = wiring -> memos). Glue fix pushing in parallel (push_glue.sh).
+  On main so far: caption branch 5a0612b4, stamp fix 7fd9f5f4. Mask-keys branch: push asked separately when complete.
