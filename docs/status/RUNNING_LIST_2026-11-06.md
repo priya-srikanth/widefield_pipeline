@@ -716,3 +716,14 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
 - After this everything in the trimmed plan is running or done, except the later lick decoders (pcd / nolick / precue
   states / joint xsession on LP) and the figdata star redraws. Old waiting lanes on pre-fix code can be stopped (exact
   PIDs) once the r2 chain is through.
+
+## 11-09 ~00:40 -- Priya's answers
+1. Drift figures: "can we build camera trial tables for June? we have the 3d data" -> read-only investigation running
+   (scratchpad/june_camera_tables.md): inputs per June session, why absent, steps + time, and the csig risk (the class
+   digest hashes the v36 / cam1 input files, so adding June files could invalidate every camera-gated cache) before
+   anything is built.
+2. G4 -> train working vs no_response, "only rerun what needs to be rerun": helper on fix/g4-noresp-1109 (wf_g4noresp)
+   + minimal re-run plan (G4-only path / cache hit share / downstream consumers).
+3. te-basis hardening branch: OK -> pushing (fix/iti-te-basis-path-1108, wf_tebasis).
+- g5_section_g_lp DONE 21:26; g6_grant_lp started 22:41, 4/96 units at 00:34 (first units pay the cold LP collection;
+  rate to be measured at later unit boundaries, not extrapolated).
