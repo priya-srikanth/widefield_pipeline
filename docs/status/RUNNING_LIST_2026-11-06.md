@@ -804,3 +804,15 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   were checked on disk before re-queueing. 04:37 launched queue_daqlk9zz5.sh lane ND (b83f376d): e_dock_{balerr, ci,
   subsets, recov}_notdock_r2 (dock-filter defs + notdock env) -> x_enlv_balance_r4 -> x_enlv_curves_r4.
   (x_enlv_regress_r2 + x_enlv_table_r3 EXIT 0.)
+
+## 11-09 ~05:10 -- RE-RUN PASS COMPLETE
+- 05:07 v9zz5-ND DONE: e_dock_{balerr, ci, subsets, recov}_notdock_r2, x_enlv_balance_r4, x_enlv_curves_r4 all EXIT 0.
+- Every group of the trimmed plan is now re-run on fixed main: section G (LP) + G4-only; LP epoch arms; LP cd chain;
+  matched-pre lick half; ITI chain; gain-bio; rest family; balance / ENL-slide chain (with 4 missing producers added:
+  ITI spout patterns, balance _inside, ENL-v regress, notdock dock steps); June LP drift; grant (LP, 96/96).
+- Remaining failures in the render's cumulative count are superseded steps (old names re-run as _r2 / _r3 / _r4) or old
+  parked lanes on pre-fix code.
+- OPEN for Priya: A accept the two near-identical LP lick decoder sets (recommended); B push grant memos (7ac7850c).
+- NEXT (me): stop the parked old lanes by exact PID; redraw pass (stars / order figdata; matched-pre figure with the LP
+  lick half; G4 deck slide; gb_fig_r; fix the stale "DAQ lick-arm trials" label + grant layout overlaps); then the
+  replacement pass -- headline table on corrected outputs -> Priya BEFORE any page / deck text.

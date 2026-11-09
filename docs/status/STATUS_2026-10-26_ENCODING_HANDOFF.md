@@ -66,6 +66,8 @@ b83f376d (G1-G3 no_response), 2944eca4 (te-basis path hardening), 3f1c5e90 (June
 lp_licks WIDEFIELD_ATTEMPTS_SUPPLEMENT), G4 branch fix/g4-noresp-1109 (70d976f0 + 2b87c996 --only g4) being pushed by
 `scratchpad/chain_v10.sh` (log chain_v10.log), which then launches queue v10.
 
+**UPDATED 11-09 ~05:10: RE-RUN PASS COMPLETE -- every group done on fixed main (G4-only 34 min; June LP drift 33 min; grant LP 96/96 in 5 h 24 min; balance / ENL chain via v9zz2-v9zz5 incl. 4 added missing producers). LP lick class VERIFIED correct (trace: scratchpad/lp_epoch_decoder_trace.md; the "DAQ lick-arm trials" log text is a stale hard-coded label). Two near-identical LP lick epoch decoder sets (float-noise inputs) -> Priya decision A; grant memos measured 2.2x / later alignments 130 s, identical -> Priya decision B. Next: stop parked old lanes, redraw pass, then the replacement pass (headline table -> Priya). See running list section "11-09 ~05:10".**
+
 #### 3. Render state (~01:30)
 DONE on fixed code (live-log settings checked): section G on LP (3 h 14 min, was 13.1 h), LP epoch arms ENL / lick /
 cue (5r 14m / acc 14m / scal mat), LP cd chain (Fig 9.1 -> LP epoch folder), matched-pre lick half (LP, 799 pairs),
