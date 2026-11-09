@@ -1119,3 +1119,15 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   the glue branch (0d3c6f4d: reserve_headroom(fig) before each save; star tests pass) -- NOTE FOR THE STATE-SPACE WINDOW.
   chain_v20 relaunched (same order: gluefix, maskkeys, frozenD, tswire, grantmemo, misc1109, precueenl). Re-run prep
   helper drafting move_aside.py + queue_daqlk20.sh + PLAN.md (no launch).
+- 13:40 RE-RUN PREPARED (not launched; scratchpad/glue_rerun/): move_aside.py dry run = 96 items, 12,092 files, 196 GB
+  (incl. O2 bundle 29 GB, E/movement_first_* + musall_* 139 GB; +2 found: gain_bio/sessions,
+  cohort1_quiet_spikes/v2_quiet_lp/sessions); --do refuses unless HALT is set; moves to <root>/_superseded_glue_20261109/.
+  queue_daqlk20.sh: 386 steps (CD 8, MAPS 15, ITI 37, ENC 41, DOWN 267, FIG 8; O2 10 behind a manual marker), all
+  `<family>_g` names; 363 match the originals exactly; 0 missing producers (several undeclared deps added, incl. the
+  11-07 rlink_aim failure cause). ESTIMATE REVISED: 2.5-3 days (longest chain f_frA -> 3 partial refits ~28 h; ~36 h
+  heavy-slot work; encoder ~136 h compute over 3 lanes).
+  Coordinator decisions: (1) precue: mask stamp follow-up being added on wf_precueenl (merges maskkeys) before its push;
+  (2) encoder lanes start together with CD / MAPS (no heavy-slot contention; MINFREE 15 GB governs); epoch renders KEEP
+  the heavy slot (12 GB RAM each); (3) O2 re-bundle = manual coordinator step after the ITI inputs exist (new bundle
+  name; decide the _daqlk tag then); (4) state_space_sim = state-space window, after e_iti_main_g (handoff note);
+  (5)-(6) additions / exclusions accepted as listed in PLAN.md; (7) e_drift_june_g may fail (cont).
