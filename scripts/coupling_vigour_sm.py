@@ -46,7 +46,12 @@ Statistics: per-animal tables printed first (rule 8); analysis_kit.boot_delta (p
   pre (interhemi_crossarea._tests).
 Outputs: <OUT_W>/coupling_vigour/ (cv_*), <OUT_W>/sensorimotor_kinetics/ (sm_*), each with figdata/ + figures/.
 Usage: python scripts/coupling_vigour_sm.py [--jobs 4] [--labels ...] [--summarise] [--plot-only]
-  (run under the frozen env, rr2/frozenenv.sh, for the FaceRhythm factors)
+  (run under the frozen env, rr2/frozenenv.sh, for the FaceRhythm factors) [--rest-variant restdock05|restnl]
+REST VARIANT (Priya 11-09): `--rest-variant restnl` (PRIMARY) reads the lick-free rest cache
+  <OUT_W>/interhemi_rest_w1_restnl/ and the matching interhemi_crossarea outputs (<OUT_W>/cross_area_restnl/xa_tests.csv)
+  and writes to <OUT_W>/coupling_vigour_restnl/ and <OUT_W>/sensorimotor_kinetics_restnl/; default restdock05
+  (SUPPLEMENT) unchanged. RAW (no rest reference): rest is never subtracted here; the lick-set rows (cued, iti_dock)
+  are the raw version ('rest' sorts last in every bootstrap group loop, so they do not depend on the variant).
 """
 from __future__ import annotations
 from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
@@ -68,7 +73,8 @@ import iti_licks as il  # noqa: E402
 import lick_interhemispheric as lih  # noqa: E402
 
 OUT_W = lih.OUT_W
-O1, O2 = OUT_W / "coupling_vigour", OUT_W / "sensorimotor_kinetics"
+# rest variant (`--rest-variant`, resolved by lick_interhemispheric at import): restnl -> own folders, never the default
+O1, O2 = OUT_W / lih._o("coupling_vigour"), OUT_W / lih._o("sensorimotor_kinetics")
 IN = il.OUT
 EPS, AN = lih.EPS, lih.AN
 MIN_N = 30
@@ -454,7 +460,17 @@ def _wrap(s, w=160):
     return "\n".join(textwrap.wrap(s, w))
 
 
-SET_LAB = {"cued": "CUED first licks", "iti_dock": "ITI licks, spout docked", "rest": "DOCKED QUIET REST"}
+SET_LAB = {"cued": "CUED first licks", "iti_dock": "ITI licks, spout docked", "rest": lih.REST_SHORT}
+CAP_REST = (f"{lih.REST_TXT}. Lick-set panels: {lih.RAW_TXT} -- rest is a separate state here, never subtracted, "
+            "and the lick-set numbers do not depend on the rest variant.")
+
+
+def _save(fig, path, dpi) -> None:
+    """save_png_svg with the rest set stated on the last title line (Priya 11-09)."""
+    t = fig._suptitle
+    if t is not None:
+        t.set_text(t.get_text() + chr(10) + CAP_REST)
+    save_png_svg(fig, path, dpi=dpi)
 
 
 def _pts(ax, r, xx, ep, show_animals=True, filled=True, ms=5):
@@ -528,7 +544,7 @@ def plot1() -> None:
                        "movement covariates added (3-D reach, peak speed, lick duration, protrusion, lick count +-0.5 / "
                        "+-1 s, FaceRhythm face factors; cued: + trial jaw amplitude, landing error), and with the same "
                        "covariates row-permuted (degrees-of-freedom control). PROVISIONAL n = 4"), fontsize=9.5)
-    save_png_svg(fig, O1 / "figures" / "cv_coupling_vs_movement.png", dpi=120)
+    _save(fig, O1 / "figures" / "cv_coupling_vs_movement.png", dpi=120)
     plt.close(fig)
     # FIG 2: movement variability change vs pre per animal (within-spout SD) + movement R2 of the oro pool
     mets = [(f"wsd_{k}", k) for k in KIN_SHOW] + [("r2mov_oro", "R2 movement\n(oro pool)"),
@@ -562,7 +578,7 @@ def plot1() -> None:
     fig.suptitle(_wrap("Movement variability per session (SD of each covariate after removing the spout means), change vs "
                        "August pre as a fraction of the pre SD; right: share of orofacial-pool / other-area residual "
                        "window-mean variance explained by the movement covariates. PROVISIONAL n = 4"), fontsize=9.5)
-    save_png_svg(fig, O1 / "figures" / "cv_movement_variability.png", dpi=120)
+    _save(fig, O1 / "figures" / "cv_movement_variability.png", dpi=120)
     plt.close(fig)
 
 
@@ -601,7 +617,7 @@ def plot2() -> None:
                        "pairs per group (S = SSp-n, SSp-m, SSs, SSp-ul; M = tjM1, ALM, MOp, MOs; c = contralesional, "
                        "i = ipsilesional), mean over animals of session means. Lick sets: movement-partialled residuals. "
                        "GCaMP6s: shape only, not neural lags. PROVISIONAL n = 4"), fontsize=9.5)
-    save_png_svg(fig, O2 / "figures" / "sm_xcorr_curves.png", dpi=120)
+    _save(fig, O2 / "figures" / "sm_xcorr_curves.png", dpi=120)
     plt.close(fig)
     # FIG 2: change vs pre in asym and gc_dir per group (primary variant), plus pre level text
     grp = ["Sc->Mc", "Si->Mi", "Sc->Mi", "Si->Mc", "intra_minus_inter", "contra_minus_ipsi"]
@@ -635,7 +651,7 @@ def plot2() -> None:
                        "only): change vs August pre per pair group, per-animal dots + pooled paired bootstrap; gray = "
                        "contrasts (intra- minus interhemispheric; contralesional minus ipsilesional hemisphere). Text = "
                        "pooled pre level. PROVISIONAL n = 4"), fontsize=9.5)
-    save_png_svg(fig, O2 / "figures" / "sm_direction_change.png", dpi=120)
+    _save(fig, O2 / "figures" / "sm_direction_change.png", dpi=120)
     plt.close(fig)
     # FIG 3: sensitivity -- intra / inter group means under each variant (old vs mov; raw vs gsr; tau 0 vs 0.6)
     vlist = [("mov", "raw", 0.6, "mov raw\ntau .6"), ("mov", "gsr", 0.6, "mov GSR\ntau .6"),
@@ -671,7 +687,7 @@ def plot2() -> None:
     fig.suptitle(_wrap("Sensitivity of the sensory -> motor direction change: movement-partialled vs published residual "
                        "model, global signal removed (leave-pair-out), raw (tau 0) vs deconvolved traces; pooled 95% CI "
                        "only. PROVISIONAL n = 4"), fontsize=9.5)
-    save_png_svg(fig, O2 / "figures" / "sm_sensitivity.png", dpi=120)
+    _save(fig, O2 / "figures" / "sm_sensitivity.png", dpi=120)
     plt.close(fig)
 
 
@@ -681,7 +697,10 @@ def main() -> None:
     ap.add_argument("--labels", nargs="*")
     ap.add_argument("--summarise", action="store_true")
     ap.add_argument("--plot-only", action="store_true")
+    ap.add_argument("--rest-variant", choices=lih.REST_VARIANTS, default="restdock05",
+                    help="rest set (lick_interhemispheric rest cache): restdock05 (default, SUPPLEMENT) / restnl (PRIMARY)")
     a = ap.parse_args()
+    assert a.rest_variant == lih.REST_VARIANT
     if a.plot_only:
         plot1()
         plot2()
