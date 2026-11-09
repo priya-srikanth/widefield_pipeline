@@ -63,6 +63,20 @@ merged to main (no conflicts); A5 applied to FINDINGS 0c item 4 and the page cap
 
 ## B. Findings (newest first; exploratory)
 
+38. **Tongue / jaw kinematics + contact control (Priya 11-09 "yes"): activity untouched; acute far-contra spout-specific
+   loss mostly survives; chronic spout differences = kinematics + face together.** `WF_SS_FR=K0|Ks|KBs` (8 per-trial
+   covariates: bout licks, contacts, latency, reach, speed + first-lick 3-D landing; spout-centered; KBs adds the Bs face
+   covariates; K0 = same-trials control; 96 % of trials). Kept along the control's direction (Ks / KBs), sig % K0 -> Ks /
+   KBs: 9.1 mean 0.96 / 1.05 acute, 1.01 / 1.01 chronic (areas identical: SSp-m contra +.69 -> +.67 / +.67); 9.2 mean
+   0.96-0.98. 9.3 ACUTE far contra 0.91 / 0.73, contour 16 -> 21 / 9 %, ipsilesional orofacial loss still significant
+   (SSp-m ipsi -.63 -> -.48 / -.49, SSp-n -.55 -> -.42 / -.41, tjM1 -.46 -> -.36 / -.37): kinematics + contact take ~25 %,
+   PREDICTION (absorbs much) NOT MET. 9.3 CHRONIC far contra 0.76 / 0.24, contour 10 -> 1 / 0 % (SSp-tr contra -.33 -> -.27
+   * / -.13; VISa -.23 -> -.18 * / -.07); close ipsi 1.01 / 0.62 (40 -> 32 / 7 %). Contralesional SSp-m spread +.07 4/4
+   in every mode. Vs encoder (acute far-contra cortex evoked DROP carried by its LICK + contact groups): different readout
+   (cortex-total evoked vs the spout-specific ipsilesional orofacial pattern) and our covariates are bout summaries, not
+   the encoder's time-resolved lick-locked kernels -- a remaining gap, not a contradiction yet. Figures on the share
+   (page_figs ss_cmap_{full,nocw,spout}_rest_fr{K0,Ks,KBs}_lick_svd.png, family scales); page v37 build pending.
+
 37. **Spout-centered face covariates (no spout information): activity unchanged; acute far-contra loss untouched; chronic
    far-contra loss PARTLY face (Priya 11-09 "add the covariate relative to spout's pre-stroke mean, and relabel frB").**
    `WF_SS_FR=Bs|As` = B / A covariates minus the animal's pre mean at the trial's spout (training sessions only). WHY: raw

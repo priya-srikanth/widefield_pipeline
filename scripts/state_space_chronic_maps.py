@@ -118,8 +118,16 @@ FR = __import__("os").environ.get("WF_SS_FR", "")
 # information (B / A themselves decode the spout .40-.60 / .61-.87 from pre trials, chance .17: the non-lick factors
 # follow the spout); post trials are referenced to the same pre spout means, so a post-stroke change in how the face
 # moves AT a spout is still removed.
-if FR not in ("", "0", "A", "B", "As", "Bs") or (FR and WIN != "resp"):
-    raise ValueError(f"WF_SS_FR={FR!r} (needs '', 0, A, B, As, Bs and WF_SS_MAPWIN=resp)")
+# K modes (Priya 11-09 "yes" to the tongue / jaw kinematics + contact control, like-for-like with the encoder's LICK +
+# contact groups): per trial 8 covariates = licks in the 0.7-s bout, contacts among them, first-lick latency, mean reach,
+# peak tongue speed (B27 per-trial table shift_behavior_lick_svd/trials.csv.gz, 3-D licks) + the first lick's 3-D landing
+# (side_ml, out_ap, down_dv; first_lick_landing.csv). Ks = spout-centered (landing -> landing ERROR vs the spout's pre
+# mean: execution, not target); KBs = Ks + the Bs face covariates; K0 = the control on the SAME trials (FR AND kinematics
+# present), nothing regressed. Trials without both are dropped in every K mode.
+FR_MODES = ("", "0", "A", "B", "As", "Bs", "K0", "Ks", "KBs")
+if FR not in FR_MODES or (FR and WIN != "resp"):
+    raise ValueError(f"WF_SS_FR={FR!r} (needs one of {FR_MODES} and WF_SS_MAPWIN=resp)")
+KIN = FR.startswith("K")
 BSUF = ("" if BASE == "lick" else f"_{BASE}") + ("_precue" if WIN == "precue" else "") + (f"_fr{FR}" if FR else "")
 BASE_LABEL = {"lick": "response window minus the trial's -1.0..-0.6 s before the first lick",
               "rest": "response window minus the session's RESTnl rest level",
@@ -200,12 +208,34 @@ def fr_covariates(lab, n):
     return X
 
 
+KIN_COLS = ["n_licks", "n_contacts", "rt_s", "reach_mm", "speed", "side_ml", "out_ap", "down_dv"]
+_KIN: dict = {}
+
+
+def kin_covariates(lab, n):
+    """(n, 8) per-trial tongue / jaw kinematics + contact + landing (KIN_COLS), NaN where a trial has no 3-D match; rows =
+    the extract's trial rows (joined through the landing table's row -> trial_id)."""
+    if not _KIN:
+        T = pd.read_csv(S.ROOT / "shift_behavior_lick_svd" / "trials.csv.gz",
+                        usecols=["label", "trial_id", "n_licks", "n_contacts", "rt_s", "reach_mm", "speed"])
+        L = pd.read_csv(R.LANDING, usecols=["label", "row", "trial_id", "side_ml", "out_ap", "down_dv"])
+        J = L.merge(T, on=["label", "trial_id"], how="left")
+        _KIN.update({k: g for k, g in J.groupby("label")})
+    X = np.full((n, len(KIN_COLS)), np.nan)
+    g = _KIN.get(lab)
+    if g is not None:
+        r = g.row.to_numpy().astype(int)
+        keep = r < n
+        X[r[keep]] = g[KIN_COLS].to_numpy(float)[keep]
+    return X
+
+
 def fr_design(X):
     """(n, 12) raw factors -> the WF_SS_FR mode's covariates (`fr_groups` master_v1)."""
     from wfield_local import fr_groups
     G = fr_groups.GROUPINGS["master_v1"]
     cols = []
-    for part in fr_groups.MODES[FR[0]]:
+    for part in fr_groups.MODES["B" if FR.startswith("K") else FR[0]]:
         if part == "other":
             cols += [X[:, k] for k in G["other"]]
         elif G.get(part):
@@ -223,9 +253,16 @@ def apply_fr(data):
         for lab, ep, day, Y, pos in sess:
             X = fr_covariates(lab, len(pos))
             ok = np.zeros(len(pos), bool) if X is None else np.isfinite(X).all(1)
-            rows.append([lab, ep, day, Y, np.where(ok, pos, "none"), None if X is None or FR == "0" else fr_design(X), ok,
-                         pos])
-        if FR != "0":
+            D = None if X is None or FR in ("0", "K0") else fr_design(X)
+            if KIN:
+                Kc = kin_covariates(lab, len(pos))
+                ok &= np.isfinite(Kc).all(1)
+                if FR == "Ks":
+                    D = Kc
+                elif FR == "KBs" and D is not None:
+                    D = np.column_stack([Kc, D])
+            rows.append([lab, ep, day, Y, np.where(ok, pos, "none"), D, ok, pos])
+        if FR not in ("0", "K0"):
             pre = [r for r in rows if r[1] == "pre" and r[6].any()]
             for r in rows:
                 if not r[6].any():
