@@ -1131,3 +1131,9 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   the heavy slot (12 GB RAM each); (3) O2 re-bundle = manual coordinator step after the ITI inputs exist (new bundle
   name; decide the _daqlk tag then); (4) state_space_sim = state-space window, after e_iti_main_g (handoff note);
   (5)-(6) additions / exclusions accepted as listed in PLAN.md; (7) e_drift_june_g may fail (cont).
+- 14:00 PUSH STRATEGY CHANGED: main moved 11x in 3 h (state-space window), so 24-min test runs kept losing races
+  (glue: tests passed twice, rejected twice). Built integ/glue-batch-1109 (worktree wf_integ1109) = origin/main + all 7
+  approved branches (glue+star fix, mask keys, frozen D, wiring+test fix, grant memos [conftest conflict: kept both
+  autouse fixtures], style leak/softmax/gate, precue ENL+stamp). csig 3d7bbe921e, mask 5f9eb36f36b2, union 40,663 /
+  stat 129,770 under the profile; 493 key tests pass. chain_v20 loop stopped (in-flight glue attempt finishes alone);
+  push_integ.sh pushes the ONE branch after it (race retries). Re-run queue EXPECT_SHA = the integ commit once on main.
