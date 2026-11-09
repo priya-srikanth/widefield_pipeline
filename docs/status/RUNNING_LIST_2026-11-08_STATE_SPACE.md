@@ -63,6 +63,14 @@ merged to main (no conflicts); A5 applied to FINDINGS 0c item 4 and the page cap
 
 ## B. Findings (newest first; exploratory)
 
+39. **Why the 9.2 movement versions are identical (Priya 11-09 "why do the 9.2 versions all look identical?"):** what
+   the movement covariates remove lies mostly along the cortex-wide mode that 9.2 projects out first -- share of the
+   removed session-to-session variation along it: face (Bs) .88 (.66-.97 per animal), kinematics + contact .72, both .90;
+   of the removed chronic change .91 / .68 / .71; vs .53 for the pre responses' own session variation. Same fact as the
+   9.1 contours growing (the removed whole-cortex fluctuation was noise in the pre reference). v37 layout (Priya "1. ok;
+   collapsible supplemental; 2. ok"): 9.1 / 9.3 main b = face, c = kinematics + contact, d = both; S1-S5 collapsed
+   (`details.supp-levels`); 9.2 original + 8 collapsed versions. `scripts/page_file_names.py` now covers supplements.
+
 38. **Tongue / jaw kinematics + contact control (Priya 11-09 "yes"): activity untouched; acute far-contra spout-specific
    loss mostly survives; chronic spout differences = kinematics + face together.** `WF_SS_FR=K0|Ks|KBs` (8 per-trial
    covariates: bout licks, contacts, latency, reach, speed + first-lick 3-D landing; spout-centered; KBs adds the Bs face

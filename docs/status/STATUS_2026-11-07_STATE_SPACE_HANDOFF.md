@@ -48,6 +48,9 @@ running list `docs/status/RUNNING_LIST_2026-11-08_STATE_SPACE.md` sections A (de
   after the sweep.
 - **11-08 ~11:45:** page v15 has section 9 (maps, all baselines, why-cleaner). "Why cleaner" answered for the 15r
   activity maps (B19: window, not denoising); the residual-map half not done.
+- **11-09 ~12:00 (B38-B39) -- PUBLISH PENDING, v37 build = `state_space_page/build_v37_section9.py` (always from
+  index_v36_backup.html) then `scripts/page_file_names.py index.html --prefix state_space_recovery/page_figs`.** Adds the
+  kinematics + contact controls (K0 / Ks / KBs) and the collapsible-supplement layout; supersedes `rebuild_fr_section9.py`.
 - **11-09 ~11:30 (running list B37) -- PUBLISH PENDING:** spout-centered FR (`WF_SS_FR=Bs|As`) + pre rows on every map,
   all figures on the share (page_figs, 11:15-11:18). Page v37 is built in the scratchpad (state_space_page/index.html;
   v36 backup index_v36_backup.html) and must be published from the account that owns

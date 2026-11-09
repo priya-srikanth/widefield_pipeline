@@ -29,7 +29,8 @@ def add_file_names(html: str, prefix: str) -> tuple[str, int]:
         note = f' <span class="ffile"><b>File:</b> <code>{prefix}/{img.group(1)}</code></span>'
         return fig.replace("</figcaption>", note + "</figcaption>", 1)
 
-    return re.subn(r'<figure\b[^>]*>.*?</figure>', one, html, flags=re.S)
+    # figures AND collapsible supplements (`<details class="supp-levels">` with a figcaption, as on the goal page)
+    return re.subn(r'<figure\b[^>]*>.*?</figure>|<details\b[^>]*>.*?</details>', one, html, flags=re.S)
 
 
 def main(argv=None) -> int:
