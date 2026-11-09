@@ -810,7 +810,40 @@ def _filter_set(explicit, env_name):
     return {str(v) for v in val}
 
 
+#: Per-process memo of `load_sessions` (profile 11-09: one grant unit called it 368 times, 289 s, nearly all of it
+#: `PathResolver.resolve` stat-ing list mounts on M:). Key = the arguments + every WIDEFIELD_* / WFIELD_* variable (the
+#: cohort, subset filters, root overrides and rebuild root all come from there) + the IDENTITY of the parsed
+#: sessions.yaml and of the cached resolver, so `_load.cache_clear()` / `resolver.cache_clear()` (await_locanmf
+#: re-reads sessions.yaml after registering) start fresh. Every call returns a deep copy.
+_SESSIONS_MEMO: dict = {}
+
+
+def _sessions_memo_key(machine, animals, dates):
+    from wfield_local.session_memo import _env_key
+
+    def norm(v):
+        return v if v is None or isinstance(v, str) else tuple(str(x) for x in v)
+    return (machine, norm(animals), norm(dates), _env_key())
+
+
 def load_sessions(machine: str | None = None, animals=None, dates=None) -> list[dict]:
+    """`_load_sessions_uncached`, memoized per process (see `_SESSIONS_MEMO`); a deep copy per call."""
+    import copy
+    key = _sessions_memo_key(machine, animals, dates)
+    raw, rv = _load("sessions.yaml"), resolver(machine)
+    hit = _SESSIONS_MEMO.get(key)
+    if hit is None or hit[0] is not raw or hit[1] is not rv:
+        if len(_SESSIONS_MEMO) > 64:
+            _SESSIONS_MEMO.clear()
+        hit = (raw, rv, _load_sessions_uncached(machine, animals, dates))
+        _SESSIONS_MEMO[key] = hit
+    return copy.deepcopy(hit[2])
+
+
+load_sessions.cache_clear = _SESSIONS_MEMO.clear
+
+
+def _load_sessions_uncached(machine: str | None = None, animals=None, dates=None) -> list[dict]:
     """Flatten `configs/sessions.yaml` into the pipeline's SESSIONS list:
     `dict(label, mc, h5, regime, fmdir, [behavior_trials])`, ordered by (date, animal).
 

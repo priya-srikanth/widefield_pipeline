@@ -103,6 +103,9 @@ def cache_tag(rv=None) -> str:
 
 _DAQ_TRAIN: dict = {}
 _EXTRA: dict = {}
+#: Both memos clear past this many entries. Was 32 / 64 until 11-09: a cohort has 108 sessions, so a figure that walks
+#: every session cleared the DAQ contact memo three times a pass (profile 11-09: 120 lick-train re-reads, 435 s).
+_MEMO_MAX = 1024
 
 
 def _daq_contact_samples(h5) -> tuple[np.ndarray, float]:
@@ -111,7 +114,7 @@ def _daq_contact_samples(h5) -> tuple[np.ndarray, float]:
     from wfield_local.plot_lick_aligned_averages import _load_daq_events
     key = str(h5)
     if key not in _DAQ_TRAIN:
-        if len(_DAQ_TRAIN) > 32:
+        if len(_DAQ_TRAIN) > _MEMO_MAX:
             _DAQ_TRAIN.clear()
         lk = _load_daq_events(h5, "lick_analog", allow_lp=False)
         _DAQ_TRAIN[key] = (np.sort(np.asarray(lk["lick_samples"], float)), float(lk["sample_rate_hz"]))
@@ -134,15 +137,24 @@ def extra(label: str, window_s: float, cue_samples=None, sr=None, rv=None) -> di
     s = next((x for x in config.load_sessions() if x["label"] == label), None)
     if s is None:
         raise KeyError(f"gate_source.extra: no registered session {label}")
+    spec = lp_licks.spec_token(rv)
+    # The session's OWN cue train (no ``cue_samples``): look the memo up BEFORE reading the DAQ h5 (profile 11-09:
+    # 214 calls of one grant unit re-read the cue train only to find the answer already in _EXTRA).
+    own_key = None
     if cue_samples is None:
+        own_key = (label, "own-cue-train", str(s["h5"]), None if sr is None else float(sr), float(window_s), spec)
+        if own_key in _EXTRA:
+            return _EXTRA[own_key]
         from wfield_local.plot_spout_trial_averages import _load_daq_events as _load_cue
         cue = _load_cue(s["h5"])
         cue_samples, sr = cue["cue_samples"], cue["sample_rate_hz"]
     if sr is None:
         sr = _daq_contact_samples(s["h5"])[1]
     cs = np.ascontiguousarray(np.asarray(cue_samples, np.int64))
-    key = (label, hashlib.sha1(cs.tobytes()).hexdigest(), float(sr), float(window_s), lp_licks.spec_token(rv))
+    key = (label, hashlib.sha1(cs.tobytes()).hexdigest(), float(sr), float(window_s), spec)
     if key in _EXTRA:
+        if own_key is not None:
+            _EXTRA[own_key] = _EXTRA[key]
         return _EXTRA[key]
     licks, sr_l = _daq_contact_samples(s["h5"])
     if abs(sr_l - float(sr)) > 1e-6 * max(sr_l, 1.0):
@@ -160,9 +172,11 @@ def extra(label: str, window_s: float, cue_samples=None, sr=None, rv=None) -> di
     except lp_licks.LPUnavailable as ex:
         print(f"  [gate LP] {label}: no LP verdicts ({str(ex)[:60]}) -- gate = DAQ contact only", flush=True)
     out = {"daq": daq, "lp": lp, "lp_cov": cov, "any": daq | lp}
-    if len(_EXTRA) > 64:
+    if len(_EXTRA) > _MEMO_MAX:
         _EXTRA.clear()
     _EXTRA[key] = out
+    if own_key is not None:
+        _EXTRA[own_key] = out
     return out
 
 
