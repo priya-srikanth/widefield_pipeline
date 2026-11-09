@@ -261,3 +261,32 @@ def fresh_loader_memos():
     clear()
     yield
     clear()
+
+
+@pytest.fixture(autouse=True)
+def one_iti_licks(monkeypatch):
+    """Every loaded script module sees the SAME `iti_licks` module object as `sys.modules` (11-09). A test that drops
+    `iti_licks` from `sys.modules` (to re-import it under another env) leaves drivers imported earlier (`import iti_licks
+    as il`) holding the OLD object; a later fixture that patches `iti_licks.OUT` then patches the NEW one and the driver
+    writes to the live share. Re-point stale references (or put the referenced object back) for the test's duration."""
+    import sys
+    scripts = str(pathlib.Path(__file__).resolve().parents[1] / "scripts").lower()
+    held = []
+    for _name, mod in list(sys.modules.items()):
+        f = str(getattr(mod, "__file__", "") or "").lower()
+        if not f.startswith(scripts):
+            continue
+        for attr, val in list(vars(mod).items()):
+            if getattr(val, "__name__", None) == "iti_licks" and isinstance(val, type(sys)):
+                held.append((mod, attr, val))
+    if not held:
+        yield
+        return
+    cur = sys.modules.get("iti_licks")
+    if cur is None:
+        monkeypatch.setitem(sys.modules, "iti_licks", held[0][2])
+        cur = held[0][2]
+    for mod, attr, val in held:
+        if val is not cur:
+            monkeypatch.setattr(mod, attr, cur)
+    yield

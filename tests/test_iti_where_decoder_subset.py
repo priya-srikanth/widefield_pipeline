@@ -60,7 +60,10 @@ def test_filter_z_needs_the_subset_copy(wd, monkeypatch):
 
 
 def test_cli_plot_only_refuses_before_writing(tmp_path):
-    env = dict(os.environ, WFIELD_ITI_FILTER="dock", WFIELD_ITI_OUT_W=str(tmp_path / "w"), MPLBACKEND="Agg")
+    # PYTHONPATH = THIS checkout first: the installed (editable) wfield_local may point at another checkout
+    pp = os.pathsep.join([str(REPO), str(REPO / "scripts")] + ([os.environ["PYTHONPATH"]] if os.environ.get("PYTHONPATH") else []))
+    env = dict(os.environ, WFIELD_ITI_FILTER="dock", WFIELD_ITI_OUT_W=str(tmp_path / "w"), MPLBACKEND="Agg",
+               PYTHONPATH=pp)
     r = subprocess.run([sys.executable, str(REPO / "scripts" / "iti_where_decoder.py"), "--plot-only"], env=env,
                        cwd=REPO, capture_output=True, text=True, timeout=600)
     assert r.returncode != 0 and "unfiltered figure" in r.stderr
