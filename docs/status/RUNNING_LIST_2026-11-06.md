@@ -1113,3 +1113,9 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
 - 12:58 PRIYA OK to push the mask-keys branch. chain_v18 (still waiting) stopped; chain_v19 = gluefix, MASKKEYS, frozenD,
   tswire, grantmemo, misc1109, precueenl (sequential, after the running glue / frozenD pushes). After glue + maskkeys
   land: precue_enl_lp1s stamp follow-up, move-aside (list in GLUE_MASK_FIX doc), lift HALT, queue the re-run plan.
+- 13:25 GLUE PUSH failed again: earlier try lost a race (all tests passed); chain_v19 try merged a NEW main where
+  test_every_star_user_reserves_the_band FAILS ON MAIN ITSELF: the state-space window's 419c029e scripts
+  (state_space_encoder_subtract / fr_coupling / rest_decomp, B40-B42) place stars without reserve_headroom. Fixed on
+  the glue branch (0d3c6f4d: reserve_headroom(fig) before each save; star tests pass) -- NOTE FOR THE STATE-SPACE WINDOW.
+  chain_v20 relaunched (same order: gluefix, maskkeys, frozenD, tswire, grantmemo, misc1109, precueenl). Re-run prep
+  helper drafting move_aside.py + queue_daqlk20.sh + PLAN.md (no launch).
