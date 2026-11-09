@@ -1014,3 +1014,9 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   missing + mask-dependent cache keys + impact audit / re-run plan. HOLD: grant + epoch caption re-renders, xa restnl
   re-run, any map / area-extract / encoder re-render. v14a map re-renders (running) = PREVIEW ONLY (glue in).
   Still open with Priya: balance A vs B; frozen spout recs (incl. deleting A 12 + B 6 models).
+- 11:50 PRIYA: frozen spout decoder -- D = the single LP decoder; OK to delete copies A (12) + B (6) (kept list first);
+  helper on fix/frozen-spout-D-1109 (wf_frozenD): delete A/B, check gate-source effect on D's rows, LP joint_xsession
+  LOADING D (no refit), wording fix. Balance: Priya recalls log2 ratio was chosen -> confirmed (DECISIONS 10-28 late
+  night: gain ratio 0.1..0.5 s, primary; nested held-out selection over window x difference/ratio picked the ratio).
+- 12:15 all 4 helpers hit the session limit (~11:55) and were resumed after the reset (nothing deleted; partial work
+  intact). chain_v14 caption push still losing push races (main busy); chain_v15 waits on it.
