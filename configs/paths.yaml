@@ -221,7 +221,13 @@ rebuild:
     orofacial: {dest: LP_analysis, patterns: ["*/imaging_encoding"]}
   # read-only inputs inside a derived root's ORIGINAL location, read from there (never written): no copy is made
   inputs_in_place:
-    cohort_out: ["joint_bases"]
+    cohort_out:
+      - joint_bases
+      # the HAND-PAINTED fiber-glue masks (painted 2026-09-12, paint_exclusion.py): hand-made INPUTS that happen to sit
+      # in grant_figures/. Read in place by `paint_exclusion.mask_dir` (PathResolver.input_root), never copied. Before
+      # 11-09 mask_dir followed the rebuild root, found nothing there, and beta_maps.painted_exclusion silently returned
+      # an empty mask: glue IN under cohort1_rebuild_20261103 (docs/status/RUNNING_LIST_2026-11-08_STATE_SPACE.md item 12)
+      - grant_figures/exclusion_mask_painted_*.npy
   # inputs inside a derived tree that `init` COPIES into the rebuild root (logical root, relative path)
   seed_inputs:
     cohort_out: ["epoch_boundaries.json"]
@@ -240,6 +246,7 @@ rebuild:
       # (its content does not depend on the hemo variant / projection / pre set; it forces the DAQ gate itself)
   # top-level entries of the ORIGINAL labcams tree a rebuild run may still READ (session data + the inputs above); every
   # other top-level entry (grant_figures, frozen_models, the deck, ...) is a default derived product: reads are refused
-  labcams_inputs: ['re:^\d{8}$', "joint_bases", "xday"]
+  # an entry with a "/" is a glob over the path RELATIVE to labcams (exact files inside an otherwise refused folder)
+  labcams_inputs: ['re:^\d{8}$', "joint_bases", "xday", "grant_figures/exclusion_mask_painted_*.npy"]
   # content-keyed stores placed under the rebuild root by the profile
   stores: {frozen_models: frozen_models, session_cache: session_cache}

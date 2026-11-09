@@ -30,6 +30,11 @@
 #                   read it, and every "August-only" filter in the repo goes through them. null = no cut (every pre
 #                   session is baseline). It does NOT by itself change `config.pre_from()` (the WIDEFIELD_PRE_FROM run
 #                   mode, which also names the output folder); the nightly and the render profile set that from here.
+#   painted_exclusion   "required" = the cohort HAS hand-painted fiber-glue masks (paint_exclusion.py, in the cohort's
+#                   ORIGINAL grant_figures/, read in place under any render profile) and every reader REFUSES to run
+#                   without them (beta_maps.painted_exclusion raises on a missing / unreadable / wrong-shape file);
+#                   "none" = the cohort has no painted glue (the EXPLICIT opt-out: the painted mask is all-False). Added
+#                   11-09 after the rebuild silently ran with an empty mask (glue in). Missing key = "required".
 
 default: cohort1
 
@@ -40,6 +45,7 @@ cohorts:
     animals_file: animals.yaml
     sessions_file: sessions.yaml
     output_subdir: ""
+    painted_exclusion: required   # exclusion_mask_painted_{PS92..PS95,union}.npy, painted 2026-09-12
     baseline_pre_from: "0806"   # the first CURATED August session (Priya 11-05: "switch to 0806"): June pre
                                 #   (0606-0608) = still learning, and 0805 (wonky, date_policy-excluded) is never
                                 #   baseline, so an uncurated list cannot let it back in. The run-mode value
@@ -55,6 +61,7 @@ cohorts:
     animals_file: cohort2/animals.yaml
     sessions_file: cohort2/sessions.yaml
     output_subdir: cohort2
+    painted_exclusion: none       # nothing painted for PS118/120-122 (yet): paint them, then set "required"
     baseline_pre_from: null     # not chosen yet (no stroke yet); set it before any pre-vs-post analysis
     first: 20261029
     last: null
