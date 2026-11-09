@@ -742,3 +742,9 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
 - G4 -> no_response: helper still running (fix/g4-noresp-1109).
 - Grant (LP) at 00:46: 6/96 units (7b x4 done 00:15-16 after ~1 h 35 min cold collection; 8d x2 at 00:36-37);
   if ~20 min per pair holds, ~3-4 h more. Profile only if later units stay slow (Priya asked; offered).
+- 01:30 June supplement ON MAIN 3f1c5e90 (side table 5,792 rows / 12 June sessions under rebuild_20261103/qc/
+  trial_attempts_june/<tag>; registered table sha + mtime unchanged; August rows byte-identical in a 3-session rebuild;
+  cache keys of registered sessions unchanged with the env set). G4 branch (70d976f0 + 2b87c996 --only g4: replaces only
+  the 3 G4 keys of the keyed section G json, backup first, label check) pushing via scratchpad/chain_v10.sh, which then
+  builds + launches queue_daqlk10.sh: G4 lane (g5_section_g_g4only -> g5_g4_fig_redraw) and JD lane
+  (g5_map_drift_lp_june, WIDEFIELD_ATTEMPTS_SUPPLEMENT set for that step only). Handoff block 00-COMPACT-39 written.

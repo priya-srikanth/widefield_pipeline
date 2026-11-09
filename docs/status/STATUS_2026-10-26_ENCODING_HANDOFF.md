@@ -39,6 +39,60 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 3. Then tell **sabatinilab-e3** (PI deck) the decoder figures are final: per figure the share PNG path, page Fig N.k,
    script + args, headline numbers, methods text (they asked 10-26 ~22:30; reply sent: not final yet).
 
+### 00-COMPACT-39 (11-09 ~01:30) -- READ FIRST; supersedes 38 for STATE (38 section 1 RULES still apply verbatim)
+
+**Where things are:** running list `docs/status/RUNNING_LIST_2026-11-06.md` (sections 11-08 ~13:20 onward, newest at the
+end); scratchpad (session f082ee0c): `rerun_settings_check.md` (per-step settings audit of the re-run), `epoch_trim.md`
+(page figure -> family / arm / lick dependence; page repointing list), `june_camera_tables.md`, render folder
+`render_daqlk` (queues `queue_daqlk9zw|9zx|9zy|9zz|9zz2|9zz3|10.sh`, `logs/CHAIN.log`). Rules: block 38 section 1
+(read the decision docs first; 9-item SETTINGS CHECK on every step's live log; no redundancy; never let a known-stale
+step take the heavy lock) -- all followed in this pass.
+
+#### 1. Decisions taken 11-08 / 11-09 (Priya)
+- Lick class = every camera lick, LP source, LP onset, ENL 1.0 s, LP-trained frozen decoders; successful lick = DAQ
+  contact, supplemental only. LP lanes use LICK_SOURCE=lp + GATE_SOURCE=lp + store frozen_models_lpfinal (as LPfinal).
+- Trimmed re-run plan approved (memo push; full section G with memo; cue arm included; page-feeding lick decoders first).
+- G1-G3 AND G4 (11-09): train camera WORKING (contact + incomplete) vs raw NO_RESPONSE; unknown never trained; scored
+  no-lick set = working-period no_response rows; stopped / quit tail / jaw_only / unknown scored as their own groups.
+  DAQ-grouping supplement NOT run. undetected_state_split now mostly UNDECIDABLE (by design; by_class answers it).
+- June-vs-August drift (Figs 7.4/7.4b, 7.11/7.11b, 7.15, 7.20/7.20b, 7.24): build June camera trial tables as a SIDE
+  table + opt-in supplement (registered trial_attempts table untouched; its mtime/size key every LP cache).
+- G4 change: "only rerun what needs to be rerun" -> `poststroke_section_g --only g4` (replaces 3 G4 keys, backup first).
+
+#### 2. On main (this pass)
+9bc33b9b (D7 floor 10 only, no display floors, D6 matched-pre), 21a005ca (stars top band, POS_ORDER, G1-G3 camera),
+597cbed9 + d8f4e900 (section G DAQ-cue memo, 6x, identical; memo kept OUT of the class digest: csig stays 3d7bbe921e),
+b83f376d (G1-G3 no_response), 2944eca4 (te-basis path hardening), 3f1c5e90 (June supplement: trial_attempts --labels,
+lp_licks WIDEFIELD_ATTEMPTS_SUPPLEMENT), G4 branch fix/g4-noresp-1109 (70d976f0 + 2b87c996 --only g4) being pushed by
+`scratchpad/chain_v10.sh` (log chain_v10.log), which then launches queue v10.
+
+#### 3. Render state (~01:30)
+DONE on fixed code (live-log settings checked): section G on LP (3 h 14 min, was 13.1 h), LP epoch arms ENL / lick /
+cue (5r 14m / acc 14m / scal mat), LP cd chain (Fig 9.1 -> LP epoch folder), matched-pre lick half (LP, 799 pairs),
+ITI chain incl. 2 never-run producers (e_spout_patterns, e_spout_pat_stats), gain-bio, restnl masks (rebuild IDENTICAL
+to disk -> 2 re-runs marked redundant), LP restnl maps, rest frozen (+nl), attempt maps restnl, recovery_cue, l_* restw
+chain through restw_check, balance chain head + the _inside producers (v9zz3).
+RUNNING: g6_grant_lp (LP; slow: 6/96 at 00:46 -- cold LP collection; measure, profile only if it stays slow),
+v9zx-RS (chronic_stability_r, l_* restnl variants), v9zz2-BAL (59-step balance / ENL-slide chain, all names _r2, own
+marker ENL_SLIDE_FIX_r2 so old lanes stay parked), v10 G4 (--only g4 -> G4 figure redraw) + JD (June LP drift).
+OLD lanes still parked on pre-fix code (v8b / v9zd / v9zr / v9zc / v8-L4.. waiting on original names): harmless; stop by
+exact PID once the _r2 chain is through.
+
+#### 4. Next
+1. When grant + BAL + RS finish: figdata redraws (stars / order), the matched-pre figure with the LP lick half, G4 deck
+   slide, gb_fig_r redraw; later lick decoders on LP (pcd / nolick / precue states / joint xsession).
+2. Replacement pass: headline table re-read on corrected outputs -> conclusion changes to Priya BEFORE any page / deck
+   text -> repoint page figures (epoch_trim.md + rerun_settings_check.md lists: LPfinal / LP folders, successful-lick
+   supplement labels, drops 2.2 / 7.1 / 7.5).
+3. Priya's earlier asks: C3 / C4 careful look on corrected outputs + per-analysis spontaneous-lick grouping table;
+   frozen spout decoder 3 versions (only if it changes a number); D2 local cache copy-back (delete needs Priya OK).
+
+**Lessons (11-08 / 11-09):** (1) a speed-only edit to class code moved the cache digest -> keep memos out of
+digested modules (hook mark / separate module) and verify csig after any trial_classes edit; (2) "missing producer"
+failures (ITI spout patterns, balance _inside) -> when a step fails on a missing input, grep the queues for its
+producer before re-running; (3) rename re-runs (_r2) when old lanes wait on the original names; (4) check that a
+"stale" input really is stale (restnl masks were already post-fix) before re-running its readers.
+
 ### 00-COMPACT-38 (11-08 ~13:20) -- READ FIRST; supersedes 37 for state
 
 **Where things are written:** running list `docs/status/RUNNING_LIST_2026-11-06.md`, section "11-08 ~13:20 --
