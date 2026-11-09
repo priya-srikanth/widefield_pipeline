@@ -36,6 +36,8 @@ import iti_licks as il  # noqa: E402
 import lick_balance_subsets as lbs  # noqa: E402
 import lick_recovery_markers as lrm  # noqa: E402
 
+from wfield_local import mask_keys  # noqa: E402
+
 POOL = ["ALM", "tjM1", "SSp-m", "SSp-n", "SSs"]
 WIN = (0.1, 0.5)
 MIN_CELL = 20                      # pre licks needed for a line (lick_balance_regions.MIN_CELL)
@@ -58,6 +60,7 @@ def _session(label: str) -> pd.DataFrame:
     if not f.exists():
         return pd.DataFrame()
     z = np.load(f, allow_pickle=True)
+    mask_keys.check_obj(z, f)                     # stale-read guard (11-09)
     X = z["X"].astype(float)
     cx = list(z["cols"])
     t = z["t"].astype(float)

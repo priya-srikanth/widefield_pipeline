@@ -44,6 +44,8 @@ import iti_licks as il  # noqa: E402
 import lick_cued_ramp as cr  # noqa: E402
 from fr_musall import AN  # noqa: E402
 
+from wfield_local import mask_keys  # noqa: E402
+
 OROFACIAL = ["ALM", "tjM1", "SSp-m", "SSp-n"]
 PAIRS = [*OROFACIAL, "orofacial"]
 HEMI = ("right", "left")                     # right = contralesional, left = ipsilesional
@@ -83,6 +85,7 @@ def work(label: str) -> dict:
     from wfield_local.hemo_variants import functional_channel
     d = il._load(label)
     z = np.load(il.OUT_W / cr.WIDE / f"{label}.npz")
+    mask_keys.check_obj(z, il.OUT_W / cr.WIDE / f"{label}.npz")   # stale-read guard (11-09)
     tl, pos = _times(label), np.asarray(z["pos"], str)
     if len(tl) != len(pos):
         raise RuntimeError(f"{label}: {len(tl)} cached first-lick times vs {len(pos)} cued_wide rows")

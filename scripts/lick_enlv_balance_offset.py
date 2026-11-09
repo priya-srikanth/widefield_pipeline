@@ -129,6 +129,9 @@ def table() -> pd.DataFrame:
         if not f.exists():
             continue
         z, zr = np.load(f), np.load(ex.SESS_REG / f"{lab}.npz")
+        from wfield_local import mask_keys
+        mask_keys.check_obj(z, f)                 # stale-read guard (11-09)
+        mask_keys.check_obj(zr, ex.SESS_REG / f"{lab}.npz")
         if not (z["lick_uid"] == g.lick_uid.to_numpy()).all():
             raise RuntimeError(f"{lab}: lick order mismatch")
         cols = [str(c) for c in z["cols"]]
@@ -429,6 +432,9 @@ def arrival(L: pd.DataFrame) -> dict:
     for f in sorted(ex.SESS_REG.glob("*.npz")):
         lab = f.stem
         zr, z = np.load(f), np.load(ex.SESS / f"{lab}.npz")
+        from wfield_local import mask_keys
+        mask_keys.check_obj(zr, f)                # stale-read guard (11-09)
+        mask_keys.check_obj(z, ex.SESS / f"{lab}.npz")
         cols = [str(c) for c in zr["cols"]]
         a, ep = lab[:4], str(epochs.epoch_of(lab))
         pool = {s: [cols.index(f"{x}_{h}") for x in ex.POOL] for s, h in (("c", "right"), ("i", "left"))}

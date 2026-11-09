@@ -37,6 +37,8 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
 
+from wfield_local import mask_keys  # noqa: E402
+
 OUT = il.OUT_W / "enlv_licks"
 SESS = OUT / "sessions"
 POOL = ["ALM", "tjM1", "SSp-m", "SSp-n", "SSs"]          # lick_recovery_primary.POOL
@@ -65,6 +67,7 @@ def one(item) -> dict:
     label, L, T = item
     f = SESS / f"{label}.npz"
     if f.exists():
+        mask_keys.check_npz(f)                    # stale-read guard (11-09)
         return {"label": label, "cached": True}
     V, ft, Ub, flat, parea, names, shape, pstat = ce.load_imaging(label)
     M = il.roi_masks(parea, pstat, names, flat, shape)
@@ -112,7 +115,8 @@ def one(item) -> dict:
         Xbase=np.where(ok[:, None], X[:, W_BASE].mean(1), nan).astype(np.float32),
         cT=np.where(ok[:, None], pool["c"], nan).astype(np.float16),
         iT=np.where(ok[:, None], pool["i"], nan).astype(np.float16),
-        arr_mean=arr_mean.astype(np.float32), arr_n=arr_n, arr_trials=int(free.sum()))
+        arr_mean=arr_mean.astype(np.float32), arr_n=arr_n, arr_trials=int(free.sum()),
+        **mask_keys.stamp())
     return {"label": label, "n": int(ok.sum()), "n_free_trials": int(free.sum())}
 
 
@@ -157,6 +161,7 @@ def regress(item) -> dict:
     label, T = item
     f = SESS_REG / f"{label}.npz"
     if f.exists() and int(np.load(f)["version"]) == REG_VERSION:
+        mask_keys.check_npz(f)                    # stale-read guard (11-09)
         return {"label": label, "cached": True}
     R, ft, cols = _signals(label)
     an, date = config.animal_of(label), "2026" + label.split("_")[-1]
@@ -209,6 +214,7 @@ def regress(item) -> dict:
     sup = (np.abs(Xa).sum(1) > 0)[:, None]
     Rc = R - (Xa @ m.coef_[:, :na].T - sup * k_pre[None, :])
     z = np.load(SESS / f"{label}.npz")
+    mask_keys.check_obj(z, SESS / f"{label}.npz")  # stale-read guard (11-09)
     peak, ok = z["peak"], z["ok"]
     Xs = il._sample(Rc, ft, np.where(ok, peak, ft[0] + 2), il.LAGS_D)
     pool = {q: np.sum([Xs[:, :, cols.index(f"{a}_{h}")] for a in POOL], 0) for q, h in (("c", "right"), ("i", "left"))}
@@ -221,7 +227,7 @@ def regress(item) -> dict:
         Xpost_c=np.where(ok[:, None], Xs[:, W_POST].mean(1), nan).astype(np.float32),
         Xbase_c=np.where(ok[:, None], Xs[:, W_BASE].mean(1), nan).astype(np.float32),
         cT_c=np.where(ok[:, None], pool["c"], nan).astype(np.float16),
-        iT_c=np.where(ok[:, None], pool["i"], nan).astype(np.float16))
+        iT_c=np.where(ok[:, None], pool["i"], nan).astype(np.float16), **mask_keys.stamp())
     return {"label": label, "alpha": al, "cv_r2": cv_r2, "n_trials": len(tri)}
 
 

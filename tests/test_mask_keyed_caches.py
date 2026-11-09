@@ -319,3 +319,62 @@ def test_lp_daq_cross_check_refuses_a_daq_model_on_other_masks(masks, monkeypatc
     masks.rebuild()
     with pytest.raises(RuntimeError, match="other analysis masks"):
         fm.find_daq_trained(lp_side)
+
+
+# ------------------------------------------------------------------------------------------------ item 6: rescue etc.
+def test_restnl_rescue_cache_checks_masks_and_c2l_inputs(masks, tmp_path, monkeypatch, capsys):
+    import lick_cue_to_lick_extract as cx
+    import restnl_rescue as rr
+    monkeypatch.setattr(cx, "SESS_NL", tmp_path / "c2l")
+    f = tmp_path / "L.npz"
+    np.savez(f, version=rr.VERSION, mask_sig="glue_in", c2l_src="")
+    with pytest.raises(RuntimeError, match="glue_in"):
+        rr._cached_ok(f, "L")
+    np.savez(f, version=rr.VERSION, mask_sig="glue_out", c2l_src="")
+    assert rr._cached_ok(f, "L")                                   # no c2l extract then, none now
+    (tmp_path / "c2l").mkdir()
+    np.savez(tmp_path / "c2l" / "L.npz", restw=np.zeros(2))
+    assert not rr._cached_ok(f, "L")                               # the c2l extract ran since: rebuild (the 11-09 bug)
+    assert "rebuilding" in capsys.readouterr().out
+    np.savez(f, version=rr.VERSION, mask_sig="glue_out", c2l_src=str(tmp_path / "c2l" / "L.npz"))
+    assert rr._cached_ok(f, "L")
+    np.savez(f, version=rr.VERSION - 1, mask_sig="glue_out")
+    assert not rr._cached_ok(f, "L")                               # old VERSION: rebuilt, as before
+    np.savez(f, version=rr.VERSION)                                # legacy, no c2l block, c2l present now
+    assert not rr._cached_ok(f, "L")
+    masks.rebuild()
+    with pytest.raises(RuntimeError, match="before the 11-09"):
+        rr._cached_ok(f, "L")
+
+
+def test_restnl_rescue_c2l_table_says_what_is_missing():
+    import restnl_rescue as rr
+    with pytest.raises(RuntimeError, match="no rescue session holds cue-to-lick inputs"):
+        rr.c2l_table({"L": {"animal": "PS92"}})
+
+
+def test_restnl_level_and_session_load_are_checked(masks, tmp_path, monkeypatch):
+    import iti_licks as il
+    import restnl
+    monkeypatch.setattr(restnl, "SRC", tmp_path)
+    np.savez(tmp_path / "L.npz", version=restnl.SRC_VERSION, cols=np.array(["a"]), mask_sig="glue_in",
+             strict__posmed=np.zeros((6, 1)), strict__nfr_pos=np.full(6, 100))
+    with pytest.raises(RuntimeError, match="glue_in"):
+        restnl.level("L")
+    np.savez(tmp_path / "S.npz", cols=np.array(["a"]), mask_sig="glue_in")
+    with pytest.raises(RuntimeError, match="glue_in"):
+        il._load("S", tmp_path)
+    np.savez(tmp_path / "S.npz", cols=np.array(["a"]), mask_sig="glue_out")
+    assert list(il._load("S", tmp_path)["cols"]) == ["a"]
+
+
+def test_coupling_vigour_sm_selects_areas_by_name():
+    """area_order on the raw per-session names crashed on the 62-area rebuild files (as l_xa_restnl did)."""
+    import interhemi_crossarea as ica
+    src = (REPO / "scripts" / "coupling_vigour_sm.py").read_text(encoding="utf-8")
+    assert "ica.session_areas(S)" in src and "ica.area_select(" in src
+    assert "names = il.area_names(cols)" not in src
+    names = [f"{b}_{h}" for h in ("right", "left") for b in ica.ORDER_BASE] + ["AUDp_left"]
+    keep = [n for n in names if ica.in_area_set(n)]
+    assert "AUDp_left" not in keep and "VISp_left" not in keep and len(keep) == 45
+    ica.area_order(keep)                                                     # no assert: every kept name is placed

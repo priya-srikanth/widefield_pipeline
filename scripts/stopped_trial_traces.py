@@ -69,6 +69,8 @@ import restnl  # noqa: E402
 from figdata import plot_only  # noqa: E402
 from wfield_local import lp_licks as _lp_licks  # noqa: E402  (coordinator 11-04: the run's attempts table)
 
+from wfield_local import mask_keys  # noqa: E402
+
 # resolved at IMPORT from argv (`restnl.variant`), so a spawned worker -- which re-imports this module with the
 # parent's argv -- sees the same value; main() no longer sets it (Priya 11-03 / parallel rule: options reach the
 # workers)
@@ -294,6 +296,7 @@ def session_worker(item) -> dict:
     if f.exists():
         z = np.load(f, allow_pickle=False)
         if int(z["version"]) == VERSION and (str(z["gate"]) if "gate" in z.files else "daq") == _gate():
+            mask_keys.check_obj(z, f)             # stale-read guard (11-09)
             return {"label": label, "cached": True}
     from wfield_local import combined_encoding as ce
     S = _states(label)
@@ -340,6 +343,7 @@ def session_worker(item) -> dict:
     src = il.OUT_W / "precue_restw" / f"{label}.npz"
     if src.exists():
         z = np.load(src)
+        mask_keys.check_obj(z, src)               # stale-read guard (11-09)
         sc = [str(c) for c in z["cols"]]
         restw = np.array([z["restw"][sc.index(c)] if c in sc else np.nan for c in pc], float)
         restw_ok, animal, epoch = bool(z["restw_ok"]), str(z["animal"]), str(z["epoch"])
@@ -390,7 +394,8 @@ def session_worker(item) -> dict:
         t_trial_id=S.trial_id.to_numpy(int), t_pos=posv.astype(str), t_state=S.state.to_numpy().astype(str),
         t_cls=S.cls.to_numpy().astype(str), t_frac=S.frac.to_numpy(float), t_canonical=S.canonical.to_numpy(bool),
         t_jaw_ms=S.jaw_onset_ms.to_numpy(float), t_cue_minus_strobe=cue - st,
-        stopped_X=Xc[stp].astype(np.float16), stopped_tid=S.trial_id.to_numpy(int)[stp], **out)
+        stopped_X=Xc[stp].astype(np.float16), stopped_tid=S.trial_id.to_numpy(int)[stp], **out,
+        **mask_keys.stamp())
     return {"label": label, "cached": False, "n": len(S), "n_unmatched": n_unmatched}
 
 
@@ -399,6 +404,7 @@ def trial_table(labels: list) -> pd.DataFrame:
     rows = []
     for x in labels:
         z = np.load(SESS / f"{x}.npz")
+        mask_keys.check_obj(z, SESS / f"{x}.npz")  # stale-read guard (11-09)
         S = pd.DataFrame({k[2:]: z[k] for k in z.files if k.startswith("t_")})
         S["label"], S["animal"], S["epoch"], S["restw_ok"] = x, str(z["animal"]), str(z["epoch"]), _lev(x, z)[1]
         rows.append(S)
@@ -463,6 +469,7 @@ def pool(labels: list, klass: str, align: str, k: int, base: str, min_n: int) ->
     cols = None
     for x in labels:
         z = np.load(SESS / f"{x}.npz")
+        mask_keys.check_obj(z, SESS / f"{x}.npz")  # stale-read guard (11-09)
         rw, ok = _lev(x, z)
         if not ok:
             continue
@@ -796,6 +803,7 @@ def compute(labels: list) -> None:
                 pool_ = []
                 for x in labs:
                     z = np.load(SESS / f"{x}.npz")
+                    mask_keys.check_obj(z, SESS / f"{x}.npz")  # stale-read guard (11-09)
                     rw, ok = _lev(x, z)
                     if str(z["epoch"]) != ep or not ok or len(z["stopped_tid"]) == 0:
                         continue
@@ -834,6 +842,7 @@ def precue_levels(labels: list) -> pd.DataFrame:
     acc = {}
     for x in labels:
         z = np.load(SESS / f"{x}.npz")
+        mask_keys.check_obj(z, SESS / f"{x}.npz")  # stale-read guard (11-09)
         rw, ok = _lev(x, z)
         if not ok:
             continue

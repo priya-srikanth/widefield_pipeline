@@ -381,6 +381,7 @@ def _set_arrays(label: str, meta: pd.DataFrame) -> dict:
     z = il._load(label)
     cols = [str(c) for c in z["cols"]]
     fl = np.load(IN / "firstlick_full" / f"{label}.npz", allow_pickle=False)
+    mask_keys.check_obj(fl, IN / "firstlick_full" / f"{label}.npz")   # stale-read guard (11-09)
     ang = _angle(fl["side_ml"], fl["reach_mm"])
     ok = np.isfinite(ang)
     out["cued"] = (fl["X"][ok], fl["pos"].astype(str)[ok], ang[ok], [str(c) for c in fl["cols"]])

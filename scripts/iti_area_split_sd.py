@@ -72,6 +72,8 @@ def main(argv=None) -> int:
     assert_writable(out)
     S = table(sorted(p.stem for p in sess.glob("*.npz")), a.jobs)
     S.to_csv(out)
+    from wfield_local import mask_keys
+    mask_keys.write_sidecar(out)                 # the masks the split table was built on (11-09)
     print(S.describe().round(3).to_string())
     return 0
 

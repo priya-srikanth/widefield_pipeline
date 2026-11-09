@@ -753,6 +753,12 @@ def main(argv=None) -> int:
     if bad:
         raise SystemExit(f"not curated: {bad}")
     if not a.figures_only:
+        from wfield_local import mask_keys
+        if not a.redo:                            # stale-read guard (11-09): reused sessions must be on these masks
+            for o in outs.values():
+                for x in labels:
+                    if (o / "sessions" / f"{x}.npz").exists():
+                        mask_keys.check_npz(o / "sessions" / f"{x}.npz")
         todo = [x for x in labels if a.redo or any(not (o / "sessions" / f"{x}.npz").exists() for o in outs.values())]
         got, fail = ak.fan_sessions(todo, session_check, jobs=a.jobs)
         for it, err in fail:
@@ -767,11 +773,13 @@ def main(argv=None) -> int:
 
 
 def write_session(out, lab: str, r: dict) -> None:
+    from wfield_local import mask_keys
     pd.DataFrame(r["rows"]).to_csv(out / "sessions" / f"{lab}.csv", index=False, float_format="%.6g")
     pd.DataFrame(r["terc"]).to_csv(out / "sessions" / f"{lab}_terc.csv", index=False, float_format="%.6g")
     pd.DataFrame(r.get("dirmid", [])).to_csv(out / "sessions" / f"{lab}_dirmid.csv", index=False, float_format="%.6g")
     np.savez_compressed(out / "sessions" / f"{lab}.npz", flat=r["flat"], shape=np.array(r["shape"]),
-                        keys=np.array(list(r["maps"])), maps=np.stack(list(r["maps"].values())), coords=r["coords"])
+                        keys=np.array(list(r["maps"])), maps=np.stack(list(r["maps"].values())), coords=r["coords"],
+                        **mask_keys.stamp())
 
 
 def finish(out, labels) -> int:
@@ -779,6 +787,9 @@ def finish(out, labels) -> int:
     from wfield_local import epochs
     print(f"\n==== {out.name}")
     have = [x for x in labels if (out / "sessions" / f"{x}.csv").exists()]
+    from wfield_local import mask_keys
+    for x in have:                                # the session tables pair with the mask-stamped npz (11-09)
+        mask_keys.check_npz(out / "sessions" / f"{x}.npz")
     if not have:
         print("no sessions")
         return 1

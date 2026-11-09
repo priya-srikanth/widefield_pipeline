@@ -592,10 +592,15 @@ def attach_fr_unblanked(D: dict, jobs: int | None = None) -> dict:
 
 
 def _load(label: str, sess_dir: Path | None = None) -> dict:
+    """One session extract. EVERY read is mask-checked (11-09): many readers (interhemi_crossarea, coupling_vigour_sm,
+    lick_cued_ramp, ...) never call `extract`, so `check_extract_masks` alone would not stop a stale file."""
+    from wfield_local import mask_keys
     p = (sess_dir or XOUT / SESS_NAME) / f"{label}.npz"
     z = np.load(p, allow_pickle=False)
     try:
-        return {k: z[k] for k in z.files}
+        out = {k: z[k] for k in z.files}
+        mask_keys.check_obj(out, p)
+        return out
     except ValueError:
         # JUNE REFERENCE FILES written before 11-08 store epoch=None (`epochs.epoch_of` has no epoch for a session before
         # WIDEFIELD_PRE_FROM), which numpy saves as an OBJECT array; l_reembed failed on all 12 (11-07). Exactly that
@@ -609,6 +614,7 @@ def _load(label: str, sess_dir: Path | None = None) -> dict:
                     raise ValueError(f"{p}: object array {k!r} (only a None epoch is tolerated)") from None
                 a = np.array("")
             out[k] = a
+        mask_keys.check_obj(out, p)
         return out
 
 
@@ -644,6 +650,8 @@ _TAB: dict = {}
 
 def _table(f: Path) -> pd.DataFrame:
     if f not in _TAB:
+        from wfield_local import mask_keys       # SD / split tables are ROI means: stale-read guard (sidecar, 11-09)
+        mask_keys.check_sidecar(f)
         _TAB[f] = pd.read_csv(f, index_col=0)
     return _TAB[f]
 

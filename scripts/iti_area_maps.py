@@ -32,6 +32,8 @@ import iti_licks as il  # noqa: E402
 from figdata import load_fd, plot_only, save_fd  # noqa: E402
 from fr_musall import AN  # noqa: E402
 
+from wfield_local import mask_keys  # noqa: E402
+
 PETH_AREAS = ["VISp", "VISl", "VISam", "RSPd", "SSp-bfd", "SSp-ul", "SSp-ll", "SSp-tr", "ACAd", "PL"]
 ORO = ("ALM", "tjM1", "MOs", "MOp", "SSp-m", "SSp-n")
 VISR = ("VIS", "RSP")
@@ -48,6 +50,7 @@ def _wide(x: str) -> dict:
     validated there): the stored PETHs end at +0.75 s, too short for the 0..1.0 s response window."""
     import lick_cued_ramp as cr
     z = np.load(cr.RIN / cr.WIDE / f"{x}.npz")
+    mask_keys.check_obj(z, cr.RIN / cr.WIDE / f"{x}.npz")      # stale-read guard (11-09)
     return {k: z[k] for k in ("lick", "cue", "pos", "iti", "cols")}
 
 

@@ -102,3 +102,26 @@ def check_obj(obj, where, now=None, rebuild: bool | None = None) -> None:
 def stamp(now=None) -> dict:
     """The field to add to a cache when writing it: ``{FIELD: digest}``."""
     return {FIELD: signature() if now is None else now}
+
+
+# ------------------------------------------------------------------------------------------------ sidecar (pooled caches)
+#: For pooled caches whose FORMAT other readers depend on (a pickle of session maps, a CSV of SDs), the digest goes in a
+#: sidecar ``<cache>.mask_sig`` written next to it, so the cache itself is byte-identical in layout.
+SIDECAR_SUFFIX = ".mask_sig"
+
+
+def sidecar(path) -> Path:
+    p = Path(path)
+    return p.with_name(p.name + SIDECAR_SUFFIX)
+
+
+def write_sidecar(path, now=None) -> None:
+    """Record the masks a pooled cache at `path` was just built on."""
+    sidecar(path).write_text(signature() if now is None else now, encoding="utf-8")
+
+
+def check_sidecar(path, now=None, rebuild: bool | None = None) -> None:
+    """`check` on the digest in `path`'s sidecar (no sidecar = no digest)."""
+    s = sidecar(path)
+    have = s.read_text(encoding="utf-8").strip() if s.exists() else None
+    check(have, path, now, rebuild=rebuild)

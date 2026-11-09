@@ -56,6 +56,7 @@ def session_worker(label: str) -> dict:
     src = np.load(il.OUT_W / "precue_restw" / f"{label}.npz")
     mask_keys.check_obj(src, il.OUT_W / "precue_restw" / f"{label}.npz")
     rv = np.load(il.OUT_W / "revup" / "sessions" / f"{label}.npz")
+    mask_keys.check_obj(rv, il.OUT_W / "revup" / "sessions" / f"{label}.npz")   # stale-read guard (11-09)
     d = il._load(label)
     # == lick_precue_restw_traces.session_worker's trace construction
     V, ft, Ub, flat, parea, names, shape, pstat = ce.load_imaging(label)
@@ -183,6 +184,7 @@ def session_worker_restnl(label: str) -> dict:
     fl = FL["fl"]
     # check against the rev-up cache (old gate) on the trials both sets share (matched by cue time)
     rv = np.load(il.OUT_W / "revup" / "sessions" / f"{label}.npz")
+    mask_keys.check_obj(rv, il.OUT_W / "revup" / "sessions" / f"{label}.npz")   # stale-read guard (11-09)
     rc = np.asarray(rv["cue"], float)
     jj = np.searchsorted(cue, rc).clip(0, len(cue) - 1)
     hit = np.abs(cue[jj] - rc) < 1e-6

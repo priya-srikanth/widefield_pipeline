@@ -220,11 +220,14 @@ def main(argv=None) -> int:
         plot_all(load_fd(fig_name(st)))
         return 0
     cache = il.OUT / f"spout_pattern_sessions{sfx}.pkl"
+    from wfield_local import mask_keys
     if cache.exists():
+        mask_keys.check_sidecar(cache)          # stale-read guard (11-09)
         SM = pickle.loads(cache.read_bytes())
     else:
         SM = session_maps(st)
         cache.write_bytes(pickle.dumps(SM, protocol=pickle.HIGHEST_PROTOCOL))
+        mask_keys.write_sidecar(cache)
     n_perm = n_perm_arg()
     res, T = test(SM, n_perm, st)
     T.to_csv(il.OUT / f"spout_pattern_stats{sfx}.csv", index=False)
