@@ -1110,3 +1110,6 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   pass. chain_v15 / v16 aborted on it; chain_v17 loop stopped (its frozenD push continues alone) so precue does not
   push before the fixed wiring. NEW chain_v18 (sequential, after running pushes): gluefix, frozenD, tswire,
   grantmemo, misc1109, precueenl. Mask-keys branch push: asked Priya.
+- 12:58 PRIYA OK to push the mask-keys branch. chain_v18 (still waiting) stopped; chain_v19 = gluefix, MASKKEYS, frozenD,
+  tswire, grantmemo, misc1109, precueenl (sequential, after the running glue / frozenD pushes). After glue + maskkeys
+  land: precue_enl_lp1s stamp follow-up, move-aside (list in GLUE_MASK_FIX doc), lift HALT, queue the re-run plan.
