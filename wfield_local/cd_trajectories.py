@@ -136,6 +136,49 @@ MIN_TRIALS = 10
 #: with the latency, and post-stroke the latency is long and variable.
 LICK_ALIGNED_CLASSES = ("success",)
 
+
+def trial_set_sentence(align, gate="lick") -> str:
+    """THE TRIAL SET a CD figure draws (Priya 11-09: every figure states exactly which trials are in and out), for one
+    alignment or several (the geometry figure), under the run's switches (`trial_set_text`).
+
+    What `session_arms` really keeps: `nolick_decoder.categorize` -> success = `engaged` (first lick of the run's lick
+    source within max_rt; no camera working-period cut), miss_working = `undetected` cues whose engagement flag is set
+    (camera gate: camera class in `trial_classes.sel_classes("miss_working")`, the cue_stop class table; DAQ gate: before
+    the terminal quit period); late hits (`late_rewarded`) and stopped trials are never in a gate. The gate is forced
+    to success for the lick alignment; the pre-cue arm drops a trial with no lick-free window (`window_start`)."""
+    from wfield_local import trial_set_text as tst
+    aligns = [align] if isinstance(align, str) else list(align)
+    try:
+        from wfield_local import trial_classes as tc
+        max_rt = f"{tc.max_rt_ms() / 1000:g} s"
+    except Exception:                                                   # noqa: BLE001 - a caption never kills a figure
+        max_rt = "max_rt"
+    lick_body = tst.sentence("lick").split(": ", 1)[1].replace("; excluded: no-lick trials", "")
+    late = f"late hits (first lick after {max_rt}, inside the response window)"
+    cue_locked = [a for a in aligns if a != "lick"]
+    classes = GATES[gate] if cue_locked else LICK_ALIGNED_CLASSES
+    if "miss_working" in classes:
+        mw_inc, _, mw_exc = tst.sentence("miss_working").split(": ", 1)[1].partition("; excluded: ")
+        rest = [x for x in mw_exc.split(", ") if x and x != "lick trials"]
+        inc = f"{lick_body}  AND  {mw_inc}"
+        excl = [late, (f"no-lick trials of class {', '.join(rest)}" if rest
+                       else "no-lick trials in the terminal quit period")]
+    else:
+        inc, excl = lick_body, ["no-lick trials", late]
+    rules = []
+    if "precue" in aligns:
+        rules.append(("pre-cue arm: " if len(aligns) > 1 else "")
+                     + "ENL window ending at the cue, slid earlier past any lick; a trial with no lick-free window is "
+                       "dropped")
+    if "lick" in aligns:
+        if cue_locked:
+            rules.append("lick-aligned arm: lick trials only, aligned on the first lick after the cue")
+        else:
+            rules.append("aligned on the first lick after the cue"
+                         + ("; no-lick trials have no lick to align to, so the gate is forced to lick trials"
+                            if "miss_working" in GATES[gate] else ""))
+    return "trials: " + "; ".join([inc, *rules]) + "; excluded: " + ", ".join(excl)
+
 #: Width of the boxcar the projected course is smoothed with, in seconds, and CENTRED.
 #:
 #: TWO WRONG VALUES CAME BEFORE THIS ONE, and they fail in opposite directions.
@@ -1894,13 +1937,17 @@ def _render_animal(item):
                 tag = "_".join([item["method"], item["reference"], gate]
                                + (["orth"] if orth else [])
                                + (["cortexonly"] if item.get("mask_occluded") else []))
-                for lay in item["layouts"]:
-                    try:
-                        made.append(str(cdt.LAYOUTS[lay](
-                            res, out / f"cd_{lay}_{item['animal']}_{align}_{tag}.png")))
-                    except Exception as exc:
-                        errs.append(f"{item['animal']} {align} {lay}: "
-                                    f"{type(exc).__name__}: {exc}"[:160])
+                # THE TRIAL SET of this (align, gate) unit on every figure it saves (Priya 11-09); declared in the
+                # worker, which a spawned process does not inherit from main()
+                from wfield_local import trial_set_text as tst
+                with tst.active(None, text=cdt.trial_set_sentence(align, gate)):
+                    for lay in item["layouts"]:
+                        try:
+                            made.append(str(cdt.LAYOUTS[lay](
+                                res, out / f"cd_{lay}_{item['animal']}_{align}_{tag}.png")))
+                        except Exception as exc:
+                            errs.append(f"{item['animal']} {align} {lay}: "
+                                        f"{type(exc).__name__}: {exc}"[:160])
     return {"made": made, "errors": errs}
 
 
@@ -1941,8 +1988,9 @@ def main(argv=None) -> int:
                          "cross = the full 6x6, every position's trials on every position's CD")
     ap.add_argument("--gate", nargs="+", default=["lick"], choices=tuple(GATES),
                     help="which trials the direction is fitted on AND the trace is built from. "
-                         "`lick` = success only; `lick_or_working` = success + no-lick trials outside "
-                         "the terminal quit period (DAQ quit-tail rule), pooled at the trial level. Run "
+                         "`lick` = success only; `lick_or_working` = success + no-lick working trials "
+                         "(camera gate: no-lick trials of class incomplete inside the working period; DAQ "
+                         "rule: no-lick trials outside the terminal quit period), pooled at the trial level. Run "
                          "both to see whether those no-lick working trials carry the same position code "
                          "as licks.")
     ap.add_argument("--method", default="dom", choices=("dom", "lr"))

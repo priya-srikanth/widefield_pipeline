@@ -144,10 +144,18 @@ def plot(w, st, lv, png):
     plt.close(fig)
 
 
+def trial_set_sentence() -> str:
+    """The 5rmo sidecar's trials: camera working rows, cue window, pooled over positions."""
+    return _common.working_trials(extra=["cue window 0-2 s, trial-pooled over positions",
+                                         "frozen arm trained on a size-matched subset of pre blocks; refit and frozen "
+                                         "scored on the same trials"])
+
+
 def main(argv=None) -> int:
     ap = _common.parser(__doc__)
     ap.add_argument("--src", type=Path, default=SRC, help="epoch_5rmo_..._sessions.csv sidecar")
     a = ap.parse_args(argv)
+    _common.declare(trial_set_sentence())          # THE TRIAL SET of every figure (Priya 11-09)
     a.out.mkdir(parents=True, exist_ok=True)
     if a.plot_only:
         fd = _common.load_figdata(a.out, NAME)

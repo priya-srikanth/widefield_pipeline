@@ -61,6 +61,22 @@ EVA = ("ALM", "tjM1", "SSp-m", "SSp-n", "SSp-ul", "SSp-ll")
 SBINS = (0.0, 0.25, 0.5, 1.0, 2.0, np.inf)
 
 
+def still_text() -> str:
+    """The CHECK 2 "still" rule in words (`check2`: chunks in face-speed bins 0-1, i.e. below SBINS[2])."""
+    import gain_bio as gb
+    return (f"R5 chunks (<= {gb.CHUNK} frames inside one R5 run) with mean face speed < {SBINS[2]:g} x the animal's pre "
+            "median R5 face speed")
+
+
+def map_frame_set(tag: str) -> str:
+    """The frame set of a `fig_maps` figure: tag "R5" / "TASK" = that set; "F0" = the R5 SD map beside the F0 ratio
+    (F0 = frames_average_atlas, every frame)."""
+    import gain_bio as gb
+    if tag == "F0":
+        return gb.frame_set_sentence("R5", extra=["F0 panel: the session's frames_average_atlas (every frame)"])
+    return gb.frame_set_sentence(tag)
+
+
 def ratio_table(W: pd.DataFrame) -> pd.DataFrame:
     """Gain table (rows animal x epoch, one column per signal) -> + the like-with-like ratio columns (Priya 11-06 (4)):
     "415/470" = NONCA / CA_REF (raw 415 vs raw 470, same high-pass) and "corr/470" = CORR_CHECK (corrected vs raw 470,
@@ -395,7 +411,9 @@ def fig_maps(S, M, tag, keys, fname, title):
     cb.set_ticks([0.6, 0.8, 1.0, 1.25, 1.6])
     cb.set_ticklabels(["0.6", "0.8", "1.0", "1.25", "1.6"])
     fig.suptitle(title + "  (image left = ipsilesional)", fontsize=9)
-    fig.savefig(FIG / fname, dpi=130, bbox_inches="tight")
+    from wfield_local import trial_set_text as tst
+    with tst.active(None, text=map_frame_set(tag)):          # THE FRAME SET of this map figure (Priya 11-09)
+        fig.savefig(FIG / fname, dpi=130, bbox_inches="tight")
     plt.close(fig)
 
 

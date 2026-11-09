@@ -112,7 +112,7 @@ def draw(fd: dict, OUT: str) -> None:
                  "leads executed at every width in all four animals, except PS94 at width 2 in the lick window (executed slightly "
                  "ahead); the executed set gains as bins widen.", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.93))
-    save_png_svg(fig, OUT + "/fig10_softmax_width.png", dpi=130)
+    _common.save_with(width_sentence(), fig, OUT + "/fig10_softmax_width.png", dpi=130)
     print("ok")
 
     # epoch minus pre, within animal, then the cross-animal mean (Priya 10-24)
@@ -147,9 +147,20 @@ def draw(fd: dict, OUT: str) -> None:
     save_png_svg(fig, OUT + "/fig9b_softmax_landing_change.png", dpi=130); plt.close(fig)
     print("ok 9b")
 
+def trial_set_sentence() -> str:
+    """The licks the soft executed-bin landing is computed from (`combined_encoding.exec_bins`)."""
+    return _common.usable_licks()
+
+
+def width_sentence() -> str:
+    """fig 10 (contest R2 per soft-bin width) is drawn from the encoder fit frames, not from the licks."""
+    return _common.contest_frames()
+
+
 def main(argv=None) -> int:
     ap = _common.parser(__doc__)
     a = ap.parse_args(argv)
+    _common.declare(trial_set_sentence())          # THE TRIAL SET of every figure (Priya 11-09)
     a.out.mkdir(parents=True, exist_ok=True)
     fd = _common.load_figdata(a.out, NAME) if a.plot_only else compute()
     if not a.plot_only:

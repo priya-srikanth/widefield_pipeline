@@ -278,11 +278,37 @@ DRAW = {"fig1": (draw_fig1, "fig1_binned_contest.png"), "fig2": (draw_fig2, "fig
         "fig3": (draw_fig3, "fig3_attempt_amplitude.png")}
 
 
+def fig3_sentence() -> str:
+    """fig 3: the lick-window class maps of `attempt_maps` (no-lick rows have no lick window)."""
+    from wfield_local import attempt_maps as am
+    from wfield_local import trial_set_text as tst
+    return tst.events(
+        f"far-contra lick rows ({tst.lick_text()}: first lick within the engaged cut), lick window, by camera class",
+        unit="trials",
+        keep=[f"acute hit / acute incomplete and the pre-stroke-hit reference: sessions with >= {am.MIN_TRIALS} such "
+              "trials, session-weighted", "pre-stroke incomplete reference: trial-pooled, no per-session floor"],
+        excluded=["no-lick rows (no attempt, reaction, stopped)", "subacute", "chronic", "other spouts"])
+
+
+#: the trial set of each figure (they differ: encoder frames / attempt-class trials / lick-window class maps)
+SENTENCES = {"fig1": lambda: _common.contest_frames(),
+             "fig2": lambda: _common.attempt_classes(epochs="acute", windows=_common.windows_text(
+                 ["precue", "cue", "lick"]), min_n=MIN_N),
+             "fig3": fig3_sentence}
+
+
+def trial_set_sentence() -> str:
+    """All three figures' sets (the driver-level fallback; each figure is saved under its own, `SENTENCES`)."""
+    from wfield_local import trial_set_text as tst
+    return tst.union(*(f() for f in SENTENCES.values()), unit="trials / frames")
+
+
 def main(argv=None) -> int:
     ap = _common.parser(__doc__)
     ap.add_argument("--enc-dir", type=Path, default=E_DEF, help="LP_analysis/<run>/imaging_encoding folder")
     ap.add_argument("--only", nargs="+", choices=FIGS, default=list(FIGS), help="figures to draw (default all)")
     a = ap.parse_args(argv)
+    _common.declare(trial_set_sentence())          # THE TRIAL SET of every figure (Priya 11-09)
     a.out.mkdir(parents=True, exist_ok=True)
     if a.plot_only:
         fd = _common.load_figdata(a.out, NAME)
@@ -292,7 +318,9 @@ def main(argv=None) -> int:
         _common.save_figdata(a.out, NAME, fd)
     for k in a.only:
         fn, png = DRAW[k]
-        fn(fd[k], a.out / png)
+        from wfield_local import trial_set_text as tst
+        with tst.active(None, text=SENTENCES[k]()):          # each figure's own set (Priya 11-09)
+            fn(fd[k], a.out / png)
         print("->", a.out / png)
     return 0
 
