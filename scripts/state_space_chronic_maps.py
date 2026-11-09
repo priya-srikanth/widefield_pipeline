@@ -92,6 +92,7 @@ from wfield_local.atlas_overlay import region_edges  # noqa: E402
 from wfield_local.figure_layout import save_png_svg  # noqa: E402
 
 VERSIONS = {"full": "", "nocw": "gsr", "spout": "spout"}
+VERSIONS_ALL = dict(VERSIONS)
 # WF_SS_VERSIONS (comma list) renders a subset. QUICK LOOK (Priya 11-09 "can i see the maps, even without stats?" / "can't
 # the stats run build directly off the no stats (don't re-do work!)"): every run first draws the cohort maps WITHOUT
 # tests (ss_cmap_..._nostats_...png) as soon as the responses exist, then runs the tests in the SAME process;
@@ -112,8 +113,13 @@ WIN = __import__("os").environ.get("WF_SS_MAPWIN", "resp")
 if WIN not in ("resp", "precue") or (WIN == "precue" and BASE not in ("rest", "none")):
     raise ValueError(f"WF_SS_MAPWIN={WIN!r} (the pre-cue map needs a rest / none baseline)")
 FR = __import__("os").environ.get("WF_SS_FR", "")
-if FR not in ("", "0", "A", "B") or (FR and WIN != "resp"):
-    raise ValueError(f"WF_SS_FR={FR!r} (needs '', 0, A, B and WF_SS_MAPWIN=resp)")
+# Bs / As (Priya 11-09 "add the covariate relative to spout's pre-stroke mean"): B / A covariates minus the animal's PRE
+# mean of that spout, so the pre fit learns from within-spout face variation only and cannot carry spout-target
+# information (B / A themselves decode the spout .40-.60 / .61-.87 from pre trials, chance .17: the non-lick factors
+# follow the spout); post trials are referenced to the same pre spout means, so a post-stroke change in how the face
+# moves AT a spout is still removed.
+if FR not in ("", "0", "A", "B", "As", "Bs") or (FR and WIN != "resp"):
+    raise ValueError(f"WF_SS_FR={FR!r} (needs '', 0, A, B, As, Bs and WF_SS_MAPWIN=resp)")
 BSUF = ("" if BASE == "lick" else f"_{BASE}") + ("_precue" if WIN == "precue" else "") + (f"_fr{FR}" if FR else "")
 BASE_LABEL = {"lick": "response window minus the trial's -1.0..-0.6 s before the first lick",
               "rest": "response window minus the session's RESTnl rest level",
@@ -199,7 +205,7 @@ def fr_design(X):
     from wfield_local import fr_groups
     G = fr_groups.GROUPINGS["master_v1"]
     cols = []
-    for part in fr_groups.MODES[FR]:
+    for part in fr_groups.MODES[FR[0]]:
         if part == "other":
             cols += [X[:, k] for k in G["other"]]
         elif G.get(part):
@@ -217,8 +223,9 @@ def apply_fr(data):
         for lab, ep, day, Y, pos in sess:
             X = fr_covariates(lab, len(pos))
             ok = np.zeros(len(pos), bool) if X is None else np.isfinite(X).all(1)
-            rows.append([lab, ep, day, Y, np.where(ok, pos, "none"), None if X is None or FR == "0" else fr_design(X), ok])
-        if FR in ("A", "B"):
+            rows.append([lab, ep, day, Y, np.where(ok, pos, "none"), None if X is None or FR == "0" else fr_design(X), ok,
+                         pos])
+        if FR != "0":
             pre = [r for r in rows if r[1] == "pre" and r[6].any()]
             for r in rows:
                 if not r[6].any():
@@ -226,10 +233,18 @@ def apply_fr(data):
                 train = [q for q in pre if q[0] != r[0]]
                 Xp = np.concatenate([q[5][q[6]] for q in train])
                 Rp = np.concatenate([q[3][q[6]][:, resp_b].mean(1) for q in train])
+                Xt = r[5][r[6]]
+                if FR.endswith("s"):                       # relative to the training pre mean of each trial's spout
+                    pp = np.concatenate([q[7][q[6]] for q in train])
+                    smu = {sp: Xp[pp == sp].mean(0) for sp in np.unique(pp)}
+                    Xp = Xp - np.stack([smu[sp] for sp in pp])
+                    pt = r[7][r[6]]
+                    Xt = Xt - np.stack([smu.get(sp, np.full(Xt.shape[1], np.nan)) for sp in pt])
+                    Xt = np.nan_to_num(Xt)                 # a spout never seen pre: no correction
                 mu = Xp.mean(0)
                 B = np.linalg.lstsq(np.column_stack([np.ones(len(Xp)), Xp - mu]), Rp, rcond=None)[0][1:]
                 Y = r[3].copy()
-                Y[r[6], resp_b] -= ((r[5][r[6]] - mu) @ B)[:, None, :]
+                Y[r[6], resp_b] -= ((Xt - mu) @ B)[:, None, :]
                 r[3] = Y
         out[an] = [tuple(r[:5]) for r in rows]
         print(f"  FR {FR} {an}: trials with FR {sum(r[6].sum() for r in rows)} / {sum(len(r[4]) for r in rows)}",
@@ -417,6 +432,28 @@ def draw(ax, v, mask, edges, vmax, sig=None, brain=None, cmap="RdBu_r", vlim=Non
         s.set_visible(False)
 
 
+def get_resp(version):
+    """{animal: {epoch: (n_sessions, 6, K)}} for ``version`` under the current BASE / WIN / FR: from RESP_CACHE when
+    present, else loaded (and cached). Sets the loader's XFORM."""
+    import pickle
+    S.XFORM = VERSIONS_ALL[version]
+    rc = RESP_CACHE / f"{SUF}{BSUF}_{version}.pkl"
+    if rc.exists():
+        print(f"  responses from {rc}", flush=True)
+        return pickle.loads(rc.read_bytes())
+    data, _ = S.load_sessions()
+    resp = session_responses(apply_fr(data) if FR else data)
+    RESP_CACHE.mkdir(parents=True, exist_ok=True)
+    rc.write_bytes(pickle.dumps(resp))
+    return resp
+
+
+def full_unit(resp_full, Uc):
+    """{animal: RMS over brain pixels of its FULL pre response} -- the unit of every map."""
+    return {an: np.sqrt(np.nanmean(np.sum(np.nanmean(d["pre"], 0) ** 2, -1)) / Uc.shape[0])
+            for an, d in resp_full.items()}
+
+
 def pre_map(resp, unit, Uc):
     """(7, npix): the pre response itself (mean over spouts, then each spout), per animal the mean over its pre sessions
     in units of its pre response RMS, mean over animals."""
@@ -437,12 +474,14 @@ def fig_cohort(res, mask, edges, version, brain=None, pre=None, sfx=""):
         lo = min(lo, 0.0)
         if _ENV.get("WF_SS_PREMAX"):
             hi = float(_ENV["WF_SS_PREMAX"])
+        if _ENV.get("WF_SS_PREMIN"):
+            lo = float(_ENV["WF_SS_PREMIN"])
         for c, ci in enumerate(cols):
             ax = axs[0, c]
             draw(ax, pre[ci], mask, edges, None, None, brain, cmap="viridis", vlim=(lo, hi))
             ax.set_title("mean over spouts" if ci == 0 else S.POS[ci - 1].replace("_", " "))
             if c == 0:
-                ax.set_ylabel("pre response", fontsize=11)
+                ax.set_ylabel("pre response" if version == "full" else f"pre response\n({LABEL[version]})", fontsize=10)
         smp = plt.cm.ScalarMappable(cmap="viridis", norm=plt.Normalize(lo, hi))
         fig.colorbar(smp, ax=axs[0, :], fraction=0.015, pad=0.01, label="pre response\n(units of pre RMS)")
     for r, ep in enumerate(EPS):
@@ -548,56 +587,38 @@ def main():
             res = {ep: (z[f"{version}__{ep}__mean"], [c if c.any() else None for c in z[f"{version}__{ep}__sig"]],
                         z[f"{version}__{ep}__animals"], ans) for ep in EPS}
             asig = dict(zip(ans, z[f"{version}__chronic__animal_sig"]))
-            pz = OUT / "pre_maps.npz"
-            pre = (z["full__pre__mean"] if "full__pre__mean" in z.files else
-                   np.load(pz)["full__pre__mean"] if pz.exists() else None) if version == "full" else None
+            pz = OUT / "pre_maps.npz"                                        # every version's pre row (Priya 11-09)
+            pk = f"{version}__pre__mean"
+            pzz = np.load(pz) if pz.exists() else None
+            pre = z[pk] if pk in z.files else pzz[pk] if pzz is not None and pk in pzz.files else None
             fig_cohort(res, mask, edges, version, brain, pre)
             fig_animals(res, mask, edges, version, brain, asig)
         print(f"replotted {OUT}")
         return
-    if "--pre-map" in sys.argv:                                                # only the pre response (cached inputs)
-        S.XFORM = VERSIONS["full"]
-        data = S.load_sessions()[0]
-        resp = session_responses(apply_fr(data) if FR else data)
-        unit = {an: np.sqrt(np.nanmean(np.sum(np.nanmean(d["pre"], 0) ** 2, -1)) / Uc.shape[0])
-                for an, d in resp.items()}
-        np.savez_compressed(OUT / "pre_maps.npz", full__pre__mean=pre_map(resp, unit, Uc).astype(np.float32))
-        print(f"wrote {OUT / 'pre_maps.npz'}")
+    if "--pre-map" in sys.argv:          # only the pre rows of VERSIONS (responses via the cache), merged into pre_maps.npz
+        unit = full_unit(get_resp("full"), Uc)
+        pz = OUT / "pre_maps.npz"
+        old = dict(np.load(pz)) if pz.exists() else {}
+        new = {f"{v}__pre__mean": pre_map(get_resp(v), unit, Uc).astype(np.float32) for v in VERSIONS}
+        np.savez_compressed(pz, **{**old, **new})
+        S.XFORM = ""
+        print(f"wrote {pz}: {sorted(new)}")
         return
     names = list(split)                                                        # split-basis ROI weights (K x n_roi)
     W = np.stack([Uc[split[n]].mean(0) for n in names], axis=1)
     unit, rows, store = None, [], {}
-    import pickle
-    if "full" not in VERSIONS:      # the unit is ALWAYS the FULL pre response (11-09 bug: a nocw,spout run took nocw's)
-        fc = RESP_CACHE / f"{SUF}{BSUF}_full.pkl"
-        if not fc.exists():
-            sys.exit(f"WF_SS_VERSIONS without full needs the full responses for the unit: run full first ({fc})")
-        full = pickle.loads(fc.read_bytes())
-        unit = {an: np.sqrt(np.nanmean(np.sum(np.nanmean(d["pre"], 0) ** 2, -1)) / Uc.shape[0])
-                for an, d in full.items()}
-    for version, xf in VERSIONS.items():
-        S.XFORM = xf                                                            # the loader reads it per call
-        rc = RESP_CACHE / f"{SUF}{BSUF}_{version}.pkl"
-        if rc.exists():
-            resp = pickle.loads(rc.read_bytes())
-            print(f"  responses from {rc}", flush=True)
-        else:
-            data, _ = S.load_sessions()
-            resp = session_responses(apply_fr(data) if FR else data)
-            RESP_CACHE.mkdir(parents=True, exist_ok=True)
-            rc.write_bytes(pickle.dumps(resp))
-        if unit is None:                                                        # the FULL pre response sets the unit
-            unit = {an: np.sqrt(np.nanmean(np.sum(np.nanmean(d["pre"], 0) ** 2, -1)) / Uc.shape[0])
-                    for an, d in resp.items()}
-        pre = pre_map(resp, unit, Uc) if version == "full" else None
+    # the unit is ALWAYS the FULL pre response (11-09 bug: a nocw,spout run took nocw's)
+    unit = full_unit(get_resp("full"), Uc)
+    for version in VERSIONS:
+        resp = get_resp(version)
+        pre = pre_map(resp, unit, Uc)                                          # every version's pre row (Priya 11-09)
         fig_cohort(pixel_maps(resp, unit, Uc, mask, stats=False), mask, edges, version, brain, pre, "_nostats")
         print(f"  {version}: quick look (no tests) drawn", flush=True)
         if NOSTATS:
             continue
         res = pixel_maps(resp, unit, Uc, mask)
         asig = animal_contours(resp, unit, Uc, statpx, np.random.default_rng(0))
-        if pre is not None:
-            store["full__pre__mean"] = pre.astype(np.float32)
+        store[f"{version}__pre__mean"] = pre.astype(np.float32)
         fig_cohort(res, mask, edges, version, brain, pre)
         fig_animals(res, mask, edges, version, brain, asig)
         rows += area_table(resp, unit, W, names, version, np.random.default_rng(1))

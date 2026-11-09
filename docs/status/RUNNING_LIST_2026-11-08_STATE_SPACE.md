@@ -63,6 +63,24 @@ merged to main (no conflicts); A5 applied to FINDINGS 0c item 4 and the page cap
 
 ## B. Findings (newest first; exploratory)
 
+37. **Spout-centered face covariates (no spout information): activity unchanged; acute far-contra loss untouched; chronic
+   far-contra loss PARTLY face (Priya 11-09 "add the covariate relative to spout's pre-stroke mean, and relabel frB").**
+   `WF_SS_FR=Bs|As` = B / A covariates minus the animal's pre mean at the trial's spout (training sessions only). WHY: raw
+   B / A covariates decode the spout on pre trials (B .40-.60, side .71-.86, ring .64-.86; A .61-.87; lick sum alone
+   .22-.27; chance .17 / .50 / .50) -- the non-lick factors follow the spout, so B was NOT target-free (B36's 9.3 reading
+   was partly circular). Results (kept along the control's direction, Bs / As; sig % of stat mask): 9.1 mean 0.96 / 0.83
+   acute, 0.99 / 0.90 chronic; 9.2 mean 0.95 / 0.98 (Bs acute / chronic); 9.3 acute far contra 1.08 (SSp-m ipsi -.64 ->
+   -.64, SSp-n -.56 -> -.59, tjM1 -.47 -> -.48, all *); 9.3 chronic far contra 0.57 / 0.76, contour 10 -> 0 / 1 %, area
+   level SSp-tr contra -.34 -> -.22 * and VISa contra -.23 -> -.14 * survive, SSp-ll contra -.31 -> -.19 n.s.; chronic
+   close ipsi 0.60 (35 -> 10 %). SIGN vs encoder: across-spout spread (SD over 6 spouts) of the spout-specific response
+   in contralesional SSp-m rises chronically 4/4 (+.07 control, +.06 Bs, +.07 As) = same direction as the encoder's
+   contralesional SSp-m position rise (8.19 B, landing frame, FR-A); far contra's -.12 there is one spout leaving the
+   others. Also: pre-stroke response row on EVERY cohort map (all versions / baselines; `--pre-map` merges per-version
+   pre rows into pre_maps.npz via the response cache), shared scales per family (full +-0.9 pre 0-2.3; nocw +-0.6 pre
+   -0.6-0.9; spout +-0.43 pre -0.4-0.45; WF_SS_PREMIN / PREMAX). Page v37 BUILT LOCALLY, NOT PUBLISHED (account switch:
+   the page belongs to the other claude.ai account): scratchpad state_space_page/index.html, page script
+   `rebuild_fr_section9.py` (9.1b-e, 9.2b-e, 9.3b-e = Bs / As / B relabeled / A).
+
 36. **The CHRONIC spout-specific change is mostly face movement; the ACUTE far-contra loss is not (Priya 11-09 "yes 1
    and 2", "how do we reconcile the encoder map and state space map results"; `WF_SS_VERSIONS=nocw,spout WF_SS_FR=B|0|A`;
    page v36 Figs 9.3b-c, section 9 take + summary row rewritten).** Along the control's own direction (B / A): chronic far
