@@ -74,6 +74,8 @@ def level(label: str, cols=None, rule_: str | None = None) -> tuple[np.ndarray, 
     in that order (NaN if absent)."""
     r = rule_ or RULE
     z = np.load(SRC / f"{label}.npz")
+    from wfield_local import mask_keys                  # restw_check is mask-dependent: stale-read guard (11-09)
+    mask_keys.check_obj(z, SRC / f"{label}.npz")
     if int(z["version"]) != SRC_VERSION:
         raise RuntimeError(f"{label}: restw_check session version {int(z['version'])} != {SRC_VERSION}")
     cs = [str(c) for c in z["cols"]]

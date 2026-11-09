@@ -46,6 +46,8 @@ import iti_licks as il  # noqa: E402
 import restnl  # noqa: E402
 import restw_strict_check as rsc  # noqa: E402
 
+from wfield_local import mask_keys  # noqa: E402
+
 OUTD = il.OUT / "restw_check" / "rescue"            # the ONLY write root
 SESS = OUTD / "sessions"
 VERSION = 1
@@ -69,9 +71,34 @@ def _bouts(t: np.ndarray, gap: float) -> np.ndarray:
     return np.concatenate([[0], np.cumsum(np.diff(t) > gap)]) if len(t) else np.array([], int)
 
 
+def _cached_ok(f: Path, label: str) -> bool:
+    """Reuse <SESS>/<label>.npz only when it is of this VERSION, on the current analysis masks (REFUSED otherwise:
+    mask_keys, 11-09) and holds the cue-to-lick inputs that exist NOW.
+
+    THE 'No objects to concatenate' FAILURE (11-09). The cache was keyed on VERSION only, and its cue-to-lick block is
+    written only when the c2l extract (<cue_to_lick>/sessions_restnl[_wr]/<label>.npz) exists at extract time. All 107
+    rescue files of the rebuild run were made ~2 days BEFORE the c2l extract ran, so none had c2l_raw and c2l_table had
+    nothing to concatenate although the c2l extract had run since. The file now records the c2l source it read
+    (``c2l_src``, '' = none) and is rebuilt when that differs from the c2l file present now."""
+    with np.load(f, allow_pickle=True) as z:
+        if int(z["version"]) != VERSION:
+            return False
+        mask_keys.check_obj(z, f)
+        had = str(z["c2l_src"]) if "c2l_src" in z.files else ("?" if "c2l_raw" in z.files else "")
+    import lick_cue_to_lick_extract as cx
+    zf = cx.SESS_NL / f"{label}.npz"
+    now = str(zf) if zf.exists() else ""
+    if had == "?":                                      # pre-11-09 file with c2l inputs: from an unrecorded source
+        return now != ""
+    if had != now:
+        print(f"  {label}: cached c2l source {had or 'none'!r} != current {now or 'none'!r}: rebuilding", flush=True)
+        return False
+    return True
+
+
 def session_worker(label: str) -> dict:
     f = SESS / f"{label}.npz"
-    if f.exists() and int(np.load(f)["version"]) == VERSION:
+    if f.exists() and _cached_ok(f, label):
         return {"label": label, "cached": True}
     import lick_cue_to_lick as c2l
     import lick_cue_to_lick_extract as cx
@@ -85,6 +112,7 @@ def session_worker(label: str) -> dict:
     s = next(x for x in config.load_sessions() if x["label"] == label)
     an, date = config.animal_of(label), "2026" + label.split("_")[-1]
     ref = np.load(il.OUT / "restw_check" / "sessions" / f"{label}.npz")
+    mask_keys.check_obj(ref, il.OUT / "restw_check" / "sessions" / f"{label}.npz")
     # == restw_strict_check.session_worker's trace construction
     V, ft, Ub, flat, parea, names, shape, pstat = ce.load_imaging(label)
     M = il.roi_masks(parea, pstat, names, flat, shape)
@@ -131,7 +159,8 @@ def session_worker(label: str) -> dict:
         masks[f"s{k}"] = rsc.floor_runs(m_daq & ~rsc.widen(smp(c4), n, nb, na), minrun)
         masks[f"r{k}"] = rsc.floor_runs(m_daq & ~rsc.widen(smp(c4[resid]), n, nb, na), minrun)
     orig_daq, orig_eng = rbp._session_daq, rbp._engaged_trials
-    out = {"version": VERSION, "cols": np.array(cs), "animal": str(ref["animal"]), "epoch": str(ref["epoch"]),
+    out = {"version": VERSION, **mask_keys.stamp(), "c2l_src": "",
+           "cols": np.array(cs), "animal": str(ref["animal"]), "epoch": str(ref["epoch"]),
            "n_cam4": len(c4), "n_resid": int(resid.sum()), "n_daq": len(daq_on)}
     try:
         rbp._engaged_trials = lambda *_a, **_k: eng
@@ -193,6 +222,9 @@ def session_worker(label: str) -> dict:
     zf = cx.SESS_NL / f"{label}.npz"
     if zf.exists():
         z = dict(np.load(zf))
+        mask_keys.check_obj(z, zf)
+        z.pop(mask_keys.FIELD, None)
+        out["c2l_src"] = str(zf)
         out["c2l_restnl_lev"] = np.asarray(z["restw"], float)
         z["restw"] = np.zeros_like(np.asarray(z["restw"], float))
         z["restw_ok"] = np.array(True)
@@ -238,6 +270,7 @@ def load_levels(labels: list) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
     rows, srows, Z = [], [], {}
     for x in labels:
         z = dict(np.load(SESS / f"{x}.npz", allow_pickle=True))  # own cache (c2l_pos object array)
+        mask_keys.check_obj(z, SESS / f"{x}.npz")
         Z[x] = z
         cs = [str(c) for c in z["cols"]]
         for v in vnames():
@@ -257,6 +290,7 @@ def precue_tables(labels: list) -> dict:
     out = {None: [], "far_contra": []}
     for x in labels:
         z = np.load(il.OUT_W / restnl.cache("precue_restnl") / f"{x}.npz")   # where lick_precue_restw writes (D9 11-08)
+        mask_keys.check_obj(z, il.OUT_W / restnl.cache("precue_restnl") / f"{x}.npz")
         cs = [str(c) for c in z["cols"]]
         pos = z["pos"].astype(str)
         for sp, mn in ((None, 10), ("far_contra", 5)):
@@ -284,6 +318,9 @@ def c2l_table(Z: dict) -> pd.DataFrame:
             rows.append(pd.DataFrame({"label": x, "animal": str(z["animal"]), "epoch": str(z["epoch"]),
                                       "trial": z["c2l_trial"], "pos": z["c2l_pos"], "lat": z["c2l_lat"], "col": c,
                                       "raw": z["c2l_raw"][:, j], "restnl": float(z["c2l_restnl_lev"][j])}))
+    if not rows:
+        raise RuntimeError(f"no rescue session holds cue-to-lick inputs (c2l_raw): run scripts/lick_cue_to_lick_extract.py "
+                           f"(RESTnl) first, into {cx.SESS_NL}, then re-run the rescue extract")
     T = pd.concat(rows, ignore_index=True)
     T["bin"] = np.clip(np.digitize(T.lat, c2l.EDGES) - 1, 0, len(c2l.EDGES) - 2)
     return T
