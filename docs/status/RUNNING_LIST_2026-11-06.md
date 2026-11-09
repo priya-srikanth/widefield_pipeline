@@ -945,3 +945,11 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
 - 09:30 status: no new failures since 06:25. v14a map re-renders: reference maps 107/108 in ~20 min (warm), new trial sets
   next. chain_v14 caption push passed tests but lost a push race (retrying). v12 interhemi rest extract EXIT 0 08:11.
   Pending helpers: order-dependent stamp test fix (unblocks memos), trial-set wiring (unblocks grant).
+- 10:25 status (after compaction): no failures. v14a map re-renders had logged nothing since 09:30 (108/108 ref-maps).
+  Measured, not a hang: main thread "Ready" (CPU-starved) -- the 3 random-split jobs (47 threads each) held ~22 of 24
+  cores. RESTnl baseline attach = serial `restnl_mask.base_maps`; timed in isolation at 3-9 s per session even on a
+  cache hit (119 csig-3d7bbe921e baselines on disk, key matches), so 108 sessions under starvation = tens of minutes.
+  Fix applied (no restart): random-split PIDs 2184 / 37244 / 26396 set to BelowNormal priority -> map CPU 0.03 -> 0.26
+  core. FINDING for later: the per-session cache-hit cost (3-9 s) is worth profiling (key computation?), not now.
+  Random splits PS93 13/20 at 10:08 (~14 min / split -> ~11:45). Caption-branch push: retry at 10:19, tests running.
+  Stamp-test fix ready on fix/test-stamp-order-1109 6bb2a103 (push after the caption branch, then memos).
