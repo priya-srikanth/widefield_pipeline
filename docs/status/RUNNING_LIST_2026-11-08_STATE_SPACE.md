@@ -685,6 +685,23 @@ merged to main (no conflicts); A5 applied to FINDINGS 0c item 4 and the page cap
 
 ## C. Plans written down before the data arrive (so the test is fixed in advance)
 
+- **Aligned-decoder arm of frozen vs refit (Priya 11-09; `scripts/aligned_decoder.py`, written and launched 11-09 ~17:40
+  before any post number).** Data = the 5r / 5rm lick arm's refit inputs (D6 capture hook; rebuild profile, block
+  epoch_accuracy, LP licks + LP gate, August pre; joint-LocaNMF components x 8 lick bins, session z). Per animal k = 10
+  PCs of single-trial (trial x bin) activity (also 5, 20). Per session, 2-fold over position blocks; calibration half
+  fits everything session-specific: frozen (pre PCs + pre decoder trained on a SIZE-MATCHED pre subset = the
+  calibration size), (a) label-free covariance alignment (own PCs whitened, re-coloured by the pre latent covariance;
+  axis correspondence = orthogonal factor of W_own' W_pre through the shared components, because the session z-score
+  removes the mean trajectory), (b) orthogonal Procrustes + one scale on per-spout condition-averaged latent
+  trajectories, refit (own PCs, calibration labels). Controls: rotation-only (a) and (b); (b) with shuffled calibration
+  labels; pre -> pre against the LOSO pre reference (ceiling); pairwise single-pre-session references (k = 10) for the
+  ceiling at matched lag. Readouts: gap fraction (aligned - frozen) / (refit - frozen) per animal / epoch (nested
+  draw); change vs pre of every arm, A, R, G; index dA / dG. Cortical decomposition: the frozen decoder's readout
+  carried to pixels through the footprints, aligned vs reference: contra / ipsi loading share in tjM1 and SSp-m (ROI v8)
+  and the within-hemisphere cosine. **Verdict rule (fixed now):** gate = pre -> pre gap fraction >= .7 in >= 3/4;
+  RESTORED = frozen and G not changed; RE-EMBEDDED = G changed, index >= .67 in >= 3/4, R not changed; REPLACED = G
+  changed, index <= .33 in >= 3/4, A not changed; else PARTIAL; gate fails -> UNINFORMATIVE.
+
 - **LocaNMF basis (O2 option 4).** `WF_SS_BASIS=lnmf` switches `state_space_sim` to the O2 output
   (`rebuild_20261103/o2/ss_lnmf_20261108/out/sessions`; same rows as the Allen extract for the 107 rebuild sessions),
   its own binned cache and an `_lnmf` output tag; every script then runs unchanged. Re-run: trials (change vs pre: r,
