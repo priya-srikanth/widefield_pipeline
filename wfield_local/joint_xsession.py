@@ -135,9 +135,15 @@ def run_animal(animal, labels, align="cue", post_s=2.0, verbose=True, encoder=Tr
     feat = joint_features(basis)
     # THE DECODER'S builder keeps the cue indices (main 26fd5b44), so its frozen model can be trained on the pre-stroke
     # camera working trials (`locanmf_frozen_decoder.pool_work`); the encoder keeps `joint_features`
+    from wfield_local import lp_licks
     from wfield_local.precue_engagement_states import features_with_indices
+    # THE LP RUN'S DECODER IS THE ATTEMPT-CODING LP MODEL (copy D, Priya 11-09), found by exact spec. Its lick-aligned
+    # pool was built with the no-lick reference at the would-be lick (`attempt_coding`), which moves the engaged rows'
+    # scaling by ~1e-4 and so the training fingerprint: under LP the lick unit uses the same reference, or it would miss
+    # D. The DAQ lane keeps the cue reference (its stored models, copy C, are unchanged).
+    nolick_ref = "would_be_lick" if (align == "lick" and lp_licks.is_lp()) else "cue"
     dec = pooled_frozen_loso(labels, source="locanmf", align=align, post_s=post_s,
-                             verbose=verbose, features=features_with_indices(basis))
+                             verbose=verbose, features=features_with_indices(basis, nolick_ref=nolick_ref))
     enc = (pooled_frozen_encoder(labels, source="locanmf", align=align, post_s=post_s, verbose=verbose, features=feat)
            if encoder else None)
     if dec is None and enc is None:
