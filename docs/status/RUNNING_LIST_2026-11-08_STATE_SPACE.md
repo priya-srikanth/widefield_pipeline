@@ -63,6 +63,18 @@ merged to main (no conflicts); A5 applied to FINDINGS 0c item 4 and the page cap
 
 ## B. Findings (newest first; exploratory)
 
+36. **The CHRONIC spout-specific change is mostly face movement; the ACUTE far-contra loss is not (Priya 11-09 "yes 1
+   and 2", "how do we reconcile the encoder map and state space map results"; `WF_SS_VERSIONS=nocw,spout WF_SS_FR=B|0|A`;
+   page v36 Figs 9.3b-c, section 9 take + summary row rewritten).** Along the control's own direction (B / A): chronic far
+   contra 0.46 / 0.52 kept, significant area 10 -> 1 / 4 % (only SSp-m contra -.12 significant, B); chronic close ipsi
+   0.58 / 0.70 (35 -> 10 / 12 %); acute far contra 0.99 / 0.90 kept, ipsilesional orofacial loss still significant (SSp-m
+   ipsi -.64 -> -.59 / -.43, SSp-n / SSp-ul / tjM1 ipsi too). 9.2 (nocw) like 9.1 (0.83-1.08). RECONCILES with the
+   encoder: activity change (9.1) not face; chronic spout differences = face-linked (encoder chronic position R2 rise +22
+   -> +4 with FR); acute ipsilesional SSp-m loss survives in both. BUGS FIXED 11-09 in `state_space_chronic_maps.py`: a
+   WF_SS_VERSIONS subset run (1) overwrote maps.npz / areas.csv (now merged) and (2) took its unit from the first version
+   run, not the FULL pre response (now always full; needs the full cache). The first 9.2/9.3 FR outputs were ~2.8x off in
+   units (ratios / retention unaffected); rerun from the response cache, full maps rebuilt.
+
 35. **Balance in the first-lick window (Priya 11-09 "yes 1 and 2"; `WF_SS_ALIGN=lick` balance scripts, tables
    `landing_lick/` (cue tables untouched in `landing/`); page v35 Figs 5.5-5.8).** 0.1-0.5 s after the first lick minus
    -1.0..-0.6 s. Same picture as the cue window. Orofacial matched: far contra +.30 / +.27 / +.29 (chronic 4/4), close
