@@ -64,7 +64,7 @@ def session_maps():
     D = wd.load("svdbasis")
     out = {}
     for a in AN:
-        W = np.asarray(pickle.loads((dp.SPATIAL / f"spatial_{a}.pkl").read_bytes())["P"], np.float32)
+        W = np.asarray(pickle.loads(il.te_basis_spatial(a, dp.SPATIAL).read_bytes())["P"], np.float32)
         for st in ("iti", "trial"):
             S = {}
             for x, d in sorted(D.items()):

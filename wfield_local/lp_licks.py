@@ -51,6 +51,14 @@ import pandas as pd
 #: Selects the imaging lick source: "daq" (default, spout contact) or "lp" (this module).
 LICK_SOURCE_ENV = "WIDEFIELD_LICK_SOURCE"
 LICK_SOURCES = ("daq", "lp")
+#: OPT-IN attempts SUPPLEMENT (Priya 11-09, June camera tables, route 2b): the path of a separately built attempts table
+#: (`scripts/trial_attempts.py --labels ... --out`, same columns) that serves ONLY sessions ABSENT from the run's
+#: registered table -- the June pre sessions, which the PRE_FROM=0801 build excluded. It never overrides a registered
+#: session (any label in both tables raises `AttemptsSupplementOverlap`). It is deliberately NOT in `spec_token` /
+#: `cache_tag`, so every registered session's LP keys stay exactly as they are; a session served from the supplement gets
+#: its own key part instead (`supplement_token`, folded into its session-cache signature by `session_cache.cached`), so a
+#: rewrite of the supplement recomputes only those sessions. Unset (the default) = byte-identical behavior and keys.
+SUPPLEMENT_ENV = "WIDEFIELD_ATTEMPTS_SUPPLEMENT"
 ATTEMPT_CLASSES = ("hit", "incomplete")
 #: LP cue <-> DAQ cue match tolerance (s).
 MATCH_TOL_S = 0.02
@@ -68,6 +76,10 @@ CLOSE_POSITIONS = ("close_ipsi", "close_mid", "close_contra", "close_L", "close_
 
 class LPUnavailable(RuntimeError):
     """The session has no LP lick tables (no video, or not tracked): it has no LP_licks version."""
+
+
+class AttemptsSupplementOverlap(RuntimeError):
+    """The attempts supplement holds a session the registered table already has (the supplement may only ADD)."""
 
 
 def lick_source() -> str:
@@ -369,6 +381,22 @@ def cache_tag(rv=None) -> str:
 _ATTEMPTS: dict = {}
 
 
+def _prep_attempts(A: pd.DataFrame, p) -> pd.DataFrame:
+    """One attempts table as the LP source reads it (the registered table and the supplement alike)."""
+    if "cls_raw" in A:
+        # a camera-gated table: `cls` carries the run's session-level classes (stopped / early_run / after_end);
+        # the LP source needs the TRIAL-level class (the camera gate applies the run's rules itself)
+        A["cls"] = A["cls_raw"]
+    for c in ("pos", "stop_ms", "contact"):
+        if c not in A:
+            raise LPUnavailable(f"{p}: no {c!r} column (the first-lick DAQ fallback needs it; rebuild the table)")
+    A = A[["label", "trial_id", "cls", "cam4", "combined", "pos", "stop_ms", "contact"]].copy()
+    tm = first_lick_timing(A.pos, A.combined.fillna(A.cam4), A.contact, A.stop_ms)
+    A["first_lick_ms"], A["timing_source"] = tm.first_lick_ms.to_numpy(), tm.timing_source.to_numpy()
+    A["grooming_suspect"] = tm.grooming_suspect.to_numpy()
+    return A
+
+
 def _attempts(rv=None) -> pd.DataFrame:
     p = attempts_path(rv)
     key = (str(p), p.stat().st_mtime_ns if p.exists() else 0)
@@ -376,20 +404,54 @@ def _attempts(rv=None) -> pd.DataFrame:
         if not p.exists():
             raise LPUnavailable(f"no attempts table {p}")
         _ATTEMPTS.clear()
-        A = pd.read_csv(p)
-        if "cls_raw" in A:
-            # a camera-gated table: `cls` carries the run's session-level classes (stopped / early_run / after_end);
-            # the LP source needs the TRIAL-level class (the camera gate applies the run's rules itself)
-            A["cls"] = A["cls_raw"]
-        for c in ("pos", "stop_ms", "contact"):
-            if c not in A:
-                raise LPUnavailable(f"{p}: no {c!r} column (the first-lick DAQ fallback needs it; rebuild the table)")
-        A = A[["label", "trial_id", "cls", "cam4", "combined", "pos", "stop_ms", "contact"]].copy()
-        tm = first_lick_timing(A.pos, A.combined.fillna(A.cam4), A.contact, A.stop_ms)
-        A["first_lick_ms"], A["timing_source"] = tm.first_lick_ms.to_numpy(), tm.timing_source.to_numpy()
-        A["grooming_suspect"] = tm.grooming_suspect.to_numpy()
-        _ATTEMPTS[key] = A
+        _ATTEMPTS[key] = _prep_attempts(pd.read_csv(p), p)
     return _ATTEMPTS[key]
+
+
+def supplement_path() -> Path | None:
+    """The opt-in attempts supplement (`SUPPLEMENT_ENV`), or None when unset."""
+    v = os.environ.get(SUPPLEMENT_ENV, "").strip()
+    return Path(v) if v else None
+
+
+_SUPP: dict = {}
+
+
+def _supplement(rv=None) -> pd.DataFrame | None:
+    """The supplement's rows (LP-source form), or None when the switch is unset. Refuses a missing file and any label
+    the registered table already holds (`AttemptsSupplementOverlap`: the supplement only ADDS sessions)."""
+    sp = supplement_path()
+    if sp is None:
+        return None
+    if not sp.exists():
+        raise FileNotFoundError(f"{SUPPLEMENT_ENV}={sp}: no such attempts supplement")
+    p = attempts_path(rv)
+    st = sp.stat()
+    key = (str(sp), st.st_mtime_ns, st.st_size, str(p), p.stat().st_mtime_ns if p.exists() else 0)
+    if key not in _SUPP:
+        S = _prep_attempts(pd.read_csv(sp), sp)
+        reg = set(_attempts(rv).label) if p.exists() else set()
+        both = sorted(set(S.label) & reg)
+        if both:
+            raise AttemptsSupplementOverlap(
+                f"{SUPPLEMENT_ENV}={sp}: {len(both)} session(s) already in the registered {p.name} ({', '.join(both[:5])}"
+                f"{' ...' if len(both) > 5 else ''}); the supplement may only add sessions, never override one")
+        _SUPP.clear()
+        _SUPP[key] = S
+    return _SUPP[key]
+
+
+def supplement_token(label: str, rv=None) -> str:
+    """Per-session cache-key part: "" for every session NOT served from the supplement (the switch unset, or the label
+    not in it -- so registered sessions' keys never move), else the supplement's identity ("sup:<size>:<mtime_ns>").
+    `session_cache.cached` folds a non-empty token into that session's signature."""
+    if supplement_path() is None:
+        return ""
+    S = _supplement(rv)
+    if S is None or not (S.label == label).any():
+        return ""
+    st = supplement_path().stat()
+    return f"sup:{st.st_size}:{st.st_mtime_ns}"
 
 
 def _inputs(label: str, rv):
@@ -472,7 +534,8 @@ def session_lp(label: str, cue_samples, sr: float, max_rt: float, rv=None) -> di
     """Memoised per process on (label, cue train, sr, max_rt, attempts identity) -- see `_session_lp`."""
     import hashlib
     cs = np.ascontiguousarray(np.asarray(cue_samples, np.int64))
-    key = (label, hashlib.sha1(cs.tobytes()).hexdigest(), float(sr), float(max_rt), spec_token(rv))
+    key = (label, hashlib.sha1(cs.tobytes()).hexdigest(), float(sr), float(max_rt), spec_token(rv),
+           supplement_token(label, rv))
     if key not in _LP:
         if len(_LP) > 64:
             _LP.clear()
@@ -489,10 +552,14 @@ def _session_lp(label: str, cue_samples, sr: float, max_rt: float, rv=None) -> d
     counts for the log."""
     cue_s = np.asarray(cue_samples, float) / float(sr)
     licks, cue_t = lp_lick_times(label, rv)
+    S = _supplement(rv)                  # None unless the opt-in supplement is set (validated: it only adds sessions)
     A = _attempts(rv)
     A = A[A.label == label]
+    if A.empty and S is not None:
+        A = S[S.label == label]
     if A.empty:
-        raise LPUnavailable(f"{label}: not in {attempts_path(rv).name}")
+        raise LPUnavailable(f"{label}: not in {attempts_path(rv).name}"
+                            + (f" nor in the supplement {supplement_path().name}" if S is not None else ""))
     A = A.set_index("trial_id")
     A = A[A.index.isin(cue_t.index)]
     tcue = cue_t.loc[A.index, "cue_daq"].to_numpy(float)

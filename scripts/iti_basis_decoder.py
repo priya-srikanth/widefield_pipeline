@@ -56,7 +56,7 @@ def features(label: str, source: str):
     V, ft, Ub, _flat, _parea, _names, _shape, pstat = ce.load_imaging(label)
     an = config.animal_of(label)
     if source == "svdbasis":
-        sp = pickle.loads((SPATIAL / f"spatial_{an}.pkl").read_bytes())
+        sp = pickle.loads(il.te_basis_spatial(an, SPATIAL).read_bytes())
         R = V.astype(np.float64) @ np.asarray(sp["P"].T @ Ub[pstat].astype(np.float64)).T
     elif source == "locanmf":
         from wfield_local import joint_locanmf as jl

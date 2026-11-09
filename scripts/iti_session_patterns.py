@@ -73,7 +73,7 @@ def main() -> int:
         return 0
     D = wd.load("svdbasis")
     for a in todo:
-        W = np.asarray(pickle.loads((SPATIAL / f"spatial_{a}.pkl").read_bytes())["P"], np.float32)
+        W = np.asarray(pickle.loads(il.te_basis_spatial(a, SPATIAL).read_bytes())["P"], np.float32)
         res = {}
         for x, d in sorted(D.items()):
             if d["animal"] != a:

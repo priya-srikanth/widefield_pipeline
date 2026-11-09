@@ -63,6 +63,51 @@ merged to main (no conflicts); A5 applied to FINDINGS 0c item 4 and the page cap
 
 ## B. Findings (newest first; exploratory)
 
+27. **The shared increase is NOT explained by licking (Priya 11-09 "go ahead" on the behavior test;
+   `scripts/state_space_shift_behavior.py`, SVD, lick-aligned, minus RESTnl; page v23 Fig 10.21).** Per trial: region
+   means (orofacial = tjM1 + SSp-m + SSp-n; posterior-medial = RSPd + SSp-tr + SSp-ll; contra / ipsi) in three windows
+   (-1.0..-0.1, 0..+0.3, +0.3..+0.7 s); behavior from the 3-D lick table via the landing trial_id (licks and contacts
+   among licks peaking within 700 ms of the first, latency, reach, speed). Per animal x readout, OLS on PRE trials
+   (spout FE + behavior z-scored on pre), pre sessions scored leave-session-out; observed change vs the spout's pre
+   mean, predicted change from licking, residual. Orofacial contra late: observed +1.23 / +1.33 / +1.41, predicted
+   -.21 / +.05 / +.16, residual +1.43 / +1.29 / +1.25 (4/4); early, ipsi the same; chronic before the lick observed
+   +.38 contra / +.29 ipsi, residual +.41 / +.32 (4/4). Model sensitive: pre-stroke late orofacial activity rises with
+   bout licks in all 4 animals (+.23..+.83 per SD); but acutely bouts SHORTEN (licks -0.98 SD, contacts -1.1 SD, 0/4;
+   chronic +.44 / +.42, 4/4) while activity grows. Licking explains only the acute posterior-medial pre-lick activity
+   (predicted +.47 from the longer acute latency; residual n.s.). Posterior-medial post-lick transient = residual (early
+   contra +.65 / +1.30 / +1.03). Caveats: pre coupling model, not a causal control; jaw-only / body movement not in it.
+   Next: jaw / face (FaceRhythm, jaw tables) and body around the first lick; relation to the pre-cue rise vs rest
+   (Fig 9.8).
+
+26. **The shared change against a real reference (Priya 11-09 "couldn't we use the rest or pre-cue lick-free ENL as a
+   per session normalization?"; `WF_SS_SHIFTBASE=rest|enl scripts/state_space_shift_carried.py`, SVD raw + gsr; page v22
+   Figs 10.17-10.20).** Every trial minus the session's RESTnl level, or minus its own pre-cue ENL window, before the
+   templates; readout = per-area offset + shift (spout-mean change beyond gain, level kept). RESULT: the dips before
+   and after the lick (B22 / B25) were the zero-window-mean construction -- against either reference the shared change
+   is an INCREASE with two components: (1) a post-lick transient (0..+0.3 s) over posterior-medial / trunk-limb cortex
+   (acute RSPd strongest, both sides; chronic vs ENL largest SSp-tr / SSp-ll); (2) a SUSTAINED anterolateral orofacial
+   increase (tjM1, SSp-m, SSp-n, ALM; contra first, both sides by chronic), present BEFORE the lick against rest
+   (chronic tjM1 / SSp-m contra + ipsi family-wise from -1.0 s) and growing to ~+1.0 after it. Only RSPd keeps a small
+   late decrease chronically. Minus cortex-wide vs rest: chronic orofacial areas take a larger share all window (to ~+2
+   late), ipsi SSp-tr / SSp-ll / VISa less (= Fig 9.2's pattern). Page take + Fig 10.6 caption + summary row rewritten
+   (not annotated). Caveats: RESTnl itself may move with epoch (Fig 9.4); the ENL window can reach past the cue on
+   short-latency trials (13 % pre vs 26 % acute).
+
+25. **Where and when the shared shift is carried (Priya 11-09 "did you do the 'where is the shift carried' analysis?"
+   -> "spatial and temporal change"; `scripts/state_space_shift_carried.py`, cohort SVD, raw + gsr; page v21 Figs
+   10.13-10.16).** Shift per session as the part maps (B22). WHEN: energy concentrated just after the first lick
+   (subacute / chronic peak +0.15..+0.25 s; share +.08..+.11 above pre); acutely raised across the whole window.
+   WHERE x WHEN (area x bin, max-stat family-wise over cells): post-lick transient (0..+0.3 s) largest over
+   posterior-medial / trunk-limb cortex both sides (chronic SSp-ll contra +.55, SSp-tr +.35..+.39) with a late
+   undershoot; MOST CONSISTENT = contralesional orofacial cortex (SSp-m / SSp-n / tjM1: 12-16 of 17 bins significant
+   subacute + chronic; below its window mean before the lick, above from ~+0.1 s on; SSp-m ipsi later). Minus
+   cortex-wide: the orofacial areas carry the late rise (to +1.0, every epoch), RSPd the early peak then late fall.
+   WHERE by size (energy share / pixel share vs pre null): broad -- no area > ~.05 above (RSPd contra +.03..+.05 around
+   the lick, contra SSp-m +.02..+.04 before it; SSp-ll ipsi below). CAVEAT now on the page: the shift has zero window
+   mean per pixel by construction (static level -> offsets), so "below pre before the lick" partly mirrors "above
+   after" -- read as a change of time course relative to the area's own window mean (replaces the B24 "earlier /
+   briefer response" reading).
+
 24. **The split in every basis + what the parts look like on cortex (11-08 ~15:00; page v17 section 10).** Shares,
    acute / chronic: SVD = Allen (shift .30 / .13, per-area offset .16 / .34, per-spout offset .22 / .18, global gain
    .03 / .15, rotation .05 / .03, off manifold .01); LocaNMF same order, more per-area gain (.16 / .20) and a larger
