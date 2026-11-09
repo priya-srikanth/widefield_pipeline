@@ -1080,3 +1080,12 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   precue .341/.393/.588/.438, cue .855/.734/.935/.923, lick .930/.797/.943/.928. Wording 88044176. Open: LP joint
   encoders not fitted (grant reads only the decoder JSON) -- rec none; Fig 5.1 caption "engaged trials" should say camera
   working trials for cue / pre-cue (caption pass). Worktree wf_render_jxlp can be removed.
+- 12:05 MASK KEYS (fix/mask-keyed-caches-1109, wf_maskkeys): committed f7e2cab2 (mask_keys module; 7 extracts; O2
+  bundle record + runner check, enc_rebuild_20261104b now refused), 71cd1ffd (frozen_encoder / epoch_kernels),
+  b1a7620d (state_space_sim: binned cache under m<sig>/, lnmf_keep name carries the exclusion digest), 7f419788
+  (find_daq_trained could serve a glue-in DAQ model: manifests now record mask_sig, spec ids unchanged), 6ec478c1
+  (restnl_rescue root cause = its OWN 2-day-old VERSION-only cache without c2l; now mask + c2l_src checked),
+  a28cf70d (xa area fix merged), 9e9b1723 (coupling_vigour_sm by name). 32 + ~160 related tests; csig 3d7bbe921e;
+  mask sig 5f9eb36f36b2 (same at default root). Helper resumed to commit the second sweep (cued_wide, firstlick_full,
+  revup, traces, lick_correction, enlv, ...), cover the pooled caches by guard or move-aside, finish the move-aside
+  scan and update GLUE_MASK_FIX doc. Follow-up: precue_enl_lp1s cache on feat/precue-enl-window-1109 needs the stamp.
