@@ -63,6 +63,22 @@ merged to main (no conflicts); A5 applied to FINDINGS 0c item 4 and the page cap
 
 ## B. Findings (newest first; exploratory)
 
+27. **The shared increase is NOT explained by licking (Priya 11-09 "go ahead" on the behavior test;
+   `scripts/state_space_shift_behavior.py`, SVD, lick-aligned, minus RESTnl; page v23 Fig 10.21).** Per trial: region
+   means (orofacial = tjM1 + SSp-m + SSp-n; posterior-medial = RSPd + SSp-tr + SSp-ll; contra / ipsi) in three windows
+   (-1.0..-0.1, 0..+0.3, +0.3..+0.7 s); behavior from the 3-D lick table via the landing trial_id (licks and contacts
+   among licks peaking within 700 ms of the first, latency, reach, speed). Per animal x readout, OLS on PRE trials
+   (spout FE + behavior z-scored on pre), pre sessions scored leave-session-out; observed change vs the spout's pre
+   mean, predicted change from licking, residual. Orofacial contra late: observed +1.23 / +1.33 / +1.41, predicted
+   -.21 / +.05 / +.16, residual +1.43 / +1.29 / +1.25 (4/4); early, ipsi the same; chronic before the lick observed
+   +.38 contra / +.29 ipsi, residual +.41 / +.32 (4/4). Model sensitive: pre-stroke late orofacial activity rises with
+   bout licks in all 4 animals (+.23..+.83 per SD); but acutely bouts SHORTEN (licks -0.98 SD, contacts -1.1 SD, 0/4;
+   chronic +.44 / +.42, 4/4) while activity grows. Licking explains only the acute posterior-medial pre-lick activity
+   (predicted +.47 from the longer acute latency; residual n.s.). Posterior-medial post-lick transient = residual (early
+   contra +.65 / +1.30 / +1.03). Caveats: pre coupling model, not a causal control; jaw-only / body movement not in it.
+   Next: jaw / face (FaceRhythm, jaw tables) and body around the first lick; relation to the pre-cue rise vs rest
+   (Fig 9.8).
+
 26. **The shared change against a real reference (Priya 11-09 "couldn't we use the rest or pre-cue lick-free ENL as a
    per session normalization?"; `WF_SS_SHIFTBASE=rest|enl scripts/state_space_shift_carried.py`, SVD raw + gsr; page v22
    Figs 10.17-10.20).** Every trial minus the session's RESTnl level, or minus its own pre-cue ENL window, before the
