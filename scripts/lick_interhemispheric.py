@@ -44,7 +44,21 @@ Statistics: per-animal tables FIRST (rule 8), then analysis_kit.boot_delta (pair
   post epoch vs August pre.
 Outputs (<OUT_W>): interhemi_sessions.csv.gz, interhemi_animal.csv, interhemi_tests.csv, interhemi_recovery.csv,
   interhemi_rest_census.csv, figdata/lick_interhemi_*.pkl, figures/lick_interhemi_*.png.
+REST VARIANTS (Priya 11-09, RESTNL_ROLLOUT_PLAN_20261101 category (d): rest frames used AS DATA), `--rest-variant`:
+  restnl      PRIMARY. The docked rest frames above INTERSECTED with the RESTnl lick-free mask
+              (`wfield_local.restnl_mask.lickfree_mask`: restdock05 rest minus every DAQ lick onset and every cam4 LP
+              lick of licks_all.csv, [0.5 s before, 2.0 s after], min_rest_s floor re-applied; the same engagement gate
+              as the RESTnl baseline). Same >= 0.95 s period rule, same window. Sessions without licks_all.csv get no
+              rest set (never a DAQ-only fallback). Rest cache <OUT_W>/interhemi_rest_w1_restnl/; EVERY output name
+              above gets the suffix _restnl (interhemi_tests_restnl.csv, figures/lick_interhemi_simple_restnl.png, ...).
+  restdock05  the default, unchanged paths (SUPPLEMENT; no longer a planned output).
+  Every figure states its rest set on its last title line.
+RAW = NO REST REFERENCE (Priya 11-09): rest enters only metric 3; the lick-set metrics alone (tests vs pre and recovery
+  correlations, own RNG streams over the lick-set groups) are written by every --summarise run to the variant-FREE names
+  interhemi_raw_tests.csv / interhemi_raw_recovery.csv (column rest_ref = "raw (no rest reference)") and figures
+  lick_interhemi_raw.png / lick_interhemi_raw_recovery.png -- byte-identical whichever rest variant ran.
 Usage: python scripts/lick_interhemispheric.py [--jobs 4] [--extract-rest] [--summarise] [--plot-only]
+  [--rest-variant restdock05|restnl]
 """
 from __future__ import annotations
 from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
@@ -64,7 +78,42 @@ import iti_licks as il  # noqa: E402
 
 OUT_W = il.OUT_W      # il.OUT_W = run_mode.subdir(<imaging_encoding>/iti_licks): the ITI family's routed folder (11-04)
 IN = il.OUT                                                  # inputs (read only)
-REST_DIR = OUT_W / "interhemi_rest_w1"                      # (interhemi_rest/ = a first 2-s-window attempt: 0 windows)
+REST_VARIANTS = ("restdock05", "restnl")
+
+
+def rest_variant(argv=None) -> str:
+    """`--rest-variant restdock05|restnl` from argv (default restdock05 = the original behavior). Resolved at IMPORT so a
+    spawned worker (which re-imports this module with the parent's argv) and the importing scripts interhemi_crossarea /
+    coupling_vigour_sm read the same rest folder."""
+    argv = sys.argv if argv is None else argv
+    v = argv[argv.index("--rest-variant") + 1] if "--rest-variant" in argv else "restdock05"
+    if v not in REST_VARIANTS:
+        raise SystemExit(f"--rest-variant must be one of {REST_VARIANTS}, not {v!r}")
+    return v
+
+
+REST_VARIANT = rest_variant()
+VSFX = {"restdock05": "", "restnl": "_restnl"}[REST_VARIANT]      # default: every path / tag unchanged
+REST_TXT = {"restnl": "rest = docked quiet rest, lick-free (RESTnl: no camera or DAQ licks)",
+            "restdock05": "SUPPLEMENT: rest = docked quiet rest (restdock05, DAQ licks excluded)"}[REST_VARIANT]
+REST_SHORT = {"restnl": "DOCKED QUIET REST, lick-free (RESTnl)",
+              "restdock05": "DOCKED QUIET REST (restdock05)"}[REST_VARIANT]
+RAW_TXT = "raw (no rest reference)"                               # lick-set metrics: rest never enters them
+
+
+def _o(name: str, sfx: str | None = None) -> str:
+    """Output name tagged with the rest variant: 'a.csv.gz' -> 'a_restnl.csv.gz' (default: unchanged)."""
+    sfx = VSFX if sfx is None else sfx
+    for ext in (".csv.gz", ".csv", ".png", ".pkl", ".npz"):     # (not the first '.': 'lead_tau0.6.png')
+        if name.endswith(ext):
+            return name[:-len(ext)] + sfx + ext
+    return name + sfx
+
+
+REST_DIR = OUT_W / _o("interhemi_rest_w1")                      # (interhemi_rest/ = a first 2-s-window attempt: 0 windows)
+RAW_NAMES = {"tests": "interhemi_raw_tests.csv", "recovery": "interhemi_raw_recovery.csv",
+             "figdata": "lick_interhemi_raw_tables.pkl", "fig": "lick_interhemi_raw.png",
+             "fig_rec": "lick_interhemi_raw_recovery.png"}      # NOT variant-tagged: rest-independent (own RNG streams)
 FIGD, FIGS = OUT_W / "figdata", OUT_W / "figures"
 LAGS = il.LAGS_D                                             # -1..+1 s, 0.05 s
 DT = 0.05
@@ -110,13 +159,15 @@ def rest_extract(label: str) -> dict:
     if f.exists():
         return {"label": label, "cached": True}
     s = next(x for x in config.load_sessions() if x["label"] == label)
-    got = rbp._session_daq(s)                               # one DAQ read, reused by rest_frames_by_position below
-    orig = rbp._session_daq
-    rbp._session_daq = lambda _s: got
-    try:
-        per, info = rbp.rest_frames_by_position(s, 10 ** 9, docked=True, engaged_only=True)
-    finally:
-        rbp._session_daq = orig
+    nl_info = None
+    if REST_VARIANT == "restnl":
+        got, nl_info = _restnl_daq(s)
+        if got is None:
+            return {"label": label, "excluded": nl_info}
+        per, info = docked_rest_frames(s, got, eng=nl_info.pop("_eng"))
+    else:
+        got = rbp._session_daq(s)                           # one DAQ read, reused by rest_frames_by_position below
+        per, info = docked_rest_frames(s, got)
     if info.get("error"):
         raise RuntimeError(f"{label}: rest mask {info['error']}")
     fs_samp = np.asarray(got[4], np.int64)
@@ -147,11 +198,47 @@ def rest_extract(label: str) -> dict:
         (0, len(LAGS_W1), len(cols)), np.float16)
     rest_s = float(len(idx) * np.median(np.diff(ft)))
     REST_DIR.mkdir(parents=True, exist_ok=True)
+    extra = {} if nl_info is None else {"rest_variant": REST_VARIANT, **{k: v for k, v in nl_info.items()}}
     np.savez_compressed(f, X=X, t=centres, cols=np.array(cols), rest_s=rest_s, n_periods=info["n_periods"],
                         reconstructed=bool(info["reconstructed"]), clock_med_s=clk, frame_dt=float(np.median(np.diff(ft))),
-                        spans=np.asarray(spans, float))
+                        spans=np.asarray(spans, float), **extra)
     return {"label": label, "n_win": len(centres), "rest_s": rest_s, "clock_med_s": clk, "n_periods": len(spans),
-            "span_med_s": float(np.median(spans)) if spans else np.nan, "reconstructed": bool(info["reconstructed"])}
+            "span_med_s": float(np.median(spans)) if spans else np.nan, "reconstructed": bool(info["reconstructed"]),
+            **extra}
+
+
+def docked_rest_frames(s: dict, got: tuple, eng=None) -> tuple[dict, dict]:
+    """`rest_by_position.rest_frames_by_position(docked=True, engaged_only=True)` with its DAQ loader substituted by
+    `got` = (rest sample mask, cs, codes, ts, fs_samp, sync) -- in process, restored in a finally (the module file is
+    never edited). `eng` (optional) also substitutes the engagement gate, exactly as `restnl_mask.frames_by_position`
+    does for the RESTnl baseline. The docked window is applied INSIDE (to whatever mask `got` carries), so for restnl the
+    frames are the docked restdock05 frames INTERSECTED with the lick-free mask."""
+    from wfield_local import rest_by_position as rbp
+    od, oe = rbp._session_daq, rbp._engaged_trials
+    try:
+        rbp._session_daq = lambda _s: got
+        if eng is not None:
+            rbp._engaged_trials = lambda *_a, **_k: eng
+        return rbp.rest_frames_by_position(s, 10 ** 9, docked=True, engaged_only=True)
+    finally:
+        rbp._session_daq, rbp._engaged_trials = od, oe
+
+
+def _restnl_daq(s: dict) -> tuple[tuple | None, dict | str]:
+    """RESTnl lick-free rest SAMPLE mask through the ONE accessor every RESTnl reader uses,
+    `wfield_local.restnl_mask.lickfree_mask` (restdock05 rest mask minus every DAQ lick onset and every cam4 LP lick of
+    licks_all.csv, [0.5 s before, 2.0 s after], min_rest_s floor re-applied). Returns ``(got, info)`` with got in the
+    `rest_by_position._session_daq` layout, or ``(None, reason)`` for a session without licks_all.csv (no RESTnl; never
+    a DAQ-only fallback under the RESTnl name)."""
+    from wfield_local import restnl_mask as rnm
+    try:
+        mask, parts, info = rnm.lickfree_mask(s)
+    except FileNotFoundError as ex:
+        return None, str(ex)
+    cs_s, codes, ts, fs_samp, sync, eng = parts
+    info = {f"nl_{k}": v for k, v in info.items()}
+    info["_eng"] = eng
+    return (mask, cs_s, codes, ts, fs_samp, sync), info
 
 
 # ------------------------------------------------------------------------------------------------ per-session metrics
@@ -380,7 +467,6 @@ def _r(z):
 
 def summarise(S: pd.DataFrame) -> None:
     from wfield_local import config
-    from wfield_local import analysis_kit as ak
     S = S[(S.epoch != "pre") | (~S.label.map(config.early_pre))].copy()
     # lick-specific: lick minus rest on the same session (w1, same pair / tau)
     K = ["label", "win", "pair", "tau"]
@@ -393,14 +479,22 @@ def summarise(S: pd.DataFrame) -> None:
         d["set"] = f"{st}-rest"
         LS.append(d)
     SS = pd.concat([S] + LS, ignore_index=True)
-    SS.to_csv(OUT_W / "interhemi_sessions_with_lickminusrest.csv.gz", index=False)
+    SS.to_csv(OUT_W / _o("interhemi_sessions_with_lickminusrest.csv.gz"), index=False)
     # per-animal table (rule 8)
     G = SS.groupby(["set", "win", "pair", "tau", "animal", "epoch"])
     A = G[METRICS].mean().join(G.size().rename("n_sess")).reset_index()
     for m in NC:
         A[m + "_r"] = _r(A[m])
-    A.to_csv(OUT_W / "interhemi_animal.csv", index=False)
-    rng = np.random.default_rng(0)
+    A.to_csv(OUT_W / _o("interhemi_animal.csv"), index=False)
+    T = _tests_table(SS, np.random.default_rng(0))
+    T.to_csv(OUT_W / _o("interhemi_tests.csv"), index=False)
+    recovery(SS)
+    raw_outputs(S)
+
+
+def _tests_table(SS: pd.DataFrame, rng) -> pd.DataFrame:
+    """Change vs August pre (boot_delta) per set x win x pair x tau x metric x epoch; groups in sorted order."""
+    from wfield_local import analysis_kit as ak
     T = []
     for (st, win, p, tau), g in SS.groupby(["set", "win", "pair", "tau"], sort=True):
         for m in METRICS:
@@ -421,13 +515,30 @@ def summarise(S: pd.DataFrame) -> None:
                           "delta": iv.point, "lo": iv.lo, "hi": iv.hi, "n_animals": iv.n_animals,
                           "n_same_sign": int(sum(np.sign(x) == np.sign(iv.point) for x in dl)),
                           "excl0": iv.excludes_zero, "per_animal": " ".join(f"{x:+.3f}" for x in dl)})
-    T = pd.DataFrame(T)
-    T.to_csv(OUT_W / "interhemi_tests.csv", index=False)
-    recovery(SS)
+    return pd.DataFrame(T)
+
+
+def raw_outputs(S: pd.DataFrame) -> None:
+    """RAW = NO REST REFERENCE (Priya 11-09): the lick-set metrics (cued, iti_all, iti_far1, iti_gap2) alone -- rest never
+    enters them -- tested vs pre and correlated with recovery on their OWN random streams (rng 0 / 1 over the lick-set
+    groups only), so the numbers do not depend on which rest set ran beside them: identical bytes under every
+    --rest-variant (hence one variant-free name, RAW_NAMES). Column rest_ref = RAW_TXT. `S` = the early-pre-filtered
+    session table of `summarise`."""
+    L = S[S.set.isin(LICK_SETS)]
+    T = _tests_table(L, np.random.default_rng(0))
+    Rc = _recovery_table(L)
+    T.insert(0, "rest_ref", RAW_TXT)
+    Rc.insert(0, "rest_ref", RAW_TXT)
+    T.to_csv(OUT_W / RAW_NAMES["tests"], index=False)
+    Rc.to_csv(OUT_W / RAW_NAMES["recovery"], index=False)
 
 
 def recovery(SS: pd.DataFrame) -> None:
     """Within-animal partial r (controlling log day) of each session metric with cued far-contra aim and cued share."""
+    _recovery_table(SS).to_csv(OUT_W / _o("interhemi_recovery.csv"), index=False)
+
+
+def _recovery_table(SS: pd.DataFrame) -> pd.DataFrame:
     R = pd.read_csv(IN / "recmark_sessions.csv", usecols=["label", "day", "aim"]).drop_duplicates("label")
     B = pd.read_csv(IN / "balmatch_sessions.csv")
     B = B[B.set == "trial"][["label", "bal_spout"]].rename(columns={"bal_spout": "share"})
@@ -465,7 +576,7 @@ def recovery(SS: pd.DataFrame) -> None:
                 out.append({"set": st, "win": win, "pair": p, "tau": tau, "metric": m, "target": tgt, "r_pooled_within": r0, "p_perm": pv,
                             "n_animals": len(rs), "n_same_sign": int(sum(np.sign(v) == np.sign(r0) for v in rs.values())),
                             **{f"r_{a}": rs.get(a, np.nan) for a in AN}, "n_sess": len(h)})
-    pd.DataFrame(out).to_csv(OUT_W / "interhemi_recovery.csv", index=False)
+    return pd.DataFrame(out)
 
 
 # ------------------------------------------------------------------------------------------------ figures
@@ -476,13 +587,91 @@ def _wrap(s, w=95):
     return "\n".join(textwrap.wrap(s, w))
 
 
+def _save(fig, path, dpi, rest_line: str | None = None) -> None:
+    """save_png_svg, with the REST SET stated on the figure (appended as the last suptitle line; Priya 11-09):
+    `rest_line` defaults to REST_TXT (restnl = primary, restdock05 = SUPPLEMENT)."""
+    t = fig._suptitle
+    line = REST_TXT if rest_line is None else rest_line
+    if t is not None:
+        t.set_text(f"{t.get_text()}\n{line}")
+    else:
+        fig.suptitle(line, fontsize=9)
+    save_png_svg(fig, path, dpi=dpi)
+
+
 def figures_compute() -> None:
-    T = pd.read_csv(OUT_W / "interhemi_tests.csv")
-    A = pd.read_csv(OUT_W / "interhemi_animal.csv")
-    Rc = pd.read_csv(OUT_W / "interhemi_recovery.csv")
+    T = pd.read_csv(OUT_W / _o("interhemi_tests.csv"))
+    A = pd.read_csv(OUT_W / _o("interhemi_animal.csv"))
+    Rc = pd.read_csv(OUT_W / _o("interhemi_recovery.csv"))
     FIGD.mkdir(parents=True, exist_ok=True)
-    with open(FIGD / "lick_interhemi_tables.pkl", "wb") as fh:
+    with open(FIGD / _o("lick_interhemi_tables.pkl"), "wb") as fh:
         pickle.dump({"T": T, "A": A, "Rc": Rc}, fh)
+    if (OUT_W / RAW_NAMES["tests"]).exists():
+        with open(FIGD / RAW_NAMES["figdata"], "wb") as fh:
+            pickle.dump({"T": pd.read_csv(OUT_W / RAW_NAMES["tests"]),
+                         "Rc": pd.read_csv(OUT_W / RAW_NAMES["recovery"])}, fh)
+
+
+RAW_ROWS = [("nc_post", 0.0, "w2", "post-lick noise corr (0.1-0.5 s minus -1..-0.5 s)"),
+            ("nc_win", 0.0, "w1", "1-s window (-0.5..+0.5 s) noise corr"),
+            ("cc0", 0.0, "w1", "zero-lag within-event coupling (1-s window)"),
+            ("asym", 0.6, "w2", "xcorr asymmetry, tau 0.6 (+ = contra leads)"),
+            ("gc_dir", 0.6, "w2", "Granger direction, tau 0.6 (+ = contra predicts ipsi more)")]
+
+
+def plot_raw() -> None:
+    """RAW (no rest reference) figures, from the variant-free raw tables: lick-set metrics change vs pre (rows = metric,
+    columns = lick set; pooled boot_delta 95% CI per epoch, stars in the top band) + the recovery heatmap."""
+    import matplotlib.pyplot as plt
+
+    from wfield_local import sig_marks
+    f = FIGD / RAW_NAMES["figdata"]
+    if not f.exists():
+        print(f"no raw tables ({f}); run --summarise", flush=True)
+        return
+    with open(f, "rb") as fh:
+        D = pickle.load(fh)
+    T, Rc = D["T"], D["Rc"]
+    FIGS.mkdir(parents=True, exist_ok=True)
+    fig, axs = plt.subplots(len(RAW_ROWS), len(LICK_SETS), figsize=(16, 2.9 * len(RAW_ROWS)), sharey="row",
+                            layout="constrained")
+    for i, (m, tau, win, lab) in enumerate(RAW_ROWS):
+        for j, st in enumerate(LICK_SETS):
+            ax = axs[i, j]
+            t = T[(T.set == st) & (T.metric == m) & (T.tau == tau) & (T.win == win)]
+            for k, ep in enumerate(EPS[1:]):
+                q = t[t.epoch == ep].set_index("pair").reindex(PAIRS)
+                x = np.arange(len(PAIRS)) + (k - 1) * 0.25
+                ax.errorbar(x, q.delta, yerr=[q.delta - q.lo, q.hi - q.delta], fmt="o", ms=3, color=COL[ep],
+                            label=f"{ep} - pre", lw=1)
+                for xi, (_, rr) in zip(x, q.iterrows()):
+                    if rr.excl0 is True or rr.excl0 == "True":
+                        sig_marks.star_top(ax, xi, color=COL[ep], row=k, fontsize=9)
+            ax.axhline(0, color="k", lw=0.5)
+            ax.set_xticks(range(len(PAIRS)), PAIRS if i == len(RAW_ROWS) - 1 else [""] * len(PAIRS), rotation=45,
+                          fontsize=7)
+            ax.set_title(_wrap(f"{st} ({win}): {lab}", 48), fontsize=8)
+            ax.spines["right"].set_visible(False)
+        axs[i, 0].set_ylabel("change vs pre", fontsize=8)
+    sig_marks.reserve_headroom(fig)
+    fig.legend(*axs[0, 0].get_legend_handles_labels(), loc="outside lower center", ncol=3, fontsize=9, frameon=False,
+               title="pooled change vs August pre, paired nested bootstrap 95% CI (* = CI excludes 0)",
+               title_fontsize=9)
+    fig.suptitle(_wrap("RAW (no rest reference): interhemispheric coupling of the LICK sets alone (contra vs ipsi "
+                       "homotopic; residuals after the per-session spout + lick-angle mean; noise corr in Fisher z). No "
+                       "rest set enters these numbers, so they are identical under every rest variant; shown to check "
+                       "whether the rest-set change introduces anything into the lick - rest readouts. PROVISIONAL n = 4",
+                       160), fontsize=9)
+    _save(fig, FIGS / RAW_NAMES["fig"], dpi=120, rest_line=RAW_TXT)
+    plt.close(fig)
+    qs = {}
+    for tgt in ("aim", "share"):
+        q = Rc[(Rc.target == tgt) & (Rc.pair == "oro") & (Rc.win == Rc.set.map(_win))
+               & (((Rc.tau == 0) & Rc.metric.isin(["nc_post", "nc_pre", "nc_win", "cc0"]))
+                  | ((Rc.tau == 0.6) & Rc.metric.isin(["asym", "gc_dir"])))]
+        qs[tgt] = q.reset_index(drop=True)
+    _recovery_simple(plt, qs, path=FIGS / RAW_NAMES["fig_rec"], lead="RAW (no rest reference), lick sets only. ",
+                     rest_line=RAW_TXT)
 
 
 def _win(st: str) -> str:
@@ -506,7 +695,7 @@ def _delta_panel(ax, T, st, m, tau, title, win=None):
 
 def plot_all() -> None:
     import matplotlib.pyplot as plt
-    with open(FIGD / "lick_interhemi_tables.pkl", "rb") as fh:
+    with open(FIGD / _o("lick_interhemi_tables.pkl"), "rb") as fh:
         D = pickle.load(fh)
     T, A = D["T"], D["A"]
     FIGS.mkdir(parents=True, exist_ok=True)
@@ -527,7 +716,7 @@ def plot_all() -> None:
                        "removed per session; Fisher z); change vs August pre, paired nested bootstrap 95% CI, * excludes 0; "
                        "bottom row = the same 1-s window on lick sets and on docked quiet rest (one pseudo-event per rest "
                        "period)", 160), fontsize=9)
-    save_png_svg(fig, FIGS / "lick_interhemi_noisecorr.png", dpi=130)
+    _save(fig, FIGS / _o("lick_interhemi_noisecorr.png"), dpi=130)
     plt.close(fig)
     # 2 lead measures (lick sets + rest + lick-rest), raw and deconvolved
     for tau in TAUS:
@@ -540,7 +729,7 @@ def plot_all() -> None:
                    frameon=False, title="change vs pre (* = CI excludes 0)", title_fontsize=9)
         fig.suptitle(_wrap(f"Within-event coupling and lead, tau = {tau} s ({'raw' if not tau else 'deconvolved s = x + tau dx/dt'}); "
                            "change vs August pre; GCaMP6s: lags < 0.1-0.2 s are not neural timing", 160), fontsize=9)
-        save_png_svg(fig, FIGS / f"lick_interhemi_lead_tau{tau:.1f}.png", dpi=130)
+        _save(fig, FIGS / _o(f"lick_interhemi_lead_tau{tau:.1f}.png"), dpi=130)
         plt.close(fig)
     # 3 lick-specific (lick - rest)
     fig, axs = plt.subplots(3, 4, figsize=(15, 10.5), layout="constrained")
@@ -552,7 +741,7 @@ def plot_all() -> None:
                title="change vs pre (* = CI excludes 0)", title_fontsize=9)
     fig.suptitle(_wrap("LICK-SPECIFIC change: per session (lick metric - docked-rest metric, both on the same 1-s window "
                        "code), change vs pre", 150), fontsize=9)
-    save_png_svg(fig, FIGS / "lick_interhemi_lickspecific.png", dpi=130)
+    _save(fig, FIGS / _o("lick_interhemi_lickspecific.png"), dpi=130)
     plt.close(fig)
     # 4 per-animal trajectories for the orofacial pool
     ms = [("nc_post", 0.0, None), ("nc_win", 0.0, "w1"), ("cc0", 0.0, "w1"), ("asym", 0.0, None), ("asym", 0.6, None),
@@ -582,10 +771,10 @@ def plot_all() -> None:
                    frameon=False)
     fig.suptitle(_wrap("Orofacial pool (ALM+tjM1+SSp-m+SSp-n+SSs) contra vs ipsi: per-animal epoch means (session means; "
                        "noise corr in Fisher z)", 150), fontsize=9)
-    save_png_svg(fig, FIGS / "lick_interhemi_oro_animals.png", dpi=120)
+    _save(fig, FIGS / _o("lick_interhemi_oro_animals.png"), dpi=120)
     plt.close(fig)
     # 5 cross-correlation curves (oro, pooled over sessions per epoch, animal-weighted)
-    f = FIGD / "lick_interhemi_xcorr.pkl"
+    f = FIGD / _o("lick_interhemi_xcorr.pkl")
     if f.exists():
         with open(f, "rb") as fh:
             CG = pickle.load(fh)
@@ -609,7 +798,7 @@ def plot_all() -> None:
                    frameon=False)
         fig.suptitle(_wrap("Orofacial pool: within-event cross-correlation of residual traces corr(c(t), i(t+L)), "
                            "mean over animals of session means", 150), fontsize=9)
-        save_png_svg(fig, FIGS / "lick_interhemi_xcorr.png", dpi=130)
+        _save(fig, FIGS / _o("lick_interhemi_xcorr.png"), dpi=130)
         plt.close(fig)
     # 6 recovery
     Rc = D["Rc"]
@@ -635,13 +824,14 @@ def plot_all() -> None:
     fig.suptitle(_wrap("Orofacial pool coupling metrics vs recovery, within animal (post sessions, log(day) partialled): "
                        "aim = far-contra cued aim (deg, - = ipsilesional); share = cued matched-error within-spout balance",
                        150), fontsize=9)
-    save_png_svg(fig, FIGS / "lick_interhemi_recovery.png", dpi=130)
+    _save(fig, FIGS / _o("lick_interhemi_recovery.png"), dpi=130)
     plt.close(fig)
     _recovery_simple(plt, qs)
 
 
-def _recovery_simple(plt, qs: dict) -> None:
-    """Readable summary of figure 6: pooled within-animal partial r as a set x metric heatmap (same numbers)."""
+def _recovery_simple(plt, qs: dict, path=None, lead: str = "", rest_line: str | None = None) -> None:
+    """Readable summary of figure 6: pooled within-animal partial r as a set x metric heatmap (same numbers). `path` /
+    `lead` / `rest_line` = the raw (no rest reference) version of it (`plot_raw`)."""
     fig, axs = plt.subplots(1, 2, figsize=(13, 5.2), layout="constrained")
     for ax, (tgt, q) in zip(axs, qs.items()):
         sets = list(dict.fromkeys(q.set))
@@ -662,17 +852,23 @@ def _recovery_simple(plt, qs: dict) -> None:
         ax.set_yticks(range(len(sets)), sets, fontsize=9)
         ax.set_title(f"partial r with {tgt} (| log day), pooled within animal", fontsize=10)
         fig.colorbar(im, ax=ax, fraction=0.05).set_label("pooled within-animal r")
-    fig.suptitle(_wrap("SIMPLE VIEW of the recovery figure: orofacial-pool coupling metric vs recovery, within animal "
+    fig.suptitle(_wrap(lead + "SIMPLE VIEW of the recovery figure: orofacial-pool coupling metric vs recovery, within animal "
                        "(post sessions, log(day) partialled). Cell = pooled within-animal r; * = permutation p < 0.05 "
                        "(uncorrected); k/n = animals with the same sign. aim = far-contra cued aim; share = cued "
                        "matched-error within-spout balance. Blank = metric not defined for that set.", 130), fontsize=9)
-    save_png_svg(fig, FIGS / "lick_interhemi_recovery_simple.png", dpi=130)
+    _save(fig, path or FIGS / _o("lick_interhemi_recovery_simple.png"), dpi=130, rest_line=rest_line)
     plt.close(fig)
 
 
 SIMPLE_PAIRS = [("oro", "orofacial\npool"), ("VISpm", "VISpm\n(control)"), ("RSPd", "RSPd\n(control)")]
-SIMPLE_CTX = [("cued", "CUED licks"), ("rest", "DOCKED QUIET REST (no licks)"),
-              ("cued-rest", "LICK-SPECIFIC: cued licks minus rest")]
+SIMPLE_CTX = [("cued", f"CUED licks, {RAW_TXT}"), ("rest", REST_SHORT),
+              ("cued-rest", f"LICK-SPECIFIC: cued licks minus rest ({REST_VARIANT})")]
+# the 10-29 reading of the simple figure was made on the restdock05 rest set; it is stated only there
+SIMPLE_READING = {"restdock05": ("At quiet REST coupling rises in the orofacial pool AND in the control areas (controls "
+                                 "from acute on); during cued licks the orofacial rise (chronic) is no larger than at "
+                                 "rest, and lick minus rest is flat (orofacial) or falls (controls) -> a GLOBAL, "
+                                 "state-wide increase, not a lick- or orofacial-specific one. "),
+                  "restnl": ""}[REST_VARIANT]
 
 
 def plot_simple() -> None:
@@ -683,7 +879,7 @@ def plot_simple() -> None:
     from matplotlib.lines import Line2D
 
     from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE
-    with open(FIGD / "lick_interhemi_tables.pkl", "rb") as fh:
+    with open(FIGD / _o("lick_interhemi_tables.pkl"), "rb") as fh:
         D = pickle.load(fh)
     T, Rc = D["T"], D["Rc"]
     t = T[(T.metric == "nc_win") & (T.tau == 0) & (T.win == "w1")]
@@ -749,13 +945,10 @@ def plot_simple() -> None:
     pre = t[(t.set == "cued") & (t.pair == "oro")].pre_level.iloc[0]
     fig.suptitle(_wrap("Interhemispheric coupling over recovery: trial-to-trial (noise) correlation between homotopic "
                        "contra- and ipsilesional areas (residuals after the spout / angle mean; the same -0.5..+0.5 s "
-                       "window for licks and rest). At quiet REST coupling rises in the orofacial pool AND in the "
-                       "control areas (controls from acute on); during cued licks the orofacial rise (chronic) is no "
-                       "larger than at rest, and lick minus rest is flat (orofacial) or falls (controls) -> a GLOBAL, "
-                       "state-wide increase, not a lick- or orofacial-specific one. Orofacial pre level z = "
+                       "window for licks and rest). " + SIMPLE_READING + "Orofacial pre level z = "
                        f"{pre:.2f} (r = {np.tanh(pre):.2f}). Gray band = control areas. Right: the orofacial coupling "
-                       "does not track behavioral recovery. PROVISIONAL (n = 4)", 200), fontsize=9.5)
-    save_png_svg(fig, FIGS / "lick_interhemi_simple.png", dpi=120)
+                       + ("does not track" if REST_VARIANT == "restdock05" else "vs") + " behavioral recovery. PROVISIONAL (n = 4)", 200), fontsize=9.5)
+    _save(fig, FIGS / _o("lick_interhemi_simple.png"), dpi=120)
     plt.close(fig)
 
 
@@ -769,7 +962,10 @@ def main() -> None:
     ap.add_argument("--plot-only", action="store_true")
     ap.add_argument("--simple-only", action="store_true", help="only lick_interhemi_simple.png, from saved tables")
     ap.add_argument("--labels", nargs="*")
+    ap.add_argument("--rest-variant", choices=REST_VARIANTS, default="restdock05",
+                    help="rest set: restdock05 (default, SUPPLEMENT) or restnl (PRIMARY, lick-free); resolved at import")
     a = ap.parse_args()
+    assert a.rest_variant == REST_VARIANT
     from wfield_local import analysis_kit as ak
     jobs = min(a.jobs, 4)
     t0 = time.time()
@@ -779,6 +975,7 @@ def main() -> None:
     if a.plot_only:
         plot_all()
         plot_simple()
+        plot_raw()
         return
     labs = a.labels or il.labels()
     if a.extract_rest:
@@ -786,7 +983,7 @@ def main() -> None:
         C = pd.DataFrame([v for _k, v in res])
         REST_DIR.mkdir(parents=True, exist_ok=True)
         if not a.labels:
-            C.to_csv(OUT_W / "interhemi_rest_census.csv", index=False)
+            C.to_csv(OUT_W / _o("interhemi_rest_census.csv"), index=False)
         print(C.describe(), f"\nfailed: {fail}", f"\n{time.time() - t0:.0f} s", flush=True)
         return
     if not a.summarise:
@@ -805,20 +1002,21 @@ def main() -> None:
         meta = S.drop_duplicates("label")[["label", "animal", "epoch"]]
         groups = {(an, ep): tuple(g.label) for (an, ep), g in meta.groupby(["animal", "epoch"])}
         tag = "" if not a.labels else "_test"
-        S.to_csv(OUT_W / f"interhemi_sessions{tag}.csv.gz", index=False)
+        S.to_csv(OUT_W / _o(f"interhemi_sessions{tag}.csv.gz"), index=False)
         if a.labels:
             print(S[(S.pair == "oro")].groupby(["set", "win", "tau"])[METRICS + ["n"]].mean().round(3).to_string())
             print(f"{time.time() - t0:.0f} s")
             return
         FIGD.mkdir(parents=True, exist_ok=True)
-        with open(FIGD / "lick_interhemi_xcorr.pkl", "wb") as fh:
+        with open(FIGD / _o("lick_interhemi_xcorr.pkl"), "wb") as fh:
             pickle.dump({"curves": curves, "groups": groups}, fh)
         print(f"sessions done {time.time() - t0:.0f} s", flush=True)
-    S = pd.read_csv(OUT_W / "interhemi_sessions.csv.gz")
+    S = pd.read_csv(OUT_W / _o("interhemi_sessions.csv.gz"))
     summarise(S)
     figures_compute()
     plot_all()
     plot_simple()
+    plot_raw()
     print(f"total {time.time() - t0:.0f} s", flush=True)
 
 
