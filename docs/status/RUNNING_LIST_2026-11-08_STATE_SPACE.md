@@ -63,6 +63,21 @@ merged to main (no conflicts); A5 applied to FINDINGS 0c item 4 and the page cap
 
 ## B. Findings (newest first; exploratory)
 
+25. **Where and when the shared shift is carried (Priya 11-09 "did you do the 'where is the shift carried' analysis?"
+   -> "spatial and temporal change"; `scripts/state_space_shift_carried.py`, cohort SVD, raw + gsr; page v21 Figs
+   10.13-10.16).** Shift per session as the part maps (B22). WHEN: energy concentrated just after the first lick
+   (subacute / chronic peak +0.15..+0.25 s; share +.08..+.11 above pre); acutely raised across the whole window.
+   WHERE x WHEN (area x bin, max-stat family-wise over cells): post-lick transient (0..+0.3 s) largest over
+   posterior-medial / trunk-limb cortex both sides (chronic SSp-ll contra +.55, SSp-tr +.35..+.39) with a late
+   undershoot; MOST CONSISTENT = contralesional orofacial cortex (SSp-m / SSp-n / tjM1: 12-16 of 17 bins significant
+   subacute + chronic; below its window mean before the lick, above from ~+0.1 s on; SSp-m ipsi later). Minus
+   cortex-wide: the orofacial areas carry the late rise (to +1.0, every epoch), RSPd the early peak then late fall.
+   WHERE by size (energy share / pixel share vs pre null): broad -- no area > ~.05 above (RSPd contra +.03..+.05 around
+   the lick, contra SSp-m +.02..+.04 before it; SSp-ll ipsi below). CAVEAT now on the page: the shift has zero window
+   mean per pixel by construction (static level -> offsets), so "below pre before the lick" partly mirrors "above
+   after" -- read as a change of time course relative to the area's own window mean (replaces the B24 "earlier /
+   briefer response" reading).
+
 24. **The split in every basis + what the parts look like on cortex (11-08 ~15:00; page v17 section 10).** Shares,
    acute / chronic: SVD = Allen (shift .30 / .13, per-area offset .16 / .34, per-spout offset .22 / .18, global gain
    .03 / .15, rotation .05 / .03, off manifold .01); LocaNMF same order, more per-area gain (.16 / .20) and a larger

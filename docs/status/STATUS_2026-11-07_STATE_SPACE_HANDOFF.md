@@ -48,6 +48,9 @@ running list `docs/status/RUNNING_LIST_2026-11-08_STATE_SPACE.md` sections A (de
   after the sweep.
 - **11-08 ~11:45:** page v15 has section 9 (maps, all baselines, why-cleaner). "Why cleaner" answered for the 15r
   activity maps (B19: window, not denoising); the residual-map half not done.
+- **11-09 ~00:45 (running list B25):** `scripts/state_space_shift_carried.py` = where x when the shared shift is
+  carried (area x bin heat maps, per-bin energy, per-area enrichment; SVD raw + gsr, ~1 min each, local). Page v21
+  Figs 10.13-10.16. Next analysis unchanged: is the shift timing / behavior (B24 NEXT).
 - **11-08 ~15:00 (running list B24):** page v17 = basis switch for sections 3-7 and 10 + new section 10 "what the
   change is made of" (8-part split per animal / per session, raw + minus cortex-wide, part maps on cortex; Table 10)
   + two "Where things stand" rows. Page source: session scratchpad `state_space_page/index.html` (scripts
