@@ -103,7 +103,7 @@ def main():
     NPIX = Uc.shape[0]
     atlas = np.load(S.SVD.parents[1] / "atlas.npy")
     mask = np.load(C.BASIS_DIR / "mask.npy").reshape(atlas.shape)
-    edges = region_edges(np.where(mask, atlas, 0))
+    edges = region_edges(atlas)                       # the FULL CCF outline (bulbs + masked glue included), as the encoder maps
     brain = beta_maps.allen_mask()
     flat = np.flatnonzero(mask.ravel())
     split = area_basis.basis_masks(area_basis.roi_masks(atlas.ravel()[flat], beta_maps.stat_mask().ravel()[flat],

@@ -92,6 +92,15 @@ from wfield_local.atlas_overlay import region_edges  # noqa: E402
 from wfield_local.figure_layout import save_png_svg  # noqa: E402
 
 VERSIONS = {"full": "", "nocw": "gsr", "spout": "spout"}
+# WF_SS_VERSIONS (comma list) renders a subset. QUICK LOOK (Priya 11-09 "can i see the maps, even without stats?" / "can't
+# the stats run build directly off the no stats (don't re-do work!)"): every run first draws the cohort maps WITHOUT
+# tests (ss_cmap_..._nostats_...png) as soon as the responses exist, then runs the tests in the SAME process;
+# WF_SS_NOSTATS=1 stops after the quick look. The per-session responses (loaded, FR-corrected) are cached per version
+# (RESP_CACHE), so a later run of the same configuration skips the load; delete the pkl after changing how they are built.
+_ENV = __import__("os").environ
+if _ENV.get("WF_SS_VERSIONS"):
+    VERSIONS = {k: v for k, v in VERSIONS.items() if k in _ENV["WF_SS_VERSIONS"].split(",")}
+NOSTATS = _ENV.get("WF_SS_NOSTATS") == "1"
 LABEL = {"full": "full change", "nocw": "minus the cortex-wide mode", "spout": "spout-specific part"}
 EPS = ["acute", "subacute", "chronic"]
 N_BOOT = 2000
@@ -150,6 +159,7 @@ def _rest(lab, an):
 
 FR_WIN = (0.0, 0.5)                          # s after the first lick (response window 0.1..0.5 s + 0.1 s GCaMP lag)
 FR_CACHE = S.ROOT / "fr_cov"
+RESP_CACHE = S.ROOT / "chronic_maps_resp"     # per-session responses per configuration x version (pickle)
 
 
 def fr_covariates(lab, n):
@@ -207,7 +217,7 @@ def apply_fr(data):
         for lab, ep, day, Y, pos in sess:
             X = fr_covariates(lab, len(pos))
             ok = np.zeros(len(pos), bool) if X is None else np.isfinite(X).all(1)
-            rows.append([lab, ep, day, Y, np.where(ok, pos, "none"), None if X is None else fr_design(X), ok])
+            rows.append([lab, ep, day, Y, np.where(ok, pos, "none"), None if X is None or FR == "0" else fr_design(X), ok])
         if FR in ("A", "B"):
             pre = [r for r in rows if r[1] == "pre" and r[6].any()]
             for r in rows:
@@ -299,7 +309,7 @@ def change(resp, unit, ep, rng=None):
     return out
 
 
-def pixel_maps(resp, unit, Uc, mask):
+def pixel_maps(resp, unit, Uc, mask, stats=True):
     """{epoch: (cohort mean (7, npix), contours [7 x full-frame bool or None], per-animal (n_an, 7, npix), animals,
     contour labels)}. Contours: `beta_maps.significance_contour` on every session's change map (pre sessions vs the
     epoch's sessions, per animal, in the drawn units)."""
@@ -319,7 +329,8 @@ def pixel_maps(resp, unit, Uc, mask):
         for ci in range(7):
             pre_by = {a: [frame(m) for m in sess[a]["pre"][:, ci] if np.isfinite(m).all()] for a in ans}
             post_by = {a: [frame(m) for m in sess[a][ep][:, ci] if np.isfinite(m).all()] for a in ans}
-            cm, lab = beta_maps.significance_contour(pre_by, post_by, n_boot=N_BOOT, normalise=False)
+            cm, lab = (None, "") if not stats else beta_maps.significance_contour(pre_by, post_by, n_boot=N_BOOT,
+                                                                                normalise=False)
             cont.append(cm)
             labs.append(lab)
         res[ep] = (np.nan_to_num(np.nanmean(V, 0)) @ Uc.T, cont, np.nan_to_num(V) @ Uc.T, ans, labs)
@@ -371,7 +382,9 @@ def area_table(resp, unit, W, names, version, rng):
 
 
 # Brain not analyzed (painted glue, bulbs) is left WHITE, as the encoder maps (NaN outside the analyzed mask; Priya 11-09
-# "for all maps, render the masked background as the encoder page does"); the grey fill of 11-08 is off. The crop still
+# "for all maps, render the masked background as the encoder page does"; "use the encoder map design ... still see
+# the full CCF outline even over the masked area"): the grey fill of 11-08 is off, the CCF region outline is drawn over
+# the whole atlas (bulbs and glue included) and the field-of-view line is gone. The crop still
 # spans the whole brain, so the panels keep their size.
 GREY_BG = False
 _ROI_OUTLINES: list = []                                  # full-frame bool masks (ALM / tjM1 per side), filled in main
@@ -379,8 +392,8 @@ _ROI_OUTLINES: list = []                                  # full-frame bool mask
 
 def draw(ax, v, mask, edges, vmax, sig=None, brain=None, cmap="RdBu_r", vlim=None):
     """One map. Analyzed pixels (``mask``) in color with area outlines inside them; brain pixels NOT analyzed (``brain``
-    minus ``mask``: the painted glue and the bulbs, Priya 11-08 "make clear our mask") left white (GREY_BG); the analyzed
-    field of view outlined."""
+    minus ``mask``: the painted glue and the bulbs, Priya 11-08 "make clear our mask") left white (GREY_BG); the
+    CCF outline over the whole atlas."""
     img = np.full(mask.shape, np.nan)
     img[mask] = v
     full = mask if brain is None else (brain | mask)
@@ -390,9 +403,8 @@ def draw(ax, v, mask, edges, vmax, sig=None, brain=None, cmap="RdBu_r", vlim=Non
         ax.imshow(np.where((brain & ~mask)[sl], 1.0, np.nan), cmap="Greys", vmin=0, vmax=2.5, interpolation="nearest")
     lo, hi = vlim if vlim is not None else (-vmax, vmax)
     ax.imshow(img[sl], cmap=cmap, vmin=lo, vmax=hi, interpolation="nearest")
-    ax.imshow(np.where((edges & mask)[sl], 1.0, np.nan), cmap="gray_r", vmin=0, vmax=1.5, alpha=0.5,
+    ax.imshow(np.where(edges[sl], 1.0, np.nan), cmap="gray_r", vmin=0, vmax=1.5, alpha=0.5,
               interpolation="nearest")
-    ax.contour(mask[sl].astype(float), [0.5], colors="0.25", linewidths=0.7)
     for roi in _ROI_OUTLINES:                                # ALM / tjM1 (split basis), dashed
         ax.contour(roi[sl].astype(float), [0.5], colors="0.1", linewidths=0.8, linestyles="--")
     if sig is not None and np.any(sig):              # the repo's significance outline: black on a white halo
@@ -412,7 +424,7 @@ def pre_map(resp, unit, Uc):
     return np.nan_to_num(np.nanmean(np.stack(V), 0)) @ Uc.T
 
 
-def fig_cohort(res, mask, edges, version, brain=None, pre=None):
+def fig_cohort(res, mask, edges, version, brain=None, pre=None, sfx=""):
     cols = list(range(7)) if version != "spout" else list(range(1, 7))
     vmax = np.nanpercentile(np.abs(res["chronic"][0][cols]), 99)
     top = int(pre is not None)                               # the pre-response row (viridis, own scale) on top
@@ -446,9 +458,9 @@ def fig_cohort(res, mask, edges, version, brain=None, pre=None):
                  f"bootstrap animals -> sessions ({N_BOOT}), 8-px blocks, max-stat family-wise per panel "
                  f"(beta_maps.significance_contour)." + (" Top row: the pre response itself (viridis, own scale)." if pre is not None
                  else "") + " Image left = ipsilesional. White = not analyzed (painted fiber "
-                 "glue, olfactory bulbs); outline = analyzed field of view."),
+                 "glue, olfactory bulbs); CCF outline drawn everywhere."),
                  y=1.02, fontsize=9.5)
-    save_png_svg(fig, FIGS / f"ss_cmap_{version}{BSUF}_{SUF}.png", dpi=120, bbox_inches="tight")
+    save_png_svg(fig, FIGS / f"ss_cmap_{version}{BSUF}{sfx}_{SUF}.png", dpi=120, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -486,9 +498,8 @@ def fig_animals(res, mask, edges, version, brain=None, asig=None):
                 ax.imshow(np.where((brain & ~mask)[sl], 1.0, np.nan), cmap="Greys", vmin=0, vmax=2.5,
                           interpolation="nearest")
             im = ax.imshow(img[sl], cmap=plt.get_cmap("magma_r", 5), vmin=-0.5, vmax=4.5, interpolation="nearest")
-            ax.imshow(np.where((edges & mask)[sl], 1.0, np.nan), cmap="gray_r", vmin=0, vmax=1.5, alpha=0.4,
+            ax.imshow(np.where(edges[sl], 1.0, np.nan), cmap="gray_r", vmin=0, vmax=1.5, alpha=0.4,
                       interpolation="nearest")
-            ax.contour(mask[sl].astype(float), [0.5], colors="0.25", linewidths=0.7)
             ax.set_xticks([])
             ax.set_yticks([])
             for sp in ax.spines.values():
@@ -499,8 +510,8 @@ def fig_animals(res, mask, edges, version, brain=None, asig=None):
         cb.set_label("k / 4 same sign", fontsize=9)     # short: the long label was clipped at the row height
     fig.suptitle(_wrap(f"Chronic change vs own pre, per animal: {LABEL[version]} ({S.ALIGN_LABEL[S.ALIGN]}; {BASE_LABEL[BASE]}). Contour: that "
                  f"animal's own session-label shuffle ({N_PERM}), max-stat per panel over stat_mask. Bottom: animals "
-                 f"significant in the direction of the cohort mean. White = not analyzed (glue, bulbs); outline = analyzed field "
-                 "of view"), y=1.01,
+                 f"significant in the direction of the cohort mean. White = not analyzed (glue, bulbs); CCF outline drawn "
+                 "everywhere"), y=1.01,
                  fontsize=9.5)
     save_png_svg(fig, FIGS / f"ss_cmap_animals_{version}{BSUF}_{SUF}.png", dpi=100, bbox_inches="tight")
     plt.close(fig)
@@ -514,7 +525,7 @@ def main():
     Uc = np.load(BASIS_DIR / "U_cohort.npy").astype(np.float64)                 # brain-mask px x K, orthonormal
     mask = np.load(BASIS_DIR / "mask.npy").reshape(np.load(S.SVD.parents[1] / "atlas.npy").shape)
     atlas = np.load(S.SVD.parents[1] / "atlas.npy")
-    edges = region_edges(np.where(mask, atlas, 0))
+    edges = region_edges(atlas)                       # the FULL CCF outline (bulbs + masked glue included), as the encoder maps
     from wfield_local import beta_maps
     brain = beta_maps.allen_mask()                                             # the whole Allen brain, nothing removed
     statpx = beta_maps.stat_mask()[mask]                                       # eroded brain mask, on the basis pixels
@@ -552,16 +563,28 @@ def main():
     names = list(split)                                                        # split-basis ROI weights (K x n_roi)
     W = np.stack([Uc[split[n]].mean(0) for n in names], axis=1)
     unit, rows, store = None, [], {}
+    import pickle
     for version, xf in VERSIONS.items():
         S.XFORM = xf                                                            # the loader reads it per call
-        data, _ = S.load_sessions()
-        resp = session_responses(apply_fr(data) if FR else data)
+        rc = RESP_CACHE / f"{SUF}{BSUF}_{version}.pkl"
+        if rc.exists():
+            resp = pickle.loads(rc.read_bytes())
+            print(f"  responses from {rc}", flush=True)
+        else:
+            data, _ = S.load_sessions()
+            resp = session_responses(apply_fr(data) if FR else data)
+            RESP_CACHE.mkdir(parents=True, exist_ok=True)
+            rc.write_bytes(pickle.dumps(resp))
         if unit is None:                                                        # the FULL pre response sets the unit
             unit = {an: np.sqrt(np.nanmean(np.sum(np.nanmean(d["pre"], 0) ** 2, -1)) / Uc.shape[0])
                     for an, d in resp.items()}
+        pre = pre_map(resp, unit, Uc) if version == "full" else None
+        fig_cohort(pixel_maps(resp, unit, Uc, mask, stats=False), mask, edges, version, brain, pre, "_nostats")
+        print(f"  {version}: quick look (no tests) drawn", flush=True)
+        if NOSTATS:
+            continue
         res = pixel_maps(resp, unit, Uc, mask)
         asig = animal_contours(resp, unit, Uc, statpx, np.random.default_rng(0))
-        pre = pre_map(resp, unit, Uc) if version == "full" else None
         if pre is not None:
             store["full__pre__mean"] = pre.astype(np.float32)
         fig_cohort(res, mask, edges, version, brain, pre)
@@ -577,11 +600,13 @@ def main():
         store[f"{version}__chronic__animal_sig"] = np.stack([asig[a] for a in res["chronic"][3]])
         print(f"{version}: done", flush=True)
     S.XFORM = ""
+    if NOSTATS:
+        return
     np.savez_compressed(OUT / "maps.npz", mask=mask, cols=np.array(["mean", *S.POS]), **store)
     T = pd.DataFrame(rows)
     T.to_csv(OUT / "areas.csv", index=False)
     with pd.option_context("display.width", 250, "display.max_columns", 20, "display.precision", 2):
-        for version in VERSIONS:
+        for version in (VERSIONS if rows else []):
             t = T[(T.version == version) & (T.epoch == "chronic") & (T.spout == ("far_contra" if version == "spout"
                                                                                   else "mean"))]
             t = t.reindex(t.change.abs().sort_values(ascending=False).index).head(12)
