@@ -816,3 +816,8 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
 - NEXT (me): stop the parked old lanes by exact PID; redraw pass (stars / order figdata; matched-pre figure with the LP
   lick half; G4 deck slide; gb_fig_r; fix the stale "DAQ lick-arm trials" label + grant layout overlaps); then the
   replacement pass -- headline table on corrected outputs -> Priya BEFORE any page / deck text.
+- Priya 11-09: A = ACCEPT the two near-identical LP lick epoch decoder sets "for now". Set 1 (epoch arm) -> epoch
+  lick-window acc / accdelta (Fig 2.4) + Haufe 14 / 14pa / 14z (Figs 14.3 / 14.6 / 14.9). Set 2 (grant) -> grant lick/lick
+  units 5c, 5d, 6, 6b, 6d, 7, 7b, 7d, 8, 8b, 8d, 8e, 8g, 9, 10, 10b, 11 (decoder-dependent: at least 5c / 5d / 9 / 10 /
+  10b; confirm per family in the redraw pass). Keep on the list: 15-min thread-dependence diagnostic so future runs
+  stop minting new ids. B = OK -> pushing perf/grant-loader-memos-1109 (7ac7850c).
