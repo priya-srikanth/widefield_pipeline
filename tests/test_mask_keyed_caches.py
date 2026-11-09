@@ -7,6 +7,7 @@ digest (`mask_keys.signature`), so nothing here reads the share.
 """
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -283,3 +284,38 @@ def test_state_space_svd_basis_mask_checked(tmp_path, monkeypatch):
     monkeypatch.setattr(beta_maps, "brain_mask", lambda: bm2)
     with pytest.raises(RuntimeError, match="another brain mask"):
         S._check_svd_mask()
+
+
+# ------------------------------------------------------------------------------------------------ item 5: DAQ_RUN_FP
+def test_lp_daq_cross_check_refuses_a_daq_model_on_other_masks(masks, monkeypatch, tmp_path):
+    from wfield_local import frozen_models as fm
+    from wfield_local import mask_keys
+    for k in ("WIDEFIELD_HEMO_VARIANT", "WIDEFIELD_TRIAL_GATE", "WIDEFIELD_LICK_SOURCE", "WIDEFIELD_LP_FROZEN",
+              "WIDEFIELD_ENL_WINDOW_S", "WIDEFIELD_GATE_SOURCE"):
+        monkeypatch.delenv(k, raising=False)
+    monkeypatch.setenv("WIDEFIELD_FROZEN_MODEL_DIR", str(tmp_path / "store"))
+    monkeypatch.setattr(fm, "server_dir", lambda: None)
+    tr = ["PS92_0810", "PS92_0811"]
+
+    def spec(X):
+        return fm.make_spec("PS92", "decoder", align="cue", source="locanmf", train_labels=tr, train_data=X)
+    masks.set("glue_in")                                               # the DAQ run froze before the fix
+    daq = spec(np.ones((2, 2)))
+    fm.load_or_fit(daq, lambda: {"daq": "glue_in"}, log=lambda *_: None)
+    man = next((tmp_path / "store").rglob("manifest.json"))
+    assert json.loads(man.read_text(encoding="utf-8"))["mask_sig"] == "glue_in"                   # recorded in the manifest, not the spec id
+    masks.set("glue_out")
+    monkeypatch.setenv("WIDEFIELD_LICK_SOURCE", "lp")
+    monkeypatch.setenv("WIDEFIELD_LP_FROZEN", "daq")
+    lp_side = spec(np.zeros((3, 2)))
+    assert lp_side["train_fp"] == fm.DAQ_RUN_FP
+    with pytest.raises(RuntimeError, match="other analysis masks"):
+        fm.load_or_fit(lp_side, lambda: pytest.fail("must not fit"), log=lambda *_: None)
+    # a manifest from before 11-09 (no mask_sig): accepted at the default root, refused in a rebuild root
+    m = json.loads(man.read_text(encoding="utf-8"))
+    m.pop(mask_keys.FIELD)
+    man.write_text(json.dumps(m), encoding="utf-8")
+    assert fm.load_or_fit(lp_side, lambda: pytest.fail("must not fit"), log=lambda *_: None)[0] == {"daq": "glue_in"}
+    masks.rebuild()
+    with pytest.raises(RuntimeError, match="other analysis masks"):
+        fm.find_daq_trained(lp_side)
