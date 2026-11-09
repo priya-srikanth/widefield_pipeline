@@ -12,6 +12,8 @@ Balance = log2 contralesional (_right) / ipsilesional (_left) response size of t
 script). Cells pool the trials of all sessions of an animal x epoch (n >= MIN_TRIALS) and are also kept per session.
 Also per session x TARGET over all first-lick trials (landing ignored; the "target" grouping).
 Output: Widefield/state_space_recovery/landing/balance_cells{,_sessions,_target}.csv. Exploratory.
+`--motor` (Priya 11-09: "motor version as well (ALM, tjM1)"): the same balance over the motor areas ALM + tjM1 instead;
+outputs carry the suffix `_motor` (the orofacial tables are untouched).
 """
 from __future__ import annotations
 
@@ -26,10 +28,12 @@ import state_space_recovery_trials as R  # noqa: E402
 import state_space_sim as S  # noqa: E402
 
 OUT = S.ROOT / "landing"
+MOTOR = ("ALM", "tjM1")
+AREAS, SFX = (MOTOR, "_motor") if "--motor" in sys.argv else (R.OROFACIAL, "")   # balance areas, output suffix
 
 
 def sizes(M, cols):
-    out = {h: float(v) for h, v in S.hemi(S.evoked(M), cols, R.OROFACIAL).items()}
+    out = {h: float(v) for h, v in S.hemi(S.evoked(M), cols, AREAS).items()}
     out["bal"] = float(np.log2(out["contra"] / out["ipsi"])) if out["contra"] > 0 and out["ipsi"] > 0 else np.nan
     return out
 
@@ -66,9 +70,9 @@ def main():
             srows.append(dict(zip(["animal", "epoch", "label", "target", "land"], keys), n=len(g),
                               **sizes(Yall[g.index].mean(0), cols)))
     OUT.mkdir(parents=True, exist_ok=True)
-    cells.to_csv(OUT / "balance_cells.csv", index=False)
-    pd.DataFrame(srows).to_csv(OUT / "balance_cells_sessions.csv", index=False)
-    pd.DataFrame(trows).to_csv(OUT / "balance_cells_target.csv", index=False)
+    cells.to_csv(OUT / f"balance_cells{SFX}.csv", index=False)
+    pd.DataFrame(srows).to_csv(OUT / f"balance_cells_sessions{SFX}.csv", index=False)
+    pd.DataFrame(trows).to_csv(OUT / f"balance_cells_target{SFX}.csv", index=False)
     with pd.option_context("display.width", 200, "display.max_rows", 400, "display.precision", 2):
         far = cells[cells.target.str.startswith("far") & cells.land.str.startswith("far")]
         print(far.pivot_table(index=["animal", "target", "land"], columns="epoch", values="bal")

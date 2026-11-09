@@ -16,6 +16,8 @@ Also refits the same model per post epoch to compare the landing SLOPE (does the
 
 Step 1 (`--collect`, ~9 min of share I/O): per-trial table -> landing/trial_sizes.csv. Step 2 (default): the analysis
 -> landing/balance_angle_{sessions,coefs}.csv. Exploratory.
+`--motor` (Priya 11-09): the same over the motor areas ALM + tjM1 (state_space_balance_cells.MOTOR); every table carries
+the suffix `_motor`.
 """
 from __future__ import annotations
 
@@ -30,6 +32,8 @@ import state_space_recovery_trials as R  # noqa: E402
 import state_space_sim as S  # noqa: E402
 
 OUT = S.ROOT / "landing"
+MOTOR = ("ALM", "tjM1")                                                 # = state_space_balance_cells.MOTOR
+AREAS, SFX = (MOTOR, "_motor") if "--motor" in sys.argv else (R.OROFACIAL, "")
 RINGS = {"close": ["close_ipsi", "close_mid", "close_contra"], "far": ["far_ipsi", "far_mid", "far_contra"]}
 
 
@@ -43,12 +47,12 @@ def collect():
             g = L.get(lab)
             if g is None:
                 continue
-            hs = S.hemi(S.evoked(Y), S.cols_of(cols, an), R.OROFACIAL)                                # per trial
+            hs = S.hemi(S.evoked(Y), S.cols_of(cols, an), AREAS)                                # per trial
             for r, sm, land in zip(g.row.to_numpy(), g.side_ml.to_numpy(), g.land.to_numpy()):
                 rows.append({"animal": an, "epoch": ep, "label": lab, "target": pos[r], "land": land, "side_ml": sm,
                              "contra": float(hs["contra"][r]), "ipsi": float(hs["ipsi"][r])})
-    pd.DataFrame(rows).to_csv(OUT / "trial_sizes.csv", index=False)
-    print("wrote trial_sizes.csv", len(rows))
+    pd.DataFrame(rows).to_csv(OUT / f"trial_sizes{SFX}.csv", index=False)
+    print(f"wrote trial_sizes{SFX}.csv", len(rows))
 
 
 def design(d, targets):
@@ -62,7 +66,7 @@ def fit(d, targets):
 
 
 def analyze():
-    T = pd.read_csv(OUT / "trial_sizes.csv")
+    T = pd.read_csv(OUT / f"trial_sizes{SFX}.csv")
     srows, crows = [], []
     for (an, ring), g in T.assign(ring=T.target.str.split("_").str[0]).groupby(["animal", "ring"]):
         targets = RINGS[ring]
@@ -90,8 +94,8 @@ def analyze():
                     row[f"bal_matched{nm}"] = obs - np.log2(ss.pc.mean() / ss.pi.mean())
             srows.append(row)
     S_, C = pd.DataFrame(srows), pd.DataFrame(crows)
-    S_.to_csv(OUT / "balance_angle_sessions.csv", index=False)
-    C.to_csv(OUT / "balance_angle_coefs.csv", index=False)
+    S_.to_csv(OUT / f"balance_angle_sessions{SFX}.csv", index=False)
+    C.to_csv(OUT / f"balance_angle_coefs{SFX}.csv", index=False)
     with pd.option_context("display.width", 220, "display.precision", 2, "display.max_rows", 200):
         m = S_.groupby(["animal", "target", "epoch"]).bal_matched.mean().unstack()
         print("balance at matched target + landing, minus pre-fit prediction (per animal, session mean):")
