@@ -953,3 +953,13 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   core. FINDING for later: the per-session cache-hit cost (3-9 s) is worth profiling (key computation?), not now.
   Random splits PS93 13/20 at 10:08 (~14 min / split -> ~11:45). Caption-branch push: retry at 10:19, tests running.
   Stamp-test fix ready on fix/test-stamp-order-1109 6bb2a103 (push after the caption branch, then memos).
+- 10:40 TRIAL-SET WIRING DONE (helper): feat/trial-set-wiring-1109 502d67a4 (contains the caption branch 0899267d).
+  Every driver family declares its exact trial / event / frame set; savefig hook stamps it. 906 tests passed; digests
+  unchanged (csig 3d7bbe921e, _raw_maps_code 2950853f103b, restnl d7591e88ae51/3572c6da0d13, beta 6822ca7e4f39);
+  frozen_encoder edit checked: no source hashing of that module. Push chain_v15 queued after chain_v14:
+  stamp fix -> wiring -> grant memos. Re-render list in the helper report (grant full; epoch full; section G / CD /
+  rebuild_figs / ITI / lick mostly --plot-only). Old epoch figdata has no set -> mat, scal, 12/13/15e need re-render.
+  FINDINGS outside scope (not fixed, for review): lick_precue_restw* uses fixed -1..0 s pre-cue (no lick-free rule);
+  rebuild_figs encoder figs gated by OROFACIAL_GATE (unset in profile -> 'reference'); iti_where_decoder subset filter
+  draws unfiltered CSV into subset folder; fig_softmax.py:60 crosstab orientation possibly wrong (unverified); two
+  lick_enl_target_test titles still say "no lick 2 s"; not wired: rebuild_lick_maps subprocess modules.
