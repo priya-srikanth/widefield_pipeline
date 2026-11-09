@@ -29,6 +29,7 @@ Outputs: <state_space_recovery>/encoder_subtract/{kept,areas}.csv; page_figs/ss_
 from __future__ import annotations
 
 import sys
+import textwrap
 from pathlib import Path
 
 import matplotlib
@@ -170,9 +171,9 @@ def main():
             if j == 0:
                 ax.set_ylabel("change vs own pre\n(pre data response RMS)")
     axs[0, 0].legend(fontsize=8, frameon=False)
-    fig.suptitle("State-space readouts on the FROZEN ENCODER's own per-trial values, before / after removing its "
+    fig.suptitle(textwrap.fill("State-space readouts on the FROZEN ENCODER's own per-trial values, before / after removing its "
                  "predicted movement (lick-locked groups, FaceRhythm, both); first-lick window -0.1..+1.0 s, Allen "
-                 "areas; kept = along the data change; * = boot_delta 95 % CI excludes 0", fontsize=10)
+                 "areas; kept = along the data change; * = boot_delta 95 % CI excludes 0", 170), fontsize=10)
     fig.tight_layout()
     fp = S.ROOT / "page_figs" / "ss_encoder_subtract.png"
     save_png_svg(fig, fp)

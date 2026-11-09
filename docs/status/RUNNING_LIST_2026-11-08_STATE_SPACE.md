@@ -63,6 +63,23 @@ merged to main (no conflicts); A5 applied to FINDINGS 0c item 4 and the page cap
 
 ## B. Findings (newest first; exploratory)
 
+43. **Letting the movement -> cortex coupling change with epoch removes most of the between-spout change; the activity
+   increase stays (handoff item b, second half; `WF_SS_FR=KBw|KBe`, `chronic_maps_lick_svd_rest_fr{KBw,KBe}`, page_figs
+   `ss_cmap_*_rest_fr{KBw,KBe}_lick_svd.png`).** Kept along the same-trials control's (K0) change, cohort mean of
+   per-animal projections over stat-mask pixels (significant share of the stat mask, control -> corrected):
+   KBs (frozen pre fit) / KBw (pre fit on within-session x spout variation only) / KBe (each epoch's OWN within-spout
+   coupling, leave-session-out). Mean activity acute 1.03 / 1.01 / 1.09, chronic .98 / .98 / 1.02 (46 -> 68 / 67 / 80 %).
+   Far contra spout-specific acute .76 / .79 / .42 (16 -> 9 / 8 / 0 %), chronic .49 / .45 / .03. Close ipsi chronic
+   .71 / .63 / .46 (40 -> 7 / 5 / 0 %). KBs ~ KBw: the within-centering does not matter; the frozen-coupling ASSUMPTION
+   does. With the post-stroke coupling (reach coupling grown, contact coupling lost, item 41), the acute far-contra
+   spout-specific deficit falls to .42 with no pixel significant -- converging with the encoder's own prediction (item
+   40: .35 kept). Caveat: KBe fits the coupling on the same epoch it corrects (leave-that-session-out, within-spout
+   only, so no session-level change can be fitted directly), so it is the upper bound on what movement can explain.
+   Reading across items 38-43: the ACTIVITY increase is not movement under any model; the BETWEEN-SPOUT change (acute
+   far-contra deficit, chronic spout differences) is largely accounted for by movement once movement is modeled with
+   lick-locked kernels (encoder) or with the post-stroke coupling (KBe); a residual acute far-contra deficit in
+   ipsilesional SSp-m survives only the frozen models (3/4 under the encoder). EXPLORATORY.
+
 42. **June no-stroke reference on the maps: the lick response SHRANK June -> August, and the post-stroke increase runs
    the OPPOSITE way (handoff 11-09 ~12:15 item c; Priya "go ahead with all"; `scripts/state_space_june_maps.py`,
    `june_maps_lick_svd/{maps.npz,animals.csv}`, page_figs `ss_june_maps_{full,nocw,spout}_lick_svd.png`).** Contact first
