@@ -920,3 +920,8 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   branch + launch the 3 map re-renders (LP restnl maps, LPfinal maps, epoch 15r; ~4-5 h in parallel) after the pooling
   commit. Still to do: wire trial_set_text.active() into the remaining families (grant, section G, other epoch families,
   rebuild_figs) + fix stale "miss-while-working" deck-note wording; then the grant re-render.
+- 07:30 LAUNCHED v12 lane IH (wf_render_v12 @ 98e6a353, csig 3d7bbe921e): interhemi / xa / cv_sm on RESTnl + raw (7
+  steps). Started trial-set WIRING helper (feat/trial-set-wiring-1109) for the remaining families + stale deck wording.
+  TIMELINE (Priya asked): map re-renders ~4-5 h after the pooling commit; grant ~2-3 h after wiring + memo push; v11 rsplit
+  ~1 h 40 / animal x 3 (PS92 05:24-07:05 measured); renders done ~13:00-14:00; page / deck update ~2-4 h after ->
+  this evening.
