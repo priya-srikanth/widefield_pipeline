@@ -785,3 +785,16 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   -> x_enlv_balance_r3 -> x_enlv_curves_r3 (defs from 9zz2; all deps .done).
 - LESSON (3 missing producers tonight: ITI spout patterns, balance _inside, ENL-v regress): before launching a chain,
   check every input FILE its scripts read has a producer step in some queue, not only that its declared deps exist.
+- 04:40 TRACE (scratchpad/lp_epoch_decoder_trace.md): (1) LP lick class CORRECT: under LICK_SOURCE=lp the "lick" /
+  engaged rows = LP-attempted trials (hit or incomplete, first LP lick within max_rt; lp_licks.py:519, ATTEMPT_CLASSES:54)
+  -- PS92 pre 2863 rows = LP count (DAQ 2840). The log text "camera gate: DAQ lick-arm trials" is a HARD-CODED label
+  (grant_confusion.py:751) + stale camera_select docstring (trial_classes.py:1605-1609) -> fix wording (trial_classes
+  edit must keep csig: docstring is in the digested source -> use care / verify csig). (2) Two LP lick epoch decoder sets
+  (epoch arm vs grant), identical specs except the training-data fingerprint (inputs differ <= 4e-7, likely thread-
+  dependent lick-window computation); coefficients differ up to 2.6 % (PS92). Epoch-arm lick figs used PS92 057dcc59412b /
+  PS93 86922bc2ab75 / PS94 fe7e2fe9900e / PS95 e3469e738e4d; grant *_lick_lick units used a07055c3580c / a260f0abdbbe /
+  cbfeae0130c3 / 79a6814f01b4. Precue / cue / working outputs unaffected.
+- Grant memos measured (perf/grant-loader-memos-1109, 7ac7850c): unit 2100 -> 954 s, later alignment 130 s (was ~39 min),
+  figure values + PNG IDENTICAL, csig 3d7bbe921e, 559 tests pass. Awaiting Priya OK to push.
+- Decisions for Priya: A accept the two near-identical LP lick decoder sets (recommended) vs make bit-identical; B push
+  grant memos.
