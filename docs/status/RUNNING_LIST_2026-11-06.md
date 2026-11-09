@@ -1167,3 +1167,8 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   107 extracts, rmdirs the empty e_iti_split_sd_g.claim, renames its .failed, relaunches the ITI lane (split -> z ->
   main summary). The ITI lane (L6) had halted (mode stop); other lanes unaffected (CD: g5_cd_traj_g EXIT 0 17:38).
   LESSON for the producer check: a step that LISTS sessions from a folder depends on that folder's producer.
+- 18:20 RAM 3 GB at 18:16 (6.7 GB at 18:18): 3 ENC frozen_encoder steps (since 17:13; spont jobs 2, frA jobs 3, frAsplit
+  jobs 2) + g5_epoch_g (2 arms) + e_iti_extract_g (3 workers; ~1 session/min, rebuilding the mask-keyed encoder input
+  cache, ETA ~19:35) + aligned_decoder. Nothing stopped (an hour of encoder work each). RAM guard
+  scratchpad/ramguard_v20.ps1: if available < 3 GB on 2 polls 20 s apart, stop ONLY the frAsplit step (PID 24684, by
+  command line) + its workers, log to CHAIN.log. Queue MINFREE 15 GB blocks new starts meanwhile.
