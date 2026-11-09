@@ -568,6 +568,13 @@ def main():
     W = np.stack([Uc[split[n]].mean(0) for n in names], axis=1)
     unit, rows, store = None, [], {}
     import pickle
+    if "full" not in VERSIONS:      # the unit is ALWAYS the FULL pre response (11-09 bug: a nocw,spout run took nocw's)
+        fc = RESP_CACHE / f"{SUF}{BSUF}_full.pkl"
+        if not fc.exists():
+            sys.exit(f"WF_SS_VERSIONS without full needs the full responses for the unit: run full first ({fc})")
+        full = pickle.loads(fc.read_bytes())
+        unit = {an: np.sqrt(np.nanmean(np.sum(np.nanmean(d["pre"], 0) ** 2, -1)) / Uc.shape[0])
+                for an, d in full.items()}
     for version, xf in VERSIONS.items():
         S.XFORM = xf                                                            # the loader reads it per call
         rc = RESP_CACHE / f"{SUF}{BSUF}_{version}.pkl"
@@ -606,8 +613,14 @@ def main():
     S.XFORM = ""
     if NOSTATS:
         return
-    np.savez_compressed(OUT / "maps.npz", mask=mask, cols=np.array(["mean", *S.POS]), **store)
+    # MERGE into an existing maps.npz / areas.csv: a WF_SS_VERSIONS subset run must not drop the other versions (11-09: the
+    # nocw,spout FR runs replaced the full-version maps of the same folder)
+    old = dict(np.load(OUT / "maps.npz")) if (OUT / "maps.npz").exists() else {}
+    np.savez_compressed(OUT / "maps.npz", **{**old, "mask": mask, "cols": np.array(["mean", *S.POS]), **store})
     T = pd.DataFrame(rows)
+    if (OUT / "areas.csv").exists() and len(T):
+        T0 = pd.read_csv(OUT / "areas.csv")
+        T = pd.concat([T0[~T0.version.isin(list(VERSIONS))], T], ignore_index=True)
     T.to_csv(OUT / "areas.csv", index=False)
     with pd.option_context("display.width", 250, "display.max_columns", 20, "display.precision", 2):
         for version in (VERSIONS if rows else []):

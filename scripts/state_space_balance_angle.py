@@ -31,7 +31,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 import state_space_recovery_trials as R  # noqa: E402
 import state_space_sim as S  # noqa: E402
 
-OUT = S.ROOT / "landing"
+OUT = S.ROOT / ("landing" if S.ALIGN == "cue" else f"landing_{S.ALIGN}")   # per alignment (WF_SS_ALIGN; cue = landing/)
 MOTOR = ("ALM", "tjM1")                                                 # = state_space_balance_cells.MOTOR
 AREAS, SFX = (MOTOR, "_motor") if "--motor" in sys.argv else (R.OROFACIAL, "")
 RINGS = {"close": ["close_ipsi", "close_mid", "close_contra"], "far": ["far_ipsi", "far_mid", "far_contra"]}
