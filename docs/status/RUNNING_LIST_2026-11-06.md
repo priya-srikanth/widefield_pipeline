@@ -1047,3 +1047,10 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   state_space_sim, O2 encoding bundles. ~1.5-2 days queue (critical path ~15 h ITI || ~15 h encoder + 14 h partial_refit).
   OPEN before re-runs: mask keys for O2 bundle, 7 other extract scripts, frozen_encoder --reuse-stats/--fit-from,
   state_space caches. Glue-in steps still running: rsplit PS93/94/95, l_code_noisematch_enlv_r5, 2 preview maps.
+- 13:00 PRE-CUE LICK-FREE ENL DONE: feat/precue-enl-window-1109 fdf7fec4 (wf_precueenl, on the wiring branch).
+  Window = enl_window.sliding_lags (-> lp_licks.enl_window_starts_s; 1.0 s LP; settle 0.3 s; >= -2 s; else drop);
+  LP gate licks; camera working trials; RESTnl (wr) default + --rest-variant session twin (+ restw robustness);
+  precue05 = last 0.5 s of the ENL window; --precue-window fixed = old exactly. New caches precue_enl_lp1s/. 363 tests.
+  3 sessions: trials 404->400 / 306->306 / 374->366; levels lower where windows slide (chronic 24 % slid vs 12 % pre),
+  e.g. PS92_0918 ALM_R +0.02 -> -1.50. Full run ~2-2.5 h, WAITS for the glue fix; its new cache needs the mask_sig
+  meta (add in the stale-protection pass). Page stems to switch to lick_cued_precue_enl_* after the full run.
