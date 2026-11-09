@@ -9,11 +9,11 @@ PROVENANCE: recreated 2026-11-03 (cohort-1 rebuild, step 3) from the session-scr
   instead of sys.argv[1], figdata pickle (<out>/data/goal_epochs_figdata.pkl = the filtered summary rows).
 
 INPUT: attempt_coding/summary_{cue,lick}.csv (wfield_local/attempt_coding.py, WIDEFIELD_LICK_SOURCE=lp; method "dom";
-  far_contra; the frozen decoder is the stored DAQ-contact model) in --coding-dir (default = the original's
+  far_contra; the decoder is the LP-trained frozen decoder) in --coding-dir (default = the original's
   hard-coded M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/
   attempt_coding).
-REBUILD: re-run attempt_coding.py under the new data (decision D7: training rule of the LP-gated stored DAQ model) and
-  point --coding-dir at its output.
+REBUILD: re-run attempt_coding.py under the new data (decision D7; Priya 11-09: the LP-trained frozen decoder is THE
+  LP model) and point --coding-dir at its output.
 OUT: <out>/fig2b_attempt_decoder_epochs.png
 EPOCH-COLOR CONVENTION (PI decision A13, Priya 11-07): before, one panel per animal with the attempt classes as colored
 lines joining acute -> subacute -> chronic. Now one panel per CLASS (columns) x window (rows), x = epoch (pre = the
