@@ -48,6 +48,15 @@ running list `docs/status/RUNNING_LIST_2026-11-08_STATE_SPACE.md` sections A (de
   after the sweep.
 - **11-08 ~11:45:** page v15 has section 9 (maps, all baselines, why-cleaner). "Why cleaner" answered for the 15r
   activity maps (B19: window, not denoising); the residual-map half not done.
+- **11-09 ~12:15 -- START HERE (B28-B39 consolidated into FINDINGS 0 "Where things stand, state-space maps with
+  movement removed" + 0c items 7-10).** Headline: activity change not movement; acute far-contra spout-specific deficit
+  survives movement controls; chronic between-spout change mostly movement-linked; contralesional SSp-m spread rises.
+  PUBLISH PENDING: page v37 (account switch -- the page belongs to the other claude.ai account). Rebuild: `python
+  state_space_page/build_v37_section9.py` (from index_v36_backup.html) + `add_page_row_1109.py` (summary row) +
+  `scripts/page_file_names.py index.html --prefix state_space_recovery/page_figs`; publish with every PNG in the page
+  folder. Open next: (a) the encoder's lick-locked prediction subtracted from our trials (the acute gap; needs the
+  encoding window's outputs); (b) within-spout covariates per animal x epoch refit (does the face->cortex relation itself
+  change?); (c) June / no-stroke drift reference; (d) why rest falls.
 - **11-09 ~12:00 (B38-B39) -- PUBLISH PENDING, v37 build = `state_space_page/build_v37_section9.py` (always from
   index_v36_backup.html) then `scripts/page_file_names.py index.html --prefix state_space_recovery/page_figs`.** Adds the
   kinematics + contact controls (K0 / Ks / KBs) and the collapsible-supplement layout; supersedes `rebuild_fr_section9.py`.
