@@ -386,6 +386,8 @@ def _working_xy(session, align, post_s, variant, baseline, v, *, signal_key=None
         signal_key=signal_key or f"svt:rank{v.shape[0]}",
         with_indices=True)
     X, y = np.asarray(X), np.asarray(y)
+    if variant in CLASS_VARIANTS:  # [gate-source hook] Priya 11-09: own cache kinds; marked so existing digests stay put
+        return _class_xy(session["label"], X, y, Xn, yn, idx_e, idx_n, CLASS_VARIANTS[variant])  # [gate-source hook]
     from wfield_local import trial_classes as _tc
     if variant in ("working", "miss_working", "stopped") and _tc.camera_gate_on():
         # CAMERA RULE (rebuild 11-03, `trial_classes.camera_rows`); cache kinds carry the selection tag (run_mode)
@@ -424,6 +426,54 @@ def _working_xy(session, align, post_s, variant, baseline, v, *, signal_key=None
         sel = q if variant == "stopped" else ~q
         X, y = np.asarray(Xn)[sel], np.asarray(yn)[sel]
     return X, y
+
+
+#: THE CLASS-SET SUPPLEMENTS OF THE WORKING MAPS (Priya 11-09; selected by camera class label, `trial_classes.CLASSES`,
+#: the same labels as trial_attempts.csv ``cls``). Camera class labels inside the working period stay the raw class; a
+#: trial in a stop run is relabelled "stopped" / "stopped_licking", one after the end anchor "after_end", one outside
+#: the video "unknown" (`trial_classes.classify_session`, OUT_OF_WORKING_PERIOD) -- so selecting a raw class label IS
+#: "that class inside the working period".
+#:   jaw_only        JAW-ONLY panel: jaw moved, no camera lick -- trials the working maps exclude, as their own group
+#:   working_period  PERIOD SUPPLEMENT (Priya 11-09 option c): every JUDGED trial in the working period, contact +
+#:                   incomplete + jaw_only + no_response; stopped runs (A2), stopped_licking, the quit tail / after_end
+#:                   and "unknown" (no video / unmatched cue: no class to judge) excluded
+JAW_ONLY = "jaw_only"
+WORKING_PERIOD = "working_period"
+CLASS_VARIANTS = {JAW_ONLY: ("jaw_only",),
+                  WORKING_PERIOD: ("contact", "incomplete", "jaw_only", "no_response")}
+
+
+def class_rows(cls_e, cls_n, classes):
+    """(keep engaged rows, keep no-lick rows): rows whose camera class is in ``classes`` (either arm -- the class
+    decides, as `trial_classes.camera_rows("working")` does)."""
+    keep = list(classes)
+    return (np.isin(np.asarray(cls_e, dtype=object), keep), np.isin(np.asarray(cls_n, dtype=object), keep))
+
+
+def jaw_only_rows(cls_e, cls_n):
+    """`class_rows` for the jaw-only class: rows whose camera class is exactly "jaw_only"."""
+    return class_rows(cls_e, cls_n, CLASS_VARIANTS[JAW_ONLY])
+
+
+def _class_xy(label, X, y, Xn, yn, idx_e, idx_n, classes):
+    """``(X, y)`` of one session's trials whose camera class is in ``classes`` (`class_rows` on
+    `trial_classes.row_classes`), engaged rows first. Camera gate only: these are camera classes, and the DAQ rule has
+    no such set (RAISES rather than guessing)."""
+    from wfield_local import trial_classes as tc
+    if not tc.camera_gate_on():
+        raise ValueError(f"position maps: class set {tuple(classes)} needs the camera trial gate "
+                         "(WIDEFIELD_TRIAL_GATE=camera)")
+    ke, kn = class_rows(tc.row_classes(label, idx_e), tc.row_classes(label, idx_n), classes)
+    Xe, ye = np.asarray(X)[ke], np.asarray(y)[ke]
+    if len(yn) and kn.any():
+        Xe = np.vstack([Xe, np.asarray(Xn)[kn]]) if len(ye) else np.asarray(Xn)[kn]
+        ye = np.concatenate([ye, np.asarray(yn)[kn]])
+    return Xe, ye
+
+
+def _jaw_only_xy(label, X, y, Xn, yn, idx_e, idx_n):
+    """`_class_xy` on the jaw-only class."""
+    return _class_xy(label, X, y, Xn, yn, idx_e, idx_n, CLASS_VARIANTS[JAW_ONLY])
 
 
 def session_raw_maps(session, align, *, post_s=2.0, variant="working"):
@@ -658,9 +708,14 @@ def session_raw_maps_cached(session, align, *, post_s=2.0, variant="working"):
 
     from wfield_local import map_collect, session_cache
     from wfield_local.quiet_periods import quiet_frame_path
-    kind = map_collect.cache_kind("prm", align, variant,
-                                  {"post_s": float(post_s), "min_trials": MIN_TRIALS_PER_CLASS,
-                                   "rest_bins": REST_BASELINE_BINS, "refs": REFERENCES}, _raw_maps_code())
+    kp = {"post_s": float(post_s), "min_trials": MIN_TRIALS_PER_CLASS, "rest_bins": REST_BASELINE_BINS,
+          "refs": REFERENCES}
+    if variant in CLASS_VARIANTS:
+        # the class-set selector is NOT in `_raw_maps_code` (its hook lines are stripped so every existing kind stays
+        # put); its own source + class set key these kinds instead. Other variants: params exactly as before.
+        kp["cls_code"] = map_collect.code_digest(class_rows, _class_xy)
+        kp["classes"] = CLASS_VARIANTS[variant]
+    kind = map_collect.cache_kind("prm", align, variant, kp, _raw_maps_code())
     mc = session["mc"]
     ua = glob.glob(f"{mc}/wfield_local_results/allen_aligned_affine8v1/U_atlas.npy")   # = joint_basis._load_session
     try:
