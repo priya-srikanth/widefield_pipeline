@@ -49,6 +49,13 @@ from wfield_local.plot_lick_aligned_averages import DISPLAY_ORDER, POSITION_NAME
 #: (alignment key, the condition name the figures use)
 CONDITIONS = (("cue", "post-cue"), ("lick", "post-lick"), ("precue", "pre-cue"))
 ARMS = ("all", "lickonly")
+#: ``--only`` selectors (Priya 11-09, "only rerun what needs to be rerun"): "g4" recomputes the G4 camera-class
+#: discriminator only and merges it into the run's existing section_g.json (`merge_only`)
+ONLY = ("g4",)
+#: the alignments each selector pools (G4 reads cue and precue only)
+ONLY_ALIGNS = {"g4": ("cue", "precue")}
+#: the section_g.json record keys each selector owns: exactly these are replaced in the existing file
+ONLY_KEYS = {"g4": ("g4_primary", "g4_camclass_precue", "g4_camclass_cue")}
 
 
 def post_animals(animals=None):
@@ -178,12 +185,28 @@ def _nolick_readouts(d_by_align, session, keep):
             out[key] = pc.fits_engaged_distribution(dd, keep)
         except Exception as ex:                                           # noqa: BLE001
             print(f"      {key} failed ({str(ex)[:60]})", flush=True)
-    # G4 CAMERA-CLASS DISCRIMINATOR (Priya 11-04, follow-on a): the PRIMARY G4 readout under the camera grouping
-    # (`poststroke_compare.g4_camclass`: working vs raw no_response (Priya 11-09, as G1-G3; unknown never trained),
-    # position-balanced, jaw_only / quit / no_response / unknown scored separately, z frame
-    # on contact rows by default); the DAQ readouts above stay as the labelled robustness arm (WIDEFIELD_G4_DISC=daq
-    # makes them primary again)
-    out["g4_primary"] = pc.g4_disc()
+    out.update(_g4_readouts(d_by_align, session, keep))
+    for align in ("precue", "cue"):
+        d = d_by_align.get(align)
+        if d is None:
+            continue
+        dd = dict(d)
+        dd["post_i"] = {session}
+        try:
+            out.setdefault("impaired_nolick", {})[align] = pc.impaired_nolick_readout(
+                dd, keep, alignment=align)
+        except Exception as ex:                                           # noqa: BLE001
+            print(f"      impaired_nolick[{align}] failed ({str(ex)[:60]})", flush=True)
+    return out
+
+
+def _g4_readouts(d_by_align, session, keep):
+    """G4 CAMERA-CLASS DISCRIMINATOR (Priya 11-04, follow-on a): the PRIMARY G4 readout under the camera grouping
+    (`poststroke_compare.g4_camclass`: working vs raw no_response (Priya 11-09, as G1-G3; unknown never trained),
+    position-balanced, jaw_only / quit / no_response / unknown scored separately, z frame on contact rows by default);
+    the DAQ readouts stay as the labelled robustness arm (WIDEFIELD_G4_DISC=daq makes them primary again). Keys =
+    ``ONLY_KEYS["g4"]`` (a camera-class key is absent when that alignment produced nothing)."""
+    out = {"g4_primary": pc.g4_disc()}
     for align in ("precue", "cue"):
         d = d_by_align.get(align)
         if d is None or pc.g4_disc() != "camera":
@@ -198,17 +221,6 @@ def _nolick_readouts(d_by_align, session, keep):
             from wfield_local import trial_classes as _tcx
             _tcx.reraise_under_camera(ex, f"g4_camclass[{align}]")
             print(f"      g4_camclass[{align}] failed ({str(ex)[:60]})", flush=True)
-    for align in ("precue", "cue"):
-        d = d_by_align.get(align)
-        if d is None:
-            continue
-        dd = dict(d)
-        dd["post_i"] = {session}
-        try:
-            out.setdefault("impaired_nolick", {})[align] = pc.impaired_nolick_readout(
-                dd, keep, alignment=align)
-        except Exception as ex:                                           # noqa: BLE001
-            print(f"      impaired_nolick[{align}] failed ({str(ex)[:60]})", flush=True)
     return out
 
 
@@ -225,13 +237,18 @@ def lick_keep(d_by_align, session, pres):
     return [c for c in keep if n[c] >= pc.MIN_POST]
 
 
-def run_session(d_by_align, animal, session, label, phase_tag):
-    """Everything Section G shows for ONE session: both arms plus the arm-independent readouts."""
+def run_session(d_by_align, animal, session, label, phase_tag, only=None):
+    """Everything Section G shows for ONE session: both arms plus the arm-independent readouts. ``only="g4"``: the
+    G4 keys only (`_g4_readouts`, on the same preserved positions), plus the record's identity."""
     d0 = d_by_align.get("cue")
     if d0 is None:
         return None
     pres = pc.preserved_detail(d0, session)
     keep = pres["keep"]
+    if only == "g4":
+        rec = {"animal": animal, "label": label, "phase_tag": phase_tag}
+        rec.update(_g4_readouts(d_by_align, session, keep))
+        return rec
     keep_lick = lick_keep(d_by_align, session, pres)
     # Priya 11-07: which rule chose the positions and the counts it used (camera WORKING rows, not successful licks,
     # under the camera grouping); the post-lick arm's own (DAQ-lick) set beside it
@@ -266,11 +283,13 @@ def collect_animal(an, include_excluded=True):
     return out
 
 
-def _pool_all(an, labels):
-    """The three pooled bundles one session needs. Disk-cached, so a worker re-reads rather than
-    recomputes -- which is what makes the SESSION affordable as a unit."""
+def _pool_all(an, labels, aligns=None):
+    """The three pooled bundles one session needs (``aligns``: only those). Disk-cached, so a worker re-reads rather
+    than recomputes -- which is what makes the SESSION affordable as a unit."""
     d = {}
     for align, _ in CONDITIONS:
+        if aligns is not None and align not in aligns:
+            continue
         try:
             d[align] = pc._pooled(an, align, post_labels=labels)
         except Exception as ex:                                   # noqa: BLE001
@@ -285,12 +304,15 @@ def _session_worker(spec):
     hundreds of features; shipping three of those to each of ~30 workers would cost more than the
     analysis. `pool_sessions` is `session_cache`-backed, so the worker pays a read instead.
     """
-    an, tag, labels, i = spec
-    d_by_align = _pool_all(an, labels)
+    an, tag, labels, i, *rest = spec
+    only = rest[0] if rest else None
+    d_by_align = _pool_all(an, labels, ONLY_ALIGNS.get(only))
     d0 = d_by_align.get("cue")
     if d0 is None:
         return None
-    return run_session(d_by_align, an, i, d0["kept"][i], tag)
+    if only is None:
+        return run_session(d_by_align, an, i, d0["kept"][i], tag)
+    return run_session(d_by_align, an, i, d0["kept"][i], tag, only=only)
 
 
 def _warm_one(spec):
@@ -329,7 +351,7 @@ def _warm_one(spec):
     return out
 
 
-def collect(animals=None, include_excluded=True, jobs=None):
+def collect(animals=None, include_excluded=True, jobs=None, only=None):
     """Every post-stroke session, plus the excluded ones tagged as such. Two parallel phases.
 
     PHASE 1 -- (animal, alignment), both tags inside each unit. Pools, and forces the frozen decoder
@@ -342,11 +364,14 @@ def collect(animals=None, include_excluded=True, jobs=None):
 
     A failed unit RAISES rather than yielding a short file: a `section_g.json` missing a session is
     indistinguishable from a session that legitimately produced nothing.
+
+    ``only`` (`ONLY`): pool only that selector's alignments and compute only its keys (`run_session`).
     """
     from wfield_local import parallel
 
+    aligns = ONLY_ALIGNS.get(only)
     warm_units = [(an, align, include_excluded)
-                  for an in post_animals(animals) for align, _ in CONDITIONS]
+                  for an in post_animals(animals) for align, _ in CONDITIONS if aligns is None or align in aligns]
     warmed, wfail = parallel.fan_out(warm_units, _warm_one, jobs=jobs, label="pool")
     warmed = sorted(warmed, key=lambda kv: repr(kv[0]))  # completion order -> unit order (T10)
     if wfail:
@@ -357,7 +382,7 @@ def collect(animals=None, include_excluded=True, jobs=None):
         if align != "cue":
             continue
         for tag, (_kept, post_i, labels) in sorted(res.items()):
-            units += [(an, tag, labels, i) for i in post_i]
+            units += [(an, tag, labels, i) if only is None else (an, tag, labels, i, only) for i in post_i]
     units.sort()
 
     print(f"\n  phase 1: {len(warm_units)} (animal, alignment) pool(s) warmed; "
@@ -377,6 +402,53 @@ def collect(animals=None, include_excluded=True, jobs=None):
     return out
 
 
+def _code_sha():
+    """The checkout's HEAD sha, or None."""
+    import subprocess
+    try:
+        return subprocess.run(["git", "rev-parse", "HEAD"], cwd=Path(__file__).resolve().parent, capture_output=True,
+                              text=True, timeout=20).stdout.strip() or None
+    except Exception:                                                     # noqa: BLE001
+        return None
+
+
+def merge_only(path, new, only, *, provenance=None, now=None):
+    """Merge an ``--only`` run's records into the run's EXISTING section_g.json at ``path``: the session labels must
+    be identical (else ValueError, nothing written); in each record exactly the ``ONLY_KEYS[only]`` keys are replaced
+    (an old key the new run did not produce is removed) and a ``<only>_rerun`` provenance key is set; every other key
+    is left as it was. The old file is first copied to ``<stem>.bak_pre_<only>_<YYYYMMDD-HHMM>.json`` beside it
+    (never over an existing backup), then the merged file is written atomically (temp file + replace). Returns the
+    backup path."""
+    import datetime as _dt
+    import os
+    import shutil
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(f"--only {only}: no existing {path.name} for this run tag at {path} -- run the full "
+                                "section G first")
+    old = json.loads(path.read_text())
+    if set(old) != set(new):
+        raise ValueError(f"--only {only}: session labels differ from {path.name} (only in the file: "
+                         f"{sorted(set(old) - set(new))}; only in this run: {sorted(set(new) - set(old))}); "
+                         "refusing to merge")
+    now = now or _dt.datetime.now()
+    keys = ONLY_KEYS[only]
+    for lab, rec in old.items():
+        for k in keys:
+            rec.pop(k, None)
+        rec.update({k: new[lab][k] for k in keys if k in new[lab]})
+        rec[f"{only}_rerun"] = dict(provenance or {}, date=now.strftime("%Y-%m-%d %H:%M"), keys=list(keys))
+    bak = path.with_name(f"{path.stem}.bak_pre_{only}_{now.strftime('%Y%m%d-%H%M')}.json")
+    if bak.exists():
+        raise FileExistsError(f"--only {only}: backup {bak} exists; refusing to overwrite it")
+    shutil.copy2(path, bak)
+    tmp = path.with_name(path.name + f".tmp_{only}_{os.getpid()}")
+    with open(tmp, "w") as f:
+        json.dump(old, f, indent=1, default=float)
+    os.replace(tmp, path)
+    return bak
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -387,9 +459,22 @@ def main(argv=None) -> int:
     ap.add_argument("--jobs", "-j", type=int, default=None, metavar="N",
                     help="animals to process in parallel (default: cores-2 capped at 8, and at "
                          "the cohort size; pass 1 for the serial path)")
+    ap.add_argument("--only", choices=ONLY, default=None,
+                    help="recompute only these keys and merge them into this run's existing section_g.json "
+                         "(identical session labels required; the old file is backed up beside it)")
     args = ap.parse_args(argv)
     from wfield_local import run_mode  # tagged runs never overwrite default figures (review H2)
     out = run_mode.routed_output(args.output or Path(PathResolver().root("figures_working")))
+    if args.only:
+        p = Path(out) / run_mode.keyed_name("section_g.json")
+        if not p.exists():                       # refuse before hours of work, not after
+            raise SystemExit(f"--only {args.only}: no existing {p} -- run the full section G first")
+        rec = collect(args.animals, include_excluded=not args.skip_excluded, jobs=args.jobs, only=args.only)
+        prov = {"code_sha": _code_sha(), "run_tag": p.stem, "g4_frame": pc.g4_frame_tag(),
+                "train_classes": {"positive": list(pc.G4_POS), "negative": list(pc.G4_NEG)}}
+        bak = merge_only(p, rec, args.only, provenance=prov)
+        print(f"\nmerged --only {args.only} into {p}  ({len(rec)} sessions; backup {bak.name})")
+        return 0
     rec = collect(args.animals, include_excluded=not args.skip_excluded, jobs=args.jobs)
     from wfield_local import run_mode   # mode-tagged name (rebuild 11-03, trap T21): read by grant 3b / 5
     p = Path(out) / run_mode.keyed_name("section_g.json")
