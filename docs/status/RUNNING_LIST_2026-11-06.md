@@ -1033,3 +1033,17 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   before the lick, iti_licks.BASE_RESP); the raw 0..0.2 s decoder-window difference (14.17-14.19) = supplement. No
   recompute for this decision (balance re-run needed anyway after the glue fix: SSs ~50 % glue). RAM 5 GB free 11:18+
   (state-space replots of another window + our helpers + preview maps); queue waits, nothing killed.
+- 12:50 GLUE FIX DONE: fix/rebuild-glue-mask-1109 c42a7c35 (wf_gluefix; record docs/status/GLUE_MASK_FIX_2026-11-09.md):
+  masks read in place under any profile (fence opens only grant_figures/exclusion_mask_painted_*.npy), load_mask raises,
+  cohort2 opt-out painted_exclusion: none, mask_signature() in the encoder imaging cache key, iti extract mask_sig guard.
+  Under the profile now union 40,663 / brain 151,447 / stat 129,770 (= default). csig 3d7bbe921e unchanged. 142 tests.
+  ALSO BROKEN (verified): component_exclusion.excluded_pixels under the profile = bulbs only 15,106 px (correct 39.7-50.9k)
+  -> rebuild CD trajectories dropped bulbs-only components -> CD chain recompute.
+  AUDIT: encoder NOT per-pixel independent (shared spatial SVD over stat pixels; alphas pooled across targets) -> full
+  encoder recompute. Area traces: 17 glue-only targets; SSs / VISl_R / VISrl_L / VISpm_L lose 90-98 % px (r .92-.99);
+  encoder "cortex" target -22 % px; erosion rim: SSp-n_L 9 %, SSp-m_L 5 %. Unaffected: LocaNMF decoders (section G,
+  nolick, pcd, joint_xsession, rest_frozen, attempt D...), behavior/pose. Maps: pixel values unchanged (full-grid
+  caches), statistics re-render from warm caches. Recompute: encoder tree, ITI / area-ROI tree, CD chain, map stats,
+  state_space_sim, O2 encoding bundles. ~1.5-2 days queue (critical path ~15 h ITI || ~15 h encoder + 14 h partial_refit).
+  OPEN before re-runs: mask keys for O2 bundle, 7 other extract scripts, frozen_encoder --reuse-stats/--fit-from,
+  state_space caches. Glue-in steps still running: rsplit PS93/94/95, l_code_noisematch_enlv_r5, 2 preview maps.
