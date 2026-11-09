@@ -748,3 +748,7 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   the 3 G4 keys of the keyed section G json, backup first, label check) pushing via scratchpad/chain_v10.sh, which then
   builds + launches queue_daqlk10.sh: G4 lane (g5_section_g_g4only -> g5_g4_fig_redraw) and JD lane
   (g5_map_drift_lp_june, WIDEFIELD_ATTEMPTS_SUPPLEMENT set for that step only). Handoff block 00-COMPACT-39 written.
+- 01:28 chain_v10 DONE: G4 ON MAIN 90a5e25f (one lost push race, retry ok); worktree wf_render_v10 at 90a5e25f, csig
+  3d7bbe921e; queue_daqlk10.sh launched. JD: g5_map_drift_lp_june running with WIDEFIELD_ATTEMPTS_SUPPLEMENT set
+  (120 ref maps = 108 + 12 June). G4: g5_section_g_g4only waiting for the heavy lock (l_precue_restnl_r), then
+  g5_g4_fig_redraw.
