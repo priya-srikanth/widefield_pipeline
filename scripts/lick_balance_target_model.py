@@ -104,6 +104,27 @@ def _session(label: str) -> pd.DataFrame:
     return pd.concat(out, ignore_index=True) if out else pd.DataFrame()
 
 
+def lick_set_sentence(sets=("trial", "iti"), *, cued_extra=(), iti_extra=()) -> str:
+    """THE lick set of baltarget_licks.csv.gz (`licks`), in words (Priya 11-09; `wfield_local.trial_set_text`): cued =
+    the first post-cue lick of each trial in the frozen KEY decoder's lick set (order 0); ITI = the KEY set's ITI licks
+    with no lick onset in the preceding il.GAP_MAIN s; both with the lick angle and the pooled responses finite. Shared
+    by the drivers that read baltarget_licks (lick_balance_matched_error, lick_ci_spout_epoch, lick_area_tuning)."""
+    from wfield_local import trial_set_text as tst
+    cv = lbr.cv
+    n = cv._pred_min_licks()
+    common = f"lick angle, spout and both hemispheres' pooled post-lick responses ({' + '.join(rp.POOL)}) finite"
+    gap = f"no lick onset (any licks_all.csv lick) in the preceding {il.GAP_MAIN:g} s"
+    parts = {"trial": cv.session_cued(first_only=True, min_n=n, extra=[common, *cued_extra]),
+             "iti": cv.session_iti(cv.key_iti_filter(), min_n=n, extra=[gap, common, *iti_extra],
+                                   excluded=["post-cue (trial) licks", f"ITI licks < {il.GAP_MAIN:g} s after a lick onset"])}
+    return tst.union(*[parts[s] for s in sets])
+
+
+def trial_set_sentence() -> str:
+    """The lick set of lick_balance_target_model's figure (both sets)."""
+    return lick_set_sentence()
+
+
 def _is_pre(df: pd.DataFrame) -> pd.Series:
     from wfield_local import config
     return (df.epoch == "pre") & (~df.label.map(config.early_pre))
@@ -584,6 +605,8 @@ def plot() -> None:
 
 
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())        # every figure states its lick set (Priya 11-09)
     if "--plot-only" in sys.argv:                 # redraw (and re-derive the comparison table) from the saved CSVs
         compare(pd.read_csv(OUT / "baltarget_weights.csv"), pd.read_csv(OUT / "baltarget_decomp_tests.csv"),
                 pd.read_csv(OUT / "baltarget_decoder.csv")).to_csv(OUT / "baltarget_compare.csv", index=False)

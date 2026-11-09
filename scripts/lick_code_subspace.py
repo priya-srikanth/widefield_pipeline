@@ -120,6 +120,8 @@ if FAMILY == "enlv":
             "enlv_bout": "ENLv bout starts (>= 1 s since any lick)"}
     SET_COL = {"enlv_on1": "#7570b3", "enlv_bout": "#8c2d04"}
     ENLV_VARIANT = {"enlv_on1": "on1", "enlv_bout": "on1_clean"}
+#: the ENLv sets by selection name (for the captions of either family's run, `lick_sets_sentence`)
+ENLV_VARIANT_ALL = {"on1": "enlv_on1", "on1_clean": "enlv_bout"}
 CACHE = OUT / f"licks_cache{SFX}.pkl"
 
 
@@ -946,12 +948,44 @@ def figures():
     print("figures written", flush=True)
 
 
+def lick_sets_sentence(family: str | None = None) -> str:
+    """The lick sets of the lick-code family (Priya 11-09; `wfield_local.trial_set_text`), for ``family`` ("" = cued +
+    ITI, "enlv" = ENLv; default = this run's LICK_CODE_FAMILY): primary rows on MATCHED post licks (side_ml inside the
+    animal's pre Q percentile range at the spout); June reference sessions run as an epoch (cued / ITI only)."""
+    import lick_covariate_reference as cv
+    from wfield_local import trial_set_text as tst
+    family = FAMILY if family is None else family
+    match = (f"post licks matched: side_ml inside the animal's pre {Q[0]:g}-{Q[1]:g} percentile range at the spout "
+             "('all' rows unmatched)")
+    if family == "enlv":
+        import lick_enlv_balance_offset as bo
+        out = []
+        for v, nm in ENLV_VARIANT_ALL.items():
+            _k, (lo_, _hi), clean, cue_end, *_r = bo.VARIANTS[v]
+            keep = [f"onset >= {lo_:g} s after the spout arrival", f"peak > {cue_end:g} s before the cue",
+                    *(["bout start (clean start, >= 1 s since any lick)"] if clean else []),
+                    "3-D side_ml finite, spout one of the six", match]
+            out.append(tst.events(f"{nm}: ENLv licks (cam4 pre_cue licks, spout stationary at the trial's position, no "
+                                  "cue / reward)", keep=keep))
+        return tst.union(*out)
+    first = cv.session_cued(first_only=True, extra=[match])
+    iti = cv.session_iti("", extra=[match])
+    far1 = cv.session_iti("far1", extra=[match])
+    return tst.union(first, iti, far1)
+
+
+def trial_set_sentence() -> str:
+    return lick_sets_sentence()
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--jobs", type=int, default=4)
     ap.add_argument("--reload", action="store_true")
     ap.add_argument("--plot-only", action="store_true")
     a = ap.parse_args()
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())          # every figure states its lick set (Priya 11-09)
     if il.ITI_SUBSET or il.AREA_BASIS != "split":
         raise SystemExit("run without WFIELD_ITI_FILTER / with the split basis")
     if a.plot_only:

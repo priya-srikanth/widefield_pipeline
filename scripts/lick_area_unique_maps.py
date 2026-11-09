@@ -171,11 +171,20 @@ def plot(F: dict) -> None:
                      "decoder without that area (offset: how much of the offset needs it). Each area's value on both "
                      "hemispheres; ALM / tjM1 split; image left = ipsilesional. Mean of animals. PROVISIONAL", fontsize=10)
         fig.tight_layout(rect=(0, 0, 1, 0.92))
-        save_png_svg(fig, il.OUT_W / "figures" / f"lick_area_unique_maps_{'iti' if st == 'iti' else 'cued'}.png", dpi=95)
+        from wfield_local import trial_set_text as tst
+        with tst.active(None, text=trial_set_sentence((st,))):     # this figure's lick set only
+            save_png_svg(fig, il.OUT_W / "figures" / f"lick_area_unique_maps_{'iti' if st == 'iti' else 'cued'}.png", dpi=95)
         plt.close(fig)
 
 
+def trial_set_sentence(sets=tuple(rd.SETS)) -> str:
+    """The lick set of lick_area_unique_maps (Priya 11-09): the refit decoders' licks (`lick_area_importance`)."""
+    return lai.refit_lick_set(sets)
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())          # every figure states its lick set (Priya 11-09)
     if plot_only():
         plot(load_fd("lick_area_unique_maps"))
         return 0

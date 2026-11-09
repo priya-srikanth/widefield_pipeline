@@ -139,11 +139,26 @@ def plot(F: dict) -> None:
                      "alone / unique cvR2 (leave-one-session-out, per animal x epoch; mean of animals).\nEach pair's value "
                      "is painted on both hemispheres; ALM / tjM1 separate; image left = ipsilesional. PROVISIONAL",
                      fontsize=10)
-        save_png_svg(fig, il.OUT_W / "figures" / f"lick_balance_maps_{st.lower()}.png", dpi=95, bbox_inches="tight")
+        from wfield_local import trial_set_text as tst
+        with tst.active(None, text=trial_set_sentence(st)):        # this figure's lick set only
+            save_png_svg(fig, il.OUT_W / "figures" / f"lick_balance_maps_{st.lower()}.png", dpi=95, bbox_inches="tight")
         plt.close(fig)
 
 
+def trial_set_sentence(st: str | None = None) -> str:
+    """The lick set of lick_balance_maps' figures (Priya 11-09): the KEY decoder's lick set, licks with the lick angle,
+    reach, peak speed and every pair balance finite, animal x epoch groups with >= 2 sessions and >= 100 licks (the
+    literals of `compute`); ``st`` = "cued" / "ITI" (one figure) or None (both)."""
+    import lick_covariate_reference as cv
+    keep = ["lick angle, reach, peak speed and every pair balance finite",
+            "animal x epoch groups with >= 2 sessions and >= 100 licks"]
+    sets = {"cued": ("trial",), "ITI": ("iti",), None: ("iti", "trial")}[st]
+    return cv.key_lick_set(iti_extra=keep, cued_extra=keep, sets=sets)
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())          # every figure states its lick set (Priya 11-09)
     if plot_only():
         plot(load_fd("lick_balance_maps"))
         return 0

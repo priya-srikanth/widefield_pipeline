@@ -179,7 +179,18 @@ def plot() -> None:
     plt.close(fig)
 
 
+def trial_set_sentence() -> str:
+    """The lick set of lick_balance_matched_error (Priya 11-09): baltarget_licks (lick_balance_target_model), kept only
+    inside the animal's pre Q percentile angle range at the same spout, sessions with >= MIN_LICKS kept licks."""
+    import lick_balance_target_model as tm
+    keep = [f"kept only inside the animal's pre {Q[0]:g}-{Q[1]:g} percentile lick-angle range at the same spout",
+            f"sessions with >= {MIN_LICKS} kept licks"]
+    return tm.lick_set_sentence(cued_extra=keep, iti_extra=keep)
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())          # every figure states its lick set (Priya 11-09)
     if "--plot-only" not in sys.argv:
         S, T, K = compute()
         S.to_csv(OUT / "balmatch_sessions.csv", index=False)

@@ -54,7 +54,15 @@ def nested(X: np.ndarray, names: list[str], y: np.ndarray, grp: np.ndarray) -> t
     return 1 - np.sum((y - pred) ** 2) / np.sum((y - y.mean()) ** 2), chosen
 
 
+def trial_set_sentence() -> str:
+    """The lick sets of the held-out definition check = the sweep's (balvar_sessions.csv of lick_balance_variants)."""
+    import lick_balance_variants as bv
+    return bv.trial_set_sentence()
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())          # every figure states its lick set (Priya 11-09)
     S = pd.read_csv(il.OUT_W / "balvar_sessions.csv")
     allc = [c for c in S.columns if c.startswith(("diff:", "ratio:"))]
     fams = {"all definitions": allc,

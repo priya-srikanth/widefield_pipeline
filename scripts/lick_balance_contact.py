@@ -182,7 +182,18 @@ def downsample(D: pd.DataFrame, S: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(out)
 
 
+def trial_set_sentence() -> str:
+    """The lick set of lick_balance_contact (Priya 11-09): the uncapped first-lick extraction (firstlick_full), split by
+    spout contact (licks_all `contact`)."""
+    return lbs.full_first_licks([
+        "lick angle finite",
+        "classes: contact (DAQ spout contact inside the lick) / miss / strict miss (no contact lick within "
+        f"{STRICT_S:g} s)", f"session markers need >= {MIN_LICKS} licks"])
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())          # every figure states its lick set (Priya 11-09)
     from wfield_local import writeguard
     writeguard.assert_writable(il.OUT_W)
     D = licks()

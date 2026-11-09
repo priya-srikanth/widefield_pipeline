@@ -149,7 +149,25 @@ def plot(F: dict) -> None:
     plt.close(fig)
 
 
+def refit_lick_set(sets=tuple(rd.SETS), *, extra=()) -> str:
+    """The lick set of the refit decoders (`lick_refit_decoders.load_z`, Priya 11-09): every ITI lick and the capped
+    post-cue licks of the session files with every 3-D tip coordinate finite (no ITI filter), sessions with >=
+    rd.MIN_LICKS such licks. Shared by lick_area_unique_maps, lick_block_compare, lick_behaviour_decoder."""
+    import lick_covariate_reference as cv
+    from wfield_local import trial_set_text as tst
+    coords = "every 3-D tip coordinate (lateral, outward, down, reach)"
+    parts = {"iti": cv.session_iti("", coords=coords, spout=False, min_n=rd.MIN_LICKS, extra=extra),
+             "trial": cv.session_cued(coords=coords, spout=False, min_n=rd.MIN_LICKS, extra=extra)}
+    return tst.union(*[parts[s] for s in sets])
+
+
+def trial_set_sentence() -> str:
+    return refit_lick_set()
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())          # every figure states its lick set (Priya 11-09)
     if plot_only():
         plot(load_fd("lick_area_importance"))
         return 0

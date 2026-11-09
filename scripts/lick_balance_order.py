@@ -156,7 +156,18 @@ def _plot_one(F, rows, fname, col, Line2D, plt) -> None:
     plt.close(fig)
 
 
+def trial_set_sentence() -> str:
+    """The lick set of lick_balance_order's figure (Priya 11-09): the KEY decoder's lick set, every lick order (capped at
+    CAP), animal x epoch x order cells with >= MIN_CELL licks."""
+    import lick_covariate_reference as cv
+    cell = f"animal x epoch x lick-order cells (order capped at {CAP}) with >= {MIN_CELL} licks"
+    return cv.key_lick_set(iti_extra=[f"order = index in its bout (bouts split at onset gaps >= {il.BOUT_GAP:g} s)", cell],
+                           cued_extra=["order = lick_idx after the cue", cell])
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())          # every figure states its lick set (Priya 11-09)
     if plot_only():
         plot(load_fd("lick_balance_order"))
         return 0
