@@ -31,6 +31,8 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
 
+from wfield_local import mask_keys  # noqa: E402
+
 AN = ["PS92", "PS93", "PS94", "PS95"]
 EP = ["pre", "acute", "subacute", "chronic"]
 TARGETS = ("lateral", "sagittal", "2-D", "angle", "reach")         # outward is also scored (where_decoder.csv)
@@ -232,6 +234,8 @@ def _load_one(item):
             return x, None
         keepc = locanmf_keep(str(z["animal"])) if source == "locanmfM" else None
         b = np.load(f)
+        if basis_dir(source) == "svdbasis":
+            mask_keys.check_obj(b, f)             # stale-read guard (11-09)
         from iti_basis_decoder import LAGS as LB
         from wfield_local import combined_encoding as ce
         ft = _frame_range(x, ce)                                # same edge rule as iti_basis_decoder.extract

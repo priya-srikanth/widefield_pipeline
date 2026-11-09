@@ -307,6 +307,8 @@ def neural_session(item) -> dict:
     label, sgn, tg, th = item
     from wfield_local import orofacial_cohort as oc
     z = np.load(lc.SESS / f"{label}.npz", allow_pickle=True)
+    from wfield_local import mask_keys
+    mask_keys.check_obj(z, lc.SESS / f"{label}.npz")   # stale-read guard (11-09)
     an, ep = str(z["animal"]), str(z["epoch"])
     sid = f"{an}_2026{label[-4:]}"
     cols = list(z["cols"])

@@ -64,6 +64,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
 from fr_musall import AN  # noqa: E402
 
+from wfield_local import mask_keys  # noqa: E402
+
 HC = il.OUT / "hemo_check"
 # per-session caches hold ROI-mean PETHs, so they depend on the ALM / tjM1 ROI version (iti_licks.ROI_VERSION; 10-27):
 # v1 (40 / 40) stays in cache/, v2 (ALM 40 % / tjM1 50 %) goes to cache_roi2/
@@ -121,6 +123,7 @@ def work(label: str) -> dict:
     from wfield_local.hemo_variants import functional_channel
     f = CACHE / f"{label}.npz"
     if f.exists() and int(np.load(f)["cache_version"]) == CACHE_VERSION:
+        mask_keys.check_npz(f)                    # stale-read guard: built on the current analysis masks (11-09)
         return {"label": label, "cached": True}
     d = il._load(label)
     s = _session(label)
@@ -215,6 +218,7 @@ def work(label: str) -> dict:
     HC.mkdir(parents=True, exist_ok=True)
     CACHE.mkdir(parents=True, exist_ok=True)
     tmp = CACHE / f"{label}.tmp.npz"
+    out.update(mask_keys.stamp())
     np.savez_compressed(tmp, **out)
     tmp.replace(f)
     return {"label": label, "n_bout": int(keep.sum()), "func": fc, "manifest_func": out["manifest_func"]}
@@ -333,6 +337,9 @@ def summarise(labels: list[str]) -> None:
     pd.set_option("display.width", 250)
     pd.set_option("display.max_rows", 400)
     C = {x: dict(np.load(CACHE / f"{x}.npz", allow_pickle=False)) for x in labels if (CACHE / f"{x}.npz").exists()}
+    for x, c in C.items():                                 # stale-read guard (11-09)
+        mask_keys.check_obj(c, CACHE / f"{x}.npz")
+        c.pop(mask_keys.FIELD, None)
     print(f"{len(C)} sessions cached")
     # --- channel-slot checks
     ch = pd.DataFrame([{"label": x, "func_slot": int(c["func_slot"]), "manifest_func": int(c["manifest_func"]),

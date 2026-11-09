@@ -194,7 +194,9 @@ def _fake_bundle(tmp_path, monkeypatch, m):
     env = m.bundle_env(d)
     (d / "env.json").write_text(json.dumps(env))
     ident = o2_bundle.identity()
-    (d / "bundle.json").write_text(json.dumps({"identity": ident, "commit": "0" * 40}))
+    from wfield_local import mask_keys                  # the bundle's analysis masks = this process's (11-09)
+    monkeypatch.setattr(mask_keys, "signature", lambda: "masks_now")
+    (d / "bundle.json").write_text(json.dumps({"identity": ident, "commit": "0" * 40, "mask_sig": "masks_now"}))
     (d / "COMMANDS.md").write_text(f"code {'0' * 40} (wf_rebuild)\n")
     real = m._git
     monkeypatch.setattr(m, "_git", lambda repo, *a: "" if a[0] == "status" else real(repo, *a))
@@ -226,7 +228,8 @@ def test_refresh_code_refuses_identity_change_and_dirty_tree(tmp_path, monkeypat
     import pytest
     m = _mod()
     d, ident, _os = _fake_bundle(tmp_path, monkeypatch, m)
-    (d / "bundle.json").write_text(json.dumps({"identity": dict(ident, run_tag="another-run"), "commit": "0" * 40}))
+    (d / "bundle.json").write_text(json.dumps({"identity": dict(ident, run_tag="another-run"), "commit": "0" * 40,
+                                               "mask_sig": "masks_now"}))
     with pytest.raises(SystemExit, match="does not compute the bundle's run identity"):
         m.cmd_refresh_code(argparse.Namespace(name="", bundle=str(d), force=False))
     assert (d / "code" / "wfield_local" / "old.py").exists() and not (d / "code.new").exists()   # untouched

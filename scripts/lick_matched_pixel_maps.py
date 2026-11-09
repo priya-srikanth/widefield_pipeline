@@ -54,6 +54,8 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
 
+from wfield_local import mask_keys  # noqa: E402
+
 OUT = Path(il.OUT_W)
 if il.ITI_SUBSET:
     raise SystemExit("run without WFIELD_ITI_FILTER")
@@ -108,6 +110,7 @@ def extract(item) -> dict:
     label, cache = item
     f = Path(cache) / f"{label}.npz"
     if f.exists():
+        mask_keys.check_npz(f)                    # stale-read guard: built on the current analysis masks (11-09)
         return {"label": label, "cached": True}
     G = grid()
     V, ft, Ub, flat, parea, names, shape, pstat = ce.load_imaging(label)
@@ -139,7 +142,7 @@ def extract(item) -> dict:
             wnames.append(f"{a}|{hk}")
     acts = lbr.cv._acts(label)
     d = il._load(label)
-    out = {"U": U, "W": np.asarray(wrows, np.float32), "wnames": np.array(wnames)}
+    out = {"U": U, "W": np.asarray(wrows, np.float32), "wnames": np.array(wnames), **mask_keys.stamp()}
     for st, (tk, sk) in {"iti": ("iti_t", "iti_side"), "trial": ("tr_t", "tr_side")}.items():
         act = np.asarray(acts.get(st, []), float)
         C = np.full((len(act), V.shape[1]), np.nan, np.float32)
@@ -189,6 +192,7 @@ def _stats(L: pd.DataFrame, cache: Path) -> tuple[dict, pd.DataFrame, dict]:
     ST, val, W = {}, [], {}
     for lab, gl in L.groupby("label"):
         z = np.load(cache / f"{lab}.npz")
+        mask_keys.check_obj(z, cache / f"{lab}.npz")
         U = z["U"].astype(np.float64)
         W[lab] = (z["W"].astype(np.float64), list(z["wnames"]))
         for st, g in gl.groupby("set"):

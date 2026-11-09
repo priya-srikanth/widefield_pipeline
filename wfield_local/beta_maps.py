@@ -508,9 +508,9 @@ def _atlas_names():
     return None, {}
 
 
-@lru_cache(maxsize=1)
+@lru_cache(maxsize=8)
 def painted_exclusion(key="union"):
-    """The hand-painted occlusion mask, or an all-False mask if none has been painted.
+    """The hand-painted occlusion mask. RAISES if the cohort requires it and it is missing / unreadable / mis-shaped.
 
     THE FIBRE GLUE, which no threshold could find. `paint_exclusion` records why three automatic
     attempts failed; the short version is that brightness in this preparation is dominated by
@@ -526,20 +526,33 @@ def painted_exclusion(key="union"):
     energy** -- the position code lives in SSp/MO, not in the posterior territory painted out -- and
     the effect RMS in kept cortex is about 3x that inside the excluded zone. The cut is large in
     area and nearly free in signal.
+
+    NEVER SILENTLY EMPTY (2026-11-09). It used to return an all-False mask on any failure; under the rebuild
+    profile the mask directory followed the rebuild root, nothing was there, and every brain / stat mask quietly kept
+    the glue. `paint_exclusion.load_mask` now raises; the only all-False answer is a cohort that opts out explicitly
+    (configs/cohorts.yaml ``painted_exclusion: none``: cohort2).
     """
-    try:
-        from wfield_local.paint_exclusion import mask_path
-    except Exception:                                                  # noqa: BLE001
-        return np.zeros(MAP_SHAPE, bool)
-    try:
-        p = mask_path(key)
-        if not p.exists():
-            return np.zeros(MAP_SHAPE, bool)
-        m = np.load(p).astype(bool)
-    except Exception as ex:                                            # noqa: BLE001
-        print(f"  !! painted exclusion {key}: {type(ex).__name__} {str(ex)[:60]}", flush=True)
-        return np.zeros(MAP_SHAPE, bool)
-    return m if m.shape == MAP_SHAPE else np.zeros(MAP_SHAPE, bool)
+    from wfield_local.paint_exclusion import load_mask
+    return load_mask(key, MAP_SHAPE)
+
+
+def mask_signature(n: int = 12) -> str:
+    """Short sha1 of the ANALYSIS MASKS' CONTENT (`brain_mask` + `stat_mask` bytes, plus the painted union) -- the
+    token every cache whose value depends on those masks puts in its KEY (2026-11-09).
+
+    Before it, the encoder input cache was keyed on source paths and code only, so the glue-in masks of the rebuild
+    (painted mask silently empty) and the corrected glue-out masks would have shared an entry. "none" = no Allen mask.
+    """
+    import hashlib
+    bm = brain_mask()
+    if bm is None:
+        return "none"
+    h = hashlib.sha1()
+    for m in (bm, stat_mask(), painted_exclusion()):
+        a = np.ascontiguousarray(np.asarray(m, bool))
+        h.update(repr(a.shape).encode())
+        h.update(np.packbits(a).tobytes())
+    return h.hexdigest()[:int(n)]
 
 
 @lru_cache(maxsize=1)

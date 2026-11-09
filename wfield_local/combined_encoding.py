@@ -402,7 +402,10 @@ def _cached(kind: str, label: str, sources, build):
         import inspect
         code = hashlib.sha1((inspect.getsource(_load_imaging) + inspect.getsource(hemo_dir)).encode()
                             + (repo / "wfield_local" / "beta_maps.py").read_bytes()).hexdigest()
-        env = []
+        # + the masks' CONTENT (2026-11-09): the value carries `flat` / `pstat` from brain_mask / stat_mask, and a mask
+        # change that is not a code change (the painted glue files; the rebuild's silently empty glue) must miss
+        from wfield_local import beta_maps
+        env = [("mask", beta_maps.mask_signature())]
     else:
         code = hashlib.sha1(b"".join((repo / f).read_bytes() for f in _CACHE_CODE if (repo / f).exists())).hexdigest()
         env = sorted((k, v) for k, v in os.environ.items() if k.startswith(("COMBINED_ENCODING_", "OROFACIAL_")))
@@ -482,11 +485,15 @@ def _load_imaging(label: str):
     # values on the ERODED `beta_maps.stat_mask()` (16-px rim out: partial volume + warp jitter, consistent across
     # animals -- see its docstring). Both on the shared 540 x 640 grid.
     from wfield_local import beta_maps
+    # NO FALLBACK (2026-11-09): a missing / mis-shaped analysis mask used to drop silently to the raw Allen mask (bulbs
+    # and glue IN) and an all-True stat mask; it raises now, like `beta_maps.painted_exclusion`.
     bm, sm = beta_maps.brain_mask(), beta_maps.stat_mask()
-    if bm is not None and bm.shape == mask.shape:
-        mask = mask & bm
+    if bm is None or sm is None or bm.shape != mask.shape or sm.shape != mask.shape:
+        raise ValueError(f"{label}: beta_maps brain / stat mask unavailable or off-grid "
+                         f"({None if bm is None else bm.shape} vs {mask.shape}) -- refusing the raw-mask fallback")
+    mask = mask & bm
     flat = np.flatnonzero(mask.ravel())
-    pstat = (sm.ravel()[flat] if sm is not None and sm.shape == mask.shape else np.ones(len(flat), bool))
+    pstat = sm.ravel()[flat]
     Ub = np.asarray(U.reshape(-1, U.shape[-1])[flat], np.float32)
     cue = _load_daq_events(s["h5"])
     fmdir = s["fmdir"] or s["mc"]

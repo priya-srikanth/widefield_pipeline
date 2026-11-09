@@ -295,6 +295,34 @@ def _sample(R: np.ndarray, ft: np.ndarray, t: np.ndarray, lags: np.ndarray) -> n
     return out.reshape(len(t), len(lags), R.shape[1])
 
 
+def _mask_sig() -> str:
+    from wfield_local import beta_maps
+    return beta_maps.mask_signature()
+
+
+def check_extract_masks(f) -> None:
+    """REFUSE a skip-if-exists session extract built on other analysis masks (the rebuild glue-mask bug, 11-09).
+
+    The extract's ROI traces are means over `roi_masks` (stat mask + brain-mask rim), so they depend on the painted glue
+    mask, and the path does not. Files written since 11-09 carry ``mask_sig`` (`beta_maps.mask_signature`) and must
+    match. Older files have none: accepted outside a rebuild root (the default extracts were built with the glue out),
+    REFUSED inside one (every rebuild extract before the fix was built with the painted mask silently empty). Never
+    deletes: move the stale folder aside and re-extract.
+    """
+    z = np.load(f, allow_pickle=False)
+    have = str(z["mask_sig"]) if "mask_sig" in z.files else None
+    if have is None:
+        from wfield_local import rebuild_root
+        if not rebuild_root.active():
+            return
+        raise RuntimeError(f"{f}: a rebuild-root extract without mask_sig = built before the 11-09 glue-mask fix (glue "
+                           f"IN). Move {Path(f).parent} aside and re-extract.")
+    now = _mask_sig()
+    if have != now:
+        raise RuntimeError(f"{f}: built on analysis masks {have}, current masks are {now}. Move {Path(f).parent} aside "
+                           f"and re-extract.")
+
+
 def extract(item) -> dict:
     """One session -> <out>/sessions/<label>.npz (module-level for spawn). item = (label, lick table path or None)."""
     from wfield_local import combined_encoding as ce
@@ -302,6 +330,7 @@ def extract(item) -> dict:
     label, out = item
     f = Path(out) / SESS_NAME / f"{label}.npz"
     if f.exists():
+        check_extract_masks(f)
         return {"label": label, "cached": True}
     V, ft, Ub, flat, parea, names, shape, pstat = ce.load_imaging(label)
     M = roi_masks(parea, pstat, names, flat, shape)
@@ -406,6 +435,7 @@ def extract(item) -> dict:
     np.savez_compressed(
         # epoch "" (not None) before WIDEFIELD_PRE_FROM: a None is saved as an object array (_load, 11-08)
         f, cols=np.array(cols), epoch=epochs.epoch_of(label) or "", animal=an, clock_med_s=clock,
+        mask_sig=_mask_sig(),                     # the brain / stat masks the ROI traces were built on (11-09)
         bout_peth=_sample(R, ft, to[bout], LAGS_P).astype(f16), bout_side=iti.side_ml.to_numpy(float)[bout], bout_gap=gap[bout],
         # bout_pos = the trial-WINDOW label (the UPCOMING trial for 'lead' licks) -- NOT a spout to group by; use
         # bout_prev_pos = the PREVIOUS trial's spout, the rule of iti_pos (10-28; files before then lack it:
@@ -562,10 +592,15 @@ def attach_fr_unblanked(D: dict, jobs: int | None = None) -> dict:
 
 
 def _load(label: str, sess_dir: Path | None = None) -> dict:
+    """One session extract. EVERY read is mask-checked (11-09): many readers (interhemi_crossarea, coupling_vigour_sm,
+    lick_cued_ramp, ...) never call `extract`, so `check_extract_masks` alone would not stop a stale file."""
+    from wfield_local import mask_keys
     p = (sess_dir or XOUT / SESS_NAME) / f"{label}.npz"
     z = np.load(p, allow_pickle=False)
     try:
-        return {k: z[k] for k in z.files}
+        out = {k: z[k] for k in z.files}
+        mask_keys.check_obj(out, p)
+        return out
     except ValueError:
         # JUNE REFERENCE FILES written before 11-08 store epoch=None (`epochs.epoch_of` has no epoch for a session before
         # WIDEFIELD_PRE_FROM), which numpy saves as an OBJECT array; l_reembed failed on all 12 (11-07). Exactly that
@@ -579,6 +614,7 @@ def _load(label: str, sess_dir: Path | None = None) -> dict:
                     raise ValueError(f"{p}: object array {k!r} (only a None epoch is tolerated)") from None
                 a = np.array("")
             out[k] = a
+        mask_keys.check_obj(out, p)
         return out
 
 
@@ -614,6 +650,8 @@ _TAB: dict = {}
 
 def _table(f: Path) -> pd.DataFrame:
     if f not in _TAB:
+        from wfield_local import mask_keys       # SD / split tables are ROI means: stale-read guard (sidecar, 11-09)
+        mask_keys.check_sidecar(f)
         _TAB[f] = pd.read_csv(f, index_col=0)
     return _TAB[f]
 

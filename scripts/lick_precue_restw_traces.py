@@ -53,6 +53,8 @@ import iti_licks as il  # noqa: E402
 import restnl  # noqa: E402
 from figdata import load_fd, plot_only, save_fd  # noqa: E402
 
+from wfield_local import mask_keys  # noqa: E402
+
 CACHE = "precue_restw_traces"
 SRC = "precue_restw"
 VERSION = 1
@@ -88,9 +90,11 @@ def _session(label: str, cache: str, srcd: str) -> dict:
     if f.exists():
         z = np.load(f)
         if int(z["version"]) == VERSION:
+            mask_keys.check_obj(z, f)             # stale-read guard (11-09)
             return {"label": label, "cached": True}
     from wfield_local import combined_encoding as ce
     src = np.load(il.OUT_W / srcd / f"{label}.npz")
+    mask_keys.check_obj(src, il.OUT_W / srcd / f"{label}.npz")   # stale-read guard (11-09)
     d = il._load(label)
     # == lick_precue_restw.session_worker's trace construction
     V, ft, Ub, flat, parea, names, shape, pstat = ce.load_imaging(label)
@@ -134,7 +138,8 @@ def _session(label: str, cache: str, srcd: str) -> dict:
     f.parent.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(f, version=VERSION, cols=np.array(cs), lags=LAGS, restw_ok=bool(src["restw_ok"]),
                         animal=str(src["animal"]), epoch=str(src["epoch"]), all=sets[""], far=sets["_farcontra"],
-                        n_all=sets["_n"], n_far=sets["_farcontra_n"], rt_all=sets["_rt"], rt_far=sets["_farcontra_rt"])
+                        n_all=sets["_n"], n_far=sets["_farcontra_n"], rt_all=sets["_rt"], rt_far=sets["_farcontra_rt"],
+                        **mask_keys.stamp())
     return {"label": label, "cached": False}
 
 
@@ -143,6 +148,7 @@ def long_table(labels: list, key: str, var: str = "restw") -> tuple[pd.DataFrame
     rows, rts = [], []
     for x in labels:
         z = np.load(il.OUT_W / _cache(var) / f"{x}.npz")
+        mask_keys.check_obj(z, il.OUT_W / _cache(var) / f"{x}.npz")   # stale-read guard (11-09)
         if not bool(z["restw_ok"]):
             continue
         A = z[key]

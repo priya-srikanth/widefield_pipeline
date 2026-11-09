@@ -56,8 +56,10 @@ def main(argv=None) -> int:
     pix = flat[pstat]
     cache = run / f"spout_unique_cache_{a.base}.npz"
     spatial, meta, maps = {}, [], {}
+    from wfield_local import mask_keys
     if cache.exists():
         zc = np.load(cache, allow_pickle=True)
+        mask_keys.check_obj(zc, cache)           # stale-read guard (11-09)
         meta = pd.DataFrame(list(zc["meta"]))
         maps = {tuple(str(k).split("|")): m for k, m in zip(zc["keys"], zc["maps"])}
         pj = []
@@ -81,7 +83,7 @@ def main(argv=None) -> int:
         meta.append({"label": lab, "animal": an, "epoch": m["epoch"]})
     if pj:
         np.savez_compressed(cache, keys=np.array(["|".join(k) for k in maps]), maps=np.stack(list(maps.values())).astype(np.float32),
-                            meta=np.array(meta, dtype=object))
+                            meta=np.array(meta, dtype=object), **mask_keys.stamp())
     meta = pd.DataFrame(meta)
     figures(run, a, meta, maps, block_mask())
     return 0

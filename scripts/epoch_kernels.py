@@ -85,9 +85,11 @@ def stats_worker(item):
     label, tp, spath, sdir = item
     f = Path(sdir) / f"{label}.pkl"
     if f.exists():
+        fe.check_saved_masks([pickle.loads(f.read_bytes())], f)   # stale-read guard (11-09)
         return label
     s = fe.stats_job((label, tp, spath))
     s["stats_version"], s["run_mode"] = fe.STATS_VERSION, fe._run_tag()
+    fe._stamp_masks(s)                                            # the masks the targets were built on (11-09)
     tmp = f.with_name(f.name + ".tmp")
     tmp.write_bytes(pickle.dumps(s, protocol=pickle.HIGHEST_PROTOCOL))
     tmp.replace(f)
@@ -146,6 +148,7 @@ def _r(a: np.ndarray, b: np.ndarray) -> float:
 def fit_all(run: Path, out: Path, labels_by_an: dict) -> pd.DataFrame:
     from wfield_local import frozen_encoder as fe
     pre_stats = pickle.loads((run / "fit" / "pre_stats.pkl").read_bytes())
+    fe.check_saved_masks(pre_stats, run / "fit" / "pre_stats.pkl")
     pre_by = {s["label"]: s for s in pre_stats}
     rows, kern = [], {}
     for an in AN:
@@ -154,6 +157,7 @@ def fit_all(run: Path, out: Path, labels_by_an: dict) -> pd.DataFrame:
             continue
         st = {x: pre_by[x] if x in pre_by else pickle.loads((out / "stats" / f"{x}.pkl").read_bytes())
               for x in labs if x in pre_by or (out / "stats" / f"{x}.pkl").exists()}
+        fe.check_saved_masks(st.values(), out / "stats")
         ref = fe.fit_animal(sorted((pre_by[x] for x in labs if x in pre_by), key=lambda s: s["label"]), variant="joint")
         z = np.load(run / "fit" / f"{an}_joint.npz", allow_pickle=True)
         dev = float(np.abs(ref["beta_all"] - z["beta_all"]).max() / (np.abs(z["beta_all"]).max() or 1))
@@ -161,7 +165,7 @@ def fit_all(run: Path, out: Path, labels_by_an: dict) -> pd.DataFrame:
               flush=True)
         if dev > 1e-3:
             raise RuntimeError(f"{an}: re-derived frozen fit differs from the saved one ({dev:.2e})")
-        P = pickle.loads((run / "fit" / f"spatial_{an}.pkl").read_bytes())["P"].astype(np.float64)
+        P = fe._spatial_of(str(run / "fit"), an)["P"].astype(np.float64)       # mask-checked (11-09)
         cols = kernel_cols(ref["vcol"])
         allg = groups_of(list(st))
         for mode, (by, _n) in (("matched", matched(allg)), ("all", (allg, None))):
@@ -321,6 +325,7 @@ def main(argv=None) -> int:
     assert_writable(out)
     (out / "stats").mkdir(parents=True, exist_ok=True)
     pre_stats = pickle.loads((run / "fit" / "pre_stats.pkl").read_bytes())
+    fe.check_saved_masks(pre_stats, run / "fit" / "pre_stats.pkl")         # stale-read guard (11-09)
     if pre_stats[0]["run_mode"] != fe._run_tag():
         raise RuntimeError(f"environment run tag {fe._run_tag()} != the frame's {pre_stats[0]['run_mode']}: set the "
                            "frame's environment (frA + FROZEN_LICKSPOUT=1)")

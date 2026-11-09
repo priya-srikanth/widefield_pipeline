@@ -77,6 +77,8 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
 
+from wfield_local import mask_keys  # noqa: E402
+
 OUT_W = il.OUT_W      # il.OUT_W = run_mode.subdir(<imaging_encoding>/iti_licks): the ITI family's routed folder (11-04)
 IN = il.OUT                                                  # inputs (read only)
 REST_VARIANTS = ("restdock05", "restnl")
@@ -220,6 +222,7 @@ def rest_extract(label: str) -> dict:
     from wfield_local import rest_by_position as rbp
     f = REST_DIR / f"{label}.npz"
     if f.exists():
+        mask_keys.check_npz(f)                    # stale-read guard: built on the current analysis masks (11-09)
         return {"label": label, "cached": True}
     s = next(x for x in config.load_sessions() if x["label"] == label)
     nl_info = None
@@ -264,7 +267,7 @@ def rest_extract(label: str) -> dict:
     extra = {} if nl_info is None else {"rest_variant": REST_VARIANT, **{k: v for k, v in nl_info.items()}}
     np.savez_compressed(f, X=X, t=centres, cols=np.array(cols), rest_s=rest_s, n_periods=info["n_periods"],
                         reconstructed=bool(info["reconstructed"]), clock_med_s=clk, frame_dt=float(np.median(np.diff(ft))),
-                        spans=np.asarray(spans, float), **extra)
+                        spans=np.asarray(spans, float), **extra, **mask_keys.stamp())
     return {"label": label, "n_win": len(centres), "rest_s": rest_s, "clock_med_s": clk, "n_periods": len(spans),
             "span_med_s": float(np.median(spans)) if spans else np.nan, "reconstructed": bool(info["reconstructed"]),
             **extra}
@@ -441,6 +444,7 @@ def _set_arrays(label: str, meta: pd.DataFrame) -> dict:
     z = il._load(label)
     cols = [str(c) for c in z["cols"]]
     fl = np.load(IN / "firstlick_full" / f"{label}.npz", allow_pickle=False)
+    mask_keys.check_obj(fl, IN / "firstlick_full" / f"{label}.npz")   # stale-read guard (11-09)
     ang = _angle(fl["side_ml"], fl["reach_mm"])
     ok = np.isfinite(ang)
     out["cued"] = (fl["X"][ok], fl["pos"].astype(str)[ok], ang[ok], [str(c) for c in fl["cols"]])
@@ -458,6 +462,7 @@ def _set_arrays(label: str, meta: pd.DataFrame) -> dict:
     rf = REST_DIR / f"{label}.npz"
     if rf.exists():
         r = np.load(rf, allow_pickle=False)
+        mask_keys.check_obj(r, rf)
         out["rest"] = (r["X"], None, None, [str(c) for c in r["cols"]])
     return out
 

@@ -221,6 +221,12 @@ def session_work(item):
     an, ep = config.animal_of(label), epochs.epoch_of(label)
     base = {"label": label, "animal": an, "epoch": ep}
     S = ica._sets(label, meta, dock_t)
+    # AREA SET BY NAME (11-09, as interhemi_crossarea.session_work): the lick sets define the session's analysis areas
+    # (the glue-mask AREA_SET); every set (rest included) is cut to them by NAME. `ica.area_order` on the raw per-session
+    # names crashed on the rebuild files (62 decoder-basis areas, glue in), like l_xa_restnl did.
+    names_ref, dropped = ica.session_areas(S)
+    if dropped:
+        print(f"  {label}: areas outside the glue-mask AREA_SET dropped ({len(dropped)}): {dropped}", flush=True)
     times = _event_times(label, meta, dock_t)
     KD = session_kin(label, times)
     cov_rows, var_rows, cat_rows, sm_rows, curves = [], [], [], [], {}
@@ -235,8 +241,9 @@ def session_work(item):
         X = X.astype(np.float64)
         D0 = lih._design(pos, ang, n)
         designs = {"old": D0}
-        A = il.area_features(X, cols, label)                     # (n, T, 45)
-        names = il.area_names(cols)
+        sel = ica.area_select(il.area_names(cols), names_ref, f"{label} {st}")
+        A = il.area_features(X, cols, label)[..., sel]           # (n, T, F) on the lick-set analysis areas, by name
+        names = list(names_ref)
         lick = st in LICK_SETS
         if lick:
             if len(times[st]) != n:

@@ -114,6 +114,8 @@ if (out / "sessions" / f"{label}.json").exists():
     print("done already", label); sys.exit(0)
 from wfield_local import combined_encoding as ce
 inputs = pickle.loads((b / "inputs" / f"{label}.pkl").read_bytes())
+if (b / "bundle.json").exists():                 # the pickle's analysis masks == the bundle's record (11-09)
+    o2_bundle.check_inputs(json.loads((b / "bundle.json").read_text()), inputs, label)
 t0 = time.time()
 res = ce.run_session(label, order, inputs=inputs)
 ce.save(res, out)
@@ -132,12 +134,17 @@ def _inputs_worker(job):
     from wfield_local import combined_encoding as ce
     from wfield_local.orofacial_cohort import _repo_on_path
     _repo_on_path()
-    label, dst, cams, fr, fr_points, fr_share = job
+    label, dst, cams, fr, fr_points, fr_share, mask_sig = job
     if fr_share:
         os.environ[ce.FR_SHARE_ENV] = "1"
     if fr_points:
         os.environ[ce.FR_POINTS_ENV] = str(fr_points)
     x = ce.session_inputs(label, cams=cams.split(",") if cams else None, fr=fr or None)
+    from wfield_local import mask_keys
+    now = mask_keys.signature()
+    if mask_sig and now != mask_sig:          # a worker must build on the masks bundle.json records
+        raise RuntimeError(f"{label}: worker masks {now} differ from the bundle's {mask_sig}")
+    x[mask_keys.FIELD] = now                  # the masks this pickle's imaging tuple was built on (11-09)
     B = x["behaviour"]
     B.analog = {k: (np.asarray(t, np.float64), np.asarray(v, np.float32)) for k, (t, v) in B.analog.items()}
     Path(dst).write_bytes(pickle.dumps(x, protocol=5))
@@ -279,16 +286,25 @@ def cmd_bundle(a) -> Path:
     for sub in ("inputs", "logs", "out"):
         (d / sub).mkdir(parents=True, exist_ok=True)
     ident = o2_bundle.identity()
+    from wfield_local import mask_keys
+    mask_sig = mask_keys.signature()          # the analysis masks the inputs are built on (11-09; O2 cannot compute it)
     meta_f = d / "bundle.json"
     if meta_f.exists():                       # resuming: the inputs already there must be of the same run
         old = json.loads(meta_f.read_text())
         if old["identity"] != ident:
             raise SystemExit(f"{d} holds a bundle of another run: {old['identity']} vs {ident}")
+        try:                                  # ... and of the same masks (refuses a pre-fix rebuild-root bundle)
+            o2_bundle.verify_masks(old, mask_sig)
+        except o2_bundle.BundleMismatch as ex:
+            raise SystemExit(f"refusing to resume {d}: {ex}") from None
+        if not old.get(o2_bundle.MASK_FIELD):  # a legacy default-root bundle: its older pickles carry no digest, so
+            mask_sig = ""                      # the bundle stays unrecorded (check_inputs would refuse those pickles)
     labels = a.labels or ce.sessions_available()
     if len(labels) == 1 and Path(labels[0]).is_file():                   # a label FILE (whitespace-separated)
         labels = Path(labels[0]).read_text().split()
     if not a.no_inputs:
-        todo = [(lab, str(d / "inputs" / f"{lab}.pkl"), a.cams or "", a.fr or "", a.fr_points or 0, a.fr_share)
+        todo = [(lab, str(d / "inputs" / f"{lab}.pkl"), a.cams or "", a.fr or "", a.fr_points or 0, a.fr_share,
+                 mask_sig)
                 for lab in labels
                 if not (d / "inputs" / f"{lab}.pkl").exists()]
         got, fail = ak.fan_sessions(todo, _inputs_worker, jobs=a.jobs, key=lambda j: j[0])
@@ -307,6 +323,7 @@ def cmd_bundle(a) -> Path:
     meta = {"identity": ident, "commit": commit, "code_root": str(repo), "name": a.name,
             "profile": os.environ.get("O2_BUNDLE_PROFILE", ""), "rebuild_root": str(rebuild_root.root() or ""),
             "attempts_table": str(attempts or ""), "attempts_sha256": attempts_sha, "cams": a.cams, "fr": a.fr, "n_sessions": len(ok),
+            **({o2_bundle.MASK_FIELD: mask_sig} if mask_sig else {}),
             "created": datetime.datetime.now().isoformat(timespec="seconds")}
     meta_f.write_text(json.dumps(meta, indent=1), encoding="utf-8", newline="\n")
     code = d / "code"
@@ -420,6 +437,7 @@ def _refuse_other_run(meta: dict) -> dict:
     """REFUSE unless this process (the current profile) computes the bundle's recorded run identity."""
     from wfield_local import o2_bundle
     try:
+        o2_bundle.verify_masks(meta)          # the bundle's inputs were built on the current analysis masks (11-09)
         return o2_bundle.verify(meta["identity"])
     except o2_bundle.BundleMismatch as ex:
         raise SystemExit(f"refusing: this bundle is not of the current run ({ex})") from None
@@ -630,6 +648,11 @@ def cmd_refresh_code(a) -> int:
     commit = _git(repo, "rev-parse", "HEAD")
     d = Path(a.bundle) if a.bundle else bundle_dir(PathResolver(), a.name)
     meta = _bundle_meta(d)
+    from wfield_local import o2_bundle
+    try:                                      # never refresh the code of a bundle built on other masks (11-09)
+        o2_bundle.verify_masks(meta)
+    except o2_bundle.BundleMismatch as ex:
+        raise SystemExit(f"refusing: {ex}") from None
     env_json = json.loads((d / "env.json").read_text())
     if meta.get("commit") == commit and not a.force:
         _ship_attempts(d, meta, a)

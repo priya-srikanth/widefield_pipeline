@@ -43,6 +43,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
 from figdata import load_fd, plot_only, save_fd  # noqa: E402
 
+from wfield_local import mask_keys  # noqa: E402
+
 MIN_N = 10
 MIN_SPOUT = 5
 LAGS_W = np.round(np.arange(-2.0, 3.0001, 0.05), 3)
@@ -78,6 +80,7 @@ def wide_session(label: str) -> dict:
     if f.exists():
         z = np.load(f)
         if "iti" in z.files:                              # files from before the ITI arrays (10-28) are rebuilt
+            mask_keys.check_obj(z, f)                     # stale-read guard (11-09)
             return {"label": label, "cached": True, "n": int(len(z["pos"])), "maxdiff": float(z["maxdiff"]),
                     "maxdiff_iti": float(z["maxdiff_iti"])}
     from wfield_local import combined_encoding as ce
@@ -115,7 +118,7 @@ def wide_session(label: str) -> dict:
     np.savez_compressed(f, lick=samp(fl[ok]), cue=samp(cue[ok]), pos=np.asarray(d["first_pos"], str)[ok],
                         iti=samp(bt), iti_gap=np.asarray(d["bout_gap"], float), iti_nfol=np.asarray(d["bout_nfol"]),
                         cols=np.array(cols), lags=LAGS_W, maxdiff=maxdiff, maxdiff_iti=maxdiff_iti, scale=scale,
-                        n_unmatched=int((~ok).sum()))
+                        n_unmatched=int((~ok).sum()), **mask_keys.stamp())
     return {"label": label, "cached": False, "n": int(ok.sum()), "maxdiff": maxdiff, "maxdiff_iti": maxdiff_iti,
             "scale": scale, "n_unmatched": int((~ok).sum())}
 
@@ -297,6 +300,7 @@ def _sessions() -> dict:
         z = np.load(f)
         if "iti" not in z.files:
             raise SystemExit(f"{f} predates the ITI arrays: re-run --extract")
+        mask_keys.check_obj(z, f)                         # stale-read guard (11-09)
         d = il._load(x)
         keep = z["iti_gap"] >= il.GAP_MAIN
         if il.ITI_SUBSET:                               # docked-spout etc. subset of the bout starts (10-29)

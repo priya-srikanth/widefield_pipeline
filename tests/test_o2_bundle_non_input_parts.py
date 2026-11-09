@@ -32,6 +32,10 @@ def profile(monkeypatch):
     for k, v in render_profile.load("cohort1_rebuild_20261103")["env"].items():
         monkeypatch.setenv(k, v)
     monkeypatch.setattr(tc, "class_source_signature", lambda *a, **k: "sig")
+    # these tests are about the run identity; the bundle's analysis-mask record (o2_bundle.verify_masks, 11-09) is
+    # tested in test_mask_keyed_caches.py
+    from wfield_local import o2_bundle
+    monkeypatch.setattr(o2_bundle, "verify_masks", lambda meta, now=None: None)
 
 
 def _recorded(**over):

@@ -219,7 +219,9 @@ def extract(jobs: int, cache: Path | None) -> dict:
     import iti_where_decoder as wd
 
     from wfield_local import analysis_kit as ak
+    from wfield_local import mask_keys
     if cache is not None and (cache / "acad_extract.pkl").exists():
+        mask_keys.check_sidecar(cache / "acad_extract.pkl")   # stale-read guard (11-09)
         return pickle.loads((cache / "acad_extract.pkl").read_bytes())
     labs = wd.sess_labels()
     res, fails = ak.fan_sessions(labs, work, jobs=jobs, label="acad extract")
@@ -229,6 +231,7 @@ def extract(jobs: int, cache: Path | None) -> dict:
     if cache is not None:
         cache.mkdir(parents=True, exist_ok=True)
         (cache / "acad_extract.pkl").write_bytes(pickle.dumps(E, protocol=5))
+        mask_keys.write_sidecar(cache / "acad_extract.pkl")
     return E
 
 

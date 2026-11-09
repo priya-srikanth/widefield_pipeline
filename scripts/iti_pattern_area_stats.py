@@ -228,6 +228,8 @@ def main() -> int:
         if not f.exists():
             print(f"  (skip {label}: {fn} not built yet)")
             continue
+        from wfield_local import mask_keys
+        mask_keys.check_sidecar(f)               # stale-read guard (11-09)
         SM = pickle.loads(f.read_bytes())
         T = family(SM, groups or POS, label, A, keep, n_perm)
         T.to_csv(il.OUT / f"pattern_area_stats_{label}.csv", index=False)

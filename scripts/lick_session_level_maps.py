@@ -239,8 +239,10 @@ def patterns(jobs: int) -> dict:
     # scaled one rescales them in build_maps): read from the unscaled folder; a scaled run that has to compute them writes
     # its own copy (never into the unscaled folder)
     f = OUTD / "patterns_gap2_enc.pkl"
+    from wfield_local import mask_keys
     for g in (BASE_OUTD / f.name, f):
         if g.exists():
+            mask_keys.check_sidecar(g)           # stale-read guard (11-09)
             return pickle.loads(g.read_bytes())
     from wfield_local import analysis_kit as ak
     labels = il.labels()
@@ -250,6 +252,7 @@ def patterns(jobs: int) -> dict:
         raise SystemExit(f"session patterns failed: {[(x, str(e)[:200]) for x, e in fails[:5]]}")
     P = {x: r for x, r in res if r is not None and r["animal"] in AN}
     f.write_bytes(pickle.dumps(P, protocol=pickle.HIGHEST_PROTOCOL))
+    mask_keys.write_sidecar(f)                   # the masks the patterns were built on (11-09)
     return P
 
 

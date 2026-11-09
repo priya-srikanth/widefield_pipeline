@@ -65,6 +65,8 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
 
+from wfield_local import mask_keys  # noqa: E402
+
 ROOT = il.OUT_W
 OUT = ROOT / "lick_correction"
 SESS = OUT / "sessions"
@@ -108,6 +110,7 @@ def extract(label: str) -> dict:
     from wfield_local.paths import PathResolver
     f = SESS / f"{label}.npz"
     if f.exists():
+        mask_keys.check_npz(f)                    # stale-read guard (11-09)
         return {"label": label, "cached": True}
     t0 = time.time()
     V, ft, Ub, flat, parea, names, shape, pstat = ce.load_imaging(label)
@@ -141,7 +144,8 @@ def extract(label: str) -> dict:
     meta = {c: K[c].to_numpy() for c in ["trial_id", "lick_idx", "lick_uid", "side_ml", "reach_mm", "out_ap",
                                           "down_dv", "miss_mm", "lat_err_mm", "speed_peak", "daq_on_s"]}
     np.savez_compressed(f, cols=np.array(cols), X=X, t=t, lags=LAGS_X, contact=K.contact.astype(bool).to_numpy(),
-                        position=K.position.to_numpy(dtype=str), epoch=epochs.epoch_of(label), animal=an, **meta)
+                        position=K.position.to_numpy(dtype=str), epoch=epochs.epoch_of(label), animal=an, **meta,
+                        **mask_keys.stamp())
     return {"label": label, "n": len(t), "s": round(time.time() - t0, 1)}
 
 
@@ -471,6 +475,7 @@ def neural_session(item) -> dict:
     label, sgn, tgt = item
     f = SESS / f"{label}.npz"
     z = np.load(f, allow_pickle=True)
+    mask_keys.check_obj(z, f)                     # stale-read guard (11-09)
     an, ep = str(z["animal"]), str(z["epoch"])
     cols = list(z["cols"])
     L = pd.DataFrame({k: z[k] for k in ["trial_id", "lick_idx", "side_ml", "reach_mm", "t"]})
