@@ -1063,3 +1063,11 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   npz (VERSION match) built before the c2l extract, or cx.SESS_NL resolves under another tag root (same LP-prefix
   issue the precue helper fixed in restnl.level). Area-ROI tree -> re-runs after the glue fix anyway; fix the input
   check (raise if SESS_NL is empty / cache lacks c2l) in that pass. Not fixed now.
+- 11:45 PRIYA: (1) push glue fix -> push_glue.sh running (race retries); (2) stale-read protection -> helper on
+  fix/mask-keyed-caches-1109 (wf_maskkeys, on c42a7c35; also merges the xa area fix e4b04637, fixes
+  coupling_vigour_sm + restnl_rescue c2l input check; lists stale folders for move-aside); (3) STOPPED rsplit
+  PS93/94/95 (PIDs 2184/37244/26396; noisematch_enlv had already finished 11:34 exit 0); HALT file set in
+  render_daqlk (every lane halts at its next step boundary; LPfinal preview finishes its current step);
+  (4) RE-RUN PLAN APPROVED: after merge + mask keys + move-aside: CD chain + map statistics first (warm caches), then
+  ITI chain || encoder chain, then downstream (ITI ~250 steps, encoder consumers, state_space_sim, O2 bundles); the
+  grant + epoch caption re-renders, precue ENL full run, xa restnl, balance family fold into it (no double renders).
