@@ -218,3 +218,68 @@ def test_epoch_kernels_stats_worker(masks, tmp_path):
     masks.rebuild()
     with pytest.raises(RuntimeError, match="before the 11-09"):
         ek.stats_worker(("L", "tp", None, str(tmp_path)))
+
+
+# ------------------------------------------------------------------------------------------------ item 4: state space
+def test_state_space_binned_cache_is_mask_keyed(masks, tmp_path, monkeypatch):
+    import state_space_sim as S
+    monkeypatch.setattr(S, "BASIS", "allen")
+    monkeypatch.setattr(S, "CACHE", tmp_path / "cache")
+    assert S._bcache() == tmp_path / "cache" / "mglue_out"                         # never the pre-fix cache/<align>/
+    p = tmp_path / "PS92_0820.npz"
+    T, n = len(S.LAGS), 3
+    fields = dict(cols=np.array(["ALM_left", "cortex"]), first_cue=np.zeros((n, T, 2)),
+                  first_peth=np.zeros((n, len(S.LAGS_P), 2)), first_pos=np.array(["a", "b", "c"]),
+                  epoch="pre", animal="PS92", first_rt=np.zeros(n))
+    np.savez(p, **fields)                                                          # pre-fix rebuild extract: no digest
+    with pytest.raises(RuntimeError, match="before the 11-09"):
+        S.fill_cache([str(p)])                                                     # refused without the profile too
+    np.savez(p, mask_sig="glue_in", **fields)
+    with pytest.raises(RuntimeError, match="glue_in"):
+        S.fill_cache([str(p)])
+    np.savez(p, mask_sig="glue_out", **fields)
+    S.fill_cache([str(p)])
+    assert (tmp_path / "cache" / "mglue_out" / S.ALIGN / "PS92_0820.npz").exists()
+    monkeypatch.setattr(S, "BASIS", "svd")
+    assert S._bcache() == tmp_path / "cache"                                       # component bases: not on the masks
+
+
+def test_state_space_lnmf_keep_is_keyed_on_the_exclusion_mask(masks, tmp_path, monkeypatch):
+    import types
+
+    import state_space_sim as S
+    from wfield_local import component_exclusion as cx
+    from wfield_local import joint_locanmf as jl
+    monkeypatch.setattr(S, "CACHE", tmp_path)
+    monkeypatch.setattr(jl, "pinned", lambda an: {"id": "b1"})
+    monkeypatch.setattr(jl, "load", lambda an, bid=None, warn_stale=False: types.SimpleNamespace())
+    ex = {"m": np.zeros((4, 4), bool)}
+    monkeypatch.setattr(cx, "excluded_pixels", lambda an, include_bulbs=True: ex["m"])
+    monkeypatch.setattr(cx, "occluded", lambda basis, an: np.array([False, ex["m"].any()]))
+    np.save(tmp_path / "lnmf_keep_PS92_b1.npy", np.array([True, True]))           # a pre-fix file: never read
+    assert S._lnmf_keep("PS92").tolist() == [True, True]
+    ex["m"] = ex["m"].copy()
+    ex["m"][1, 1] = True                                                           # the glue now in: a new file
+    assert S._lnmf_keep("PS92").tolist() == [True, False]
+    assert len(list(tmp_path.glob("lnmf_keep_PS92_b1_x*.npy"))) == 2
+
+
+def test_state_space_svd_basis_mask_checked(tmp_path, monkeypatch):
+    import state_space_sim as S
+    from wfield_local import beta_maps
+    (tmp_path / "basis").mkdir()
+    (tmp_path / "sessions").mkdir()
+    bm = np.zeros((4, 5), bool)
+    bm[1:3, 1:4] = True
+    np.save(tmp_path / "basis" / "mask.npy", bm.ravel())
+    monkeypatch.setattr(S, "SVD", tmp_path / "sessions")
+    monkeypatch.setattr(S, "BASIS", "svd")
+    monkeypatch.setattr(S, "_SVD_OK", [])
+    monkeypatch.setattr(beta_maps, "brain_mask", lambda: bm)
+    S._check_svd_mask()
+    S._SVD_OK.clear()
+    bm2 = bm.copy()
+    bm2[0, 0] = True
+    monkeypatch.setattr(beta_maps, "brain_mask", lambda: bm2)
+    with pytest.raises(RuntimeError, match="another brain mask"):
+        S._check_svd_mask()

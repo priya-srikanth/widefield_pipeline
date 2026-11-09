@@ -56,14 +56,16 @@ def combined_signature(animal=None) -> str:
     return s if animal is None else f"{s}-{exclusion_signature(animal)}"
 
 
-def check(have, where, now=None, what: str = "analysis masks") -> None:
+def check(have, where, now=None, what: str = "analysis masks", rebuild: bool | None = None) -> None:
     """REFUSE a cache built on other masks. `have` = the stored digest (None = the cache has none), `where` = the cache
-    path (for the message), `now` = the current digest (default `signature()`)."""
+    path (for the message), `now` = the current digest (default `signature()`). `rebuild` = whether the cache is a
+    rebuild-root product (default: a rebuild root is active); True for a reader that names rebuild-root paths
+    explicitly without running under the profile (state_space_sim)."""
     if have is not None and not isinstance(have, str):
         have = str(np.asarray(have).item()) if np.ndim(have) == 0 else str(have)
     if have in (None, ""):
         from wfield_local import rebuild_root
-        if not rebuild_root.active():
+        if not (rebuild_root.active() if rebuild is None else rebuild):
             return
         raise RuntimeError(f"{where}: a rebuild-root cache without {FIELD} = built before the 11-09 glue-mask fix (glue "
                            f"IN). Move {Path(where).parent} aside and rebuild it.")
@@ -85,16 +87,16 @@ def stored(obj):
     return str(np.asarray(v).item()) if isinstance(v, np.ndarray) else str(v)
 
 
-def check_npz(f, now=None) -> None:
+def check_npz(f, now=None, rebuild: bool | None = None) -> None:
     """`check` on the digest stored in an .npz file."""
     with np.load(f, allow_pickle=False) as z:
         have = stored(z)
-    check(have, f, now)
+    check(have, f, now, rebuild=rebuild)
 
 
-def check_obj(obj, where, now=None) -> None:
+def check_obj(obj, where, now=None, rebuild: bool | None = None) -> None:
     """`check` on the digest stored in an already-loaded npz / dict (`obj`) read from `where`."""
-    check(stored(obj), where, now)
+    check(stored(obj), where, now, rebuild=rebuild)
 
 
 def stamp(now=None) -> dict:
