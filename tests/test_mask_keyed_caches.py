@@ -177,3 +177,44 @@ def test_o2_refuse_other_run(masks, monkeypatch):
         oe._refuse_other_run({"identity": {}, "mask_sig": "glue_in"})
 
 
+
+
+# ------------------------------------------------------------------------------------------------ item 3: frozen fit/
+def test_frozen_encoder_fit_pickles(masks, tmp_path):
+    import pickle
+
+    from wfield_local import frozen_encoder as fe
+    (tmp_path / "spatial_PS92.pkl").write_bytes(pickle.dumps({"P": np.eye(2), "mask_sig": "glue_out"}))
+    assert fe._spatial_of(str(tmp_path), "PS92")["P"].shape == (2, 2)
+    (tmp_path / "spatial_PS92.pkl").write_bytes(pickle.dumps({"P": np.eye(2), "mask_sig": "glue_in"}))
+    with pytest.raises(RuntimeError, match="glue_in"):
+        fe._spatial_of(str(tmp_path), "PS92")
+    fe.check_saved_masks([{"label": "a"}], tmp_path / "pre_stats.pkl")            # legacy, default root
+    assert fe._stamp_masks({})["mask_sig"] == "glue_out"
+    masks.rebuild()
+    with pytest.raises(RuntimeError, match="before the 11-09"):
+        fe.check_saved_masks([{"label": "a", "mask_sig": "glue_out"}, {"label": "b"}], tmp_path / "pre_stats.pkl")
+
+
+def test_frozen_encoder_main_checks_reused_stats():
+    src = (REPO / "wfield_local" / "frozen_encoder.py").read_text(encoding="utf-8")
+    assert "check_saved_masks(saved, sp)" in src                                   # --reuse-stats / --fit-from
+    assert "check_saved_masks(roi.values(), spr)" in src                           # pre_stats_roi.pkl
+    assert src.count("_stamp_masks(") >= 4                                         # pre_stats, spatial x2, roi
+
+
+def test_epoch_kernels_stats_worker(masks, tmp_path):
+    import pickle
+
+    import epoch_kernels as ek
+    f = tmp_path / "L.pkl"
+    f.write_bytes(pickle.dumps({"label": "L", "mask_sig": "glue_in"}))
+    with pytest.raises(RuntimeError, match="glue_in"):
+        ek.stats_worker(("L", "tp", None, str(tmp_path)))
+    f.write_bytes(pickle.dumps({"label": "L", "mask_sig": "glue_out"}))
+    assert ek.stats_worker(("L", "tp", None, str(tmp_path))) == "L"
+    f.write_bytes(pickle.dumps({"label": "L"}))
+    assert ek.stats_worker(("L", "tp", None, str(tmp_path))) == "L"
+    masks.rebuild()
+    with pytest.raises(RuntimeError, match="before the 11-09"):
+        ek.stats_worker(("L", "tp", None, str(tmp_path)))

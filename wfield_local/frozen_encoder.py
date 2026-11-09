@@ -1159,7 +1159,25 @@ def _spatial_of(spath: str | None, animal: str) -> dict | None:
     if not spath:
         return None
     import pickle
-    return pickle.loads((Path(spath) / f"spatial_{animal}.pkl").read_bytes())
+    f = Path(spath) / f"spatial_{animal}.pkl"
+    sd = pickle.loads(f.read_bytes())
+    check_saved_masks([sd], f)
+    return sd
+
+
+def check_saved_masks(items, where) -> None:
+    """STALE-READ GUARD (11-09) on the existence-keyed fit/ pickles (pre_stats, spatial_<animal>, pre_stats_roi): each
+    record's ``mask_sig`` must be the current analysis masks' (`mask_keys.signature`). A record without one is refused
+    inside a rebuild root (built before the glue-mask fix, glue IN) and accepted at the default root."""
+    from wfield_local import mask_keys
+    for it in items:
+        mask_keys.check(it.get(mask_keys.FIELD) if isinstance(it, dict) else None, where)
+
+
+def _stamp_masks(d: dict) -> dict:
+    from wfield_local import mask_keys
+    d[mask_keys.FIELD] = mask_keys.signature()
+    return d
 
 
 def _templates_of(tpath: str, animal: str) -> dict:
@@ -2153,6 +2171,11 @@ def main(argv=None) -> int:
         raise SystemExit(f"--fit-from {a.fit_from}: no usable saved statistics for this environment (STATS_VERSION "
                          f"{STATS_VERSION}, running {_run_tag()}); refusing to recompute into another run's folder")
     if saved is not None:                                # a re-scoring run: the pre statistics are already saved
+        check_saved_masks(saved, sp)                     # ... on the current analysis masks (11-09)
+        if spath:
+            for an_ in sorted({config.animal_of(x) for x in pre}):
+                f_ = src_fit / f"spatial_{an_}.pkl"
+                check_saved_masks([pickle.loads(f_.read_bytes())], f_)
         got = [(s_["label"], s_) for s_ in saved if s_["label"] in pre and s_.get("pos_order")]
         print(f"  reusing {len(got)} pre-session statistics from {sp}", flush=True)
         if a.fit_from and spath:
@@ -2173,11 +2196,12 @@ def main(argv=None) -> int:
             if bfail:
                 raise RuntimeError(f"basis pass failed: {bfail}")
             for an_, sd_ in build_basis([b for _l, b in bparts]).items():
-                (out / "fit" / f"spatial_{an_}.pkl").write_bytes(pickle.dumps(sd_, protocol=pickle.HIGHEST_PROTOCOL))
+                (out / "fit" / f"spatial_{an_}.pkl").write_bytes(pickle.dumps(_stamp_masks(sd_),
+                                                                              protocol=pickle.HIGHEST_PROTOCOL))
                 print(f"  {an_} shared basis: K = {len(sd_['names'])} components, {sd_['evr'][-1]:.3f} of pre variance",
                       flush=True)
         elif a.target == "grid":
-            g_ = grid_spatial(pre[0])
+            g_ = _stamp_masks(grid_spatial(pre[0]))
             for an_ in sorted({config.animal_of(x) for x in labels}):
                 (out / "fit" / f"spatial_{an_}.pkl").write_bytes(pickle.dumps(g_, protocol=pickle.HIGHEST_PROTOCOL))
             print(f"  grid: {len(g_['names'])} blocks of {GRID_BLOCK} x {GRID_BLOCK} px", flush=True)
@@ -2185,6 +2209,7 @@ def main(argv=None) -> int:
         got = [(it[0], s_) for it, s_ in got]
         for s_ in (s_ for _l, s_ in got):
             s_["stats_version"], s_["run_mode"] = STATS_VERSION, _run_tag()
+            _stamp_masks(s_)                             # the masks the targets were built on (11-09)
         for it, err in fail:
             print(f"  !! stats {it}: {err}", flush=True)
         (out / "fit").mkdir(parents=True, exist_ok=True)
@@ -2270,6 +2295,7 @@ def _run_roi_targets(a, out: Path, got: list, by_an: dict, held: dict, labels: l
     allen = {x: s_ for x, s_ in got if s_["animal"] in by_an}   # label -> the area run's saved pre statistics
     spr = out / "fit" / "pre_stats_roi.pkl"
     roi = pickle.loads(spr.read_bytes()) if spr.exists() else {}
+    check_saved_masks(roi.values(), spr)                 # ROI targets = roi_masks: stale-read guard (11-09)
     todo = sorted(x for x in allen if x not in roi)
     if todo:
         fres, ffail = ak.fan_sessions([(x, str(tp), None, extra) for x in todo], stats_job, jobs=a.jobs, label="roistats")
@@ -2279,6 +2305,7 @@ def _run_roi_targets(a, out: Path, got: list, by_an: dict, held: dict, labels: l
             r_ = _append_targets(allen[it[0]], s_, names)          # checks the design against the saved statistics
             roi[it[0]] = {**allen[it[0]], "area_names": names, "XtY": r_["XtY"][:, -len(names):],
                           "YtY": r_["YtY"][-len(names):], "check_xtx": r_["check_xtx"], "check_xty": r_["check_xty"]}
+            _stamp_masks(roi[it[0]])
         spr.write_bytes(pickle.dumps(roi, protocol=pickle.HIGHEST_PROTOCOL))
     print(f"  ROI statistics: {len(roi)} pre sessions, max rel. X'X diff "
           f"{max(s_['check_xtx'] for s_ in roi.values()):.1e}", flush=True)
