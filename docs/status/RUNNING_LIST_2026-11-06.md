@@ -862,3 +862,11 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   constant baseline drops out); for them "raw" = the lick-set metrics alone. Supplement B (session-wide event set) dropped
   -- not a reference. Read-only audit of every amplitude family for the two refs running
   (scratchpad/amplitude_two_refs_audit.md); gaps go into the plan. Memory: amplitude-two-references.
+- Priya 11-09: camera working period start = FIRST CAMERA LICK confirmed (trial_selection.rest_start: first_lick; the
+  code comment's "open question" is settled). RESTnl rest-boundary rule KEPT AS IS (a rest period counts only if both
+  bracketing trials are in the working period; so the rest just before the first lick trial and after the last are
+  excluded, while trial analyses include the first lick trial's pre-cue window -- differ by design).
+- Interhemi RESTnl branch done (feat/interhemi-restnl-1109, 619b71df; 69 related tests pass; raw outputs labeled "raw (no
+  rest reference)", identical under every rest variant). Priya saw the helper's SYNTHETIC smoke-test figure
+  (scratchpad/ihraw_smoke, random tables, n = 4, one pair) -- "mostly empty" = synthetic, not data; check the real raw
+  figure for empty panels when it lands. chain_v12.sh pushing + launching queue_daqlk12.sh lane IH (7 _restnl steps).
