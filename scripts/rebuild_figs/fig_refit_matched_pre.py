@@ -4,6 +4,9 @@ INPUT: `scripts/refit_matched_pre.py` output in the run's epoch data folder (not
   PRIMARY     refit_matched_pre_cue_working_sessions.csv   cue window, WORKING trials (contact + incomplete camera licks,
               cut at the last camera lick), DAQ licks (daqlk run)
   SUPPORTING  refit_matched_pre_cue_lick_sessions.csv      same, lick trials only: TABLE ONLY (Priya 11-08, option 1).
+              From the LP run's epoch data folder (`--lick-dir`; LP licks = every camera-seen lick), while the working
+              half stays in the original (DAQ-lick) folder (`--data-dir`). `--plot-only --lick-dir D --table-out DIR`
+              rebuilds only the table (+ caption) from D and redraws the figure from its figdata.
               Acute far contra holds 1-12 lick trials per session; there both a post refit and its matched pre control
               score ~0, so the excess is ~0 by construction there -- "can't tell", not "no loss". Not plotted.
 QUANTITY, per session x position: excess = refit recall of the session minus that of the animal's OWN pre-stroke
@@ -46,6 +49,9 @@ CAPTION = (
     "sessions (shape = animal, color = epoch); filled = mean of animals +- SEM. Stars: change vs pre, paired animals -> "
     "sessions bootstrap (4000 draws), Holm over 18 tests; * < .05, ** < .01, *** < .001. Lick-trial version: table only "
     "(acute far contra has 1-12 lick trials per session).")
+#: appended when the lick table comes from the LP run (`--lick-dir`)
+CAPTION_LICK_LP = (" Lick-trial table: LP licks (every camera-seen lick; LP run), same cue window and matching; a "
+                   "summary without statistics (mean excess, trials, sessions per animal x position x epoch).")
 
 
 def lesion_key(df: pd.DataFrame) -> pd.Series:
@@ -141,11 +147,22 @@ def draw(D: pd.DataFrame, T: pd.DataFrame, png: Path) -> None:
 def main(argv=None) -> int:
     ap = _common.parser(__doc__)
     ap.add_argument("--data-dir", type=Path, default=None, help="epoch data folder (default: this run's)")
+    ap.add_argument("--lick-dir", type=Path, default=None,
+                    help="epoch data folder holding refit_matched_pre_cue_lick_sessions.csv (the LP run's; default "
+                         "--data-dir)")
+    ap.add_argument("--table-out", type=Path, default=None,
+                    help="where the lick table + caption go (default --out)")
     a = ap.parse_args(argv)
     a.out.mkdir(parents=True, exist_ok=True)
+    tab = a.table_out or a.out
+    tab.mkdir(parents=True, exist_ok=True)
     if a.plot_only:
         fd = _common.load_figdata(a.out, NAME)
         D, T = fd["D"], fd["T"]
+        if a.lick_dir:
+            lick_table(load(a.lick_dir, "lick")).to_csv(tab / f"{NAME}_lick_table.csv", index=False,
+                                                        float_format="%.4g")
+            (tab / f"{NAME}_caption.txt").write_text(CAPTION + CAPTION_LICK_LP + "\n", encoding="utf-8")
     else:
         src = a.data_dir or _common.epoch_data_dir()
         D = load(src, "working")
@@ -156,9 +173,10 @@ def main(argv=None) -> int:
         print("\nchange vs pre, boot_delta animals -> sessions, Holm over 18:")
         print(T.round(4).to_string(index=False))
         T.to_csv(a.out / f"{NAME}_stats.csv", index=False, float_format="%.4g")
-        L = lick_table(load(src, "lick"))
-        L.to_csv(a.out / f"{NAME}_lick_table.csv", index=False, float_format="%.4g")
-        (a.out / f"{NAME}_caption.txt").write_text(CAPTION + "\n", encoding="utf-8")
+        L = lick_table(load(a.lick_dir or src, "lick"))
+        L.to_csv(tab / f"{NAME}_lick_table.csv", index=False, float_format="%.4g")
+        (tab / f"{NAME}_caption.txt").write_text(CAPTION + (CAPTION_LICK_LP if a.lick_dir else "") + "\n",
+                                                 encoding="utf-8")
         _common.save_figdata(a.out, NAME, {"D": D, "T": T, "src": str(src)})
     draw(D, T, a.out / f"{NAME}.png")
     print(f"-> {a.out / f'{NAME}.png'}")

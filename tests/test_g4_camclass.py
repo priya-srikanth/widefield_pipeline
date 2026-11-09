@@ -2,8 +2,8 @@
 arm of `decode_matched` on camera working rows.
 
 Pins:
-  a  `cam_balanced_sample` = g4common.cam_balanced_sample (WORKING vs NONE, position-balanced, positives first, the same
-     rng use); `g4_frame` z-scores each session on its CONTACT rows by default (working / engaged selectable, a center
+  a  `cam_balanced_sample` = g4common.cam_balanced_sample (WORKING vs the raw NO_RESPONSE class since Priya 11-09 --
+     "none" split by `_g13_split`, unknown never trained -- position-balanced, positives first, the same rng use); `g4_frame` z-scores each session on its CONTACT rows by default (working / engaged selectable, a center
      with incomplete rows only under "working"); `g4_camclass` scores jaw_only / after_end as their own groups, flags
      thin cells (< 10) and reads each post group against the SAME pre group or, when that has no cell, pre WORKING
      (labeled); the stored discriminator's spec carries the class set and the center.
@@ -20,7 +20,7 @@ GROUPS = ("contact", "incomplete", "jaw_only", "none", "after_end")
 
 def _pool(seed=0, n_pre=4, n_post=1, n=240, n_u=160):
     rng = np.random.default_rng(seed)
-    XE, YE, GE, XU, YU, GU, ge, gu = [], [], [], [], [], [], [], []
+    XE, YE, GE, XU, YU, GU, ge, gu, ru = [], [], [], [], [], [], [], [], []
     for i in range(n_pre + n_post):
         y = rng.integers(0, 6, n)
         XE.append(rng.normal(size=(n, 6)) + np.eye(6)[y] + 0.5)
@@ -33,6 +33,8 @@ def _pool(seed=0, n_pre=4, n_post=1, n=240, n_u=160):
         YU.append(yu)
         GU.append(np.full(n_u, i))
         gu.append(g)
+        # raw camera class: "none" rows are no_response or unknown (Priya 11-09 split); the rest carry a placeholder
+        ru.append(np.where(g == "none", rng.choice(["no_response", "unknown"], n_u, p=[.7, .3]), g).astype(object))
     cat = np.concatenate
     d = {"XE": np.vstack(XE), "YE": cat(YE), "GE": cat(GE), "XU": np.vstack(XU), "YU": cat(YU), "GU": cat(GU),
          "kept": [f"PSX_08{10 + i}" for i in range(n_pre + n_post)], "pre_i": set(range(n_pre)),
@@ -40,7 +42,7 @@ def _pool(seed=0, n_pre=4, n_post=1, n=240, n_u=160):
     gE, gU = cat(ge).astype(object), cat(gu).astype(object)
     cg = {"grp_e": gE, "grp_u": gU, "jj_e": np.ones(len(gE), bool), "jj_u": np.ones(len(gU), bool),
           "have": set(range(n_pre + n_post)), "work_e": np.isin(gE, ["contact", "incomplete"]),
-          "work_u": np.isin(gU, ["contact", "incomplete"])}
+          "work_u": np.isin(gU, ["contact", "incomplete"]), "raw_e": gE.copy(), "raw_u": cat(ru).astype(object)}
     return d, cg
 
 
@@ -64,7 +66,7 @@ def test_g4_defaults_and_tag(monkeypatch):
     monkeypatch.delenv(pc.G4_CENTRE_ENV, raising=False)
     monkeypatch.delenv(pc.G4_DISC_ENV, raising=False)
     assert pc.g4_disc() == "camera" and pc.g4_centre() == "contact"
-    assert pc.g4_frame_tag() == "camclass/z-contact/pos-contact+incomplete/neg-none"
+    assert pc.g4_frame_tag() == "camclass/z-contact/pos-contact+incomplete/neg-no_response"
     monkeypatch.setenv(pc.G4_CENTRE_ENV, "bogus")
     with pytest.raises(ValueError):
         pc.g4_centre()
@@ -74,7 +76,7 @@ def test_cam_balanced_sample_matches_the_check_script(g4env):
     d, cg, _ = g4env
     dT, _cg = pc.g4_frame(d)
     keep = [0, 1, 2, 3, 4, 5]
-    X, y, g = pc.cam_balanced_sample(dT, cg["grp_e"], cg["grp_u"], keep, np.random.RandomState(0))
+    X, y, g = pc.cam_balanced_sample(dT, cg["grp_e"], cg["grp_u"], keep, np.random.RandomState(0), neg=("none",))
     # the g4common algorithm, inline
     rng = np.random.RandomState(0)
     XA = np.vstack([dT["XE"], dT["XU"]])
@@ -112,8 +114,9 @@ def test_g4_camclass_scores_each_group_and_flags_thin_cells(g4env):
     keep = [0, 1, 2, 3, 4, 5]
     r = pc.g4_camclass(d, keep)
     assert r["frame"].startswith("camclass/z-contact") and r["min_n"] == 10
-    assert set(r["post"]) == set(GROUPS) | {"stopped", "stopped_licking"}     # rebuild extras (empty here)
-    # working vs none separates: post none rows less working-like than post contact rows
+    # rebuild extras (empty here) and "none"'s raw split (Priya 11-09)
+    assert set(r["post"]) == set(GROUPS) | {"stopped", "stopped_licking", "no_response", "unknown"}
+    # working vs no_response separates: post none rows less working-like than post contact rows
     assert r["post"]["none"]["frac_spout_balanced"] < r["post"]["contact"]["frac_spout_balanced"]
     # every group read against the SAME group pre-stroke (all exist pre in this pool)
     assert all(r["post"][g]["pre_reference_is"] == g for g in GROUPS)
@@ -122,7 +125,8 @@ def test_g4_camclass_scores_each_group_and_flags_thin_cells(g4env):
         for v in r["post"][g]["per_spout"].values():
             assert v["thin"] == (v["n"] < 10)
     kind, extra, _sc = specs[-1]
-    assert kind == "g_cam_disc" and "pos-contact+incomplete" in extra and "neg-none" in extra and "z-contact" in extra
+    assert kind == "g_cam_disc" and "pos-contact+incomplete" in extra and "z-contact" in extra
+    assert "neg-no_response" in extra and "neg-none" not in extra
 
 
 def test_g4_falls_back_to_pre_working_when_a_group_is_absent_pre(g4env):

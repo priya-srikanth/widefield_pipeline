@@ -1,9 +1,11 @@
 """SECTION G4 figures with the CAMERA-CLASS discriminator as the PRIMARY readout (coordinator 11-04, follow-on 3).
 
 Primary panel per alignment (cue, precue): `poststroke_compare.g4_camclass` -- the fraction of each camera group's
-rows a pre-stroke WORKING-vs-NONE discriminator reads as working (spout-balanced over spouts with >= 10 rows), one OPEN
-dot per post session (shape = animal, color = epoch), groups on x (contact, incomplete, jaw only, no response, quit;
-the rebuild's stopped / stopped-licking groups when present), epochs side by side within a group, no lines across
+rows a pre-stroke WORKING-vs-NO_RESPONSE discriminator reads as working (Priya 11-09, as G1-G3: negatives = the raw
+camera class no_response within the working period; unknown never trained), spout-balanced over spouts with >= 10 rows,
+one OPEN dot per post session (shape = animal, color = epoch), groups on x (contact, incomplete, jaw only, no response,
+unknown (jaw unjudged), quit; the rebuild's stopped / stopped-licking groups when present; records from before 11-09
+carry only the pooled "none" group, drawn as such), epochs side by side within a group, no lines across
 epochs. Pre reference per group: the held-out pre value of the SAME group (solid tick), or pre WORKING when the group
 has no pre cell (dotted tick, labeled). Stars in the top band (`sig_marks.star_top` + `reserve_headroom`) when the
 paired animals -> sessions bootstrap (`analysis_kit.boot_delta`) of post - pre excludes 0; no top spine.
@@ -56,6 +58,17 @@ def g4_table(rec, epoch_of):
     return pd.DataFrame(cam), pd.DataFrame(daq), P
 
 
+def g4_order(C):
+    """The x order of the groups: `working_trials.G_ALL` with "none" replaced by its raw split (no_response, unknown;
+    Priya 11-09) when the records carry it, else the pooled "none" (records from before 11-09)."""
+    from wfield_local import working_trials as wt
+    split = len(C) and C.group.isin(["no_response", "unknown"]).any()
+    out = []
+    for g in wt.G_ALL:
+        out += ["no_response", "unknown"] if (g == "none" and split) else [g]
+    return out
+
+
 def _star(C, P, al, grp, ep, rng):
     from wfield_local import analysis_kit as ak
     post = C[(C["align"] == al) & (C.group == grp) & (C.epoch == ep)].dropna(subset=["value"])
@@ -74,6 +87,7 @@ def draw(C, D, P, out_png, seed=0):
     import matplotlib.pyplot as plt
     from matplotlib.lines import Line2D
 
+    from wfield_local import poststroke_compare as pc
     from wfield_local import sig_marks
     from wfield_local import working_trials as wt
     try:
@@ -85,7 +99,8 @@ def draw(C, D, P, out_png, seed=0):
     except Exception:                                                    # noqa: BLE001
         EPOCH_COLOR = {"acute": "tab:red", "subacute": "tab:orange", "chronic": "tab:blue"}
     rng = np.random.default_rng(seed)
-    groups = [g for g in wt.G_ALL if len(C) and (C.group == g).any()] or list(wt.G_GROUPS)
+    groups = [g for g in g4_order(C) if len(C) and (C.group == g).any()] or list(wt.G_GROUPS)
+    labels = {**wt.G_LABELS, **pc.G4_SPLIT_LABELS}
     fig, axs = plt.subplots(len(ALIGNS), 2, figsize=(11, 3.2 * len(ALIGNS)), squeeze=False,
                             gridspec_kw={"width_ratios": [3, 1.2]})
     for r, al in enumerate(ALIGNS):
@@ -107,11 +122,11 @@ def draw(C, D, P, out_png, seed=0):
                 ax.hlines(float(np.nanmean(ref.pre_reference.astype(float))), j - .35, j + .35, color="k",
                           lw=1.2, ls="-" if kind == grp else ":")
         ax.axhline(0.5, color="0.6", ls="--", lw=.7)
-        ax.set_xticks(range(len(groups)), [wt.G_LABELS.get(g, g) for g in groups], fontsize=7)
+        ax.set_xticks(range(len(groups)), [labels.get(g, g) for g in groups], fontsize=7)
         ax.set_ylim(0, 1)
         ax.set_ylabel("fraction read as WORKING", fontsize=8)
         fr = C.frame.dropna().iloc[0] if len(C) and C.frame.notna().any() else "camclass"
-        ax.set_title(f"{al}: G4 camera-class discriminator (PRIMARY; {fr})", fontsize=8)
+        ax.set_title(f"{al}: G4 camera-class discriminator, pre working vs no response (PRIMARY; {fr})", fontsize=8)
         bx = axs[r][1]
         dd = D[D["align"] == al] if len(D) else D
         for k, ep in enumerate(EPOCHS):

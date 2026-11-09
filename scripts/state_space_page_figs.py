@@ -282,11 +282,17 @@ def fig_like(out, rng, cond=None, cols=None, name="ss_like_for_like",
     save(fig, out, name)
 
 
-def fig_balance(out, rng):
-    tgt = pd.read_csv(ROOT / "landing" / "balance_cells_target.csv")
-    cel = pd.read_csv(ROOT / "landing" / "balance_cells_sessions.csv")
+# Balance area sets (Priya 11-09: "motor version as well (ALM, tjM1)"): table / figure suffix -> (title, short label,
+# areas). Tables from state_space_balance_{cells,angle}.py [--motor].
+BAL_AREAS = {"": ("Orofacial", "orofacial", "SSp-m, SSp-n, SSs"), "_motor": ("Motor", "motor", "ALM, tjM1")}
+
+
+def fig_balance(out, rng, sfx=""):
+    title, _, areas = BAL_AREAS[sfx]
+    tgt = pd.read_csv(ROOT / "landing" / f"balance_cells_target{sfx}.csv")
+    cel = pd.read_csv(ROOT / "landing" / f"balance_cells_sessions{sfx}.csv")
     on = cel[cel.target == cel.land]
-    ang = pd.read_csv(ROOT / "landing" / "balance_angle_sessions.csv").rename(columns={"bal_matched": "bal"})
+    ang = pd.read_csv(ROOT / "landing" / f"balance_angle_sessions{sfx}.csv").rename(columns={"bal_matched": "bal"})
     fig, axs = plt.subplots(3, 6, figsize=(16, 9.6), sharey="row")
     rows = ((tgt, "all trials, by target"), (on, "landed on target only"),
             (ang, "matched for target + landing"))
@@ -301,10 +307,10 @@ def fig_balance(out, rng):
                 ax.set_ylabel("balance change vs own pre\nlog2 contra / ipsi")
             ax.tick_params(axis="x", labelsize=7)
     legend_animals_epochs(fig, y=1.02)
-    fig.suptitle("Orofacial hemispheric balance (SSp-m, SSp-n, SSs; 0-1 s after the cue), per spout: by target, "
+    fig.suptitle(f"{title} hemispheric balance ({areas}; 0-1 s after the cue), per spout: by target, "
                  "landed on target vs matched for lateral landing", y=1.05)
     fig.tight_layout()
-    save(fig, out, "ss_balance_by_spout")
+    save(fig, out, f"ss_balance_by_spout{sfx}")
 
 
 def balance_range(cel):
@@ -317,9 +323,10 @@ def balance_range(cel):
     return (w.max(1) - w.min(1)).rename("rng").reset_index()
 
 
-def fig_balance_cross(out, rng):
-    c = pd.read_csv(ROOT / "landing" / "balance_cells.csv")
-    cel = pd.read_csv(ROOT / "landing" / "balance_cells_sessions.csv")
+def fig_balance_cross(out, rng, sfx=""):
+    _, short, areas = BAL_AREAS[sfx]
+    c = pd.read_csv(ROOT / "landing" / f"balance_cells{sfx}.csv")
+    cel = pd.read_csv(ROOT / "landing" / f"balance_cells_sessions{sfx}.csv")
     cats = [("pre", "far_contra", "far_contra", "pre: aimed far contra,\nlanded far contra"),
             ("pre", "far_ipsi", "far_ipsi", "pre: aimed far ipsi,\nlanded far ipsi"),
             ("pre", "far_contra", "far_ipsi", "pre: aimed far contra,\nlanded far ipsi"),
@@ -338,11 +345,11 @@ def fig_balance_cross(out, rng):
                 ax.scatter(i + (k - 1.5) * 0.09, v.bal.iloc[0], marker=ANIMAL_MARKER[an], facecolors="none",
                            edgecolors=EPOCH_LINE[ep], s=40, lw=1.2)
     ax.set_xticks(range(len(cats)), [x[3] for x in cats], fontsize=8)
-    ax.set_ylabel("balance, log2 contra / ipsi\n(orofacial, 0-1 s after the cue)")
+    ax.set_ylabel(f"balance, log2 contra / ipsi\n({short}: {areas}; 0-1 s after the cue)")
     ax.set_title("same landing, different target (first licks pooled over an animal's sessions, n >= 5)")
     legend_animals_epochs(fig, y=1.08)
     fig.tight_layout()
-    save(fig, out, "ss_balance_target_vs_landing")
+    save(fig, out, f"ss_balance_target_vs_landing{sfx}")
 
 
 def fig_path(out):
@@ -481,6 +488,8 @@ def main():
             "contact": lambda: fig_like(out, rng, COND_CONTACT, COLS_CONTACT, "ss_contact_sets",
                                        "Contact + incomplete (primary) vs contact-only vs incomplete-only first licks"),
             "balance": lambda: fig_balance(out, rng), "cross": lambda: fig_balance_cross(out, rng),
+            "balance_motor": lambda: fig_balance(out, rng, "_motor"),
+            "cross_motor": lambda: fig_balance_cross(out, rng, "_motor"),
             "path": lambda: fig_path(out), "cloud": lambda: fig_cloud(out),
             "repertoire": lambda: fig_repertoire(out, rng), "drift": lambda: fig_drift(out)}
     for k, f in figs.items():

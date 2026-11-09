@@ -63,6 +63,73 @@ merged to main (no conflicts); A5 applied to FINDINGS 0c item 4 and the page cap
 
 ## B. Findings (newest first; exploratory)
 
+33. **Motor-area balance (ALM + tjM1) as well (Priya 11-09 "for the orofacial balance figures, can we have motor version
+   as well (ALM, tjM1)"; `state_space_balance_cells.py --motor`, `state_space_balance_angle.py --collect --motor` then
+   `--motor`, tables `landing/*_motor.csv`; page v29 Figs 5.3-5.4).** Cue 0-1 s, Allen areas, same selections / models
+   as Figs 5.1-5.2. Matched target + landing, subacute / chronic: contralesional at contra-side and middle targets (far
+   contra +.23 / +.25, far mid +.09 / +.13, close mid +.11 / +.07, 4/4; close contra +.15 / +.12), ipsi-side targets not
+   different from pre (chronic far ipsi +.10, close ipsi -.03). Unlike orofacial: no acute ipsi-side reversal (far ipsi
+   -.11, close ipsi -.03, 2/4; orofacial -.39 / -.24, 0/4) and no spread compression (chronic -.06, 2/4, CI incl. 0;
+   orofacial -.27, 0/4). Pre motor spread smaller (.71-1.53 vs 1.24-2.46).
+
+32. **The tonic elevation is mostly REST MOVING (Priya 11-09 "should we check with raw (instead of RESTnl)";
+   `scripts/state_space_shift_rawref.py`; page v28 Fig 10.26; B29 / B30 statements rewritten on the page).** Raw = dF/F
+   scale, zero = the session's mean frame (wfield `svd_blockwise` subtracts / divides by `frames_average`; drift removal
+   incl. the constant). Orofacial contra raw RESTnl -.48 / -.53 / -.76 (4/4 chronic), raw pre-cue -.46 / -.35 / -.37 ->
+   pre-cue - RESTnl +.02 / +.17 / +.39. Post sessions animal-demeaned: 78 % of the tonic level's variation = rest
+   (r .81-.92 per animal), 22 % pre-cue (ipsi 77 / 23). Aim coupling (B29) is the rest level's: raw pre-lick vs aim slope
+   -.0004 / +.0017 per deg (p .88 / .50 contra / ipsi); raw RESTnl -.013 / -.021 (p .001 / <.001). Phasic post-lick
+   survives the session-mean reference: raw +.68 / +.72 / +.59 contra (ipsi +.42 / +.35 / +.30, CIs incl. 0).
+   Priya asked about absolute corrected 470 (not dF/F): no absolute level exists across days -- LED power is titrated by
+   hand each day (`crossday_intensity` / `hemispheric_intensity` docstrings), and 470/415 does not cancel two separately
+   set LEDs; within a session any reference gives the same differences. Possible next: an anatomical reference (orofacial
+   relative to other cortex at rest vs pre-cue).
+
+31. **The phasic post-lick increase is shared across spouts; its late half needs spout contact (Priya 11-09 "sure go
+   ahead"; `scripts/state_space_shift_spout_timing.py`; page v27 Fig 10.25).** Region means minus RESTnl per spout, change
+   vs the animal's own pre trace for that spout. Every spout up early and late in every epoch (contra late chronic +.96 to
+   +1.65). Split-half cross-validated energy 0..0.7 s (trial noise removed; pre sessions vs a leave-session-out pre
+   trace): shared +1.59 / +1.75 / +1.97 contra (pre .18); spout-specific +.34 / +.16 / +.15 (pre .04; 4/4 up but ~10x
+   smaller after acute); specific timing +.60 acute, then +.06 / +.11. Acute spout-specific part = far contra (late contra
+   +.06, ipsi -1.50, 0/4) = CONTACT: ~90 % of acute far-contra first bouts miss; all spouts, contact trials carry the late
+   increase (+1.67 / +1.44 / +1.43 contra), no-contact trials lose it (-.41 contra, -1.54 ipsi 4/4 acute); the early part
+   (0..0.3 s) is there either way (+.98 vs +.89 acute contra). Note: a within-session spout-label shuffle was tried first
+   and dropped (the pre spout structure stays in the reference, so it is not a null).
+
+30. **The pre-lick rise IS the pre-cue level: two components (Priya 11-09 "great keep going";
+   `scripts/state_space_shift_precue.py`; page v26 Fig 10.24).** Region means minus RESTnl in the trial's own pre-cue
+   ENL window, -1.0..-0.1 s before the first lick, 0..+0.7 s after. Orofacial chronic change: pre-cue +.39 contra /
+   +.31 ipsi, pre-lick +.37 / +.28 (4/4); pre-lick - pre-cue ~0 in every epoch (-.03..+.07); across post sessions
+   pre-cue vs pre-lick within-animal slope +.92..+.98 (r .76-1.0 per animal). Post-lick orofacial +1.16 / +1.25 / +1.35
+   contra, does NOT covary with the pre-cue level (slope +.21 p=.34 contra, +.09 p=.64 ipsi). Synthesis with B26-B29:
+   (1) TONIC orofacial elevation before the cue (vs rest), grows with far-contra aim recovery; (2) PHASIC post-lick
+   orofacial increase, ~3x larger, from acute on, not licking / jaw / face / running, not tracking aim. Caveat: the
+   tonic part is vs RESTnl; vs the session mean it reads as a decrease (Fig 9.9) -- may be partly rest moving.
+
+29. **Against behavioral recovery (Priya 11-09 "great keep going"; `scripts/state_space_shift_recovery.py`, on B27's
+   sessions; page v25 Fig 10.23).** Per post-stroke session, change beyond licking (minus RESTnl) vs far-contra
+   first-cued-lick aim (Fig 6.3 axis, aim_deficit_sessions farcontra_first). Orofacial BEFORE the lick rises with aim
+   recovery in 4/4 (contra r .22-.74, ipsi .39-.82; within-animal slope +.023 / +.032 per deg, shuffle p < .001);
+   within epochs ipsi p = .016, contra p = .46 (contra = the epoch step). Post-lick orofacial does NOT track aim
+   consistently (late r PS92 +.64, PS94 -.64, PS95 -.47; within epochs worse aim -> slightly larger late increase,
+   p = .001 contra / .026 ipsi). Posterior-medial transient: no coupling (shuffle p .11-.29). Reading: the lasting
+   post-lick orofacial increase is present regardless of aim; the pre-lick rise grows with recovery (likely the same as
+   Fig 9.8's pre-cue rise vs rest -- not yet tested directly).
+
+28. **Nor face / jaw / body movement for the orofacial increase (Priya 11-09 "go ahead"; "don't use motion energy - we
+   have FR and 3d keypoints"; `scripts/state_space_shift_movement.py`, on B27's trial table; page v24 Fig 10.22).**
+   Nested pre-stroke models on the SAME trials (all covariates present; FaceRhythm sessions Aug-Oct, so pre = August):
+   licking; + jaw (pose3d jaw_trials: open_max_mm, lr_wide_mm, n_wide); + FaceRhythm master_pre_v1 (12 factors x D
+   over -1.0..+0.7 s from the first lick, log1p, + D) + running (fraction of the window in a behavior_events running
+   bout). No motion energy (Priya). Pre leave-session-out R^2 beyond spout: orofacial .02-.14 -> .15-.26,
+   posterior-medial .02-.05 -> .38-.45 (the model is strong). Orofacial contra late observed +1.22 / +1.31 / +1.39,
+   residual (full model) +1.29 / +1.14 / +1.20 (4/4); early / ipsi the same; chronic before the lick +.39 -> +.32 contra,
+   +.30 -> +.29 ipsi (4/4). Posterior-medial transient partly movement: early contra chronic +.85 -> +.56 (3/4), ipsi
+   +.54 -> +.21 (n.s.), subacute +1.16 -> +.94 (4/4); late posterior-medial -> ~0. Reading: the sustained orofacial
+   increase is not a by-product of licking / face / jaw / running as measured. Not measured: body posture / paws
+   (side cams pilot only). Next candidates: same increase as the pre-cue rise vs rest (Fig 9.8) / Figs 9.1-9.2;
+   relation to behavioral recovery within animal.
+
 27. **The shared increase is NOT explained by licking (Priya 11-09 "go ahead" on the behavior test;
    `scripts/state_space_shift_behavior.py`, SVD, lick-aligned, minus RESTnl; page v23 Fig 10.21).** Per trial: region
    means (orofacial = tjM1 + SSp-m + SSp-n; posterior-medial = RSPd + SSp-tr + SSp-ll; contra / ipsi) in three windows

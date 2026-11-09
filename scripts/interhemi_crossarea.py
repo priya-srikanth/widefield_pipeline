@@ -45,6 +45,13 @@ TASK 2 -- CROSS-AREA (Priya 10-30: "cross-area dynamics (synchronization / corre
 Statistics: per-animal tables printed BEFORE the bootstrap (rule 8); analysis_kit.boot_delta (paired nested) vs AUGUST pre.
 Outputs: <OUT_W>/interhemi_followup/ (ihf_*), <OUT_W>/cross_area/ (xa_*), each with figdata/ + figures/.
 Usage: python scripts/interhemi_crossarea.py [--jobs 4] [--labels ...] [--summarise] [--plot-only]
+  [--rest-variant restdock05|restnl]
+REST VARIANT (Priya 11-09): `--rest-variant restnl` (PRIMARY) reads the lick-free rest cache
+  <OUT_W>/interhemi_rest_w1_restnl/ (lick_interhemispheric.py --extract-rest --rest-variant restnl) and writes to
+  <OUT_W>/interhemi_followup_restnl/ and <OUT_W>/cross_area_restnl/; the default restdock05 (SUPPLEMENT) is unchanged.
+  RAW (no rest reference): rest is never subtracted here; the lick-set rows (cued, iti_all, iti_dock) are the raw
+  version, and since 'rest' sorts LAST in every bootstrap / permutation group loop they are identical under both
+  variants.
 """
 from __future__ import annotations
 from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
@@ -65,7 +72,8 @@ import lick_interhemispheric as lih  # noqa: E402
 from wfield_local import lp_licks as _lp_licks  # noqa: E402  (coordinator 11-04: the run's attempts table)
 
 OUT_W = lih.OUT_W
-O1, O2 = OUT_W / "interhemi_followup", OUT_W / "cross_area"
+# rest variant (`--rest-variant`, resolved by lick_interhemispheric at import): restnl -> own folders, never the default
+O1, O2 = OUT_W / lih._o("interhemi_followup"), OUT_W / lih._o("cross_area")
 IN = il.OUT
 EPS = lih.EPS
 AN = lih.AN
@@ -534,7 +542,19 @@ def _wrap(s, w=150):
     return "\n".join(textwrap.wrap(s, w))
 
 
-SET_LAB = {"rest": "DOCKED QUIET REST", "iti_dock": "ITI LICKS, spout docked", "iti_all": "ITI LICKS, all",
+CAP_REST = (f"{lih.REST_TXT}. Lick-set panels: {lih.RAW_TXT} -- rest is a separate state here, never subtracted, "
+            "and the lick-set numbers do not depend on the rest variant.")
+
+
+def _save(fig, path, dpi) -> None:
+    """save_png_svg with the rest set stated on the last title line (Priya 11-09)."""
+    t = fig._suptitle
+    if t is not None:
+        t.set_text(t.get_text() + chr(10) + CAP_REST)
+    save_png_svg(fig, path, dpi=dpi)
+
+
+SET_LAB = {"rest": lih.REST_SHORT, "iti_dock": "ITI LICKS, spout docked", "iti_all": "ITI LICKS, all",
            "cued": "CUED first licks"}
 
 
@@ -596,7 +616,7 @@ def plot1() -> None:
     fig.suptitle(_wrap("Interhemispheric noise correlation (homotopic contra vs ipsi, residual after spout + angle mean, "
                        "window mean -0.5..+0.5 s) BEFORE and AFTER removing the global signal (partial correlation given "
                        "the mean of all other areas). Gray = control pairs. PROVISIONAL n = 4"), fontsize=9.5)
-    save_png_svg(fig, O1 / "figures" / "ihf_noisecorr_gsr.png", dpi=120)
+    _save(fig, O1 / "figures" / "ihf_noisecorr_gsr.png", dpi=120)
     plt.close(fig)
     # FIGURE B: lead metrics under the four variants (oro, tau 0.6; w2 for lick sets, w1 rest)
     fig, axs = plt.subplots(2, 4, figsize=(17, 8), sharey="row", layout="constrained")
@@ -616,7 +636,7 @@ def plot1() -> None:
     fig.suptitle(_wrap("Orofacial pool, deconvolved (tau 0.6 s): does the contralesional tilt / Granger shift survive "
                        "partialling out the per-event hemispheric balance and / or the global signal? PROVISIONAL n = 4"),
                  fontsize=9.5)
-    save_png_svg(fig, O1 / "figures" / "ihf_lead_controls.png", dpi=120)
+    _save(fig, O1 / "figures" / "ihf_lead_controls.png", dpi=120)
     plt.close(fig)
 
 
@@ -658,7 +678,7 @@ def plot2() -> None:
                        "= low-dimensional synchrony (first-PC variance fraction, mean R2 on the global mean) for the slow "
                        f"(noise) and fast (within-window) units. Rest pre level all-pairs z = {pre:.2f}. PROVISIONAL n = 4"),
                  fontsize=9.5)
-    save_png_svg(fig, O2 / "figures" / "xa_summary.png", dpi=120)
+    _save(fig, O2 / "figures" / "xa_summary.png", dpi=120)
     plt.close(fig)
     # FIGURES 2/3: change matrices (slow), raw and GS
     names = CM["names"]
@@ -701,7 +721,7 @@ def plot2() -> None:
                            "IPSILESIONAL (left hemisphere) block top / left, contralesional bottom / right, frontal -> "
                            "posterior within each; pooled = mean of per-animal changes; faded = fewer than 3 of 4 animals "
                            "share the pooled sign. PROVISIONAL n = 4", 170), fontsize=9.5)
-        save_png_svg(fig, O2 / "figures" / f"xa_change_matrices_{var}.png", dpi=110)
+        _save(fig, O2 / "figures" / f"xa_change_matrices_{var}.png", dpi=110)
         plt.close(fig)
     # FIGURE 4 (supplement): recovery tests heatmap
     q = Rc.copy()
@@ -727,7 +747,7 @@ def plot2() -> None:
     fig.suptitle(_wrap(f"Does cross-area coupling track recovery within animals? {n_sig} of {n_all} tests p < 0.05 "
                        f"(uncorrected; ~{0.05 * n_all:.0f} expected by chance). * = p < 0.05; k/4 = animals with the pooled sign."),
                  fontsize=9.5)
-    save_png_svg(fig, O2 / "figures" / "xa_recovery.png", dpi=120)
+    _save(fig, O2 / "figures" / "xa_recovery.png", dpi=120)
     plt.close(fig)
 
 
@@ -737,7 +757,10 @@ def main() -> None:
     ap.add_argument("--labels", nargs="*")
     ap.add_argument("--summarise", action="store_true")
     ap.add_argument("--plot-only", action="store_true")
+    ap.add_argument("--rest-variant", choices=lih.REST_VARIANTS, default="restdock05",
+                    help="rest set (lick_interhemispheric rest cache): restdock05 (default, SUPPLEMENT) / restnl (PRIMARY)")
     a = ap.parse_args()
+    assert a.rest_variant == lih.REST_VARIANT
     if a.plot_only:
         plot1()
         plot2()

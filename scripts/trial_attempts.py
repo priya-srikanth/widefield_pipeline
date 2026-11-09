@@ -159,6 +159,22 @@ def _is_aug_pre(label: str) -> bool:
     return epochs.epoch_of(label) == "pre" and not config.early_pre(label)
 
 
+def select_labels(available, curated, requested=None) -> list:
+    """The sessions to build: the curated sessions with imaging, in `available` order (the default, unchanged).
+    ``requested`` (``--labels``, 11-09: the June-only supplement build) narrows that set to the given labels; a requested
+    label that is not available + curated raises (run under the env that curates it, e.g. WIDEFIELD_PRE_FROM unset for
+    June), so a typo or a wrong env can never quietly build fewer sessions."""
+    cur = set(curated)
+    labels = [x for x in available if x in cur]
+    if requested is None:
+        return labels
+    want = list(dict.fromkeys(requested))
+    missing = [x for x in want if x not in set(labels)]
+    if missing:
+        raise SystemExit(f"trial_attempts --labels: not available + curated under this env: {', '.join(missing)}")
+    return [x for x in labels if x in set(want)]
+
+
 def main(argv=None) -> int:
     from wfield_local import config
     from wfield_local import analysis_kit as ak
@@ -172,7 +188,12 @@ def main(argv=None) -> int:
     ap.add_argument("--out", type=Path, default=None,
                     help="write the three tables HERE instead of run_mode.attempts_dir() (a comparison build; nothing "
                          "registered, the run's table untouched)")
+    ap.add_argument("--labels", nargs="+", default=None,
+                    help="build ONLY these session labels (e.g. PS92_0606; default: every curated session). Needs --out: "
+                         "a partial table is never written over the run's registered one")
     a = ap.parse_args(argv)
+    if a.labels is not None and a.out is None:
+        raise SystemExit("trial_attempts --labels needs --out (a partial table never replaces the registered one)")
     from wfield_local import run_mode
     # coordinator 11-04 (REDO, routed): the default run writes the untagged qc as before; a tagged run writes ITS qc
     # (<imaging_encoding>/<tag>/qc), under its camera classes -- where the mixed models' deficit and the PI slides read
@@ -184,8 +205,7 @@ def main(argv=None) -> int:
         for n in run_mode.ATTEMPTS_FILES:              # selection-keyed tables: registered data files (writeguard)
             run_mode.register_data_store(out / n)
     writeguard.assert_writable(out / "trial_attempts_sessions.csv")
-    cur = set(ak.curated_labels())
-    labels = [x for x in ce.sessions_available() if x in cur]
+    labels = select_labels(ce.sessions_available(), ak.curated_labels(), a.labels)
     got, fail = ak.fan_sessions(labels, session_trials, jobs=a.jobs)
     for it, err in fail:
         print(f"  FAILED {it}: {err}")
@@ -203,6 +223,10 @@ def main(argv=None) -> int:
     W.insert(3, "day", W.label.map(epochs.days_since_stroke))
     W.to_csv(out / "trial_attempts_sessions.csv", index=False, float_format="%.4g")
     Aug = D[(D.epoch != "pre") | (~D.label.map(config.early_pre))]           # August-only pre baseline
+    if Aug.empty:            # a June-only --labels build: no August-pre / post-stroke rows -> no gate table, no summary
+        print("\n  no August-pre / post-stroke sessions in this build: gate table and summaries skipped\n"
+              f"-> {out / 'trial_attempts.csv'}")
+        return 0
     G = Aug.groupby(["animal", "epoch", "pos"]).apply(
         lambda g: pd.Series({"n_trials": len(g), "canonical": g.canonical.sum(),
                              "attempted": g.attempted.sum(), "canonical_and_attempted": (g.canonical & g.attempted).sum(),

@@ -48,6 +48,28 @@ running list `docs/status/RUNNING_LIST_2026-11-08_STATE_SPACE.md` sections A (de
   after the sweep.
 - **11-08 ~11:45:** page v15 has section 9 (maps, all baselines, why-cleaner). "Why cleaner" answered for the 15r
   activity maps (B19: window, not denoising); the residual-map half not done.
+- **11-09 ~08:15 (running list B33):** motor-area (ALM + tjM1) twins of the section-5 balance figures: `--motor` on
+  `state_space_balance_{cells,angle}.py` (tables `landing/*_motor.csv`), `state_space_page_figs.py --only balance_motor
+  cross_motor`; page v29 Figs 5.3-5.4 + take + summary row (page script `state_space_page/add_balance_motor.py`). Motor =
+  same contralesional shift at contra / middle targets, smaller; no acute ipsi-side reversal, no spread compression.
+- **11-09 ~05:30 (running list B32):** `scripts/state_space_shift_rawref.py`: the tonic pre-cue elevation vs RESTnl
+  is mostly the rest level falling relative to the session mean (dF/F zero), and the aim coupling is the rest level's;
+  the phasic post-lick increase survives the session-mean reference. Page v28 Fig 10.26 + rewritten 10.23 / 10.24 /
+  summary / open text (page script `state_space_page/add_shift_rawref.py`). Open: why rest falls; body / paws.
+- **11-09 ~04:30 (running list B31):** `scripts/state_space_shift_spout_timing.py`: the phasic post-lick
+  orofacial increase is shared across spouts in size and timing; its late half (0.3..0.7 s) needs spout contact (lost on
+  acute far-contra misses), its early half does not. Page v27 Fig 10.25 (page script
+  `state_space_page/add_shift_spout.py`). Open: tonic part vs rest moving (RESTnl vs session mean); body / paws.
+- **11-09 ~03:30 (running list B30):** `scripts/state_space_shift_precue.py`: the pre-lick orofacial rise is the
+  pre-cue level (tonic, grows with recovery); the post-lick orofacial increase is a separate, ~3x larger phasic
+  component (not movement, not aim). Page v26 Fig 10.24 (page script `state_space_page/add_shift_precue.py`). Open:
+  is the tonic part rest moving (RESTnl vs session mean)?
+- **11-09 ~03:00 (running list B29):** `scripts/state_space_shift_recovery.py`: pre-lick orofacial rise grows with
+  far-contra aim recovery (4/4); post-lick orofacial increase and posterior-medial transient do not track aim. Page
+  v25 Fig 10.23 (page script `state_space_page/add_shift_recovery.py`). Next: pre-lick rise vs Fig 9.8's pre-cue rise.
+- **11-09 ~02:30 (running list B28):** `scripts/state_space_shift_movement.py` (jaw + FaceRhythm + running on top of
+  licking; no motion energy per Priya): orofacial increase survives (residual = observed, 4/4); part of the
+  posterior-medial transient is movement. Page v24 Fig 10.22 (page script `state_space_page/add_shift_movement.py`).
 - **11-09 ~01:45 (running list B27):** `scripts/state_space_shift_behavior.py`: the shared orofacial increase and the
   posterior-medial transient are NOT explained by licking (frozen pre-stroke activity-vs-licking fit; residual =
   observed). Page v23 Fig 10.21 (page script `state_space_page/add_shift_behavior.py` in the session scratchpad).
