@@ -925,3 +925,9 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   TIMELINE (Priya asked): map re-renders ~4-5 h after the pooling commit; grant ~2-3 h after wiring + memo push; v11 rsplit
   ~1 h 40 / animal x 3 (PS92 05:24-07:05 measured); renders done ~13:00-14:00; page / deck update ~2-4 h after ->
   this evening.
+- 07:45 jaw-only POOLED per animal x epoch (0899267d; floor 20 per pooled cell; existing cache keys re-verified
+  unchanged). Cells >= 20: pre 5 (PS95 only, all 5 judged spouts), acute 11, subacute 5, chronic 2 (close mid never
+  judged). Within-animal "- pre" jaw-only columns only for PS95. chain_v14.sh: push the caption branch -> worktree at main
+  -> queue_daqlk14.sh lanes MP (g5_restnl_maps_lp_ts) + LF (g5_lpfinal_maps_ts) = primary + working-period supplement +
+  jaw-only panel in one render each. DAQ epoch 15r re-render SKIPPED (cue = LPfinal all 6 refs; lick = successful-lick
+  only; ENL 2 s retired).
