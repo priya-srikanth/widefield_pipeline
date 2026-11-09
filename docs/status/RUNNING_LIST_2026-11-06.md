@@ -758,3 +758,10 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
 - Grant (LP) slow: 12/96 at 02:03 (6 units / 77 min). Profiling ONE unit in a separate process (outputs to scratch;
   scratchpad/prof_grant/REPORT.md) to find repeated loading vs cold collection; no restart on an estimate.
 - Heavy lock: l_balimg_primary_r2 (BAL); g5_section_g_g4only queued behind it.
+- 03:2x GRANT PROFILE (one unit, 10[cue/working], scratchpad/prof_grant/): 2447 s, 95 % repeated raw-input loading
+  (108 DAQ h5 opened 442x = ~1,400 s; config.load_sessions 368x = 289 s; cache-folder glob 214x = 178 s); compute
+  seconds; every cache / frozen model a hit. The LP gate path (gate_source.extra) re-loads each session's DAQ cue train
+  2x per session before its own memo check -> why it is slower than the Sept DAQ render; each worker repeats the ~39 min
+  load per alignment. Helper implementing memos 1-4 (+5) on perf/grant-loader-memos-1109 (wf_grantmemo) and MEASURING
+  the same unit + exact figure-data equality + csig check. Then: Priya decides keep running (~18 h at the current rate)
+  vs restart the REMAINING grant families only (--only) on the fix.
