@@ -771,3 +771,11 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
 - 03:07 g5_section_g_g4only EXIT 0 (34 min vs ~3 h full): G4 = camera working vs no_response (neg-no_response models,
   frozen-new), merged ONLY the G4 keys into the keyed LP section G json (backup first). 03:08 g5_g4_fig_redraw EXIT 0.
   G4 deck slide + results-page panel -> replacement pass.
+- 04:05 g6_grant_lp EXIT 0: 96 units, 0 failed, 5 h 24 min. Flags: (i) 12x PS93_0813 skip (expected); (ii) for EVERY
+  animal x {lick, precue} the grant FROZE A NEW LP epoch decoder: "stored model was frozen against a DIFFERENT pre-stroke
+  input set (8 -> 8) ... SPEC-CHANGED" -> a second LP "frozen" epoch decoder next to the epoch arms' (same store); and its
+  training label reads "lick source lp, selection engaged rows (camera gate: DAQ lick-arm trials)" -> must confirm the
+  LP lick class really selects camera-seen licks and is not DAQ contact. Read-only trace running
+  (scratchpad/lp_epoch_decoder_trace.md). HOLD grant + epoch lick/precue numbers until traced. (iii) layout: 139 [layout]
+  warnings (crowded day ticks in 7b / 8b / 11; the "LP licks" stamp overlaps the "Post-stroke session" text in 9) ->
+  redraw pass.
