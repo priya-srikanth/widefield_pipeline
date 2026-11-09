@@ -933,3 +933,8 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   only; ENL 2 s retired).
 - 07:50 random splits parallelized: 2 extra v11 B5 lanes -> PS93 / PS94 / PS95 run at once (ETA ~09:30 instead of
   ~12:20). Handoff block 00-COMPACT-40 written.
+- 08:45 test_cohorts fix ON MAIN 98e6a353. Grant memos NOT pushed: full suite 1 failed / 5747 passed =
+  test_grant_stamp_fit::test_stamp_gets_its_own_band, ORDER-DEPENDENT (passes alone; from f992cb8f on main) -> blocks
+  full-suite pushes. Helper fixing on fix/test-stamp-order-1109 (find the polluting test, isolate state, full suite,
+  push). Caption-branch push (chain_v14, WTS=wf_trialset) still in its pre-push tests since 07:32 -- may hit the same
+  failure; re-run after the fix. Note: two push runs had written into push7.wf_grantmemo.log (old retry loop + helper).
