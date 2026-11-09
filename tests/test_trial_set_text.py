@@ -249,6 +249,53 @@ def test_existing_prm_kinds_unchanged_and_jaw_kind_new(variant, monkeypatch):
         assert seen["kind"] != map_collect.cache_kind("prm", "cue", new, old_params, code)   # keyed on its code
 
 
+def test_jaw_session_floor_bypass_is_hook_only():
+    """The jaw-only per-session maps keep every position with >= 1 trial (floor applied after epoch pooling), through
+    hook-marked lines of `session_raw_maps` only -- the digest of the existing kinds hashes the pre-11-09 source."""
+    from wfield_local import gate_source
+    from wfield_local import position_reference_maps as prm
+    raw = inspect.getsource(prm.session_raw_maps)
+    assert any("SESSION_FLOOR_FREE" in ln and gate_source.HOOK_MARK in ln for ln in raw.splitlines())
+    assert "SESSION_FLOOR_FREE" not in gate_source.strip_hooks(raw)
+    assert prm.SESSION_FLOOR_FREE == frozenset({"jaw_only"}) and "working_period" not in prm.SESSION_FLOOR_FREE
+
+
+def test_pooled_by_epoch_trial_weighted_with_floor():
+    from wfield_local import position_reference_maps as prm
+    m = np.ones((2, 2))
+    store = {"A": {"acute": {"far_R": {"A_1": {"rest": 1 * m}, "A_2": {"rest": 4 * m}}}},
+             "B": {"acute": {"far_R": {"B_1": {"rest": 9 * m}}}}}
+    ntr = {"A": {"acute": {"far_R": {"A_1": 15, "A_2": 5}}}, "B": {"acute": {"far_R": {"B_1": 12}}}}
+    maps, ns = prm.pooled_by_epoch(store, ntr, "rest", "far_R", "acute", floor=20)
+    assert ns == {"A": 20, "B": 12}                     # every animal with trials is counted ...
+    assert set(maps) == {"A"}                           # ... only the pooled cell >= floor is drawn
+    assert np.allclose(maps["A"], (15 * 1 + 5 * 4) / 20)   # trial-weighted, not the mean of session means (2.5)
+    assert prm.pooled_by_epoch(store, ntr, "rest", "far_R", "pre") == ({}, {})
+    assert prm.JAW_EPOCH_FLOOR == 20
+
+
+def test_jaw_epoch_cells_floor_titles_and_delta(monkeypatch):
+    from wfield_local import beta_maps as bm
+    from wfield_local import epoch_maps as em
+    monkeypatch.setattr(bm, "brain_mask", lambda: None)
+    m = np.ones((2, 2))
+    work = {a: {"pre": {"far_R": {f"{a}_w": {"rest": 2 * m}}}} for a in ("A", "B")}
+    store = {"A": {"pre": {"far_R": {"A_p": {"rest": 2 * m}}}, "acute": {"far_R": {"A_a": {"rest": 6 * m}}}},
+             "B": {"pre": {"far_R": {"B_p": {"rest": 2 * m}}}, "acute": {"far_R": {"B_a": {"rest": 10 * m}}}}}
+    ntr = {"A": {"pre": {"far_R": {"A_p": 25}}, "acute": {"far_R": {"A_a": 30}}},
+           "B": {"pre": {"far_R": {"B_p": 3}}, "acute": {"far_R": {"B_a": 40}}}}
+    cells, titles, rows, dcols = em.jaw_epoch_cells(store, ntr, work, "rest", ["far_R", "close_L"],
+                                                    ["pre", "acute", "subacute"], floor=20)
+    r = em._long_of("far_R")
+    assert rows == [r]                                  # close_L has no jaw-only trials: no row
+    assert np.allclose(cells[(r, "pre")], 1.0)          # A only (B pre n=3 < 20), / working pre scale 2
+    assert np.allclose(cells[(r, "acute")], (3.0 + 5.0) / 2)
+    assert "1 an, n=25" in titles[(r, "pre")] and "n < 20: B 3" in titles[(r, "pre")]
+    assert "2 an, n=70" in titles[(r, "acute")]
+    assert dcols == ["acute - pre"] and np.allclose(cells[(r, "acute - pre")], 2.0)   # within-animal: A only
+    assert (r, "subacute") not in cells and (r, "subacute") not in titles
+
+
 def test_pooled_jaw_only_panel(camera, monkeypatch, tmp_path):
     from wfield_local import beta_maps as bm
     from wfield_local import epoch_figures as ef
@@ -256,35 +303,37 @@ def test_pooled_jaw_only_panel(camera, monkeypatch, tmp_path):
     from wfield_local import position_reference_maps as prm
     m = np.ones((4, 4))
     work = {"PS94": {"pre": {"far_R": {"PS94_0801": {"rest": 2 * m}}}}}
-    jaw = {"PS94": {"acute": {"far_R": {"PS94_0817": {"rest": 4 * m}}}}}
-    ntr = {"PS94": {"acute": {"far_R": {"PS94_0817": 48}}}}
+    jaw = {"PS94": {"acute": {"far_R": {"PS94_0817": {"rest": 4 * m}, "PS94_0818": {"rest": 8 * m}}}}}
+    ntr = {"PS94": {"acute": {"far_R": {"PS94_0817": 12, "PS94_0818": 12}}}}
     monkeypatch.setattr(prm, "maps_by_epoch", lambda align, v: (jaw, {}, ntr) if v == "jaw_only" else (work, {}, {}))
     monkeypatch.setattr(prm, "render_references", lambda: ["rest"])
     monkeypatch.setattr(bm, "atlas_edges", lambda *a, **k: None)
     monkeypatch.setattr(bm, "excluded_mask", lambda: None)
     monkeypatch.setattr(bm, "brain_mask", lambda: None)
-    got = {}
-    monkeypatch.setattr(ef, "map_grid", lambda cells, out, **kw: got.update(cells=cells, **kw) or out / "x.png")
-    monkeypatch.setattr(em, "_fig_15rpa_reference_by_animal", lambda *a, **k: [])
+    got = []
+    monkeypatch.setattr(ef, "map_grid", lambda cells, out, **kw: got.append(dict(cells=cells, **kw)) or out / kw["name"])
     out = em.jaw_only_panels(tmp_path, "cue", tst.arm_caption("cue", "jaw_only"))
-    assert out == [tmp_path / "x.png"]
-    assert got["name"].endswith("_cue_jaw_only") and "JAW-ONLY camera trials" in got["title"]
-    assert got["row_labels"] == [em._long_of("far_R")]
-    cell = got["cells"][(em._long_of("far_R"), "acute")]
-    assert np.allclose(cell, 2.0)                                # jaw-only acute / the WORKING pre scale (RMS 2)
-    assert "n=48" in got["panel_titles"][(em._long_of("far_R"), "acute")]
-    assert not got["delta_cols"]                                 # no jaw-only pre -> no "- pre" column
+    assert [p.name for p in out] == ["epoch_15r_position_RESTref_cue_jaw_only",
+                                     "epoch_15rpa_position_RESTref_by_animal_cue_jaw_only"]
+    pooled, per_an = got
+    assert "JAW-ONLY camera trials" in pooled["title"] and pooled["row_labels"] == [em._long_of("far_R")]
+    # two sessions of 12 (each under the old per-session floor of 20) pool to 24 >= 20: the cell exists
+    assert np.allclose(pooled["cells"][(em._long_of("far_R"), "acute")], 3.0)   # (12*4 + 12*8) / 24 / scale 2
+    assert "n=24" in pooled["panel_titles"][(em._long_of("far_R"), "acute")]
+    assert not pooled["delta_cols"]
+    assert per_an["row_labels"] == ["PS94"] and np.allclose(per_an["cells"][("PS94", "acute")], 6.0)
+    assert per_an["panel_titles"][("PS94", "acute")] == "acute\nn=24"
     # ONE render draws primary + period supplement + jaw-only: supplement_panels = the period 15r / 15rpa + jaw
     calls = []
     monkeypatch.setattr(em, "_fig_15r_reference_maps",
                         lambda out, al, v, w: calls.append(("15r", v, w, tst.current()[0])) or [out / f"r_{v}.png"])
     monkeypatch.setattr(em, "_fig_15rpa_reference_by_animal",
                         lambda out, al, v, w: calls.append(("15rpa", v, w, tst.current()[0])) or [])
+    got.clear()
     made = em.supplement_panels(tmp_path, "cue", lambda v: tst.arm_caption("cue", v))
-    assert made == [tmp_path / "r_working_period.png", tmp_path / "x.png"]
-    assert calls[0] == ("15r", "working_period", tst.arm_caption("cue", "working_period"), "working_period")
-    assert calls[1][:2] == ("15rpa", "working_period") and calls[2][:2] == ("15rpa", "jaw_only")
-    assert calls[2][3] == "jaw_only"
+    assert made[0] == tmp_path / "r_working_period.png" and len(made) == 3
+    assert calls == [("15r", "working_period", tst.arm_caption("cue", "working_period"), "working_period"),
+                     ("15rpa", "working_period", tst.arm_caption("cue", "working_period"), "working_period")]
     assert tst.current() is None
     monkeypatch.setenv("WIDEFIELD_TRIAL_GATE", "daq")
     assert em.jaw_only_panels(tmp_path, "cue", "x") == []        # camera classes: nothing under the DAQ rule
