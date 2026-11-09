@@ -779,3 +779,9 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   (scratchpad/lp_epoch_decoder_trace.md). HOLD grant + epoch lick/precue numbers until traced. (iii) layout: 139 [layout]
   warnings (crowded day ticks in 7b / 8b / 11; the "LP licks" stamp overlaps the "Post-stroke session" text in 9) ->
   redraw pass.
+- 04:08 v9zz2-BAL END: balance / ENL-slide chain done except x_enlv_table_r2 EXIT 1 = MISSING PRODUCER #3 (reads
+  enlv_licks/sessions_reg/*.npz <- lick_enlv_extract.py --regress; no queue ever had it) -> x_enlv_balance_r2 /
+  x_enlv_curves_r2 skipped. 04:09 launched queue_daqlk9zz4.sh lane EV (b83f376d): x_enlv_regress_r2 -> x_enlv_table_r3
+  -> x_enlv_balance_r3 -> x_enlv_curves_r3 (defs from 9zz2; all deps .done).
+- LESSON (3 missing producers tonight: ITI spout patterns, balance _inside, ENL-v regress): before launching a chain,
+  check every input FILE its scripts read has a producer step in some queue, not only that its declared deps exist.
