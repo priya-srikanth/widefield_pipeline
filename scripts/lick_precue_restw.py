@@ -48,6 +48,8 @@ import iti_licks as il  # noqa: E402
 import restnl  # noqa: E402
 from figdata import load_fd, plot_only, save_fd  # noqa: E402
 
+from wfield_local import mask_keys  # noqa: E402
+
 CACHE = "precue_restw"
 VERSION = 2
 LAGS = np.round(np.arange(-2.0, 3.0001, 0.05), 3)          # = lick_cued_ramp.LAGS_W (validation against cued_wide)
@@ -76,6 +78,7 @@ def _session(label: str, var: str) -> dict:
     if f.exists():
         z = np.load(f)
         if int(z["version"]) == VERSION:
+            mask_keys.check_obj(z, f)             # stale-read guard: built on the current analysis masks (11-09)
             return {"label": label, "cached": True}
     from wfield_local import combined_encoding as ce
     from wfield_local import config
@@ -97,6 +100,7 @@ def _session(label: str, var: str) -> dict:
     if var == "restnl":                                        # the lick-free level (restw_strict_check, strict_w50)
         base, ok = restnl.level(label, cs)
         old = np.load(il.OUT_W / CACHE / f"{label}.npz")
+        mask_keys.check_obj(old, il.OUT_W / CACHE / f"{label}.npz")
         if [str(c) for c in old["cols"]] != cs:
             raise ValueError(f"{label}: columns differ from the precue_restw cache")
         used, n_rest = old["used"], int(old["n_rest"])
@@ -145,7 +149,7 @@ def _session(label: str, var: str) -> dict:
     f.parent.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(f, version=VERSION, cols=np.array(cs), restw=base, restw_ok=ok, used=np.array(used, int),
                         n_rest=n_rest, p10=p10, p05=p05, pos=np.asarray(Eg.pos.astype(str).to_numpy(), str), f10=f10, f05=f05,
-                        maxdiff=maxdiff, animal=str(d["animal"]), epoch=str(d["epoch"]), **extra)
+                        maxdiff=maxdiff, animal=str(d["animal"]), epoch=str(d["epoch"]), **extra, **mask_keys.stamp())
     return {"label": label, "cached": False, "restw_ok": ok, "n_pos": len(used), "maxdiff": maxdiff}
 
 
@@ -154,6 +158,7 @@ def session_tables(labels: list, var: str = "restw") -> tuple[dict, pd.DataFrame
     out, notes = {None: [], "far_contra": []}, []
     for x in labels:
         z = np.load(il.OUT_W / _cache(var) / f"{x}.npz")
+        mask_keys.check_obj(z, il.OUT_W / _cache(var) / f"{x}.npz")
         cs = [str(c) for c in z["cols"]]
         ok = bool(z["restw_ok"])
         pos = z["pos"].astype(str)

@@ -29,6 +29,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
 import restnl  # noqa: E402
 
+from wfield_local import mask_keys  # noqa: E402
+
 OUT = il.OUT_W / "cue_to_lick"
 SESS = OUT / "sessions"
 SESS_NL = OUT / restnl.cache("sessions_restnl")   # per RESTnl rule (strict = sessions_restnl, wr = _wr)
@@ -48,9 +50,11 @@ def session_worker(label: str) -> dict:
     if f.exists():
         z = np.load(f)
         if int(z["version"]) == VERSION:
+            mask_keys.check_obj(z, f)             # stale-read guard: built on the current analysis masks (11-09)
             return {"label": label, "cached": True}
     from wfield_local import combined_encoding as ce
     src = np.load(il.OUT_W / "precue_restw" / f"{label}.npz")
+    mask_keys.check_obj(src, il.OUT_W / "precue_restw" / f"{label}.npz")
     rv = np.load(il.OUT_W / "revup" / "sessions" / f"{label}.npz")
     d = il._load(label)
     # == lick_precue_restw_traces.session_worker's trace construction
@@ -93,7 +97,7 @@ def session_worker(label: str) -> dict:
     f.parent.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(f, version=VERSION, cols=np.array(COLS), pos=pos, cue=cue, stop=rv["stop"], fl=fl,
                         phase=rv["phase"].astype(str), quiet=rv["quiet"], npre=rv["npre"], Xc=Xc, Xl=Xl, restw=restw,
-                        restw_ok=bool(src["restw_ok"]), animal=str(d["animal"]), epoch=str(d["epoch"]), maxdiff=maxdiff)
+                        restw_ok=bool(src["restw_ok"]), animal=str(d["animal"]), epoch=str(d["epoch"]), maxdiff=maxdiff, **mask_keys.stamp())
     return {"label": label, "cached": False, "n": len(cue), "maxdiff": maxdiff}
 
 
@@ -143,9 +147,11 @@ def session_worker_restnl(label: str) -> dict:
     if f.exists():
         z = np.load(f)
         if int(z["version"]) == VERSION:
+            mask_keys.check_obj(z, f)             # stale-read guard (11-09)
             return {"label": label, "cached": True}
     from wfield_local import combined_encoding as ce
     src = np.load(il.OUT_W / restnl.cache("precue_restnl") / f"{label}.npz")
+    mask_keys.check_obj(src, il.OUT_W / restnl.cache("precue_restnl") / f"{label}.npz")
     old = np.load(il.OUT_W / "precue_restw" / f"{label}.npz")
     d = il._load(label)
     V, ft, Ub, flat, parea, names, shape, pstat = ce.load_imaging(label)
@@ -203,7 +209,7 @@ def session_worker_restnl(label: str) -> dict:
                         restw=np.asarray(src["restw"], float)[idx], restw_ok=bool(src["restw_ok"]),
                         restw_old=np.asarray(old["restw"], float)[[[str(c) for c in old["cols"]].index(c) for c in COLS]],
                         animal=str(d["animal"]), epoch=str(d["epoch"]), maxdiff=maxdiff, fl_mismatch=fl_mismatch,
-                        n_shared=int(hit.sum()))
+                        n_shared=int(hit.sum()), **mask_keys.stamp())
     return {"label": label, "cached": False, "n": len(cue), "maxdiff": maxdiff, "fl_mismatch": fl_mismatch,
             "n_shared": int(hit.sum())}
 
