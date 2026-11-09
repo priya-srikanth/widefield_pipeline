@@ -72,6 +72,15 @@ def split_table(pix: Path, fit_run: Path, variant: str) -> pd.DataFrame:
     return t[["label", "animal", "epoch", "window", "measure", "area", "r2"]].reset_index(drop=True)
 
 
+def trial_set_sentence(tag: str, w: str, split: bool = False) -> str:
+    """The trials / frames of the ``w``-window maps of run ``tag`` (Priya 11-09): the frozen Musall window; the split
+    ROIs come from the basis moments, which also drop trials whose window runs past the recording."""
+    from wfield_local import frozen_encoder as fe
+    s = fe.trial_set_sentence("musall", tag=tag, align=w)
+    return s + ("; ALM / tjM1 / MOs_rest / MOp_rest (basis moments): trials whose window runs past the recording also "
+                "excluded" if split else "")
+
+
 def main(argv=None) -> int:
     import matplotlib
     matplotlib.use("Agg")
@@ -92,6 +101,9 @@ def main(argv=None) -> int:
     ap.add_argument("--fit-run", default=None, help="folder holding fit/spatial_<animal>.pkl (default <tag>_basis)")
     ap.add_argument("--out", default=None, help="output folder (default the run folder; figures in <out>/figures)")
     a = ap.parse_args(argv)
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=tst.union(*(trial_set_sentence(a.tag, w, bool(a.split or a.pix_run)) for w in ("cue", "lick")),
+                               unit="trials"))
     run = E / f"frozen_encoder_{a.tag}"
     out = Path(a.out) if a.out else run
     (out / "figures").mkdir(parents=True, exist_ok=True)
@@ -208,7 +220,9 @@ def main(argv=None) -> int:
             fig.suptitle(textwrap.fill(title, width=int(42 * len(qs))), fontsize=8.5)   # wrapped to the figure width
             fig.subplots_adjust(left=0.05, right=0.97, bottom=0.02, top=0.9 if kind == "allen" else 0.88, wspace=0.06,
                                 hspace=0.3)
-            save_png_svg(fig, out / "figures" / f"peth_trial_maps_{w}{sfx}{'_split' if kind == 'split' else ''}.png", dpi=105)
+            with tst.active(None, text=trial_set_sentence(a.tag, w, kind == "split")):   # this figure's window
+                save_png_svg(fig, out / "figures" / f"peth_trial_maps_{w}{sfx}{'_split' if kind == 'split' else ''}.png",
+                             dpi=105)
             plt.close(fig)
     print("->", out / "figures")
     return 0

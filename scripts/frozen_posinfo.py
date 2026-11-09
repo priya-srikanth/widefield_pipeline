@@ -25,6 +25,12 @@ from fr_musall import E  # noqa: E402
 from frozen_fr_compare import ALAB, WINDOWS, bars, boot, session_r2  # noqa: E402
 
 KEY = ["label", "animal", "epoch", "window", "area"]
+
+
+def trial_set_sentence(tag: str, w: str) -> str:
+    """The trials / frames of the ``w``-window figure of run ``tag`` (Priya 11-09): the frozen Musall window."""
+    from wfield_local import frozen_encoder as fe
+    return fe.trial_set_sentence("musall", tag=tag, align=w)
 AREAS = ["cortex", "SSp-m_right", "SSp-m_left", "MOp_right", "MOp_left"]
 QS = [("posinfo unique", "no_posinfo", "unique"), ("noposinfo unique", "no_noposinfo", "unique"),
       ("posinfo alone", "posinfo_only", "alone"), ("noposinfo alone", "noposinfo_only", "alone")]
@@ -42,6 +48,8 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--tag", default=_design_tag("gate-attempted_v7g3_t3d_frA_pos"))
     a = ap.parse_args(argv)
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=tst.union(*(trial_set_sentence(a.tag, w) for w in WINDOWS), unit="trials"))
     folder = f"frozen_encoder_{a.tag}"
     out = E / "frozen_fr_compare"
     (out / "figures").mkdir(parents=True, exist_ok=True)
@@ -80,7 +88,8 @@ def main(argv=None) -> int:
         from wfield_local.sig_marks import reserve_headroom
         reserve_headroom(fig)                # the `bars` stars sit in the top band (10-30), no top spine (11-03)
         fig.subplots_adjust(left=0.05, right=0.995, top=0.88, bottom=0.07, hspace=0.45)
-        save_png_svg(fig, out / "figures" / f"frozen_posinfo_{a.tag}_{w}.png", dpi=105)
+        with tst.active(None, text=trial_set_sentence(a.tag, w)):            # this figure's window
+            save_png_svg(fig, out / "figures" / f"frozen_posinfo_{a.tag}_{w}.png", dpi=105)
         plt.close(fig)
     print("->", out)
     return 0

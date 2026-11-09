@@ -50,6 +50,21 @@ from wfield_local.cat_points import MODEL_COLORS as _MC  # noqa: E402
 COL = {"noFR": _MC[5], "FR-B": _MC[0], "FR-A": _MC[2]}
 
 
+def trial_set_sentence(w: str) -> str:
+    """The trials / frames of the two ``w``-window figures (Priya 11-09): every frame models the same trials
+    (`frozen_encoder.modeled_trials_text`); panels 1 + 3 = the frozen Musall ``w`` window, panel 2 = the far-contra
+    ``w``-aligned PETH (residual_trend sessions), panel 4 / row 4 = Layer 2 (allsession_encoder: all modeled frames)."""
+    from wfield_local import frozen_encoder as fe
+    tag = RUNS["noFR"][0]
+    trials = fe.modeled_trials_text(tag)
+
+    def part(x):                                         # the sentence minus the shared trials part
+        return x[len(trials) + 2:] if x.startswith(trials + "; ") else x
+    return (f"{trials}; panels 1 + 3: {part(fe.trial_set_sentence('musall', tag=tag, align=w))}; panel 2: "
+            f"{part(fe.trial_set_sentence('peth', tag=tag, align=w, spout='far_contra'))}; panel 4 (Layer 2): "
+            f"{part(fe.trial_set_sentence('all', tag=tag))}, every session")
+
+
 def session_r2(folder: str, variant: str, measure: str = "frame", areas=None) -> pd.DataFrame:
     """Per session x window x area frozen R2; measure = frame (all frames of the window) | trial (single-trial window
     means) | avg (trial-averaged = PETH), as `frozen_encoder.musall_r2`. ``areas`` default AREAS."""
@@ -235,7 +250,9 @@ def lines_figure(plt, w, B1, B2, B3, B4, lev, out):
                  "of animals' epoch - pre (row 4: - pre_late), band 95 % nested CI; title: pre R2 noFR / FR-B / FR-A.",
                  fontsize=10.5)
     fig.subplots_adjust(left=0.07, right=0.995, top=0.91, bottom=0.075, hspace=0.35, wspace=0.12)
-    save_png_svg(fig, out / "figures" / f"frozen_fr_compare_lines_{w}.png", dpi=110)
+    from wfield_local import trial_set_text as tst
+    with tst.active(None, text=trial_set_sentence(w)):
+        save_png_svg(fig, out / "figures" / f"frozen_fr_compare_lines_{w}.png", dpi=110)
     plt.close(fig)
 
 
@@ -243,6 +260,8 @@ def main() -> int:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=tst.union(*(trial_set_sentence(w) for w in WINDOWS), unit="trials"))
     out = E / "frozen_fr_compare"
     (out / "figures").mkdir(parents=True, exist_ok=True)
     pd.set_option("display.width", 240)
@@ -341,7 +360,8 @@ def main() -> int:
         from wfield_local.sig_marks import reserve_headroom
         reserve_headroom(fig)                # the `bars` stars sit in the top band (10-30), no top spine (11-03)
         fig.subplots_adjust(left=0.045, right=0.995, top=0.86, bottom=0.07, hspace=0.42, wspace=0.14)
-        save_png_svg(fig, out / "figures" / f"frozen_fr_compare_{w}.png", dpi=110)
+        with tst.active(None, text=trial_set_sentence(w)):                   # this figure's window
+            save_png_svg(fig, out / "figures" / f"frozen_fr_compare_{w}.png", dpi=110)
         plt.close(fig)
         lines_figure(plt, w, B1, B2, B3, B4, lev, out)
     print("->", out)
