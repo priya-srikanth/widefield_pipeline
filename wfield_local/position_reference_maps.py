@@ -443,6 +443,33 @@ CLASS_VARIANTS = {JAW_ONLY: ("jaw_only",),
                   WORKING_PERIOD: ("contact", "incomplete", "jaw_only", "no_response")}
 
 
+#: Class variants whose per-session maps carry NO session floor (Priya 11-09: jaw-only trials are pooled PER EPOCH per
+#: animal, and the floor is applied to the pooled cell -- `pooled_by_epoch`). The per-session cache entries hold every
+#: position with >= 1 trial, with its n.
+SESSION_FLOOR_FREE = frozenset({JAW_ONLY})
+#: the per-cell floor of an epoch-pooled class map: >= this many trials per animal x epoch x position (Priya 11-09,
+#: proposed 20 = the per-session floor of every other map family)
+JAW_EPOCH_FLOOR = 20
+
+
+def pooled_by_epoch(store, ntr, reference, q, epoch, *, floor=JAW_EPOCH_FLOOR):
+    """``({animal: trial-pooled map}, {animal: n})`` for one position x epoch: each animal's sessions of that epoch
+    POOLED AT THE TRIAL LEVEL (session trial means weighted by their n -- the trial average over the epoch, each trial
+    still against its own session's reference), kept only when the animal's pooled n >= ``floor``. ``n`` lists EVERY
+    animal with >= 1 trial (kept or not), so a panel can say "n < floor"."""
+    maps, ns = {}, {}
+    for an, by_e in store.items():
+        sess = {lab: d[reference] for lab, d in ((by_e.get(epoch) or {}).get(q) or {}).items() if reference in d}
+        w = {lab: int((((ntr.get(an) or {}).get(epoch) or {}).get(q) or {}).get(lab, 0)) for lab in sess}
+        n = sum(w.values())
+        if n <= 0:
+            continue
+        ns[an] = n
+        if n >= floor:
+            maps[an] = sum(w[lab] * np.asarray(m, float) for lab, m in sess.items()) / n
+    return maps, ns
+
+
 def class_rows(cls_e, cls_n, classes):
     """(keep engaged rows, keep no-lick rows): rows whose camera class is in ``classes`` (either arm -- the class
     decides, as `trial_classes.camera_rows("working")` does)."""
@@ -551,6 +578,9 @@ def session_raw_maps(session, align, *, post_s=2.0, variant="working"):
             # SAME FLOOR AS FIGURE 14 (20 trials), for the same reason: below it the map is erratic
             # rather than merely noisy. A position the animal has stopped attempting loses its OWN
             # column and takes nothing else with it.
+            # JAW-ONLY (Priya 11-09): NO per-session floor -- every session's trial mean + n is kept and the floor  # [gate-source hook]
+            # is applied after pooling the epoch's sessions per animal (`pooled_by_epoch`, JAW_EPOCH_FLOOR)  # [gate-source hook]
+            if variant in SESSION_FLOOR_FREE and int(sel.sum()) > 0: r[q], n[q] = _map(np.asarray(Xa)[sel].mean(0)), int(sel.sum()); continue  # noqa: E501,E701,E702  # [gate-source hook]
             if int(sel.sum()) < MIN_TRIALS_PER_CLASS:
                 continue
             r[q], n[q] = _map(np.asarray(Xa)[sel].mean(0)), int(sel.sum())
@@ -715,6 +745,8 @@ def session_raw_maps_cached(session, align, *, post_s=2.0, variant="working"):
         # put); its own source + class set key these kinds instead. Other variants: params exactly as before.
         kp["cls_code"] = map_collect.code_digest(class_rows, _class_xy)
         kp["classes"] = CLASS_VARIANTS[variant]
+        if variant in SESSION_FLOOR_FREE:          # per-session maps without the floor (pooled per epoch downstream)
+            kp["session_floor"] = "none-v1"
     kind = map_collect.cache_kind("prm", align, variant, kp, _raw_maps_code())
     mc = session["mc"]
     ua = glob.glob(f"{mc}/wfield_local_results/allen_aligned_affine8v1/U_atlas.npy")   # = joint_basis._load_session

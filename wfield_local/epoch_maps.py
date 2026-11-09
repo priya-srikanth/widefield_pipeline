@@ -343,7 +343,7 @@ def _fig_15rpa_reference_by_animal(out_dir, align, variant, wname):
     one-vs-rest coupling showing itself in a single animal.
     """
     # JAW-ONLY CLASS (Priya 11-09): the same per-animal maps on camera jaw_only trials (`jaw_only_panels`)
-    if not ((variant in ("working", "jaw_only", "working_period") and align in ("precue", "cue"))
+    if not ((variant in ("working", "working_period") and align in ("precue", "cue"))
             or (variant == "lick" and align == "lick")):
         return None
     from wfield_local import beta_maps as bm
@@ -615,86 +615,156 @@ def _fig_15r_reference_maps(out_dir, align, variant, wname):
     return [p for p in out if p]
 #: What the jaw-only panels are, said on each of them (Priya 11-09).
 _JAW_NOTE = ("JAW-ONLY CLASS: camera jaw_only trials (jaw moved, no camera lick) inside the working period -- trials the "
-             "working maps EXCLUDE, shown as their own group. Same windows, references and per-session 20-trial floor "
-             "per position as the working maps; n per panel. Jaw-only trials are sparse (most sessions hold fewer than "
-             "20 at a position), so most cells are empty; the jaw is never judged at close center / close mid.")
+             "working maps EXCLUDE, shown as their own group. POOLED PER EPOCH: each animal's jaw-only trials of all "
+             "sessions of an epoch are averaged at the trial level (each trial against its own session's reference), "
+             "and a cell is drawn only when that animal x epoch x position holds >= {floor} jaw-only trials; n on every "
+             "panel, cells under the floor left blank with their n. Same windows and references as the working maps; "
+             "the jaw is never judged at close center / close mid.")
+
+
+def _jaw_note() -> str:
+    from wfield_local import position_reference_maps as prm
+    return _JAW_NOTE.format(floor=prm.JAW_EPOCH_FLOOR)
 
 
 #: The supplement figures say what they are, first (Priya 11-09); the primary (working) figures carry no prefix.
 _SUPPLEMENT_NOTE = {
-    "jaw_only": _JAW_NOTE + " ",
     "working_period": ("PERIOD SUPPLEMENT: EVERY judged trial in the working period (first to last camera lick) -- "
                        "contact + incomplete + jaw-only + no response; stopped runs, stopped-licking, the quit tail "
                        "and unknown excluded. The PRIMARY figures use working trials (contact + incomplete) only. "),
 }
 
 
-def _fig_15r_jaw_only(out_dir, align, wname):
-    """15r on the JAW-ONLY class (Priya 11-09), POOLED: each animal's jaw-only epoch maps on that animal's WORKING
-    pre-stroke scale (`beta_maps.pre_scale` of its working pre maps, the constant the working 15r figure divides by),
-    then the mean over animals -- so a panel reads in the units of the working figure beside it.
+def _n_text(ns, kept, floor) -> str:
+    """Panel n line: kept animals' trials, plus the animals under the floor with their n."""
+    out = f"{len(kept)} an, n={sum(ns[a] for a in kept)}" if kept else "no cell"
+    low = [f"{a} {ns[a]}" for a in sorted(ns) if a not in kept]
+    return out + (f"\nn < {floor}: " + ", ".join(low) if low else "")
 
-    WHY NOT `_fig_15r_reference_maps` ITSELF: that figure normalizes every animal by its OWN pre-stroke map of the same
-    class and drops a row with no pre panel, and jaw-only trials barely exist pre-stroke (0 of 259 session x position
-    cells reach the 20-trial floor pre-stroke, 11-09 census), so the class would vanish again. Here a row stays when ANY
-    epoch has a jaw-only map; the "<epoch> - pre" columns appear only where the same animal has a jaw-only PRE map
-    (within-animal intersection). NO significance contours: a handful of sessions per panel cannot carry the nested
-    bootstrap."""
+
+def jaw_epoch_cells(store, ntr, work, reference, positions, epochs, *, floor=None):
+    """THE EPOCH-POOLED JAW-ONLY CELLS (Priya 11-09), as data: ``(cells, titles, rows, delta_cols)`` for the pooled
+    figure. Per animal x epoch x position: `position_reference_maps.pooled_by_epoch` (trial-level pool of the epoch's
+    sessions, kept at >= ``floor`` trials), divided by that animal's WORKING pre-stroke scale (`beta_maps.pre_scale` of
+    its working pre maps -- the constant the working 15r figure divides by, so the panel reads in the working figure's
+    units); the cell = mean over the animals kept. "<epoch> - pre" = within-animal (animals kept in BOTH), only where
+    one exists. A cell under the floor is absent and its title says "n < floor" with each animal's n."""
+    from wfield_local import beta_maps as bm
+    from wfield_local import position_reference_maps as prm
+    floor = prm.JAW_EPOCH_FLOOR if floor is None else floor
+    post = [e for e in epochs if e != "pre"]
+    cells, titles, rows, dcols = {}, {}, [], []
+    for q in positions:
+        row = _long_of(q)
+        sc = bm.pre_scale(prm.by_animal(work, reference, q, "pre"))
+        per = {}
+        any_n = False
+        for e in epochs:
+            maps, ns = prm.pooled_by_epoch(store, ntr, reference, q, e, floor=floor)
+            maps = {a: m for a, m in maps.items() if a in sc}
+            any_n = any_n or bool(ns)
+            per[e] = maps
+            if maps:
+                cells[(row, e)] = np.mean([maps[a] / sc[a] for a in sorted(maps)], axis=0)
+            if ns:
+                titles[(row, e)] = f"{e}\n" + _n_text(ns, sorted(maps), floor)
+        for e in post:
+            both = sorted(set(per.get("pre") or {}) & set(per.get(e) or {}))
+            if both:
+                c = f"{e} - pre"
+                cells[(row, c)] = np.mean([(per[e][a] - per["pre"][a]) / sc[a] for a in both], axis=0)
+                titles[(row, c)] = f"{e.upper()} - PRE\n{len(both)} an, within-animal"
+                if c not in dcols:
+                    dcols.append(c)
+        if any_n:
+            rows.append(row)
+    dcols = [f"{e} - pre" for e in post if f"{e} - pre" in dcols]
+    return cells, titles, rows, dcols
+
+
+def _fig_15r_jaw_only(out_dir, align, wname):
+    """15r on the JAW-ONLY class (Priya 11-09), POOLED PER EPOCH per animal (`jaw_epoch_cells`), then over animals.
+
+    WHY NOT `_fig_15r_reference_maps` ITSELF: that figure keeps a session x position only at >= 20 trials, and only 6
+    of 259 jaw-only session x position cells reach it (none pre-stroke; 11-09 census), so the class would vanish.
+    Priya 11-09: pool the epoch's sessions per animal and apply the floor to the pooled cell instead. NO significance
+    contours: a few animals per cell cannot carry the nested bootstrap."""
     from wfield_local import beta_maps as bm
     from wfield_local import position_reference_maps as prm
     from wfield_local.grant_figures import CONF_LABELS
 
-    store, rel, ntr = prm.maps_by_epoch(align, prm.JAW_ONLY)
+    store, _rel, ntr = prm.maps_by_epoch(align, prm.JAW_ONLY)
     if not store:
-        print(f"  .. 15r jaw-only {align}: no session x position reached {prm.MIN_TRIALS_PER_CLASS} jaw-only trials",
-              flush=True)
+        print(f"  .. 15r jaw-only {align}: no jaw-only trials", flush=True)
         return None
     work, _rel_w, _ntr_w = prm.maps_by_epoch(align, "working")
     EPO = list(ef.PANELS)
-    POST = ("acute", "subacute", "chronic")
-    DCOLS = [f"{e} - pre" for e in POST]
     edges, out = bm.atlas_edges(), []
     for reference in prm.render_references():
         if reference == "precue" and align == "precue":
             continue
         txt = _REF_TEXT[reference]
-        cells, titles, rows = {}, {}, []
-        for q in CONF_LABELS:
-            row = _long_of(q)
-            sc = bm.pre_scale(prm.by_animal(work, reference, q, "pre"))
-            per_e = {}
-            for e in EPO:
-                by = {a: v for a, v in prm.by_animal(store, reference, q, e).items() if a in sc}
-                if not by:
-                    continue
-                per_e[e] = by
-                cells[(row, e)] = np.mean([np.mean(v, axis=0) / sc[a] for a, v in by.items()], axis=0)
-                n_tr = sum(sum((((ntr.get(a) or {}).get(e) or {}).get(q) or {}).values()) for a in by)
-                titles[(row, e)] = f"{e}\n{len(by)} an, {sum(len(v) for v in by.values())} sess, n={n_tr}"
-            pre = per_e.get("pre") or {}
-            for e in POST:
-                both = sorted(set(pre) & set(per_e.get(e) or {}))
-                if not both:
-                    continue
-                cells[(row, f"{e} - pre")] = np.mean(
-                    [(np.mean(per_e[e][a], axis=0) - np.mean(pre[a], axis=0)) / sc[a] for a in both], axis=0)
-                titles[(row, f"{e} - pre")] = f"{e.upper()} - PRE\n{len(both)} an, within-animal"
-            if per_e:
-                rows.append(row)
-        if not cells:
+        cells, titles, rows, dcols = jaw_epoch_cells(store, ntr, work, reference, CONF_LABELS, EPO)
+        if not rows:
             continue
-        cols = EPO + [c for c in DCOLS if any((r, c) in cells for r in rows)]
         out.append(ef.map_grid(
             cells, out_dir,
             name=f"epoch_15r_position_{prm.reference_tag(reference)}ref_{align}_{prm.JAW_ONLY}",
             title=f"{txt['title']} -- {wname}",
-            row_labels=rows, col_labels=cols, panel_titles=titles,
-            delta_cols=tuple(c for c in DCOLS if c in cols), edges=edges, blank=bm.excluded_mask(),
+            row_labels=rows, col_labels=EPO + dcols, panel_titles=titles,
+            delta_cols=tuple(dcols), edges=edges, blank=bm.excluded_mask(),
             cbar_label=txt["cbar"] + "\n(/ animal's WORKING pre scale)",
             delta_label="change vs jaw-only pre\n(same scale)", row_scaled=False,
-            subtitle=(f"{_JAW_NOTE} Each animal's maps are divided by the RMS of its WORKING pre-stroke map at that "
-                      f"position (the working figure's scale), then averaged over animals; a row is drawn when any "
-                      f"epoch has a jaw-only map. NO significance is drawn (too few sessions per panel). "
+            subtitle=(f"{_jaw_note()} Each animal's epoch map is divided by the RMS of its WORKING pre-stroke map at "
+                      f"that position (the working figure's scale), then averaged over the animals that pass the "
+                      f"floor. NO significance is drawn. {txt['note']}")))
+    return [p for p in out if p]
+
+
+def _fig_15rpa_jaw_only(out_dir, align, wname, q="far_R"):
+    """15rpa on the JAW-ONLY class (Priya 11-09), PER ANIMAL at ``q``: each animal's epoch-pooled jaw-only map
+    (`pooled_by_epoch`, floor on the pooled cell), row-scaled per animal as 15rpa is; n on every panel."""
+    from wfield_local import beta_maps as bm
+    from wfield_local import position_reference_maps as prm
+
+    store, _rel, ntr = prm.maps_by_epoch(align, prm.JAW_ONLY)
+    if not store:
+        return None
+    EPO = list(ef.PANELS)
+    POST = [e for e in EPO if e != "pre"]
+    edges, out = bm.atlas_edges(), []
+    for reference in prm.render_references():
+        if reference == "precue" and align == "precue":
+            continue
+        txt = _REF_TEXT[reference]
+        cells, titles, dcols = {}, {}, []
+        per = {e: prm.pooled_by_epoch(store, ntr, reference, q, e) for e in EPO}
+        rows = sorted({a for _m, ns in per.values() for a in ns})
+        for an in rows:
+            for e in EPO:
+                maps, ns = per[e]
+                if an in ns:
+                    titles[(an, e)] = f"{e}\nn={ns[an]}" + ("" if an in maps else f" < {prm.JAW_EPOCH_FLOOR}")
+                if an in maps:
+                    cells[(an, e)] = maps[an]
+            for e in POST:
+                if an in per["pre"][0] and an in per[e][0]:
+                    c = f"{e} - pre"
+                    cells[(an, c)] = per[e][0][an] - per["pre"][0][an]
+                    titles[(an, c)] = f"{e.upper()} - PRE"
+                    if c not in dcols:
+                        dcols.append(c)
+        if not rows:
+            continue
+        dcols = [f"{e} - pre" for e in POST if f"{e} - pre" in dcols]
+        out.append(ef.map_grid(
+            cells, out_dir,
+            name=f"epoch_15rpa_position_{prm.reference_tag(reference)}ref_by_animal_{align}_{prm.JAW_ONLY}",
+            title=f"Far-CONTRALATERAL, {txt['short']}, PER ANIMAL -- {wname}",
+            row_labels=rows, col_labels=EPO + dcols, panel_titles=titles,
+            delta_cols=tuple(dcols), edges=edges, blank=bm.excluded_mask(),
+            cbar_label=txt["cbar"], delta_label="change vs jaw-only pre",
+            subtitle=(f"{_jaw_note()} Color scale is per ANIMAL (rows not comparable). NO significance is drawn. "
                       f"{txt['note']}")))
     return [p for p in out if p]
 
@@ -720,8 +790,8 @@ def supplement_panels(out_dir, align, caption):
 
 
 def jaw_only_panels(out_dir, align, wname):
-    """THE JAW-ONLY CLASS PANELS (Priya 11-09) of the working-map families: pooled 15r (`_fig_15r_jaw_only`) + per-animal
-    15rpa on camera jaw_only trials, for the precue / cue arms under the camera gate (else nothing). Draws under the
+    """THE JAW-ONLY CLASS PANELS (Priya 11-09) of the working-map families, POOLED PER EPOCH per animal: pooled 15r
+    (`_fig_15r_jaw_only`) + per-animal 15rpa (`_fig_15rpa_jaw_only`) on camera jaw_only trials, for the precue / cue arms under the camera gate (else nothing). Draws under the
     jaw-only trial set (`trial_set_text`), so every figure says which trials it holds. Returns the figure paths."""
     from wfield_local import trial_classes as tc
     from wfield_local import trial_set_text as tst
@@ -730,7 +800,7 @@ def jaw_only_panels(out_dir, align, wname):
     made = []
     with tst.active(tst.JAW_ONLY_CLASS, align):
         made += _fig_15r_jaw_only(out_dir, align, wname) or []
-        made += _fig_15rpa_reference_by_animal(out_dir, align, tst.JAW_ONLY_CLASS, wname) or []
+        made += _fig_15rpa_jaw_only(out_dir, align, wname) or []
     return made
 
 
