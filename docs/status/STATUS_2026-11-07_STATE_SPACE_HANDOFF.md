@@ -48,6 +48,44 @@ running list `docs/status/RUNNING_LIST_2026-11-08_STATE_SPACE.md` sections A (de
   after the sweep.
 - **11-08 ~11:45:** page v15 has section 9 (maps, all baselines, why-cleaner). "Why cleaner" answered for the 15r
   activity maps (B19: window, not denoising); the residual-map half not done.
+- **11-09 ~16:00 -- START HERE (open items a-d DONE, B40-B45; FINDINGS 0 "Where things stand, state-space maps with
+  movement removed" + 0c items 7-8 REWRITTEN).** Headline revised: the activity increase is not movement under any model
+  (incl. the encoder and each epoch's own coupling) and runs opposite to the June -> August change; the rest fall = task /
+  licking periods further above rest; the BETWEEN-SPOUT change (acute far-contra deficit included) is largely accounted
+  for by movement once modeled with lick-locked kernels (encoder, B40 / B44) or the post-stroke coupling (KBe, B43); the
+  bout-summary maps (9.1-9.3 b-d) are a LOWER bound on movement (B44). New scripts: state_space_encoder_subtract.py,
+  state_space_encoder_window_kbs.py, state_space_fr_coupling.py, state_space_june_maps.py, state_space_rest_decomp.py;
+  WF_SS_FR=KBw|KBe in state_space_chronic_maps.py. Figures on the share (page_figs): ss_encoder_subtract,
+  ss_fr_coupling_lick_svd, ss_june_maps_{full,nocw,spout}_lick_svd, ss_cmap_*_rest_fr{KBw,KBe}_lick_svd,
+  ss_rest_decomp_lick_svd. PAGE: v37 build still unpublished (other account) AND its 9.3 b-d captions / take row say
+  the acute deficit "survives movement" -- rewrite to the lower-bound wording and add the new figures before publishing.
+  Open: (1) encoder subtraction with contact LEFT IN (motor groups only) to split motor from the sensory consequence of
+  missing; (2) contralesional SSp-m spread under the encoder / KBe; (3) reach vs contact coupling with the two combined.
+- **11-09 ~12:15 -- (superseded by ~16:00) (B28-B39 consolidated into FINDINGS 0 "Where things stand, state-space maps with
+  movement removed" + 0c items 7-10).** Headline: activity change not movement; acute far-contra spout-specific deficit
+  survives movement controls; chronic between-spout change mostly movement-linked; contralesional SSp-m spread rises.
+  PUBLISH PENDING: page v37 (account switch -- the page belongs to the other claude.ai account). Rebuild: `python
+  state_space_page/build_v37_section9.py` (from index_v36_backup.html) + `add_page_row_1109.py` (summary row) +
+  `scripts/page_file_names.py index.html --prefix state_space_recovery/page_figs`; publish with every PNG in the page
+  folder. Open next: (a) the encoder's lick-locked prediction subtracted from our trials (the acute gap; needs the
+  encoding window's outputs); (b) within-spout covariates per animal x epoch refit (does the face->cortex relation itself
+  change?); (c) June / no-stroke drift reference; (d) why rest falls.
+- **11-09 ~12:00 (B38-B39) -- PUBLISH PENDING, v37 build = `state_space_page/build_v37_section9.py` (always from
+  index_v36_backup.html) then `scripts/page_file_names.py index.html --prefix state_space_recovery/page_figs`.** Adds the
+  kinematics + contact controls (K0 / Ks / KBs) and the collapsible-supplement layout; supersedes `rebuild_fr_section9.py`.
+- **11-09 ~11:30 (running list B37) -- PUBLISH PENDING:** spout-centered FR (`WF_SS_FR=Bs|As`) + pre rows on every map,
+  all figures on the share (page_figs, 11:15-11:18). Page v37 is built in the scratchpad (state_space_page/index.html;
+  v36 backup index_v36_backup.html) and must be published from the account that owns
+  https://claude.ai/artifact/9sGELLFEwADEt9k64fXTxe (files: every ss_cmap_*_rest*_lick_svd.png + the 7 other ss_cmap
+  configs; simplest = pass all PNGs in the page folder). Then re-run `scripts/page_file_names.py`.
+- **11-09 ~11:00 (running list B35-B36):** first-lick balance Figs 5.5-5.8 (`landing_lick/`); FR on 9.2 / 9.3: chronic
+  spout-specific change mostly face-linked, acute far-contra loss not (Figs 9.3b-c, v36); every caption carries its file
+  name (`scripts/page_file_names.py --prefix state_space_recovery/page_figs`, re-run after each page edit); maps share
+  scales via WF_SS_VMAX / WF_SS_PREMAX. Page scripts: `state_space_page/{add_balance_lick,add_fr_spout,add_file_names}.py`.
+- **11-09 ~10:30 (running list B34):** FR regressed out of Fig 9.1 (`WF_SS_FR=B|0|A`, full version only via
+  `WF_SS_VERSIONS=full`): the change survives (92-98 % retained, r >= .987). Fig 9.1 has a pre-response row; all maps
+  redrawn in the encoder design (`--replot`, part maps too). Page v32 Figs 9.1b-c (page scripts
+  `state_space_page/{edit_maps_white_pre,edit_maps_ccf,add_fr_maps}.py`). Not run: FR on the nocw / spout versions.
 - **11-09 ~08:15 (running list B33):** motor-area (ALM + tjM1) twins of the section-5 balance figures: `--motor` on
   `state_space_balance_{cells,angle}.py` (tables `landing/*_motor.csv`), `state_space_page_figs.py --only balance_motor
   cross_motor`; page v29 Figs 5.3-5.4 + take + summary row (page script `state_space_page/add_balance_motor.py`). Motor =

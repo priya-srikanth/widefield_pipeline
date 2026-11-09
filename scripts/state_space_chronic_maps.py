@@ -92,6 +92,16 @@ from wfield_local.atlas_overlay import region_edges  # noqa: E402
 from wfield_local.figure_layout import save_png_svg  # noqa: E402
 
 VERSIONS = {"full": "", "nocw": "gsr", "spout": "spout"}
+VERSIONS_ALL = dict(VERSIONS)
+# WF_SS_VERSIONS (comma list) renders a subset. QUICK LOOK (Priya 11-09 "can i see the maps, even without stats?" / "can't
+# the stats run build directly off the no stats (don't re-do work!)"): every run first draws the cohort maps WITHOUT
+# tests (ss_cmap_..._nostats_...png) as soon as the responses exist, then runs the tests in the SAME process;
+# WF_SS_NOSTATS=1 stops after the quick look. The per-session responses (loaded, FR-corrected) are cached per version
+# (RESP_CACHE), so a later run of the same configuration skips the load; delete the pkl after changing how they are built.
+_ENV = __import__("os").environ
+if _ENV.get("WF_SS_VERSIONS"):
+    VERSIONS = {k: v for k, v in VERSIONS.items() if k in _ENV["WF_SS_VERSIONS"].split(",")}
+NOSTATS = _ENV.get("WF_SS_NOSTATS") == "1"
 LABEL = {"full": "full change", "nocw": "minus the cortex-wide mode", "spout": "spout-specific part"}
 EPS = ["acute", "subacute", "chronic"]
 N_BOOT = 2000
@@ -103,8 +113,28 @@ WIN = __import__("os").environ.get("WF_SS_MAPWIN", "resp")
 if WIN not in ("resp", "precue") or (WIN == "precue" and BASE not in ("rest", "none")):
     raise ValueError(f"WF_SS_MAPWIN={WIN!r} (the pre-cue map needs a rest / none baseline)")
 FR = __import__("os").environ.get("WF_SS_FR", "")
-if FR not in ("", "0", "A", "B") or (FR and WIN != "resp"):
-    raise ValueError(f"WF_SS_FR={FR!r} (needs '', 0, A, B and WF_SS_MAPWIN=resp)")
+# Bs / As (Priya 11-09 "add the covariate relative to spout's pre-stroke mean"): B / A covariates minus the animal's PRE
+# mean of that spout, so the pre fit learns from within-spout face variation only and cannot carry spout-target
+# information (B / A themselves decode the spout .40-.60 / .61-.87 from pre trials, chance .17: the non-lick factors
+# follow the spout); post trials are referenced to the same pre spout means, so a post-stroke change in how the face
+# moves AT a spout is still removed.
+# K modes (Priya 11-09 "yes" to the tongue / jaw kinematics + contact control, like-for-like with the encoder's LICK +
+# contact groups): per trial 8 covariates = licks in the 0.7-s bout, contacts among them, first-lick latency, mean reach,
+# peak tongue speed (B27 per-trial table shift_behavior_lick_svd/trials.csv.gz, 3-D licks) + the first lick's 3-D landing
+# (side_ml, out_ap, down_dv; first_lick_landing.csv). Ks = spout-centered (landing -> landing ERROR vs the spout's pre
+# mean: execution, not target); KBs = Ks + the Bs face covariates; K0 = the control on the SAME trials (FR AND kinematics
+# present), nothing regressed. Trials without both are dropped in every K mode.
+# KBw / KBe (handoff 11-09 open item b, Priya "go ahead with all": does the face -> cortex relation itself change?): the
+# KBs covariates, but the coupling is fitted on WITHIN-session x spout trial-to-trial variation only (covariates and
+# responses centered on each session x spout mean, so no session-level neural change can be absorbed as "movement"),
+# then applied, as KBs, to the covariates minus the pre mean at the trial's spout. KBw = the coupling from the PRE
+# sessions (leave-session-out for pre); KBe = the coupling from the trial's OWN EPOCH (leave-that-session-out), so a
+# post-stroke change in the relation is allowed. KBw vs KBe isolates the frozen-coupling assumption; KBw vs KBs isolates
+# the within-centering. Spout means for the centering: pre sessions (leave-session-out) in both.
+FR_MODES = ("", "0", "A", "B", "As", "Bs", "K0", "Ks", "KBs", "KBw", "KBe")
+if FR not in FR_MODES or (FR and WIN != "resp"):
+    raise ValueError(f"WF_SS_FR={FR!r} (needs one of {FR_MODES} and WF_SS_MAPWIN=resp)")
+KIN = FR.startswith("K")
 BSUF = ("" if BASE == "lick" else f"_{BASE}") + ("_precue" if WIN == "precue" else "") + (f"_fr{FR}" if FR else "")
 BASE_LABEL = {"lick": "response window minus the trial's -1.0..-0.6 s before the first lick",
               "rest": "response window minus the session's RESTnl rest level",
@@ -150,6 +180,7 @@ def _rest(lab, an):
 
 FR_WIN = (0.0, 0.5)                          # s after the first lick (response window 0.1..0.5 s + 0.1 s GCaMP lag)
 FR_CACHE = S.ROOT / "fr_cov"
+RESP_CACHE = S.ROOT / "chronic_maps_resp"     # per-session responses per configuration x version (pickle)
 
 
 def fr_covariates(lab, n):
@@ -184,12 +215,34 @@ def fr_covariates(lab, n):
     return X
 
 
+KIN_COLS = ["n_licks", "n_contacts", "rt_s", "reach_mm", "speed", "side_ml", "out_ap", "down_dv"]
+_KIN: dict = {}
+
+
+def kin_covariates(lab, n):
+    """(n, 8) per-trial tongue / jaw kinematics + contact + landing (KIN_COLS), NaN where a trial has no 3-D match; rows =
+    the extract's trial rows (joined through the landing table's row -> trial_id)."""
+    if not _KIN:
+        T = pd.read_csv(S.ROOT / "shift_behavior_lick_svd" / "trials.csv.gz",
+                        usecols=["label", "trial_id", "n_licks", "n_contacts", "rt_s", "reach_mm", "speed"])
+        L = pd.read_csv(R.LANDING, usecols=["label", "row", "trial_id", "side_ml", "out_ap", "down_dv"])
+        J = L.merge(T, on=["label", "trial_id"], how="left")
+        _KIN.update({k: g for k, g in J.groupby("label")})
+    X = np.full((n, len(KIN_COLS)), np.nan)
+    g = _KIN.get(lab)
+    if g is not None:
+        r = g.row.to_numpy().astype(int)
+        keep = r < n
+        X[r[keep]] = g[KIN_COLS].to_numpy(float)[keep]
+    return X
+
+
 def fr_design(X):
     """(n, 12) raw factors -> the WF_SS_FR mode's covariates (`fr_groups` master_v1)."""
     from wfield_local import fr_groups
     G = fr_groups.GROUPINGS["master_v1"]
     cols = []
-    for part in fr_groups.MODES[FR]:
+    for part in fr_groups.MODES["B" if FR.startswith("K") else FR[0]]:
         if part == "other":
             cols += [X[:, k] for k in G["other"]]
         elif G.get(part):
@@ -207,24 +260,69 @@ def apply_fr(data):
         for lab, ep, day, Y, pos in sess:
             X = fr_covariates(lab, len(pos))
             ok = np.zeros(len(pos), bool) if X is None else np.isfinite(X).all(1)
-            rows.append([lab, ep, day, Y, np.where(ok, pos, "none"), None if X is None else fr_design(X), ok])
-        if FR in ("A", "B"):
+            D = None if X is None or FR in ("0", "K0") else fr_design(X)
+            if KIN:
+                Kc = kin_covariates(lab, len(pos))
+                ok &= np.isfinite(Kc).all(1)
+                if FR == "Ks":
+                    D = Kc
+                elif FR in ("KBs", "KBw", "KBe") and D is not None:
+                    D = np.column_stack([Kc, D])
+            rows.append([lab, ep, day, Y, np.where(ok, pos, "none"), D, ok, pos])
+        if FR not in ("0", "K0"):
             pre = [r for r in rows if r[1] == "pre" and r[6].any()]
             for r in rows:
                 if not r[6].any():
                     continue
                 train = [q for q in pre if q[0] != r[0]]
+                if FR in ("KBw", "KBe"):
+                    fit = train if FR == "KBw" or r[1] == "pre" else [q for q in rows if q[1] == r[1] and q[0] != r[0]
+                                                                     and q[6].any()] or train
+                    Xw, Rw = zip(*[_within(q, resp_b) for q in fit])
+                    Bw = np.linalg.lstsq(np.concatenate(Xw), np.concatenate(Rw), rcond=None)[0]
+                    Xp = np.concatenate([q[5][q[6]] for q in train])
+                    pp = np.concatenate([q[7][q[6]] for q in train])
+                    smu = {sp: Xp[pp == sp].mean(0) for sp in np.unique(pp)}
+                    pt = r[7][r[6]]
+                    Xt = np.nan_to_num(r[5][r[6]] - np.stack([smu.get(sp, np.full(Xp.shape[1], np.nan)) for sp in pt]))
+                    Y = r[3].copy()
+                    Y[r[6], resp_b] -= (Xt @ Bw)[:, None, :]
+                    r[3] = Y
+                    continue
                 Xp = np.concatenate([q[5][q[6]] for q in train])
                 Rp = np.concatenate([q[3][q[6]][:, resp_b].mean(1) for q in train])
+                Xt = r[5][r[6]]
+                if FR.endswith("s"):                       # relative to the training pre mean of each trial's spout
+                    pp = np.concatenate([q[7][q[6]] for q in train])
+                    smu = {sp: Xp[pp == sp].mean(0) for sp in np.unique(pp)}
+                    Xp = Xp - np.stack([smu[sp] for sp in pp])
+                    pt = r[7][r[6]]
+                    Xt = Xt - np.stack([smu.get(sp, np.full(Xt.shape[1], np.nan)) for sp in pt])
+                    Xt = np.nan_to_num(Xt)                 # a spout never seen pre: no correction
                 mu = Xp.mean(0)
                 B = np.linalg.lstsq(np.column_stack([np.ones(len(Xp)), Xp - mu]), Rp, rcond=None)[0][1:]
                 Y = r[3].copy()
-                Y[r[6], resp_b] -= ((r[5][r[6]] - mu) @ B)[:, None, :]
+                Y[r[6], resp_b] -= ((Xt - mu) @ B)[:, None, :]
                 r[3] = Y
         out[an] = [tuple(r[:5]) for r in rows]
         print(f"  FR {FR} {an}: trials with FR {sum(r[6].sum() for r in rows)} / {sum(len(r[4]) for r in rows)}",
               flush=True)
     return out
+
+
+def _within(q, resp_b):
+    """(X, R) of one session's covariate-matched trials, each centered on its session x spout mean (spouts with < 3
+    trials dropped): the trial-to-trial covariation only."""
+    X, R, sp = q[5][q[6]], q[3][q[6]][:, resp_b].mean(1), q[7][q[6]]
+    keep = np.zeros(len(sp), bool)
+    X, R = X.copy(), R.copy()
+    for v in np.unique(sp):
+        m = sp == v
+        if m.sum() >= 3:
+            keep |= m
+            X[m] -= X[m].mean(0)
+            R[m] -= R[m].mean(0)
+    return X[keep], R[keep]
 
 
 def session_spouts(lab, an, Y, pos):
@@ -299,7 +397,7 @@ def change(resp, unit, ep, rng=None):
     return out
 
 
-def pixel_maps(resp, unit, Uc, mask):
+def pixel_maps(resp, unit, Uc, mask, stats=True):
     """{epoch: (cohort mean (7, npix), contours [7 x full-frame bool or None], per-animal (n_an, 7, npix), animals,
     contour labels)}. Contours: `beta_maps.significance_contour` on every session's change map (pre sessions vs the
     epoch's sessions, per animal, in the drawn units)."""
@@ -319,7 +417,8 @@ def pixel_maps(resp, unit, Uc, mask):
         for ci in range(7):
             pre_by = {a: [frame(m) for m in sess[a]["pre"][:, ci] if np.isfinite(m).all()] for a in ans}
             post_by = {a: [frame(m) for m in sess[a][ep][:, ci] if np.isfinite(m).all()] for a in ans}
-            cm, lab = beta_maps.significance_contour(pre_by, post_by, n_boot=N_BOOT, normalise=False)
+            cm, lab = (None, "") if not stats else beta_maps.significance_contour(pre_by, post_by, n_boot=N_BOOT,
+                                                                                normalise=False)
             cont.append(cm)
             labs.append(lab)
         res[ep] = (np.nan_to_num(np.nanmean(V, 0)) @ Uc.T, cont, np.nan_to_num(V) @ Uc.T, ans, labs)
@@ -371,7 +470,9 @@ def area_table(resp, unit, W, names, version, rng):
 
 
 # Brain not analyzed (painted glue, bulbs) is left WHITE, as the encoder maps (NaN outside the analyzed mask; Priya 11-09
-# "for all maps, render the masked background as the encoder page does"); the grey fill of 11-08 is off. The crop still
+# "for all maps, render the masked background as the encoder page does"; "use the encoder map design ... still see
+# the full CCF outline even over the masked area"): the grey fill of 11-08 is off, the CCF region outline is drawn over
+# the whole atlas (bulbs and glue included) and the field-of-view line is gone. The crop still
 # spans the whole brain, so the panels keep their size.
 GREY_BG = False
 _ROI_OUTLINES: list = []                                  # full-frame bool masks (ALM / tjM1 per side), filled in main
@@ -379,8 +480,8 @@ _ROI_OUTLINES: list = []                                  # full-frame bool mask
 
 def draw(ax, v, mask, edges, vmax, sig=None, brain=None, cmap="RdBu_r", vlim=None):
     """One map. Analyzed pixels (``mask``) in color with area outlines inside them; brain pixels NOT analyzed (``brain``
-    minus ``mask``: the painted glue and the bulbs, Priya 11-08 "make clear our mask") left white (GREY_BG); the analyzed
-    field of view outlined."""
+    minus ``mask``: the painted glue and the bulbs, Priya 11-08 "make clear our mask") left white (GREY_BG); the
+    CCF outline over the whole atlas."""
     img = np.full(mask.shape, np.nan)
     img[mask] = v
     full = mask if brain is None else (brain | mask)
@@ -390,9 +491,8 @@ def draw(ax, v, mask, edges, vmax, sig=None, brain=None, cmap="RdBu_r", vlim=Non
         ax.imshow(np.where((brain & ~mask)[sl], 1.0, np.nan), cmap="Greys", vmin=0, vmax=2.5, interpolation="nearest")
     lo, hi = vlim if vlim is not None else (-vmax, vmax)
     ax.imshow(img[sl], cmap=cmap, vmin=lo, vmax=hi, interpolation="nearest")
-    ax.imshow(np.where((edges & mask)[sl], 1.0, np.nan), cmap="gray_r", vmin=0, vmax=1.5, alpha=0.5,
+    ax.imshow(np.where(edges[sl], 1.0, np.nan), cmap="gray_r", vmin=0, vmax=1.5, alpha=0.5,
               interpolation="nearest")
-    ax.contour(mask[sl].astype(float), [0.5], colors="0.25", linewidths=0.7)
     for roi in _ROI_OUTLINES:                                # ALM / tjM1 (split basis), dashed
         ax.contour(roi[sl].astype(float), [0.5], colors="0.1", linewidths=0.8, linestyles="--")
     if sig is not None and np.any(sig):              # the repo's significance outline: black on a white halo
@@ -405,6 +505,28 @@ def draw(ax, v, mask, edges, vmax, sig=None, brain=None, cmap="RdBu_r", vlim=Non
         s.set_visible(False)
 
 
+def get_resp(version):
+    """{animal: {epoch: (n_sessions, 6, K)}} for ``version`` under the current BASE / WIN / FR: from RESP_CACHE when
+    present, else loaded (and cached). Sets the loader's XFORM."""
+    import pickle
+    S.XFORM = VERSIONS_ALL[version]
+    rc = RESP_CACHE / f"{SUF}{BSUF}_{version}.pkl"
+    if rc.exists():
+        print(f"  responses from {rc}", flush=True)
+        return pickle.loads(rc.read_bytes())
+    data, _ = S.load_sessions()
+    resp = session_responses(apply_fr(data) if FR else data)
+    RESP_CACHE.mkdir(parents=True, exist_ok=True)
+    rc.write_bytes(pickle.dumps(resp))
+    return resp
+
+
+def full_unit(resp_full, Uc):
+    """{animal: RMS over brain pixels of its FULL pre response} -- the unit of every map."""
+    return {an: np.sqrt(np.nanmean(np.sum(np.nanmean(d["pre"], 0) ** 2, -1)) / Uc.shape[0])
+            for an, d in resp_full.items()}
+
+
 def pre_map(resp, unit, Uc):
     """(7, npix): the pre response itself (mean over spouts, then each spout), per animal the mean over its pre sessions
     in units of its pre response RMS, mean over animals."""
@@ -412,21 +534,27 @@ def pre_map(resp, unit, Uc):
     return np.nan_to_num(np.nanmean(np.stack(V), 0)) @ Uc.T
 
 
-def fig_cohort(res, mask, edges, version, brain=None, pre=None):
+def fig_cohort(res, mask, edges, version, brain=None, pre=None, sfx=""):
     cols = list(range(7)) if version != "spout" else list(range(1, 7))
-    vmax = np.nanpercentile(np.abs(res["chronic"][0][cols]), 99)
+    # WF_SS_VMAX / WF_SS_PREMAX fix the color scales so figures compare (Priya 11-09 "can you put 9.1 and 9.1b on the
+    # same scale"); default = this figure's own 99th percentiles
+    vmax = float(_ENV["WF_SS_VMAX"]) if _ENV.get("WF_SS_VMAX") else np.nanpercentile(np.abs(res["chronic"][0][cols]), 99)
     top = int(pre is not None)                               # the pre-response row (viridis, own scale) on top
     nrow = len(EPS) + top
     fig, axs = plt.subplots(nrow, len(cols), figsize=(2.3 * len(cols), 2.5 * nrow + 0.6), squeeze=False)
     if top:
         lo, hi = np.nanpercentile(pre[cols], [1, 99])
         lo = min(lo, 0.0)
+        if _ENV.get("WF_SS_PREMAX"):
+            hi = float(_ENV["WF_SS_PREMAX"])
+        if _ENV.get("WF_SS_PREMIN"):
+            lo = float(_ENV["WF_SS_PREMIN"])
         for c, ci in enumerate(cols):
             ax = axs[0, c]
             draw(ax, pre[ci], mask, edges, None, None, brain, cmap="viridis", vlim=(lo, hi))
             ax.set_title("mean over spouts" if ci == 0 else S.POS[ci - 1].replace("_", " "))
             if c == 0:
-                ax.set_ylabel("pre response", fontsize=11)
+                ax.set_ylabel("pre response" if version == "full" else f"pre response\n({LABEL[version]})", fontsize=10)
         smp = plt.cm.ScalarMappable(cmap="viridis", norm=plt.Normalize(lo, hi))
         fig.colorbar(smp, ax=axs[0, :], fraction=0.015, pad=0.01, label="pre response\n(units of pre RMS)")
     for r, ep in enumerate(EPS):
@@ -446,9 +574,9 @@ def fig_cohort(res, mask, edges, version, brain=None, pre=None):
                  f"bootstrap animals -> sessions ({N_BOOT}), 8-px blocks, max-stat family-wise per panel "
                  f"(beta_maps.significance_contour)." + (" Top row: the pre response itself (viridis, own scale)." if pre is not None
                  else "") + " Image left = ipsilesional. White = not analyzed (painted fiber "
-                 "glue, olfactory bulbs); outline = analyzed field of view."),
+                 "glue, olfactory bulbs); CCF outline drawn everywhere."),
                  y=1.02, fontsize=9.5)
-    save_png_svg(fig, FIGS / f"ss_cmap_{version}{BSUF}_{SUF}.png", dpi=120, bbox_inches="tight")
+    save_png_svg(fig, FIGS / f"ss_cmap_{version}{BSUF}{sfx}_{SUF}.png", dpi=120, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -486,9 +614,8 @@ def fig_animals(res, mask, edges, version, brain=None, asig=None):
                 ax.imshow(np.where((brain & ~mask)[sl], 1.0, np.nan), cmap="Greys", vmin=0, vmax=2.5,
                           interpolation="nearest")
             im = ax.imshow(img[sl], cmap=plt.get_cmap("magma_r", 5), vmin=-0.5, vmax=4.5, interpolation="nearest")
-            ax.imshow(np.where((edges & mask)[sl], 1.0, np.nan), cmap="gray_r", vmin=0, vmax=1.5, alpha=0.4,
+            ax.imshow(np.where(edges[sl], 1.0, np.nan), cmap="gray_r", vmin=0, vmax=1.5, alpha=0.4,
                       interpolation="nearest")
-            ax.contour(mask[sl].astype(float), [0.5], colors="0.25", linewidths=0.7)
             ax.set_xticks([])
             ax.set_yticks([])
             for sp in ax.spines.values():
@@ -499,8 +626,8 @@ def fig_animals(res, mask, edges, version, brain=None, asig=None):
         cb.set_label("k / 4 same sign", fontsize=9)     # short: the long label was clipped at the row height
     fig.suptitle(_wrap(f"Chronic change vs own pre, per animal: {LABEL[version]} ({S.ALIGN_LABEL[S.ALIGN]}; {BASE_LABEL[BASE]}). Contour: that "
                  f"animal's own session-label shuffle ({N_PERM}), max-stat per panel over stat_mask. Bottom: animals "
-                 f"significant in the direction of the cohort mean. White = not analyzed (glue, bulbs); outline = analyzed field "
-                 "of view"), y=1.01,
+                 f"significant in the direction of the cohort mean. White = not analyzed (glue, bulbs); CCF outline drawn "
+                 "everywhere"), y=1.01,
                  fontsize=9.5)
     save_png_svg(fig, FIGS / f"ss_cmap_animals_{version}{BSUF}_{SUF}.png", dpi=100, bbox_inches="tight")
     plt.close(fig)
@@ -514,7 +641,7 @@ def main():
     Uc = np.load(BASIS_DIR / "U_cohort.npy").astype(np.float64)                 # brain-mask px x K, orthonormal
     mask = np.load(BASIS_DIR / "mask.npy").reshape(np.load(S.SVD.parents[1] / "atlas.npy").shape)
     atlas = np.load(S.SVD.parents[1] / "atlas.npy")
-    edges = region_edges(np.where(mask, atlas, 0))
+    edges = region_edges(atlas)                       # the FULL CCF outline (bulbs + masked glue included), as the encoder maps
     from wfield_local import beta_maps
     brain = beta_maps.allen_mask()                                             # the whole Allen brain, nothing removed
     statpx = beta_maps.stat_mask()[mask]                                       # eroded brain mask, on the basis pixels
@@ -533,37 +660,38 @@ def main():
             res = {ep: (z[f"{version}__{ep}__mean"], [c if c.any() else None for c in z[f"{version}__{ep}__sig"]],
                         z[f"{version}__{ep}__animals"], ans) for ep in EPS}
             asig = dict(zip(ans, z[f"{version}__chronic__animal_sig"]))
-            pz = OUT / "pre_maps.npz"
-            pre = (z["full__pre__mean"] if "full__pre__mean" in z.files else
-                   np.load(pz)["full__pre__mean"] if pz.exists() else None) if version == "full" else None
+            pz = OUT / "pre_maps.npz"                                        # every version's pre row (Priya 11-09)
+            pk = f"{version}__pre__mean"
+            pzz = np.load(pz) if pz.exists() else None
+            pre = z[pk] if pk in z.files else pzz[pk] if pzz is not None and pk in pzz.files else None
             fig_cohort(res, mask, edges, version, brain, pre)
             fig_animals(res, mask, edges, version, brain, asig)
         print(f"replotted {OUT}")
         return
-    if "--pre-map" in sys.argv:                                                # only the pre response (cached inputs)
-        S.XFORM = VERSIONS["full"]
-        data = S.load_sessions()[0]
-        resp = session_responses(apply_fr(data) if FR else data)
-        unit = {an: np.sqrt(np.nanmean(np.sum(np.nanmean(d["pre"], 0) ** 2, -1)) / Uc.shape[0])
-                for an, d in resp.items()}
-        np.savez_compressed(OUT / "pre_maps.npz", full__pre__mean=pre_map(resp, unit, Uc).astype(np.float32))
-        print(f"wrote {OUT / 'pre_maps.npz'}")
+    if "--pre-map" in sys.argv:          # only the pre rows of VERSIONS (responses via the cache), merged into pre_maps.npz
+        unit = full_unit(get_resp("full"), Uc)
+        pz = OUT / "pre_maps.npz"
+        old = dict(np.load(pz)) if pz.exists() else {}
+        new = {f"{v}__pre__mean": pre_map(get_resp(v), unit, Uc).astype(np.float32) for v in VERSIONS}
+        np.savez_compressed(pz, **{**old, **new})
+        S.XFORM = ""
+        print(f"wrote {pz}: {sorted(new)}")
         return
     names = list(split)                                                        # split-basis ROI weights (K x n_roi)
     W = np.stack([Uc[split[n]].mean(0) for n in names], axis=1)
     unit, rows, store = None, [], {}
-    for version, xf in VERSIONS.items():
-        S.XFORM = xf                                                            # the loader reads it per call
-        data, _ = S.load_sessions()
-        resp = session_responses(apply_fr(data) if FR else data)
-        if unit is None:                                                        # the FULL pre response sets the unit
-            unit = {an: np.sqrt(np.nanmean(np.sum(np.nanmean(d["pre"], 0) ** 2, -1)) / Uc.shape[0])
-                    for an, d in resp.items()}
+    # the unit is ALWAYS the FULL pre response (11-09 bug: a nocw,spout run took nocw's)
+    unit = full_unit(get_resp("full"), Uc)
+    for version in VERSIONS:
+        resp = get_resp(version)
+        pre = pre_map(resp, unit, Uc)                                          # every version's pre row (Priya 11-09)
+        fig_cohort(pixel_maps(resp, unit, Uc, mask, stats=False), mask, edges, version, brain, pre, "_nostats")
+        print(f"  {version}: quick look (no tests) drawn", flush=True)
+        if NOSTATS:
+            continue
         res = pixel_maps(resp, unit, Uc, mask)
         asig = animal_contours(resp, unit, Uc, statpx, np.random.default_rng(0))
-        pre = pre_map(resp, unit, Uc) if version == "full" else None
-        if pre is not None:
-            store["full__pre__mean"] = pre.astype(np.float32)
+        store[f"{version}__pre__mean"] = pre.astype(np.float32)
         fig_cohort(res, mask, edges, version, brain, pre)
         fig_animals(res, mask, edges, version, brain, asig)
         rows += area_table(resp, unit, W, names, version, np.random.default_rng(1))
@@ -577,11 +705,19 @@ def main():
         store[f"{version}__chronic__animal_sig"] = np.stack([asig[a] for a in res["chronic"][3]])
         print(f"{version}: done", flush=True)
     S.XFORM = ""
-    np.savez_compressed(OUT / "maps.npz", mask=mask, cols=np.array(["mean", *S.POS]), **store)
+    if NOSTATS:
+        return
+    # MERGE into an existing maps.npz / areas.csv: a WF_SS_VERSIONS subset run must not drop the other versions (11-09: the
+    # nocw,spout FR runs replaced the full-version maps of the same folder)
+    old = dict(np.load(OUT / "maps.npz")) if (OUT / "maps.npz").exists() else {}
+    np.savez_compressed(OUT / "maps.npz", **{**old, "mask": mask, "cols": np.array(["mean", *S.POS]), **store})
     T = pd.DataFrame(rows)
+    if (OUT / "areas.csv").exists() and len(T):
+        T0 = pd.read_csv(OUT / "areas.csv")
+        T = pd.concat([T0[~T0.version.isin(list(VERSIONS))], T], ignore_index=True)
     T.to_csv(OUT / "areas.csv", index=False)
     with pd.option_context("display.width", 250, "display.max_columns", 20, "display.precision", 2):
-        for version in VERSIONS:
+        for version in (VERSIONS if rows else []):
             t = T[(T.version == version) & (T.epoch == "chronic") & (T.spout == ("far_contra" if version == "spout"
                                                                                   else "mean"))]
             t = t.reindex(t.change.abs().sort_values(ascending=False).index).head(12)

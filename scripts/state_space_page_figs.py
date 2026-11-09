@@ -284,15 +284,17 @@ def fig_like(out, rng, cond=None, cols=None, name="ss_like_for_like",
 
 # Balance area sets (Priya 11-09: "motor version as well (ALM, tjM1)"): table / figure suffix -> (title, short label,
 # areas). Tables from state_space_balance_{cells,angle}.py [--motor].
+LAND = ROOT / ("landing" if ALIGN == "cue" else f"landing_{ALIGN}")   # balance tables per alignment
+BAL_WIN = {"cue": "0-1 s after the cue", "lick": "0.1-0.5 s after the first lick"}.get(ALIGN, ALIGN_LABEL[ALIGN])
 BAL_AREAS = {"": ("Orofacial", "orofacial", "SSp-m, SSp-n, SSs"), "_motor": ("Motor", "motor", "ALM, tjM1")}
 
 
 def fig_balance(out, rng, sfx=""):
     title, _, areas = BAL_AREAS[sfx]
-    tgt = pd.read_csv(ROOT / "landing" / f"balance_cells_target{sfx}.csv")
-    cel = pd.read_csv(ROOT / "landing" / f"balance_cells_sessions{sfx}.csv")
+    tgt = pd.read_csv(LAND / f"balance_cells_target{sfx}.csv")
+    cel = pd.read_csv(LAND / f"balance_cells_sessions{sfx}.csv")
     on = cel[cel.target == cel.land]
-    ang = pd.read_csv(ROOT / "landing" / f"balance_angle_sessions{sfx}.csv").rename(columns={"bal_matched": "bal"})
+    ang = pd.read_csv(LAND / f"balance_angle_sessions{sfx}.csv").rename(columns={"bal_matched": "bal"})
     fig, axs = plt.subplots(3, 6, figsize=(16, 9.6), sharey="row")
     rows = ((tgt, "all trials, by target"), (on, "landed on target only"),
             (ang, "matched for target + landing"))
@@ -307,7 +309,7 @@ def fig_balance(out, rng, sfx=""):
                 ax.set_ylabel("balance change vs own pre\nlog2 contra / ipsi")
             ax.tick_params(axis="x", labelsize=7)
     legend_animals_epochs(fig, y=1.02)
-    fig.suptitle(f"{title} hemispheric balance ({areas}; 0-1 s after the cue), per spout: by target, "
+    fig.suptitle(f"{title} hemispheric balance ({areas}; {BAL_WIN}), per spout: by target, "
                  "landed on target vs matched for lateral landing", y=1.05)
     fig.tight_layout()
     save(fig, out, f"ss_balance_by_spout{sfx}")
@@ -325,8 +327,8 @@ def balance_range(cel):
 
 def fig_balance_cross(out, rng, sfx=""):
     _, short, areas = BAL_AREAS[sfx]
-    c = pd.read_csv(ROOT / "landing" / f"balance_cells{sfx}.csv")
-    cel = pd.read_csv(ROOT / "landing" / f"balance_cells_sessions{sfx}.csv")
+    c = pd.read_csv(LAND / f"balance_cells{sfx}.csv")
+    cel = pd.read_csv(LAND / f"balance_cells_sessions{sfx}.csv")
     cats = [("pre", "far_contra", "far_contra", "pre: aimed far contra,\nlanded far contra"),
             ("pre", "far_ipsi", "far_ipsi", "pre: aimed far ipsi,\nlanded far ipsi"),
             ("pre", "far_contra", "far_ipsi", "pre: aimed far contra,\nlanded far ipsi"),
@@ -345,7 +347,7 @@ def fig_balance_cross(out, rng, sfx=""):
                 ax.scatter(i + (k - 1.5) * 0.09, v.bal.iloc[0], marker=ANIMAL_MARKER[an], facecolors="none",
                            edgecolors=EPOCH_LINE[ep], s=40, lw=1.2)
     ax.set_xticks(range(len(cats)), [x[3] for x in cats], fontsize=8)
-    ax.set_ylabel(f"balance, log2 contra / ipsi\n({short}: {areas}; 0-1 s after the cue)")
+    ax.set_ylabel(f"balance, log2 contra / ipsi\n({short}: {areas}; {BAL_WIN})")
     ax.set_title("same landing, different target (first licks pooled over an animal's sessions, n >= 5)")
     legend_animals_epochs(fig, y=1.08)
     fig.tight_layout()
