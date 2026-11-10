@@ -1287,3 +1287,8 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   _daqlk run tag; all 16 sbatch lines carry ATTEMPTS=tables/trial_attempts.csv. check PS94_0809 running with the full env
   (scratchpad o2_env_combined.sh); then verify gate=attempted / exec polar in the checked session before handing out
   commands. Bundle RAM guard ended with the build. RAM dipped to 2 GB 02:28 (LPfinal maps 15 GB + encoder workers).
+- 11-10 ~03:50 combined bundle enc_rebuild_20261110g CHECK PASSED with the full env (PS94_0809: 816/816 rows, max |r2|
+  diff 3.75e-07, 0 share reads). Behaviour input PS92_0806 field-for-field like the 11-04 production bundle (exec_xyz /
+  exec_amps / target_xyz / target_amps / extra_lick_on present; the wrong 1109g lacked them); 381 trials pre-gate in all
+  three (gate applied at run time via ATTEMPTS). Commands given to Priya: rsync + 1 test task first; she copies back that
+  session's JSON, coordinator confirms gate=attempted / exec polar / 364 trials, then the 15 arrays.
