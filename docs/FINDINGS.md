@@ -64,17 +64,18 @@ arm of the frozen vs refit decoding (5r / 5rm trials: joint-LocaNMF components x
 LP licks + LP gate, August pre); k = 10 PCs of single-trial activity (5 / 20 alongside); 2-fold, alignment fitted on
 the calibration half only; frozen decoder trained on a pre set size-matched to the refit.
 
-| epoch | pre-fixed verdict | (b) Procrustes on per-spout trajectories: index dA / dG (per animal) | (a) covariance | reading (descriptive) |
+| epoch | verdict (Procrustes, LocaNMF / SVD) | (b) Procrustes on per-spout trajectories: index dA / dG (per animal) | (a) covariance | reading |
 |---|---|---|---|---|
-| acute | UNINFORMATIVE (gate) | .79 [.56, 1.05] (.86 / .50 / .84 / .82); dR +.03 n.s. | .26; R grows | mostly RE-EMBEDDED |
-| subacute | UNINFORMATIVE (gate) | .40 [-.51, 1.13] (.38 / -.60 / 1.83 / .61) | .23 | undetermined |
-| chronic | UNINFORMATIVE (gate) | .43 [.23, .71] (.81 / .29 / .34 / .43); dR +.09 * | .03 | PARTIAL: ~40 % re-embedded, rest new |
+| acute | **RE-EMBEDDED** / RE-EMBEDDED | .79 [.56, 1.05] (.86 / .50 / .84 / .82); dR +.03 n.s. | .26; R grows | mostly RE-EMBEDDED |
+| subacute | PARTIAL / PARTIAL | .40 [-.51, 1.13] (.38 / -.60 / 1.83 / .61) | .23 | undetermined |
+| chronic | **PARTIAL** / PARTIAL | .43 [.23, .71] (.81 / .29 / .34 / .43); dR +.09 * | .03 | PARTIAL: ~40 % re-embedded, rest new |
 
-**The gate failed as written** (pre -> pre gap fraction >= .7): pre -> pre the size-matched frozen decoder is already
-near the refit (gap G .04-.11), so the fraction divides by ~0, and both alignments sit slightly BELOW frozen pre -> pre
-(nothing left to recover). Alignment EFFICIENCY pre -> pre (aligned / frozen above chance; the 10-30 prereg's G1)
-passes: covariance .89 / .91 / .96 / .89, Procrustes .71 / .93 / .73 / .68 (3/4 >= .7). Gate choice is open with
-Priya. Solid regardless: the frozen-to-refit gap opens in every epoch (G +.13 / +.10 / +.15 vs pre, 4/4) while refit
+**Gate = alignment EFFICIENCY pre -> pre** (aligned / frozen accuracy above chance >= .7 in >= 3/4; the 10-30 prereg's
+G1; Priya 11-09 switched to it after the first run, DECISIONS 2026-11-09): Procrustes .71 / .93 / .73 / .68 (LocaNMF), .87 /
+.87 / .85 / .87 (SVD); covariance .86-.96. The gate first written (pre -> pre gap fraction >= .7) cannot pass when
+nothing has moved: size-matched frozen and refit are nearly equal pre -> pre (G .04-.11), so the fraction divides by
+~0. The covariance alignment's index ~0 gives formal REPLACED verdicts; read them as "label-free alignment cannot find
+the spout code", not as a separate result. Solid regardless: the frozen-to-refit gap opens in every epoch (G +.13 / +.10 / +.15 vs pre, 4/4) while refit
 accuracy is unchanged -> the spout information is there, the pre readout lost it. A per-spout ROTATION recovers most
 of the acute loss (k = 20: index 1.24 [.89, 1.81], 4/4) but under half of the chronic one; label-free covariance
 alignment recovers almost nothing (chronic .03); shuffled-label Procrustes stays at chance (.17) and rotation-only

@@ -42,8 +42,11 @@ readout W_own A beta on the target's components. Loading share = pattern energy 
 (`area_basis.roi_masks`: tjM1 = anterolateral 50 % of MOp, SSp-m), _left = IPSILESIONAL, _right = CONTRALESIONAL.
 Hemisphere RE-WEIGHTING = the contra share changes; WITHIN-HEMISPHERE ROTATION = the cosine between the aligned and
 reference patterns inside a hemisphere falls. Both read against pre -> pre.
-VERDICT per epoch and alignment (stated before any post number was looked at): gate = pre -> pre gap fraction >= 0.7
-in >= 3 / 4 animals; RESTORED = frozen and G not changed vs pre; RE-EMBEDDED = G changed, index >= 0.67 in >= 3 / 4
+VERDICT per epoch and alignment (stated before any post number was looked at, except the gate): gate = pre -> pre
+alignment EFFICIENCY (aligned - 1/6) / (frozen - 1/6) of animal means >= 0.7 in >= 3 / 4 animals (the 10-30 prereg's
+G1; Priya 11-09 after the first run -- the gate first written, pre -> pre gap fraction >= 0.7, divides by the ~0 pre
+gap of size-matched decoders and cannot pass when nothing has moved; it is still reported, `gate_pre_fraction`);
+RESTORED = frozen and G not changed vs pre; RE-EMBEDDED = G changed, index >= 0.67 in >= 3 / 4
 animals and R not changed; REPLACED = G changed, index <= 0.33 in >= 3 / 4 and A not changed; else PARTIAL.
 
 SVD ARM (`--basis svd`, Priya 11-09: LocaNMF primary, SVD as the bridge to the state-space maps): the same pipeline on
@@ -513,7 +516,10 @@ def summarise(out: Path) -> None:
             if f_pre.empty:
                 continue
             fp = [v for c, v in f_pre.iloc[0].items() if c.startswith("f_") and np.isfinite(v)]
-            gate = sum(v >= 0.7 for v in fp) >= 3
+            pre = per_session(R, k)
+            pre = pre[pre.epoch == "pre"].groupby("animal")[[f"acc_{aln}", "acc_frozen"]].mean()
+            eff = ((pre[f"acc_{aln}"] - 1 / 6) / (pre.acc_frozen - 1 / 6)).to_numpy()
+            gate = sum(v >= 0.7 for v in eff) >= 3
             for ep in EPOCHS[1:]:
                 t = T[(T.k == k) & (T.epoch == ep)].set_index("quantity")
                 if "G" not in t.index:
@@ -533,8 +539,8 @@ def summarise(out: Path) -> None:
                     v = "REPLACED"
                 else:
                     v = "PARTIAL"
-                verdict.append(dict(k=k, alignment=aln, epoch=ep, gate_pre_fraction=np.round(fp, 2).tolist(),
-                                    gate_pass=gate, G_change=t.loc["G", "change"], G_sig=sig("G"),
+                verdict.append(dict(k=k, alignment=aln, epoch=ep, gate_efficiency=np.round(eff, 2).tolist(),
+                                    gate_pass=gate, gate_pre_fraction=np.round(fp, 2).tolist(), G_change=t.loc["G", "change"], G_sig=sig("G"),
                                     index=idx["change"], index_lo=idx["lo"], index_hi=idx["hi"],
                                     index_per_animal=np.round(per, 2).tolist(), verdict=v))
     V = pd.DataFrame(verdict)

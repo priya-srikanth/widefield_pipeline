@@ -63,6 +63,13 @@ merged to main (no conflicts); A5 applied to FINDINGS 0c item 4 and the page cap
 
 ## B. Findings (newest first; exploratory)
 
+46. **Aligned frozen decoder: acute RE-EMBEDDED, chronic PARTIAL (both bases; `scripts/aligned_decoder.py`, plan in C,
+   gate switched to alignment efficiency by Priya 11-09, DECISIONS).** Frozen-to-refit gap +.13 / +.10 / +.15 vs pre
+   (4/4), refit unchanged. Per-spout Procrustes closes the extra gap acutely (index .79 LocaNMF / .73 SVD, dR n.s.) and
+   ~45 % chronically (.43 / .49, dR *); label-free covariance alignment ~0; shuffled labels at chance. Cortex: mostly
+   within-hemisphere rotation (cosine -.2 to -.3 acute, 4/4) + a small contralesional re-weighting (tjM1 in LocaNMF,
+   SSp-m in SVD: area basis-dependent). FINDINGS 0 "restored / re-embedded / replaced".
+
 45. **Why the raw rest level falls: everything else rises relative to rest; the time budget barely moves (handoff item d;
    `scripts/state_space_rest_decomp.py`, `rest_decomp_svd/{<label>.npz,sessions.csv,changes.csv}`, page_figs
    `ss_rest_decomp_lick_svd.png`).** The signal is relative to the session's slow mean, so rest = -sum_k f_k (m_k -
