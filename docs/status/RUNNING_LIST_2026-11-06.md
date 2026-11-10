@@ -1254,3 +1254,8 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   (2) D2 copy-back of the 392 local-only section G entries to the M: session_cache (copy + sha1 verify; local kept);
   (3) caption / page-text draft for every decided change (branch docs/caption-pass-draft-1110,
   CAPTION_PASS_DRAFT_2026-11-10.md; numbers {{TBD after re-run}}). Review of the O2 partial-refit code after its bundle.
+- 11-10 ~01:20 D2 COPY-BACK DONE: 494 local-only session_cache entries (not 392; 0.34 GB: 441 tf-* trial-feature +
+  53 within_acc__* section G) copied to M:/.../rebuild_20261103/session_cache, 494/494 verified (size + sha1), 0
+  conflicts, nothing overwritten, local kept. Not mask-dependent (LocaNMF features; verified in code). 21 within_acc
+  entries are keyed on the orphaned csig edce41f2a5 (never read) -- cleanup candidates. Manifest: session scratchpad
+  d2_copyback_manifest.csv. Deleting the local copies = Priya's call (local folder also holds bootstrap/ + lp_licks/).
