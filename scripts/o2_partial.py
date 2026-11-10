@@ -222,6 +222,10 @@ class Recorder:
             me.depth += 1
             try:
                 v = f(*a, **k)
+            except (FileNotFoundError, ValueError, KeyError) as ex:   # e.g. load_behaviour's missing cam1 licks: the
+                import o2_partial as _mod          # pickled by its importable name (not __main__), as O2 imports it
+                me.memo[call_key(name, a, k)] = (name, _mod.Raised(type(ex).__name__, str(ex)))  # caller falls back
+                raise
             finally:
                 me.depth -= 1
             me.memo[call_key(name, a, k)] = (name, _reduce(name, v, me.label))
@@ -248,6 +252,17 @@ def _reduce(name, v, label):
         an, date = config.animal_of(label), config.date8(label.split("_")[-1])
         return v[v.session == f"{an}_{date}"].copy()
     return v
+
+
+class Raised:
+    """A recorded loader EXCEPTION (replayed as the same type + message; `session_design` branches on it)."""
+    TYPES = {"FileNotFoundError": FileNotFoundError, "ValueError": ValueError, "KeyError": KeyError}
+
+    def __init__(self, kind: str, msg: str):
+        self.kind, self.msg = kind, msg
+
+    def throw(self):
+        raise self.TYPES[self.kind](self.msg)
 
 
 def _expand(v):
@@ -284,6 +299,8 @@ class Replay:
                 if key not in me.memo:
                     raise RuntimeError(f"o2_partial: {_n} call not in the bundle (would read the share): {key[:300]}")
                 v = _expand(me.memo[key][1])
+                if isinstance(v, Raised):
+                    v.throw()
                 return copy.deepcopy(v) if _n == "load_sessions" else v
             setattr(owner, name, g)
         rc, gl = pd.read_csv, pathlib.Path.glob
