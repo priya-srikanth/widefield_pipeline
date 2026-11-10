@@ -162,7 +162,9 @@ def analysis_mask():
     """`beta_maps.brain_mask()` (Allen brain - bulbs - painted glue, union) resolved WITHOUT the rebuild profile, and
     refused if the glue is missing. Found 11-08: under the profile `paint_exclusion.mask_dir` points at the rebuild's
     own grant_figures, where the hand-painted masks do not exist, so `painted_exclusion` silently returns an empty mask
-    (192,110 px instead of 151,447: glue IN). Call before `L._env`."""
+    (192,110 px instead of 151,447: glue IN). Call before `L._env`.
+    FIXED 11-09 at the source: `paint_exclusion.mask_dir` reads the ORIGINAL grant_figures under any profile and
+    `painted_exclusion` raises when the mask is missing; this guard stays as a belt-and-braces check."""
     from wfield_local import beta_maps
     painted = beta_maps.painted_exclusion()
     if not painted.any():

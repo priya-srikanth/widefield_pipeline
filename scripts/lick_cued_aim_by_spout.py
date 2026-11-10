@@ -46,6 +46,18 @@ MINN = rm.MIN_LICKS["first"]
 NB = 2000
 
 
+def trial_set_sentence() -> str:
+    """The licks of this driver's figures (Priya 11-09): the FIRST cued lick of each trial (rm.aim_licks, first == True)
+    of the where-decoder table, per session x spout with >= MINN of them."""
+    from wfield_local import trial_set_text as tst
+    return tst.cued_licks(first_only=True, extra=[
+        "the where-decoder lick table (iti_licks.extract post-cue set: every trial, no engagement / camera-class gate, "
+        f"at most {int(il.N_TRIAL_MAX)} post-cue licks per session, random draw seed 0)",
+        "3-D landing (lateral + sagittal) present", f"spouts {', '.join(POS)}",
+        f"session x spout cells with >= {MINN} first licks (WEIGHTED panel: the spouts meeting it, weights "
+        + " : ".join(f"{k.replace('_', ' ')} {v:g}" for k, v in rm.W.items()) + " : others 1)"])
+
+
 def session_spout() -> pd.DataFrame:
     p = rm.aim_licks()
     p = p[p["first"]]
@@ -75,6 +87,8 @@ def main() -> int:
     import matplotlib.pyplot as plt
 
     from wfield_local import cat_points as cp
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())
     S = session_spout()
     S.to_csv(il.OUT / "aim_by_spout_sessions.csv", index=False)
     rng = np.random.default_rng(0)

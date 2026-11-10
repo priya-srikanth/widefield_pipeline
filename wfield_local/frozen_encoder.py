@@ -1159,7 +1159,25 @@ def _spatial_of(spath: str | None, animal: str) -> dict | None:
     if not spath:
         return None
     import pickle
-    return pickle.loads((Path(spath) / f"spatial_{animal}.pkl").read_bytes())
+    f = Path(spath) / f"spatial_{animal}.pkl"
+    sd = pickle.loads(f.read_bytes())
+    check_saved_masks([sd], f)
+    return sd
+
+
+def check_saved_masks(items, where) -> None:
+    """STALE-READ GUARD (11-09) on the existence-keyed fit/ pickles (pre_stats, spatial_<animal>, pre_stats_roi): each
+    record's ``mask_sig`` must be the current analysis masks' (`mask_keys.signature`). A record without one is refused
+    inside a rebuild root (built before the glue-mask fix, glue IN) and accepted at the default root."""
+    from wfield_local import mask_keys
+    for it in items:
+        mask_keys.check(it.get(mask_keys.FIELD) if isinstance(it, dict) else None, where)
+
+
+def _stamp_masks(d: dict) -> dict:
+    from wfield_local import mask_keys
+    d[mask_keys.FIELD] = mask_keys.signature()
+    return d
 
 
 def _templates_of(tpath: str, animal: str) -> dict:
@@ -2153,6 +2171,11 @@ def main(argv=None) -> int:
         raise SystemExit(f"--fit-from {a.fit_from}: no usable saved statistics for this environment (STATS_VERSION "
                          f"{STATS_VERSION}, running {_run_tag()}); refusing to recompute into another run's folder")
     if saved is not None:                                # a re-scoring run: the pre statistics are already saved
+        check_saved_masks(saved, sp)                     # ... on the current analysis masks (11-09)
+        if spath:
+            for an_ in sorted({config.animal_of(x) for x in pre}):
+                f_ = src_fit / f"spatial_{an_}.pkl"
+                check_saved_masks([pickle.loads(f_.read_bytes())], f_)
         got = [(s_["label"], s_) for s_ in saved if s_["label"] in pre and s_.get("pos_order")]
         print(f"  reusing {len(got)} pre-session statistics from {sp}", flush=True)
         if a.fit_from and spath:
@@ -2173,11 +2196,12 @@ def main(argv=None) -> int:
             if bfail:
                 raise RuntimeError(f"basis pass failed: {bfail}")
             for an_, sd_ in build_basis([b for _l, b in bparts]).items():
-                (out / "fit" / f"spatial_{an_}.pkl").write_bytes(pickle.dumps(sd_, protocol=pickle.HIGHEST_PROTOCOL))
+                (out / "fit" / f"spatial_{an_}.pkl").write_bytes(pickle.dumps(_stamp_masks(sd_),
+                                                                              protocol=pickle.HIGHEST_PROTOCOL))
                 print(f"  {an_} shared basis: K = {len(sd_['names'])} components, {sd_['evr'][-1]:.3f} of pre variance",
                       flush=True)
         elif a.target == "grid":
-            g_ = grid_spatial(pre[0])
+            g_ = _stamp_masks(grid_spatial(pre[0]))
             for an_ in sorted({config.animal_of(x) for x in labels}):
                 (out / "fit" / f"spatial_{an_}.pkl").write_bytes(pickle.dumps(g_, protocol=pickle.HIGHEST_PROTOCOL))
             print(f"  grid: {len(g_['names'])} blocks of {GRID_BLOCK} x {GRID_BLOCK} px", flush=True)
@@ -2185,6 +2209,7 @@ def main(argv=None) -> int:
         got = [(it[0], s_) for it, s_ in got]
         for s_ in (s_ for _l, s_ in got):
             s_["stats_version"], s_["run_mode"] = STATS_VERSION, _run_tag()
+            _stamp_masks(s_)                             # the masks the targets were built on (11-09)
         for it, err in fail:
             print(f"  !! stats {it}: {err}", flush=True)
         (out / "fit").mkdir(parents=True, exist_ok=True)
@@ -2270,6 +2295,7 @@ def _run_roi_targets(a, out: Path, got: list, by_an: dict, held: dict, labels: l
     allen = {x: s_ for x, s_ in got if s_["animal"] in by_an}   # label -> the area run's saved pre statistics
     spr = out / "fit" / "pre_stats_roi.pkl"
     roi = pickle.loads(spr.read_bytes()) if spr.exists() else {}
+    check_saved_masks(roi.values(), spr)                 # ROI targets = roi_masks: stale-read guard (11-09)
     todo = sorted(x for x in allen if x not in roi)
     if todo:
         fres, ffail = ak.fan_sessions([(x, str(tp), None, extra) for x in todo], stats_job, jobs=a.jobs, label="roistats")
@@ -2279,6 +2305,7 @@ def _run_roi_targets(a, out: Path, got: list, by_an: dict, held: dict, labels: l
             r_ = _append_targets(allen[it[0]], s_, names)          # checks the design against the saved statistics
             roi[it[0]] = {**allen[it[0]], "area_names": names, "XtY": r_["XtY"][:, -len(names):],
                           "YtY": r_["YtY"][-len(names):], "check_xtx": r_["check_xtx"], "check_xty": r_["check_xty"]}
+            _stamp_masks(roi[it[0]])
         spr.write_bytes(pickle.dumps(roi, protocol=pickle.HIGHEST_PROTOCOL))
     print(f"  ROI statistics: {len(roi)} pre sessions, max rel. X'X diff "
           f"{max(s_['check_xtx'] for s_ in roi.values()):.1e}", flush=True)
@@ -2388,6 +2415,112 @@ def _fan(jobs, n):
     res = sorted(res, key=lambda kv: kv[1]["label"])            # rule 9: never completion order
     fail = sorted(fail, key=lambda kv: kv[0][0])
     return res, fail
+
+
+# ----------------------------------------------------------------------------------------------- trial-set captions
+# Priya 11-09: "EVERY figure must state EXACTLY which trials were included / excluded". The frozen_* figure scripts
+# caption their figures with the trials / frames THIS module models and scores (`session_design`, `predict_job`,
+# `_predict_spatial`, `musall_r2`, `musall_moments`). Pure text: no fit, prediction or cache reads it. ``tag`` = the
+# run folder (or its tag) the reader draws from: its engagement gate ("gate-<g>"), lick design ("spont" segment) and
+# TE design ("_te" segment) are read from it, else from this environment.
+def _tag_gate(tag=None) -> str:
+    from wfield_local import orofacial_cohort as oc
+    t = str(tag or "")
+    for g in sorted(oc.GATES, key=len, reverse=True):
+        if f"gate-{g}" in t:
+            return g
+    return oc.ENGAGEMENT_GATE
+
+
+def _tag_te(tag=None) -> bool:
+    import re
+    return TE if tag is None else bool(re.search(r"(?:^|_)te(?:_|$)", str(tag)))
+
+
+def _tag_spont(tag=None) -> bool:
+    return SPONT if tag is None else tag_is_spont(tag)
+
+
+def modeled_trials_text(tag=None) -> str:
+    """The trials `session_design` models: ``Behaviour.trials.engaged`` (`orofacial_cohort.engagement_keep` under the
+    run's OROFACIAL_GATE) with a cue time, in the words of `trial_set_text`."""
+    from wfield_local import orofacial_cohort as oc
+    from wfield_local import trial_set_text as tst
+    g = _tag_gate(tag)
+    if not oc.ENGAGED_ONLY:
+        return "trials: every trial with a cue time (ungated run)"
+    if g == "reference":
+        return ("trials: the behavior pipeline's engaged trials (OROFACIAL_GATE reference: terminal sated tail and "
+                "response-rate collapse removed) with a cue time")
+    if tst._camera():
+        # trial_attempts.csv under the camera gate: attempted = the run classes contact | incomplete, the stopped runs,
+        # stopped-licking, early-run and after-end trials already re-classed out of them (`trial_classes.classify_session`)
+        return (f"trials: camera contact + incomplete ({tst.lick_text()}; trial_attempts 'attempted', gate {g}), "
+                f"{tst._period()}, {tst._removed()}; {tst._excluded(('contact', 'incomplete'))}")
+    can = ", inside the reference engaged period" if g == "canonical_attempted" else ""
+    return (f"trials: contact + incomplete trials (trial_attempts 'attempted', gate {g}{can}; trial-level classes, "
+            "no working-period cut); excluded: jaw-only, no response, unknown")
+
+
+def modeled_frames_text(tag=None) -> str:
+    """The imaging frames `session_design` puts in the model (and in every all-frames R2 / moment)."""
+    if _tag_te(tag):
+        return ("frames: every frame from the first modeled trial's strobe - 0.5 s to the last one's stop + 3 s (ITI "
+                "frames included)")
+    return ("frames: each modeled trial's strobe (no strobe: cue - 3 s) - 0.5 s .. stop + 1 s; ITI frames outside "
+            "those spans excluded")
+
+
+def first_lick_text(tag=None) -> str:
+    """The lick alignment of the lick-aligned PETH / window (`first_lick_s`)."""
+    if _tag_spont(tag):
+        return ("first post-cue lick = the trial's lick timing (first camera lick onset, cam4 + cam1-only, in cue .. "
+                "stop; at a close spout the first DAQ contact when that onset is missing or > "
+                f"{_ce().LP_DAQ_TOL_S * 1e3:g} ms later; at a far spout a missing onset falls back to the contact)")
+    return "first post-cue lick = the first camera lick onset (cam4 + cam1-only) in cue .. stop (no stop: cue + 3.5 s)"
+
+
+def _spout_text(spout) -> str:
+    if not spout:
+        return ""
+    if spout == "all":
+        return "; spout: mean over the session's spouts (sessions with >= 4 spouts)"
+    if spout == "each":
+        return "; spout: each spout's own trials"
+    return f"; spout: {spout} trials only"
+
+
+def trial_set_sentence(scope: str, *, tag=None, align=None, spout=None, pixel: bool = False) -> str:
+    """THE trial / frame set of a frozen-encoder figure (`trial_set_text.declare(text=...)`). ``scope``:
+      all     R2 / moments over ALL modeled frames (`resid_mom` / `data_mom`, the "all" window)
+      fit     the frozen kernels: fitted on the modeled frames of the animal's pre sessions
+      musall  `musall_r2` / `musall_moments` window ``align`` (cue: cue 0 .. +1.5 s; lick: first post-cue lick
+              -0.1 .. +1.0 s); ``pixel`` = the basis moments, which keep only trials whose whole window is recorded
+      peth    the per-spout PETH / evoked response aligned on ``align`` (cue or the first post-cue lick)
+      own     per-position scores on each spout's OWN trial frames (frozen drop-one-spout)
+    ``spout`` = a spout name, "all" (mean over spouts) or "each" (one row per spout)."""
+    trials = modeled_trials_text(tag) + _spout_text(spout)
+    if scope in ("all", "fit"):
+        head = "fit on the animal's pre sessions; " if scope == "fit" else ""
+        return f"{head}{trials}; {modeled_frames_text(tag)}"
+    if scope == "own":
+        return f"{trials}; {modeled_frames_text(tag)}; per position: frames of that spout's own trials"
+    if align not in MUSALL_WINDOWS:
+        raise ValueError(f"trial_set_sentence: align must be one of {tuple(MUSALL_WINDOWS)}, not {align!r}")
+    if scope == "musall":
+        a0, a1 = MUSALL_WINDOWS[align]
+        rec = ", trials whose window runs past the recording" if pixel else ""
+        if align == "cue":
+            return (f"{trials}; frames: cue {a0:g} .. {a1:+g} s of each modeled trial"
+                    + (f"; excluded: {rec[2:]}" if pixel else ""))
+        return (f"{trials}; frames: first post-cue lick {a0:+g} .. {a1:+g} s of each modeled trial with one ("
+                f"{first_lick_text(tag)}); excluded: trials without a first lick{rec}")
+    if scope == "peth":
+        if align == "cue":
+            return f"{trials}; cue-aligned PETH over every modeled trial"
+        return (f"{trials}; lick-aligned PETH over the modeled trials with a first post-cue lick ({first_lick_text(tag)});"
+                " excluded: trials without a first lick")
+    raise ValueError(f"trial_set_sentence: unknown scope {scope!r}")
 
 
 if __name__ == "__main__":

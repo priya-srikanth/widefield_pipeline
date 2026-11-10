@@ -22,6 +22,7 @@ import figdata  # noqa: E402
 import iti_licks as il  # noqa: E402
 
 STEM = "lick_rim_overlay"
+GAP = 2.0                       # ITI bout starts with >= GAP s since the previous lick onset (session file bout_gap)
 
 
 def one(item):
@@ -29,7 +30,7 @@ def one(item):
     label = item[0]
     V, ft, Ub, flat, parea, names, shape, pstat = ce.load_imaging(label)
     z = il._load(label, il.XOUT / il.SESS_NAME)            # lick times only (identical in every ROI version)
-    t = z["bout_t"][z["bout_gap"] >= 2.0]
+    t = z["bout_t"][z["bout_gap"] >= GAP]
     Q = np.linalg.qr(ce._slow_basis(ft, ce.DRIFT_MIN_PERIOD_S))[0]
     Vd = V.astype(np.float64) - Q @ (Q.T @ V.astype(np.float64))
     lags = il.LAGS_P
@@ -107,7 +108,18 @@ def plot(F: dict) -> None:
     plt.close(fig)
 
 
+def trial_set_sentence() -> str:
+    """THE lick set of the figure (Priya 11-09): the session files' ITI bout starts with >= GAP s quiet, pre sessions."""
+    import lick_refit_decoders as rd
+    lags = il.LAGS_P
+    return rd._tst().iti_bout_starts(GAP, il.CUE_EXCL, filt="", extra=[
+        rd.TRACKED, f"onset >= {-float(lags[0]):g} s after imaging start and >= {float(lags[-1]):g} s before its end",
+        "pre-stroke sessions only (session epoch 'pre')"])
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())
     if figdata.plot_only():
         F = figdata.load_fd(STEM)
     else:

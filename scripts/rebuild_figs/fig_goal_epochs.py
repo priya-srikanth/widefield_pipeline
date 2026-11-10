@@ -9,11 +9,11 @@ PROVENANCE: recreated 2026-11-03 (cohort-1 rebuild, step 3) from the session-scr
   instead of sys.argv[1], figdata pickle (<out>/data/goal_epochs_figdata.pkl = the filtered summary rows).
 
 INPUT: attempt_coding/summary_{cue,lick}.csv (wfield_local/attempt_coding.py, WIDEFIELD_LICK_SOURCE=lp; method "dom";
-  far_contra; the frozen decoder is the stored DAQ-contact model) in --coding-dir (default = the original's
+  far_contra; the decoder is the LP-trained frozen decoder) in --coding-dir (default = the original's
   hard-coded M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/
   attempt_coding).
-REBUILD: re-run attempt_coding.py under the new data (decision D7: training rule of the LP-gated stored DAQ model) and
-  point --coding-dir at its output.
+REBUILD: re-run attempt_coding.py under the new data (decision D7; Priya 11-09: the LP-trained frozen decoder is THE
+  LP model) and point --coding-dir at its output.
 OUT: <out>/fig2b_attempt_decoder_epochs.png
 EPOCH-COLOR CONVENTION (PI decision A13, Priya 11-07): before, one panel per animal with the attempt classes as colored
 lines joining acute -> subacute -> chronic. Now one panel per CLASS (columns) x window (rows), x = epoch (pre = the
@@ -71,7 +71,7 @@ def draw(summ: dict, png: Path) -> None:
                 for k, an in enumerate(AN):
                     y = s[(s.animal == an) & (s.cls == key) & (s.epoch == e)] if e != "pre" else \
                         s[(s.animal == an) & (s.cls == "pre_hit")]
-                    if len(y) and (e == "pre" or y.n.iloc[0] >= 5):
+                    if len(y) and (e == "pre" or y.n.iloc[0] >= MIN_N):
                         v, se = float(y.p_true.iloc[0]), float(y.p_true_sem.iloc[0])
                         ax.errorbar(i - 0.2 + 0.07 * k, v, yerr=se, fmt=cp.animal_marker(an), ms=5, mfc="none",
                                     mec=cp.epoch_color(e), ecolor=cp.epoch_color(e), mew=1.0, elinewidth=0.7,
@@ -106,10 +106,21 @@ def draw(summ: dict, png: Path) -> None:
     plt.close(fig)
 
 
+#: the panels' trial floor per animal x class x epoch (pre is always drawn)
+MIN_N = 5
+
+
+def trial_set_sentence() -> str:
+    """The attempt_coding far-contra class rows this figure draws (cue and lick windows, every post epoch)."""
+    return _common.attempt_classes(epochs="acute / subacute / chronic", windows=_common.windows_text(WINDOWS),
+                                   min_n=MIN_N)
+
+
 def main(argv=None) -> int:
     ap = _common.parser(__doc__)
     ap.add_argument("--coding-dir", type=Path, default=A_DEF, help="imaging_encoding/attempt_coding folder")
     a = ap.parse_args(argv)
+    _common.declare(trial_set_sentence())          # THE TRIAL SET of every figure (Priya 11-09)
     a.out.mkdir(parents=True, exist_ok=True)
     if a.plot_only:
         summ = _common.load_figdata(a.out, NAME)["summary"]

@@ -194,6 +194,7 @@ def main():
                          "epoch); * = boot_delta 95 % CI of the change vs own pre excludes 0", 140), fontsize=10)
     fig.tight_layout()
     fp = C.FIGS / f"ss_fr_coupling{S.tag()}.png"
+    sig_marks.reserve_headroom(fig)                  # stars in the top band, no top spine (Priya 10-30 / 11-03)
     save_png_svg(fig, fp)
     print(f"wrote {fp}", flush=True)
 

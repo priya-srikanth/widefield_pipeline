@@ -97,7 +97,14 @@ def plot(F: dict) -> None:
     plt.close(fig)
 
 
+def trial_set_sentence() -> str:
+    """The licks of this driver's figure (Priya 11-09): the ITI bout starts of lick_cued_ramp (gap >= il.GAP_MAIN)."""
+    return cr.iti_bout_sentence()
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())
     if plot_only():
         plot(load_fd("lick_iti_ramp_animals"))
         return 0

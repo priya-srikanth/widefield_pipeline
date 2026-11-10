@@ -23,7 +23,10 @@ import numpy as np
 
 from skimage.transform import warp as _sk_warp
 
-from wfield.allen import atlas_from_landmarks_file, load_allen_landmarks
+from wfield_local.wfield_import import no_style_leak
+
+with no_style_leak():   # wfield restyles matplotlib at import (wfield_import docstring)
+    from wfield.allen import atlas_from_landmarks_file, load_allen_landmarks
 
 
 def _warp_image(image: np.ndarray, transform, dims) -> np.ndarray:

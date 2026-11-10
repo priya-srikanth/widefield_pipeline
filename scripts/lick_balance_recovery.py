@@ -134,7 +134,20 @@ def _pre_cloud() -> pd.DataFrame | None:
     return R[R.epoch == "pre"].dropna()
 
 
+def trial_set_sentence() -> str:
+    """The lick sets of lick_balance_recovery (Priya 11-09): the balance on the KEY decoder's lick set (balreg_sessions)
+    AND the recovery axis = the far-contra FIRST post-cue lick aim (aim_deficit_sessions farcontra_first)."""
+    import iti_recovery_measure as rm
+    import lick_covariate_reference as cv
+    from wfield_local import trial_set_text as tst
+    aim = cv.session_cued(first_only=True, coords="3-D lateral + sagittal tip position",
+                          extra=[f"aim axis: far-contra target only, sessions with >= {rm.MIN_LICKS['first']} such licks"])
+    return tst.union(cv.key_lick_set(), aim)
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())          # every figure states its lick set (Priya 11-09)
     if plot_only():
         F = load_fd("lick_balance_recovery")
         F["pre"] = _pre_cloud()

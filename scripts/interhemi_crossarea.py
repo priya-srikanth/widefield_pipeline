@@ -46,6 +46,8 @@ Statistics: per-animal tables printed BEFORE the bootstrap (rule 8); analysis_ki
 Outputs: <OUT_W>/interhemi_followup/ (ihf_*), <OUT_W>/cross_area/ (xa_*), each with figdata/ + figures/.
 Usage: python scripts/interhemi_crossarea.py [--jobs 4] [--labels ...] [--summarise] [--plot-only]
   [--rest-variant restdock05|restnl]
+AREA SET (Priya 11-09): only areas that survive the glue mask -- 24 contralesional + 21 ipsilesional (VISp / VISl /
+  VISal left out), fixed in GLUE_AREAS; the lick sets define each session's set and the rest set is cut to it by name.
 REST VARIANT (Priya 11-09): `--rest-variant restnl` (PRIMARY) reads the lick-free rest cache
   <OUT_W>/interhemi_rest_w1_restnl/ (lick_interhemispheric.py --extract-rest --rest-variant restnl) and writes to
   <OUT_W>/interhemi_followup_restnl/ and <OUT_W>/cross_area_restnl/; the default restdock05 (SUPPLEMENT) is unchanged.
@@ -100,6 +102,70 @@ def area_order(names: list[str]) -> list[int]:
     for h in ("left", "right"):
         out += [names.index(f"{b}_{h}") for b in ORDER_BASE if f"{b}_{h}" in names]
     assert len(out) == len(names), set(names) - {names[i] for i in out}
+    return out
+
+
+# AREA SET (Priya 11-09): ONLY areas that survive the GLUE MASK (beta_maps.stat_mask = Allen brain mask minus MOB minus
+# the hand-painted fiber-glue union, eroded 16 px; + the ROI v8 thin lateral rim), in the decoder split basis: 24
+# contralesional (right) + 21 ipsilesional (left) = the 45 areas of the 10-30 analysis. VISp / VISl / VISal LEFT are
+# under the glue in every session (lick_interhemispheric.py note at PAIRS), and VISli / VISpl / VISpor / AUDp / AUDd /
+# AUDpo / TEa (both hemispheres) never survive it. Measured 11-09 by roi_masks (ROI v8) on the atlas grid with the
+# painted union mask (labcams/grant_figures/exclusion_mask_painted_union.npy, 40,663 px; identical for PS92_0806 and
+# PS95_1005, shared grid). Kept as a FIXED list because the rebuild_20261103 render cannot read that mask (rebuild fence;
+# beta_maps.painted_exclusion then silently returns an empty mask, so its session files carry all 62 areas). Every set
+# of a session (rest included) is cut to the same lick-set areas, by NAME; anything else is dropped explicitly (run log
+# + xa_matrices.npz `names_dropped`).
+GLUE_AREAS = {
+    "right": ORDER_BASE,                                             # all 24
+    "left": [b for b in ORDER_BASE if b not in ("VISal", "VISl", "VISp")],   # 21: left posterior-lateral VIS under glue
+}
+AREA_SET = frozenset(f"{b}_{h}" for h, bs in GLUE_AREAS.items() for b in bs)
+
+
+def in_area_set(name: str) -> bool:
+    """True for an analysis area: in ORDER_BASE AND surviving the glue mask (AREA_SET)."""
+    return name in AREA_SET
+
+
+def session_areas(sets: dict) -> tuple[list[str], list[str]]:
+    """(analysis area names in session order, dropped names) from the LICK sets of one session's `_sets` dict. All lick
+    sets must carry the same AREA_SET areas (they share one session file); the rest set is not consulted."""
+    lick = {k: il.area_names(v[3]) for k, v in sets.items() if k != "rest"}
+    if not lick:
+        raise RuntimeError("no lick set: the lick sets define the area set")
+    ref_k = next(iter(lick))
+    ref = [n for n in lick[ref_k] if in_area_set(n)]
+    for k, nm in lick.items():
+        got = [n for n in nm if in_area_set(n)]
+        if set(got) != set(ref):
+            raise RuntimeError(f"lick sets disagree on the area set: {k} vs {ref_k}: {sorted(set(got) ^ set(ref))}")
+    dropped = sorted({n for nm in lick.values() for n in nm if not in_area_set(n)})
+    return ref, dropped
+
+
+def area_select(names_all: list[str], ref: list[str], what: str = "") -> list[int]:
+    """Indices of `ref` (the session's lick-set analysis areas) in one set's `names_all`, by NAME; a set missing any of
+    them is an error (never a silently smaller matrix)."""
+    miss = [n for n in ref if n not in names_all]
+    if miss:
+        raise RuntimeError(f"{what}: set lacks lick-set areas {miss}")
+    return [names_all.index(n) for n in ref]
+
+
+def common_order(name_lists) -> list[str]:
+    """Display order (ipsilesional block first, each in ORDER_BASE) over the UNION of the sessions' area names."""
+    u = set().union(*map(set, name_lists))
+    out = [f"{b}_{h}" for h in ("left", "right") for b in ORDER_BASE if f"{b}_{h}" in u]
+    assert len(out) == len(u), u - set(out)
+    return out
+
+
+def place(mat: np.ndarray, names: list[str], order: list[str]) -> np.ndarray:
+    """A session's (F, F) matrix over `names` -> (len(order),) * 2 in the common `order`, matched by NAME; NaN for
+    areas the session does not have."""
+    pos = [order.index(n) for n in names]
+    out = np.full((len(order), len(order)), np.nan, np.float32)
+    out[np.ix_(pos, pos)] = mat
     return out
 
 
@@ -185,14 +251,16 @@ def session_work(item):
     an, ep = config.animal_of(label), epochs.epoch_of(label)
     rows1, rows2, mats = [], [], {}
     k_rng = 0
-    for st, (X, pos, ang, cols) in _sets(label, meta, dock_t).items():
+    sets = _sets(label, meta, dock_t)
+    names, dropped = session_areas(sets)                         # lick sets define the area set (glue-mask AREA_SET)
+    for st, (X, pos, ang, cols) in sets.items():
         n = len(X)
         if n < MIN_N:
             continue
         X = X.astype(np.float64)
         D = lih._design(pos, ang, n)
-        A = il.area_features(X, cols, label)                     # (n, T, 45)
-        names = il.area_names(cols)
+        sel = area_select(il.area_names(cols), names, f"{label} {st}")
+        A = il.area_features(X, cols, label)[..., sel]           # (n, T, F) on the lick-set analysis areas, by name
         Ar = lih._resid(A, D)
         lick = X.shape[1] == len(lih.LAGS)
         # ------------------------------------------------ TASK 2: cross-area matrices on w1
@@ -258,7 +326,7 @@ def session_work(item):
                         rows1.append({"label": label, "animal": an, "epoch": ep, "set": st, "win": win, "pair": p,
                                       "variant": vname, "tau": tau, "n": n, "nc": nc if tau == 0 else np.nan,
                                       **lih.cc_summary(cc), "gc_dir": gc["gc_dir"], "lsd": lsd, "g_r2": g_share})
-    return pd.DataFrame(rows1), pd.DataFrame(rows2), mats, names
+    return pd.DataFrame(rows1), pd.DataFrame(rows2), mats, names, dropped
 
 
 # ------------------------------------------------------------------------------------------------ run
@@ -277,25 +345,38 @@ def run(labels, jobs) -> None:
     print(f"sessions done {time.time() - t0:.0f} s", flush=True)
     S1 = pd.concat([v[0] for _k, v in res], ignore_index=True)
     S2 = pd.concat([v[1] for _k, v in res], ignore_index=True)
-    names = res[0][1][3]
-    order = area_order(names)
+    # common display order over every session's own area list; each session's matrices are placed BY NAME (never
+    # indexed with another session's order)
+    order = common_order([v[3] for _k, v in res])
+    dropped = sorted({n for _k, v in res for n in v[4]})
+    if dropped:
+        print(f"areas outside the glue-mask AREA_SET dropped ({len(dropped)}): {dropped}", flush=True)
+    from wfield_local import beta_maps
+    glue_in_rois = bool(beta_maps.painted_exclusion().any())
+    if not glue_in_rois:
+        print("WARNING: the painted glue mask is not readable in this run (beta_maps.painted_exclusion is empty), so the "
+              "session files' ROI averages of the KEPT areas include glue-covered pixels; only the area SET is "
+              "glue-filtered here", flush=True)
+    nvar = sorted({len(v[3]) for _k, v in res})
+    print(f"analysis areas: {len(order)} in the common order; per-session counts {nvar}", flush=True)
     keys = sorted({k for _k, v in res for k in v[2]})
     lab_list = [str(k[0]) for k, _v in res]
-    # matrices: (session, key, variant raw/gs, F, F) in display order, NaN where the set was skipped
-    MZ = np.full((len(res), len(keys), 2, len(names), len(names)), np.nan, np.float32)
+    # matrices: (session, key, variant raw/gs, F, F) in display order, NaN where the set was skipped / area absent
+    MZ = np.full((len(res), len(keys), 2, len(order), len(order)), np.nan, np.float32)
     for i, (_k, v) in enumerate(res):
         for j, kk in enumerate(keys):
             if kk in v[2]:
                 for q in (0, 1):
-                    MZ[i, j, q] = v[2][kk][q][np.ix_(order, order)]
+                    MZ[i, j, q] = place(v[2][kk][q], v[3], order)
     tag = "_test" if len(labels) < 100 else ""
     for d in (O1, O2):
         d.mkdir(parents=True, exist_ok=True)
     S1.to_csv(O1 / f"ihf_sessions{tag}.csv.gz", index=False)
     S2.to_csv(O2 / f"xa_sync_sessions{tag}.csv.gz", index=False)
     np.savez_compressed(O2 / f"xa_matrices{tag}.npz", M=MZ, labels=np.array(lab_list),
-                        keys=np.array([f"{a}|{b}" for a, b in keys]), names=np.array([names[i] for i in order]),
-                        variants=np.array(["raw", "gs_lpo"]))
+                        keys=np.array([f"{a}|{b}" for a, b in keys]), names=np.array(order),
+                        variants=np.array(["raw", "gs_lpo"]), names_dropped=np.array(dropped, dtype=str),
+                        glue_mask_in_rois=glue_in_rois)
     if fail and not tag:
         print("WARNING: partial table written (see FAILED above)")
 
@@ -546,16 +627,44 @@ CAP_REST = (f"{lih.REST_TXT}. Lick-set panels: {lih.RAW_TXT} -- rest is a separa
             "and the lick-set numbers do not depend on the rest variant.")
 
 
-def _save(fig, path, dpi) -> None:
-    """save_png_svg with the rest set stated on the last title line (Priya 11-09)."""
+def _save(fig, path, dpi, sets=None) -> None:
+    """save_png_svg with the rest set stated on the last title line (Priya 11-09); ``sets`` = the event sets this
+    figure draws when they are not the driver's declared SETS1 (its trial-set caption, `trial_set_sentence`)."""
+    from wfield_local import trial_set_text as tst
     t = fig._suptitle
     if t is not None:
         t.set_text(t.get_text() + chr(10) + CAP_REST)
-    save_png_svg(fig, path, dpi=dpi)
+    if sets is None:
+        save_png_svg(fig, path, dpi=dpi)
+        return
+    with tst.active(None, text=trial_set_sentence(sets)):
+        save_png_svg(fig, path, dpi=dpi)
 
 
 SET_LAB = {"rest": lih.REST_SHORT, "iti_dock": "ITI LICKS, spout docked", "iti_all": "ITI LICKS, all",
            "cued": "CUED first licks"}
+#: the sets each figure group draws: plot1 (ihf_*) = SETS1; plot2's summary / change matrices = rest, iti_dock, cued;
+#: its recovery heatmap = every set of SETS2
+PLOT2_SETS = ("rest", "iti_dock", "cued")
+
+
+def set_sentence(st: str) -> str:
+    """One set in words: lick_interhemispheric's sets as there; iti_dock = the decoder ITI licks flagged docked."""
+    from wfield_local import trial_set_text as tst
+    if st != "iti_dock":
+        return lih.set_sentence(st)
+    return tst.events(f"iti_dock = the decoder's {tst.ITI_LICK_WHAT}",
+                      keep=[tst.iti_filter_text("dock") + " (iti_dock_audit.csv flag 'dock', matched on the peak time)",
+                            "finite side_ml and DAQ onset", "peak inside the imaging record by "
+                            f"{-il.LAGS_D[0]:g} s on each side", "finite 3-D lick angle (arcsin(side_ml / reach_mm)), "
+                            "reach_mm from the covref ITI table"],
+                      excluded=["ITI licks while the spout moves", "post-cue (trial) licks"])
+
+
+def trial_set_sentence(sets=tuple(SETS1)) -> str:
+    """The events of a figure that draws ``sets``, plus the per-session minimum that decides whether a set enters."""
+    from wfield_local import trial_set_text as tst
+    return f"{tst.union(*(set_sentence(s) for s in sets))}; a set enters a session only with >= {MIN_N} events"
 
 
 def _dots(ax, T, sel, xs, xlabels, per_animal=True):
@@ -678,7 +787,7 @@ def plot2() -> None:
                        "= low-dimensional synchrony (first-PC variance fraction, mean R2 on the global mean) for the slow "
                        f"(noise) and fast (within-window) units. Rest pre level all-pairs z = {pre:.2f}. PROVISIONAL n = 4"),
                  fontsize=9.5)
-    _save(fig, O2 / "figures" / "xa_summary.png", dpi=120)
+    _save(fig, O2 / "figures" / "xa_summary.png", dpi=120, sets=PLOT2_SETS)
     plt.close(fig)
     # FIGURES 2/3: change matrices (slow), raw and GS
     names = CM["names"]
@@ -721,7 +830,7 @@ def plot2() -> None:
                            "IPSILESIONAL (left hemisphere) block top / left, contralesional bottom / right, frontal -> "
                            "posterior within each; pooled = mean of per-animal changes; faded = fewer than 3 of 4 animals "
                            "share the pooled sign. PROVISIONAL n = 4", 170), fontsize=9.5)
-        _save(fig, O2 / "figures" / f"xa_change_matrices_{var}.png", dpi=110)
+        _save(fig, O2 / "figures" / f"xa_change_matrices_{var}.png", dpi=110, sets=PLOT2_SETS)
         plt.close(fig)
     # FIGURE 4 (supplement): recovery tests heatmap
     q = Rc.copy()
@@ -747,7 +856,7 @@ def plot2() -> None:
     fig.suptitle(_wrap(f"Does cross-area coupling track recovery within animals? {n_sig} of {n_all} tests p < 0.05 "
                        f"(uncorrected; ~{0.05 * n_all:.0f} expected by chance). * = p < 0.05; k/4 = animals with the pooled sign."),
                  fontsize=9.5)
-    _save(fig, O2 / "figures" / "xa_recovery.png", dpi=120)
+    _save(fig, O2 / "figures" / "xa_recovery.png", dpi=120, sets=SETS2)
     plt.close(fig)
 
 
@@ -761,6 +870,8 @@ def main() -> None:
                     help="rest set (lick_interhemispheric rest cache): restdock05 (default, SUPPLEMENT) / restnl (PRIMARY)")
     a = ap.parse_args()
     assert a.rest_variant == lih.REST_VARIANT
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence(SETS1))     # plot1; plot2's figures name their own sets (_save sets=)
     if a.plot_only:
         plot1()
         plot2()

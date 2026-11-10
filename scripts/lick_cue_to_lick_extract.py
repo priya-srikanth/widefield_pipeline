@@ -29,6 +29,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
 import restnl  # noqa: E402
 
+from wfield_local import mask_keys  # noqa: E402
+
 OUT = il.OUT_W / "cue_to_lick"
 SESS = OUT / "sessions"
 SESS_NL = OUT / restnl.cache("sessions_restnl")   # per RESTnl rule (strict = sessions_restnl, wr = _wr)
@@ -48,10 +50,13 @@ def session_worker(label: str) -> dict:
     if f.exists():
         z = np.load(f)
         if int(z["version"]) == VERSION:
+            mask_keys.check_obj(z, f)             # stale-read guard: built on the current analysis masks (11-09)
             return {"label": label, "cached": True}
     from wfield_local import combined_encoding as ce
     src = np.load(il.OUT_W / "precue_restw" / f"{label}.npz")
+    mask_keys.check_obj(src, il.OUT_W / "precue_restw" / f"{label}.npz")
     rv = np.load(il.OUT_W / "revup" / "sessions" / f"{label}.npz")
+    mask_keys.check_obj(rv, il.OUT_W / "revup" / "sessions" / f"{label}.npz")   # stale-read guard (11-09)
     d = il._load(label)
     # == lick_precue_restw_traces.session_worker's trace construction
     V, ft, Ub, flat, parea, names, shape, pstat = ce.load_imaging(label)
@@ -93,12 +98,46 @@ def session_worker(label: str) -> dict:
     f.parent.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(f, version=VERSION, cols=np.array(COLS), pos=pos, cue=cue, stop=rv["stop"], fl=fl,
                         phase=rv["phase"].astype(str), quiet=rv["quiet"], npre=rv["npre"], Xc=Xc, Xl=Xl, restw=restw,
-                        restw_ok=bool(src["restw_ok"]), animal=str(d["animal"]), epoch=str(d["epoch"]), maxdiff=maxdiff)
+                        restw_ok=bool(src["restw_ok"]), animal=str(d["animal"]), epoch=str(d["epoch"]), maxdiff=maxdiff, **mask_keys.stamp())
     return {"label": label, "cached": False, "n": len(cue), "maxdiff": maxdiff}
 
 
 def sess_dir(var: str = "restw"):
     return SESS if var == "restw" else SESS_NL
+
+
+# ------------------------------------------------------------------------------------------------ trial-set captions
+# Priya 11-09: "EVERY figure must state EXACTLY which trials were included / excluded". The trials of this cache (and of
+# iti_licks.extract's first licks) are `combined_encoding.load_behaviour`'s trials.engaged = the ENGAGEMENT gate of
+# `orofacial_cohort.engagement_keep` (OROFACIAL_GATE), NOT the camera working classes; the words come from that switch.
+def engaged_text() -> str:
+    """The engaged-trial gate (trials.engaged of `combined_encoding.load_behaviour`) in words, for this process."""
+    from wfield_local import orofacial_cohort as oc
+    if not oc.ENGAGED_ONLY:
+        return "all trials (no engagement gate)"
+    g = oc.ENGAGEMENT_GATE
+    if g == "reference":
+        try:
+            tail = f" (>= {oc._eng_cfg('tail_min_misses')} trailing misses)"
+        except Exception:                                              # noqa: BLE001 - a caption never kills a figure
+            tail = ""
+        return ("engaged trials (behavior pipeline reference-position gate, spout_behavior.reference_engagement: "
+                f"terminal non-recovering collapse and sated tail{tail} removed; not the camera classes)")
+    import trial_attempts as ta
+    att = " + ".join(ta.ATTEMPT_CLASSES)
+    if g == "canonical_attempted":
+        return f"attempted trials ({att}, trial_attempts.csv) inside the reference-gate engaged period"
+    return f"attempted trials ({att}, trial_attempts.csv)"
+
+
+def first_lick_rule() -> str:
+    """The first-lick rule of this cache (`_first_licks`, revup_neural.session_worker's rule) in words."""
+    return "first lick = the first behavior-table lick onset in cue..trial stop (revup_neural rule)"
+
+
+def rest_text(var: str = "restw") -> str:
+    return ("sessions with a RESTnl (lick-free rest) level" if var == "restnl"
+            else "sessions with a RESTW level (restw_ok; trial set = the precue_restw cache's engaged trials)")
 
 
 def _first_licks(label: str, B, T, cue: np.ndarray, stop: np.ndarray, t_end: float) -> dict:
@@ -143,9 +182,11 @@ def session_worker_restnl(label: str) -> dict:
     if f.exists():
         z = np.load(f)
         if int(z["version"]) == VERSION:
+            mask_keys.check_obj(z, f)             # stale-read guard (11-09)
             return {"label": label, "cached": True}
     from wfield_local import combined_encoding as ce
     src = np.load(il.OUT_W / restnl.cache("precue_restnl") / f"{label}.npz")
+    mask_keys.check_obj(src, il.OUT_W / restnl.cache("precue_restnl") / f"{label}.npz")
     old = np.load(il.OUT_W / "precue_restw" / f"{label}.npz")
     d = il._load(label)
     V, ft, Ub, flat, parea, names, shape, pstat = ce.load_imaging(label)
@@ -177,6 +218,7 @@ def session_worker_restnl(label: str) -> dict:
     fl = FL["fl"]
     # check against the rev-up cache (old gate) on the trials both sets share (matched by cue time)
     rv = np.load(il.OUT_W / "revup" / "sessions" / f"{label}.npz")
+    mask_keys.check_obj(rv, il.OUT_W / "revup" / "sessions" / f"{label}.npz")   # stale-read guard (11-09)
     rc = np.asarray(rv["cue"], float)
     jj = np.searchsorted(cue, rc).clip(0, len(cue) - 1)
     hit = np.abs(cue[jj] - rc) < 1e-6
@@ -203,7 +245,7 @@ def session_worker_restnl(label: str) -> dict:
                         restw=np.asarray(src["restw"], float)[idx], restw_ok=bool(src["restw_ok"]),
                         restw_old=np.asarray(old["restw"], float)[[[str(c) for c in old["cols"]].index(c) for c in COLS]],
                         animal=str(d["animal"]), epoch=str(d["epoch"]), maxdiff=maxdiff, fl_mismatch=fl_mismatch,
-                        n_shared=int(hit.sum()))
+                        n_shared=int(hit.sum()), **mask_keys.stamp())
     return {"label": label, "cached": False, "n": len(cue), "maxdiff": maxdiff, "fl_mismatch": fl_mismatch,
             "n_shared": int(hit.sum())}
 

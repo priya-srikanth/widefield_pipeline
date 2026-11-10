@@ -203,12 +203,34 @@ def plot(S: pd.DataFrame, aim: str = AIM) -> None:
     plt.close(fig)
 
 
+def aim_caption(aim: str = AIM, spouts: str = "per spout") -> str:
+    """THE lick set of the weighted aim (Priya 11-09): cued licks (first post-cue lick of each trial, or all), spouts
+    with >= MIN_LICKS[aim] licks per session."""
+    import iti_where_decoder as wd
+    return wd.cued_caption(first_only=aim == "first", tracked="lateral + sagittal + outward",
+                           spout="spout = the trial's target spout (one of the six)",
+                           extra=[f"{spouts}: >= {MIN_LICKS[aim]} licks per session"])
+
+
+def aim_short(aim: str = AIM, spouts: str = "spouts") -> str:
+    """One-line form of `aim_caption` for a behavior axis drawn beside a decoder set."""
+    what = "the FIRST post-cue lick of each trial (lick_idx 0)" if aim == "first" else "every post-cue lick"
+    return f"{what}, {spouts} with >= {MIN_LICKS[aim]} licks per session"
+
+
+def trial_set_sentence(aim: str = AIM) -> str:
+    return aim_caption(aim)
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
     stem = f"lick_cued_recovery_measure{AIM_TAG}"
     if plot_only():                       # redraw from figdata only
         D = load_fd(stem)
+        tst.declare(text=trial_set_sentence(D.get("aim", "all")))
         plot(D["S"], D.get("aim", "all"))
         return 0
+    tst.declare(text=trial_set_sentence())
     S = compute()
     save_fd(stem, dict(S=S, aim=AIM))
     plot(S)

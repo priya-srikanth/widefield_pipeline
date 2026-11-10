@@ -294,10 +294,16 @@ def draw(D: pd.DataFrame, hist: list, C: pd.DataFrame, png: Path) -> None:
     plt.close(fig)
 
 
+def trial_set_sentence() -> str:
+    """The state decoder's 1 s segments (cached by labcams/state_decoder_ps94_check/collect.py, as by_animal_day)."""
+    return _common.state_segments()
+
+
 def main(argv=None) -> int:
     ap = _common.parser(__doc__)
     ap.add_argument("--cache", type=Path, default=CACHE, help="state_decoder_ps94_check/cache folder (<animal>.pkl)")
     a = ap.parse_args(argv)
+    _common.declare(trial_set_sentence())          # THE TRIAL SET of every figure (Priya 11-09)
     a.out.mkdir(parents=True, exist_ok=True)
     if a.plot_only:
         fd = _common.load_figdata(a.out, NAME)

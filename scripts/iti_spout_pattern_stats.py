@@ -35,7 +35,7 @@ import iti_where_decoder as wd  # noqa: E402
 from iti_decoder_pattern_stats import (AGREE_MIN, N_BOOT, N_PERM, _ridge, fwer_maps, merge_fwer,  # noqa: E402
                                        method_text, n_perm_arg, old_fdr)
 from iti_decoder_patterns import SPATIAL, pattern  # noqa: E402
-from iti_spout_patterns import AN, EP, POS  # noqa: E402
+from iti_spout_patterns import AN, EP, MIN_LICKS, POS, set_caption  # noqa: E402
 
 
 def session_maps(st: str = "trial"):
@@ -52,7 +52,7 @@ def session_maps(st: str = "trial"):
             X, _C = d[st]
             P = np.array([p if p in POS or "_" not in p else oc.pos_key(p, "L") for p in d[f"{st}_pos"]])
             ok = np.isin(P, POS)
-            if ok.sum() >= 30:
+            if ok.sum() >= MIN_LICKS:
                 S[x] = (d["epoch"], X[ok], P[ok])
         by = {ep: sorted(x for x, v in S.items() if v[0] == ep) for ep in EP}
         if len(by["pre"]) < 3:
@@ -216,15 +216,20 @@ def plot_all(D: dict) -> None:
 def main(argv=None) -> int:
     st = "iti" if "--iti" in (argv if argv is not None else sys.argv[1:]) else "trial"
     sfx = "_iti" if st == "iti" else ""
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=set_caption(st))
     if plot_only():
         plot_all(load_fd(fig_name(st)))
         return 0
     cache = il.OUT / f"spout_pattern_sessions{sfx}.pkl"
+    from wfield_local import mask_keys
     if cache.exists():
+        mask_keys.check_sidecar(cache)          # stale-read guard (11-09)
         SM = pickle.loads(cache.read_bytes())
     else:
         SM = session_maps(st)
         cache.write_bytes(pickle.dumps(SM, protocol=pickle.HIGHEST_PROTOCOL))
+        mask_keys.write_sidecar(cache)
     n_perm = n_perm_arg()
     res, T = test(SM, n_perm, st)
     T.to_csv(il.OUT / f"spout_pattern_stats{sfx}.csv", index=False)

@@ -19,7 +19,6 @@ INPUTS (this run): <encoding>/movement_first_subset-nokin_exec-polar_licks-combi
     PYTHONPATH=<wf_rebuild> python scripts/rebuild_figs/fig_pooled.py [--out DIR] [--plot-only]
 """
 from __future__ import annotations
-from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import sys
@@ -33,6 +32,7 @@ import pandas as pd  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import _common  # noqa: E402
+from wfield_local.figure_layout import save_png_svg  # noqa: E402 - PNG + svg/<name>.svg twin (2026-11-06)
 from fig_layer2 import allsession_dir  # noqa: E402
 
 from wfield_local.analysis_kit import boot_delta  # noqa: E402
@@ -135,7 +135,7 @@ def draw(fd: dict, OUT: Path) -> list:
     ax.set_title("contest: (target - executed), change from pre"); ax.set_ylabel("R2 fraction")
     animal_legend(fig)
     fig.suptitle("NEURAL, pooled: binned target vs executed contest (cortex, width 1). Within-animal change from pre, mean of animals; * = CI excludes 0", fontsize=10)
-    fig.tight_layout(rect=(0, 0.06, 1, 0.9)); save_png_svg(fig, OUT / "fig1p_contest_pooled.png", dpi=130); plt.close(fig)
+    fig.tight_layout(rect=(0, 0.06, 1, 0.9)); _save(SETS["fig1p"](), fig, OUT / "fig1p_contest_pooled.png", dpi=130); plt.close(fig)
 
     # ---------------------------------------------------------------- 2c: decoder, share of the pre-stroke code retained
     CL = [("hit", "#1b9e77"), ("incomplete", "#d95f02"), ("noattempt", "#7570b3"), ("reaction", "#e7298a"), ("stopped", "0.6")]
@@ -167,7 +167,7 @@ def draw(fd: dict, OUT: Path) -> list:
     animal_legend(fig, ci=False)
     fig.suptitle("NEURAL, pooled: frozen pre-stroke decoder on far-contra trials by trial type, normalized to each animal's pre-stroke hits\n"
                  "(1 = as well coded as pre-stroke hits, 0 = chance); bar = mean of animals with >= 5 trials (count under each bar)", fontsize=10)
-    fig.tight_layout(rect=(0, 0.06, 1, 0.86)); save_png_svg(fig, OUT / "fig2c_decoder_pooled.png", dpi=130); plt.close(fig)
+    fig.tight_layout(rect=(0, 0.06, 1, 0.86)); _save(SETS["fig2c"](), fig, OUT / "fig2c_decoder_pooled.png", dpi=130); plt.close(fig)
 
     # ---------------------------------------------------------------- 4p: decomposition as a fraction of each animal's pre response
     q = fd["decompose"].copy()
@@ -197,7 +197,7 @@ def draw(fd: dict, OUT: Path) -> list:
     animal_legend(fig, ci=False)
     fig.suptitle("NEURAL, pooled: frozen-encoder decomposition (far contra, lick window), each part's change divided by the animal's own "
                  "pre-stroke response,\nmean of animals; numbers under bars = animals with the sign of the mean", fontsize=10)
-    fig.tight_layout(rect=(0, 0.06, 1, 0.86)); save_png_svg(fig, OUT / "fig4p_decomp_pooled.png", dpi=130); plt.close(fig)
+    fig.tight_layout(rect=(0, 0.06, 1, 0.86)); _save(SETS["fig4p"](), fig, OUT / "fig4p_decomp_pooled.png", dpi=130); plt.close(fig)
 
     # ---------------------------------------------------------------- 5p: Layer 2 change vs the late-pre null, pooled
     W = fd["layer2"].copy()
@@ -218,7 +218,7 @@ def draw(fd: dict, OUT: Path) -> list:
     axs[0].set_ylabel("change_ref minus late-pre null\nheld-out R2 gain (fraction)")
     animal_legend(fig)
     fig.suptitle("NEURAL, pooled: Layer 2 kernel change per epoch minus each animal's late-pre (drift-null) change, mean of animals; * = CI excludes 0", fontsize=10)
-    fig.tight_layout(rect=(0, 0.06, 1, 0.88)); save_png_svg(fig, OUT / "fig5p_layer2_pooled.png", dpi=130); plt.close(fig)
+    fig.tight_layout(rect=(0, 0.06, 1, 0.88)); _save(SETS["fig5p"](), fig, OUT / "fig5p_layer2_pooled.png", dpi=130); plt.close(fig)
 
     # ---------------------------------------------------------------- 5c: random-split null, pooled in null-SD units
     fig, axs = plt.subplots(1, 3, figsize=(14, 4.4), sharey=True)
@@ -253,7 +253,7 @@ def draw(fd: dict, OUT: Path) -> list:
     animal_legend(fig)
     fig.suptitle("NEURAL, pooled: Layer 2 random-split null. Each animal's values in units of its own null spread, then the mean over animals per split\n"
                  "(dots = 20 pooled splits; open markers = each animal's median; PS95 acute excluded: one session). P = share of pooled null splits >= the epoch.", fontsize=10)
-    fig.tight_layout(rect=(0, 0.06, 1, 0.86)); save_png_svg(fig, OUT / "fig5c_layer2_random_splits_pooled.png", dpi=130); plt.close(fig)
+    fig.tight_layout(rect=(0, 0.06, 1, 0.86)); _save(SETS["fig5c"](), fig, OUT / "fig5c_layer2_random_splits_pooled.png", dpi=130); plt.close(fig)
 
     # ---------------------------------------------------------------- 6p: Layer 2 per group, pooled
     G = ["lick", "contact", "target", "exec_within", "exec_locked", "timing", "other"]
@@ -270,7 +270,7 @@ def draw(fd: dict, OUT: Path) -> list:
     ax.set_ylabel("unique change of one group minus late-pre null\nheld-out R2 (fraction), cortex")
     animal_legend(fig, y=0.93)
     fig.suptitle("NEURAL, pooled: Layer 2 unique change per kernel group minus the late-pre null, mean of animals; * = CI excludes 0", fontsize=10)
-    fig.tight_layout(rect=(0, 0.06, 1, 0.85)); save_png_svg(fig, OUT / "fig6p_layer2_groups_pooled.png", dpi=130); plt.close(fig)
+    fig.tight_layout(rect=(0, 0.06, 1, 0.85)); _save(SETS["fig6p"](), fig, OUT / "fig6p_layer2_groups_pooled.png", dpi=130); plt.close(fig)
 
     # ---------------------------------------------------------------- 10p: width sweep, contest change from pre, pooled
     fig, axs = plt.subplots(1, 2, figsize=(14, 4.4), sharey=True)
@@ -291,7 +291,7 @@ def draw(fd: dict, OUT: Path) -> list:
     axs[0].set_ylabel("contest (target - executed) unique dR2 (R2 fraction)\nchange from pre")
     animal_legend(fig)
     fig.suptitle("NEURAL, pooled: softmax width sweep of the contest, within-animal change from pre, mean of animals; * = CI excludes 0", fontsize=10)
-    fig.tight_layout(rect=(0, 0.06, 1, 0.88)); save_png_svg(fig, OUT / "fig10p_width_pooled.png", dpi=130); plt.close(fig)
+    fig.tight_layout(rect=(0, 0.06, 1, 0.88)); _save(SETS["fig10p"](), fig, OUT / "fig10p_width_pooled.png", dpi=130); plt.close(fig)
 
     # ---------------------------------------------------------------- 12p: residual trend in pre-SD units, pooled
     R = fd["residual_trend"].copy()
@@ -337,14 +337,46 @@ def draw(fd: dict, OUT: Path) -> list:
     fig.suptitle("NEURAL, pooled: frozen-encoder residual (far contra, lick window) per session vs day, each animal in units of its own pre-stroke spread "
                  "(0 = pre mean); thick line = mean of animals.\nSide panels: each epoch's pooled change from pre with 95% nested CI (animals -> sessions); "
                  "markers = animals; * = CI excludes 0", fontsize=10)
-    fig.tight_layout(rect=(0, 0.03, 1, 0.95)); save_png_svg(fig, OUT / "fig12p_residual_trend_pooled.png", dpi=115); plt.close(fig)
+    fig.tight_layout(rect=(0, 0.03, 1, 0.95)); _save(SETS["fig12p"](), fig, OUT / "fig12p_residual_trend_pooled.png", dpi=115); plt.close(fig)
 
     return TXT
+
+
+def _first_lick_far_contra() -> str:
+    from wfield_local import trial_set_text as tst
+    from wfield_local.frozen_encoder import EVOKED_WINDOWS
+    (r0, r1), (b0, b1) = EVOKED_WINDOWS["lick"]          # = scripts/lp_encoder_decompose.py's windows
+    return tst.events(f"{_common.encoder_trials()} at far contra with {_common.FIRST_LICK}", unit="trials",
+                      keep=[f"lick window aligned on it: {r0:g}..{r1:g} s minus {b0:g}..{b1:g} s",
+                            "June pre sessions dropped"],
+                      excluded=["trials with no post-cue lick", "trials outside the encoder gate", "other spouts"])
+
+
+#: each figure's trial / frame set (Priya 11-09): the producers differ figure by figure
+SETS = {"fig1p": _common.contest_frames, "fig10p": _common.contest_frames,
+        "fig2c": lambda: _common.attempt_classes(epochs="acute / subacute / chronic",
+                                                 windows=_common.windows_text(["lick", "cue"]), min_n=5),
+        "fig4p": _first_lick_far_contra, "fig12p": _first_lick_far_contra,
+        "fig5p": _common.encoder_frames, "fig5c": _common.encoder_frames, "fig6p": _common.encoder_frames}
+
+
+def _save(text: str, fig, png, **kw):
+    """`save_png_svg` under this figure's own trial set (wins over the driver's declaration)."""
+    from wfield_local import trial_set_text as tst
+    with tst.active(None, text=text):
+        return save_png_svg(fig, png, **kw)
+
+
+def trial_set_sentence() -> str:
+    """Every figure's set (the driver-level fallback; each figure is saved under its own, `SETS`)."""
+    from wfield_local import trial_set_text as tst
+    return tst.union(*dict.fromkeys(f() for f in SETS.values()), unit="trials / frames")
 
 
 def main(argv=None) -> int:
     ap = _common.parser(__doc__)
     a = ap.parse_args(argv)
+    _common.declare(trial_set_sentence())          # THE TRIAL SET of every figure (Priya 11-09)
     a.out.mkdir(parents=True, exist_ok=True)
     fd = _common.load_figdata(a.out, NAME) if a.plot_only else compute()
     if not a.plot_only:

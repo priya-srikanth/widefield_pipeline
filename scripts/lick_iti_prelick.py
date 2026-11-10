@@ -164,6 +164,24 @@ _RUN = {"jobs": 4}                # task cap: at most 4 workers (a dict: main() 
 
 
 # ------------------------------------------------------------------------------------------------------- lick set
+CLEAN_SINCE_STOP = 2.0     # subset "clean": >= this long after the last response-window end (and >= TC_HI before arrival)
+
+
+def trial_set_sentence() -> str:
+    """The licks of lick_iti_prelick.png (Priya 11-09): `lick_set` -- the ITI first lick after >= il.GAP_MAIN s quiet
+    of the KEY decoder cache (+ the refit ITI filter of the run, if any), its bout-start subset for the onset alignment
+    and its "clean" subset."""
+    from wfield_local import trial_set_text as tst
+    return tst.iti_licks(filt=lo.ITI_FILTER, extra=[
+        "the KEY decoder cache's ITI licks", f"FIRST lick after >= {il.GAP_MAIN:g} s quiet (no licks_all onset of any "
+        "context in the preceding gap)",
+        f"onset-aligned rows: the subset that are extraction bout starts (no cue / spout strobe within "
+        f"[{il.CUE_EXCL[0]:+g}, {il.CUE_EXCL[1]:+g}] s of the onset)",
+        f"subset clean (sensitivity): >= {CLEAN_SINCE_STOP:g} s after the last response-window end and >= {TC_HI:g} s "
+        "before the next spout arrival",
+        "jaw windows: licks with an uncensored cam4 jaw-opening onset (never at " + " / ".join(JAW_HIDDEN) + ")"])
+
+
 def lick_set() -> pd.DataFrame:
     P = pd.read_csv(lo.preds_path())
     P["k"] = P.groupby(["set", "label"]).cumcount()
@@ -182,7 +200,7 @@ def lick_set() -> pd.DataFrame:
     A = pd.read_csv(il.OUT / "iti_timing_audit.csv", usecols=["label", "t", "since_stop", "to_strobe"])
     A = A.replace(np.inf, 1e9).drop_duplicates(["label", "t"])
     Q = Q.merge(A, on=["label", "t"], how="left")
-    Q["clean"] = (Q.since_stop >= 2.0) & (Q.to_strobe >= TC_HI)
+    Q["clean"] = (Q.since_stop >= CLEAN_SINCE_STOP) & (Q.to_strobe >= TC_HI)
     Q = Q.sort_values(["label", "k"]).reset_index(drop=True)
     return Q, acts
 
@@ -891,6 +909,8 @@ def main() -> int:
     ap.add_argument("--jobs", type=int, default=4)
     a = ap.parse_args()
     _RUN["jobs"] = max(1, min(a.jobs, 4))
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())
     configure(None if a.window_limit.lower() == "none" else float(a.window_limit))
     print(f"== window limit {LIMIT}; windows {[w[0] for w in WINS]}; outputs {fn('*.csv').name}; figure {FIGNAME}",
           flush=True)

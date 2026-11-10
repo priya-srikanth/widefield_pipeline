@@ -109,13 +109,37 @@ def within(G: pd.DataFrame, meas: list[str], beh: dict) -> dict:
     return out
 
 
+def behaviour_caption(beh: str) -> str:
+    """The trials / licks of the behavior axis, in words (Priya 11-09)."""
+    if beh == "aim":
+        return ("weighted signed aim (change vs pre; far contra 3 : far mid 2 : others 1) of "
+                + rm.aim_short(rm.AIM))
+    if beh == "hit":
+        from wfield_local import trial_set_text as tst
+        # recovery_timing.far_contra_hit refuses a table built without the camera gate, so the period sentence applies
+        per = tst.safe_sentence("working_period") or "trials: the camera working period (camera trial gate required)"
+        return "far-contra hit rate / pre (camera contact share of far-contra trials; trials: " + per.split(": ", 1)[1] + ")"
+    return (f"mean {'angle' if beh == 'angle' else 'lateral position'} (change vs pre) of the far-contra cued licks of "
+            "the decoder set")
+
+
+def trial_set_sentence(beh: str = "hit", z: bool = False, src: Path | None = None) -> str:
+    """ITI + cued decoder licks (subset ITI filter only when --src is the filtered folder) + the behavior axis."""
+    import iti_where_decoder as wd
+    filt = wd.subset_in(_files(Path(src or il.OUT), z)[0])
+    return (wd.both_caption(filt, tracked="lateral + sagittal + outward")
+            + f"; behavior axis: {behaviour_caption(beh)}")
+
+
 def main(argv=None) -> int:
+    from wfield_local import trial_set_text as tst
     ap = argparse.ArgumentParser()
     ap.add_argument("--src", default=str(il.OUT))
     ap.add_argument("--beh", choices=("hit", "angle", "lateral", "aim"), default="hit")
     ap.add_argument("--z", action="store_true", help="decoder on within-session Z-SCORED features")
     ap.add_argument("--plot-only", action="store_true", help="redraw the three figures from the figure data alone")
     args = ap.parse_args(argv)
+    tst.declare(text=trial_set_sentence(args.beh, args.z, Path(args.src)))
     il.split_only("iti_recovery_link")
     beh_tag = ("aim" if rm.AIM == "first" else "aimall") if args.beh == "aim" else args.beh
     src, tag = Path(args.src), beh_tag + ("_z" if args.z else "")

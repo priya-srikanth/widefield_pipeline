@@ -36,6 +36,21 @@ def session_jsons() -> list:
 NAME = "softmax"
 
 
+def target_lick_counts(conf: dict) -> dict:
+    """{TARGET spout: n usable licks} from one session's ``bins["confusion"]``.
+
+    `combined_encoding` stores ``pd.crosstab(target (index), exec (columns)).to_dict()``, and DataFrame.to_dict() is
+    keyed by COLUMN first: ``{EXECUTED bin: {target: n}}``. So ``conf[t]`` holds the licks that LANDED in bin t (a column
+    sum), not the licks aimed at target t. Until 11-09 the session weight read ``sum(conf[t].values())`` -- the executed
+    count -- for target row t; the licks at a target are the ROW sum, summed here over every executed bin
+    (tests/test_fig_softmax_weight.py pins the orientation on a real crosstab)."""
+    out: dict = {}
+    for col in conf.values():
+        for t, n in (col or {}).items():
+            out[t] = out.get(t, 0) + n
+    return out
+
+
 def compute() -> dict:
     from wfield_local import run_mode
     E = run_mode.encoding_out_root()
@@ -51,11 +66,11 @@ def draw(fd: dict, OUT: str) -> None:
     for j in fd["sessions"]:
         b = j.get("bins") or {}
         sw = b.get("soft_weight") or {}
-        conf = b.get("confusion") or {}
+        n_tgt = target_lick_counts(b.get("confusion") or {})
         for t in SP:
             if t not in sw:
                 continue
-            n = sum(conf.get(t, {}).values()) or 1          # licks at that target (for weighting sessions)
+            n = n_tgt.get(t, 0) or 1                        # licks AIMED at that target (row sum; weights sessions)
             row = np.array([sw[t].get(e, 0.0) for e in SP]) * n
             k = (j["animal"], j["epoch"], t)
             a = acc.setdefault(k, [np.zeros(6), 0]); a[0] += row; a[1] += n
@@ -112,7 +127,7 @@ def draw(fd: dict, OUT: str) -> None:
                  "leads executed at every width in all four animals, except PS94 at width 2 in the lick window (executed slightly "
                  "ahead); the executed set gains as bins widen.", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.93))
-    save_png_svg(fig, OUT + "/fig10_softmax_width.png", dpi=130)
+    _common.save_with(width_sentence(), fig, OUT + "/fig10_softmax_width.png", dpi=130)
     print("ok")
 
     # epoch minus pre, within animal, then the cross-animal mean (Priya 10-24)
@@ -147,9 +162,20 @@ def draw(fd: dict, OUT: str) -> None:
     save_png_svg(fig, OUT + "/fig9b_softmax_landing_change.png", dpi=130); plt.close(fig)
     print("ok 9b")
 
+def trial_set_sentence() -> str:
+    """The licks the soft executed-bin landing is computed from (`combined_encoding.exec_bins`)."""
+    return _common.usable_licks()
+
+
+def width_sentence() -> str:
+    """fig 10 (contest R2 per soft-bin width) is drawn from the encoder fit frames, not from the licks."""
+    return _common.contest_frames()
+
+
 def main(argv=None) -> int:
     ap = _common.parser(__doc__)
     a = ap.parse_args(argv)
+    _common.declare(trial_set_sentence())          # THE TRIAL SET of every figure (Priya 11-09)
     a.out.mkdir(parents=True, exist_ok=True)
     fd = _common.load_figdata(a.out, NAME) if a.plot_only else compute()
     if not a.plot_only:

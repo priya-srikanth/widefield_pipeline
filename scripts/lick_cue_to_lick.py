@@ -112,6 +112,9 @@ PRED = {   # model exponents (quantity ~ L^beta)
     "mean_own": {"M1 accumulate-to-bound": -1, "M2 fixed level": 0, "M3 delayed start": -1},
 }
 N_BOOT = 2000
+#: task C: fixed windows before the lick (name -> length, s); a trial is kept only when its latency >= the length
+C_WIN = {"w03": 0.3, "w05": 0.5}
+MIN_SPOUT_N, MIN_ALL_N = 3, 10   # per_session: trials per session x spout / per session (all spouts)
 
 
 def _w(lags, a, b):
@@ -234,9 +237,9 @@ def per_session(T: pd.DataFrame, q: str, valid: pd.Series | None = None) -> pd.D
     """session x spout(+all) x col mean of q (>= 3 trials per spout, >= 10 all)."""
     t = T if valid is None else T[valid]
     g = t.groupby(["label", "animal", "epoch", "col", "pos"])[q].agg(["mean", "count"]).reset_index()
-    g = g[g["count"] >= 3]
+    g = g[g["count"] >= MIN_SPOUT_N]
     a = t.groupby(["label", "animal", "epoch", "col"])[q].agg(["mean", "count"]).reset_index()
-    a = a[a["count"] >= 10]
+    a = a[a["count"] >= MIN_ALL_N]
     a["pos"] = "all"
     return pd.concat([g, a], ignore_index=True).rename(columns={"mean": "v", "count": "n"})
 
@@ -325,7 +328,7 @@ def task_A(T: pd.DataFrame, rng) -> dict:
 def task_C(T: pd.DataFrame, rng) -> dict:
     T0 = T[T.tau == 0]
     rows, sess, keep = [], {}, []
-    for q, wl in (("w03", 0.3), ("w05", 0.5)):
+    for q, wl in C_WIN.items():
         for drop in (True, False):
             S = per_session(T0, q, (T0.lat >= wl) if drop else None)
             S["cmp"] = ""
@@ -544,7 +547,8 @@ def draw_dotgrid(stem: str) -> None:
     fig.suptitle(_wrap(_rl(F["title"]), fw, 9), fontsize=9)
     FIGS.mkdir(parents=True, exist_ok=True)
     reserve_headroom(fig)
-    save_png_svg(fig, FIGS / f"{stem}{SFX}.png", dpi=110, bbox_inches="tight")
+    with _trial_set_for(stem):
+        save_png_svg(fig, FIGS / f"{stem}{SFX}.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -669,7 +673,8 @@ def draw_B_pre(stem: str) -> None:
                      f" DECONVOLVED trace s = y + {F['tau']} dy/dt." if F["tau"] else " Raw GCaMP6s dF/F (slow, lagged)."),
                  fw, 8), fontsize=8)
     reserve_headroom(fig)
-    save_png_svg(fig, FIGS / f"{stem}{SFX}.png", dpi=110, bbox_inches="tight")
+    with _trial_set_for(stem):
+        save_png_svg(fig, FIGS / f"{stem}{SFX}.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -713,7 +718,8 @@ def draw_B_exp(stem: str) -> None:
                  f"Pre-stroke latencies span only ~0.1-0.4 s, so exponents are noisy." + (
                      f" DECONVOLVED (tau {F['tau']} s)." if F["tau"] else " Raw GCaMP6s dF/F."), fw, 8), fontsize=8)
     reserve_headroom(fig)
-    save_png_svg(fig, FIGS / f"{stem}{SFX}.png", dpi=110, bbox_inches="tight")
+    with _trial_set_for(stem):
+        save_png_svg(fig, FIGS / f"{stem}{SFX}.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -756,7 +762,8 @@ def draw_B_onpre(stem: str) -> None:
                  "post-stroke epochs, far-contra trials. Baselines: own pre-cue level (-0.5..0 s) or session RESTW (row "
                  "label). Pre latencies rarely exceed ~0.5 s, so slow-trial comparisons extrapolate the pre relation "
                  "(c2l_B_onpre_summary.csv).", fw, 8), fontsize=8)
-    save_png_svg(fig, FIGS / f"{stem}{SFX}.png", dpi=100, bbox_inches="tight")
+    with _trial_set_for(stem):
+        save_png_svg(fig, FIGS / f"{stem}{SFX}.png", dpi=100, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -856,7 +863,8 @@ def draw_threshold_simple(src: str = "lick_cue_to_lick_B_farcontra_on_pre",
         13.5, 9), fontsize=9)
     FIGS.mkdir(parents=True, exist_ok=True)
     reserve_headroom(fig)
-    save_png_svg(fig, FIGS / f"{out}{SFX}.png", dpi=120, bbox_inches="tight")
+    with _trial_set_for(out):
+        save_png_svg(fig, FIGS / f"{out}{SFX}.png", dpi=120, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -910,7 +918,8 @@ def draw_A_simple(src: str = "lick_cue_to_lick_A_level_contra", out: str = "lick
         "PROVISIONAL, n = 4 mice."), 12, 9), fontsize=9)
     FIGS.mkdir(parents=True, exist_ok=True)
     reserve_headroom(fig)
-    save_png_svg(fig, FIGS / f"{out}{SFX}.png", dpi=120, bbox_inches="tight")
+    with _trial_set_for(out):
+        save_png_svg(fig, FIGS / f"{out}{SFX}.png", dpi=120, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -925,10 +934,42 @@ DOT_STEMS = ([f"lick_cue_to_lick_A_level_{h}" for h in ("contra", "ipsi")]
              + [f"lick_cue_to_lick_C_{w}_{h}" for w in ("w03", "w05") for h in ("contra", "ipsi")])
 
 
+# ------------------------------------------------------------------------------------------------ trial-set captions
+def trial_set_sentence(stem: str = "") -> str:
+    """The trials of this driver's figures (Priya 11-09: every figure states exactly which trials), from its own
+    constants: ``stem`` = a figure stem (task C stems add their latency cut, task B stems the template's trials)."""
+    from wfield_local import trial_set_text as tst
+    var = "restnl" if SFX else "restw"
+    keep = [cx.first_lick_rule(), f"latency {EDGES[0]:g}-{EDGES[-1]:g} s", cx.rest_text(var),
+            f"session x spout cells with >= {MIN_SPOUT_N} trials (all spouts: >= {MIN_ALL_N})"]
+    excl = ["late (first lick after the trial stop) and no-lick trials"]
+    w = next((k for k in C_WIN if f"_C_{k}" in stem and f"_C_{k}_all" not in stem), None)
+    if w:
+        keep.append(f"latency >= {C_WIN[w]:g} s (the lick-aligned {C_WIN[w]:g} s window starts after the cue)")
+        excl.append(f"trials with latency < {C_WIN[w]:g} s")
+    if "_B_" in stem or "threshold" in stem:
+        keep.append(f"cue-locked template: the same engaged trials while not yet licked by t + {LAG_EXCL:g} s, incl. "
+                    f"late / no-lick trials up to the trial stop - {LAG_EXCL:g} s (>= {MIN_TPL} trials per t)")
+        excl = ["late and no-lick trials (except in the template)"]
+    return tst.events(cx.engaged_text(), keep=keep, excluded=excl, unit="trials")
+
+
+def _trial_set_for(stem: str):
+    """Narrow the process declaration to ``stem``'s set while it is saved (no-op when main() declared nothing)."""
+    import contextlib
+
+    from wfield_local import trial_set_text as tst
+    if tst.current() is None:
+        return contextlib.nullcontext()
+    return tst.active(None, text=trial_set_sentence(stem))
+
+
 def main() -> int:
     from wfield_local import parallel
+    from wfield_local import trial_set_text as tst
     parallel.pin_blas()
     var = restnl.variant()
+    tst.declare(text=trial_set_sentence())
     if plot_only():
         for s in DOT_STEMS:
             draw_dotgrid(s)

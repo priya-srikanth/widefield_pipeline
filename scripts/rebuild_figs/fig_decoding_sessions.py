@@ -140,12 +140,31 @@ def draw(S: pd.DataFrame, png: Path) -> None:
     plt.close(fig)
 
 
+def trial_set_sentence() -> str:
+    """The trials the refit position decoder scores (`locanmf_position_decoder._trial_features`: engaged trials)."""
+    from wfield_local import lp_licks
+    from wfield_local import trial_set_text as tst
+    try:
+        from wfield_local import trial_classes as tc
+        rt = f"{tc.max_rt_ms() / 1000:g} s"
+    except Exception:                                                   # noqa: BLE001 - a caption never kills a figure
+        rt = "max_rt"
+    return tst.events(f"engaged trials (first lick within {rt} of the cue; {tst.lick_text()} of this run)",
+                      unit="trials",
+                      keep=[f"pre-cue panel: the lick-free {lp_licks.enl_post_s():g} s window ending at the cue, slid "
+                            "back after the spout strobe (a trial without one dropped)",
+                            f"post-cue panel: cue .. cue + {lp_licks.post_s_for('cue'):g} s",
+                            "no camera classes, no quit-tail or stopped removal"],
+                      excluded=["no-lick trials", "late hits", "cues outside imaging coverage"])
+
+
 def main(argv=None) -> int:
     ap = _common.parser(__doc__)
     ap.add_argument("--src", type=Path, default=SRC, help="slowband_decode_all.csv")
     ap.add_argument("--pre-col", default="adopted_pre", help="pre-cue accuracy column of --src")
     ap.add_argument("--post-col", default="adopted_post", help="post-cue accuracy column of --src")
     a = ap.parse_args(argv)
+    _common.declare(trial_set_sentence())          # THE TRIAL SET of every figure (Priya 11-09)
     a.out.mkdir(parents=True, exist_ok=True)
     if a.plot_only:
         S = _common.load_figdata(a.out, NAME)["S"]

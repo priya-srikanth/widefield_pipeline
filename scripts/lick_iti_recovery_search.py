@@ -300,7 +300,23 @@ def plot(F: dict) -> None:
     plt.close(fig)
 
 
+def trial_set_sentence() -> str:
+    """The licks of this driver's figure (Priya 11-09; MODE from WFIELD_RECSEARCH_SET): ITI = every ITI lick of the KEY
+    decoder cache + its first licks after >= il.GAP_MAIN s quiet; cued = every post-cue lick + the first post-cue lick."""
+    from wfield_local import trial_set_text as tst
+    extra = ["the KEY decoder cache's licks", "3-D lateral landing, angle and features present",
+             "coverage control rows: all licks / inside the animal's pre landing range / its central 10-90 %"]
+    if CUED:
+        cap = (f"iti_licks.extract post-cue set: every trial, no engagement / camera-class gate, at most "
+               f"{int(il.N_TRIAL_MAX)} per session (random draw, seed 0)")
+        return tst.cued_licks(extra=[cap, *extra, f"subset [{lrm.C1SET}]: lick order 0 (first post-cue lick)"])
+    return tst.iti_licks(filt=lo.ITI_FILTER, extra=[*extra, f"subset [{lrm.QSET}]: no licks_all onset (any context) "
+                                                             f"in the preceding {il.GAP_MAIN:g} s"])
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())
     if plot_only():
         F = load_fd(FIGN)
         for k in ("O", "S"):                       # figdata saved before the target column was renamed

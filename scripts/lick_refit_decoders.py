@@ -233,8 +233,102 @@ def plot(F: dict) -> None:
     plt.close(fig)
 
 
+# ------------------------------------------------------------------------------------------------ trial-set captions
+# Priya 11-09: "EVERY figure must state EXACTLY which trials were included / excluded". The lick decoder family draws
+# LICK EVENTS, not trial classes. These phrase builders (shared by the lick_* drivers, in the `wfield_local.
+# trial_set_text` words) state the decoding sets of the `iti_licks.extract` session files from their defining constants;
+# each driver declares its sentence in main() (`tst.declare(text=...)`), never at import.
+TRACKED = "3-D tracked (finite lateral landing)"
+
+
+def _tst():
+    from wfield_local import trial_set_text as tst
+    return tst
+
+
+def edge_text(lags=None) -> str:
+    """The imaging-edge rule of the session files' decoding sets (`iti_licks.extract` (B), lags il.LAGS_D)."""
+    lags = il.LAGS_D if lags is None else lags
+    return f"3-D peak >= {-float(lags[0]):g} s after imaging start and >= {float(lags[-1]):g} s before its end"
+
+
+def iti_set(*, filt: str | None = "", extra=(), lags=None) -> str:
+    """The session files' ITI decoding set (every ITI lick of the 3-D table, tracked, inside the imaging); ``filt`` =
+    the ITI filter the driver applies ("" none, None = the run's WFIELD_ITI_FILTER)."""
+    return _tst().iti_licks(filt=filt, extra=[TRACKED, edge_text(lags), *extra])
+
+
+def cued_set(*, first_only: bool = False, extra=(), lags=None) -> str:
+    """The session files' cued decoding set (post-cue licks, tracked, inside the imaging, capped per session)."""
+    return _tst().cued_licks(first_only=first_only, extra=[
+        TRACKED, edge_text(lags), f"at most {il.N_TRIAL_MAX} per session (random subset, seed 0)", *extra])
+
+
+#: the row rule of the KEY per-lick cache (`iti_lick_order.predictions`, `preds_path()`)
+KEY_ROWS = ("spout known (6 canonical positions; ITI = the previous trial's spout)", ">= 20 such licks per session",
+            "animals with >= 3 pre sessions")
+
+
+def key_sets(*, filt: str | None = "", extra=(), iti_extra=(), cued_extra=(), more=()) -> str:
+    """ITI + cued licks of the KEY per-lick cache (the frozen KEY-row lateral decoder's licks), + ``more`` parts."""
+    return _tst().union(iti_set(filt=filt, extra=[*KEY_ROWS, *extra, *iti_extra]),
+                        cued_set(extra=[*KEY_ROWS, *extra, *cued_extra]), *more)
+
+
+def where_sets(min_n: int, *, extra=(), more=()) -> str:
+    """ITI + cued licks of the where-decoder loader (`iti_where_decoder.load`: every session-file decoding lick, no ITI
+    filter) in sessions with >= ``min_n`` licks."""
+    x = [f">= {min_n} such licks per session", *extra]
+    return _tst().union(iti_set(filt="", extra=x), cued_set(extra=x), *more)
+
+
+def engaged_text() -> str:
+    """Which trials are ENGAGED in the behavior table (`orofacial_cohort.engagement_keep`, env OROFACIAL_GATE)."""
+    from wfield_local import orofacial_cohort as oc
+    if not oc.ENGAGED_ONLY:
+        return "all trials (engagement gate off)"
+    return {"reference": "engaged = the behavior pipeline's per-trial engaged column (OROFACIAL_GATE reference)",
+            "attempted": "engaged = attempted trials of trial_attempts.csv (OROFACIAL_GATE attempted)",
+            "canonical_attempted": "engaged = attempted canonical trials of trial_attempts.csv (OROFACIAL_GATE "
+                                   "canonical_attempted)"}.get(oc.ENGAGEMENT_GATE, f"engaged ({oc.ENGAGEMENT_GATE})")
+
+
+def recovery_axes(iti_axis: bool = True) -> str:
+    """The recovery axes the marker models regress on (lick_recovery_markers: recmark_sessions.csv)."""
+    return ("recovery axes: far-contra FIRST post-cue lick aim per session vs the animal's pre landing "
+            "(aim_deficit_sessions.csv farcontra_first)"
+            + ("; session-mean ITI lick angle vs pre (iti_ang)" if iti_axis else ""))
+
+
+def pre_pattern_sets() -> str:
+    """The licks behind the PRE-stroke Haufe maps of iti_decoder_pattern_stats / iti_spout_pattern_stats (the SVD-basis
+    session files, svdbasis edge rule), pre sessions only."""
+    from iti_basis_decoder import LAGS as LB
+    x = ["pre-stroke sessions only (PRE level maps)"]
+    return _tst().union(iti_set(filt="", lags=LB, extra=x), cued_set(lags=LB, extra=x))
+
+
+def rest_mask_text() -> str:
+    """The configured rest mask in words (configs/defaults.yaml segmentation.rest, the behavior_events rest mask)."""
+    from wfield_local import config
+    try:
+        r = config.defaults()["segmentation"]["rest"]
+    except Exception:                                                  # noqa: BLE001 - a caption never kills a figure
+        return "behavior_events rest mask"
+    lb, tb = r.get("lick_buffer_s", ("?", "?")), r.get("treadmill_buffer_s", ("?", "?"))
+    dock = ", spout docked (dock -> next trial start)" if r.get("docked") else ""
+    return (f"rest mask {r.get('variant', '')}: outside trials{dock}, treadmill below {r.get('speed_mm_s', '?')} mm/s "
+            f"(buffer {tb[0]} s before / {tb[1]} s after), no DAQ lick from {lb[0]} s before to {lb[1]} s after")
+
+
+def trial_set_sentence() -> str:
+    """THE lick set of lick_refit_decoders' figure: the where-decoder licks with every coordinate finite."""
+    return where_sets(MIN_LICKS, extra=["every 3-D coordinate finite"])
+
+
 def main() -> int:
     il.split_only(STEM)
+    _tst().declare(text=trial_set_sentence())
     if plot_only():
         plot(load_fd(STEM))
         return 0

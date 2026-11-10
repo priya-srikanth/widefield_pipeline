@@ -55,7 +55,7 @@ def predictions() -> pd.DataFrame:
                 X, C = d[st]
                 Yc = C[:, [0, 3, 1]]                      # lateral, SAGITTAL extension, outward (wd.coords columns)
                 ok = np.isfinite(Yc).all(1)
-                if ok.sum() >= 20:
+                if ok.sum() >= wd.MIN_SESSION_LICKS:
                     S[x] = (d["epoch"], X[ok], Yc[ok], pos[x][st][ok])
             pre = [x for x, v in S.items() if v[0] == "pre"]
             if len(pre) < 3:
@@ -324,14 +324,34 @@ def plot(F: dict) -> None:
     save_png_svg(fig, WOUT / "figures" / f"{_scatter_stem(st, tag)}.png", dpi=95)
     plt.close(fig)
 WOUT = il.OUT_W if il.ITI_SUBSET else il.OUT     # subset runs (dock, ...) write to their own folder (10-29)
+TRACKED = "lateral + sagittal + outward"
+
+
+def trial_set_sentence(z: bool = False, st: str | None = None) -> str:
+    """The licks this driver draws (Priya 11-09): ITI + cued (``st`` None: the delta figure), or one set (its scatter).
+    The subset ITI filter applies only to the --z predictions read through il.pred_file (iti_dock_where_preds.py copy)."""
+    filt = wd.subset_in(il.pred_file("zscore_check/where_preds_z.csv")) if z else ""
+    if st == "trial":
+        return wd.cued_caption(tracked=TRACKED)
+    if st == "iti":
+        return wd.iti_caption(filt, tracked=TRACKED, spout="grouped by the spout nearest the actual landing")
+    return wd.both_caption(filt, tracked=TRACKED)
+
+
+def _plot_scatter(F: dict, z: bool) -> None:
+    from wfield_local import trial_set_text as tst
+    with tst.active(None, text=trial_set_sentence(z, F["st"])):
+        plot(F)
 
 
 def main() -> int:
+    from wfield_local import trial_set_text as tst
     il.split_only("iti_where_scatter")   # outputs not basis-tagged: split basis only (10-27 late)
     tag = "_z" if "--z" in sys.argv else ""   # --z: z-scored predictions from iti_zscore_check.py -> *_z figures / tables
+    tst.declare(text=trial_set_sentence(bool(tag)))
     if plot_only():                           # redraw from figdata only: no data, no bootstrap
         for st, _gc, _gn in SCATTER_SETS:
-            plot(load_fd(_scatter_stem(st, tag)))
+            _plot_scatter(load_fd(_scatter_stem(st, tag)), bool(tag))
         plot_delta(load_fd(f"lick_where_delta{tag}"))
         return 0
     if tag:
@@ -345,7 +365,7 @@ def main() -> int:
     for st, gcol, gname in SCATTER_SETS:
         F = scatter_data(R, st, gcol, gname, tag)
         save_fd(_scatter_stem(st, tag), F)
-        plot(F)
+        _plot_scatter(F, bool(tag))
     F = delta_data(R, tag)
     save_fd(f"lick_where_delta{tag}", F)
     plot_delta(F)

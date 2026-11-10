@@ -74,6 +74,12 @@ def _bars(ax, Q, cols, colors, labels=None):
     ax.axhline(0, color="0.5", lw=0.6)
 
 
+def trial_set_sentence(tag: str, align: str) -> str:
+    """The trials / frames of the ``align`` figures of run ``tag`` (Priya 11-09): the frozen Musall window."""
+    from wfield_local import frozen_encoder as fe
+    return fe.trial_set_sentence("musall", tag=tag, align=align)
+
+
 def main(argv=None) -> int:
     # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import matplotlib
@@ -84,6 +90,8 @@ def main(argv=None) -> int:
     ap.add_argument("--tag", default="gate-attempted")
     ap.add_argument("--areas", nargs="+", default=["cortex", "SSp-m_left", "MOs_left"])
     a = ap.parse_args(argv)
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=tst.union(*(trial_set_sentence(a.tag, al) for al in ("cue", "lick")), unit="trials"))
     from wfield_local import frozen_encoder as _fe   # the encoder's (tagged) run root, coordinator 11-04
     out = _fe.out_root() / f"frozen_encoder_{a.tag}"
     A = pd.read_csv(out / "frozen_musall_r2_by_animal.csv")
@@ -119,7 +127,8 @@ def main(argv=None) -> int:
             fig.suptitle(f"Alone (light) vs unique (dark), {area}, {align}-aligned -- Musall Fig. 4a style\n"
                          f"{UNIQUE_NOTE}\n{stamp}", fontsize=8)
             fig.tight_layout()
-            fig.savefig(fd / f"musall_alone_vs_unique_{area}_{align}.png", dpi=130)
+            with tst.active(None, text=trial_set_sentence(a.tag, align)):    # this figure's window
+                fig.savefig(fd / f"musall_alone_vs_unique_{area}_{align}.png", dpi=130)
             plt.close(fig)
             # (1b) the same as EPOCH LINES (Priya 10-25: lines "much better" than many bars): column = group, x = epoch,
             # solid = unique, dashed = alone, faint = animals
@@ -155,7 +164,8 @@ def main(argv=None) -> int:
                          f"lines; thick = mean of animals, faint = animals (levels, not changes)\n{UNIQUE_NOTE}\n{stamp}",
                          fontsize=8)
             fig.tight_layout()
-            fig.savefig(fd / f"musall_alone_vs_unique_lines_{area}_{align}.png", dpi=130)
+            with tst.active(None, text=trial_set_sentence(a.tag, align)):    # this figure's window
+                fig.savefig(fd / f"musall_alone_vs_unique_lines_{area}_{align}.png", dpi=130)
             plt.close(fig)
             # (2) task-aligned vs task-independent, STACKED (Priya 10-22: "stacking makes more sense")
             grps = (("lick", "#e6550d"), ("spout", "#31a354"), ("movement", "#fd8d3c"), ("non-task", "#636363"))
@@ -196,7 +206,8 @@ def main(argv=None) -> int:
                          f"alone; hatched below 0 = negative unique part. Open dots = alone, filled = unique, per "
                          f"animal\n{stamp}", fontsize=8)
             fig.tight_layout()
-            fig.savefig(fd / f"musall_task_aligned_{area}_{align}.png", dpi=130)
+            with tst.active(None, text=trial_set_sentence(a.tag, align)):    # this figure's window
+                fig.savefig(fd / f"musall_task_aligned_{area}_{align}.png", dpi=130)
             plt.close(fig)
             # (3) trial-averaged vs single-trial vs frame, full + alone models
             fig, axs = plt.subplots(1, len(epochs), figsize=(3.2 * len(epochs), 2.9), squeeze=False, sharey=True)
@@ -220,7 +231,8 @@ def main(argv=None) -> int:
             fig.suptitle(f"Trial-averaged (PETH) vs single-trial vs frame R$^2$, {area}, {align}-aligned\n{stamp}",
                          fontsize=8)
             fig.tight_layout()
-            fig.savefig(fd / f"musall_peth_vs_trial_{area}_{align}.png", dpi=130)
+            with tst.active(None, text=trial_set_sentence(a.tag, align)):    # this figure's window
+                fig.savefig(fd / f"musall_peth_vs_trial_{area}_{align}.png", dpi=130)
             plt.close(fig)
     print(f"-> {fd} (musall_*.png); quantities {out / 'frozen_musall_quantities_by_animal.csv'}")
     return 0

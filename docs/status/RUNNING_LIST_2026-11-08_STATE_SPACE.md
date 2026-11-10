@@ -63,6 +63,13 @@ merged to main (no conflicts); A5 applied to FINDINGS 0c item 4 and the page cap
 
 ## B. Findings (newest first; exploratory)
 
+46. **Aligned frozen decoder: acute RE-EMBEDDED, chronic PARTIAL (both bases; `scripts/aligned_decoder.py`, plan in C,
+   gate switched to alignment efficiency by Priya 11-09, DECISIONS).** Frozen-to-refit gap +.13 / +.10 / +.15 vs pre
+   (4/4), refit unchanged. Per-spout Procrustes closes the extra gap acutely (index .79 LocaNMF / .73 SVD, dR n.s.) and
+   ~45 % chronically (.43 / .49, dR *); label-free covariance alignment ~0; shuffled labels at chance. Cortex: mostly
+   within-hemisphere rotation (cosine -.2 to -.3 acute, 4/4) + a small contralesional re-weighting (tjM1 in LocaNMF,
+   SSp-m in SVD: area basis-dependent). FINDINGS 0 "restored / re-embedded / replaced".
+
 45. **Why the raw rest level falls: everything else rises relative to rest; the time budget barely moves (handoff item d;
    `scripts/state_space_rest_decomp.py`, `rest_decomp_svd/{<label>.npz,sessions.csv,changes.csv}`, page_figs
    `ss_rest_decomp_lick_svd.png`).** The signal is relative to the session's slow mean, so rest = -sum_k f_k (m_k -
@@ -684,6 +691,23 @@ merged to main (no conflicts); A5 applied to FINDINGS 0c item 4 and the page cap
    (recprim_sessions.csv was never re-rendered in the rebuild); same sessions, different hemo variant / gate.
 
 ## C. Plans written down before the data arrive (so the test is fixed in advance)
+
+- **Aligned-decoder arm of frozen vs refit (Priya 11-09; `scripts/aligned_decoder.py`, written and launched 11-09 ~17:40
+  before any post number).** Data = the 5r / 5rm lick arm's refit inputs (D6 capture hook; rebuild profile, block
+  epoch_accuracy, LP licks + LP gate, August pre; joint-LocaNMF components x 8 lick bins, session z). Per animal k = 10
+  PCs of single-trial (trial x bin) activity (also 5, 20). Per session, 2-fold over position blocks; calibration half
+  fits everything session-specific: frozen (pre PCs + pre decoder trained on a SIZE-MATCHED pre subset = the
+  calibration size), (a) label-free covariance alignment (own PCs whitened, re-coloured by the pre latent covariance;
+  axis correspondence = orthogonal factor of W_own' W_pre through the shared components, because the session z-score
+  removes the mean trajectory), (b) orthogonal Procrustes + one scale on per-spout condition-averaged latent
+  trajectories, refit (own PCs, calibration labels). Controls: rotation-only (a) and (b); (b) with shuffled calibration
+  labels; pre -> pre against the LOSO pre reference (ceiling); pairwise single-pre-session references (k = 10) for the
+  ceiling at matched lag. Readouts: gap fraction (aligned - frozen) / (refit - frozen) per animal / epoch (nested
+  draw); change vs pre of every arm, A, R, G; index dA / dG. Cortical decomposition: the frozen decoder's readout
+  carried to pixels through the footprints, aligned vs reference: contra / ipsi loading share in tjM1 and SSp-m (ROI v8)
+  and the within-hemisphere cosine. **Verdict rule (fixed now):** gate = pre -> pre gap fraction >= .7 in >= 3/4;
+  RESTORED = frozen and G not changed; RE-EMBEDDED = G changed, index >= .67 in >= 3/4, R not changed; REPLACED = G
+  changed, index <= .33 in >= 3/4, A not changed; else PARTIAL; gate fails -> UNINFORMATIVE.
 
 - **LocaNMF basis (O2 option 4).** `WF_SS_BASIS=lnmf` switches `state_space_sim` to the O2 output
   (`rebuild_20261103/o2/ss_lnmf_20261108/out/sessions`; same rows as the Allen extract for the 107 rebuild sessions),

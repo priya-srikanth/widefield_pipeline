@@ -77,6 +77,84 @@ RCOL = {"landing": "0.25", "kin": "#2c7fb8", "fr": "#1b9e77", "fr_kin": "#7b3294
 ALLCOV = FR + KIN
 
 
+# ------------------------------------------------------------------------------------------------ the lick sets in words
+# Priya 11-09: "EVERY figure must state EXACTLY which trials were included / excluded". The lick families draw LICK
+# EVENTS, not trial classes; these builders compose `wfield_local.trial_set_text` event sentences from the constants of
+# the code that SELECTS the licks (iti_licks.extract, iti_lick_order.predictions), so the drivers of the family
+# (lick_balance_*, lick_area_*, lick_code_* ...) share one wording. Never called at import; a driver declares its set in
+# main() (`trial_set_text.declare(text=...)`).
+def _pred_min_licks() -> int:
+    """The per-session lick minimum of `iti_lick_order.predictions` (its literal ``ok.sum() >= N``; read from the source
+    so the caption follows the code)."""
+    import inspect
+    import re
+    try:
+        m = re.search(r"ok\.sum\(\)\s*>=\s*(\d+)", inspect.getsource(lo.predictions))
+        return int(m.group(1)) if m else 20
+    except (OSError, TypeError):                        # noqa: PERF203 - no source (frozen build): the 11-09 value
+        return 20
+
+
+def session_file_rules(coords: str = "3-D lateral tip position") -> list[str]:
+    """What every lick of the ITI session files (`iti_licks.extract`, the decoding sets iti_* / tr_*) satisfies."""
+    a, b = float(il.LAGS_D[0]), float(il.LAGS_D[-1])
+    return [f"{coords} tracked", f"peak >= {abs(a):g} s after the imaging start and >= {b:g} s before its end"]
+
+
+def cued_cap_text(first_only: bool = False) -> str:
+    """The extraction's random cap on the cued decoding set (iti_licks.N_TRIAL_MAX, seed 0)."""
+    s = f"a random {il.N_TRIAL_MAX} post-cue licks per session when more (seed 0)"
+    return s + (", drawn BEFORE the first-lick selection" if first_only else "")
+
+
+def session_iti(filt: str = "", *, extra=(), min_n: int | None = None, coords: str = "3-D lateral tip position",
+                spout: bool = True, excluded=None) -> str:
+    """ITI licks of the session files (+ ``filt`` = an ITI filter name actually applied, "" none)."""
+    from wfield_local import trial_set_text as tst
+    keep = [*session_file_rules(coords)]
+    if spout:
+        keep.append("spout in place (the previous trial's) one of the six")
+    if min_n:
+        keep.append(f"sessions with >= {min_n} such licks")
+    kw = {} if excluded is None else {"excluded": excluded}
+    return tst.iti_licks(filt=filt or "", extra=[*keep, *extra], **kw)
+
+
+def session_cued(first_only: bool = False, *, extra=(), min_n: int | None = None,
+                 coords: str = "3-D lateral tip position", spout: bool = True, excluded=None) -> str:
+    """Post-cue licks of the session files (the cued decoding set, capped); ``first_only`` = lick_idx 0 of those."""
+    from wfield_local import trial_set_text as tst
+    keep = [*session_file_rules(coords), cued_cap_text(first_only)]
+    if spout:
+        keep.append("target spout one of the six")
+    if min_n:
+        keep.append(f"sessions with >= {min_n} such licks")
+    return tst.cued_licks(first_only=first_only, extra=[*keep, *extra], excluded=excluded)
+
+
+def key_iti_filter(subset_applied: bool = False) -> str:
+    """The ITI filter the KEY lick set carries: the refit filter of iti_lick_order (WFIELD_ITI_FILTER gap2 / far1 /
+    gap2far1, applied inside `predictions`), else the subset filter when the DRIVER applies it (``subset_applied``)."""
+    return lo.ITI_FILTER or (il.ITI_SUBSET if subset_applied else "")
+
+
+def key_lick_set(*, subset_applied: bool = False, iti_extra=(), cued_extra=(), sets=("iti", "trial")) -> str:
+    """THE frozen KEY-row decoder's lick set (`iti_lick_order.predictions` -> preds_path): every ITI lick and the capped
+    post-cue licks of the session files, per set sessions with >= the predictions minimum."""
+    from wfield_local import trial_set_text as tst
+    n = _pred_min_licks()
+    parts = {"iti": session_iti(key_iti_filter(subset_applied), extra=iti_extra, min_n=n),
+             "trial": session_cued(extra=cued_extra, min_n=n)}
+    return tst.union(*[parts[s] for s in sets])
+
+
+def trial_set_sentence() -> str:
+    """THE lick set of lick_covariate_reference's figures (the KEY set, scored on its common lick set)."""
+    common = (f"common set: landing, decoded and all {len(ALLCOV)} covariates ({len(KIN)} kinematic, {len(FR)} "
+              "FaceRhythm) finite (the landing-only offset on ALL licks drawn beside it)")
+    return key_lick_set(iti_extra=[common], cued_extra=[common])
+
+
 # ------------------------------------------------------------------------------------------------ per-lick covariates
 _KC: dict = {}
 
@@ -400,6 +478,8 @@ def main() -> int:
     ap.add_argument("--animals", nargs="*")
     ap.add_argument("--jobs", type=int, default=None)
     a = ap.parse_args()
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())          # every figure states its lick set (Priya 11-09)
     if plot_only():
         draw(load_fd(STEM))
         return 0

@@ -503,6 +503,23 @@ TAGS = [("areas", "Allen areas"), ("areas_splitr8", "Allen, ALM / tjM1 split"), 
         ("svdF", "pre-stroke SVD"), ("svdF_k50", "SVD, first 50 comps")]
 
 
+def trial_set_sentence(st: str | None = None, coord: str = "lateral") -> str:
+    """THE lick set of the figures (Priya 11-09). lateral: the KEY per-lick cache licks (iti_lick_order.predictions; the
+    drawn TAGS are the unfiltered runs), reference = every pre lick with Gaussian weight > 1e-6; polar: the licks of
+    iti_where_angle_reach.predictions, a reference only inside the pre range with raw kernel weight >= 3. ``st`` = one
+    set (None = both)."""
+    import lick_refit_decoders as rd
+    if coord == "lateral":
+        ref = f"same-place reference = the animal's pre licks of the set with Gaussian weight > 1e-6 (sigma {SIGMA:g} mm)"
+        parts = {"iti": rd.iti_set(filt="", extra=[*rd.KEY_ROWS, ref]), "trial": rd.cued_set(extra=[*rd.KEY_ROWS, ref])}
+    else:
+        x = [">= 20 such licks per session", "finite 3-D angle, reach, elevation and sagittal extension",
+             "animals with >= 3 pre sessions",
+             "a lick gets a reference only inside the animal's pre range (0.5-99.5 %) with raw kernel weight >= 3"]
+        parts = {"iti": rd.iti_set(filt="", extra=x), "trial": rd.cued_set(extra=x)}
+    return parts[st] if st else rd._tst().union(parts["iti"], parts["trial"])
+
+
 def plot():
     global _MASK
     from wfield_local import beta_maps
@@ -515,7 +532,9 @@ def plot():
     global _IMG, _NM
     from iti_area_maps import split_image
     _IMG, _NM = split_image(il.labels()[0])                 # Allen areas with ALM / tjM1 / rest (ROI v8)
+    from wfield_local import trial_set_text as tst
     for st, stlab in (("iti", "ITI licks"), ("trial", "cued licks")):
+        tst.activate(None, text=trial_set_sentence(st))           # this set's two figures (Priya 11-09)
         wpix = {}
         # + a row with the SVD maps PROJECTED onto the Allen areas with ALM / tjM1 (Priya 10-28): per area, the sum of
         # the pixel contributions (same units as the area-basis rows' area totals) and of the pixel weights
@@ -595,6 +614,7 @@ def plot():
         fig.tight_layout(rect=(0, 0, 1, 0.88))
         save_png_svg(fig, FIG / f"lick_{'iti' if st == 'iti' else 'cued'}_offset_contrib_pixelweight.png", dpi=90)
         plt.close(fig)
+    tst.deactivate()
 
 
 def _coords() -> list[str]:
@@ -615,7 +635,10 @@ def _coords() -> list[str]:
 
 def main() -> int:
     from figdata import load_fd, plot_only, save_fd
+
+    from wfield_local import trial_set_text as tst
     coords = _coords()
+    tst.declare(text=trial_set_sentence(coord="lateral" if coords == ["lateral"] else "polar"))
     if coords == ["lateral"]:
         if not plot_only():
             compute()
@@ -633,7 +656,8 @@ def main() -> int:
     for F in Fs.values():
         plot_polar(F)
         if "vs_lateral" in F:
-            plot_vs_lateral(F)
+            with tst.active(None, text=tst.union(trial_set_sentence(coord="polar"), trial_set_sentence())):
+                plot_vs_lateral(F)
             V = F["vs_lateral"]
             print("== angle vs lateral: pixel-wise r of the contribution maps, per animal")
             print(V["r_map"].pivot_table(index=["set", "animal"], columns="epoch", values="r_map")

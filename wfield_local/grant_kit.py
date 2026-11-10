@@ -657,6 +657,174 @@ def _overlaps(fig):
     return sorted(bad, key=lambda r: -r[2])
 
 
+# ---------------------------------------------------------------------------------------------
+# THE TRIAL SET OF EVERY GRANT FIGURE (Priya 11-09: "EVERY figure must state EXACTLY which trials were included /
+# excluded"). Resolved PER SAVED FIGURE from its file stem (``grant_<key>_..._<align>_<variant>``) in `_save`, so the
+# serial loop, a spawned worker (`grant_figures._render_unit`) and a test calling one figure function all carry the
+# same sentence with no declaration per unit. Built from the run's switches (`trial_set_text.sentence`), the calling
+# figure's own ``min_trials``, and -- for the JSON-fed figures -- the scored set / arms the JSON records.
+# ---------------------------------------------------------------------------------------------
+def _ts_body(text: str) -> str:
+    """A `trial_set_text` sentence without its leading ``"trials: "``."""
+    return text.split(": ", 1)[1] if text.startswith("trials: ") else text
+
+
+def _ts_camera_working() -> bool:
+    """The camera gate with a camera working selection: the condition under which the 5b / 5c pre panels are WORKING
+    trials (`_frozen_frame(sel="working")`), else lick trials."""
+    from wfield_local import trial_classes as _tc
+    from wfield_local import working_trials as _wt
+    return _tc.camera_gate_on() and _wt.is_camera(_tc.working_selection())
+
+
+def _ts_pattern(variant, min_trials=None) -> str:
+    """The `_collect_7` / `_pooled_bundle` pattern families (6 .. 11): post-stroke = the class, the PRE-STROKE
+    REFERENCE = lick trials for every class (`_collect_7`)."""
+    from wfield_local import trial_set_text as tst
+    cell = f"; session x position cells with < {min_trials} trials dropped" if min_trials else ""
+    if variant == "lick":
+        return f"trials: pre- and post-stroke sessions, {_ts_body(tst.sentence('lick'))}{cell}"
+    return (f"trials: POST-STROKE {_ts_body(tst.sentence(variant))}  AND  PRE-STROKE REFERENCE: "
+            f"{_ts_body(tst.sentence('lick'))}{cell}")
+
+
+def _ts_5c(variant) -> str:
+    """5c / 5d (`_collect_5c`): post-stroke = the class; the held-out pre-stroke sessions (leave-one-session-out) =
+    the same WORKING class under the camera working frame, else lick trials."""
+    from wfield_local import trial_set_text as tst
+    pre = variant if (variant == "working" and _ts_camera_working()) else "lick"
+    if variant == pre:
+        return (f"trials: pre-stroke sessions (each held out, leave-one-session-out) and post-stroke sessions, "
+                f"{_ts_body(tst.sentence(variant))}")
+    return (f"trials: POST-STROKE {_ts_body(tst.sentence(variant))}  AND  PRE-STROKE (each session held out, "
+            f"leave-one-session-out): {_ts_body(tst.sentence(pre))}")
+
+
+def _ts_scored(align):
+    """``{scored_set: [animals]}`` from ``joint_xsession_decoder_<align>.json`` (the rows its per-session accuracies and
+    confusions were scored on: "working" = camera working rows, "engaged" = lick trials), or None without the JSON."""
+    f = _fig_root() / _mode_name(f"joint_xsession_decoder_{align}.json")
+    if not f.exists():
+        return None
+    out = {}
+    for an, r in json.loads(f.read_text(encoding="utf-8")).items():
+        if an in ANIMALS and isinstance(r, dict):
+            out.setdefault(str(r.get("scored_set") or r.get("scored_rows") or "engaged"), []).append(an)
+    return out
+
+
+def _ts_joint(aligns):
+    """2 / 2b / 4: PRE-STROKE sessions of the joint-basis LOSO decoder, per window the set its JSON was scored on."""
+    from wfield_local import trial_set_text as tst
+    parts = []
+    for al in aligns:
+        sc = _ts_scored(al)
+        if not sc:
+            continue
+        txt = []
+        for s, ans in sorted(sc.items()):
+            body = _ts_body(tst.sentence("working" if s == "working" else "lick"))
+            txt.append(body if len(sc) == 1 else f"{'/'.join(ans)}: {body}")
+        parts.append(f"{tst.ALIGN_TEXT.get(al, al)}: " + " | ".join(txt))
+    if not parts:
+        return None
+    return ("trials: PRE-STROKE sessions only (config phase pre), each scored by a decoder that never saw it "
+            "(leave-one-session-out); " + "  AND  ".join(parts))
+
+
+def _ts_section_g(gkey):
+    """5: the arms `section_g.json` recorded for the pre / pre-no-lick / post panels (`crossed_confusion`)."""
+    f = _fig_root() / _mode_name("section_g.json")
+    if not f.exists():
+        return None
+    G = json.loads(f.read_text(encoding="utf-8"))
+    blk = next((b for s in sorted(G) for b in [((((G[s] or {}).get("arms") or {}).get("all") or {})
+                                                 .get("confusion") or {}).get(gkey)] if b), None)
+    if not blk:
+        return None
+    from wfield_local import trial_set_text as tst
+    return (f"trials ({tst.lick_text()}): LEFT = PRE-stroke {blk.get('pre_arm', 'engaged only, leave-one-session-out')}"
+            f"; MIDDLE = {blk.get('pre_nolick_arm', 'PRE-stroke NO-LICK trials')}; RIGHT = POST-stroke "
+            f"{blk.get('post_arm', 'ALL trials (engaged + no-lick)')}, post-stroke sessions pooled (no quit-tail or "
+            "class cut)")
+
+
+def trial_set_sentence(stem, min_trials=None):
+    """THE trial-set sentence of the grant figure saved as ``stem`` (``grant_<key>_...``), or None for a stem the grant
+    driver does not name. ``min_trials`` = the figure's per-cell trial floor (`_save` reads the caller's)."""
+    from wfield_local import trial_set_text as tst
+    stem = Path(str(stem)).stem
+    if not stem.startswith("grant_"):
+        return None
+    key = stem.split("_")[1]
+    align, variant = tst.variant_from_name(stem)
+    last = stem.rsplit("_", 1)[-1]
+    if variant is not None:
+        return _ts_5c(variant) if key in ("5c", "5d") else _ts_pattern(variant, min_trials)
+    if key in ("1", "1b"):
+        return tst.events(
+            "engaged trials of the behavior per-position table (hit = DAQ spout contact)",
+            keep=["engaged = the behavior engagement gate (spout_behavior.reference_engagement: judged at the "
+                  "reference positions, backdated to the start of the run of misses that trips it)",
+                  "a session x position point needs >= 5 engaged trials"],
+            excluded=["the terminal quit period", "sessions config marks excluded (after the laser that did not take)"],
+            unit="trials")
+    if key in ("2", "2b"):
+        return _ts_joint([w[1] for w in WINDOWS])
+    if key == "4":
+        return _ts_joint([last])
+    if key == "5":
+        return _ts_section_g({"precue": "pre-cue", "postcue": "post-cue"}.get(last, last))
+    if key == "5b":
+        pre = "working" if _ts_camera_working() else "lick"
+        return (f"trials: LEFT = PRE-stroke sessions, each held out (leave-one-session-out): "
+                f"{_ts_body(tst.sentence(pre))}  AND  MIDDLE = every POST-stroke trial (lick + no-lick; no class, "
+                f"working-period or quit-tail cut)  AND  RIGHT = POST-STROKE {_ts_body(tst.sentence('working'))}")
+    if key == "3a":
+        import inspect
+        imp = inspect.signature(_impaired).parameters
+        return (f"trials: post-stroke sessions; IMPAIRED positions (engaged hit rate < "
+                f"{imp['thresh'].default:g} on any post-stroke session with >= {imp['min_n'].default} engaged "
+                f"trials): {_ts_body(tst.sentence('miss_working'))}  AND  every other position: "
+                f"{_ts_body(tst.sentence('lick'))}; projected on each position's pre-stroke (lick-trial) coding "
+                "direction")
+    if key == "3b":
+        return (f"trials: post-stroke sessions; pre-cue and post-cue rows: ALL trials of the session (lick + no-lick, "
+                f"all six positions; section_g arm 'all'); post-lick row: lick trials only ({tst.lick_text()}), at "
+                "the session's preserved positions (section_g arm 'lickonly'); red = frozen pre-stroke decoder, green "
+                "= decoder trained on that session; band = the pre-stroke sessions")
+    return None
+
+
+def _caller_min_trials(depth=6):
+    """The ``min_trials`` the figure function that called `_save` ran with (directly, or through `_delta_grid`), or
+    None -- the value it USED, not a copy of its default."""
+    import sys
+    f = sys._getframe(2)
+    for _ in range(depth):
+        if f is None:
+            break
+        if "min_trials" in f.f_locals and isinstance(f.f_locals["min_trials"], int):
+            return f.f_locals["min_trials"]
+        f = f.f_back
+    return None
+
+
+def _grant_trial_set(path, min_trials=None):
+    """The trial-set sentence of the grant figure saved at ``path`` (`trial_set_sentence` on its stem). None (= the
+    active / declared set, if any) when a renderer has ACTIVATED a narrower set, for a stem the grant driver does not
+    name, or when the sentence cannot be built (a caption never costs the figure)."""
+    from wfield_local import trial_set_text
+    if trial_set_text._ACTIVE.get() is not None:              # a narrower, context-scoped set wins
+        return None
+    try:
+        return trial_set_sentence(Path(path).stem, min_trials)
+    except Exception as ex:                                    # noqa: BLE001
+        warnings.warn(f"[trial set] {Path(path).name}: no grant caption ({type(ex).__name__}: {ex})",
+                      RuntimeWarning, stacklevel=2)
+        return None
+
+
 def _save(fig, path, **kw):
     """Save, and REPORT any chrome overlap on the way out.
 
@@ -677,7 +845,7 @@ def _save(fig, path, **kw):
     _before = set(map(id, fig.texts))
     lp_licks.stamp(fig)                         # LP_licks renders say so on the figure itself
     from wfield_local import trial_set_text     # the figure's trial set (Priya 11-09), in the same stamp band
-    trial_set_text.stamp(fig)
+    trial_set_text.stamp(fig, _grant_trial_set(path, _caller_min_trials()))
     _fit_stamp(fig, [t for t in fig.texts if id(t) not in _before])
     _thin_crowded_ticks(fig)
     try:

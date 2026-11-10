@@ -52,6 +52,8 @@ def session_sd(item) -> dict:
 def sds(jobs: int) -> pd.DataFrame:
     f = il.sd_table_path(il.SD_NAME)            # the reader's path (T2): content-keyed XOUT/zscore_check
     if f.exists():
+        from wfield_local import mask_keys
+        mask_keys.check_sidecar(f)               # stale-read guard (11-09)
         return pd.read_csv(f, index_col=0)
     from wfield_local import analysis_kit as ak
     labels = il.labels()
@@ -60,6 +62,8 @@ def sds(jobs: int) -> pd.DataFrame:
         print(f"  !! {it[0]}: {err}", flush=True)
     S = pd.DataFrame({r["label"]: r["sd"] for _it, r in got}).T.sort_index()
     S.to_csv(f)
+    from wfield_local import mask_keys
+    mask_keys.write_sidecar(f)                   # the masks the SDs were built on (11-09)
     return S
 
 

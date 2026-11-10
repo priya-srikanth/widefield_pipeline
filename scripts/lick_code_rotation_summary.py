@@ -95,7 +95,17 @@ def june_note(F: dict) -> str:
     return "; ".join(parts)
 
 
+def trial_set_sentence() -> str:
+    """The lick sets of the one-page rotation summary (Priya 11-09): every lick type of TYPES, i.e. both lick_code runs
+    (cued + ITI, and ENLv)."""
+    import lick_code_subspace as lcs
+    from wfield_local import trial_set_text as tst
+    return tst.union(lcs.lick_sets_sentence(""), lcs.lick_sets_sentence("enlv"))
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())          # every figure states its lick set (Priya 11-09)
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt

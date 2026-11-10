@@ -53,9 +53,11 @@ TRIALS_NOLICK = (
     "TRIALS: no-lick only -- trials with NO detected lick in the response window. Absence of a "
     "detection, not a judgment about engagement.")
 TRIALS_WORKING = (
-    "TRIALS: lick + miss-while-working. The no-lick trials are split by the ENGAGEMENT GATE "
-    "(judged at the reference positions close_L/close_center, backdated to the first miss of the "
-    "run that trips it); 'stopped' trials are analyzed as their own class, not discarded.")
+    "TRIALS: the WORKING set. Camera trial gate (the rebuild): camera contact + incomplete trials inside the "
+    "working period (first to last camera lick), stopped runs and the quit tail removed; jaw-only, no response "
+    "and unknown excluded. DAQ rule: lick + no-lick trials outside the terminal quit period (ENGAGEMENT GATE "
+    "judged at the reference positions close_L/close_center, backdated to the first miss of the run that trips "
+    "it). 'stopped' trials are analyzed as their own class, not discarded. Each figure states its exact set.")
 TRIALS_BEHAVIOUR = (
     "TRIALS: all scored trials, with disengaged trials REMOVED from the denominator by the "
     "engagement gate (reference positions only, backdated to the first miss of the run).")

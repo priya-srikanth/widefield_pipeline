@@ -30,7 +30,7 @@ FIG = "lick_extension_dist"
 def compute() -> dict:
     """Figure data: per (set, measure, animal) the animal's pre median and each epoch's samples (epochs with >= 20 licks);
     the cohort pre medians; the histogram range top per measure; the threshold table rows."""
-    P = pd.read_csv(il.pred_file("where_angle_reach_preds.csv.gz"))
+    P = pd.read_csv(il.pred_file(PREDS))
     cohort = {v: P[P.epoch == "pre"][v].median() for v in ("act_sag", "act_reach")}
     top = {v: float(np.nanpercentile(P[v], 99.5)) for v in ("act_sag", "act_reach")}
     rows, cells = [], {}
@@ -89,7 +89,22 @@ def draw(D: dict) -> None:
     plt.close(fig)
 
 
+PREDS = "where_angle_reach_preds.csv.gz"
+
+
+def trial_set_sentence() -> str:
+    """The lick set of lick_extension_dist: the ITI and post-cue licks of the angle / reach where-cache (`compute`),
+    with the ITI subset filter when the run reads the subset copy (`il.pred_file`)."""
+    from wfield_local import trial_set_text as tst
+    src = il.pred_file(PREDS)
+    filt = il.ITI_SUBSET if il.ITI_SUBSET and il.OUT_W != il.OUT and src.is_relative_to(il.OUT_W) else ""
+    ex = ["animal x epoch histograms with >= 20 licks with the measure"]
+    return tst.union(il.trial_set_iti(filt=filt, extra=ex), il.trial_set_cued(extra=ex))
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())                # Priya 11-09 (the --plot-only replot too)
     if plot_only():                                       # redraw from the figure data alone
         draw(load_fd(FIG))
         return 0

@@ -1,3 +1,12 @@
+## 2026-11-09 -- Aligned frozen decoder: the gate is alignment efficiency (Priya)
+- GATE SWITCHED AFTER THE FIRST RUN (`scripts/aligned_decoder.py`). Written before the run: pre -> pre gap fraction
+  (aligned - frozen) / (refit - frozen) >= .7 in >= 3/4. It cannot pass when nothing has moved: size-matched frozen and
+  refit are nearly equal pre -> pre (G .04-.11), so the ratio divides by ~0 (values -3.7 .. +58). Now: pre -> pre
+  alignment EFFICIENCY (aligned - 1/6) / (frozen - 1/6) >= .7 in >= 3/4 -- the 10-30 re-embedding prereg's G1, not a new
+  criterion. Procrustes passes (LocaNMF .71 / .93 / .73 / .68; SVD .87 / .87 / .85 / .87). The old fraction stays in
+  verdict.csv (`gate_pre_fraction`). Verdicts (Procrustes, k = 10): acute RE-EMBEDDED, subacute / chronic PARTIAL, both
+  bases. Every other part of the verdict rule is unchanged.
+
 ## 2026-11-08 -- Refit floor, display floors, lick vs successful-lick classes (Priya)
 - D7 REFIT FLOOR = 10 TRIALS ONLY. Every refit analysis marks a position untrainable only below 10 trials; the 1/18-of-
   session share rule (`grant_confusion.MIN_REFIT_SHARE`, added 09-09, never discussed with Priya) is RETIRED. The D6

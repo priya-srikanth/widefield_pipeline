@@ -155,6 +155,13 @@ def draw(maps, titles, path, suptitle, ol, mask, ncol=4, shared_rows=False, mask
     print("->", path)
 
 
+def trial_set_sentence(tag: str) -> str:
+    """The trials / frames behind the kernel maps (Priya 11-09): the frozen weights = the fit on the modeled frames of
+    each animal's pre sessions."""
+    from wfield_local import frozen_encoder as fe
+    return fe.trial_set_sentence("fit", tag=tag)
+
+
 def main(argv=None) -> int:
     import matplotlib
     matplotlib.use("Agg")
@@ -163,6 +170,8 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--tag", default=_design_tag("gate-attempted_v7g3_t3d_frA_basis"))
     a = ap.parse_args(argv)
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence(a.tag))
     run = E / f"frozen_encoder_{a.tag}"
     maps, shape = kernel_maps(run, PANELS + TARGET)
     img, nm = area_image(sorted(p.stem for p in (run / "joint" / "sessions").glob("PS92_*.json"))[0])

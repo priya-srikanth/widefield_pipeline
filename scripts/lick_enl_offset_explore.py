@@ -52,6 +52,7 @@ Usage: python scripts/lick_enl_offset_explore.py [--history] [--offset] [--nshuf
 from __future__ import annotations
 from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
+import contextlib
 import os
 import sys
 from pathlib import Path
@@ -645,7 +646,10 @@ def figure_a(R: pd.DataFrame, A: pd.DataFrame) -> None:
     fig.legend(list(hd.values()), list(hd.keys()), loc="lower center", ncol=len(hd), fontsize=9, frameon=False)
     fig.tight_layout(rect=(0, 0.06, 1, 1))
     FIG.mkdir(parents=True, exist_ok=True)
-    save_png_svg(fig, FIG / "lick_enl_history_test.png", dpi=100)
+    from wfield_local import trial_set_text as tst
+    with (tst.active(None, text=trial_set_sentence(history=True)) if tst.current() is not None
+          else contextlib.nullcontext()):
+        save_png_svg(fig, FIG / "lick_enl_history_test.png", dpi=100)
     plt.close(fig)
 
 
@@ -801,10 +805,21 @@ def report_b(o: dict) -> None:
                   + ", ".join(f"{a} {v:+.2f}" for a, v in rr.items()))
 
 
+def trial_set_sentence(history: bool = False) -> str:
+    """The trials of this driver's figures (Priya 11-09): `lick_enl_angle_decode.select(T, W, LF)`; the history figure
+    adds its A2 subset (trials whose session has a FaceRhythm projection)."""
+    txt = ead.trial_set_sentence(W, LF)
+    if history:
+        txt = txt.replace("; excluded: ", "; A2 rows: the trials of sessions with a FaceRhythm projection; excluded: ", 1)
+    return txt
+
+
 def main() -> int:
     from wfield_local import writeguard
     writeguard.assert_writable(OUT / "enl_hist_test.csv")
     il.split_only("lick_enl_offset_explore.py")
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())
     jobs = min(8, int(sys.argv[sys.argv.index("--jobs") + 1]) if "--jobs" in sys.argv else 8)
     nshuf = int(sys.argv[sys.argv.index("--nshuf") + 1]) if "--nshuf" in sys.argv else 200
     if "--plot-only" in sys.argv:

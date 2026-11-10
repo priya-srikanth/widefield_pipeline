@@ -345,7 +345,9 @@ def plot(F: dict) -> None:
                      f"value is painted on it AND its mirror (pair property); {F['ds']}x{F['ds']} blocks; mirror = "
                      "reflection about the atlas midline (column 319.5); image left = ipsilesional; Allen outlines. "
                      f"PROVISIONAL\n{vline}", fontsize=9.5)
-        fig.savefig(il.OUT_W / "figures" / f"{PREFIX}{st.lower()}.png", dpi=95, bbox_inches="tight")
+        from wfield_local import trial_set_text as tst
+        with tst.active(None, text=trial_set_sentence(st)):        # this figure's lick set only
+            fig.savefig(il.OUT_W / "figures" / f"{PREFIX}{st.lower()}.png", dpi=95, bbox_inches="tight")
         plt.close(fig)
 
     fig, axs = plt.subplots(2, len(animals), figsize=(3.8 * len(animals), 7.4), squeeze=False)
@@ -372,7 +374,19 @@ def plot(F: dict) -> None:
     plt.close(fig)
 
 
+def trial_set_sentence(st: str | None = None) -> str:
+    """The lick set of the pixel balance maps (Priya 11-09): the KEY decoder's lick set matched to the session file rows,
+    lick angle / reach / peak speed finite, animal x epoch x set groups with >= 2 sessions and >= 100 licks; ``st`` =
+    "cued" / "ITI" (one figure) or None (both: the per-animal PRE figure)."""
+    import lick_covariate_reference as cv
+    keep = ["lick angle, reach and peak speed finite", "animal x epoch groups with >= 2 sessions and >= 100 licks"]
+    sets = {"cued": ("trial",), "ITI": ("iti",), None: ("iti", "trial")}[st]
+    return cv.key_lick_set(iti_extra=keep, cued_extra=keep, sets=sets)
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())          # every figure states its lick set (Priya 11-09)
     if plot_only():
         plot(load_fd(f"{PREFIX}maps"))
         return 0

@@ -206,10 +206,19 @@ def draw(D: pd.DataFrame, T: dict, png: Path) -> None:
     plt.close(fig)
 
 
+def trial_set_sentence() -> str:
+    """Frozen position recall (camera working, cue window) and the frozen state decoder (1 s segments)."""
+    from wfield_local import trial_set_text as tst
+    pos = _common.working_trials(extra=["position readout, cue window 0-2 s; pre = each pre session's working rows, "
+                                        "held out (refit - gap)"])
+    return tst.union(pos, _common.state_segments(), unit="trials / frames")
+
+
 def main(argv=None) -> int:
     ap = _common.parser(__doc__)
     ap.add_argument("--data-dir", type=Path, default=SRC, help="grant_figures/epoch/data folder with the sidecars")
     a = ap.parse_args(argv)
+    _common.declare(trial_set_sentence())          # THE TRIAL SET of every figure (Priya 11-09)
     a.out.mkdir(parents=True, exist_ok=True)
     if a.plot_only:
         fd = _common.load_figdata(a.out, NAME)

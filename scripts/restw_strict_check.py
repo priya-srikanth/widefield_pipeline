@@ -38,6 +38,8 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
+
+from wfield_local import mask_keys  # noqa: E402
 from figdata import load_fd, plot_only, save_fd  # noqa: E402
 
 SRC = il.OUT                                    # read-only inputs
@@ -121,6 +123,7 @@ def session_worker(item) -> dict:
     if f.exists():
         z = np.load(f)
         if int(z["version"]) == VERSION:
+            mask_keys.check_obj(z, f)             # stale-read guard: built on the current analysis masks (11-09)
             return {"label": label, "cached": True}
     from wfield_local import analysis_kit as ak
     from wfield_local import combined_encoding as ce
@@ -130,6 +133,7 @@ def session_worker(item) -> dict:
     from wfield_local import rest_by_position as rbp
     from wfield_local.paths import PathResolver
     src = np.load(SRC / "precue_restw" / f"{label}.npz")
+    mask_keys.check_obj(src, SRC / "precue_restw" / f"{label}.npz")
     s = next(x for x in config.load_sessions() if x["label"] == label)
     an, date = config.animal_of(label), "2026" + label.split("_")[-1]
     # == lick_precue_restw.session_worker's trace construction
@@ -259,6 +263,7 @@ def session_worker(item) -> dict:
     out["precue_enl_mean"] = p10(enl_cue) if len(enl_cue) else np.full(len(cs), np.nan)
     for k, v in notes.items():
         out[f"note__{k}"] = v
+    out.update(mask_keys.stamp())
     f.parent.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(f, **out)
     return {"label": label, "cached": False}
@@ -270,6 +275,7 @@ def load_sessions(labels: list) -> tuple[pd.DataFrame, pd.DataFrame]:
     rows, notes = [], []
     for x in labels:
         z = np.load(SESS / f"{x}.npz")
+        mask_keys.check_obj(z, SESS / f"{x}.npz")
         cs = [str(c) for c in z["cols"]]
         an, ep = str(z["animal"]), str(z["epoch"])
         nt = {"label": x, "animal": an, "epoch": ep, "restw_ok_cache": bool(z["restw_ok_cache"]),

@@ -77,6 +77,61 @@ TASK_S = 2.0
 VERSION = 2                       # 2 = Priya 11-06: LP quiet events, camera-working-period TASK
 
 
+#: the swapped-pair margin of every frame set (`run`: np.convolve(bad, ones(7), "same") -> +- 3 frames)
+SWAP_TEXT = "frames within 3 of a swapped frame pair"
+
+
+def _engaged_text() -> str:
+    """The engaged-frame rule of `rest_engagement.engaged_frame_mask` under the run's trial gate, in words."""
+    from wfield_local import trial_classes as tc
+    if tc.camera_gate_on():
+        return ("engaged span only (camera trial gate: from the first cue of the camera working period to the cue after "
+                "the last camera-working trial)")
+    return "engaged frames only (before the terminal quit period, DAQ quit-tail rule)"
+
+
+def _rest_text() -> str:
+    try:
+        from wfield_local import quiet_periods
+        v = quiet_periods.quiet_variant() or "retired quiet"
+    except Exception:                                                   # noqa: BLE001 - a caption never kills a figure
+        v = "configured"
+    return f"{v} rest frames (quiet_periods mask)"
+
+
+def _far_text() -> str:
+    return (f"> {FAR_S:g} s from every quiet event (v2 detector, {gb_common.QUIET_LICK_SOURCE} licks removed from quiet "
+            f"frames; {', '.join(EV_COLS)}, both polarities, > {EV_K:g} x the animal's August-pre robust SD)")
+
+
+def _task_text() -> str:
+    from wfield_local import trial_set_text as tst
+    rows = gb_common.task_rows()
+    if rows == "all":
+        cues = "every cue"
+    else:
+        v = "working_period" if rows == "period" else "working"
+        body = (tst.safe_sentence(v) or f"trials: camera {v} cues (none without the camera trial gate: such a session "
+                                          "keeps no TASK cue)").split(": ", 1)[1]
+        inc, _, exc = body.partition("; excluded: ")
+        cues = f"the cues of [{inc}" + (f"; cues NOT used: {exc}]" if exc else "]")
+    return f"cue .. cue + {TASK_S:g} s windows of {cues}"
+
+
+def frame_set_sentence(name: str, *, extra=()) -> str:
+    """THE FRAME SET a gain figure draws (Priya 11-09: every figure states exactly what is in and out): ``name`` one of
+    SETS, built from this module's constants and the run's switches; ``extra`` = a figure's own sub-selection."""
+    from wfield_local import trial_set_text as tst
+    if name not in SETS:
+        raise ValueError(f"frame set {name!r}; expected one of {SETS}")
+    if name == "ALL":
+        return tst.frames("every imaging frame", keep=extra, excluded=[SWAP_TEXT])
+    if name == "TASK":
+        return tst.frames(_task_text(), keep=[_engaged_text(), *extra], excluded=[SWAP_TEXT, "every other frame"])
+    keep = [_engaged_text()] + ([_far_text()] if name == "R5far" else []) + list(extra)
+    return tst.frames(f"R5 = {_rest_text()}", keep=keep, excluded=[SWAP_TEXT, "the quit period"])
+
+
 def OUTD() -> Path:
     return gb_common.out_root() / "sessions"
 

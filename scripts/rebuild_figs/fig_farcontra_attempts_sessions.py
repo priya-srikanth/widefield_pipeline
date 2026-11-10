@@ -101,10 +101,25 @@ def load(att: Path, inc: Path) -> pd.DataFrame:
     return S.sort_values(["animal", "day"]).reset_index(drop=True)
 
 
+def trial_set_sentence() -> str:
+    """The four panels' sets (trials for the attempt panels, LICKS for licks-without-contact, all trials for jaw)."""
+    from wfield_local import trial_set_text as tst
+    att = _common.working_period_trials(
+        what="attempt rate / completion: far-contra trials of the camera working period",
+        extra=["attempt = contact + incomplete, completion = contact / attempt"])
+    lk = tst.events("licks without contact: every v36 cam4 lick and cam1-only lick event at far_R (all trials; no "
+                    "engagement, working-period or class gate); no contact = cam4 no-contact licks + cam1-only "
+                    "no-contact events", unit="licks")
+    jaw = tst.events("jaw moves, no lick: every far_R trial (trial-level camera class jaw-only over all trials; no "
+                     "working-period cut)", unit="trials")
+    return tst.union(att, lk, jaw, unit="trials / licks")
+
+
 def main(argv=None) -> int:
     ap = _common.parser(__doc__)
     ap.add_argument("--incomplete", type=Path, default=INC, help="cam1 incomplete-licks sessions table")
     a = ap.parse_args(argv)
+    _common.declare(trial_set_sentence())          # THE TRIAL SET of every figure (Priya 11-09)
     OUT = a.out
     S = _common.load_figdata(OUT, NAME) if a.plot_only else load(attempts_sessions(), a.incomplete)
     if not a.plot_only:

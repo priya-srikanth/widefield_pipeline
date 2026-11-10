@@ -28,6 +28,13 @@ SHOW = ("data", "full", "lick", "spout", "target", "exec_locked", "exec_within",
         "residual")
 
 
+def trial_set_sentence(tag: str, spout: str, align: str) -> str:
+    """The trials of one area-map figure (Priya 11-09): the frozen run's modeled trials at ``spout``, cue- or
+    first-lick-aligned PETH (`frozen_encoder.trial_set_sentence`)."""
+    from wfield_local import frozen_encoder as fe
+    return fe.trial_set_sentence("peth", tag=tag, align=align, spout=spout)
+
+
 def session_rows(js: Path, align: str) -> list[dict]:
     m = json.loads(js.read_text(encoding="utf-8"))
     z = np.load(js.with_suffix(".npz"))
@@ -97,6 +104,8 @@ def main(argv=None) -> int:
     ap.add_argument("--variant", default="joint")
     ap.add_argument("--spout", default="far_contra")
     a = ap.parse_args(argv)
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=tst.union(*(trial_set_sentence(a.tag, a.spout, al) for al in ("lick", "cue")), unit="trials"))
     from wfield_local import frozen_encoder as _fe   # the encoder's (tagged) run root, coordinator 11-04
     out = _fe.out_root() / f"frozen_encoder_{a.tag}"
     sess = sorted((out / a.variant / "sessions").glob("*.json"))
@@ -146,7 +155,8 @@ def main(argv=None) -> int:
             fig.suptitle(f"Frozen encoder ({a.variant}) AREA maps: {a.spout}, {ep} minus pre, {align}-aligned evoked "
                          f"response, per animal then mean. residual = data - full. ipsi (lesion) = image LEFT. "
                          f"Coarse (42 Allen areas); PROVISIONAL", fontsize=8)
-            fig.savefig(fd / f"area_maps_{a.variant}_{a.spout}_{ep}_{align}.png", dpi=120, bbox_inches="tight")
+            with tst.active(None, text=trial_set_sentence(a.tag, a.spout, align)):     # this figure's alignment
+                fig.savefig(fd / f"area_maps_{a.variant}_{a.spout}_{ep}_{align}.png", dpi=120, bbox_inches="tight")
             plt.close(fig)
     pd.concat(allrows).to_csv(fd / f"area_maps_{a.variant}.csv", index=False, float_format="%.5g")
     print(f"-> {fd} (area_maps_{a.variant}_{a.spout}_*.png)")

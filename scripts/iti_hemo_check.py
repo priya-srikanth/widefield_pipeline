@@ -64,6 +64,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
 from fr_musall import AN  # noqa: E402
 
+from wfield_local import mask_keys  # noqa: E402
+
 HC = il.OUT / "hemo_check"
 # per-session caches hold ROI-mean PETHs, so they depend on the ALM / tjM1 ROI version (iti_licks.ROI_VERSION; 10-27):
 # v1 (40 / 40) stays in cache/, v2 (ALM 40 % / tjM1 50 %) goes to cache_roi2/
@@ -121,6 +123,7 @@ def work(label: str) -> dict:
     from wfield_local.hemo_variants import functional_channel
     f = CACHE / f"{label}.npz"
     if f.exists() and int(np.load(f)["cache_version"]) == CACHE_VERSION:
+        mask_keys.check_npz(f)                    # stale-read guard: built on the current analysis masks (11-09)
         return {"label": label, "cached": True}
     d = il._load(label)
     s = _session(label)
@@ -215,6 +218,7 @@ def work(label: str) -> dict:
     HC.mkdir(parents=True, exist_ok=True)
     CACHE.mkdir(parents=True, exist_ok=True)
     tmp = CACHE / f"{label}.tmp.npz"
+    out.update(mask_keys.stamp())
     np.savez_compressed(tmp, **out)
     tmp.replace(f)
     return {"label": label, "n_bout": int(keep.sum()), "func": fc, "manifest_func": out["manifest_func"]}
@@ -333,6 +337,9 @@ def summarise(labels: list[str]) -> None:
     pd.set_option("display.width", 250)
     pd.set_option("display.max_rows", 400)
     C = {x: dict(np.load(CACHE / f"{x}.npz", allow_pickle=False)) for x in labels if (CACHE / f"{x}.npz").exists()}
+    for x, c in C.items():                                 # stale-read guard (11-09)
+        mask_keys.check_obj(c, CACHE / f"{x}.npz")
+        c.pop(mask_keys.FIELD, None)
     print(f"{len(C)} sessions cached")
     # --- channel-slot checks
     ch = pd.DataFrame([{"label": x, "func_slot": int(c["func_slot"]), "manifest_func": int(c["manifest_func"]),
@@ -731,7 +738,9 @@ def draw_f0(F: dict) -> None:
         fig.colorbar(im, ax=axs[i, :], fraction=0.02).set_label("F0 / pre - 1")
     _title(fig, "Raw fluorescence F0 (frames_average on the atlas grid, raw counts) per Allen area, change vs the "
            "animal's pre mean (mean of animals, paired nested bootstrap). Image left = ipsilesional.", 170)
-    _savefig(fig, "lick_iti_hemo_check_f0_areas.png", 105, tight_bbox=True)
+    from wfield_local import trial_set_text as tst
+    with tst.active(None, text=F0_SET):                 # no licks here: the session mean image (Priya 11-09)
+        _savefig(fig, "lick_iti_hemo_check_f0_areas.png", 105, tight_bbox=True)
 
 
 def fig_state_gap(G: pd.DataFrame, Hh: pd.DataFrame, colors: dict) -> None:
@@ -774,7 +783,20 @@ def plot_only(labels: list[str] | None = None) -> None:
         draw(load_fd(stem))
 
 
+#: the frame set of the F0 area map (it reads no lick): every frame of the session, both channels
+F0_SET = ("frames: every imaging frame of the session (the pipeline's per-pixel temporal mean frames_average, raw "
+          "counts, 470 and 415 nm), sessions with a cached hemo-check extract; no lick selection")
+
+
+def trial_set_sentence() -> str:
+    """The lick set of the hemo-check figures (variants, PETH, edge / vessel, state / gap): the SAME bout-start ITI licks
+    as the published response (`work`: session-file bout_t with bout_gap >= GAP_MAIN), >= 10 per session. The F0 area
+    map states F0_SET instead (`draw_f0`)."""
+    return il.trial_set_bouts(il.GAP_MAIN)
+
+
 def main(argv=None) -> int:
+    from wfield_local import trial_set_text as tst
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--labels", nargs="*")
     ap.add_argument("--jobs", type=int, default=3)
@@ -782,6 +804,7 @@ def main(argv=None) -> int:
     ap.add_argument("--plot-only", action="store_true",
                     help="re-render the figures from figdata/<figure>.pkl only; no csv, no cache, no bootstrap, no table rewrite")
     a = ap.parse_args(argv)
+    tst.declare(text=trial_set_sentence())              # Priya 11-09 (the --plot-only replot too)
     from wfield_local import analysis_kit as ak
     from wfield_local.writeguard import assert_writable
     assert_writable(HC)

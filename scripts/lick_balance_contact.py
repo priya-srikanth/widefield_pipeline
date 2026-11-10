@@ -36,6 +36,8 @@ import iti_licks as il  # noqa: E402
 import lick_balance_subsets as lbs  # noqa: E402
 import lick_recovery_markers as lrm  # noqa: E402
 
+from wfield_local import mask_keys  # noqa: E402
+
 POOL = ["ALM", "tjM1", "SSp-m", "SSp-n", "SSs"]
 WIN = (0.1, 0.5)
 MIN_CELL = 20                      # pre licks needed for a line (lick_balance_regions.MIN_CELL)
@@ -58,6 +60,7 @@ def _session(label: str) -> pd.DataFrame:
     if not f.exists():
         return pd.DataFrame()
     z = np.load(f, allow_pickle=True)
+    mask_keys.check_obj(z, f)                     # stale-read guard (11-09)
     X = z["X"].astype(float)
     cx = list(z["cols"])
     t = z["t"].astype(float)
@@ -182,7 +185,18 @@ def downsample(D: pd.DataFrame, S: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(out)
 
 
+def trial_set_sentence() -> str:
+    """The lick set of lick_balance_contact (Priya 11-09): the uncapped first-lick extraction (firstlick_full), split by
+    spout contact (licks_all `contact`)."""
+    return lbs.full_first_licks([
+        "lick angle finite",
+        "classes: contact (DAQ spout contact inside the lick) / miss / strict miss (no contact lick within "
+        f"{STRICT_S:g} s)", f"session markers need >= {MIN_LICKS} licks"])
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())          # every figure states its lick set (Priya 11-09)
     from wfield_local import writeguard
     writeguard.assert_writable(il.OUT_W)
     D = licks()

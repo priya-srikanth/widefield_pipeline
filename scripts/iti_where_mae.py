@@ -105,8 +105,17 @@ def plot(S: pd.DataFrame, T: pd.DataFrame) -> None:
     plt.close(fig)
 
 
+def trial_set_sentence() -> str:
+    """ITI + cued licks of where_preds (iti_where_scatter.py; Priya 11-09); the subset ITI filter only when il.pred_file
+    resolves to its filtered copy."""
+    import iti_where_decoder as wd
+    return wd.both_caption(wd.subset_in(il.pred_file("where_preds.csv")), tracked="lateral + sagittal + outward")
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
     il.split_only("iti_where_mae")   # outputs not basis-tagged: split basis only (10-27 late)
+    tst.declare(text=trial_set_sentence())
     if plot_only():                       # redraw from figdata only: no data, no bootstrap
         F = load_fd("lick_where_mae")
         plot(F["S"], F["T"])

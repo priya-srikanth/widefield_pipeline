@@ -203,7 +203,22 @@ def plot(F: dict) -> None:
         plt.close(fig)
 
 
+def trial_set_sentence() -> str:
+    """The lick sets of lick_balance_angle_lmm (Priya 11-09): the KEY decoder's lick set split into first / later licks
+    (cued: lick_idx 0 vs >= 1; ITI: bout start vs later bout licks), session x spout cells with >= MIN_LICKS licks; the
+    response-ratio (resp) measure = lick_lateral_ratio's first cued licks and ITI bout starts."""
+    import lick_covariate_reference as cv
+    cell = f"session x spout cells with >= {MIN_LICKS} licks"
+    return cv.key_lick_set(
+        iti_extra=[f"split: bout start (index 0, bouts split at onset gaps >= {il.BOUT_GAP:g} s) vs later bout licks",
+                   cell, f"resp measure: bout starts with >= {il.GAP_MAIN:g} s since the last lick only"],
+        cued_extra=["split: first post-cue lick (lick_idx 0) vs later licks", cell,
+                    "resp measure: first post-cue licks only"])
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())          # every figure states its lick set (Priya 11-09)
     if plot_only():
         plot(load_fd("lick_balance_angle"))
         return 0

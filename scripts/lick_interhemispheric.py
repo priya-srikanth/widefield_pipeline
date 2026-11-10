@@ -64,6 +64,7 @@ from __future__ import annotations
 from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
+import functools
 import pickle
 import sys
 import textwrap
@@ -75,6 +76,8 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
+
+from wfield_local import mask_keys  # noqa: E402
 
 OUT_W = il.OUT_W      # il.OUT_W = run_mode.subdir(<imaging_encoding>/iti_licks): the ITI family's routed folder (11-04)
 IN = il.OUT                                                  # inputs (read only)
@@ -149,6 +152,68 @@ def _w(lo, hi, incl=False):
 W_POST, W_BASE, W_PRE = _w(0.1, 0.5), _w(*il.BASE_RESP, incl=True), _w(-1.0, 0.0, incl=True)
 
 
+# ------------------------------------------------------------------------------------------------ the event sets, in words
+# Priya 11-09: "EVERY figure must state EXACTLY which trials were included / excluded". The sentence of each set is
+# built from the constants `_set_arrays` / `rest_extract` select with (never a copy of their numbers).
+def rest_frames_text() -> str:
+    """The rest frames of the active rest variant: the RESTnl lick-free mask (`restnl.DEF` minus its per-position
+    weighting, which a pseudo-event set does not use) or the restdock05 mask, each cut to the docked window."""
+    from wfield_local import config
+    if REST_VARIANT == "restnl":
+        import restnl
+        mask = restnl.DEF[: restnl.DEF.index(restnl._WDEF)].rstrip(", ")
+        return f"docked (dock .. next trial_start) frames of {mask}"
+    r = config.defaults()["segmentation"]["rest"]
+    b0, b1 = (float(x) for x in r["lick_buffer_s"])
+    return (f"docked (dock .. next trial_start) frames of the {r['variant']} rest mask (DAQ licks excluded "
+            f"[{b0:g} s before, {b1:g} s after], runs >= {float(r['min_rest_s']):g} s), engaged period only")
+
+
+def set_sentence(st: str) -> str:
+    """One event set of `SETS` in words (`trial_set_text.events`)."""
+    from wfield_local import trial_set_text as tst
+    rec = f"peak inside the imaging record by {-il.LAGS_D[0]:g} s on each side"
+    ang = "finite 3-D lick angle (arcsin(side_ml / reach_mm))"
+    if st == "cued":
+        what = tst.CUED_LICK_WHAT.replace(
+            "post-cue licks", f"cued = the FIRST post-cue lick of each lick bout (bout = lick onsets < {il.BOUT_GAP:g} s "
+            f"apart), every one (firstlick_full, no {il.N_TRIAL_MAX} cap)")
+        return tst.events(what, keep=[rec, ang], excluded=["later licks of the bout", "ITI licks"])
+    if st in ("iti_all", "iti_far1", "iti_gap2"):
+        filt = {"iti_all": "", "iti_far1": "far1", "iti_gap2": "gap2"}[st]
+        return tst.events(f"{st} = the decoder's {tst.ITI_LICK_WHAT}",
+                          keep=[tst.iti_filter_text(filt), "finite side_ml and DAQ onset", rec,
+                                f"{ang}, reach_mm from the covref ITI table"],
+                          excluded=["post-cue (trial) licks"])
+    if st == "rest":
+        return tst.events(f"rest = one pseudo-event at the center of each rest period >= {REST_MIN_SPAN:g} s "
+                          f"(window {LAGS_W1[0]:+g} .. {LAGS_W1[-1]:+g} s)",
+                          keep=[f"rest frames = {rest_frames_text()}"],
+                          excluded=(["sessions without licks_all.csv (no rest set, never a DAQ-only fallback)"]
+                                    if REST_VARIANT == "restnl" else None))
+    raise ValueError(f"set_sentence: unknown set {st!r}")
+
+
+def trial_set_sentence(sets=tuple(SETS)) -> str:
+    """The events of a figure that draws ``sets`` (default every set; `plot_simple` = cued + rest, `plot_raw` = the
+    lick sets only), plus the per-session minimum that decides whether a set enters a session at all."""
+    from wfield_local import trial_set_text as tst
+    return f"{tst.union(*(set_sentence(s) for s in sets))}; a set enters a session only with >= {MIN_N} events"
+
+
+def _with_sets(sets):
+    """Draw the decorated figure function under the trial-set sentence of ``sets`` (wins over the driver's declaration
+    while it runs)."""
+    def deco(fn):
+        @functools.wraps(fn)
+        def run(*args, **kw):
+            from wfield_local import trial_set_text as tst
+            with tst.active(None, text=trial_set_sentence(sets)):
+                return fn(*args, **kw)
+        return run
+    return deco
+
+
 # ------------------------------------------------------------------------------------------------ rest extraction
 def rest_extract(label: str) -> dict:
     """Docked engaged rest windows of one session -> REST_DIR/<label>.npz (X (n, 41, cols) float16, centers t)."""
@@ -157,6 +222,7 @@ def rest_extract(label: str) -> dict:
     from wfield_local import rest_by_position as rbp
     f = REST_DIR / f"{label}.npz"
     if f.exists():
+        mask_keys.check_npz(f)                    # stale-read guard: built on the current analysis masks (11-09)
         return {"label": label, "cached": True}
     s = next(x for x in config.load_sessions() if x["label"] == label)
     nl_info = None
@@ -201,7 +267,7 @@ def rest_extract(label: str) -> dict:
     extra = {} if nl_info is None else {"rest_variant": REST_VARIANT, **{k: v for k, v in nl_info.items()}}
     np.savez_compressed(f, X=X, t=centres, cols=np.array(cols), rest_s=rest_s, n_periods=info["n_periods"],
                         reconstructed=bool(info["reconstructed"]), clock_med_s=clk, frame_dt=float(np.median(np.diff(ft))),
-                        spans=np.asarray(spans, float), **extra)
+                        spans=np.asarray(spans, float), **extra, **mask_keys.stamp())
     return {"label": label, "n_win": len(centres), "rest_s": rest_s, "clock_med_s": clk, "n_periods": len(spans),
             "span_med_s": float(np.median(spans)) if spans else np.nan, "reconstructed": bool(info["reconstructed"]),
             **extra}
@@ -378,6 +444,7 @@ def _set_arrays(label: str, meta: pd.DataFrame) -> dict:
     z = il._load(label)
     cols = [str(c) for c in z["cols"]]
     fl = np.load(IN / "firstlick_full" / f"{label}.npz", allow_pickle=False)
+    mask_keys.check_obj(fl, IN / "firstlick_full" / f"{label}.npz")   # stale-read guard (11-09)
     ang = _angle(fl["side_ml"], fl["reach_mm"])
     ok = np.isfinite(ang)
     out["cued"] = (fl["X"][ok], fl["pos"].astype(str)[ok], ang[ok], [str(c) for c in fl["cols"]])
@@ -395,6 +462,7 @@ def _set_arrays(label: str, meta: pd.DataFrame) -> dict:
     rf = REST_DIR / f"{label}.npz"
     if rf.exists():
         r = np.load(rf, allow_pickle=False)
+        mask_keys.check_obj(r, rf)
         out["rest"] = (r["X"], None, None, [str(c) for c in r["cols"]])
     return out
 
@@ -619,6 +687,7 @@ RAW_ROWS = [("nc_post", 0.0, "w2", "post-lick noise corr (0.1-0.5 s minus -1..-0
             ("gc_dir", 0.6, "w2", "Granger direction, tau 0.6 (+ = contra predicts ipsi more)")]
 
 
+@_with_sets(LICK_SETS)
 def plot_raw() -> None:
     """RAW (no rest reference) figures, from the variant-free raw tables: lick-set metrics change vs pre (rows = metric,
     columns = lick set; pooled boot_delta 95% CI per epoch, stars in the top band) + the recovery heatmap."""
@@ -871,6 +940,7 @@ SIMPLE_READING = {"restdock05": ("At quiet REST coupling rises in the orofacial 
                   "restnl": ""}[REST_VARIANT]
 
 
+@_with_sets(("cued", "rest"))
 def plot_simple() -> None:
     """ONE figure, key points only (Priya 10-29): interhemispheric noise correlation (same 1-s window, w1, raw), change
     vs pre, orofacial pool vs control pairs, during cued licks / at docked rest / lick minus rest; per-animal dots,
@@ -966,6 +1036,8 @@ def main() -> None:
                     help="rest set: restdock05 (default, SUPPLEMENT) or restnl (PRIMARY, lick-free); resolved at import")
     a = ap.parse_args()
     assert a.rest_variant == REST_VARIANT
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())          # every set; plot_simple / plot_raw narrow it (_with_sets)
     from wfield_local import analysis_kit as ak
     jobs = min(a.jobs, 4)
     t0 = time.time()

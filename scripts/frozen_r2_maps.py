@@ -53,6 +53,13 @@ def pixel_sse(sp: dict, M: np.ndarray, keep: np.ndarray) -> np.ndarray:
     return np.diag(M).copy()
 
 
+def trial_set_sentence(tag: str, own: bool = False) -> str:
+    """The trials / frames of the R2 maps (Priya 11-09): every modeled frame (`resid_mom` / `data_mom`); ``own`` = the
+    per-position maps, scored on the frames of each spout's own trials (frozen drop-one-spout)."""
+    from wfield_local import frozen_encoder as fe
+    return fe.trial_set_sentence("own" if own else "all", tag=tag)
+
+
 def main(argv=None) -> int:
     # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import matplotlib
@@ -67,6 +74,8 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--tag", default="gate-attempted_v6basis")
     a = ap.parse_args(argv)
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence(a.tag))
     from wfield_local import frozen_encoder as _fe   # the encoder's (tagged) run root, coordinator 11-04
     out = _fe.out_root() / f"frozen_encoder_{a.tag}"
     variants = ["joint"] + sorted({v for _l, v in UNIQUE})
@@ -215,8 +224,9 @@ def main(argv=None) -> int:
         fig.suptitle(f"Frozen encoder ({kind} targets, base {base}): PER-POSITION unique R2 of the {part} -- "
                      f"on that spout's own trials, {when}; {scl}. ipsi (lesion) = image LEFT. PROVISIONAL", fontsize=8)
         tag = "target" if what == "drop" else "whole"
-        save_png_svg(fig, fd / f"r2_maps_position_{base}_{tag}_{ep}{'_minus_pre' if diff else ''}"
-                         f"{'_peranimal' if per_panel else ''}.png", dpi=120, bbox_inches="tight")
+        with tst.active(None, text=trial_set_sentence(a.tag, own=True)):         # per-position: own-trial frames
+            save_png_svg(fig, fd / f"r2_maps_position_{base}_{tag}_{ep}{'_minus_pre' if diff else ''}"
+                             f"{'_peranimal' if per_panel else ''}.png", dpi=120, bbox_inches="tight")
         plt.close(fig)
     # PER-POSITION unique R2 (frozen drop-one-spout): spout q's own target-position response folded into the others'
     # mean; dR2_q = (SSE[base|drop:q] - SSE[base]) / SST on q's OWN trial frames, summed over sessions per animal x

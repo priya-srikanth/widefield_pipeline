@@ -117,9 +117,12 @@ def frozen_fits(run: Path) -> Path:
     statistics; cached in partial_refit/fits.pkl."""
     from wfield_local import frozen_encoder as fe
     p = run / "partial_refit" / "fits.pkl"
+    from wfield_local import mask_keys
     if p.exists():
+        mask_keys.check_sidecar(p)               # stale-read guard (11-09)
         return p
     st = pickle.loads((run / "fit" / "pre_stats.pkl").read_bytes())
+    fe.check_saved_masks(st, run / "fit" / "pre_stats.pkl")
     fits = {}
     for an in sorted({s["animal"] for s in st}):
         f = fe.fit_animal(sorted((s for s in st if s["animal"] == an), key=lambda s: s["label"]), variant="joint")
@@ -127,6 +130,7 @@ def frozen_fits(run: Path) -> Path:
         print(f"  frozen fit {an}: {len(f['beta_loso'])} pre sessions", flush=True)
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_bytes(pickle.dumps(fits, protocol=pickle.HIGHEST_PROTOCOL))
+    mask_keys.write_sidecar(p)
     return p
 
 

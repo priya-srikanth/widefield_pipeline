@@ -43,6 +43,8 @@ BEHAVIOUR = {
     # main's June drift-floor summary (FaceRhythm readouts + pose3d june_reference deltas only; writes the FR
     # readouts june_reference dir), 11-09
     "june_drift_summary_fig.py",
+    # main's labeled cam1 + cam4 still pair (production LP pose on raw video frames only; no imaging), 11-09
+    "pose_frame_pair.py",
 }
 INDIRECT = {
     "coupling_vigour_sm.py", "decoder_retention_sessions.py", "lick_correction.py",

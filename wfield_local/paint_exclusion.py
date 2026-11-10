@@ -146,8 +146,53 @@ def region_breakdown(mask):
 
 
 def mask_dir(out_dir=None):
+    """Where the painted masks live: the active cohort's ORIGINAL ``grant_figures/`` (``PathResolver.input_root``).
+
+    THE MASKS ARE HAND-MADE INPUTS, NOT RUN OUTPUTS, so they never follow a render profile's rebuild root. Before
+    2026-11-09 this used ``PathResolver().root("cohort_out")``, which under ``cohort1_rebuild_20261103`` resolved to
+    ``<rebuild>/labcams/grant_figures``, where nothing was painted; `beta_maps.painted_exclusion` then returned an
+    all-False mask without a word and every brain / stat mask kept the glue (stat mask 166,974 px instead of 129,770).
+    The rebuild fence lets exactly these files be read in place (configs/paths.yaml ``rebuild.labcams_inputs``).
+    """
     from wfield_local.paths import PathResolver
-    return Path(out_dir) if out_dir else Path(PathResolver().root("cohort_out")) / "grant_figures"
+    return Path(out_dir) if out_dir else Path(PathResolver().input_root("cohort_out")) / "grant_figures"
+
+
+def painted_policy(cohort=None) -> str:
+    """The cohort's ``painted_exclusion`` (configs/cohorts.yaml): ``"required"`` (default) or ``"none"`` (opt-out)."""
+    from wfield_local.paths import cohort_spec
+    v = str(cohort_spec(cohort).get("painted_exclusion", "required")).strip().lower()
+    if v not in ("required", "none"):
+        raise ValueError(f"cohorts.yaml painted_exclusion={v!r}: expected 'required' or 'none'")
+    return v
+
+
+def load_mask(key, shape, out_dir=None):
+    """One painted mask (``key`` = animal id or ``"union"``) as bool ``shape`` -- RAISES rather than returning nothing.
+
+    The one reader the pipeline uses (`beta_maps.painted_exclusion`, `component_exclusion.excluded_pixels`). A missing,
+    unreadable or wrong-shape file raises ``FileNotFoundError`` / ``ValueError``: "no glue" and "the mask was not
+    found" must never look the same again. The ONLY empty answer is the explicit cohort opt-out
+    (``painted_exclusion: none`` in configs/cohorts.yaml, cohort2 today), which returns all-False. An empty mask on
+    disk also raises (a painted cohort's masks are never empty).
+    """
+    shape = tuple(int(x) for x in shape)
+    if painted_policy() == "none":
+        return np.zeros(shape, bool)
+    p = mask_path(key, out_dir)
+    if not p.exists():
+        raise FileNotFoundError(f"painted glue mask {p} is missing (cohort requires it: configs/cohorts.yaml "
+                                f"painted_exclusion). Never fall back to no exclusion.")
+    try:
+        m = np.load(p)
+    except Exception as ex:                                            # noqa: BLE001 - re-raised with the path
+        raise ValueError(f"painted glue mask {p} is unreadable: {type(ex).__name__}: {ex}") from ex
+    if m.shape != shape:
+        raise ValueError(f"painted glue mask {p} has shape {m.shape}, expected {shape}")
+    m = m.astype(bool)
+    if not m.any():
+        raise ValueError(f"painted glue mask {p} is empty")
+    return m
 
 
 def mask_path(key, out_dir=None):

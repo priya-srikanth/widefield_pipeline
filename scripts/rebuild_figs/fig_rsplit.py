@@ -85,10 +85,16 @@ def draw(fd: dict, out: Path) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def trial_set_sentence() -> str:
+    """The frames the Layer-2 encoder change is computed over (every frame of the encoder's trial windows)."""
+    return _common.encoder_frames(extra=["every frame of those windows (no cue / lick window)"])
+
+
 def main(argv=None) -> int:
     ap = _common.parser(__doc__)
     ap.add_argument("--allsession-tag", default=_design_tag("v7g3_t3d_ref"), help="allsession_encoder_<tag> folder of this run")
     a = ap.parse_args(argv)
+    _common.declare(trial_set_sentence())          # THE TRIAL SET of every figure (Priya 11-09)
     a.out.mkdir(parents=True, exist_ok=True)
     fd = _common.load_figdata(a.out, NAME) if a.plot_only else compute(allsession_dir(a.allsession_tag))
     if not a.plot_only:

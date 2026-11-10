@@ -139,6 +139,10 @@ def _labcams_input(c: str, lab: str) -> bool:
         return True                                          # the labcams folder itself (a listing of dates)
     top = rest.split("/", 1)[0]
     for pat in spec().get("labcams_inputs") or ():
+        if "/" in pat and not pat.startswith("re:"):     # a relative-path glob: exact files (the painted glue masks)
+            if fnmatch.fnmatchcase(rest, pat.lower()):
+                return True
+            continue
         if pat.startswith("re:"):
             if re.match(pat[3:], top):
                 return True

@@ -462,11 +462,20 @@ def figure(S: pd.DataFrame, C: pd.DataFrame, W: pd.DataFrame, L: pd.DataFrame) -
     print(f"== wrote {out}")
 
 
+def trial_set_sentence() -> str:
+    """The lick sets of the primary-balance imaging control (Priya 11-09): first post-cue lick (trial_1) and the ITI
+    first lick after quiet (iti_q) of the KEY set, built here (`extract`)."""
+    import lick_balance_subsets as lbs
+    return lbs.set_sentence(("trial_1", "iti_q"), full=False, inside=False, subset=False)
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--jobs", type=int, default=6)
     ap.add_argument("--summarise", action="store_true")
     a = ap.parse_args(argv)
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())          # every figure states its lick set (Priya 11-09)
     if not a.summarise or not LICKS.exists():
         extract(min(a.jobs, 6))
     summarise()

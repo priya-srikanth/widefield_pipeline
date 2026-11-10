@@ -180,7 +180,17 @@ def plot(T: pd.DataFrame) -> None:
     plt.close(fig)
 
 
+def trial_set_sentence() -> str:
+    """The lick set of lick_cued_first_lick (Priya 11-09): the session files' post-cue licks with a 3-D lick_idx, split
+    into the FIRST post-cue lick of the trial (lick_idx 0) and the later ones."""
+    return il.trial_set_cued(extra=["with a lick_idx of the 3-D lick table (first = lick_idx 0, later = the rest)",
+                                    "target spout known", "sessions with >= 20 such licks, animals with >= 3 pre "
+                                    f"sessions; spout x class cells with >= {MIN} licks"])
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())          # the --plot-only replot too
     if plot_only():                       # redraw from figdata only: no data, no bootstrap
         plot(load_fd("lick_cued_first_lick")["T"])
         return 0

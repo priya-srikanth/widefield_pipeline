@@ -106,6 +106,21 @@ CM_MIN_OFF = (2, 1)  # class-matched session rule: >= this many deviated trials 
 SEED = 0
 
 
+def enl_window_s() -> float:
+    """THE ENL window of this family, s: `lp_licks.enl_post_s` for the LP source (the family is LP-only: licks_all
+    lick-free rule, attempt_coding_pp generated with WIDEFIELD_LICK_SOURCE=lp), so a title never carries a literal
+    (Priya 11-09: two titles still said "no lick 2 s")."""
+    from wfield_local import lp_licks
+    return lp_licks.enl_post_s("lp")
+
+
+def lick_free_rule(W: float) -> str:
+    """This run's lick-free rule for an ENL window of W s (`_LF_ARG` or `ead.LF_PRIMARY`), as figure-title words."""
+    lf = _LF_ARG or ead.LF_PRIMARY
+    return {"slide": f"sliding lick-free {W:g} s window", "W": f"no lick in the last {W:g} s",
+            "2s": "no lick in the last 2 s"}[lf]
+
+
 def _check_order():
     from wfield_local import orofacial_cohort as oc
     if list(oc.POS_ORDER) != SP:
@@ -717,7 +732,8 @@ def _fig_classmatched_epochs(CM: pd.DataFrame, col: dict, mk: dict) -> None:
                  f"({'/'.join(AN)}) under each rule. Shaded pre = the pre-stroke LEVEL; few pre deviated trials.", fontsize=10)
     _wrap_titles(fig, sup_width=170)
     fig.tight_layout(rect=(0, 0.035, 1, 1))
-    save_png_svg(fig, FIG / "lick_enl_target_classmatched_epochs.png", dpi=110)
+    with _trial_set_for("A"):
+        save_png_svg(fig, FIG / "lick_enl_target_classmatched_epochs.png", dpi=110)
     plt.close(fig)
 
 
@@ -762,12 +778,15 @@ def figures() -> None:
                 a_.set_ylabel("tracking = d(decoded / gain) / d(actual angle)\n0 = target (blue), 1 = execution (red)")
     h_, l_ = ax[0, 0].get_legend_handles_labels()
     fig.legend(h_, l_, fontsize=9, loc="lower center", ncol=len(h_), frameon=False)
-    fig.suptitle("Gain-normalized tracking of the frozen ENL ridge angle read-out (W 1.0 s, no lick 2 s; gain = pre held-out "
+    w_enl = enl_window_s()
+    fig.suptitle(f"Gain-normalized tracking of the frozen ENL ridge angle read-out (ENL window {w_enl:g} s, "
+                 f"{lick_free_rule(w_enl)}; gain = pre held-out "
                  "slope ACROSS spouts). + angle = contralesional. Hollow = ill-conditioned (|d actual| < 5 deg or its CI "
                  "spans 0); clipped to [-3, 4]", fontsize=10)
     _wrap_titles(fig)
     fig.tight_layout(rect=(0, 0.04, 1, 1))
-    save_png_svg(fig, FIG / "lick_enl_target_tracking.png", dpi=110)
+    with _trial_set_for("C"):
+        save_png_svg(fig, FIG / "lick_enl_target_tracking.png", dpi=110)
     plt.close(fig)
     # 2 confusion pre vs acute (mean of animals) + change
     CF, CC = pd.read_csv(OUT / "confusion.csv"), pd.read_csv(OUT / "confusion_change.csv")
@@ -801,7 +820,7 @@ def figures() -> None:
     for a_ in ax.flat:
         a_.set_xlabel("decoded", fontsize=8, labelpad=1)
         a_.set_ylabel("target", fontsize=8, labelpad=1)
-    fig.suptitle("PRE-CUE (ENL, 1 s) spout confusion, rows = target, cols = decoded; top row = frozen pre-stroke POSITION "
+    fig.suptitle(f"PRE-CUE (ENL, {enl_window_s():g} s) spout confusion, rows = target, cols = decoded; top row = frozen pre-stroke POSITION "
                  "decoder (LocaNMF, argmax); bottom row = own ENL area classifier (enl_spout, mean probability); "
                  "canonical order close ipsi..far contra (ipsi = ipsilesional). Chance 1/6", fontsize=10)
     _wrap_titles(fig)
@@ -893,6 +912,41 @@ def figures() -> None:
     print(f"== figures in {FIG}")
 
 
+# ------------------------------------------------------------------------------------------------------------ CAPTIONS
+#: the attempt_coding classes PART A keeps (`precue_trials`)
+A_CLASSES = ("pre_hit", "hit", "incomplete")
+
+
+def trial_set_sentence(part: str = "all") -> str:
+    """The trials of this driver's figures (Priya 11-09): ``part`` "A" = the frozen position decoder's attempt_coding
+    trials, "C" = the ENL ridge trials at W 1.0 (tracking figure, + its settled subset), "all" = A + the ENL trials of
+    every window (confusion / off-target / decodability)."""
+    from wfield_local import trial_set_text as tst
+    lf = _LF_ARG or ead.LF_PRIMARY
+    a = tst.events("attempt_coding per-trial tables of the frozen pre-stroke POSITION decoder (windows precue = its "
+                   "lick-free ENL window, cue, lick; method dom)", unit="trials",
+                   keep=["attempt classes " + " + ".join(A_CLASSES), "executed bin = argmax of the 3-D landing / "
+                         "trajectory softmax (trials without 3-D licks have none)"],
+                   excluded=["other attempt classes", "early (June) pre sessions"])
+    settled = (f"settled subset: cue - spout strobe >= W + {SETTLE_GAP:g} s")
+    if part == "A":
+        return a
+    if part == "C":
+        return ead.trial_set_sentence(1.0, lf).replace("; excluded: ", f"; {settled}; excluded: ", 1)
+    enl = [ead.trial_set_sentence(W, lf) for W in sorted({W for W, _lf in VARIANTS}, reverse=True)]
+    return tst.union(a, *enl, unit="trials") + f"; {settled}"
+
+
+def _trial_set_for(part: str):
+    """Narrow the process declaration to ``part`` while a figure is saved (no-op when main() declared nothing)."""
+    import contextlib
+
+    from wfield_local import trial_set_text as tst
+    if tst.current() is None:
+        return contextlib.nullcontext()
+    return tst.active(None, text=trial_set_sentence(part))
+
+
 # ------------------------------------------------------------------------------------------------------------ MAIN
 def main() -> int:
     from wfield_local import config
@@ -903,6 +957,8 @@ def main() -> int:
     OUT.mkdir(parents=True, exist_ok=True)
     FIG.mkdir(parents=True, exist_ok=True)
     writeguard.assert_writable(OUT / "tracking.csv")
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())
     if "--plot-only" in sys.argv:
         figures()
         return 0

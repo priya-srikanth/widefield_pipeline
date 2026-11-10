@@ -86,8 +86,55 @@ RLAB = {"iti": "frozen pre ITI reader", "trial": "frozen pre cued reader", "enlv
 AXES = {"lat": ("act", 0.1, np.round(np.arange(-3.0, 3.001, 0.05), 3), lmr.FINE, "mm", "landing, lateral place"),
         "ang": ("ang", 2.0, np.round(np.arange(-60.0, 60.001, 1.0), 3), np.arange(-60.0, 60.01, 5.0), "deg",
                 "landing, 3-D angle")}
+#: enlv_a = the first ENLv lick of each trial among the PRIMARY candidates (onset / cue rule of VARIANTS["on1"])
+ENLV_A_ONSET = float(bo.VARIANTS[bo.PRIMARY][1][0])
+ENLV_A_CUE_END = float(bo.VARIANTS[bo.PRIMARY][3])
 MIN_G = 8           # licks per session inside the shared range for a session line
 QR = (2.5, 97.5)    # landing quantiles defining each epoch's range
+
+
+# ================================================================================================ trial-set captions
+def set_sentence(st: str) -> str:
+    """The lick set ``st`` of `load` in words (Priya 11-09: every figure states exactly which licks)."""
+    from wfield_local import trial_set_text as tst
+    filt = lo.ITI_FILTER or il.ITI_SUBSET
+    cap = (f"iti_licks.extract post-cue set: every trial, no engagement / camera-class gate, at most "
+           f"{int(il.N_TRIAL_MAX)} per session (random draw, seed 0)")
+    land = "3-D landing (lateral) and decoded value present"
+    if st == "iti":
+        return tst.iti_licks(filt=filt, extra=["the decoder cache's ITI licks", land])
+    if st == "iti_q":
+        return tst.iti_licks(filt=filt, extra=[f"FIRST lick after >= {il.GAP_MAIN:g} s quiet (no licks_all onset of "
+                                               f"any context in the preceding {il.GAP_MAIN:g} s)", land])
+    if st == "trial":
+        return tst.cued_licks(extra=[cap, land])
+    if st == "trial_1":
+        return tst.cued_licks(first_only=True, extra=[cap, land])
+    if st == "enlv_a":
+        return tst.events(f"{bo.ENLV_WHAT} [enlv_a]", keep=[
+            f"the FIRST ENLv lick of each trial among those with onset >= {ENLV_A_ONSET:g} s after arrival (a later lick is "
+            "never substituted)", f"lick peak + {ENLV_A_CUE_END:g} s before the cue", f"spouts {', '.join(POS)}", land],
+            excluded=["ITI and post-cue licks"])
+    if st == "enlv_b":
+        return bo.variant_sentence(bo.BOUTS, extra=[f"spouts {', '.join(POS)}", land])
+    raise ValueError(st)
+
+
+def trial_set_sentence(panels=None) -> str:
+    """The lick sets of the panels shown (default: the curve / gain figures' four sets)."""
+    from wfield_local import trial_set_text as tst
+    panels = list(panels) if panels is not None else GAIN_ROWS
+    sets = list(dict.fromkeys(PANELS[p][0] for p in panels))
+    return tst.union(*(set_sentence(st) for st in sets))
+
+
+def _trial_set_for(panels):
+    import contextlib
+
+    from wfield_local import trial_set_text as tst
+    if tst.current() is None:
+        return contextlib.nullcontext()
+    return tst.active(None, text=trial_set_sentence(panels))
 
 
 # ================================================================================================ inputs
@@ -164,9 +211,9 @@ def load() -> pd.DataFrame:
     L = pd.read_csv(OUT / "enlv_table.csv.gz")
     L = L.sort_values(["label", "trial_id", "daq_on_s"]).reset_index(drop=True)
     L["ang"] = L.angle
-    cand = L.t_from_strobe >= 1.0
+    cand = L.t_from_strobe >= ENLV_A_ONSET
     first = cand & (L[cand].groupby(["label", "trial_id"]).cumcount() == 0).reindex(L.index, fill_value=False)
-    sel = {"enlv_a": first & (L.peak_to_cue > 0.5), "enlv_b": bo.select(L, "on1_clean")}
+    sel = {"enlv_a": first & (L.peak_to_cue > ENLV_A_CUE_END), "enlv_b": bo.select(L, "on1_clean")}
     for st, m in sel.items():
         g = L[m & L.pos.isin(POS) & np.isfinite(L.act) & np.isfinite(L.ang)]
         for r in ("iti", "enlv"):
@@ -652,7 +699,8 @@ def draw(D: dict) -> None:
     fig_curves(D, "lat")
     fig_curves(D, "ang")
     fig_gain(D)
-    fig_all(D)
+    with _trial_set_for(ALL_PANELS):
+        fig_all(D)
 
 
 # ================================================================================================ main
@@ -721,9 +769,12 @@ def run() -> dict:
 
 
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())
     if figdata.plot_only() and "--all-only" in sys.argv:       # just the combined figure, from its own figdata
         FIG.mkdir(parents=True, exist_ok=True)
-        fig_all(figdata.load_fd("lick_like_for_like_all", root=FD))
+        with _trial_set_for(ALL_PANELS):
+            fig_all(figdata.load_fd("lick_like_for_like_all", root=FD))
         return 0
     D = figdata.load_fd(STEM, root=FD) if figdata.plot_only() else run()
     draw(D)

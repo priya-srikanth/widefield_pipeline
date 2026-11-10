@@ -506,22 +506,45 @@ def compute_all():
                  {"r_norm": 1, "lfl_d": 0})
 
 
+def trial_set_sentence(name: str) -> str:
+    """The lick set of figure ``name`` (Priya 11-09): F0 figures = the bout-start ITI licks of ramp_auc_sessions.csv;
+    the where-decoder figures = its ITI licks ("_iti_"), post-cue licks ("_cued_") or both ("lick_check_*"), with the
+    ITI subset filter in a subset run (the where cache copy of `iti_dock_where_preds.py`)."""
+    from wfield_local import trial_set_text as tst
+    if "_f0" in name:
+        return il.trial_set_bouts(il.GAP_MAIN)
+    iti = il.trial_set_iti(filt=il.ITI_SUBSET)
+    cued = il.trial_set_cued()
+    if "_iti_" in name:
+        return iti
+    if "_cued_" in name:
+        return cued
+    return tst.union(iti, cued)
+
+
+def _draw(F: dict) -> None:
+    """`draw` with the figure's lick set stamped on it."""
+    from wfield_local import trial_set_text as tst
+    with tst.active(None, text=trial_set_sentence(F["name"])):
+        draw(F)
+
+
 def main() -> int:
     il.split_only("iti_check_figures")
     if plot_only():                                   # redraw from figdata only: no CSV, no bootstrap
         for stem in STEMS:
-            draw(load_fd(stem))
+            _draw(load_fd(stem))
         print(f"redrew {len(STEMS)} figures from {il.OUT / 'figdata'}")
         return 0
     if il.ITI_SUBSET:
         (WOUT / "figures").mkdir(parents=True, exist_ok=True)
         for F in compute_subset():
             save_fd(F["name"], F)
-            draw(F)
+            _draw(F)
         return 0
     for F in compute_all():
         save_fd(F["name"], F)
-        draw(F)
+        _draw(F)
     sev = f0_severity()
     pd.set_option("display.width", 200)
     print("== does the ITI post-lick response (dF/F / pre) track far-contra aim within animal? (post sessions)")
