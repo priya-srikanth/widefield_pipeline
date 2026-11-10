@@ -48,6 +48,7 @@ running list `docs/status/RUNNING_LIST_2026-11-08_STATE_SPACE.md` sections A (de
   after the sweep.
 - **11-08 ~11:45:** page v15 has section 9 (maps, all baselines, why-cleaner). "Why cleaner" answered for the 15r
   activity maps (B19: window, not denoising); the residual-map half not done.
+- **11-09 late -- PAGE v37 PUBLISHED** (version id 1794280824-6085, from the a8 window on Priya's account; the live page was v36 unchanged, so nothing was lost). It includes section 11 (aligned decoder) and the 9.3 b-d lower-bound caption rewrite (`state_space_page/edit_lower_bound.py`, already applied to index.html). Source + images: session scratchpad `C--Users-SabatiniLab/c1a9581a-.../scratchpad/state_space_page/`.
 - **11-09 ~21:00 -- START HERE (aligned frozen decoder DONE, running list B46 + C; FINDINGS 0 "Where things stand,
   restored / re-embedded / replaced"; DECISIONS 11-09 gate = alignment efficiency).** `scripts/aligned_decoder.py`
   (LocaNMF primary, `--basis svd` arm; `--summarise` redraws from rows.csv; capture cached in `inputs_lick_lick.pkl`),
