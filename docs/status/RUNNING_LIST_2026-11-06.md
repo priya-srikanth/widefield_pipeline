@@ -1172,3 +1172,7 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   cache, ETA ~19:35) + aligned_decoder. Nothing stopped (an hour of encoder work each). RAM guard
   scratchpad/ramguard_v20.ps1: if available < 3 GB on 2 polls 20 s apart, stop ONLY the frAsplit step (PID 24684, by
   command line) + its workers, log to CHAIN.log. Queue MINFREE 15 GB blocks new starts meanwhile.
+- 19:20 ITI recovered: e_iti_extract_g extracted 107/107 (17:47-19:17; its summary then failed at with_rest on the empty
+  split table, as expected, cont). chain_v20c: 107 extracts present, e_iti_split_sd_g claim cleared, .failed renamed
+  (.failed_1714_empty_session_dir), ITI lane relaunched 19:17 (waits for 15 GB free). CD chain DONE: g5_cd_traj_g,
+  g5_cd_traj_orth_g, cd_overlap_null_g, g7_cd_geometry_g all EXIT 0 (19:11). No RAM-guard action (RAM 13-17 GB).
