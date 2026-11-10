@@ -1200,3 +1200,7 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   RAM 17 GB; RAM guard (PID 36408) + monitor alive. Housekeeping: stopped 60 orphaned `tail -F CHAIN.log` processes
   left by this session's expired monitors (exact PIDs, this session's scratchpad path only); 4 tails of session
   cdd1e016 (10-25) left alone.
+- 21:31 resumed (session restart): since 20:30 all clean -- g5_epoch_g EXIT 0 (20:45), e_iti_hemo_g, l_vigor_times_g,
+  l_enl_lick_audit_g, l_iti_timing_audit_g, f_frA_g (21:10), f_frAsplit_g (21:13) all EXIT 0; 17 _g steps done;
+  RAM 26 GB; 27 lane processes. RAM guard exited with the frAsplit step (its target). Monitor re-armed.
+  OPEN for Priya: O2 combined-encoding re-bundle (new name, _daqlk tag recommended); she runs the O2 commands (ps150).
