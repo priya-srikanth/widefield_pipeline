@@ -1231,3 +1231,7 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   manifest move_aside_resume_audit2_*.csv); l_enl_target_g runs in full (rewrites cls_trials) -> safe; d_attempt_maps
   display-only -> left. LESSON: the move-aside list came from mask-dependence; resume-by-existence outputs need their
   own audit before any re-run.
+- 23:00 Priya: earlier O2 encoder runs = the COMBINED model only (existing o2_encoding.py; re-bundle needs no new code).
+  The frozen-encoder partial refits never ran on O2 -> porting = new code; briefly stopped the port and released the
+  claims (22:58), then Priya: "fine with new code if it saves time" -> claims RE-HELD (no desktop claim in between),
+  port helper resumed (bundle partial_rebuild_20261109 build for b_partial_frA_g still running, PID 37852).
