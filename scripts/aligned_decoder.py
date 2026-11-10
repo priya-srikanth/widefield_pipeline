@@ -621,25 +621,33 @@ def plot(out: Path, R: pd.DataFrame, F: pd.DataFrame) -> None:
     ax.set_title(f"Lick window, k = {K_MAIN} latents: frozen / aligned / refit (size-matched training)", fontsize=10)
     ax.legend(fontsize=8, frameon=False, ncol=4)
     ax = axs[1]
+    T = pd.read_csv(out / "tests.csv")
+    pre = D[D.epoch == "pre"].groupby("animal")
     for i, aln in enumerate(ALNS):
-        f = F[(F.k == K_MAIN) & (F.alignment == aln)]
-        for j, ep in enumerate(EPOCHS):
-            r = f[f.epoch == ep]
+        eff = ((pre[f"acc_{aln}"].mean() - 1 / 6) / (pre.acc_frozen.mean() - 1 / 6)).round(2)
+        ax.text(i, -0.95, "gate (pre->pre efficiency)\n" + " / ".join(f"{v:.2f}" for v in eff), ha="center",
+                fontsize=7.5, color="0.3")
+        for j, ep in enumerate(EPOCHS[1:]):
+            r = T[(T.k == K_MAIN) & (T.epoch == ep) & (T.quantity == f"index_{aln}")]
             if r.empty:
                 continue
             r = r.iloc[0]
-            x = i + (j - 1.5) * 0.18
-            ax.errorbar(x, r.fraction, yerr=[[r.fraction - r.lo], [r.hi - r.fraction]], fmt="o",
-                        color=EPOCH_LINE[ep], capsize=0, lw=1.4)
+            x = i + (j - 1) * 0.22
+            ax.errorbar(x, r.change, yerr=[[r.change - r.lo], [r.hi - r.change]], fmt="o", color=EPOCH_LINE[ep],
+                        capsize=0, lw=1.6, ms=6, label=ep if i == 1 else None)
             for c, v in r.items():
-                if c.startswith("f_") and np.isfinite(v):
-                    ax.scatter(x + .05, v, s=14, marker=mark.get(c[2:], "o"), facecolors="none",
-                               edgecolors=EPOCH_LINE[ep], lw=.7)
+                if c.startswith("d_") and np.isfinite(v):
+                    ax.scatter(x + .06, np.clip(v, -1.1, 2.1), s=16, marker=mark.get(c[2:], "o"), facecolors="none",
+                               edgecolors=EPOCH_LINE[ep], lw=.8)
     ax.axhline(0, color="0.6", lw=.8)
     ax.axhline(1, color="0.6", lw=.8, ls=":")
-    ax.set_xticks(range(len(ALNS)), ["(a) cov", "(b) Procrustes"])
-    ax.set_ylabel("gap recovered\n(aligned - frozen) / (refit - frozen)")
-    ax.set_title("Fraction of the frozen-to-refit gap\n(pre = pre -> pre ceiling)", fontsize=10)
+    for y in (0.33, 0.67):
+        ax.axhline(y, color="0.8", lw=.6, ls="--")
+    ax.set_ylim(-1.15, 2.15)
+    ax.set_xticks(range(len(ALNS)), ["(a) covariance", "(b) Procrustes"])
+    ax.set_ylabel("share of the stroke-added gap closed\nindex = d(aligned - frozen) / d(refit - frozen)")
+    ax.set_title("Re-embedding index vs pre (bars 95 % CI)\n>= .67 re-embedded, <= .33 replaced", fontsize=10)
+    ax.legend(fontsize=7.5, frameon=False, loc="upper right")
     ax = axs[2]
     P = per_session(R, K_MAIN, "pair")
     for ep in EPOCHS:
