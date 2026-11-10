@@ -1259,3 +1259,11 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   conflicts, nothing overwritten, local kept. Not mask-dependent (LocaNMF features; verified in code). 21 within_acc
   entries are keyed on the orphaned csig edce41f2a5 (never read) -- cleanup candidates. Manifest: session scratchpad
   d2_copyback_manifest.csv. Deleting the local copies = Priya's call (local folder also holds bootstrap/ + lp_licks/).
+- 11-10 ~01:45 O2 COMBINED RUN WRONG SETTINGS (found in Priya's first copied outputs, main PS92_0806 + bins_w1 45):
+  gate = reference (should be attempted), exec_set cam4 (should be polar), lick_set cam4 (should be combined); 381 vs
+  364 trials. CAUSE (mine): bundle enc_rebuild_20261109g built from a shell without the production encoder settings; the
+  11-04 bundle's env.json had OROFACIAL_GATE=attempted, COMBINED_ENCODING_EXEC=polar / LICKS=combined / TONGUE=3d /
+  EXEC3D_TABLE / TARGET3D_TABLE / BINS_CALIB (+ ATTEMPTS=tables/trial_attempts.csv in every sbatch). The local check
+  passed because it compared against the same (wrong) shell. -> Priya asked to scancel enc_rebuild_20261109g jobs;
+  REBUILDING as enc_rebuild_20261110g with the exact 11-04 settings (scratchpad o2_env_combined.sh); new check after.
+  LESSON: diff a new bundle's env.json against the last production bundle before giving O2 commands.
