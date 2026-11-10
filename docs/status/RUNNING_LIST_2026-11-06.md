@@ -1182,3 +1182,5 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   31 empty claims rmdir'd. Two fresh lanes SECTIONS="ITI DOWN" (L11, L12; MINFREE 12) picked them up 19:37 (zscore
   claimed). e_iti_split_sd_g EXIT 0 19:23. Monitor now also flags "SKIPPED (dependency". LESSON: after clearing a
   failed stop-mode step, ALSO clear the dependency-skip cascade it caused before relaunching.
+- 19:55 e_iti_zscore_pre_g EXIT 0 (19:51); e_iti_main_g (summary on the 107 cached extracts) running. No failures since
+  the cascade clear. Handoff block 40 updated (~20:00 entry).
