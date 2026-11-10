@@ -1332,3 +1332,6 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   glue fix present). Bundled code snapshot is b661b9dc regardless. Future runs: PYTHONPATH in Windows form
   (C:/...;C:/.../scripts). 93 _g done; t_frame_frlag_g, b_roiexact_frA_g, gb_quiet_lp_g, l_lc_extract_g, x_enlv_extract_g
   done since 10:45.
+- 11-10 ~12:20 Priya resubmitted: bins_w1 1-10 (59232063), bins_w05 77 (59232064), bins_w2 69 (59232065), droppos
+  3-5,7,8,27,30-34 at 64G (59232066). OOM list so far = exactly those 11 droppos indices (48G); no other OOMs. Re-check
+  missing sessions after fr_* / trmodels / musall_shuf / nodir / shufpos finish.
