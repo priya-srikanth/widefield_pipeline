@@ -1189,3 +1189,10 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   .failed_2011_no_order_preds, empty claim rmdir, literal paths) BEFORE any new skip cascade; queue_daqlk20c.sh re-runs
   it with dep e_split_order_all_g (same step name, dependents wait for its .done). Read-only scan helper listing all
   other undeclared reads of moved-aside files so they can be handled before they fail.
+- 20:25 DEP-GAP SCAN (read-only, scratchpad/gapscan): 4 more gaps (steps reading moved-aside files without their
+  producer upstream; 2 would silently write PARTIAL results, not fail): c_fr_pixsig_g (+ drift_after, pixmapsig) need
+  O2_COLLECT_g; e_spout_patterns_g / e_spout_pat_stats_g and e_split_where_g / e_plain_where_g need l_basis_extract_g;
+  e_filter_cmp_g needs e_split_order_{all,far1,gap2far1}_g + e_split_gauss_{all,far1,gap2far1}_g. None claimed yet ->
+  queue_daqlk20d.sh: the same 8 steps (same names / commands / env tokens) with the deps corrected, one section per
+  step, 8 lanes -> all 8 claimed (v20 lanes skip them). 4 lanes aborted at preflight when started 3 s apart (collision)
+  and were relaunched 25 s apart: all OK. Monitor now matches v20b/c/d lanes too (it missed those aborts).
