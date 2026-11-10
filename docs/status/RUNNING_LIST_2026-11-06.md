@@ -1235,3 +1235,9 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   The frozen-encoder partial refits never ran on O2 -> porting = new code; briefly stopped the port and released the
   claims (22:58), then Priya: "fine with new code if it saves time" -> claims RE-HELD (no desktop claim in between),
   port helper resumed (bundle partial_rebuild_20261109 build for b_partial_frA_g still running, PID 37852).
+- 23:46 O2 combined bundle enc_rebuild_20261109g BUILT (107 inputs, 28 GB, run tag ..._daqlk, mask_sig 5f9eb36f36b2,
+  commit 8aed3a7b, cams cam1,cam4, fr master_pre_v1); COMMANDS.md given to Priya (steps 1-2 now; step 3 = 15 arrays after
+  the local check). check PS94_0809 first refused (shell lacked COMBINED_ENCODING_ENL_SOURCE=lp / LICKS_ALL=split / RUN
+  from env.json) -> re-running with them. O2 partial-refit port VALIDATED (PS92_0806: 7607 scores, max |diff| 0.0; ~9.6
+  min / session / task); bundle partial_rebuild_20261109 capturing 107 sessions (~27 GB). Re-run since 21:30 clean:
+  g5_epoch_lp_ENL_g, CD LP chain, f_noFR_g, f_frA_pos_g, b_wsd_lick_g, f_noFR_basis_g, f_frA_basis_g EXIT 0; 26 _g done.
