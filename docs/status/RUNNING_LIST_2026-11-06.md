@@ -1335,3 +1335,10 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
 - 11-10 ~12:20 Priya resubmitted: bins_w1 1-10 (59232063), bins_w05 77 (59232064), bins_w2 69 (59232065), droppos
   3-5,7,8,27,30-34 at 64G (59232066). OOM list so far = exactly those 11 droppos indices (48G); no other OOMs. Re-check
   missing sessions after fr_* / trmodels / musall_shuf / nodir / shufpos finish.
+- 11-10 13:50 STALE REUSE CAUGHT: a_relabel_noFR_g / a_relabel_frA_g / a_relabel_trial_g finished in ~1 min each (glue-in
+  ~5-6 h): wfield_local/frozen_relabel.py:180 reuses joint_fits.pkl if it exists and skips sessions with sessions/*.json
+  -- the 22:55 resume audit misread that line as a docstring; frozen_relabel_* (11-05 / 11-06, glue-in) were never moved.
+  Fixed: .done -> .done_stale_132x; frozen_relabel_v7g3_t3d_spont{,_frA,_trial}/* moved aside (manifest
+  _superseded_glue_20261109/move_aside_relabel_20261110_134738.csv); empty claims rmdir'd; queue_daqlk20f.sh re-runs the 3
+  (lanes R1-R3, 13:48). Dependents a_relabel_conf_cue/lick_g had not started. Second, MECHANICAL stale audit started
+  (runtime-vs-estimate for finished steps + ast-based resume scan for pending ones).
