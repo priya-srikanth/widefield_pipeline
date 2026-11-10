@@ -1305,3 +1305,11 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
 - 11-10 07:10 64 _g done; f_frA_ls_g EXIT 0 (07:05) -> adding a_partial_ls_g to the O2 partial bundle
   (o2_partial.py bundle --step a_partial_ls_g, --jobs 1, code b661b9dc unchanged). O2 combined copies: bins_w05 101,
   bins_w1 97, bins_w2 started.
+- 11-10 09:15 HEAD-OF-LINE STALL found + fixed: 66 steps had ALL deps done but no lane had claimed them (every v20 lane
+  waits earlier in file order on encoder frames; e.g. e_split_order_all_g ready since e_iti_main_g 11-09 20:03, so
+  e_firstlick_extract_g (v20c) and its followers idled). queue_daqlk20e.sh = those 66 step lines VERBATIM (15 ENC: roiexact,
+  pix_union, relabel x3, allsession x2, svf x4, kernels, within_spout_mixed, ...; 49 DOWN: e_split_order_* x4, decomps,
+  pix / r2 / rsig / spout maps, residuals, c2l restnl, disengage, ...; 2 FIG: g6_grant_g, g6_grant_lp_g); 5 lanes E1 D1
+  D2 D3 F1 launched 25 s apart, preflight OK, first steps claimed 09:11-09:12. 66 _g done; t_frame_te_g done 08:28
+  (t_partial_te_g can be bundled for O2 after a_partial_ls_g; te needs a check first).
+  LESSON: lanes are strictly file-ordered -> periodically list ready-but-unclaimed steps (script in this entry's history).
