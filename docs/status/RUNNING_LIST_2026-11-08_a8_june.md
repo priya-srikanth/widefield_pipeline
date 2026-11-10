@@ -202,3 +202,13 @@ classes; 3 = FaceRhythm June face regions; 4 = FaceRhythm June O2 run. Backgroun
 - Task 2: DONE (see findings).
 - Task 1: DONE (see findings). Task 4: outputs collected + QC'd (see findings); next = project onto frozen
   master_pre_v1 + June readouts, waits on decision 2 for PS95.
+
+## 11-09 late: June COHORT shape floor (frf_june done, 5 fits on the share)
+`scripts/face_rhythm_june_cohort_shape.py` -> `readouts/master_pre_v1/june_reference/cohort_shape_june/`
+(june_cohort_shape.png, data/june_cohort_shape.csv). June fit (COHORT + 4 LOAO) angled vs production preEarly / pre with
+drift_floor.py's v2 matching; DESCRIPTIVE (pooled fits). lick_right, COHORT (LOAO range):
+- spatial: noise 3.0, Aug drift 5.2, JUNE vs early Aug 15.6 (17.6-27.6); acute 25.0, subacute 22.0, chronic 26.2.
+  Epoch > its own June floor in 4/5 fits acute and chronic, 3/5 subacute; the June jackknife spread overlaps the epochs.
+- spectral: June 33.9 (22-42) is LARGER than every epoch (19.6 / 20.7 / 13.3): 0/5 fits beyond June.
+- So the lick_right spatial change sits modestly above a 2-month pre-stroke floor (not clearly), and the spectral change
+  is within it. Fits with the per-session result (acute / subacute beyond June, chronic not). Not yet on deck / page.
