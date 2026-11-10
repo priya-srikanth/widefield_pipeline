@@ -1301,3 +1301,4 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   map drift x3, chronic stability, ...); the 3 c_fr_pix* steps are claimed by the v20d lanes and wait for O2_COLLECT_g
   (by design). "failed: 59, skipped: 57" in the end line = cumulative FAILED.txt / SKIPPED.txt over all queues, not new.
   59 _g done at 05:48. O2 combined: bins_w1 96/107 copied, bins_w05 started; partial refits not yet copied.
+- 11-10 06:20 handoff block 40 updated (06:20 entry). 63 _g done; O2 combined copies verified (bins_w1 97, bins_w05 48).
