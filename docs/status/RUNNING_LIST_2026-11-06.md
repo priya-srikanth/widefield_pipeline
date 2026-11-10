@@ -1320,3 +1320,9 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
 - 11-10 ~10:45 a_partial_ls_g O2 CHECK PASSED (PS92_0806: 9875 values, max |bundle - desktop| 0.0, design exact, 0 share
   reads; 23 min / task). Commands to Priya (same bundle; rsync again copies only the new files). First-lick extract done
   10:08 after e_split_order_all_g 10:01. RAM touched 0 GB 10:11 (many v20e workers); no failures.
+- 11-10 ~11:15 O2 combined (enc_rebuild_20261110g) status from Priya's sacct + copied outputs: every copied session has
+  gate attempted / exec polar / licks combined (0 bad). Complete: main 107, main_nolicksall 107, drop 107. Gaps:
+  bins_w1 idx 1-10 FAILED at startup (~10 s; likely before the rsync finished), bins_w05 77 + bins_w2 69 CANCELLED,
+  droppos idx 3 OUT_OF_MEMORY at 47.8 GB (48G) + 10 more missing; shufpos 6 missing (maybe still running). Resubmit
+  commands given (droppos with --mem=64G). Asked for a failed log tail to confirm the startup cause. Partial refits: no
+  outputs copied yet; t_partial_te_g bundling.
