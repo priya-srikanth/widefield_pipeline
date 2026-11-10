@@ -588,6 +588,94 @@ def summarise(out: Path) -> None:
     with open(out / "figdata.pkl", "wb") as fh:
         pickle.dump({"R": R, "F": F, "T": T, "V": V}, fh)
     plot(out, R, F)
+    plot_split(out, R)
+    plot_cortex(out)
+
+
+def plot_split(out: Path, R: pd.DataFrame, aln: str = "pro") -> None:
+    """Page-style scatter: frozen / aligned / refit accuracy by epoch + the stroke-added gap split into the part the
+    alignment closes (change vs pre of aligned - frozen) and the remainder (change vs pre of refit - aligned). k = K_MAIN,
+    pooled pre reference, every panel from the same rows (half-session training, held-out half)."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
+
+    from wfield_local.figure_layout import save_png_svg
+    from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE
+    from wfield_local.sig_marks import reserve_headroom, star_top
+    D = per_session(R, K_MAIN)
+    T = pd.read_csv(out / "tests.csv")
+    T = T[T.k == K_MAIN].set_index(["epoch", "quantity"])
+    animals = sorted(D.animal.unique())
+    arms = [("acc_frozen", "Frozen pre-stroke decoder"), (f"acc_{aln}", "Aligned frozen decoder\n(Procrustes rotation)"),
+            ("acc_refit", "Within-session refit decoder")]
+    plt.rcParams.update({"font.size": 12})
+    fig, axes = plt.subplots(1, 4, figsize=(17, 4.6), gridspec_kw={"width_ratios": [1, 1, 1, 1.15]})
+    rng = np.random.default_rng(3)
+    for ax, (col, title) in zip(axes[:3], arms):
+        for i, e in enumerate(EPOCHS):
+            c = EPOCH_LINE[e]
+            for an in animals:
+                v = D[(D.epoch == e) & (D.animal == an)][col].dropna().values
+                ax.scatter(i - 0.13 + rng.uniform(-0.09, 0.09, len(v)), v, marker=ANIMAL_MARKER[an], s=24,
+                           facecolors="none", edgecolors=c, linewidths=0.9, alpha=0.75, zorder=2)
+            m = D[D.epoch == e].groupby("animal")[col].mean()
+            ax.errorbar(i + 0.2, m.mean(), yerr=m.std(ddof=1) / np.sqrt(len(m)), fmt="o", ms=7, color=c, mec="k",
+                        mew=0.6, capsize=4, elinewidth=1.6, zorder=4)
+            if e != "pre" and (e, col) in T.index and bool(T.loc[(e, col), "change_sig"]):
+                star_top(ax, i + 0.03, "*", color=c, fontsize=14)
+        ax.axhline(1 / 6, ls="--", color="0.5", lw=1)
+        ax.text(3.5, 1 / 6 + 0.01, "chance", ha="right", va="bottom", fontsize=10, color="0.4")
+        ax.set_ylim(0, 1.0)
+        ax.set_title(title, fontsize=12.5)
+        ax.set_xticks(range(4), [e.capitalize() for e in EPOCHS])
+        for t, e in zip(ax.get_xticklabels(), EPOCHS):
+            t.set_color(EPOCH_LINE[e])
+        ax.set_xlim(-0.5, 3.55)
+    axes[0].set_ylabel("Decoding accuracy (held-out half)")
+    ax = axes[3]
+    parts = [("G", "whole gap", "0.35", 0), (f"A_{aln}", "closed by rotation", "#1b9e77", 1),
+             (f"R_{aln}", "remaining", "#d95f02", 2)]
+    for j, e in enumerate(EPOCHS[1:]):
+        for q, _lab, colr, k in parts:
+            if (e, q) not in T.index:
+                continue
+            r = T.loc[(e, q)]
+            x = j + (k - 1) * 0.26
+            ax.bar(x, r.change, width=0.22, color=colr, alpha=0.35 if q == "G" else 0.55, edgecolor=colr, zorder=2)
+            ax.errorbar(x, r.change, yerr=[[r.change - r.lo], [r.hi - r.change]], fmt="none", ecolor="k", lw=1.2,
+                        capsize=3, zorder=4)
+            for an in animals:
+                v = r.get(f"d_{an}", np.nan)
+                if np.isfinite(v):
+                    ax.scatter(x + rng.uniform(-0.05, 0.05), v, marker=ANIMAL_MARKER[an], s=22, facecolors="none",
+                               edgecolors="k", linewidths=0.8, zorder=5)
+            if bool(r.change_sig):
+                star_top(ax, x, "*", color=colr if q != "G" else "0.25", fontsize=13)
+        idx = T.loc[(e, f"index_{aln}")] if (e, f"index_{aln}") in T.index else None
+        if idx is not None:
+            ax.text(j, -0.12, f"closed {idx.change:.2f}\n[{idx.lo:.2f}, {idx.hi:.2f}]", ha="center", va="top",
+                    fontsize=9.5, color="#1b9e77")
+    ax.axhline(0, color="0.5", lw=1)
+    ax.set_xticks(range(3), [e.capitalize() for e in EPOCHS[1:]])
+    for t, e in zip(ax.get_xticklabels(), EPOCHS[1:]):
+        t.set_color(EPOCH_LINE[e])
+    ax.set_ylim(-0.32, 0.36)
+    ax.set_xlim(-0.55, 2.55)
+    ax.set_ylabel("change vs pre (accuracy)")
+    ax.set_title("Stroke-added frozen-to-refit gap,\nsplit", fontsize=12.5)
+    hp = [plt.Rectangle((0, 0), 1, 1, color=c, alpha=0.5, label=lab) for _q, lab, c, _k in parts]
+    ax.legend(handles=hp, fontsize=9, frameon=False, loc="upper center", bbox_to_anchor=(0.5, -0.1), ncol=3)
+    for a in axes:
+        a.spines[["right"]].set_visible(False)
+    reserve_headroom(fig)
+    h = [Line2D([], [], marker=ANIMAL_MARKER[an], ls="", mfc="none", mec="0.25", ms=7, label=an) for an in animals]
+    fig.legend(handles=h, loc="upper center", ncol=len(h), frameon=False, fontsize=11, bbox_to_anchor=(0.5, 1.0))
+    fig.tight_layout(rect=(0, 0.04, 1, 0.92), w_pad=1.8)
+    save_png_svg(fig, out / "aligned_split.png", dpi=200)
+    plt.close(fig)
+    print(f"wrote {out / 'aligned_split.png'}", flush=True)
 
 
 def plot(out: Path, R: pd.DataFrame, F: pd.DataFrame) -> None:
@@ -725,6 +813,63 @@ def main(argv=None) -> int:
     print(f"scored {len(units)} sessions in {time.time() - t0:.0f} s -> {out / 'rows.csv'}", flush=True)
     summarise(out)
     return 0
+
+
+
+
+def plot_cortex(out: Path, aln: str = "pro") -> None:
+    """Step 6 figure: where the alignment re-weights / rotates the frozen readout (maps.csv, change vs pre -> pre)."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    from wfield_local.figure_layout import save_png_svg
+    from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE
+    from wfield_local.sig_marks import reserve_headroom, star_top
+    f = out / "maps.csv"
+    if not f.exists():
+        return
+    M = pd.read_csv(f).set_index(["epoch", "quantity"])
+    panels = [("Within-hemisphere rotation\n(cosine aligned vs pre readout)",
+               [(f"cos_{aln}_left", "ipsi"), (f"cos_{aln}_right", "contra")], "change in cosine vs pre->pre"),
+              ("Hemispheric re-weighting\n(contralesional share of readout energy)",
+               [(f"dshare_{aln}_right", "contra\nhemisphere")], "change in share vs pre->pre"),
+              ("Area loading shares",
+               [(f"dshare_{aln}_tjM1_left", "tjM1\nipsi"), (f"dshare_{aln}_tjM1_right", "tjM1\ncontra"),
+                (f"dshare_{aln}_SSp-m_left", "SSp-m\nipsi"), (f"dshare_{aln}_SSp-m_right", "SSp-m\ncontra")],
+               "change in share vs pre->pre")]
+    fig, axes = plt.subplots(1, 3, figsize=(15, 4.6), gridspec_kw={"width_ratios": [1.2, 0.8, 1.6]})
+    rng = np.random.default_rng(5)
+    eps = list(EPOCHS[1:])
+    for ax, (title, qs, ylab) in zip(axes, panels):
+        for i, (q, _lab) in enumerate(qs):
+            for j, e in enumerate(eps):
+                if (e, q) not in M.index:
+                    continue
+                r = M.loc[(e, q)]
+                x = i + (j - 1) * 0.24
+                c = EPOCH_LINE[e]
+                ax.errorbar(x, r.change, yerr=[[r.change - r.lo], [r.hi - r.change]], fmt="o", color=c, ms=7,
+                            capsize=3, lw=1.5, zorder=4, label=e.capitalize() if i == 0 else None)
+                for an in ANIMAL_MARKER:
+                    v = r.get(f"d_{an}", np.nan)
+                    if np.isfinite(v):
+                        ax.scatter(x + 0.07 + rng.uniform(-0.02, 0.02), v, marker=ANIMAL_MARKER[an], s=20,
+                                   facecolors="none", edgecolors=c, linewidths=0.8, zorder=3)
+                if bool(r.change_sig):
+                    star_top(ax, x, "*", color=c, fontsize=13)
+        ax.axhline(0, color="0.5", lw=1)
+        ax.set_xticks(range(len(qs)), [lab for _q, lab in qs])
+        ax.set_xlim(-0.5, len(qs) - 0.5)
+        ax.set_title(title, fontsize=12)
+        ax.set_ylabel(ylab)
+        ax.spines[["right"]].set_visible(False)
+    axes[0].legend(fontsize=9, frameon=False, loc="lower left")
+    reserve_headroom(fig)
+    fig.tight_layout(w_pad=2.0)
+    save_png_svg(fig, out / "aligned_cortex.png", dpi=200)
+    plt.close(fig)
+    print(f"wrote {out / 'aligned_cortex.png'}", flush=True)
 
 
 if __name__ == "__main__":
