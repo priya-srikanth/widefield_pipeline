@@ -1176,3 +1176,9 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   split table, as expected, cont). chain_v20c: 107 extracts present, e_iti_split_sd_g claim cleared, .failed renamed
   (.failed_1714_empty_session_dir), ITI lane relaunched 19:17 (waits for 15 GB free). CD chain DONE: g5_cd_traj_g,
   g5_cd_traj_orth_g, cd_overlap_null_g, g7_cd_geometry_g all EXIT 0 (19:11). No RAM-guard action (RAM 13-17 GB).
+- 19:40 SKIP CASCADE found + cleared: while e_iti_split_sd_g was .failed (17:14), the ITI+DOWN lane marked 31 dependent
+  steps .skipped (17:15; e_iti_zscore_pre_g, e_iti_main_g, e_june_ref_g, ... 28 by ITIDOWN, 3 by ITI) and held their
+  claims -> they would never run. Literal-path script glue_rerun/clear_cascade.sh: 31 .skipped -> .skipped_1715_cascade,
+  31 empty claims rmdir'd. Two fresh lanes SECTIONS="ITI DOWN" (L11, L12; MINFREE 12) picked them up 19:37 (zscore
+  claimed). e_iti_split_sd_g EXIT 0 19:23. Monitor now also flags "SKIPPED (dependency". LESSON: after clearing a
+  failed stop-mode step, ALSO clear the dependency-skip cascade it caused before relaunching.
