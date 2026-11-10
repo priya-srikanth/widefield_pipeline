@@ -1292,3 +1292,8 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   exec_amps / target_xyz / target_amps / extra_lick_on present; the wrong 1109g lacked them); 381 trials pre-gate in all
   three (gate applied at run time via ATTEMPTS). Commands given to Priya: rsync + 1 test task first; she copies back that
   session's JSON, coordinator confirms gate=attempted / exec polar / 364 trials, then the 15 arrays.
+- 11-10 ~05:10 FIRST CORRECTED O2 OUTPUTS OK (enc_rebuild_20261110g out/bins_w1, 46 sessions, 03:46-05:06): gate
+  attempted / exec polar / licks combined 46/46; n_trials == the 11-04 production run 46/46; alphas identical 46/46 (fits
+  mask-independent, as expected). Region R2 vs glue-in: ALM, tjM1, MOp, SSp-m unchanged (<= 1e-4); cortex median |diff|
+  0.006; SSs 0.055-0.061 (worst 0.27), VISrl_L 0.049, VISp_R 0.006; the 17 glue-only areas are gone. Exactly the
+  expected pattern.
