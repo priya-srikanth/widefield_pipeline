@@ -1221,3 +1221,13 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   scores. MOVED all three partial_refit/ dirs to _superseded_glue_20261109 (manifest move_aside_partial_refit_20261109_223848.csv).
   Urgent read-only audit started: every resume-by-existence output in the queue + verdicts on finished _g steps.
   O2 combined bundle enc_rebuild_20261109g building (~23:35).
+- 22:55 RESUME AUDIT (read-only helper; scratchpad resume_audit/): all FINISHED v20 steps CLEAN (no stale reuse:
+  e_iti_main "0 to extract" reused the v20-made, mask-keyed extracts; hemo cache v20-made; CD refit new models; ENC fit/
+  moved). 8 UNSAFE resume-by-existence outputs (not mask-keyed, not moved, glue-in), all for WAITING steps -> MOVED aside
+  (manifest _superseded_glue_20261109/move_aside_resume_audit_20261109_224844.csv): session_vs_frozen/sessions (frA,
+  frA roi, frA_ls, frA_te; 107 json each), random_splits PS92-95 .partial.csv + PS92.csv, reembedding sessions_cache (1 GB),
+  lick_code_subspace licks_cache(_enlv).pkl, balblind_preds.csv.gz. Resolved the UNSURE list: enl_hist_cov.csv.gz and
+  specificity_control/.../gate-attempted_v7g3_t3d_spont/sessions_by_spout.csv MOVED (both rebuilt when missing;
+  manifest move_aside_resume_audit2_*.csv); l_enl_target_g runs in full (rewrites cls_trials) -> safe; d_attempt_maps
+  display-only -> left. LESSON: the move-aside list came from mask-dependence; resume-by-existence outputs need their
+  own audit before any re-run.
