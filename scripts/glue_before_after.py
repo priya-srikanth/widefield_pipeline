@@ -566,8 +566,17 @@ def main() -> None:
         if oh is not None:
             rec["flags"], rec["stats"] = compare_rows(parse_log(oh["path"]), parse_log(new_log))
         if step in ENC_AREA:
-            rec["enc"] = encoder_area(step, a.n_boot)
-            rec["flags"] += encoder_flags(rec["enc"])
+            proxy = ENC_AREA[step][0]
+            if proxy.exists() and dt.datetime.fromtimestamp(proxy.stat().st_mtime) > RERUN_START:
+                # 11-10: the `_roiexact` re-run rewrote the glue-in proxy in place at 11:16, so it is glue-OUT now and
+                # the comparison would be glue-out vs glue-out (all star changes vanish). Refuse it; the 11-10 01:28
+                # report (commit a52a1afd) holds the valid per-area tables, made before the overwrite.
+                note += (f"; per-area R2 SKIPPED: glue-in proxy {proxy.name} rewritten by the re-run "
+                         f"({dt.datetime.fromtimestamp(proxy.stat().st_mtime):%m-%d %H:%M}); valid per-area tables = "
+                         "the 11-10 01:28 report (commit a52a1afd)")
+            else:
+                rec["enc"] = encoder_area(step, a.n_boot)
+                rec["flags"] += encoder_flags(rec["enc"])
         rec["sd"] = sd_tables(step)
         if oh is None and rec["enc"] is None and not any(not s.get("missing") for s in rec["sd"]):
             rec["status"] = "no glue-in copy"
