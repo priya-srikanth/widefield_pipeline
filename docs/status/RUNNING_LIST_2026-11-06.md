@@ -1313,3 +1313,7 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   D2 D3 F1 launched 25 s apart, preflight OK, first steps claimed 09:11-09:12. 66 _g done; t_frame_te_g done 08:28
   (t_partial_te_g can be bundled for O2 after a_partial_ls_g; te needs a check first).
   LESSON: lanes are strictly file-ordered -> periodically list ready-but-unclaimed steps (script in this entry's history).
+- 11-10 09:30 a_partial_ls_g BUNDLED into partial_rebuild_20261109 (107/107; fits.pkl + mask_sig; loaders recorded =
+  load_imaging / load_behaviour / _fr_columns, same path as the validated frA step). env.json vs a "frozen"-token step's
+  env (e_iti_main_g.log header): identical except EXEC3D_TABLE -> @tables copy (expected) and the 4 machine-local paths.
+  One-session check (PS92_0806) running before the commands go to Priya.
