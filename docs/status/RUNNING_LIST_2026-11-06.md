@@ -1184,3 +1184,8 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   failed stop-mode step, ALSO clear the dependency-skip cascade it caused before relaunching.
 - 19:55 e_iti_zscore_pre_g EXIT 0 (19:51); e_iti_main_g (summary on the 107 cached extracts) running. No failures since
   the cascade clear. Handoff block 40 updated (~20:00 entry).
+- 20:15 e_iti_main_g EXIT 0 (20:03). e_firstlick_extract_g EXIT 1 (20:11): reads lick_order_preds_areas_splitr8.csv.gz
+  (moved aside; producer e_split_order_all_g, NOT a declared dep -- producer check gap). Cleared (.failed ->
+  .failed_2011_no_order_preds, empty claim rmdir, literal paths) BEFORE any new skip cascade; queue_daqlk20c.sh re-runs
+  it with dep e_split_order_all_g (same step name, dependents wait for its .done). Read-only scan helper listing all
+  other undeclared reads of moved-aside files so they can be handled before they fail.
