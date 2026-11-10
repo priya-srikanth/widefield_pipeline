@@ -1342,3 +1342,13 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   _superseded_glue_20261109/move_aside_relabel_20261110_134738.csv); empty claims rmdir'd; queue_daqlk20f.sh re-runs the 3
   (lanes R1-R3, 13:48). Dependents a_relabel_conf_cue/lick_g had not started. Second, MECHANICAL stale audit started
   (runtime-vs-estimate for finished steps + ast-based resume scan for pending ones).
+- 11-10 14:20 STALE AUDIT 2 (mechanical; scratchpad stale_audit2/): all 102 finished _g steps CLEAN (fast ones explained:
+  cd_overlap_null = cached mask-independent cdfit; timing / behavior-only steps; precue caches written in this run;
+  e_iti_key 10x faster but new models frozen, not reuse). UNSAFE pending, fixed: (1) b_residual_roi_frA_g reads
+  specificity_control/.../spont_frA/sessions.csv unconditionally before its writer b_specificity_g -> file moved aside +
+  queue_daqlk20g.sh runs it with dep b_specificity_g (claimed 14:18); (2) l_contrib_polar_g reuses
+  offset_contrib/maps_areas_splitr8.npz + summary_areas_splitr8.csv (11-06) -> moved aside (it recomputes when absent).
+  Manifest _superseded_glue_20261109/move_aside_audit2_20261110_141416.csv. Watch: v_pixmus_unique_noFR_* safe only if
+  v_pixmus_noFR_spont_g (running) rewrites all 107 sessions. g5_chronic_stability reads recovery_trajectory (11-08,
+  LocaNMF, judged unaffected). Not fully checkable: shared wfield_local resume hits per step; missing-dependency class
+  (needs a deps-vs-reads audit).
