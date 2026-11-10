@@ -1196,3 +1196,7 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   queue_daqlk20d.sh: the same 8 steps (same names / commands / env tokens) with the deps corrected, one section per
   step, 8 lanes -> all 8 claimed (v20 lanes skip them). 4 lanes aborted at preflight when started 3 s apart (collision)
   and were relaunched 25 s apart: all OK. Monitor now matches v20b/c/d lanes too (it missed those aborts).
+- 20:30 resumed after Priya's login switch (~3 min): no failures / skips / aborts; 10 _g steps done; 27 lane processes;
+  RAM 17 GB; RAM guard (PID 36408) + monitor alive. Housekeeping: stopped 60 orphaned `tail -F CHAIN.log` processes
+  left by this session's expired monitors (exact PIDs, this session's scratchpad path only); 4 tails of session
+  cdd1e016 (10-25) left alone.
