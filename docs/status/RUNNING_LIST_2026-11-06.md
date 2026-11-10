@@ -1297,3 +1297,7 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   mask-independent, as expected). Region R2 vs glue-in: ALM, tjM1, MOp, SSp-m unchanged (<= 1e-4); cortex median |diff|
   0.006; SSs 0.055-0.061 (worst 0.27), VISrl_L 0.049, VISp_R 0.006; the 17 glue-only areas are gone. Exactly the
   expected pattern.
+- 11-10 06:07 MAPS lane ended: 12/15 MAPS steps done (epoch DAQ + LP arms, restnl maps lp / contact / enl1s, lpfinal,
+  map drift x3, chronic stability, ...); the 3 c_fr_pix* steps are claimed by the v20d lanes and wait for O2_COLLECT_g
+  (by design). "failed: 59, skipped: 57" in the end line = cumulative FAILED.txt / SKIPPED.txt over all queues, not new.
+  59 _g done at 05:48. O2 combined: bins_w1 96/107 copied, bins_w05 started; partial refits not yet copied.
