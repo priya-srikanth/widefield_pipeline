@@ -1212,3 +1212,12 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   free. Also stopped 4 idle orphan pool workers of the 11:32-stopped preview map (parent 36696). O2 bundle
   enc_rebuild_20261109g building (12/107 at 22:14; fits are on V so mask-independent, but every reported area / map /
   cortex number goes through the masks and the saved outputs are already mask-summed -> full O2 rerun needed).
+- 22:55 O2 for the frozen encoder: repo check -- only the COMBINED model ever ran on O2 (o2_encoding.py; bundles
+  enc_v36_20261019, enc_rebuild_20261104b); frozen-encoder O2 = 10-22 handoff item F, never built. Priya OK'd building it:
+  helper on feat/o2-partial-refit-1109 (wf_o2partial): partial_refit port VIABLE (unit = session). b_partial_frA_g /
+  a_partial_ls_g / t_partial_te_g HELD for O2 by claim dirs (render_daqlk/logs/PARTIALS_HELD_FOR_O2.txt).
+  FOUND by the helper: the 17:10 move-aside took only partial_refit/fits.pkl; partial_refit/sessions/*.json (107 glue-in per
+  run) + gain / boot csv + figures remained, and partial_refit.py skips sessions with a JSON -> would have re-summarised stale
+  scores. MOVED all three partial_refit/ dirs to _superseded_glue_20261109 (manifest move_aside_partial_refit_20261109_223848.csv).
+  Urgent read-only audit started: every resume-by-existence output in the queue + verdicts on finished _g steps.
+  O2 combined bundle enc_rebuild_20261109g building (~23:35).
