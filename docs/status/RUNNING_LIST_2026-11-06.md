@@ -1248,3 +1248,9 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   render_daqlk/logs/O2_COLLECT_g.done and launch SECTIONS="O2" (queue_daqlk20.sh) -- the v20d c_fr_pix* lanes wait on it too.
 - 11-10 ~00:35 O2 combined bundle CHECK PASSED (PS94_0809: 816/816 region rows, max |r2 bundle - local| 4.13e-07, 0 rows
   > 1e-6, 0 share reads in the bundle run) -> the submitted O2 runs stand. Re-run quiet (no failures) since 23:46.
+- 11-10 ~01:00 while the re-run + O2 run (Priya: "what else can you run"): light helpers started --
+  (1) per-animal glue before/after tables for finished _g steps (scripts/glue_before_after.py ->
+  docs/status/GLUE_BEFORE_AFTER_2026-11-10.md; conclusion changes go to Priya before page text);
+  (2) D2 copy-back of the 392 local-only section G entries to the M: session_cache (copy + sha1 verify; local kept);
+  (3) caption / page-text draft for every decided change (branch docs/caption-pass-draft-1110,
+  CAPTION_PASS_DRAFT_2026-11-10.md; numbers {{TBD after re-run}}). Review of the O2 partial-refit code after its bundle.
