@@ -1326,3 +1326,9 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   droppos idx 3 OUT_OF_MEMORY at 47.8 GB (48G) + 10 more missing; shufpos 6 missing (maybe still running). Resubmit
   commands given (droppos with --mem=64G). Asked for a failed log tail to confirm the startup cause. Partial refits: no
   outputs copied yet; t_partial_te_g bundling.
+- 11-10 11:50 NOTE: my o2_partial bundle runs for a_partial_ls_g / t_partial_te_g set PYTHONPATH="$PWD;$PWD/scripts" (posix
+  paths) -> wfield_local resolved to the installed SHARED checkout (widefield_pipeline main ee38dd81) instead of
+  wf_o2partial. Verified harmless: `git diff 8aed3a7b ee38dd81 -- wfield_local configs` is EMPTY (identical library code;
+  glue fix present). Bundled code snapshot is b661b9dc regardless. Future runs: PYTHONPATH in Windows form
+  (C:/...;C:/.../scripts). 93 _g done; t_frame_frlag_g, b_roiexact_frA_g, gb_quiet_lp_g, l_lc_extract_g, x_enlv_extract_g
+  done since 10:45.
