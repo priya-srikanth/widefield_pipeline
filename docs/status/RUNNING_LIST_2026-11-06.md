@@ -1267,3 +1267,11 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   passed because it compared against the same (wrong) shell. -> Priya asked to scancel enc_rebuild_20261109g jobs;
   REBUILDING as enc_rebuild_20261110g with the exact 11-04 settings (scratchpad o2_env_combined.sh); new check after.
   LESSON: diff a new bundle's env.json against the last production bundle before giving O2 commands.
+- 11-10 ~02:30 BEFORE/AFTER (36 finished _g steps; scripts/glue_before_after.py -> docs/status/GLUE_BEFORE_AFTER_2026-11-10.md,
+  a52a1afd). Conclusion-level: (1) CD overlap vs matched null PS95: glue-in significant drop (acute / subacute, all
+  aligns) -> glue-out inside the null (~0.75-0.79); PS93 lick K 3->2 (CD also had the bulbs-only component exclusion);
+  (2) LP lick map 14m far_L acute 44 sig bins -> 0, 14z far_center subacute 18 -> 0 (tested bins 2609 -> 2022);
+  (3) encoder f_frA_g: VIS acute lick-window stars lost (VISl_R, VISrl_L); some VIS / SSs / RSPagl unique-contribution
+  stars change; 2 CI-edge cases in stable areas (MOp_R uniq_target, SSp-m_R uniq_task). Stable areas unchanged
+  (<= 0.002); ALM / tjM1 glue-out values pending the ROI re-runs. Brought to Priya. Caption draft
+  (docs/caption-pass-draft-1110, 6e2cb0d3, 14 questions) + docs-on-unpushed-branch issue raised with Priya.
