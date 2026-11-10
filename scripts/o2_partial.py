@@ -311,6 +311,24 @@ class Replay:
             setattr(owner, name, f)
 
 
+def design_sums(d: dict) -> list:
+    """Column sums of X and Rd (float64): the tolerance check of a replayed design. The bitwise digest moves with the
+    BLAS build / CPU (the drift QR), so another machine can differ in the last bits; the scores are compared in check."""
+    import numpy as np
+    return [np.asarray(d[k], np.float64).sum(0) for k in ("X", "Rd")]
+
+
+def same_design(d: dict, inp: dict) -> str:
+    """'exact' (digest equal), 'float' (column sums within 1e-9 relative), or '' (differs)."""
+    import numpy as np
+    if design_digest(d) == inp["design"]:
+        return "exact"
+    for a, b in zip(design_sums(d), inp.get("design_sums") or []):
+        if a.shape != b.shape or not np.allclose(a, b, rtol=1e-9, atol=1e-9 * max(1.0, float(np.abs(b).max()))):
+            return ""
+    return "float" if inp.get("design_sums") is not None else ""
+
+
 def design_digest(d: dict) -> str:
     import numpy as np
     h = hashlib.sha1()
@@ -365,7 +383,7 @@ def capture_worker(job):
                                      protocol=5))
         os.replace(tmp, ip)
     out = {mask_keys.FIELD: mask_sig, "label": label, "memo": other, "files": rec.files, "globs": rec.globs,
-           "design": design_digest(d), "n_frames": int(len(d["X"])), "n_cols": int(d["X"].shape[1])}
+           "design": design_digest(d), "design_sums": design_sums(d), "n_frames": int(len(d["X"])), "n_cols": int(d["X"].shape[1])}
     dst = Path(rdir) / "inputs" / f"{label}.pkl"
     tmp = dst.with_suffix(".tmp")
     tmp.write_bytes(pickle.dumps(out, protocol=5))
@@ -611,14 +629,17 @@ def run_task(b, step: str, label: str, fits=None, audit: bool = False) -> int:
     if audit:
         sys.addaudithook(_audit)
     import partial_refit as pr
+    from wfield_local import parallel
+    parallel.pin_blas()                       # as the desktop's fan_sessions workers (BLAS_THREADS): same rounding
     t0 = time.time()
     with Replay({**img["memo"], **inp["memo"]}, inp["files"], inp["globs"]):
         fe = _fe()
         from wfield_local import config
-        dd = design_digest(fe.session_design(label, fe._templates_of(str(r / "fit" / "templates.pkl"),
-                                                                     config.animal_of(label))))
-        if dd != inp["design"]:
-            raise o2_bundle.BundleMismatch(f"{label}: design digest {dd} differs from the bundle's {inp['design']}")
+        d0 = fe.session_design(label, fe._templates_of(str(r / "fit" / "templates.pkl"), config.animal_of(label)))
+        dd = same_design(d0, inp)
+        del d0
+        if not dd:
+            raise o2_bundle.BundleMismatch(f"{label}: the replayed design differs from the one built at bundle time")
         pr.job((label, str(r), str(fits)))
     if audit:
         print(f"share / cache reads during the task: {len(_SHARE_READS)} {sorted(set(_SHARE_READS))[:5]}")
@@ -681,6 +702,8 @@ def cmd_check(a) -> int:
         print("CHECK FAILED (bundled run)")
         return 1
     run = _run_dir(a.step)
+    from wfield_local import parallel
+    parallel.pin_blas()                       # the desktop step's workers run pinned (fan_sessions)
     pr.job((a.label, str(run), str(out / "desktop" / "fits.pkl")))
     t2 = time.time()
     j1 = json.loads((out / "bundle" / "sessions" / f"{a.label}.json").read_text())
