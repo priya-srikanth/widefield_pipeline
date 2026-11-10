@@ -1275,3 +1275,9 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   stars change; 2 CI-edge cases in stable areas (MOp_R uniq_target, SSp-m_R uniq_task). Stable areas unchanged
   (<= 0.002); ALM / tjM1 glue-out values pending the ROI re-runs. Brought to Priya. Caption draft
   (docs/caption-pass-draft-1110, 6e2cb0d3, 14 questions) + docs-on-unpushed-branch issue raised with Priya.
+- 11-10 ~02:45 O2 PARTIAL-REFIT BUNDLE READY: M:/.../rebuild_20261103/o2/partial_rebuild_20261109 (code b661b9dc on
+  feat/o2-partial-refit-1109, wf_o2partial; masks 5f9eb36f36b2; 107/107 sessions, 33 GB) for b_partial_frA_g. env.json =
+  the queue step's env (25/25 vars vs the f_frA_g.log header; EXEC3D_TABLE bundled as @tables). check PS92_0806: 7607
+  scores, max |diff| 0.0, 0 share reads. Commands given to Priya. a_partial_ls_g / t_partial_te_g get added to the same
+  bundle when f_frA_ls_g / t_frame_te_g are done (te: run check first). After O2: collect (wf_o2partial worktree), then
+  coordinator writes render_daqlk/logs/b_partial_frA_g.done. Steps stay HELD by claims.
