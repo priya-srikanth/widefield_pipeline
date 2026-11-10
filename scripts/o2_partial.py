@@ -462,11 +462,12 @@ def cmd_bundle(a) -> Path:
     if code.exists():
         shutil.rmtree(code)
     code.mkdir()
-    tar = d / "code.tar"
-    subprocess.run(["git", "-C", str(repo), "archive", "--format=tar", "-o", str(tar), commit, "wfield_local", "configs",
-                    "scripts"], check=True)
-    shutil.unpack_archive(str(tar), str(code))
-    tar.unlink()
+    import tempfile
+    with tempfile.TemporaryDirectory() as td:      # archive locally (git archive -o onto the share failed 0xC0000142)
+        tar = Path(td) / "code.tar"
+        subprocess.run(["git", "-C", str(repo), "archive", "--format=tar", "-o", str(tar), commit, "wfield_local",
+                        "configs", "scripts"], check=True)
+        shutil.unpack_archive(str(tar), str(code))
     (d / "partial_runner.py").write_text(RUNNER, encoding="utf-8", newline="\n")
     rv = PathResolver()
     b = f"{oi.scratch(a.user)}/o2/{a.name}"
