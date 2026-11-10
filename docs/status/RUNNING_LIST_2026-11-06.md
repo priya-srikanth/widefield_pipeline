@@ -1317,3 +1317,6 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   load_imaging / load_behaviour / _fr_columns, same path as the validated frA step). env.json vs a "frozen"-token step's
   env (e_iti_main_g.log header): identical except EXEC3D_TABLE -> @tables copy (expected) and the 4 machine-local paths.
   One-session check (PS92_0806) running before the commands go to Priya.
+- 11-10 ~10:45 a_partial_ls_g O2 CHECK PASSED (PS92_0806: 9875 values, max |bundle - desktop| 0.0, design exact, 0 share
+  reads; 23 min / task). Commands to Priya (same bundle; rsync again copies only the new files). First-lick extract done
+  10:08 after e_split_order_all_g 10:01. RAM touched 0 GB 10:11 (many v20e workers); no failures.
