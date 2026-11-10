@@ -1241,3 +1241,8 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   from env.json) -> re-running with them. O2 partial-refit port VALIDATED (PS92_0806: 7607 scores, max |diff| 0.0; ~9.6
   min / session / task); bundle partial_rebuild_20261109 capturing 107 sessions (~27 GB). Re-run since 21:30 clean:
   g5_epoch_lp_ENL_g, CD LP chain, f_noFR_g, f_frA_pos_g, b_wsd_lick_g, f_noFR_basis_g, f_frA_basis_g EXIT 0; 26 _g done.
+- 11-10 00:00 Priya SUBMITTED all O2 runs of enc_rebuild_20261109g (test task + 15 arrays). Local check PS94_0809 still
+  running (bundle vs share); if it mismatches -> Priya scancel. When runs finish: Priya rsyncs out/ back; coordinator
+  `o2_encoding.py --profile cohort1_rebuild_20261103 collect --name enc_rebuild_20261109g --tag <TAG>` per TAG (env
+  COMBINED_ENCODING_ENL_SOURCE=lp LICKS_ALL=split RUN=lp_r4_heatmap_20261013__clean_v36), then touch
+  render_daqlk/logs/O2_COLLECT_g.done and launch SECTIONS="O2" (queue_daqlk20.sh) -- the v20d c_fr_pix* lanes wait on it too.
