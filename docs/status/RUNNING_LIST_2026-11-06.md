@@ -1363,3 +1363,17 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   (Priya transferring; bundle sizes imaging 15 GB + 19 / 19 / 17 GB per step), te bundling (ETA ~16:45). Since 14:50:
   b_matched_residual, b_pix_frAsplit, b_fr_musall_v2, b_r2_maps, v_pixmus_noFR_spont, b_rsig_all_pa, b_posinfo,
   b_resid_trend_frA EXIT 0.
+
+### 11-10 ~17:30 -- glue before/after: two suspicious changes traced (both = the glue mask, not code)
+- 14m far_L acute lick-map cluster (44/2609 -> 0/2022 bins) and 14z far_center subacute Musall bins (18 -> 0): every
+  significant bin lay inside the painted glue (left posterior VISp; 2,816/2,816 and 1,152/1,152 px). Per-session maps
+  bit-identical between runs (107/107); on the 2,022 bins tested in both, z r = 0.99997; max-stat threshold 3.25 -> 3.17.
+  Glue artifact, no real cluster lost. Scratch: scratchpad/map14m_dig/ (repro.py, far_L_acute_glue_in_vs_out.png).
+- ITI frozen decoder, in-trial post-cue licks, relative-to-spout target (acute -0.106 -> -0.063; chronic -0.048* -> -0.038
+  n.s.): current code on the moved-aside glue-in session files reproduces the 11-05 numbers exactly, on the glue-out files
+  the 11-10 numbers. Behavior inputs identical (tr_side / tr_pos bit-identical). ~3/4 of the acute shift = the 17 dropped
+  glue-only area columns (VIS / AUD / TEa); rest = changed means of shared areas. Scratch: scratchpad/iti_trial_dig/.
+- O2 partial refit: b_partial_frA_g PS92_0806 from O2 == desktop reference (max |diff| 3.3e-15). Fix 0b6999fa
+  (same_design tolerance) is on O2; re-applied on M: after the te bundle re-copied b661b9dc at 16:42.
+- glue_before_after.py: refuses a glue-in proxy rewritten by the re-run (b3e52ec5); still collapses the window column
+  of lick_enl_angle rows (0.5 vs 1.0 s) -- fix before the next refresh. Primary 1.0 s slide ENL angle essentially unchanged.
