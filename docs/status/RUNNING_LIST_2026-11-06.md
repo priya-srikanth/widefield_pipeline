@@ -1358,3 +1358,8 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   e_rmse_unsc_g read where_preds.csv (writer e_scatter_g). queue_daqlk20h.sh = those 4 with the deps added, 4 lanes,
   all claimed 15:09-15:11. Not traceable statically: reads through other modules' helpers (preds_path, out_root, wd.*,
   load_fd) -> rely on the monitors (EXIT / SKIPPED) for any remaining gap. 106 _g done.
+- 11-10 16:00 PRE-COMPACTION STATE (full detail in handoff block 40 "UPDATED 11-10 ~16:00"): 114 _g done; O2 combined 11/15
+  TAGs complete + collect running, 4 TAGs' resubmits on O2; partial refits frA + ls bundled + checked, NOT yet submitted
+  (Priya transferring; bundle sizes imaging 15 GB + 19 / 19 / 17 GB per step), te bundling (ETA ~16:45). Since 14:50:
+  b_matched_residual, b_pix_frAsplit, b_fr_musall_v2, b_r2_maps, v_pixmus_noFR_spont, b_rsig_all_pa, b_posinfo,
+  b_resid_trend_frA EXIT 0.
