@@ -1246,3 +1246,5 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   `o2_encoding.py --profile cohort1_rebuild_20261103 collect --name enc_rebuild_20261109g --tag <TAG>` per TAG (env
   COMBINED_ENCODING_ENL_SOURCE=lp LICKS_ALL=split RUN=lp_r4_heatmap_20261013__clean_v36), then touch
   render_daqlk/logs/O2_COLLECT_g.done and launch SECTIONS="O2" (queue_daqlk20.sh) -- the v20d c_fr_pix* lanes wait on it too.
+- 11-10 ~00:35 O2 combined bundle CHECK PASSED (PS94_0809: 816/816 region rows, max |r2 bundle - local| 4.13e-07, 0 rows
+  > 1e-6, 0 share reads in the bundle run) -> the submitted O2 runs stand. Re-run quiet (no failures) since 23:46.
