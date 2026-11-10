@@ -212,3 +212,5 @@ drift_floor.py's v2 matching; DESCRIPTIVE (pooled fits). lick_right, COHORT (LOA
 - spectral: June 33.9 (22-42) is LARGER than every epoch (19.6 / 20.7 / 13.3): 0/5 fits beyond June.
 - So the lick_right spatial change sits modestly above a 2-month pre-stroke floor (not clearly), and the spectral change
   is within it. Fits with the per-session result (acute / subacute beyond June, chronic not). Not yet on deck / page.
+
+- 11-09 late: Priya: June floor figures go on the FR page as a collapsible supplement only (no deck). PUBLISHED FR page v46 (supplement to Fig 7a.1, id #june-floor, both June figures + a status row). Source: session scratchpad fr_page/ (copy at M:/MICROSCOPE/Priya/Widefield/fr_page_src/fr_page/index_v46.html). FINDINGS 5 + FACE_RHYTHM_FINDINGS 6e-June updated.

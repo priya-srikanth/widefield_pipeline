@@ -19,6 +19,8 @@
 >   PS95 06/07 4, 06/08 29 -- decision 2 in the running list).
 > - Also 11-07 night: pooled-null interim rescore (subacute 379 perms; FR handoff NIGHT (5)); Priya: page waits for chronic.
 
+> **11-09 (late) -- a8.** FR page **v46** (June 2-month drift-floor supplement under Fig 7a.1, #june-floor; status row). June per-session + COHORT shape tests done (FACE_RHYTHM_FINDINGS 6e-June; RUNNING_LIST_2026-11-08_a8_june). State-space page v37 published for the other window (its handoff). Deck: no change (Priya: page supplement only). K08 Fig 2C frame pairs: scripts/pose_frame_pair.py -> Claude outputs/k08_camframes.
+>
 > **11-07 (night) -- a8.** Supersedes the deck / page facts of the 11-07 evening block below.
 > - DECK `Overview_2026-11-06.pptx` = **201 slides**. NEW after slide 82 (aligned speed maps): 83 lick rate per spout
 >   (fig:cohort_lick_rate_by_position), 84 rhythm-band maps (fig:band_maps_lick_rhythm + fig:band_maps_lick_ongoing_7Hz),

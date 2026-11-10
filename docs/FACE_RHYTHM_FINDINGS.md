@@ -582,6 +582,23 @@ session_maps_unambiguous_lick.png; session_loading_v2/session_loading_lick.png, 
 session_loading_driftpre.png, ps93_acute_sessions_lick_right.png. Supersedes the per-session statistics of 6c and the
 pooled-fit significance claims of FINDINGS 5.10 as the main test (those stay as the descriptive second view).
 
+### 6e-June. Against a 2-month pre-stroke floor (June 06/06-06/08; 11-09, Priya: page supplement only)
+
+The 6e floor is the August pre sessions' own variability (~1-2 weeks). The 12 June sessions (O2 own fits, same settings
+as own8) were scored the same way as an extra epoch (`scripts/face_rhythm_june_session_shape.py`, 10,000 within-animal
+June / epoch shuffles; angles and loss one-sided, asymmetry and side specificity two-sided). June already differs from
+August: lick_right spatial +3.8 deg, lick_left +8.9 deg spatial / +9.8 spectral (Holm vs August), also lick_ongoing_7Hz,
+slow_jaw, lick_fast_close spatial. Beyond June (uncorrected; NOTHING survives Holm over the lick pair): lick_right spatial
+acute +14.6 (p .003) and subacute +7.6 (p .029), chronic +5.5 NOT (p .21); spectral acute only (p .007); side
+specificity acute / subacute (p .007 / .014), chronic NOT (-.134 vs June -.119); lick_left no spatial change beyond
+June, spectral + side specificity acute / subacute, chronic loss 30/43 vs June 12/12 (p .010). Pooled COHORT fits
+(`scripts/face_rhythm_june_cohort_shape.py`, June fit + 4 LOAO vs production preEarly; descriptive): lick_right June vs
+early August 15.6 deg spatial (LOAO 17.6-27.6) vs 25.0 / 22.0 / 26.2 post (beyond June in 4 / 3 / 4 of 5 fits), spectral
+33.9 deg, LARGER than every epoch (0 / 5). **READING (PROVISIONAL):** lick_right's spatial shape change is beyond a
+2-month floor acutely / subacutely; its chronic and spectral changes are within it. Caveat: June differs from August in
+training stage and camera set-up as well as time, so this floor is generous. Outputs:
+readouts/master_pre_v1/june_reference/{session_shape_june,cohort_shape_june}/. Page: supplement to Fig 7a.1 (v46).
+
 ## 6f. Lick rhythm: video lick interval and rhythm-band face movement (11-07 night)
 
 Spectral center per animal (3-15 Hz, Hz; rule 8): PS92 6.81 / 6.56 / 6.74 / 6.79, PS93 6.74 / 6.56 / 6.78 / 7.00,
@@ -757,6 +774,8 @@ Done since this list was written: master rank 12 frozen, projected, named; secti
 FR run A / master FR in the encoder is summarized by the encoding window (ENCODING_FINDINGS; FINDINGS.md section 4).
 
 ## Change log
+
+* 2026-11-09: 6e-June added (June 2-month drift floor for the per-session and cohort shape tests; page v46 supplement).
 
 * 2026-10-25: current conclusions moved to docs/FINDINGS.md section 5 (one status-tagged line each); pilot sections and
   the 10-24 morning status table marked SUPERSEDED; cross-doc review fixes (rank-10 line, section 3 heading, push-rate

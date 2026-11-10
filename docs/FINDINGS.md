@@ -99,7 +99,7 @@ both lateral lick factors CHANGE SHAPE after the stroke and lose side specificit
 +14.6 / +7.6 / +5.5 deg, side specificity -.38 / -.25 / -.13; lick_left +12.1 / +10.5 / +9.9 deg, -.31 / -.23 / -.10),
 lick_left moves toward the contralesional face (+.23 / +.18 / +.10), and lick_right's weight leaves the central face
 for the ipsilesional cheek and jaw (map, 4 / 4 animals' sessions); none of this is pre-stroke drift or the loss of
-right licks. Acutely the lick rhythm slows (video licks: within-bout interval +15-25 ms at every spout) and the face
+right licks. Against a longer, 2-month pre-stroke floor (June sessions, FACE_RHYTHM_FINDINGS 6e-June, 11-09) lick_right's spatial change is beyond June acutely / subacutely but its chronic and spectral changes are within it (uncorrected; PROVISIONAL). Acutely the lick rhythm slows (video licks: within-bout interval +15-25 ms at every spout) and the face
 movement shifts to lower frequencies (spectrum center 6.77 -> 6.56 Hz, 4 / 4 animals, Holm .0003; the upper lick
 band falls more than the main lick rhythm), the pattern slower or less sharp licks produce; the 7 Hz factor is not
 LOST more often per session after correction. Map tests use 10,000 shuffles (11-07 night). PS93, with a pre-existing facial deficit, is inconsistent.
