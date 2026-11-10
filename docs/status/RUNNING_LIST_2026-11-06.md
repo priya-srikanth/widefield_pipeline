@@ -1281,3 +1281,9 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   scores, max |diff| 0.0, 0 share reads. Commands given to Priya. a_partial_ls_g / t_partial_te_g get added to the same
   bundle when f_frA_ls_g / t_frame_te_g are done (te: run check first). After O2: collect (wf_o2partial worktree), then
   coordinator writes render_daqlk/logs/b_partial_frA_g.done. Steps stay HELD by claims.
+- 11-10 ~02:40 combined bundle REBUILT: enc_rebuild_20261110g (107 inputs; commit 8aed3a7b; mask_sig 5f9eb36f36b2).
+  env.json vs the 11-04 production bundle: 21/21 keys IDENTICAL; tables/ 4/4 identical sha1 (exec_bins_calib,
+  pose3d_kin_licks_snapshot, pose3d_spout_positions_commanded, trial_attempts); identity differs only by the intended
+  _daqlk run tag; all 16 sbatch lines carry ATTEMPTS=tables/trial_attempts.csv. check PS94_0809 running with the full env
+  (scratchpad o2_env_combined.sh); then verify gate=attempted / exec polar in the checked session before handing out
+  commands. Bundle RAM guard ended with the build. RAM dipped to 2 GB 02:28 (LPfinal maps 15 GB + encoder workers).
