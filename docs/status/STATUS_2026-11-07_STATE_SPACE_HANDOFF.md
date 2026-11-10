@@ -48,7 +48,15 @@ running list `docs/status/RUNNING_LIST_2026-11-08_STATE_SPACE.md` sections A (de
   after the sweep.
 - **11-08 ~11:45:** page v15 has section 9 (maps, all baselines, why-cleaner). "Why cleaner" answered for the 15r
   activity maps (B19: window, not denoising); the residual-map half not done.
-- **11-09 ~16:00 -- START HERE (open items a-d DONE, B40-B45; FINDINGS 0 "Where things stand, state-space maps with
+- **11-09 ~21:00 -- START HERE (aligned frozen decoder DONE, running list B46 + C; FINDINGS 0 "Where things stand,
+  restored / re-embedded / replaced"; DECISIONS 11-09 gate = alignment efficiency).** `scripts/aligned_decoder.py`
+  (LocaNMF primary, `--basis svd` arm; `--summarise` redraws from rows.csv; capture cached in `inputs_lick_lick.pkl`),
+  `scripts/frozen_refit_basis_compare.py` (full-dim frozen / refit / gap, both bases, lick window). Verdicts (Procrustes
+  k = 10, both bases): acute RE-EMBEDDED, subacute / chronic PARTIAL; rotation mostly within hemisphere. PAGE: local v37
+  build now has section 11 (Figs 11.1-11.8 + a summary row; `state_space_page/add_aligned_section.py`, backup
+  `index_v37_pre_aligned_backup.html`); still UNPUBLISHED (other account), and the 9.3 b-d lower-bound caption rewrite
+  below is still pending. Open: none requested beyond publishing.
+- **11-09 ~16:00 (superseded by ~21:00; its PAGE note still applies) (open items a-d DONE, B40-B45; FINDINGS 0 "Where things stand, state-space maps with
   movement removed" + 0c items 7-8 REWRITTEN).** Headline revised: the activity increase is not movement under any model
   (incl. the encoder and each epoch's own coupling) and runs opposite to the June -> August change; the rest fall = task /
   licking periods further above rest; the BETWEEN-SPOUT change (acute far-contra deficit included) is largely accounted
