@@ -615,13 +615,14 @@ SBATCH_MEM = "16G"
 
 # ------------------------------------------------------------------------------------------------------- O2 task
 _SHARE_READS: list = []
+_OWN: list = []                               # the bundle itself (on the share when `check` runs it on the desktop)
 
 
 def _audit(event, args):
     if event == "open" and args and isinstance(args[0], (str, bytes, os.PathLike)):
-        p = os.fsdecode(args[0])
-        if _is_ext(p):
-            _SHARE_READS.append(p.replace("\\", "/"))
+        p = os.fsdecode(args[0]).replace("\\", "/")
+        if _is_ext(p) and not p.lower().startswith(tuple(_OWN)):
+            _SHARE_READS.append(p)
 
 
 def run_task(b, step: str, label: str, fits=None, audit: bool = False) -> int:
@@ -644,6 +645,7 @@ def run_task(b, step: str, label: str, fits=None, audit: bool = False) -> int:
         print("done already", label)
         return 0
     if audit:
+        _OWN.extend({str(x).replace("\\", "/").lower() for x in (b, b.resolve())})
         sys.addaudithook(_audit)
     import partial_refit as pr
     from wfield_local import parallel
@@ -659,7 +661,8 @@ def run_task(b, step: str, label: str, fits=None, audit: bool = False) -> int:
             raise o2_bundle.BundleMismatch(f"{label}: the replayed design differs from the one built at bundle time")
         pr.job((label, str(r), str(fits)))
     if audit:
-        print(f"share / cache reads during the task: {len(_SHARE_READS)} {sorted(set(_SHARE_READS))[:5]}")
+        print(f"share / cache reads outside the bundle during the task: {len(_SHARE_READS)} "
+              f"{sorted(set(_SHARE_READS))[:20]}")
         if _SHARE_READS:
             return 3
     print(f"{step} {label}: design {dd} ok; done in {(time.time() - t0) / 60:.1f} min", flush=True)
@@ -710,6 +713,7 @@ def cmd_check(a) -> int:
     env = {k: v for k, v in os.environ.items() if not k.startswith(("WIDEFIELD_", "WFIELD_", "LOCANMF_",
                                                                     "COMBINED_ENCODING_", "OROFACIAL_", "FROZEN_"))}
     env.pop("PYTHONPATH", None)
+    env["PYTHONDONTWRITEBYTECODE"] = "1"      # no __pycache__ inside the bundle
     t0 = time.time()
     p = subprocess.run([sys.executable, str(d / "partial_runner.py"), a.step, "--label", a.label, "--fits",
                         str(out / "bundle" / "fits.pkl"), "--audit"], env=env, cwd=str(out), capture_output=True, text=True)
