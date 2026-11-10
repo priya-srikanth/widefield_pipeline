@@ -1204,3 +1204,11 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   l_enl_lick_audit_g, l_iti_timing_audit_g, f_frA_g (21:10), f_frAsplit_g (21:13) all EXIT 0; 17 _g steps done;
   RAM 26 GB; 27 lane processes. RAM guard exited with the frAsplit step (its target). Monitor re-armed.
   OPEN for Priya: O2 combined-encoding re-bundle (new name, _daqlk tag recommended); she runs the O2 commands (ps150).
+- 22:40 C: space (a8 window asked; Priya OK): deleted 562 STALE imaging entries (93.3 GB) of
+  C:/Users/SabatiniLab/wfield_cache/input_cache_rebuild_20261104/imaging written before 11-09 17:00 -- unreachable since
+  the glue fix put the mask signature in that cache key. List: (session scratchpad)
+  deleted_stale_imaging_cache_20261109.csv. Kept the 119 live entries (17.6 GB) + behaviour (350 GB, key unchanged, in use)
+  + session_cache_rebuild_20261103 (78 GB; 392 local-only section G entries, D2 copy-back pending). C: 41.5 -> 125 GB
+  free. Also stopped 4 idle orphan pool workers of the 11:32-stopped preview map (parent 36696). O2 bundle
+  enc_rebuild_20261109g building (12/107 at 22:14; fits are on V so mask-independent, but every reported area / map /
+  cortex number goes through the masks and the saved outputs are already mask-summed -> full O2 rerun needed).
