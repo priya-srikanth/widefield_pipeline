@@ -1352,3 +1352,9 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   v_pixmus_noFR_spont_g (running) rewrites all 107 sessions. g5_chronic_stability reads recovery_trajectory (11-08,
   LocaNMF, judged unaffected). Not fully checkable: shared wfield_local resume hits per step; missing-dependency class
   (needs a deps-vs-reads audit).
+- 11-10 15:12 DEPS AUDIT (read-only; scratchpad deps_audit/): 387 steps; no stale-read gap among ready / claimed steps;
+  2 missing-dependency gaps (fail-not-stale, targets absent): b_fr_compare_g also reads
+  frozen_relabel_v7g3_t3d_spont/relabel_by_animal.csv (writer a_relabel_noFR_g); e_mae_g / e_perspout_g /
+  e_rmse_unsc_g read where_preds.csv (writer e_scatter_g). queue_daqlk20h.sh = those 4 with the deps added, 4 lanes,
+  all claimed 15:09-15:11. Not traceable statically: reads through other modules' helpers (preds_path, out_root, wd.*,
+  load_fd) -> rely on the monitors (EXIT / SKIPPED) for any remaining gap. 106 _g done.
