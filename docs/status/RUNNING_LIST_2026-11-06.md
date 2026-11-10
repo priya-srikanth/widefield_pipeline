@@ -1302,3 +1302,6 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   (by design). "failed: 59, skipped: 57" in the end line = cumulative FAILED.txt / SKIPPED.txt over all queues, not new.
   59 _g done at 05:48. O2 combined: bins_w1 96/107 copied, bins_w05 started; partial refits not yet copied.
 - 11-10 06:20 handoff block 40 updated (06:20 entry). 63 _g done; O2 combined copies verified (bins_w1 97, bins_w05 48).
+- 11-10 07:10 64 _g done; f_frA_ls_g EXIT 0 (07:05) -> adding a_partial_ls_g to the O2 partial bundle
+  (o2_partial.py bundle --step a_partial_ls_g, --jobs 1, code b661b9dc unchanged). O2 combined copies: bins_w05 101,
+  bins_w1 97, bins_w2 started.
