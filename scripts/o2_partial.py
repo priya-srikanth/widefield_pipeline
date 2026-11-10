@@ -336,14 +336,30 @@ def design_sums(d: dict) -> list:
 
 
 def same_design(d: dict, inp: dict) -> str:
-    """'exact' (digest equal), 'float' (column sums within 1e-9 relative), or '' (differs)."""
+    """'exact' (digest equal), 'float' (every column sum within 1e-9 of that column's |x| sum), or '' (differs).
+    The columns are centered, so their signed sums are ~1e-11 and rounding noise from another BLAS / CPU dominates
+    them: the tolerance must scale with the column's magnitude (sum |x|), not with the near-zero sum itself
+    (11-10: the old atol ~1e-16 refused every O2 task)."""
     import numpy as np
     if design_digest(d) == inp["design"]:
         return "exact"
-    for a, b in zip(design_sums(d), inp.get("design_sums") or []):
-        if a.shape != b.shape or not np.allclose(a, b, rtol=1e-9, atol=1e-9 * max(1.0, float(np.abs(b).max()))):
+    rec = inp.get("design_sums")
+    if rec is None:
+        return ""
+    worst = 0.0
+    for k, a, b in zip(("X", "Rd"), design_sums(d), rec):
+        if a.shape != b.shape:
+            print(f"design {k}: shape {a.shape} vs recorded {b.shape}", flush=True)
             return ""
-    return "float" if inp.get("design_sums") is not None else ""
+        scale = np.abs(np.asarray(d[k], np.float64)).sum(0)
+        r = np.abs(a - b) / np.maximum(scale, 1e-300)
+        worst = max(worst, float(np.nanmax(r)) if r.size else 0.0)
+        if not (np.isnan(a) == np.isnan(b)).all() or (r > 1e-9).any():
+            print(f"design {k}: {int((r > 1e-9).sum())} columns differ beyond 1e-9 of sum|x| (max {np.nanmax(r):.2e})",
+                  flush=True)
+            return ""
+    print(f"design: float-equal (max column-sum difference {worst:.2e} of sum|x|)", flush=True)
+    return "float"
 
 
 def design_digest(d: dict) -> str:
