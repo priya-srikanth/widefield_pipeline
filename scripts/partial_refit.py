@@ -112,11 +112,12 @@ def _te_mask(name, vcol, grp):
     return np.isin(grp, gs) | np.array([str(v).startswith(pre) for v in vcol]) if pre else np.isin(grp, gs)
 
 
-def frozen_fits(run: Path) -> Path:
+def frozen_fits(run: Path, dest: Path | None = None) -> Path:
     """Per animal frozen joint fit (scale, C, vcol, betas incl. leave-one-session-out, alphas), from the run's saved pre
-    statistics; cached in partial_refit/fits.pkl."""
+    statistics; cached in partial_refit/fits.pkl (``dest``: written there instead, e.g. an O2 bundle,
+    `scripts/o2_partial.py`)."""
     from wfield_local import frozen_encoder as fe
-    p = run / "partial_refit" / "fits.pkl"
+    p = Path(dest) if dest is not None else run / "partial_refit" / "fits.pkl"
     from wfield_local import mask_keys
     if p.exists():
         mask_keys.check_sidecar(p)               # stale-read guard (11-09)
