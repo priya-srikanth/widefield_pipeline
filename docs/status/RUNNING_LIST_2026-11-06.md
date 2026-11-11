@@ -1514,3 +1514,16 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   twin, no downgrade; Q8 yes; Q3 / Q4 open).
 - Caption pass: C1/C2/C11 resolve from the live page; C3 ok; C4 / C5 yes; C6 key family (14.1) now, discuss the other
   families; C7 ok; C9 yes; C10 ok; C8 / C12 / C13 / C14 explained, open. D1 (SSp-n shares in SVD / LocaNMF) after the re-run.
+
+### 11-11 ~13:30 -- pushes (Priya OK "you should be allowed to push")
+- PUSHED: docs/decisions-1111 (2db0c65e DECISIONS D1-D9 + 11-11 answers; 6926ad7b share-writer test fix) and
+  feat/o2-partial-refit-1109 (0b6999fa + cherry-picked fix 2f63e758). main has failed
+  test_share_writers_mode_safe since 49af4a01 (11-09 19:45: frozen_refit_basis_compare.py unclassified) -> every push
+  from a main-based branch was blocked; the fix classifies it INDIRECT (writes only under state_space_sim.ROOT).
+- NOT pushed: analysis/attempt-coding. ~1,400 commits behind main, fails guards main has fixed; merging main conflicts only
+  in scripts/s1_refit_basis_table.py (resolved: main docstring + enl_s columns, branch --suffix + camlickpl arms), but the
+  merge COMMIT is refused by the pre-commit hook ("Argument list too long": ruff on 1157 staged files in one call). Merge
+  aborted. Options to Priya: batch the hook (xargs) on main, or move the docs onto docs/decisions-1111.
+- C12 deck section G text: fix/deck-section-g-1111 474d4df9 (wf_deckg), not pushed. G2c places the DAQ lick-only grid
+  (no LP grid ever drawn) and G4 places the superseded 11-08 neg-none figure (the 11-09 working-vs-no-response figure is
+  only in the LP_licks folder) -> text written to match what is placed; asked Priya whether to re-render / repoint.
