@@ -53,6 +53,9 @@ INDIRECT = {
     # state-space arm (11-09): writes only under state_space_sim.ROOT (inputs pinned to the rebuild profile's literal
     # run tags, like every state_space_*.py); trips the scan only through its M:/MICROSCOPE/Priya INPUT paths
     "state_space_shift_movement.py",
+    # same arm (11-09): writes only under state_space_sim.ROOT / frozen_refit_basis; trips the scan only through its
+    # LNMF_INPUTS M:/MICROSCOPE/Priya INPUT path (unblocks the share-writer test on main, 11-11)
+    "frozen_refit_basis_compare.py",
 }
 
 
