@@ -1479,3 +1479,6 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   Detached worktree wf_render_v20m; queue_daqlk20m.sh (M1 svdF, M2 locanmfFM, M3 where; same names/cmds/env).
   M1 + M3 launched; a waiter relaunches M2 when v20l-L2 ends with the same error (old logs kept as *.log.ssp_n_20261111;
   .failed / .skipped removed, claims rmdir'd).
+- 07:12 v20l-L2 crashed as predicted after writing summary / maps / terms / terms_sessions_locanmfFM; waiter relaunched
+  M2 (preflight OK 07:12:25). M1 ABORTed at preflight 07:12:04 -- a race on the SHARED logs/PREFLIGHT_v20.check (M3 started
+  2 s later and rewrote it); relaunched alone, preflight OK 07:13:10. Launch lanes >= 10 s apart (or fix: per-lane check file).
