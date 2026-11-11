@@ -1416,3 +1416,13 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   paths). No dependents -> no skip cascade.
 - LESSON: the 11-10 deps audit matched literal file names; readers that build names via il.tagged(..., PRED_TAG) /
   il.pred_file slipped through. Re-audit tagged-name readers before the next long lane.
+
+### 11-11 ~02:00 -- l_offset_where_g failed: producer never existed (not a glue regression) -- for Priya
+- scripts/lick_offset_where.py compares the offset decomposition across FOUR bases (areas_splitr8, locanmfFM, svdF,
+  svdF_k50) and needs offset_contrib/terms_<tag>.csv for each. Only the Allen-area terms are produced by any queue
+  (e_contrib_split_g / e_contrib_areas_g, WFIELD_LICK_DECODER=areas[_split]); no queue (v8..v20i) has a
+  WFIELD_LICK_DECODER=locanmf (+ WFIELD_LOCANMF_MASK=1) or =svd producer, and the step has no earlier log in the rebuild
+  (never ran). Failed at the first missing file (terms_locanmfFM.csv). No dependents, no skip cascade.
+- NOT re-launched overnight (new compute of unknown cost: needs the LocaNMF / SVD frozen lick decoders). Decision for Priya:
+  add the two producers (lick_offset_contrib_map.py with WFIELD_LICK_DECODER=locanmf WFIELD_LOCANMF_MASK=1, and =svd)
+  then re-run l_offset_where_g, or drop the step (is the cross-basis offset comparison used on a page?).
