@@ -1426,3 +1426,16 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
 - NOT re-launched overnight (new compute of unknown cost: needs the LocaNMF / SVD frozen lick decoders). Decision for Priya:
   add the two producers (lick_offset_contrib_map.py with WFIELD_LICK_DECODER=locanmf WFIELD_LOCANMF_MASK=1, and =svd)
   then re-run l_offset_where_g, or drop the step (is the cross-basis offset comparison used on a page?).
+
+### 11-11 ~06:35 -- e_fpa_offset_g failed (missing output folder), relaunched via queue v20j
+- EXIT 1 at 06:30 after ~5 min: lick_matched_readout.per_lick writes into iti_licks.OUT_W, which in a rebuild is
+  run_mode.subdir(<face_prelaunch_aim>/offset/_itiw) = _itiw/<tag>; face_offset_partial.run only mkdirs _itiw. Code bug
+  (rebuild-mode only), not a glue regression; nothing read stale. No dependents -> no skip cascade.
+- Workaround (no code change in the pinned worktree): pre-created the empty _itiw/<tag> folder in our rebuild tree; old
+  log kept as e_fpa_offset_g.log.missing_itiw_dir_20261111; .failed removed, empty claim dir rmdir'd (literal path).
+  queue_daqlk20j.sh = v20i header (v20i->v20j) + section J1 with the same step/cmd/env/deps; lane J1 started 06:33.
+- Code fix for later (branch): face_offset_partial.run should mkdir il.OUT_W, not OFFD/_itiw.
+- Side note: l_face_offset_partial_g (scripts/face_offset_partial.py run directly) is a NO-OP -- the module has no
+  __main__ block, exits 0 in ~1 min with no output. The real work is e_fpa_offset_g (face_prelaunch_aim.py offset).
+  Harmless; drop or fix the step at the next queue edit.
+- v20i: e_rlink_angle_g / e_rlink_lat_g / e_beyond_g done; e_rlink_aim_g (I3) still waiting on a_aim_by_spout_g.
