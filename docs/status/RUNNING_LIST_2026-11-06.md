@@ -1388,3 +1388,10 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   single rsync; then compare PS92_0806, collect, write t_partial_te_g.done.
 - Still to do: move enc_rebuild_20261109g (WRONG settings) out/ aside; lick_enl_angle window column in
   glue_before_after.py; PS95 CD overlap / VIS-SSs encoder stars / re-embedding all-licks not yet traced to the mask.
+
+### 11-10 ~22:40 -- all O2 work for this window collected
+- t_partial_te_g: first O2 run OOM at 16G (design check passed, 1.23e-13); resubmitted --mem=32G unthrottled; 107/107
+  back, PS92_0806 == desktop 2.4e-14; collected 22:25; .done written. All three partial refits done.
+- Page draft (NOT published): docs/status/PAGE_DRAFT_REBUILD_2026-11-10.md (6f87ff9f) -- D1-D6 drafted, held list,
+  Q1-Q8 for Priya (D1: three rebuild-driven wording changes; Q7 pre-cue far-contra RESTnl vs session-mean disagree).
+- Running: tracing agent for PS95 CD overlap / VIS-SSs stars / re-embedding (mask vs code); re-run lanes incl. O2 section.
