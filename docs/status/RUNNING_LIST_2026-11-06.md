@@ -1488,3 +1488,14 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
 - fix/fpa-offset-rebuild-1111 (cec086f6, 4b5fa2e1) pushed to origin with Priya's OK (pre-push pytest 6297 passed).
 - Follow-up idea (Priya 08:00, not queued): per-lick SSp-n R / L offset shares in SVD / LocaNMF via pixel projection
   ((w_area . B) . dh_lick); shares are basis-dependent, read where bases agree.
+
+### 11-11 ~11:15 -- z_fig_pooled_g: encoding cohort tables never built in the rebuild; v20n
+- v20-O2 z_fig_pooled_g EXIT 1 at 11:09: <encoding>/movement_first_subset-nokin_exec-polar_licks-combined_bins{,_bw0.5,_bw2}/
+  tables/region_measures.csv missing. The O2 collect copied sessions/ for every arm (428 / 321 per arm), but NO queue step
+  runs scripts/combined_encoding_figures.py, which writes <arm>/tables/ (+ figures/). No arm in the rebuild has tables/.
+- queue_daqlk20n.sh (v20l header, code 8aed3a7b, env "noFR" like the pooled step): N1 = combined_encoding_figures --order
+  for the three _bins arms (contest_main), then z_fig_pooled_g with the same cmd + those three as extra deps. Old log kept as
+  z_fig_pooled_g.log.no_bins_tables_20261111; .failed removed, claim rmdir'd. Preflight OK 11:14:42. Cost not yet measured.
+- OPEN (decision): the other arms (main movement_first_exec-polar_licks-combined, _nolicksall, FR frg-A/B/D/S, nodir,
+  shufpos, trmodels, musall) also have no tables / figures in the rebuild. Only fig_pooled reads tables in the queues;
+  the encoding-page figures from this script (fig4 bars, dR2 by epoch, contest tables) would need the same step per arm.
