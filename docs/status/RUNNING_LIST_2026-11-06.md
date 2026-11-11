@@ -1406,3 +1406,13 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
 - l_reembed all-licks acute index: current code on the moved-aside glue-in sessions cache reproduces +0.293 exactly;
   features 62 -> 45 (17 glue-only dropped, 15 glue-touching changed, ALM_R / MOs_rest_R ~0.1 %), behavior identical.
 => All five flagged conclusion changes are traced to the glue mask; none to code.
+
+### 11-11 ~01:00 -- two DOWN failures (missing producer dep), fixed via queue v20i
+- e_rlink_angle_g / e_rlink_lat_g EXIT 1 at 00:58: iti_recovery_link.py reads where_preds_splitr8.csv (unscaled per-lick
+  preds) written by e_scatter_g (iti_where_scatter.py), but their deps listed only e_split_where_g; the glue-in copy had
+  been moved aside, so the file was missing (no stale read). e_rlink_aim_g and e_beyond_g read the same file (not yet run).
+- queue_daqlk20i.sh (header = v20h, same names / cmds / env, e_scatter_g added to deps), lanes I1-I4 launched 01:00-01:02;
+  old logs kept as <step>.log.missing_preds_20261111, the two .failed markers removed and empty claim dirs rmdir'd (literal
+  paths). No dependents -> no skip cascade.
+- LESSON: the 11-10 deps audit matched literal file names; readers that build names via il.tagged(..., PRED_TAG) /
+  il.pred_file slipped through. Re-audit tagged-name readers before the next long lane.
