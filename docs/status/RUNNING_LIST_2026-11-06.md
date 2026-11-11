@@ -1377,3 +1377,14 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   (same_design tolerance) is on O2; re-applied on M: after the te bundle re-copied b661b9dc at 16:42.
 - glue_before_after.py: refuses a glue-in proxy rewritten by the re-run (b3e52ec5); still collapses the window column
   of lick_enl_angle rows (0.5 vs 1.0 s) -- fix before the next refresh. Primary 1.0 s slide ENL angle essentially unchanged.
+
+### 11-10 ~21:00 -- O2 in: combined model collected, O2 section launched; partial frA + ls collected
+- enc_rebuild_20261110g: all 15 TAGs collected (bins_w05 / w1 / w2 19:50-19:57, droppos 20:50; 107 sessions each).
+  render_daqlk/logs/O2_COLLECT_g.done touched; lane SECTIONS="O2" (v20-O2) launched 20:52, preflight OK (8aed3a7b,
+  csig 3d7bbe921e, mask 5f9eb36f36b2).
+- o2_partial: b_partial_frA_g + a_partial_ls_g 107/107 from O2, PS92_0806 == desktop (3.3e-15 / 3.6e-15), collected from
+  wf_o2partial (0b6999fa), .done written by the coordinator. t_partial_te_g: desktop check PASSED (9120 values, 0.0);
+  Priya submitted it 11-10 ~21:00 (array unthrottled; a duplicate throttled copy to be cancelled); copy-back = the same
+  single rsync; then compare PS92_0806, collect, write t_partial_te_g.done.
+- Still to do: move enc_rebuild_20261109g (WRONG settings) out/ aside; lick_enl_angle window column in
+  glue_before_after.py; PS95 CD overlap / VIS-SSs encoder stars / re-embedding all-licks not yet traced to the mask.
