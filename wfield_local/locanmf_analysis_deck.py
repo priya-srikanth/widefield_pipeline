@@ -1115,9 +1115,11 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             _part = f" ({_i + 1} of {len(_counts)})" if len(_counts) > 1 else ""
             title(s, f"G1b. Which positions still have trials at all{_part}",
                   "Per-position engaged and no-lick counts, ONE PANEL PER POST-STROKE SESSION "
-                  "against the pre-stroke per-session mean. A position with ZERO engaged trials "
-                  "cannot have a lick-only decoding number at all; PS94 has two, and reading "
-                  "that as a neural deficit is how the first pass went wrong.")
+                  "against the pre-stroke per-session mean; engaged = a DAQ lick-sensor lick in the "
+                  "response window. A position with ZERO engaged trials cannot have a lick-only "
+                  "decoding number at all. On the DAQ sensor PS94 has two such positions; with "
+                  "camera (LP video) licks, acute far-contra lick trials exist in every animal, so "
+                  "those zeros are partly a sensor effect, not only abandoned positions.")
             note(s, M_POSTSTROKE, specific=S_G1B)
             big(s, _cf, top=1.6, width=12.5)
 
@@ -1201,16 +1203,21 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         _rf2 = src / "section_g_grid_withcontrol_lickonly.png"
         if _rf2.exists():
             s = slide()
-            title(s, "G2c (LICK-ONLY arm). The same grid, scored only on trials the animal "
-                     "actually licked on",
+            # LICK SOURCE (Priya 11-11, C12): this figure is drawn from the DAQ lick-sensor section G run
+            # (run tag "_daqlk", no WIDEFIELD_LICK_SOURCE=lp), so the text describes sensor licks; the camera
+            # (LP) lick-only grid has no producer run yet. When it does, rewrite this caption for it.
+            title(s, "G2c (LICK-ONLY arm, DAQ lick sensor). The same grid, scored only on trials "
+                     "with a sensor lick",
                   "THE CONTROL FOR THE OBVIOUS OBJECTION to the slide before this one: that the "
                   "all-trials dissociation is about missing MOVEMENTS rather than about coding. "
-                  "Here every scored trial has a lick, so it cannot be. THE COST is positions: an "
-                  "abandoned position has no lick trials, so it drops out entirely and the chance "
-                  "level moves with it (4-way rather than 6-way for PS94 and PS95 on day 1). Read "
-                  "the two arms TOGETHER \u2014 all-trials keeps every position and admits the "
-                  "confound, lick-only removes the confound and loses positions. Neither is the "
-                  "complete figure, and choosing one silently would be choosing a result.")
+                  "Trials: DAQ lick-sensor lick trials (a sensor lick in the response window). In "
+                  "the POST-LICK column a spout needs enough sensor-lick trials, so on this sensor "
+                  "arm positions drop out and the chance level moves with them (4-way rather than "
+                  "6-way for PS94 and PS95 on day 1). NOT SHOWN HERE: with camera (LP video) lick "
+                  "trials no position drops out (acute far-contra lick trials exist in every "
+                  "animal), and post-lick FROZEN-decoder accuracy drops acutely in 4 / 4 animals and "
+                  "is back chronically. The earlier 'near pre' / positions-drop-out reading came "
+                  "from these DAQ sensor trials, which had no acute far-contra trials.")
             note(s, M_RECODING, specific=S_G2C)
             big(s, _rf2, top=1.85, width=11.4)
 
@@ -1313,19 +1320,23 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         # --- G4 PRIMARY (coordinator 11-04): the camera-class discriminator; the DAQ slides below are robustness
         if (src / "section_g_g4_camclass.png").exists():
             s = slide()
-            title(s, "G4. Post-stroke trials by CAMERA CLASS, read by a pre-stroke working-vs-no-response boundary",
-                  "Pre-stroke WORKING (contact + incomplete) vs NO-RESPONSE (raw camera class, working period; "
-                  "unknown never trained), position-balanced; each group's post "
-                  "rows scored separately (spout-balanced, cells < 10 rows left out), against the same group "
-                  "pre-stroke (dotted = pre working where the group is absent pre). Right: the DAQ "
-                  "lick-vs-no-lick discriminator, ROBUSTNESS.")
+            title(s, "G4. Do post-stroke NO-RESPONSE trials look like pre-stroke WORKING trials?",
+                  "Discriminator trained on pre-stroke camera WORKING (contact + incomplete) vs NO-RESPONSE "
+                  "trials (raw camera class, working period), position-balanced; unknown never trained. Each "
+                  "camera class's post rows are scored separately (spout-balanced, cells < 10 rows left out) "
+                  "against the same class pre-stroke (dotted = pre working where the class is absent pre). "
+                  "The no-response readout is estimable only in sessions of 2 animals (PS94, PS95); every "
+                  "other session has too few no-response trials, so the cohort-level reading is not "
+                  "supported (2 / 4 animals). Right: the DAQ lick-vs-no-lick discriminator, ROBUSTNESS.")
             note(s, M_POSTSTROKE, specific=S_G4)
             big(s, src / "section_g_g4_camclass.png", top=1.7, width=11.5)
 
         # --- G4. identity, with its control read first (DAQ discriminator: ROBUSTNESS since 11-04)
         if (src / "poststroke_G4_identity.png").exists():
             s = slide()
-            title(s, "G4. Do post-stroke NO-LICK trials look like pre-stroke LICKING trials?",
+            title(s, "G4 (ROBUSTNESS, DAQ lick sensor). Do post-stroke NO-LICK trials look like "
+                     "pre-stroke LICKING trials?",
+                  "The DAQ-sensor version of the camera-class G4 above, not the primary readout. "
                   "Discriminator trained on pre-stroke engaged-vs-no-lick, POSITION-BALANCED so it "
                   "cannot simply answer 'far'. READ THE CONTROL FIRST: post-stroke ENGAGED trials "
                   "must sit above post-stroke no-lick, or the boundary is tracking 'post-stroke' "

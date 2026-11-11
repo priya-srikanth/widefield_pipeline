@@ -84,9 +84,9 @@ S_G2C = (
     "rather than an execution failure, and the frozen-decoder framing would not hold.")
 
 S_G4 = (
-    "This asks whether a no-lick trial carries the pattern of the position that was PRESENTED. "
-    "CAUTION documented at DECISIONS 2026-08-17: 'no detected lick' is not 'no attempt' -- the "
-    "sensor needs contact, so a short or weak lick registers as nothing. PS93 has a pre-existing "
+    "This asks whether a no-response trial carries the pattern of the position that was PRESENTED. "
+    "The camera classes see non-contact attempts (incomplete, jaw-only), so a no-response trial "
+    "has no lick seen on video, not merely none on the sensor. PS93 has a pre-existing "
     "rightward tongue bias and reaches far_L poorly PRE-stroke, which makes PS93 far_L a "
     "within-subject instance of the phenotype owing nothing to the lesion.")
 
