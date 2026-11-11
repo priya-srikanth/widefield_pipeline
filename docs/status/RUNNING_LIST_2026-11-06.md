@@ -1536,3 +1536,15 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
 - The FR arms' page figures (Figs 21.x) come from scripts/fr_musall.py, which had NO step in this render (provenance
   rows 267-269). queue_daqlk20p.sh P1 = fr_musall --mode A / B / D / S (outputs per mode, <E>/fr_encoding_summary).
   Preflight OK 14:08:51.
+
+### 11-11 ~18:50 -- v20 re-run idle since 14:25 (all done); section G LP figures (v20q); R^2 caption table (v20r)
+- Re-run: v20o / v20p ended 14:25; failures since 11-10 = only the 4 expected z_cef_fr*_g (figures via fr_musall, done).
+- Priya 11-11: section G slides show the UPDATED (LP) figures. The LP section G JSON existed (g5_section_g_lp 11-08,
+  g4only 11-09) but no section_g_figures step ever drew it -> queue v20q g7_section_g_figs_lp_g (plot-only from that JSON
+  into figures_working/LP_licks_gateLP_<TAG>; G4 png backed up as section_g_g4_camclass.bak_pre_v20q_20261111.png).
+- Priya 11-11 (Q3 / "B3"): keep pixel-mean numbers in the R^2 map captions, sourced from a pipeline table. Branch
+  feat/r2-map-means-1111 6371140e (frozen_r2_maps writes figures/r2_map_means.csv; --table-only from the saved npz; test).
+  v20r b_r2_map_means_g wrote it from b_r2_maps_g's npz (no refit); values == the hand-computed D3 draft numbers.
+  PAGE_DRAFT D3 now cites the table. Branch not pushed.
+- Next: deck section G repoint (fix/deck-section-g-1111) once the LP grid is checked; then #7 recount both references,
+  C6 14.1, D1 SSp-n, final glue report, per-animal tables, deck + page pass.

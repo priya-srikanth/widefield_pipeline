@@ -117,9 +117,10 @@ in the FaceRhythm lick-kernel frame only (see HELD).
 
 **Replaces:** GOAL Figs 20.3 (`fig15c_r2_chronic`), 20.4 (`fig15_r2_pre`), 20.5 (`fig15b_r2_acute`) images and captions;
 adds the share view.
-**Step:** `b_r2_maps_g` (.done 11-10 15:35; the log prints no readouts). Numbers below were computed for this draft from the
-step's own `$ENC/frozen_encoder_gate-attempted_v7g3_t3d_spont_basis/figures/r2_maps.npz` (per animal: mean over the
-32,450 map pixels with a value of epoch - pre; descriptive, no test). Please confirm you want these in the caption.
+**Step:** `b_r2_maps_g` (.done 11-10 15:35) + `b_r2_map_means_g` (v20r 11-11, feat/r2-map-means-1111 6371140e). Numbers
+below are read from `$ENC/frozen_encoder_gate-attempted_v7g3_t3d_spont_basis/figures/r2_map_means.csv` (per animal: mean
+over the 32,450 map pixels of epoch minus own pre; descriptive, no test); identical to the hand-computed draft values.
+Priya 11-11: keep the numbers in the caption, sourced from that table.
 **Figures:** same folder: `r2_maps_pre.png`, `r2_maps_{acute,subacute,chronic}_minus_pre.png` (+ `_peranimal`),
 `r2_share_pre.png`, `r2_share_{acute,subacute,chronic}_minus_pre.png` (+ `_peranimal`).
 **Verdict:** same conclusion (full R² lower over most of cortex chronically; per-animal patterns differ). No glue-in copy
@@ -131,7 +132,7 @@ each animal's 200-component pre basis). Full R² and each group's unique R² (= 
 model, / SST); SSE and SST summed over the epoch's sessions per animal, then the mean of animals. Pre sessions scored with
 leave-one-session-out betas, post sessions with the frozen all-pre betas. Frames: all imaging frames of the encoder
 trials. Trials: attempted trials (A9). Licks: lick-onset kernels = LP video licks (cam4 + cam1-only events); contact
-kernel = DAQ spout contacts. Baseline: epoch minus each animal's own pre. Stats: none (descriptive maps). Share view
+kernel = DAQ spout contacts. Baseline: epoch minus each animal's own pre. Stats: none (descriptive maps; per-animal pixel means in r2_map_means.csv). Share view
 (`r2_share_*`): unique R² / that animal's full R² (pixels with full R² < 0.02 blank). Mask: the painted fiber-glue region is
 excluded. Image left = ipsilesional. n = 4 animals."
 
