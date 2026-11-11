@@ -1527,3 +1527,12 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
 - C12 deck section G text: fix/deck-section-g-1111 474d4df9 (wf_deckg), not pushed. G2c places the DAQ lick-only grid
   (no LP grid ever drawn) and G4 places the superseded 11-08 neg-none figure (the 11-09 working-vs-no-response figure is
   only in the LP_licks folder) -> text written to match what is placed; asked Priya whether to re-render / repoint.
+
+### 11-11 ~14:10 -- v20o encoding figures; FR arms -> fr_musall (v20p)
+- v20o done EXIT 0: main (52 min) + --signed-only (25 min), _nolicksall (51 min), nodir, shufpos, droppos, trmodels, musall
+  (1-5 min each). z_cef_frA_g EXIT 1 (contest_main: no `agree` column): an FR arm name contains `_subset-fr`, so the
+  script routes it to the target-vs-executed contest suite, which does not apply; region_measures.csv is written before
+  the crash. frB / frD / frS will fail the same way (cannot edit the running queue; watch filters them).
+- The FR arms' page figures (Figs 21.x) come from scripts/fr_musall.py, which had NO step in this render (provenance
+  rows 267-269). queue_daqlk20p.sh P1 = fr_musall --mode A / B / D / S (outputs per mode, <E>/fr_encoding_summary).
+  Preflight OK 14:08:51.
