@@ -1439,3 +1439,17 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   __main__ block, exits 0 in ~1 min with no output. The real work is e_fpa_offset_g (face_prelaunch_aim.py offset).
   Harmless; drop or fix the step at the next queue edit.
 - v20i: e_rlink_angle_g / e_rlink_lat_g / e_beyond_g done; e_rlink_aim_g (I3) still waiting on a_aim_by_spout_g.
+
+### 11-11 ~06:40 -- e_fpa_offset_g (v20j) stopped at its pre-registered REPRODUCTION gate -- for Priya, not relaunched
+- The folder fix worked; the step ran to the gate and exited 2 by design (FACE_PRELAUNCH_AIM_PREREG_20261031 Q5:
+  "before" values must reproduce the PUBLISHED headlines within 0.01 mm before any after-partialling number).
+- Internal checks PASS exactly: REPRO 1 recomputed preds = lick_order_preds cache (4.4e-16); REPRO 2 per-lick read-out =
+  terms_licks 239,040/239,040 (1.1e-14). So the code path reproduces the REBUILD's own upstream numbers.
+- What fails is the comparison with the hard-coded PUBLISHED dict (face_offset_partial.py:50), which holds the GLUE-IN
+  page values:  docked ITI same-place acute 0.298 -> 0.287 (fail), subacute 0.216 -> 0.219, chronic 0.290 -> 0.280;
+  cued matched-error acute -0.035 -> +0.003 (fail), subacute -0.033 -> -0.032, chronic -0.019 -> -0.006 (fail).
+  Rebuild CIs: ITI same-place acute 0.287 [0.143, 0.422] (still > 0); cued matched-error acute 0.003 [-0.099, 0.109]
+  (null, as before). No direction / significance change visible; magnitudes move by the glue mask.
+- DECISION (Priya): update PUBLISHED to the rebuild's glue-out values (the gate then checks reproduction of the
+  rebuild, which REPRO 1/2 already show) and relaunch v20j J1 -- or keep the step held until the page values are
+  re-published. I did not edit a pre-registered gate constant. No dependents; nothing skipped.
