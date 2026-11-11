@@ -1461,3 +1461,12 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   preflight OK 06:54. Old log kept as e_fpa_offset_g.log.repro_gate_20261111; .failed removed, claim rmdir'd.
 - CORRECTION to the 06:40 entry: the PUBLISHED dict holds the LIVE page values, which never had the glue bug (that was
   rebuild-only). The 0.298 -> 0.287 etc. differences are rebuild-vs-live, not glue-in vs glue-out.
+
+### 11-11 ~07:05 -- l_offset_where_g: producers added (Priya "yes"), queue v20l
+- The step makes Figs 11.15 (decoder weight per 1 SD) and 11.16 (where the offset is carried) on the encoding page
+  (FIGURE_PROVENANCE rows 118-119); the bars figure is in CUT_FIGURES. Live terms_locanmfFM / terms_svdF are from 10-28.
+- queue_daqlk20l.sh (v20i header, code 8aed3a7b): L1 e_contrib_svdF_g (WFIELD_LICK_DECODER=svd), L2 e_contrib_locanmfFM_g
+  (locanmf + WFIELD_LOCANMF_MASK=1), L3 l_offset_where_g after both. Tags from iti_lick_order (frame scaling -> F, mask ->
+  M); svdF_k50 is derived inside lick_offset_where. Old log kept as l_offset_where_g.log.no_producer_20261111.
+  Area-basis producers took 7-9 min; these fit new frozen lateral decoders, cost not yet measured. Preflight OK 07:03.
+- Encoder O2 copy-back tmux can stop (all partial refits + combined collected); frf_null tmux is a8's, leave it.
