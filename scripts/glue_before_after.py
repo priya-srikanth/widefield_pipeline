@@ -560,6 +560,10 @@ def main() -> None:
     steps, top = [], []
     for step in done:
         new_log = LOGS / f"{step}.log"
+        if not new_log.exists():
+            # e.g. the O2 partial refits (b_partial_frA_g / a_partial_ls_g / t_partial_te_g): .done written by the
+            # coordinator after `o2_partial.py collect`, no desktop step log -> nothing to parse here
+            continue
         nh = log_header(new_log)
         oh, note = old_log_for(step, nh, chains)
         rec = {"step": step, "new": nh, "old": oh, "note": note, "flags": [], "stats": None, "enc": None, "sd": []}
