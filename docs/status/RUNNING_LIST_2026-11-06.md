@@ -1470,3 +1470,12 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   M); svdF_k50 is derived inside lick_offset_where. Old log kept as l_offset_where_g.log.no_producer_20261111.
   Area-basis producers took 7-9 min; these fit new frozen lateral decoders, cost not yet measured. Preflight OK 07:03.
 - Encoder O2 copy-back tmux can stop (all partial refits + combined collected); frf_null tmux is a8's, leave it.
+
+### 11-11 ~07:20 -- v20l producers crash at the per-lick SSp-n term; fixed, relaunched as v20m
+- e_contrib_svdF_g EXIT 1 at 07:09 after writing terms_svdF / terms_sessions_svdF: the 10-29 per-lick SSp-n difference
+  term (terms_licks_<tag>, an Allen-basis analysis) does names.index("SSp-n_right") on SVD component names. The live 10-28
+  run predates that term. LocaNMF (v20l-L2, still running) will hit the same line; l_offset_where_g was SKIPPED.
+- fix/fpa-offset-rebuild-1111 4b5fa2e1: skip that term when the basis has no area features (area bases unchanged).
+  Detached worktree wf_render_v20m; queue_daqlk20m.sh (M1 svdF, M2 locanmfFM, M3 where; same names/cmds/env).
+  M1 + M3 launched; a waiter relaunches M2 when v20l-L2 ends with the same error (old logs kept as *.log.ssp_n_20261111;
+  .failed / .skipped removed, claims rmdir'd).
