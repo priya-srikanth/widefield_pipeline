@@ -50,6 +50,13 @@ EP = EPS[1:]
 PUBLISHED = {("iti_dock_sameplace", "acute"): 0.298, ("iti_dock_sameplace", "subacute"): 0.216,
              ("iti_dock_sameplace", "chronic"): 0.290, ("cued_matched_error", "acute"): -0.035,
              ("cued_matched_error", "subacute"): -0.033, ("cued_matched_error", "chronic"): -0.019}
+# Rebuild (WIDEFIELD_REBUILD_ROOT set): the gate reproduces the REBUILD's own headlines, which moved with the rebuild
+# (glue mask out etc.). Values = the 11-11 v20 rebuild "before" (REPRO 1/2 exact vs its caches); Priya OK 11-11.
+PUBLISHED_REBUILD = {("iti_dock_sameplace", "acute"): 0.2865, ("iti_dock_sameplace", "subacute"): 0.2190,
+                     ("iti_dock_sameplace", "chronic"): 0.2802, ("cued_matched_error", "acute"): 0.0030,
+                     ("cued_matched_error", "subacute"): -0.0322, ("cued_matched_error", "chronic"): -0.0056}
+if os.environ.get("WIDEFIELD_REBUILD_ROOT"):
+    PUBLISHED = PUBLISHED_REBUILD
 TOL = 0.01
 SIGMA_RO = 0.1        # lick_offset_contrib_map.SIGMA (lateral same-place read-out)
 MIN_REF = 8
@@ -383,6 +390,7 @@ def run(jobs: int) -> int:
     from wfield_local import writeguard
     writeguard.assert_writable(OFFD / "x.csv")
     (OFFD / "_itiw").mkdir(parents=True, exist_ok=True)
+    il.OUT_W.mkdir(parents=True, exist_ok=True)   # = _itiw/<tag> in a rebuild (run_mode.subdir); 11-11 EXIT 1 without it
     pd.set_option("display.width", 250)
     pd.set_option("display.max_columns", 40)
     t0 = time.time()
