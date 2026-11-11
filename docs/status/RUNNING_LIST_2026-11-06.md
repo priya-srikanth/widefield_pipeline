@@ -1499,3 +1499,18 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
 - OPEN (decision): the other arms (main movement_first_exec-polar_licks-combined, _nolicksall, FR frg-A/B/D/S, nodir,
   shufpos, trmodels, musall) also have no tables / figures in the rebuild. Only fig_pooled reads tables in the queues;
   the encoding-page figures from this script (fig4 bars, dR2 by epoch, contest tables) would need the same step per arm.
+
+### 11-11 ~11:45 -- Priya's decision review; v20n done; v20o (all encoding arms' tables / figures)
+- v20n: three _bins tables 7-9 min each; z_fig_pooled_g EXIT 0 at 11:40.
+- Priya: "yes please fix the missing tables and figures" -> queue_daqlk20o.sh (v20l header, code 8aed3a7b, env noFR), O1 =
+  combined_encoding_figures for main (+ --signed-only), _nolicksall, nodir, shufpos, droppos, trmodels, musall, FR frg-A/B/
+  D/S (subset-drop has no figure suite). Preflight OK 11:42:47. Note: the LIVE tree has no tables for these _exec-polar arms
+  either; the live page's encoding figures came from the older-named runs (movement_first, _subset-nodir, ...).
+- A2 done: o2/enc_rebuild_20261109g -> o2/_superseded/enc_rebuild_20261109g_WRONG_SETTINGS (34 G, moved not deleted;
+  MOVED_README.txt beside it).
+- A3 (push analysis/attempt-coding + feat/o2-partial-refit-1109): Priya OK, but the push was refused by the session's
+  permission classifier; Priya to push or allow.
+- Page draft answers recorded under its questions (Q1 yes; Q2 cells shown; Q6 reword; Q7 RESTnl keeps #4, reword with
+  twin, no downgrade; Q8 yes; Q3 / Q4 open).
+- Caption pass: C1/C2/C11 resolve from the live page; C3 ok; C4 / C5 yes; C6 key family (14.1) now, discuss the other
+  families; C7 ok; C9 yes; C10 ok; C8 / C12 / C13 / C14 explained, open. D1 (SSp-n shares in SVD / LocaNMF) after the re-run.

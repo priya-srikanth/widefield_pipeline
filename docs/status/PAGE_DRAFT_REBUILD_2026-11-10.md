@@ -311,3 +311,17 @@ sign-off:** D1 (a)-(c); D6 session-mean twin (Q6).
   .67 / .70 / 1.68 / 1.15 (2 / 4 below; `g5_lpfinal_maps_g` precue/working). Which reference carries the #4 sentence?
 - **Q8 (D6).** Cue RESTnl chronic far contra is back in amplitude (pooled 1.00) but 261 of 2,022 bins still differ from
   pre (lick: .99, 263 bins). Add "shape not fully back" to the caption?
+
+### Priya's answers, 11-11 ~11:40
+- Q1: YES, the three wording changes (a)-(c) go in.
+- Q2: wants to see the cells first. Detail (frame measure, pooled boot_delta, seed 0): the glue-in and glue-out values are
+  IDENTICAL (cells untouched by the mask); the star moved only because the CI upper bound sits at 0.000.
+  uniq_target lick MOp_right acute -.0104 [-.0230, +.0000], per animal +.0006 / -.0128 / -.0270 / -.0022;
+  uniq_task cue SSp-m_right acute -.0164 [-.0392, +.0002], per animal +.0031 / -.0135 / -.0481 / -.0069.
+- Q3: open (not answered yet).
+- Q4: asked what Figs 1.1 / 1.8-1.10 are (= the no-FaceRhythm frame of 1.7: 1.1 maps, 1.8 levels, 1.9 / 1.10 per-animal
+  target / executed). Open.
+- Q6: REWORD (PS95 is below pre under the session-mean twin).
+- Q7: RESTnl is the trusted reference: keep the #4 claim on RESTnl (4 / 4 below pre) and REWORD to state the session-mean
+  twin beside it; do NOT downgrade.
+- Q8: YES, add "shape not fully back".
