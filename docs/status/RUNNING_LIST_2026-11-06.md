@@ -1548,3 +1548,16 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   PAGE_DRAFT D3 now cites the table. Branch not pushed.
 - Next: deck section G repoint (fix/deck-section-g-1111) once the LP grid is checked; then #7 recount both references,
   C6 14.1, D1 SSp-n, final glue report, per-animal tables, deck + page pass.
+
+### 11-11 ~19:00 -- v20q done (18:44): LP section G figures drawn -- G2c headline does NOT hold as titled -- for Priya
+- New in figures_working/LP_licks_gateLP_<TAG>: section_g_grid_withcontrol_{all,lickonly}.png, section_g_g4_camclass.png
+  (same JSON as 11-09; redraw only adds the trial-set footer; same pre-existing layout faults: overlapping x labels /
+  titles, empty DAQ ROBUSTNESS panels in the LP run), G2b, retained, confusion per session.
+- Read off the grids (day 1 = first post session): POST (execution) below the pre band early in 4 / 4 animals in both
+  LP arms. PRE-CUE (plan) is ALSO below band early in PS93 (all + lick-only, ~0818-0821), PS94 (most of the first ~2
+  weeks) and PS95 (lick-only early sessions); only PS92 is clean. The rebuild DAQ all-trials grid (the current deck
+  headline figure) shows the same PS93 / PS94 pre-cue drops. So "the PLAN survives ... in all four animals, every
+  post-stroke day" (G2c title) is not supported by either rebuild figure. Conclusion change -> Priya before any text.
+- LP grids have NO gray squares (8/17 failed-laser sessions absent from the LP section G JSON), so the within-animal
+  before/after control exists only in the DAQ figure.
+- Deck repoint HELD pending Priya.
