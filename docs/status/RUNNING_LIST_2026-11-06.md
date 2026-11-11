@@ -1395,3 +1395,14 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
 - Page draft (NOT published): docs/status/PAGE_DRAFT_REBUILD_2026-11-10.md (6f87ff9f) -- D1-D6 drafted, held list,
   Q1-Q8 for Priya (D1: three rebuild-driven wording changes; Q7 pre-cue far-contra RESTnl vs session-mean disagree).
 - Running: tracing agent for PS95 CD overlap / VIS-SSs stars / re-embedding (mask vs code); re-run lanes incl. O2 section.
+
+### 11-10 ~23:30 -- remaining glue changes traced: all three = the glue mask (scratchpad glue_trace3/)
+- cd_overlap_null PS95 lick acute: with the glue mask component_exclusion drops 28/95 PS95 components (was 4, bulbs
+  only); current code with the mask zeroed reproduces 0.554 vs [0.584,0.921] exactly, real mask 0.749 vs [0.545,0.937].
+- f_frA_g VIS stars: recomputed glue-in VISl_R -0.0786* / VISrl_L -0.0832*, glue-out -0.0597 / -0.0566 (MOs_L control
+  -0.071* both). CORRECTION to the earlier claim "encoder fits are mask-independent": the frozen-encoder targets are
+  stat-mask AREA MEANS and the penalty search sums over areas, so glue-touching targets change (18/42 changed, 17
+  glue-only dropped) and PS95 orofacial penalty moved 10000 -> 1000. Design matrices bit-identical; non-glue areas same.
+- l_reembed all-licks acute index: current code on the moved-aside glue-in sessions cache reproduces +0.293 exactly;
+  features 62 -> 45 (17 glue-only dropped, 15 glue-touching changed, ALM_R / MOs_rest_R ~0.1 %), behavior identical.
+=> All five flagged conclusion changes are traced to the glue mask; none to code.
