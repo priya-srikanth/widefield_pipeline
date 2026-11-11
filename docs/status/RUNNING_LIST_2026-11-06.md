@@ -1482,3 +1482,9 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
 - 07:12 v20l-L2 crashed as predicted after writing summary / maps / terms / terms_sessions_locanmfFM; waiter relaunched
   M2 (preflight OK 07:12:25). M1 ABORTed at preflight 07:12:04 -- a race on the SHARED logs/PREFLIGHT_v20.check (M3 started
   2 s later and rewrote it); relaunched alone, preflight OK 07:13:10. Launch lanes >= 10 s apart (or fix: per-lane check file).
+
+### 11-11 ~08:12 -- side fixes all done; fix branch pushed
+- e_fpa_offset_g (v20k), e_contrib_svdF_g / e_contrib_locanmfFM_g / l_offset_where_g (v20m): all .done. 335 _g steps done.
+- fix/fpa-offset-rebuild-1111 (cec086f6, 4b5fa2e1) pushed to origin with Priya's OK (pre-push pytest 6297 passed).
+- Follow-up idea (Priya 08:00, not queued): per-lick SSp-n R / L offset shares in SVD / LocaNMF via pixel projection
+  ((w_area . B) . dh_lick); shares are basis-dependent, read where bases agree.
