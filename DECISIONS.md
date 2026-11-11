@@ -23785,3 +23785,56 @@ Priya 11-03 late: August-only pre everywhere in the rebuild, except june_august_
 - A30 (Priya 11-06): `pose3d_summary_fig` session dots = OPEN markers, shape = animal (`cat_points.animal_marker`),
   color = epoch (`orofacial_cohort.EPOCH_LINE`; June pre gray) via `session_dots`; `pose3d_phase` hides the top spine
   on every 2-D panel (`no_top_spine` in its one save path).
+
+## 2026-11-09 / 11-10 -- Rebuild page rules D1-D9 (Priya; recorded 11-11 from RUNNING_LIST_2026-11-06 + handoff block 40)
+
+Source detail: `docs/status/CAPTION_PASS_DRAFT_2026-11-10.md` (branch docs/caption-pass-draft-1110), decision table.
+- **D1 Trials stated exactly.** Every figure states which trials / events / frames were included and excluded (one shared
+  sentence, `wfield_local/trial_set_text.py`). Map figures, option (c): PRIMARY = camera working trials (contact +
+  incomplete); SUPPLEMENT = every working-period trial (adds jaw-only + no response; stopped runs and quit tail excluded);
+  plus a jaw-only panel pooled per animal x epoch, floor 20 trials per cell.
+- **D2 Two references for every amplitude.** RESTnl (primary) and session mean (twin; "raw" in the map families; maps:
+  zero = the slow inter-trial trend; area traces = the exact session mean). Absolute-level twins of the per-trial-baseline
+  families and state-space response-size twins are made at the page update.
+- **D3 Hemisphere balance.** The log2 gain ratio stays PRIMARY; captions state its per-lick baseline (-1.0..-0.5 s before
+  the lick, `iti_licks.BASE_RESP`); the raw 0..0.2 s decoder-window difference is a supplement.
+- **D4 Pre-cue level** (Figs 14.20 / 14.21): per-trial lick-free ENL window (LP licks, 1 s), RESTnl primary + session-mean
+  twin; page stems `lick_cued_precue_enl_*`.
+- **D5 One LP frozen spout decoder** (copy D, LP-trained, 1.0 s). Fig 5.1 cue / pre-cue decoder trained on camera working
+  trials; lick decoder on engaged (lick) trials.
+- **D6 Headline conclusion changes** #1-6 and #8 approved for pages / decks; #7 with the agreed wording (reworded 11-11,
+  below).
+- **D7 Glue mask.** Analyses exclude the painted fiber-glue region; Allen areas entirely under glue are not analyzed.
+- **D8 CD projections: HOLD** (no change until the page update). Covers the projection figures 9.2-9.11 only; the Fig 9.1
+  text goes ahead under D6 (Priya 11-11).
+- **D9 Encoder gate** = working trials ("attempted" under the camera gate), the same as everywhere.
+
+## 2026-11-11 -- Rebuild review answers (Priya)
+
+- **Face-offset reproduction gate in a rebuild** reproduces the REBUILD's own headline values, not the live page's
+  (`scripts/face_offset_partial.py` PUBLISHED_REBUILD, fix/fpa-offset-rebuild-1111 cec086f6). The live values come from the
+  old pipeline (different lick detector, trial gate, mask, frozen decoders), so a mismatch there is not an error.
+- **Rebuild encoder wording** (GOAL section 0): chronic target loss holds in MOs / MOp, no longer in ALM; the chronic
+  executed gain is frontal-wide (MOs-rest / MOp-rest also starred); the movement PETH rises chronically in ALM / MOs /
+  SSp-m as well as tjM1.
+- **Per-spout unique maps** (GOAL Fig 1.x): the with-FaceRhythm, per-spout lick-kernel frame (Fig 1.7 and its levels /
+  per-animal figures) is the primary set; the no-FaceRhythm set (Figs 1.1, 1.8-1.10) is not re-run.
+- **Headline #7 (acute far-contra map amplitude)**: reworded to give both references (PS95 is below pre under the
+  session-mean twin). **Headline #4 (pre-cue far contra acute)**: RESTnl is the trusted reference and carries the claim
+  (4 / 4 below pre); the session-mean result (2 / 4) is stated beside it; the claim is not downgraded. Chronic far contra:
+  add "shape not fully back" (amplitude back, ~260 of 2,022 bins still differ).
+- **Map references on the page**: RESTnl ("b" figures) + session mean ("c" twins). The older REST maps (non-b; docked rest
+  that keeps frames near non-contact licks) leave the page.
+- **Off the page, files kept, listed in CUT_FIGURES**: the DAQ ENL 2 s figures (IMG 1.1, 2.1, 2.2, 7.1, 7.2, 14.1, 14.4,
+  14.7), the contact-gate maps (B11) and Figs 2.4b / 2.5 / 2.7 (DAQ-trained decoder).
+- **Fig 5.1 / 5.2 classes** renamed to the camera classes (contact, incomplete, jaw-only, no response).
+- **Twins**: matched_residual and e_gain get RESTnl / session-mean twins where they are amplitudes; the Fig 6.1 caption
+  says e_amp does not change with a flat reference; absolute-level twins for the key family (14.1) now, the other
+  families to be discussed.
+- **Analysis deck** (auto-built): its section G text is corrected in this pass too (code change, since the text comes
+  from code).
+- **Encoding cohort tables / figures** in the rebuild: `combined_encoding_figures.py` runs for every collected O2 arm
+  (queues v20n / v20o); no queue had this step, so no rebuild arm had tables / figures.
+- **Follow-up after the re-run**: per-lick SSp-n R / L offset shares in the SVD and LocaNMF bases by pixel projection.
+- Superseded O2 bundle `o2/enc_rebuild_20261109g` (built without the production encoder settings) moved to
+  `o2/_superseded/enc_rebuild_20261109g_WRONG_SETTINGS` (moved, not deleted).
