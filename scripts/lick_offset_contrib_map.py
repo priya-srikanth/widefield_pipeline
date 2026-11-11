@@ -251,6 +251,8 @@ def compute():
     for st, a, d in PER_LICK:
         beta = ACC[(st, a)][0]
         names = feature_names(source, a) or []
+        if "SSp-n_right" not in names or "SSp-n_left" not in names:   # SVD / LocaNMF bases: no area features (11-11)
+            continue
         ir, il_ = names.index("SSp-n_right"), names.index("SSp-n_left")
         dh = d["dh"].astype(float)
         pl.append(pd.DataFrame({"set": st, "animal": a, "label": d["label"], "epoch": d["epoch"], "act": d["act"],
