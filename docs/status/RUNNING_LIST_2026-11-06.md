@@ -1561,3 +1561,13 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
 - LP grids have NO gray squares (8/17 failed-laser sessions absent from the LP section G JSON), so the within-animal
   before/after control exists only in the DAQ figure.
 - Deck repoint HELD pending Priya.
+
+### 11-11 ~19:30 -- G2c per-animal table (Priya "1 and 2"; skip 8/17; fix G4 layout)
+- docs/status/g2c_1111/ (g2c_table.py read-only on the rebuild DAQ + LP section_g JSONs; rebuild epochs via the profile).
+- CORRECTION to the 19:00 entry: DAY 1 pre-cue is INSIDE the pre band in 4 / 4 animals in 3 of 4 versions (LP all-trials:
+  PS94 z -1.8 just below). The early pre-cue drops are in later ACUTE / SUBACUTE sessions, PS93 and PS94 only.
+- LP lick-only, acute (n below band / n; mean change vs own pre-band mean): pre-cue PS92 0/5 +.034, PS93 2/4 -.108, PS94
+  3/6 -.111, PS95 0/1 +.024; post-cue 0/5 -.118, 4/4 -.187, 6/6 -.170, 0/1 -.022; post-lick 4/5 -.122, 4/4 -.163, 6/6
+  -.168, 0/1 -.043. Pre-cue change smaller than post-lick change in 4 / 4 (descriptive, no test). Chronic: execution
+  back in all; PS94 pre-cue 2/8 below. DAQ and LP all-trials arms same pattern (PS95 drop is subacute: post-cue 6/7).
+- Wording draft -> Priya. fig_grid suptitle hard-codes "the PLAN survives" + the GRAY SQUARES sentence: change with it.
