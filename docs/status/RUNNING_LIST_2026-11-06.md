@@ -1453,3 +1453,11 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
 - DECISION (Priya): update PUBLISHED to the rebuild's glue-out values (the gate then checks reproduction of the
   rebuild, which REPRO 1/2 already show) and relaunch v20j J1 -- or keep the step held until the page values are
   re-published. I did not edit a pre-registered gate constant. No dependents; nothing skipped.
+
+### 11-11 ~06:55 -- e_fpa_offset_g relaunched from the fix branch (Priya OK 11-11: "these are ok")
+- fix/fpa-offset-rebuild-1111 cec086f6 (from 8aed3a7b, worktree wf_fpafix): run() mkdirs il.OUT_W; under
+  WIDEFIELD_REBUILD_ROOT the reproduction targets are the rebuild's own 'before' headlines (live runs unchanged).
+- Detached worktree wf_render_v20k at cec086f6; queue_daqlk20k.sh (W / EXPECT_SHA changed, section K1, same step);
+  preflight OK 06:54. Old log kept as e_fpa_offset_g.log.repro_gate_20261111; .failed removed, claim rmdir'd.
+- CORRECTION to the 06:40 entry: the PUBLISHED dict holds the LIVE page values, which never had the glue bug (that was
+  rebuild-only). The 0.298 -> 0.287 etc. differences are rebuild-vs-live, not glue-in vs glue-out.
