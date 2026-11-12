@@ -1571,3 +1571,12 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   -.168, 0/1 -.043. Pre-cue change smaller than post-lick change in 4 / 4 (descriptive, no test). Chronic: execution
   back in all; PS94 pre-cue 2/8 below. DAQ and LP all-trials arms same pattern (PS95 drop is subacute: post-cue 6/7).
 - Wording draft -> Priya. fig_grid suptitle hard-codes "the PLAN survives" + the GRAY SQUARES sentence: change with it.
+
+### 11-12 -- Priya: "2-4 are fine, proceed with remaining tasks including figure and page updates"
+- Q2 (B2): both CI-edge cells = borderline, not claimed (values identical glue-in / glue-out).
+- Q4: Fig 1.7 (FaceRhythm frame) is the primary; Fig 1.1 (+1.8-1.10 no-FR frame) dropped, no re-run.
+- Q5: D5 caption stays as drafted (chronic partial-r star on the 1.0 s window not mentioned; not a page claim).
+- G2c: draft title sent 11-11 late; Priya said proceed with figure + page updates -> apply it (fig_grid heading + deck),
+  8/17 sentence dropped.
+- Order: G2c heading + G4 layout (branch) -> redraw plot-only -> deck section G repoint -> C6 balance numbers -> #7 both
+  refs -> glue report column -> D1 SSp-n -> page + deck pass.
