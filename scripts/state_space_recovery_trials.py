@@ -2,7 +2,7 @@
 P1-P3b; readouts and detection limits from scripts/state_space_sim.py).
 
 Data: per-trial area extracts (`first_cue`, first-lick trials = contact + incomplete, -0.5..2.0 s from the cue in
-0.1 s bins, 62 Allen areas incl. ALM / tjM1, `cortex` dropped). Inputs final (34, 11-07). Left = ipsilesional.
+0.1 s bins, 45 glue-free Allen areas (62 before the 11-09 glue mask) incl. ALM / tjM1, `cortex` dropped). Inputs final (34, 11-07). Left = ipsilesional.
 
 Every session is compared with EACH pre-stroke session of its animal (itself excluded), at matched trial counts per
 spout, in the pre-stroke top-k space of the pre sessions left after removing both. The values of pre sessions are the

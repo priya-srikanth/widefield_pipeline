@@ -7,7 +7,7 @@ state_space_trajectories (x = pre (0) -> chronic (1) line, y = acute departure o
 units). Per session x spout with >= MIN_TRIALS contact AND >= MIN_TRIALS incomplete first licks (3-D first lick touched /
 did not touch the spout; landing csv `contact`), for each class:
   x, y         mean trial position in the frame
-  size         full-space response norm over 62 areas (state_space_sim.BAL_BINS response minus baseline), log2
+  size         full-space response norm over the 45 glue-free areas (62 before the 11-09 glue mask) (state_space_sim.BAL_BINS response minus baseline), log2
   r_pre        correlation of the class mean (bins x areas, centered per area) with the spout's pre template
 Contrast = incomplete - contact, averaged over the session's spouts. Pre sessions give the pre-stroke contrast; post
 contrasts are shown as levels and as change vs own pre (boot_delta). Alignment from WF_SS_ALIGN.

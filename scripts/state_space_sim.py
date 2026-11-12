@@ -420,6 +420,25 @@ def load(path):
     return xb, pos, cols, _epoch(Path(path).stem, str(z["epoch"])), str(z["animal"])
 
 
+def allen_n_areas():
+    """Number of Allen area x hemisphere columns in THIS run's binned cache (45 since the glue mask, 11-09; 62 before): the
+    figure titles / legends state it instead of a literal (11-12). None when the cache has no file (label falls back)."""
+    if BASIS != "allen":
+        return None
+    for f in sorted((_bcache() / ALIGN).glob("*.npz"))[:1]:
+        with np.load(f) as z:
+            return len(_mask_cols(z["xb"][:1], [str(x) for x in z["cols"]], str(z["animal"]))[1])
+    return None
+
+
+def areas_label(full=False):
+    """'45 areas' (or 'the full 45-area space' with full=True); 'Allen areas' when the count is unknown."""
+    n = allen_n_areas()
+    if n is None:
+        return "the full Allen-area space" if full else "Allen areas"
+    return f"the full {n}-area space" if full else f"{n} areas"
+
+
 def load_sessions(hook=None, june=False):
     """Every extract session -> ({animal: [(label, epoch, day, Y, pos, ...)] sorted by day}, area columns), the ONE
     session loader of the state-space scripts (`load` per file, days from `epochs.days_since_stroke`). ``hook(label, Y,

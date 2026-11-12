@@ -235,7 +235,7 @@ COND_XFORM = [("raw", "trials", "raw areas (primary)", "k"),
 # BASIS COMPARISON (Priya 11-08 "figures?" of "one cohort SVD basis reads like the Allen areas"): the same readouts in
 # the three spaces; each basis gets its own per-animal top-8 pre space. LocaNMF = per-animal joint components with the
 # glue / bulb components dropped (_lnmfbm); SVD = one cohort basis on the glue-free brain mask (_svd).
-COND_BASIS = [("allen", "trials", "Allen areas (62; primary)", "k"),
+COND_BASIS = [("allen", "trials", f"Allen areas ({S.allen_n_areas() or '?'}; primary)", "k"),
               ("lnmf", "trials{TAG}_lnmfbm", "LocaNMF components (per animal, glue dropped)", "#1b9e77"),
               ("svd", "trials{TAG}_svd", "cohort SVD (100 components, glue-free mask)", "#7570b3")]
 _TITLES = dict(MAIN + COLS_CONTACT)

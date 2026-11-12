@@ -10,7 +10,7 @@ A. ACROSS DAYS (how it gets there), per animal, within spout, in the fixed per-a
    = 1-SD ellipses of the trial coordinates per epoch. Templates use all sessions of the epoch (x is circular for
    chronic, y for acute -- they define the axes).
 B. WITHIN THE TRIAL (what kind of change): every animal's pre spout x time templates, centered on that animal's own pre
-   mean, stacked -> one cohort PCA over the 62 Allen areas; the top 2 PCs. Each animal x epoch template (mean of its
+   mean, stacked -> one cohort PCA over the 45 glue-free Allen areas; the top 2 PCs. Each animal x epoch template (mean of its
    sessions' spout means, centered on the animal's PRE mean, so a shared shift stays visible) is projected; pooled = mean
    over animals. Lines = time within the trial (time-continuous); dot = window start, ring = the event (cue / lick).
 
@@ -20,7 +20,7 @@ B: a continuous 1-SE band along each loop (bootstrap covariance of the pooled me
 bins, merged per epoch; Priya: "why isn't there error all along the trajectory lines"), plus PC1 / PC2 vs time with
 95 % bands.
 C (Priya: "unexpected that the change is so much more dramatic for close than far spouts"): the lick response SIZE in
-the FULL 62-area space per spout (norm over areas of the session's spout mean, response window minus baseline window of
+the FULL 45-area (glue-free) space per spout (norm over areas of the session's spout mean, response window minus baseline window of
 state_space_sim.BAL_BINS), log2 change vs own pre -- the 2-D plane holds mostly the shared response.
 Outputs: Widefield/state_space_recovery/trajectories{tag}/ (csv) and page_figs/ss_traj_{days,loops,loops_time,
 loops_animals}_<align>.png, ss_resp_size_<align>.png. LocaNMF basis (per-animal components): B runs through
@@ -194,7 +194,7 @@ def align_maps(data, n_iter=50):
 
 
 def loops(data, align=False):
-    """Cohort top-2 plane of the animals' pre templates. Allen (default): the shared 62-area space. align=True: each
+    """Cohort top-2 plane of the animals' pre templates. Allen (default): the shared 45-area space. align=True: each
     animal first mapped through `align_maps` (its own pre top-K space, rotated onto the others on pre only) -- the only
     option in the LocaNMF basis; in Allen it is the check that the alignment reproduces the shared-space loops."""
     maps, loo = align_maps(data) if align else ({}, {})
@@ -354,7 +354,7 @@ def fig_loops(proj, pooled, ve, boot, align=False):
 
 
 def resp_size(data):
-    """Per session x spout: lick response size in the FULL 62-area space = norm over areas of (response window mean -
+    """Per session x spout: lick response size in the FULL 45-area space = norm over areas of (response window mean -
     baseline window mean) of the session's spout mean (>= MIN_TRIALS trials); windows = state_space_sim.BAL_BINS."""
     rows = []
     for an, sess in data.items():
@@ -384,7 +384,7 @@ def fig_resp_size(d):
     axs[0].set_ylabel("log2 response size vs own pre")
     F.legend_animals_epochs(fig, y=1.06)
     F.flush_marks(fig)
-    fig.suptitle(f"Response size in the full 62-area space, per spout ({LABEL[S.ALIGN]}; response "
+    fig.suptitle(f"Response size in {S.areas_label(full=True)}, per spout ({LABEL[S.ALIGN]}; response "
                  f"{t[resp][0] - 0.05:.1f}..{t[resp][-1] + 0.05:.1f} s minus {t[base][0] - 0.05:.1f}.."
                  f"{t[base][-1] + 0.05:.1f} s)", y=1.12)
     fig.tight_layout()

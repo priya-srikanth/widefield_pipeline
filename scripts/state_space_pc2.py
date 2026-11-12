@@ -2,7 +2,7 @@
 PC2 amplitudes are so much higher for close spouts".) First-lick-aligned (WF_SS_ALIGN=lick, -1.0..0.7 s).
 
 1. What PC2 is: the cohort PCA of state_space_trajectories (every animal's pre spout x time template, centered on the
-   animal's own pre mean, stacked); loadings of PC1 / PC2 over the 62 areas.
+   animal's own pre mean, stacked); loadings of PC1 / PC2 over the 45 glue-free areas.
 2. Per trial: PC2 transient = mean PC2 score 0.1..0.3 s after the first lick minus -0.4..-0.1 s before it (same for PC1:
    0.1..0.5 s). Summarized per animal x spout x epoch.
 3. The same trials' first lick (3-D, licks.csv.gz via the landing join's trial_id): reach_mm, speed_peak, latency
