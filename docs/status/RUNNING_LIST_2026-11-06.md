@@ -1608,3 +1608,15 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   * l_code_noisematch(_enlv) / rotation / subspace, l_enl_offset: CI-edge star moves both ways (point estimates close).
 - Deck: PI deck (presentations/Overview_2026-11-06.pptx) is edited by the quiet-events window too -> section G / caption
   pass slide edits there need coordination; the repo analysis deck branch (fix/deck-section-g-1111) is updated.
+
+### 11-12 ~18:30 -- v20t done; SSp-n bases; state-space Allen re-run planned
+- v20t (aca76408): section G LP + DAQ figures redrawn, EXIT 0 (LP 9 min, DAQ 10 min). Gray squares were June 6-8
+  (phase_tag excluded, August-only pre), NOT 8/17 (absent from both rebuild JSONs) -> excluded sessions no longer drawn;
+  deck exclusions slide fixed (wf_deckg cd274d4d). The 11-08 DAQ figure + deck text had called them the 8/17 control.
+- SSp-n shares in area / LocaNMF / SVD bases from the saved contribution maps (docs/status/sspn_bases_1112, 02450510):
+  ITI acute .89 / .61 / .28; SSp-n largest single area in every basis acute + subacute; SVD spreads it over SSp-bfd /
+  SSp-m / SSp-ul. Wording proposal to Priya: "lateral somatosensory cortex, SSp-n the largest single area".
+- State space: VERIFIED not on masked data for the ALLEN basis (no file in state_space_recovery after the masked
+  extracts 11-09 19:10 except _svd / _lnmfbm; Allen cache empty). Priya 11-12: re-run + figures + page + all ppts.
+  Helper drafting the step list + timing -> scratchpad ss_allen_rerun_plan.md.
+- Caption fill C6 / D1 report committed (c5c864cb); C6 conclusion changes to Priya.
