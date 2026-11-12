@@ -571,7 +571,10 @@ chronic lick_left survives (-.27, Holm .012; mostly PS93, 2/12 sessions); acute 
 lick_fast_close -.21 (p .04) do not survive -> the acute fast-lick loss is SUGGESTIVE (significant only in the pooled-fit
 null). POOLED-FIT RESULTS are now the descriptive second view: a fragility check (refit-null 95th percentile / pre-only
 fit noise) flags lick_left (7.2x) and lick_far_nose (5.8x) as pooled-test-inconclusive; a pooled fit is not the average
-of the animals (chronic lick_left pooled -.12 asymmetry vs +.27 in 3 / 4 animals' own fits). PS93 (pre-existing right
+of the animals (chronic lick_left pooled -.12 asymmetry vs +.27 in 3 / 4 animals' own fits). The pooled permutation null at
+500 permutations (11-12, FINDINGS 5.10) agrees with the per-session tests: lick pair beyond it as before, several other
+factors also change shape (spatial angle Holm < .05: whisk_run and lick_slow_late at every epoch, prelick_nose acute and
+chronic, lick_fast_close subacute and chronic, lick_ongoing_7Hz subacute), and none of the other ten changes asymmetry. PS93 (pre-existing right
 facial deficit, pre-stroke right-lick bias 46 % vs 6 % left) stays in; its lick_right is split over two components in
 many sessions, so its per-session maps flip. **STANDS** (lick pair spatial angle, side specificity, lick_left asymmetry,
 lick_right map); **PROVISIONAL** (acute fast-lick loss; other units).
@@ -774,6 +777,8 @@ Done since this list was written: master rank 12 frozen, projected, named; secti
 FR run A / master FR in the encoder is summarized by the encoding window (ENCODING_FINDINGS; FINDINGS.md section 4).
 
 ## Change log
+
+* 2026-11-12: pooled permutation null complete at 500 permutations (section 6e sentence; FINDINGS 5.10).
 
 * 2026-11-09: 6e-June added (June 2-month drift floor for the per-session and cohort shape tests; page v46 supplement).
 
