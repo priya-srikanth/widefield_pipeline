@@ -2029,7 +2029,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
              "no deficit; the effective lesion (3.75 / 5.5 mW) followed the 8/17 session, so 8/17 is "
              "neither a clean baseline nor post-stroke and belongs to neither phase. They "
              "are NOT unanalysed \u2014 they are the SMALL-LESION COMPARISON, shown per session at G7c "
-             "(and as gray squares in the DAQ G2c grid). They are not counted in G2c (Priya 11-11). "
+             "They are not drawn or counted in G2c (Priya 11-11). "
              "They also remain registered, are projected onto the joint bases, and appear "
              "per-session in sections A\u2013D.")
             if _excluded else
