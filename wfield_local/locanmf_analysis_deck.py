@@ -476,6 +476,19 @@ def keep_previous(out_path) -> Path | None:
 
 
 
+def _lp_section_g_dir(src):
+    """The LP camera-lick section G folder beside ``src`` (``src / <LP output tag>``, where section_g_figures --json
+    <LP json> draws), or None when it is absent. Priya 11-11: section G slides show the LP figures."""
+    try:
+        from wfield_local import lp_licks, run_mode
+        with run_mode.with_env(WIDEFIELD_LICK_SOURCE="lp", WIDEFIELD_GATE_SOURCE="lp"):
+            tag = lp_licks.output_tag()
+    except Exception:                                                    # noqa: BLE001
+        return None
+    d = Path(src) / tag if tag else None
+    return d if d is not None and d.is_dir() else None
+
+
 def _tagged_k(root, rel, grant_root):
     """Section K's registered path in THIS tagged run (review 7B N3), or None to keep the registered one: the LP /
     DAQ-ENL1s epoch families live under the LP / ENL block's own tag (``grant_figures/<block tag>/epoch``), the LP
@@ -1127,7 +1140,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         #
         # SUPERSEDED, NOT WITHDRAWN. G2 was the per-session form of the frozen-decoder result; H5c
         # and section I now carry it with bootstrap intervals and an epoch break G2 could not express, and
-        # G2c below states the conclusion G2 was read for ("the PLAN survives, EXECUTION does not")
+        # G2c below states the conclusion G2 was read for (plan vs execution, per animal)
         # over all four animals in one panel. `section_g_matched_{all,lickonly}.png` is still
         # written every night, so restoring this block costs nothing but the indentation.
         for _arm, _armn in ():
@@ -1177,49 +1190,46 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         # 2026-08-20 this read poststroke_grid.png, a scratchpad-era file that no step rewrote after
         # the section-G consolidation -- so the headline four-animal slide silently kept its
         # 8/19 10:17 content and never showed 8/19 itself (Priya, 2026-08-20).
-        _rf = src / "section_g_grid_withcontrol_all.png"
-        if _rf.exists():
+        # G2c (Priya 11-11 / 11-12): the LP camera-lick run is PRIMARY, the DAQ sensor run is ROBUSTNESS. The LP section G
+        # figures live in the LP run's own folder (src / <LP output tag>, drawn by section_g_figures --json <LP json>).
+        # Each figure's heading now states ITS counts (plot_poststroke.grid_counts); the old 'the PLAN survives,
+        # EXECUTION does not, in all four animals, every post-stroke day' headline and the 8/17 gray-square control
+        # reading are replaced -- the per-animal table (docs/status/g2c_1111) did not support 'every day', and 8/17 is
+        # skipped. Numbers below are from the rebuild JSONs (11-12) and must change if the JSONs do.
+        _lp_sg = _lp_section_g_dir(src)
+        _g2c = (
+            (_lp_sg, "lickonly",
+             "G2c. Day 1: the pre-cue (plan) code stays inside each animal's pre-stroke range while execution "
+             "decoding falls; through the acute weeks execution falls further than the plan in every animal",
+             "Camera (LP) lick trials, each session's preserved spouts. Day 1 pre-cue inside the range in 4/4; "
+             "post-lick below in 3/4 (PS95 inside). Acute mean change vs own pre: pre-cue +.03 / -.11 / -.11 / +.02, "
+             "post-lick -.12 / -.16 / -.17 / -.04 (PS92-95). The plan is not untouched: pre-cue falls below the range in "
+             "some acute sessions of PS93 / PS94 and some subacute sessions of all four. Chronic: execution back on "
+             "average in every animal. Descriptive counts, no test; the heading lists sessions below range per epoch."),
+            (_lp_sg, "all",
+             "G2c (ALL trials, camera licks). Same reading with every trial at six positions",
+             "Day 1 pre-cue inside the range in 3/4 (PS94 z -1.8, just below); post-cue below in 3/4. Acute: the plan "
+             "falls less than execution in 4/4. Unlike the lick-only arm, PS94 and PS95 post-cue stay below the range in "
+             "3-5 chronic sessions. All trials include no-lick trials, so execution here mixes missing movements with "
+             "coding (the lick-only arm removes that)."),
+            (src, "all",
+             "G2c (ROBUSTNESS, DAQ lick sensor, all trials). The same grid on the sensor run",
+             "DAQ sensor run (run tag _daqlk). Day 1 pre-cue inside 4/4, post-cue below 4/4; acute plan falls less than "
+             "execution in 4/4; PS94 / PS95 post-cue below in 4-5 chronic sessions."),
+            (src, "lickonly",
+             "G2c (ROBUSTNESS, DAQ lick sensor, lick-only). Scored only on trials with a sensor lick",
+             "Day 1 pre-cue inside 4/4; post-lick below in 2/4 (post-cue 1/4). Acute plan falls less than execution in "
+             "4/4. On the sensor some spouts drop out of the post-lick column (too few sensor-lick trials), so chance "
+             "moves with them; with camera licks no spout drops out acutely."),
+        )
+        for _d, _arm, _t, _sub in _g2c:
+            _rf = _d / f"section_g_grid_withcontrol_{_arm}.png" if _d is not None else None
+            if _rf is None or not _rf.exists():
+                continue
             s = slide()
-            title(s, "G2c. After an effective lesion: the PLAN survives, EXECUTION does not "
-                     "\u2014 in all four animals, every post-stroke day",
-                  "Pre-cue and post-cue are two windows on the SAME trials, so every session-level "
-                  "confound acts on both equally and cannot produce a difference between them. GRAY "
-                  "SQUARES = PS92/PS93 on 8/17 after the laser that did NOT take: nothing outside the "
-                  "band, then the dissociation appears one day later after the effective lesion \u2014 "
-                  "a within-animal before/after control. PURPLE = outside the band but ABOVE it.")
+            title(s, _t, _sub)
             note(s, M_RECODING, specific=S_G2C)
             big(s, _rf, top=1.85, width=11.4)
-
-        # THE LICK-ONLY ARM OF THE SAME GRID. Written every night since the section-G consolidation
-        # and never placed, while the all-trials arm above carried the headline alone.
-        #
-        # It is not decoration: the standing objection to G2c is that the post-stroke ALL-trials arm
-        # includes trials with no lick, so a reader can say the dissociation is about MISSING
-        # MOVEMENTS rather than about coding. This arm scores only trials the animal licked on, which
-        # removes that confound -- at the cost of the abandoned positions, which have no lick trials
-        # to score. The two arms are therefore complementary and neither is complete: all-trials
-        # keeps every position and admits the confound, lick-only removes the confound and loses
-        # positions. Showing one without the other lets a reader assume the choice was neutral.
-        _rf2 = src / "section_g_grid_withcontrol_lickonly.png"
-        if _rf2.exists():
-            s = slide()
-            # LICK SOURCE (Priya 11-11, C12): this figure is drawn from the DAQ lick-sensor section G run
-            # (run tag "_daqlk", no WIDEFIELD_LICK_SOURCE=lp), so the text describes sensor licks; the camera
-            # (LP) lick-only grid has no producer run yet. When it does, rewrite this caption for it.
-            title(s, "G2c (LICK-ONLY arm, DAQ lick sensor). The same grid, scored only on trials "
-                     "with a sensor lick",
-                  "THE CONTROL FOR THE OBVIOUS OBJECTION to the slide before this one: that the "
-                  "all-trials dissociation is about missing MOVEMENTS rather than about coding. "
-                  "Trials: DAQ lick-sensor lick trials (a sensor lick in the response window). In "
-                  "the POST-LICK column a spout needs enough sensor-lick trials, so on this sensor "
-                  "arm positions drop out and the chance level moves with them (4-way rather than "
-                  "6-way for PS94 and PS95 on day 1). NOT SHOWN HERE: with camera (LP video) lick "
-                  "trials no position drops out (acute far-contra lick trials exist in every "
-                  "animal), and post-lick FROZEN-decoder accuracy drops acutely in 4 / 4 animals and "
-                  "is back chronically. The earlier 'near pre' / positions-drop-out reading came "
-                  "from these DAQ sensor trials, which had no acute far-contra trials.")
-            note(s, M_RECODING, specific=S_G2C)
-            big(s, _rf2, top=1.85, width=11.4)
 
         # --- G2d. THE SMALL-LESION FAMILY, in full.
         #
@@ -1318,7 +1328,9 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                         grid(s, _chunk, cols=2, top=1.95)
 
         # --- G4 PRIMARY (coordinator 11-04): the camera-class discriminator; the DAQ slides below are robustness
-        if (src / "section_g_g4_camclass.png").exists():
+        _g4p = next((d / "section_g_g4_camclass.png" for d in (_lp_section_g_dir(src), src)
+                     if d is not None and (d / "section_g_g4_camclass.png").exists()), None)
+        if _g4p is not None:
             s = slide()
             title(s, "G4. Do post-stroke NO-RESPONSE trials look like pre-stroke WORKING trials?",
                   "Discriminator trained on pre-stroke camera WORKING (contact + incomplete) vs NO-RESPONSE "
@@ -1327,9 +1339,9 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   "against the same class pre-stroke (dotted = pre working where the class is absent pre). "
                   "The no-response readout is estimable only in sessions of 2 animals (PS94, PS95); every "
                   "other session has too few no-response trials, so the cohort-level reading is not "
-                  "supported (2 / 4 animals). Right: the DAQ lick-vs-no-lick discriminator, ROBUSTNESS.")
+                  "supported (2 / 4 animals). Camera (LP) lick run; the DAQ sensor version is the next slide.")
             note(s, M_POSTSTROKE, specific=S_G4)
-            big(s, src / "section_g_g4_camclass.png", top=1.7, width=11.5)
+            big(s, _g4p, top=1.7, width=11.5)
 
         # --- G4. identity, with its control read first (DAQ discriminator: ROBUSTNESS since 11-04)
         if (src / "poststroke_G4_identity.png").exists():
@@ -2016,11 +2028,8 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             (f"EXCLUDED from every POOLED slide: {', '.join(_excluded)}. Their 8/16 attempt produced "
              "no deficit; the effective lesion (3.75 / 5.5 mW) followed the 8/17 session, so 8/17 is "
              "neither a clean baseline nor post-stroke and belongs to neither phase. They "
-             "are NOT unanalysed \u2014 they are the SMALL-LESION COMPARISON, shown per session at G7c and as the two gray squares in G2c's grid, and more "
-             "importantly, the WITHIN-ANIMAL BEFORE/AFTER CONTROL in G2c: these same animals' 8/18 "
-             "sessions ARE post-stroke and carry the dissociation, while their 8/17 sessions show "
-             "nothing outside the band at any alignment. Same animal, same rig, one day apart. That "
-             "control exists only because these sessions were kept analysable instead of discarded. "
+             "are NOT unanalysed \u2014 they are the SMALL-LESION COMPARISON, shown per session at G7c "
+             "(and as gray squares in the DAQ G2c grid). They are not counted in G2c (Priya 11-11). "
              "They also remain registered, are projected onto the joint bases, and appear "
              "per-session in sections A\u2013D.")
             if _excluded else
