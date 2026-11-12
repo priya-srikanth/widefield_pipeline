@@ -84,6 +84,9 @@ SD_TABLES = {
 }
 
 
+LABEL_NUM_COLS = {"window_s", "window", "win_s"}
+
+
 def short(p) -> str:
     s = str(p).replace("\\", "/")
     return s.replace(f"{HV}_{SEL}", "<HV>_<SEL>").replace(HV, "<HV>")
@@ -246,12 +249,23 @@ def parse_log(path: Path) -> dict:
                 if len(h) == names.count("pre") and not set(h) & set(EPOCHS):
                     groups = h
                     break
+        # a numeric column that NAMES the row (the analysis window, e.g. lick_enl_angle's window_s 0.5 / 1.0) is a label,
+        # not a value: without this the 0.5 s and 1.0 s rows shared one label and were told apart only by occurrence
+        # order, so the report could not say which window a flag came from (11-10 21:30 note; fixed 11-12)
+        # (kept out of `prev`, which only carries the row's own word labels to indented continuation rows)
+        wl = []
+        if names:
+            idx = [i for i, n in enumerate(names) if n in LABEL_NUM_COLS]
+            wl = [f"{names[i]}={nums[i]:g}" for i in idx]
+            nums = [v for i, v in enumerate(nums) if i not in idx]
+            names = [n for i, n in enumerate(names) if i not in idx]
+        word_labels, labels = labels, wl + labels
         key0 = (title, tuple(labels))
         occ[key0] = occ.get(key0, 0) + 1
         bins = BINS_RE.search(line)
         rows[key0 + (occ[key0],)] = {"labels": labels, "nums": nums, "names": names, "groups": groups,
                                     "title": title, "line": line.strip(), "bins": bins.groups() if bins else None}
-        prev = {"labels": labels}
+        prev = {"labels": word_labels}
     return rows
 
 
