@@ -100,7 +100,7 @@ both lateral lick factors CHANGE SHAPE after the stroke and lose side specificit
 lick_left moves toward the contralesional face (+.23 / +.18 / +.10), and lick_right's weight leaves the central face
 for the ipsilesional cheek and jaw (map, 4 / 4 animals' sessions); none of this is pre-stroke drift or the loss of
 right licks. Many other face factors also change shape (per-session tests, and the pooled null at 500 permutations, 11-12), but
-none of them changes its asymmetry: the change specific to the lick factors is the loss of lateralization / side specificity. Against a longer, 2-month pre-stroke floor (June sessions, FACE_RHYTHM_FINDINGS 6e-June, 11-09) lick_right's spatial change is beyond June acutely / subacutely but its chronic and spectral changes are within it (uncorrected; PROVISIONAL). Acutely the lick rhythm slows (video licks: within-bout interval +15-25 ms at every spout) and the face
+none of them changes its asymmetry: what is specific to the lick factors is the change in asymmetry and the loss of side specificity. Against a longer, 2-month pre-stroke floor (June sessions, FACE_RHYTHM_FINDINGS 6e-June, 11-09) lick_right's spatial change is beyond June acutely / subacutely but its chronic and spectral changes are within it (uncorrected; PROVISIONAL). Acutely the lick rhythm slows (video licks: within-bout interval +15-25 ms at every spout) and the face
 movement shifts to lower frequencies (spectrum center 6.77 -> 6.56 Hz, 4 / 4 animals, Holm .0003; the upper lick
 band falls more than the main lick rhythm), the pattern slower or less sharp licks produce; the 7 Hz factor is not
 LOST more often per session after correction. Map tests use 10,000 shuffles (11-07 night). PS93, with a pre-existing facial deficit, is inconsistent.
@@ -1935,8 +1935,10 @@ each animal's own pre. Factor names, not numbers (numbers shift between fits).*
     lick_slow_late acutely, lick_ongoing_7Hz, lick_fast_close, whisk_run, lick_slow_late subacutely, prelick_nose,
     lick_fast_close, whisk_run, lick_slow_late chronically (the last at Holm .050); spectral angle whisk_run at every
     epoch. None changes its ASYMMETRY (no Holm pass in any epoch; side specificity exists for the lick pair only). So,
-    as the per-session tests say, the shape change is not lick-specific; what is lick-specific is the loss of
-    lateralization / side specificity. The null includes drift (within-animal shuffle across all pre days).
+    as the per-session tests say, the shape change is not lick-specific; what is lick-specific is the change in
+    asymmetry / side specificity. In the POOLED fits both lick factors shift toward the ipsilesional face (asym
+    lick_right -.19 / -.09 / -.19, lick_left -.14 chronic); per session lick_left moves contralesionally instead
+    (+.23 / +.18 / +.10) -- the known pooled-vs-animals disagreement for lick_left (a pooled fit is not their average). The null includes drift (within-animal shuffle across all pre days).
     **STANDS** (lick pair, subacute + chronic; lick_right acute too; other-ten shape change).
     PER-SESSION SHAPE TESTS -- THE MAIN TESTS FROM 11-07 (Priya; DECISIONS 2026-11-07). Every session's own fit (own8)
     matched to the master with rule v2 (spatial score + spectral tie-break; recovered at spatial cos >= .7 and spectral
