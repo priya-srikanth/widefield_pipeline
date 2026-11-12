@@ -214,3 +214,20 @@ drift_floor.py's v2 matching; DESCRIPTIVE (pooled fits). lick_right, COHORT (LOA
   is within it. Fits with the per-session result (acute / subacute beyond June, chronic not). Not yet on deck / page.
 
 - 11-09 late: Priya: June floor figures go on the FR page as a collapsible supplement only (no deck). PUBLISHED FR page v46 (supplement to Fig 7a.1, id #june-floor, both June figures + a status row). Source: session scratchpad fr_page/ (copy at M:/MICROSCOPE/Priya/Widefield/fr_page_src/fr_page/index_v46.html). FINDINGS 5 + FACE_RHYTHM_FINDINGS 6e-June updated.
+
+## 11-12: FR pooled null, all 500 permutations (frf_null500 complete, 3000 / 3000 files on the share)
+Priya's transfer-node loop copied own_epoch_cohort_null/ back (count + pre/post pairing checked locally). Scored with
+`python scripts/face_rhythm_cohort_null.py` (rule v2, defaults) -> readouts/master_pre_v1/epoch_shape_cohort_v2/
+(cohort_null_*.png + data/cohort_null.csv OVERWRITTEN; the previous outputs, acute ~500 / subacute + chronic 100, are in
+epoch_shape_cohort_v2/n100_backup_20261107/). Acute numbers unchanged (were already ~500).
+- LICK PAIR holds and tightens: lick_right Holm < .05 on all four measures at all three epochs (angle / asym / side_spec,
+  p .002-.010); lick_left passes at subacute + chronic (not acute, p .27-.39), side_spec subacute .028.
+- SPECIFICITY OF THE SHAPE CHANGE NO LONGER HOLDS for angles: of the other ten factors, angle_spatial Holm < .05 for
+  4 at subacute (lick_ongoing_7Hz, lick_fast_close, whisk_run, lick_slow_late) and 4 at chronic (prelick_nose,
+  lick_fast_close, whisk_run, lick_slow_late at Holm .050 exactly), 3 acute as before (prelick_nose, whisk_run,
+  lick_slow_late); angle_spectral whisk_run at every epoch. These had sat at the 100-perm floor (Holm .07-.10).
+- What STAYS specific: the LATERALIZED measures. asym: no other factor passes Holm in any epoch (lick_right passes all
+  three, lick_left chronic). side_spec is defined for the lick pair only.
+- Proposed reading (NOT yet in FINDINGS 5.10 / page, waiting on Priya): many factors change shape (within-animal null
+  includes time drift; see June floor 6e-June), but only the lick factors become less lateralized / less side-specific.
+- NaN rows: lick_ongoing_7Hz and lick_fast_close acute (master factor not recovered in the acute fit), as before.
