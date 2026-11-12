@@ -1632,3 +1632,8 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
 - Open for the page: ss_why_cleaner_lick cannot be regenerated as captioned (its step 1 is the glue-IN 15r maps);
   aim_deficit_sessions.csv rewritten 11-11 (ss_pt_order_aim / ss_step / ss_perpos can move for that reason too);
   area set no longer hemisphere-symmetric (17 dropped, mostly left VIS + AUD / TEa both sides).
+- 18:35 / 18:37 two failed starts, nothing written: (1) plan steps lacked the empty profile-args field (EXIT 91);
+  (2) the rebuild profile's fence refuses writes to state_space_recovery (outside the rebuild root) -> new env token
+  `noprofile` in queue_daqlk20u.sh unsets every WIDEFIELD_ / WFIELD_ / COMBINED_ENCODING_ var + FROZEN_LICKS_ALL after
+  the profile (the arm always ran without it; input paths checked identical). fill_ssg EXIT 0 18:38:50 (107 x 4);
+  lanes U3 / U1 / U2 launched 18:39.
