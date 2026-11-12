@@ -1936,9 +1936,11 @@ each animal's own pre. Factor names, not numbers (numbers shift between fits).*
     lick_fast_close, whisk_run, lick_slow_late chronically (the last at Holm .050); spectral angle whisk_run at every
     epoch. None changes its ASYMMETRY (no Holm pass in any epoch; side specificity exists for the lick pair only). So,
     as the per-session tests say, the shape change is not lick-specific; what is lick-specific is the change in
-    asymmetry / side specificity. In the POOLED fits both lick factors shift toward the ipsilesional face (asym
-    lick_right -.19 / -.09 / -.19, lick_left -.14 chronic); per session lick_left moves contralesionally instead
-    (+.23 / +.18 / +.10) -- the known pooled-vs-animals disagreement for lick_left (a pooled fit is not their average). The null includes drift (within-animal shuffle across all pre days).
+    asymmetry / side specificity. In the POOLED fits both lick factors shift toward the ipsilesional face:
+    lick_right becomes LESS lateralized (asym .77 pre -> .58 / .68 / .58) but lick_left, loaded on the ipsilesional side,
+    becomes MORE lateralized chronically (-.69 -> -.83; acute -.38 n.s.). Per session (the main test) lick_left moves
+    contralesionally instead (+.23 / +.18 / +.10 = less lateralized) -- the known pooled-vs-animals disagreement for
+    lick_left (a pooled fit is not their average). Pooled side specificity falls for both. The null includes drift (within-animal shuffle across all pre days).
     **STANDS** (lick pair, subacute + chronic; lick_right acute too; other-ten shape change).
     PER-SESSION SHAPE TESTS -- THE MAIN TESTS FROM 11-07 (Priya; DECISIONS 2026-11-07). Every session's own fit (own8)
     matched to the master with rule v2 (spatial score + spectral tie-break; recovered at spatial cos >= .7 and spectral
