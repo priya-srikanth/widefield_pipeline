@@ -1620,3 +1620,15 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   extracts 11-09 19:10 except _svd / _lnmfbm; Allen cache empty). Priya 11-12: re-run + figures + page + all ppts.
   Helper drafting the step list + timing -> scratchpad ss_allen_rerun_plan.md.
 - Caption fill C6 / D1 report committed (c5c864cb); C6 conclusion changes to Priya.
+
+### 11-12 ~18:50 -- state-space Allen re-run launched (queue v20u)
+- Code fix/ss-area-count-1112 d970dbf5 (W=wf_render_v20u): titles / legend take the area count from the cache (45
+  glue-free; "62" was literal in noise / pertrial / trajectories / page_figs basis legend). Not pushed.
+- Plan (helper, scratchpad ss_allen_rerun_plan.md): 53 steps; U0 fill_ssg (mask-keyed cache m5f9eb36f36b2, <1 min);
+  lanes U1 cue + splice + k (23), U2 lick (27), U3 change_parts --sessions x2 (45-70 min each). Est. wall 75-90 min.
+  Profile on (paths checked identical with / without it).
+- Backup of the glue-in Allen outputs (1.5 GB, copied not moved): state_space_recovery/_superseded_glue_20261109/
+  allen_outputs_pre_v20u_20261112/.
+- Open for the page: ss_why_cleaner_lick cannot be regenerated as captioned (its step 1 is the glue-IN 15r maps);
+  aim_deficit_sessions.csv rewritten 11-11 (ss_pt_order_aim / ss_step / ss_perpos can move for that reason too);
+  area set no longer hemisphere-symmetric (17 dropped, mostly left VIS + AUD / TEa both sides).
