@@ -1595,3 +1595,16 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
 - #7 reworded in PAGE_DRAFT D6 (Q6): RESTnl 3/4 below (PS95 .98); session mean all four (PS95 .80; lick .93).
 - Helper (background, read-only): fill caption-pass TBDs for C6 (balance family) and D1 (SS family + SSp-n shares) ->
   docs/status/CAPTION_TBD_FILL_C6_D1_2026-11-12.md.
+
+### 11-12 ~18:00 -- final glue before/after report (GLUE_BEFORE_AFTER_2026-11-12.md, aad0be6b) -- FOR PRIYA
+- Window column fixed (lick_enl_angle rows carry window_s). Q5 confirmed: chronic star gain is the 1.0 s window.
+- 66 NEW conclusion-level rows vs 11-10 21:30, from 8 steps that finished later and were never reviewed:
+  * e_split_where_g / e_plain_where_g (frozen where-decoder r_norm change vs pre, areas): the FINDINGS (xiii) rebuild line
+    "sagittal -25 / -21 / -8 % (4/4 each)" on cued licks -> glue-out trial sagittal acute -.218 [-.388, .000] (star lost
+    at the edge), subacute -.065 n.s. (was -.208*), chronic +.010 n.s. (split); trial reach the same pattern; ITI reach /
+    sagittal subacute lose stars (-.19 / -.17, CI to +.02). CONCLUSION CHANGE -> Priya before text.
+  * l_enl_target_g: acute far-contra ENL decodability GAINS stars (enl_spout settled acc_far_contra acute -.106 -> -.133*,
+    fc_lat acute -.194 -> -.247*); chronic overall acc loses its star (-.035* -> -.027).
+  * l_code_noisematch(_enlv) / rotation / subspace, l_enl_offset: CI-edge star moves both ways (point estimates close).
+- Deck: PI deck (presentations/Overview_2026-11-06.pptx) is edited by the quiet-events window too -> section G / caption
+  pass slide edits there need coordination; the repo analysis deck branch (fix/deck-section-g-1111) is updated.
