@@ -252,11 +252,12 @@ its pre RMS, within-animal pooled). Pre: August, 31 sessions. Stats: nested boot
 region is excluded; Allen areas lying entirely under glue are not analyzed. Image left = ipsilesional. n = 4 animals;
 PS95 one acute session."
 
-**Result text (cue, working trials):** acute far-contra amplitude / pre, RESTnl .43 / .50 / .75 / .98 (PS92-95): below
-pre in 3 / 4, PS95's single acute session shows no drop; session mean .14 / .13 / .40 / .80. Pooled RESTnl .65 (362 of
+**Result text (cue, working trials; #7 reworded per Q6, 11-12):** acute far-contra amplitude / own pre, RESTnl .43 / .50 /
+.75 / .98 (PS92-95): below pre in 3 / 4 under RESTnl (PS95's single acute session .98); under the session mean all four
+fall (.14 / .13 / .40 / .80), PS95 the least. Pooled RESTnl .65 (362 of
 2,022 bins significant); session mean .23 (827 bins). Chronic RESTnl 1.00 / 1.21 / .70 / 1.17 (pooled 1.00; PS94 still
 below), session mean 1.30 / 1.14 / .99 / 1.01. **Lick window (lick trials):** acute RESTnl .52 / .58 / .88 / 1.06 (3 / 4
-below; pooled .75, 284 bins); session mean .22 / .30 / .46 / .93 (pooled .39, 591 bins); chronic RESTnl 1.03 / 1.17 / .71 /
+below; pooled .75, 284 bins); session mean .22 / .30 / .46 / .93 (all four below; pooled .39, 591 bins); chronic RESTnl 1.03 / 1.17 / .71 /
 1.14.
 
 **What changed vs the live page:** live 7.10b / 7.18b used "working trials = licking trials plus misses while still

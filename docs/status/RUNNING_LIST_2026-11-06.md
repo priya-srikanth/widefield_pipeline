@@ -1580,3 +1580,18 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   8/17 sentence dropped.
 - Order: G2c heading + G4 layout (branch) -> redraw plot-only -> deck section G repoint -> C6 balance numbers -> #7 both
   refs -> glue report column -> D1 SSp-n -> page + deck pass.
+
+### 11-12 ~17:55 -- section G figure fixes (fix/section-g-figs-1112 10f5bbf5), deck repoint (fix/deck-section-g-1111 2d1dcf44), v20s
+- G2c heading now computed per figure (plot_poststroke.grid_counts / grid_heading; test tests/test_g2c_heading.py).
+  Counts (4 versions): day-1 pre-cue inside 4/4 (LP all-trials 3/4: PS94 z -1.8); acute plan falls less than execution
+  in 4/4 in every version. NEW vs the 11-11 draft title: "both back by chronic" does NOT hold for ALL trials (PS94 / PS95
+  post-cue below in 3-5 chronic sessions, mean -.04 / -.06); lick-only execution back on average (1 chronic session below
+  in PS92 / PS94 / PS95, LP). Pre-cue below range also in SUBACUTE sessions of all four animals (LP lick-only). Deck
+  title drops the chronic clause; numbers in deck_text.M_RECODING.
+- G4 layout: wrapped labels, row spacing, no empty right column in the LP run (D empty).
+- Deck: G2c = LP lick-only (primary) + LP all-trials, DAQ all / lick-only as ROBUSTNESS; G4 primary = LP folder camclass;
+  8/17 control claim removed from the G2c note and the exclusions slide. Deck tests 170 pass.
+- v20s (W=wf_render_v20s @10f5bbf5): plot-only section_g_figures for LP + DAQ JSONs. Backups *.bak_pre_v20s_20261112.png.
+- #7 reworded in PAGE_DRAFT D6 (Q6): RESTnl 3/4 below (PS95 .98); session mean all four (PS95 .80; lick .93).
+- Helper (background, read-only): fill caption-pass TBDs for C6 (balance family) and D1 (SS family + SSp-n shares) ->
+  docs/status/CAPTION_TBD_FILL_C6_D1_2026-11-12.md.
