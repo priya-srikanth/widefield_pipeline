@@ -1,4 +1,7 @@
-"""Can the state-space readouts tell gain, rotation, shift, new dimensions and trial spread apart? (Priya 11-07, plan
+"""THE CORE MODULE of the state-space arm (paths, constants, the session loader, the readouts; code map:
+docs/STATE_SPACE_CODE.md) and, as a script, its METHOD CHECK (`python scripts/state_space_sim.py [--n N]`):
+
+Can the state-space readouts tell gain, rotation, shift, new dimensions and trial spread apart? (Priya 11-07, plan
 docs/STATE_SPACE_RECOVERY_PLAN.md, "method check before the render lands".)
 
 Uses ONLY pre-stroke sessions. Plants a known change into one held-out pre session at a time, then scores it against
@@ -6,8 +9,9 @@ every other pre session of the same animal, single session vs single session at 
 held-out sessions give the null. Real trial noise, real trial counts; the acute-sized subsample asks what survives when
 far-contra trials are few.
 
-Data: per-trial area extracts (`first_cue`: first-lick trials x 71 lags (-1..2.5 s) x 63 Allen areas incl. ALM / tjM1),
-binned to 0.1 s over -0.5..2.0 s. Left hemisphere = ipsilesional (all four lesions left).
+Data: per-trial area extracts (`first_cue`: first-lick trials x 71 lags (-1..2.5 s) x 45 glue-free Allen areas incl. ALM /
+tjM1; 63 before the 11-09 glue mask), binned to 0.1 s over -0.5..2.0 s (WF_SS_ALIGN for the other alignments).
+Left hemisphere = ipsilesional (all four lesions left).
 
 Planted changes (to every trial of the test session; mu = the reference grand mean, P = the reference top-k space):
   none                      the null
@@ -496,19 +500,23 @@ def load_sessions(hook=None, june=False):
 
 
 def spout_means(Y, pos):
+    """trials x ... -> 6 spouts x ... in POS order (NaN where a spout has no trial)."""
     return np.stack([Y[pos == p].mean(0) if (pos == p).any() else np.full(Y.shape[1:], np.nan) for p in POS])
 
 
 def flat(M):
+    """(..., features) -> (rows, features)."""
     return M.reshape(-1, M.shape[-1])
 
 
 def topk(M, k=K):
+    """Orthonormal basis (features x k) of the top-k principal directions of the spout means M (spouts with NaN dropped)."""
     F = flat(M[np.isfinite(M).all(axis=(1, 2))])
     return np.linalg.svd(F - F.mean(0), full_matrices=False)[2][:k].T
 
 
 def fit_gain(X, T):
+    """Per-column least-squares gain and offset of X on T (rows = observations): X ~ g * T + b; g = 1 where T is flat."""
     Tm, Xm = T.mean(0), X.mean(0)
     den = ((T - Tm) ** 2).sum(0)
     g = np.where(den > 0, ((T - Tm) * (X - Xm)).sum(0) / den, 1.0)
@@ -535,6 +543,7 @@ def rot_beyond_gain(X, T, P):
 
 
 def spread(Y, pos, P):
+    """Mean within-spout trial spread inside the space P (squared distance of each trial to its spout mean)."""
     d = []
     for p in POS:
         y = Y[pos == p]
@@ -545,6 +554,7 @@ def spread(Y, pos, P):
 
 
 def readouts(Ya, pa, Yb, pb, P):
+    """Session A vs session B readouts in the reference space P (module docstring, "Readouts"): {name: value}."""
     A, B = spout_means(Ya, pa), spout_means(Yb, pb)
     ok = np.isfinite(A).all(axis=(1, 2)) & np.isfinite(B).all(axis=(1, 2))
     Af, Bf = flat(A[ok]), flat(B[ok])
@@ -567,6 +577,7 @@ def readouts(Ya, pa, Yb, pb, P):
 
 
 def plant(Y, pos, kind, lvl, mu, P, ref_means, cols, rng):
+    """Y with the planted change ``kind`` at level ``lvl`` (module docstring, "Planted changes"); draws from ``rng``."""
     Yc = Y - mu
     if kind == "none":
         return Y
