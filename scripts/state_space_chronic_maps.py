@@ -86,6 +86,7 @@ import pandas as pd  # noqa: E402
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import state_space_recovery_trials as R  # noqa: E402
 import state_space_sim as S  # noqa: E402
+import state_space_svdmaps as SM  # noqa: E402
 
 from wfield_local import analysis_kit as kit  # noqa: E402
 from wfield_local.atlas_overlay import region_edges  # noqa: E402
@@ -638,21 +639,13 @@ def main():
         sys.exit("state_space_chronic_maps: pixel maps need the cohort SVD basis -- run with WF_SS_BASIS=svd")
     OUT.mkdir(parents=True, exist_ok=True)
     FIGS.mkdir(parents=True, exist_ok=True)
-    Uc = np.load(BASIS_DIR / "U_cohort.npy").astype(np.float64)                 # brain-mask px x K, orthonormal
-    mask = np.load(BASIS_DIR / "mask.npy").reshape(np.load(S.SVD.parents[1] / "atlas.npy").shape)
-    atlas = np.load(S.SVD.parents[1] / "atlas.npy")
+    B = SM.basis()                                                              # cohort SVD basis + split areas
+    Uc, atlas, mask, split = B.Uc, B.atlas, B.mask, B.split                    # Uc: brain-mask px x K, orthonormal
     edges = region_edges(atlas)                       # the FULL CCF outline (bulbs + masked glue included), as the encoder maps
     from wfield_local import beta_maps
     brain = beta_maps.allen_mask()                                             # the whole Allen brain, nothing removed
     statpx = beta_maps.stat_mask()[mask]                                       # eroded brain mask, on the basis pixels
-    from wfield_local import area_basis
-    flat = np.flatnonzero(mask.ravel())
-    split = area_basis.basis_masks(area_basis.roi_masks(atlas.ravel()[flat], beta_maps.stat_mask().ravel()[flat],
-                                                        dict(S._atlas_names()), flat, mask.shape))["split"]
-    for k in ("ALM_left", "ALM_right", "tjM1_left", "tjM1_right"):
-        f = np.zeros(mask.size, bool)
-        f[flat[split[k]]] = True
-        _ROI_OUTLINES.append(f.reshape(mask.shape))
+    _ROI_OUTLINES.extend(SM.roi_outlines())
     if "--replot" in sys.argv:                                                 # figures only, from the saved maps
         z = np.load(OUT / "maps.npz")
         ans = sorted({c.split("_", 1)[1] for c in pd.read_csv(OUT / "areas.csv").columns if c.startswith("d_")})

@@ -47,6 +47,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import state_space_chronic_maps as C  # noqa: E402
 import state_space_part_maps as PM  # noqa: E402
 import state_space_sim as S  # noqa: E402
+import state_space_svdmaps as SM  # noqa: E402
 import state_space_trajectories as TR  # noqa: E402
 
 from wfield_local import analysis_kit as kit  # noqa: E402
@@ -153,14 +154,8 @@ def maxstat(b):
 def main():
     if S.BASIS != "svd":
         sys.exit("state_space_shift_carried: needs the cohort SVD basis (WF_SS_BASIS=svd)")
-    from wfield_local import area_basis, beta_maps
-    Uc = np.load(C.BASIS_DIR / "U_cohort.npy").astype(np.float64)
-    PM.NPIX = Uc.shape[0]
-    atlas = np.load(S.SVD.parents[1] / "atlas.npy")
-    mask = np.load(C.BASIS_DIR / "mask.npy").reshape(atlas.shape)
-    flat = np.flatnonzero(mask.ravel())
-    split = area_basis.basis_masks(area_basis.roi_masks(atlas.ravel()[flat], beta_maps.stat_mask().ravel()[flat],
-                                                        dict(S._atlas_names()), flat, mask.shape))["split"]
+    B = SM.basis()                                                         # cohort SVD basis + split areas
+    Uc, split = B.Uc, B.split
     names = area_names(split)
     t, _ = TR.times()
     rows = session_rows(Uc, split, names, t)

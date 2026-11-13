@@ -41,6 +41,7 @@ import state_space_chronic_maps as C  # noqa: E402
 import state_space_recovery_trials as R  # noqa: E402
 import state_space_shift_behavior as SB  # noqa: E402
 import state_space_sim as S  # noqa: E402
+import state_space_svdmaps as SM  # noqa: E402
 import state_space_trajectories as TR  # noqa: E402
 
 from wfield_local import analysis_kit as kit  # noqa: E402
@@ -94,18 +95,7 @@ def cv_energies(V, pos, P, tix, early, late, rng):
 def main():
     if S.BASIS != "svd" or S.ALIGN != "lick":
         sys.exit("state_space_shift_spout_timing: needs WF_SS_BASIS=svd WF_SS_ALIGN=lick")
-    from wfield_local import area_basis, beta_maps
-    Uc = np.load(C.BASIS_DIR / "U_cohort.npy").astype(np.float64)
-    atlas = np.load(S.SVD.parents[1] / "atlas.npy")
-    mask = np.load(C.BASIS_DIR / "mask.npy").reshape(atlas.shape)
-    flat = np.flatnonzero(mask.ravel())
-    split = area_basis.basis_masks(area_basis.roi_masks(atlas.ravel()[flat], beta_maps.stat_mask().ravel()[flat],
-                                                        dict(S._atlas_names()), flat, mask.shape))["split"]
-    W = {}
-    for reg, areas in SB.REGIONS.items():
-        for side, hemi in SB.SIDES.items():
-            px = np.logical_or.reduce([np.asarray(split[f"{a}_{hemi}"], bool) for a in areas if f"{a}_{hemi}" in split])
-            W[f"{reg} {side}"] = Uc[px].mean(0)
+    W = SM.region_weights(SB.REGIONS)                                   # K-vector per region x side
     t, _ = TR.times()
     tix = np.flatnonzero(t > 0)                                                   # post-lick bins (0..0.7 s)
     wix = {w: np.flatnonzero((t >= a - 1e-9) & (t < b - 1e-9)) for w, (a, b) in WINS.items()}
@@ -114,9 +104,7 @@ def main():
     sess_tr = []
     for an, sess in sorted(data.items()):
         Tpre = R.template([s for s in sess if s[1] == "pre"])
-        ok = np.isfinite(Tpre).all(axis=(1, 2))
-        B0 = Tpre[ok] - S.flat(Tpre[ok]).mean(0)
-        unit = float(np.sqrt((B0 ** 2).sum() / B0.size * B0.shape[-1] / Uc.shape[0]))
+        unit = SM.pre_unit_px(Tpre)                                       # pixel RMS of the pre template
         for lab, ep, day, Y, pos in sess:
             if ep not in ("pre", *EPS) or not (C.REST / f"{lab}.npz").exists():
                 continue

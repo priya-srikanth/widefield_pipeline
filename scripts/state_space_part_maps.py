@@ -39,6 +39,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import state_space_chronic_maps as C  # noqa: E402
 import state_space_recovery_trials as R  # noqa: E402
 import state_space_sim as S  # noqa: E402
+import state_space_svdmaps as SM  # noqa: E402
 import state_space_trajectories as TR  # noqa: E402
 
 from wfield_local.figure_layout import save_png_svg  # noqa: E402
@@ -72,9 +73,7 @@ def session_parts(sess):
     """[(label, epoch, unit, ok, pieces)] for one animal (pre sessions leave-one-out)."""
     pre = [s for s in sess if s[1] == "pre"]
     Tpre = R.template(pre)
-    okp = np.isfinite(Tpre).all(axis=(1, 2))
-    B0 = Tpre[okp] - S.flat(Tpre[okp]).mean(0)
-    unit = float(np.sqrt((B0 ** 2).sum() / B0.size * B0.shape[-1] / NPIX))   # pixel RMS of the pre template
+    unit = SM.pre_unit_px(Tpre)                                            # pixel RMS of the pre template
     out = []
     for lab, ep, day, Y, pos in sess:
         if ep not in ("pre", *EPS):
@@ -90,28 +89,16 @@ def session_parts(sess):
     return out
 
 
-NPIX = 1
-
-
 def main():
-    global NPIX
     if S.BASIS != "svd":
         sys.exit("state_space_part_maps: needs the cohort SVD basis (WF_SS_BASIS=svd)")
-    from wfield_local import area_basis, beta_maps
+    from wfield_local import beta_maps
     from wfield_local.atlas_overlay import region_edges
-    Uc = np.load(C.BASIS_DIR / "U_cohort.npy").astype(np.float64)
-    NPIX = Uc.shape[0]
-    atlas = np.load(S.SVD.parents[1] / "atlas.npy")
-    mask = np.load(C.BASIS_DIR / "mask.npy").reshape(atlas.shape)
+    B = SM.basis()                                                         # cohort SVD basis + split areas
+    Uc, atlas, mask, split = B.Uc, B.atlas, B.mask, B.split
     edges = region_edges(atlas)                       # the FULL CCF outline (bulbs + masked glue included), as the encoder maps
     brain = beta_maps.allen_mask()
-    flat = np.flatnonzero(mask.ravel())
-    split = area_basis.basis_masks(area_basis.roi_masks(atlas.ravel()[flat], beta_maps.stat_mask().ravel()[flat],
-                                                        dict(S._atlas_names()), flat, mask.shape))["split"]
-    for k in ("ALM_left", "ALM_right", "tjM1_left", "tjM1_right"):
-        f = np.zeros(mask.size, bool)
-        f[flat[split[k]]] = True
-        C._ROI_OUTLINES.append(f.reshape(mask.shape))
+    C._ROI_OUTLINES.extend(SM.roi_outlines())
     t, _ = TR.times()
     win_idx = [np.flatnonzero((t >= a) & (t < b)) for a, b in WINDOWS]
     resp = np.flatnonzero((t >= RESP[0]) & (t < RESP[1]))
