@@ -231,3 +231,11 @@ epoch_shape_cohort_v2/n100_backup_20261107/). Acute numbers unchanged (were alre
 - Proposed reading (NOT yet in FINDINGS 5.10 / page, waiting on Priya): many factors change shape (within-animal null
   includes time drift; see June floor 6e-June), but only the lick factors become less lateralized / less side-specific.
 - NaN rows: lick_ongoing_7Hz and lick_fast_close acute (master factor not recovered in the acute fit), as before.
+- 11-12 (Priya asked): lick_left MATCH STABILITY in the pooled null, rule v2 (spatial best; ties within .05 of the best
+  spatial cos -> best spectral; recovered at spatial >= .7, spectral >= .5; columns may repeat). Acute shuffled fits
+  (500 pre / 500 post): runner-up within .05 in 67 / 120, tie-break changed the pick in 40 / 61, lick_left shares its
+  column with another lick unit (lick_ongoing_7Hz, lick_slow_late, lick_fast_close) in 19 / 34, spatial cos < .8 in
+  25 / 36, not recovered 0 / 3. Subacute + chronic: 0 on every count (cos median .99). The REAL acute cohort fit is
+  itself near-tied (margin .026, cos .86; pre / subacute / chronic margins .19 / .18 / .34). So the wide acute null is
+  partly matching ambiguity; the chronic pooled lick_left asymmetry (-.14, MORE lateralized) is not a matching effect.
+  Pooled-vs-per-session direction disagreement for chronic lick_left remains (per session +.10, 3 / 4 own fits +.27).
