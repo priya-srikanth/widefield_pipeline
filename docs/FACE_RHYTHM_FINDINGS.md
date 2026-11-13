@@ -576,8 +576,14 @@ of the animals (chronic lick_left pooled -.12 asymmetry vs +.27 in 3 / 4 animals
 factors also change shape (spatial angle Holm < .05: whisk_run and lick_slow_late at every epoch, prelick_nose acute and
 chronic, lick_fast_close subacute and chronic, lick_ongoing_7Hz subacute), and none of the other ten changes asymmetry. PS93 (pre-existing right
 facial deficit, pre-stroke right-lick bias 46 % vs 6 % left) stays in; its lick_right is split over two components in
-many sessions, so its per-session maps flip. **STANDS** (lick pair spatial angle, side specificity, lick_left asymmetry,
-lick_right map); **PROVISIONAL** (acute fast-lick loss; other units).
+many sessions, so its per-session maps flip. LICK_LEFT MATCH CHECK (11-13, `scripts/face_rhythm_lick_left_match_check.py`
+-> readouts/master_pre_v1/lick_left_match_check/): pooled pre / subacute / chronic fits pick the master's compact
+ipsilesional mouth-corner blob (cos .94-.99), but every acute pooled fit picks a diffuse column with an equally diffuse
+runner-up. Per session, many post-stroke matches are near-ties between two similar diffuse columns (rarely another lick
+unit); the matched columns keep a weaker ipsilesional blob plus a contralesional cheek spot and lower lip. Chronic
+asymmetry change vs own pre with clean matches only: PS92 +.09, PS93 -.04, PS94 +.22, PS95 .00. **STANDS** (lick pair
+spatial angle, side specificity, lick_right map); **PROVISIONAL** (lick_left asymmetry shift, carried mainly by PS94;
+acute fast-lick loss; other units).
 
 Figures: session_shape_v2/session_scalars.png (normalized, with leave-one-out pre column), session_scalars_raw.png (raw
 angles >= 0 / own asymmetry and side specificity), session_loss.png, session_maps_scaled_lick.png (headline maps),
@@ -778,6 +784,7 @@ FR run A / master FR in the encoder is summarized by the encoding window (ENCODI
 
 ## Change log
 
+* 2026-11-13: lick_left match check; lick_left asymmetry shift downgraded to PROVISIONAL (Priya).
 * 2026-11-12: pooled permutation null complete at 500 permutations (section 6e sentence; FINDINGS 5.10).
 
 * 2026-11-09: 6e-June added (June 2-month drift floor for the per-session and cohort shape tests; page v46 supplement).

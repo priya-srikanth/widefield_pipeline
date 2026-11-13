@@ -252,3 +252,10 @@ epoch_shape_cohort_v2/n100_backup_20261107/). Acute numbers unchanged (were alre
   UNFLAGGED sessions only: chronic PS92 +.09, PS93 -.04, PS94 +.22, PS95 .00 (all recovered: +.11 / -.06 / +.29 /
   +.06); acute has 0-1 clean session per animal. So the per-session contralesional shift is real in PS94, small
   elsewhere, and partly carried by sessions where lick_left is split over two similar diffuse columns.
+
+## 11-13: lick_left asymmetry downgraded (Priya "ok")
+- FINDINGS headline + 5.10 and FACE_RHYTHM_FINDINGS 6e: the per-session lick_left contralesional shift is now
+  PROVISIONAL (mainly PS94; clean-match chronic change +.09 / -.04 / +.22 / .00). Robust lick_left result = loss of side
+  specificity + shape change (diffuse / split after the stroke). Acute pooled lick_left has no clean match.
+- FR page: headline row, overview row, 7a.1, 7.10, 7.13 reworded; new Figs 7a.10 (session_mean_lick_left) and 7a.11
+  (PS94 session sheet). Published with the 500-permutation edits (v47).
