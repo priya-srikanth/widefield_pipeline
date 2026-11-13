@@ -95,13 +95,8 @@ def main():
     D.to_csv(OUT / "sessions.csv", index=False)
     rng = np.random.default_rng(0)
 
-    def change(col, ep):
-        pre = {a: g[g.epoch == "pre"][col].dropna().tolist() for a, g in D.groupby("animal")}
-        post = {a: g[g.epoch == ep][col].dropna().tolist() for a, g in D.groupby("animal")}
-        post = {a: v for a, v in post.items() if v and pre.get(a)}
-        iv = kit.boot_delta(post, pre, rng) if post else None
-        up = sum(np.mean(post[a]) > np.mean(pre[a]) for a in post)
-        return (iv.point, iv.lo, iv.hi, up, len(post)) if iv is not None else (np.nan,) * 3 + (0, 0)
+    def change(col, ep):                   # (point, lo, hi, n_up, n_animals): analysis_kit.epoch_change, one epoch
+        return kit.epoch_change(D, col, rng, [ep])[ep][:5]
 
     regs = list(W)
     fig, axs = plt.subplots(2, len(regs), figsize=(4.4 * len(regs), 8), squeeze=False)

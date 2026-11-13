@@ -208,13 +208,9 @@ def analyze():
     D.to_csv(OUT / "sessions.csv", index=False)
     rng = np.random.default_rng(0)
 
-    def change(col, ep):
-        pre = {a: g[g.epoch == "pre"][col].dropna().tolist() for a, g in D.groupby("animal")}
-        post = {a: g[g.epoch == ep][col].dropna().tolist() for a, g in D.groupby("animal")}
-        post = {a: v for a, v in post.items() if v and pre.get(a)}
-        per = {a: round(float(np.mean(post[a]) - np.mean(pre[a])), 3) for a in post}
-        iv = kit.boot_delta(post, pre, rng)
-        return iv.point, iv.lo, iv.hi, sum(v > 0 for v in per.values()), len(per), per
+    def change(col, ep):                   # + the per-animal table (rounded for the CSV): analysis_kit.epoch_change
+        c = kit.epoch_change(D, col, rng, [ep])[ep]
+        return c.point, c.lo, c.hi, c.n_up, c.n_animals, {a: round(v, 3) for a, v in c.per_animal.items()}
 
     recs = []
     cols = ([f"f_{k}" for k in CLASSES]

@@ -317,14 +317,9 @@ def summarize(df):
     rng = np.random.default_rng(0)
     out = []
     for m in read:
-        pre = {a: g[g.epoch == "pre"][m].dropna().tolist() for a, g in df.groupby("animal")}
-        for ep in EPOCHS[1:]:
-            post = {a: g[g.epoch == ep][m].dropna().tolist() for a, g in df.groupby("animal")}
-            post = {a: v for a, v in post.items() if v}
-            iv = kit.boot_delta(post, pre, rng)
-            sign = sum(np.mean(post[a]) > np.mean(pre[a]) for a in post if pre.get(a))
-            out.append({"readout": m, "epoch": ep, "delta": getattr(iv, "point", np.nan), "lo": getattr(iv, "lo", np.nan),
-                        "hi": getattr(iv, "hi", np.nan), "n_animals": len(post), "n_up": sign})
+        for ep, iv in kit.epoch_change(df, m, rng, EPOCHS[1:]).items():
+            out.append({"readout": m, "epoch": ep, "delta": iv.point, "lo": iv.lo, "hi": iv.hi,
+                        "n_animals": iv.n_animals, "n_up": iv.n_up})
     res = pd.DataFrame(out)
     with pd.option_context("display.width", 200, "display.precision", 3):
         print("\n=== change vs pre: animal-weighted boot_delta (95 %), n_up = animals above their pre mean ===")

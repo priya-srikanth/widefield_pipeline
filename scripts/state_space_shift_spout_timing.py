@@ -154,13 +154,9 @@ def main():
             for wn, ix in wix.items():
                 g = g.assign(v=g[[bcols[k] for k in ix]].mean(1))
                 for ep in EPS:
-                    post = {a: h.v.dropna().tolist() for a, h in g[g.epoch == ep].groupby("animal")}
-                    post = {a: v for a, v in post.items() if v and (g[g.epoch == "pre"].animal == a).any()}
-                    pre_v = {a: g[(g.epoch == "pre") & (g.animal == a)].v.dropna().tolist() for a in post}
-                    iv = kit.boot_delta(post, pre_v, rng)
-                    up = sum(np.mean(post[a]) > np.mean(pre_v[a]) for a in post)
+                    iv = kit.epoch_change(g, "v", rng, [ep])[ep]
                     recs.append({"region": r, "spout": p, "window": wn, "epoch": ep, "change": iv.point, "lo": iv.lo,
-                                 "hi": iv.hi, "k_up": up, "n": len(post)})
+                                 "hi": iv.hi, "k_up": iv.n_up, "n": iv.n_animals})
     CH = pd.DataFrame(recs)
     CH.to_csv(OUT / "changes.csv", index=False)
 
@@ -207,14 +203,11 @@ def main():
         g = E[E.region == r]
         for en in ENER:
             for ep in EPS:
-                pre_v = {a: h[en].dropna().tolist() for a, h in g[g.epoch == "pre"].groupby("animal")}
-                post = {a: h[en].dropna().tolist() for a, h in g[g.epoch == ep].groupby("animal")}
-                post = {a: v for a, v in post.items() if v and pre_v.get(a)}
-                per = {a: round(float(np.mean(post[a]) - np.mean(pre_v[a])), 3) for a in post}
-                iv = kit.boot_delta(post, pre_v, rng)
+                iv = kit.epoch_change(g, en, rng, [ep])[ep]
+                per = {a: round(v, 3) for a, v in iv.per_animal.items()}
                 spec.append({"region": r, "energy": en, "epoch": ep,
-                             "pre_mean": float(np.mean([np.mean(v) for v in pre_v.values()])), "change": iv.point,
-                             "lo": iv.lo, "hi": iv.hi, "k_up": sum(v > 0 for v in per.values()), "n": len(per),
+                             "pre_mean": float(g[g.epoch == "pre"].groupby("animal")[en].mean().mean()),
+                             "change": iv.point, "lo": iv.lo, "hi": iv.hi, "k_up": iv.n_up, "n": iv.n_animals,
                              "per_animal": per})
                 print(f"  {r} {en} {ep}: per animal {per} -> {iv.point:+.3f} [{iv.lo:+.3f}, {iv.hi:+.3f}]", flush=True)
     SP = pd.DataFrame(spec)

@@ -67,16 +67,9 @@ def deltas(df, col, key=("animal",)):
 
 
 def change(df, col, rng):
-    """animal-weighted boot_delta per post epoch: {epoch: (point, lo, hi, n_up, n_animals)}."""
-    pre = {a: g[g.epoch == "pre"][col].dropna().tolist() for a, g in df.groupby("animal")}
-    out = {}
-    for ep in POST:
-        post = {a: g[g.epoch == ep][col].dropna().tolist() for a, g in df.groupby("animal")}
-        post = {a: v for a, v in post.items() if v and pre.get(a)}
-        iv = kit.boot_delta(post, pre, rng) if post else None
-        up = sum(np.mean(post[a]) > np.mean(pre[a]) for a in post)
-        out[ep] = (iv.point, iv.lo, iv.hi, up, len(post)) if iv is not None else (np.nan,) * 3 + (0, 0)
-    return out
+    """animal-weighted boot_delta per post epoch: {epoch: (point, lo, hi, n_up, n_animals)} (`analysis_kit.epoch_change`,
+    the one definition; this keeps the tuple shape the figure code indexes)."""
+    return {ep: c[:5] for ep, c in kit.epoch_change(df, col, rng, POST).items()}
 
 
 # STARS (Priya 11-07: "LMM can be back up, not primary"): PRIMARY "*" = the animal-weighted nested bootstrap 95 % CI of
