@@ -614,6 +614,8 @@ def subsample(Y, pos, n, rng):
 
 
 def run(n_per_spout, seed=0):
+    # Its own pre-session loop, NOT load_sessions: sessions in file order (load_sessions sorts by day), and the planted
+    # changes draw from ``rng`` session by session, so switching loaders would move the published detection limits.
     rng = np.random.default_rng(seed)
     sess, cols_an = {}, {}
     for f in sorted(glob.glob(SRC + "/PS9*.npz")):

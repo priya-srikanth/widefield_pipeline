@@ -32,9 +32,7 @@ AREAS, SFX = (S.MOTOR, "_motor") if "--motor" in sys.argv else (S.OROFACIAL, "")
 
 
 def sizes(M, cols):
-    out = {h: float(v) for h, v in S.hemi(S.evoked(M), cols, AREAS).items()}
-    out["bal"] = float(np.log2(out["contra"] / out["ipsi"])) if out["contra"] > 0 and out["ipsi"] > 0 else np.nan
-    return out
+    return R.balance_sides(M, cols, AREAS)
 
 
 def main():

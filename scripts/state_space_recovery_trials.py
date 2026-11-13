@@ -51,12 +51,18 @@ OROFACIAL = S.OROFACIAL                 # the hemispheric-balance areas (FINDING
 BASE_BINS, RESP_BINS = S.BAL_BINS[S.ALIGN]          # cue: -0.5..0 s and 0..1 s; lick / splice: see state_space_sim
 
 
+def balance_sides(M, cols, sel):
+    """{"contra", "ipsi": response size (`S.evoked`) of one spout's mean (bins x areas) per hemisphere over the areas
+    ``sel``; "bal": log2 (contralesional / ipsilesional), NaN if either <= 0} -- the ONE hemispheric-balance definition
+    (FINDINGS 0b), also behind state_space_balance_cells."""
+    out = {h: float(v) for h, v in S.hemi(S.evoked(M), cols, sel).items()}
+    out["bal"] = float(np.log2(out["contra"] / out["ipsi"])) if out["contra"] > 0 and out["ipsi"] > 0 else np.nan
+    return out
+
+
 def balance(M, cols, sel):
     """log2 (contralesional / ipsilesional) response size of one spout's mean (bins x areas); NaN if either <= 0."""
-    side = S.hemi(S.evoked(M), cols, sel)
-    if not (side["contra"] > 0 and side["ipsi"] > 0):
-        return np.nan
-    return float(np.log2(side["contra"] / side["ipsi"]))
+    return balance_sides(M, cols, sel)["bal"]
 
 
 def matched(Ya, pa, Yb, pb, rng):

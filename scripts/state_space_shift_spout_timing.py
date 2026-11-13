@@ -65,9 +65,7 @@ def pos_style(p):
     return dict(color=SIDE_COLOR[side], ls="-" if ring == "close" else "--")
 
 
-def spout_mean(v, pos):
-    """trials x bins -> spouts x bins (NaN where a spout has no trial)."""
-    return np.stack([v[pos == p].mean(0) if (pos == p).any() else np.full(v.shape[1], np.nan) for p in POS])
+spout_mean = S.spout_means                 # trials x bins -> spouts x bins (NaN where a spout has no trial)
 
 
 def cv_energies(V, pos, P, tix, early, late, rng):
