@@ -390,6 +390,43 @@ def lmm_stars(p) -> np.ndarray:
     return np.where(np.isfinite(p) & (h < 0.05), "**", np.where(np.isfinite(p) & (p < 0.05), "*", ""))
 
 
+class EpochChange(NamedTuple):
+    """One epoch's change vs pre from `epoch_change`: the `boot_delta` interval plus its per-animal table (rule 8)."""
+
+    point: float
+    lo: float
+    hi: float
+    n_up: int              # animals whose mean in the epoch is above their own pre mean
+    n_animals: int         # animals with sessions in BOTH the epoch and pre
+    per_animal: dict       # {animal: own epoch mean - own pre mean}, unrounded
+
+    @property
+    def excludes_zero(self) -> bool:
+        return bool((self.lo > 0.0) or (self.hi < 0.0))
+
+
+def epoch_change(df, value: str, rng, epochs=EPOCH_LMM_ORDER, *, animal: str = "animal", epoch: str = "epoch",
+                 base: str = "pre", n_boot: int = N_BOOT) -> dict:
+    """``{epoch: EpochChange}`` for a session table (one row per session, columns ``animal`` / ``epoch`` / ``value``):
+    the animal-weighted `boot_delta` of each post epoch against each animal's own ``base`` sessions, NaN values dropped.
+
+    THE table form of the change-vs-pre that the state-space arm had written out nine times (11-13 cleanup). Draw
+    sequence: one `boot_delta` per epoch, in ``epochs`` order, on the shared ``rng`` -- a caller that interleaves
+    other draws between epochs passes one epoch at a time (``epochs=[ep]``) to keep its sequence. An epoch with no
+    animal in both arms (no draw taken), or too few valid draws, gives NaN with n_up = n_animals = 0."""
+    pre = {a: g.loc[g[epoch] == base, value].dropna().tolist() for a, g in df.groupby(animal)}
+    out = {}
+    for ep in epochs:
+        post = {a: g.loc[g[epoch] == ep, value].dropna().tolist() for a, g in df.groupby(animal)}
+        post = {a: v for a, v in post.items() if v and pre.get(a)}
+        iv = boot_delta(post, pre, rng, n_boot) if post else None
+        per = {a: float(np.mean(v) - np.mean(pre[a])) for a, v in post.items()}
+        up = sum(d > 0 for d in per.values())
+        out[ep] = (EpochChange(iv.point, iv.lo, iv.hi, up, len(per), per) if iv is not None
+                   else EpochChange(np.nan, np.nan, np.nan, 0, 0, per))
+    return out
+
+
 def boot_delta_pairs(pairs, rng, n_boot: int = N_BOOT):
     """`boot_delta` for callers holding ``{animal: (post_values, pre_values)}``.
 

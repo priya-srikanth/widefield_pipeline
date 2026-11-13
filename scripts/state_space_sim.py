@@ -66,7 +66,9 @@ LICKS3D = pose3d_dir() / "kinematics" / "licks.csv.gz"                   # 3-D f
 # rebuild root (its write fence refused them under the profile, so the arm ran with the profile stripped) and shared by
 # every run, so the glue-in and glue-out runs overwrote one folder. LEGACY_ROOT is never written; reading a ROOT that does
 # not exist while LEGACY_ROOT does raises (`check_root`) instead of silently finding nothing.
-ROOT = REBUILD / "state_space_recovery"                                  # every state-space output
+# WF_SS_ROOT (11-13, refactor pins): a different output root for VERIFICATION runs only (old vs new code into two scratch
+# roots, then compare every table); never set in a production queue.
+ROOT = Path(os.environ.get("WF_SS_ROOT") or REBUILD / "state_space_recovery")   # every state-space output
 LEGACY_ROOT = Path(PathResolver().root("microscope")) / "Widefield" / "state_space_recovery"
 
 
