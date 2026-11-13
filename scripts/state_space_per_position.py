@@ -28,6 +28,8 @@ sys.path.insert(0, str(Path(__file__).parent))
 import state_space_page_figs as F  # noqa: E402
 import state_space_recovery_trials as R  # noqa: E402
 import state_space_sim as S  # noqa: E402
+
+from wfield_local import analysis_kit as kit  # noqa: E402
 import state_space_step_vs_gradual as SG  # noqa: E402
 
 from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE  # noqa: E402
@@ -59,12 +61,8 @@ def wslope(g, c, v, rng, n=2000):
         y = h[c] - h.groupby("animal")[c].transform("mean")
         return float((x * y).sum() / (x ** 2).sum())
     b0 = b(g)
-    null = []
-    for _ in range(n):
-        h = g.copy()
-        h[v] = h.groupby("animal")[v].transform(lambda s: rng.permutation(s.to_numpy()))
-        null.append(b(h))
-    return b0, float((np.abs(np.asarray(null)) >= abs(b0)).mean())
+    _, p = kit.within_shuffle_p(lambda a: b(g.assign(**{v: a})), g[v].to_numpy(), g.animal.to_numpy(), rng, n)
+    return b0, p
 
 
 def main():

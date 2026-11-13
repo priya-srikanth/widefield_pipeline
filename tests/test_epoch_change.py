@@ -99,3 +99,54 @@ def test_per_animal_table_and_empty_epoch():
     post = df[df.epoch == "acute"].groupby("animal").v.mean()
     assert np.isclose(r["acute"].per_animal["PS92"], post["PS92"] - pre["PS92"], rtol=0, atol=1e-15)  # pandas vs np sum order
     assert np.isnan(r["none"].point) and r["none"].n_animals == 0
+
+
+# ------------------------------------------------------------------ within-animal shuffles (11-13 cleanup)
+def _post_table(seed=7):
+    rng = np.random.default_rng(seed)
+    d = pd.DataFrame({"animal": np.repeat(["PS95", "PS92", "PS94", "PS93"], [5, 7, 4, 6])})
+    d["x"] = rng.normal(size=len(d))
+    d["y"] = 0.4 * d.x + rng.normal(size=len(d))
+    return d.sample(frac=1, random_state=1).reset_index(drop=True)          # animals interleaved
+
+
+def test_permute_within_is_the_groupby_transform_draw():
+    d = _post_table()
+    r1, r2 = np.random.default_rng(3), np.random.default_rng(3)
+    for _ in range(5):
+        a = d.groupby("animal").y.transform(lambda v: r1.permutation(v.to_numpy())).to_numpy()
+        assert (kit.permute_within(d.y, d.animal, r2) == a).all()
+
+
+def test_within_shuffle_p_matches_the_shift_precue_loop():
+    """frozen: state_space_shift_precue coupling slope + shuffle p (da9f52ae)."""
+    d = _post_table()
+    r1, r2 = np.random.default_rng(0), np.random.default_rng(0)
+    b = float((d.x * d.y).sum() / (d.x ** 2).sum())
+    null = []
+    for _ in range(300):
+        sh = d.groupby("animal").y.transform(lambda v: r1.permutation(v.to_numpy()))
+        null.append(float((d.x * sh).sum() / (d.x ** 2).sum()))
+    p_old = float((np.abs(null) >= abs(b)).mean())
+    x = d.x.to_numpy()
+    obs, p_new = kit.within_shuffle_p(lambda y: float((x * y).sum() / (x ** 2).sum()), d.y.to_numpy(),
+                                      d.animal.to_numpy(), r2, 300)
+    assert p_new == p_old and np.isclose(obs, b, rtol=0, atol=1e-15)
+
+
+def test_within_shuffle_p_matches_the_detour_loop():
+    """frozen: state_space_detour_vs_balance.partial shuffle (np.unique order) (da9f52ae)."""
+    d = _post_table()
+    rp, rt = d.x, d.y.to_numpy()
+    r1, r2 = np.random.default_rng(0), np.random.default_rng(0)
+    r0 = float(np.corrcoef(rp, rt)[0, 1])
+    null = np.empty(200)
+    an = d.animal.to_numpy()
+    for i in range(200):
+        sh = rp.copy()
+        for a in np.unique(an):
+            m = an == a
+            sh[m] = r1.permutation(sh[m].to_numpy())
+        null[i] = np.corrcoef(sh, rt)[0, 1]
+    p_old = float((np.abs(null) >= abs(r0)).mean())
+    assert kit.within_shuffle_p(lambda a: np.corrcoef(a, rt)[0, 1], rp.to_numpy(), an, r2, 200)[1] == p_old

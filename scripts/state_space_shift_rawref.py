@@ -126,11 +126,9 @@ def main():
             xcol = f"{reg} | {src} dm"
             x_ = sgn * post[xcol]
             b = float((x_ * post[y + " dm"]).sum() / (post[y + " dm"] ** 2).sum())   # share of tonic variance: x on y
-            null = []
-            for _ in range(2000):
-                sh = post.groupby("animal")[xcol].transform(lambda v: rng.permutation(v.to_numpy()))
-                null.append(float((sgn * sh * post[y + " dm"]).sum() / (post[y + " dm"] ** 2).sum()))
-            p = float((np.abs(null) >= abs(b)).mean())
+            yd = post[y + " dm"].to_numpy()
+            _, p = kit.within_shuffle_p(lambda x, yd=yd, sgn=sgn: float((sgn * x * yd).sum() / (yd ** 2).sum()),
+                                        post[xcol].to_numpy(), post.animal.to_numpy(), rng)
             r_an = {an: round(float(np.corrcoef(g[y + " dm"], sgn * g[xcol])[0, 1]), 2) for an, g in post.groupby("animal")}
             coup.append({"region": reg, "source": ("+" if sgn > 0 else "-") + src, "share_of_tonic": b, "shuffle_p": p,
                          "r_by_animal": r_an})

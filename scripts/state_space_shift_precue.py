@@ -109,11 +109,9 @@ def main():
         for rd, mk in (("pre-lick", "o"), ("post-lick", "^")):
             r_an = {an: round(float(np.corrcoef(g["pre-cue"], g[rd])[0, 1]), 2) for an, g in post.groupby("animal")}
             b = float((post["pre-cue"] * post[rd]).sum() / (post["pre-cue"] ** 2).sum())
-            null = []
-            for _ in range(2000):
-                sh = post.groupby("animal")[rd].transform(lambda v: rng.permutation(v.to_numpy()))
-                null.append(float((post["pre-cue"] * sh).sum() / (post["pre-cue"] ** 2).sum()))
-            p = float((np.abs(null) >= abs(b)).mean())
+            xc = post["pre-cue"].to_numpy()
+            _, p = kit.within_shuffle_p(lambda y, xc=xc: float((xc * y).sum() / (xc ** 2).sum()), post[rd].to_numpy(),
+                                        post.animal.to_numpy(), rng)
             coup.append({"region": reg, "vs": rd, "r_by_animal": r_an, "within_slope": b, "shuffle_p": p})
             for an, g in post.groupby("animal"):
                 ax.scatter(g["pre-cue"], g[rd], marker=ANIMAL_MARKER[an] if rd == "pre-lick" else mk,

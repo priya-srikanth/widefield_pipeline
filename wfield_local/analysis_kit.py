@@ -427,6 +427,30 @@ def epoch_change(df, value: str, rng, epochs=EPOCH_LMM_ORDER, *, animal: str = "
     return out
 
 
+def permute_within(x, groups, rng) -> np.ndarray:
+    """``x`` with its values shuffled WITHIN each group (groups visited in sorted order, one ``rng.permutation`` each).
+
+    The draw is identical to ``df.groupby(groups)[x].transform(lambda v: rng.permutation(v.to_numpy()))`` (pinned in
+    tests/test_epoch_change.py), the form the state-space arm used in six places before 11-13."""
+    x, groups = np.asarray(x), np.asarray(groups)
+    out = x.copy()
+    for g in np.unique(groups):
+        m = groups == g
+        out[m] = rng.permutation(x[m])
+    return out
+
+
+def within_shuffle_p(stat, x, groups, rng, n: int = 2000):
+    """``(observed, p)`` of ``stat(x)`` against ``n`` within-group shuffles of ``x`` (`permute_within`), where p =
+    share of shuffles with ``|null| >= |observed|`` -- two-sided, WITHOUT the +1 correction (the convention of every
+    within-animal shuffle published from the state-space arm; `lick_templates.perm_p` is the one-sided +1 form and is a
+    different number). Use it for "does the session-to-session co-variation hold within animals" (rule 8: the
+    between-animal spread is removed by permuting inside each animal only)."""
+    obs = float(stat(np.asarray(x)))
+    null = np.array([stat(permute_within(x, groups, rng)) for _ in range(n)], float)
+    return obs, float((np.abs(null) >= abs(obs)).mean())
+
+
 def boot_delta_pairs(pairs, rng, n_boot: int = N_BOOT):
     """`boot_delta` for callers holding ``{animal: (post_values, pre_values)}``.
 

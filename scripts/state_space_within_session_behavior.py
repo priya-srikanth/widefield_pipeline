@@ -31,6 +31,8 @@ sys.path.insert(0, str(Path(__file__).parent))
 import state_space_recovery_trials as R  # noqa: E402
 import state_space_sim as S  # noqa: E402
 
+from wfield_local import analysis_kit as kit  # noqa: E402
+
 ROOT = S.ROOT
 DIR = ROOT / f"pertrial{S.tag()}"               # run with WF_SS_ALIGN=lick for the page numbers (Fig 6.12)
 WSD = ROOT.parent / "within_session_decline" / "tables" / "session_slopes.csv"
@@ -81,15 +83,10 @@ def join(out, n_shuf=2000):
                 a = g[nv] - g.groupby("animal")[nv].transform("mean")
                 b = (g[bv] - g.groupby("animal")[bv].transform("mean")).to_numpy()
                 r0 = float(np.corrcoef(a, b)[0, 1])
-                null = []
-                for _ in range(n_shuf):
-                    sh = a.copy()
-                    for an in g.animal.unique():
-                        m = (g.animal == an).to_numpy()
-                        sh[m] = rng.permutation(sh[m].to_numpy())
-                    null.append(np.corrcoef(sh, b)[0, 1])
+                _, p = kit.within_shuffle_p(lambda x, b=b: np.corrcoef(x, b)[0, 1], a.to_numpy(), g.animal.to_numpy(),
+                                            rng, n_shuf)
                 rows.append({"sessions": grp, "neural": nv, "behavior": bv, "n": len(g), "r_within": r0,
-                             "shuffle_p": float((np.abs(null) >= abs(r0)).mean()),
+                             "shuffle_p": p,
                              **{f"r_{an}": round(v, 2) for an, v in per.items()}})
     R_ = pd.DataFrame(rows)
     R_.to_csv(DIR / "within_session_join.csv", index=False)
