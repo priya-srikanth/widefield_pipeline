@@ -1637,3 +1637,15 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   `noprofile` in queue_daqlk20u.sh unsets every WIDEFIELD_ / WFIELD_ / COMBINED_ENCODING_ var + FROZEN_LICKS_ALL after
   the profile (the arm always ran without it; input paths checked identical). fill_ssg EXIT 0 18:38:50 (107 x 4);
   lanes U3 / U1 / U2 launched 18:39.
+
+### 11-12 ~19:45 -- state-space Allen re-run done (v20u, 52/52 EXIT 0, 18:39 -> 19:26); comparison (docs/status/ss_rerun_1112)
+- compare_tables.py: 155 tables vs the glue-in backup; session tables lose exactly the 17 glue-area columns.
+- UNCHANGED (to 2 decimals): r, amp, rotation, out_var, shift_snr, spread, alpha, chronic_like, dist_pre, step;
+  response size Figs 3.3 / 3.4 (e.g. chronic close +.55 / +.60 / +.49, acute far contra -1.56 vs -1.57); noise; contact;
+  motor (ALM / tjM1) balance. 3 response-size / noise star changes are CIs at exactly 0 (+.00 -> -.00).
+- MOVED: orofacial (SSp-m / SSp-n / SSs) balance cells ~15 % relative (SSs glue); bal_oro_far acute cue +.21* -> +.18
+  [-.03, +.36] (3/4).
+- CONCLUSION CHANGE (Priya): hemi_gain = mean log gain ipsi areas - contra areas: subacute / chronic now -.10 / -.12*,
+  0/4 up (cue; lick -.09 / -.10*), was n.s. -> conflicts with SS page section 5 "It is not one hemisphere gaining
+  everywhere". Caveat: the area set is asymmetric after the glue mask (12 left / 5 right areas dropped) -> check with a
+  hemisphere-symmetric area set before any wording.
