@@ -98,7 +98,7 @@ VERSIONS_ALL = dict(VERSIONS)
 # the stats run build directly off the no stats (don't re-do work!)"): every run first draws the cohort maps WITHOUT
 # tests (ss_cmap_..._nostats_...png) as soon as the responses exist, then runs the tests in the SAME process;
 # WF_SS_NOSTATS=1 stops after the quick look. The per-session responses (loaded, FR-corrected) are cached per version
-# (RESP_CACHE), so a later run of the same configuration skips the load; delete the pkl after changing how they are built.
+# (RESP_CACHE), so a later run of the same configuration skips the load; bump RESP_VERSION after changing how they are built.
 _ENV = __import__("os").environ
 if _ENV.get("WF_SS_VERSIONS"):
     VERSIONS = {k: v for k, v in VERSIONS.items() if k in _ENV["WF_SS_VERSIONS"].split(",")}
@@ -197,7 +197,11 @@ def enl_trials(lab, n):
 
 FR_WIN = (0.0, 0.5)                          # s after the first lick (response window 0.1..0.5 s + 0.1 s GCaMP lag)
 FR_CACHE = S.ROOT / "fr_cov"
-RESP_CACHE = S.ROOT / "chronic_maps_resp"     # per-session responses per configuration x version (pickle)
+# per-session responses per configuration x version (pickle), keyed by the SVD bundle they were read from and by
+# RESP_VERSION (rule 5: bump it whenever session_responses / apply_fr / the loader's transforms change; mtimes cannot see
+# a code change). Before 11-13 the pkl sat directly in chronic_maps_resp/ with no key.
+RESP_VERSION = 1
+RESP_CACHE = S.ROOT / "chronic_maps_resp" / f"{S.BUNDLE.name}_v{RESP_VERSION}"
 
 
 def fr_covariates(lab, n):
