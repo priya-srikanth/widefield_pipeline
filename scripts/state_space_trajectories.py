@@ -22,7 +22,7 @@ bins, merged per epoch; Priya: "why isn't there error all along the trajectory l
 C (Priya: "unexpected that the change is so much more dramatic for close than far spouts"): the lick response SIZE in
 the FULL 45-area (glue-free) space per spout (norm over areas of the session's spout mean, response window minus baseline window of
 state_space_sim.BAL_BINS), log2 change vs own pre -- the 2-D plane holds mostly the shared response.
-Outputs: Widefield/state_space_recovery/trajectories{tag}/ (csv) and page_figs/ss_traj_{days,loops,loops_time,
+Outputs: <rebuild root>/state_space_recovery/trajectories{tag}/ (csv) and page_figs/ss_traj_{days,loops,loops_time,
 loops_animals}_<align>.png, ss_resp_size_<align>.png. LocaNMF basis (per-animal components): B runs through
 `align_maps` (each animal's pre top-K space, rotated onto the others on pre only); WF_SS_LOOPS=aligned does the same in
 Allen as the check (figures _aligned).

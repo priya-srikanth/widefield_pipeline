@@ -16,7 +16,7 @@ same neural slopes (+ s_y, the acute-departure axis) joined session by session t
 (`Widefield/within_session_decline/tables/session_slopes.csv`, per normalized session "_ord" = the same unit as s_x:
 far-contra / all-far landing, latency, licks per trial), within-animal r per animal (rule 8) and pooled within-animal r
 with a within-animal shuffle, pre and post-stroke separately.
-Output: Widefield/state_space_recovery/pertrial{tag}/within_session_behavior_slopes.csv, within_session_join.csv.
+Output: <rebuild root>/state_space_recovery/pertrial{tag}/within_session_behavior_slopes.csv, within_session_join.csv.
 Exploratory.
 """
 from __future__ import annotations

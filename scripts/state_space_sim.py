@@ -61,7 +61,21 @@ WTAG = XTAG + "_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt35
 ITI = str(ENCODING / "iti_licks" / XTAG / il.SESS_NAME)                 # per-trial extracts (iti_licks.XOUT / SESS_NAME)
 ITI_W = ENCODING / "iti_licks" / WTAG                                    # run tables (iti_licks.OUT_W): aim, first-lick times
 LICKS3D = pose3d_dir() / "kinematics" / "licks.csv.gz"                   # 3-D first licks (landing join)
-ROOT = Path(PathResolver().root("microscope")) / "Widefield" / "state_space_recovery"   # every state-space output
+# OUTPUTS (11-12, Priya "route outputs by run"): under the rebuild root of PROFILE, beside the encoder tree they are built
+# from -- one run, one folder. Before 11-12 they went to Widefield/state_space_recovery on the share root: outside the
+# rebuild root (its write fence refused them under the profile, so the arm ran with the profile stripped) and shared by
+# every run, so the glue-in and glue-out runs overwrote one folder. LEGACY_ROOT is never written; reading a ROOT that does
+# not exist while LEGACY_ROOT does raises (`check_root`) instead of silently finding nothing.
+ROOT = REBUILD / "state_space_recovery"                                  # every state-space output
+LEGACY_ROOT = Path(PathResolver().root("microscope")) / "Widefield" / "state_space_recovery"
+
+
+def check_root():
+    """Refuse to run against an empty ROOT while the pre-11-12 outputs still sit at LEGACY_ROOT (not yet moved)."""
+    if not ROOT.exists() and LEGACY_ROOT.exists():
+        raise FileNotFoundError(f"state-space outputs are routed to {ROOT} since 11-12 but it does not exist while the "
+                                f"old location {LEGACY_ROOT} does: move the old tree there (own derived outputs) first.")
+
 LANDING = ROOT / "landing" / "first_lick_landing.csv"
 OUT = ROOT / "sim"                        # method-check tables; main() appends tag() (cue + Allen = sim/, as before)
 POS = list(oc.POS_ORDER)                  # the canonical spout order (close ipsi .. far contra)
@@ -318,6 +332,7 @@ def _fill_one(item):
 def prefill(paths, jobs=3):
     """Bin every uncached file once, fanned over a few workers (rule 6: these read the share; few, it is a shared box).
     The atlas names are resolved first, in this process, so workers never race to write them."""
+    check_root()
     bc = _bcache()
     todo = [p for p in paths if not all((bc / a / f"{Path(p).stem}.npz").exists() for a in SEGMENTS)]
     if not todo:
@@ -446,6 +461,7 @@ def load_sessions(hook=None, june=False):
     per-trial column (contact) goes there. Files in sorted path order, sessions sorted by day (stable): the order every
     caller used before (rule 9: pools need a defined order). LocaNMF basis: cols = {animal: cols} (`cols_of`). June
     sessions (epoch 'june', LocaNMF basis only) only with ``june=True``: many scripts read 'not pre' as post-stroke."""
+    check_root()
     from wfield_local import epochs
     data, cols = {}, {}
     last = None

@@ -17,7 +17,7 @@ behavioural recovery axis: far-contra FIRST-cued-lick aim vs the animal's pre la
    with 2-4 fitted parameters by grid + least squares; the same for the aim itself, so the neural and the
    behavioural time courses are compared on one footing. Reported: which model wins per animal, and the fitted step
    day / ramp span / tau.
-Output: Widefield/state_space_recovery/step_vs_gradual{tag}/, page_figs/ss_step_{suffix}.png. Exploratory.
+Output: <rebuild root>/state_space_recovery/step_vs_gradual{tag}/, page_figs/ss_step_{suffix}.png. Exploratory.
 """
 from __future__ import annotations
 

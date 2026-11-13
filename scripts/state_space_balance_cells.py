@@ -11,7 +11,7 @@ Balance = log2 contralesional (_right) / ipsilesional (_left) response size of t
 0-1 s after the cue minus -0.5-0 s, on the cell's trial mean (FINDINGS 0b measure; same as `balance()` in the trials
 script). Cells pool the trials of all sessions of an animal x epoch (n >= MIN_TRIALS) and are also kept per session.
 Also per session x TARGET over all first-lick trials (landing ignored; the "target" grouping).
-Output: Widefield/state_space_recovery/landing/balance_cells{,_sessions,_target}.csv. Exploratory.
+Output: <rebuild root>/state_space_recovery/landing/balance_cells{,_sessions,_target}.csv. Exploratory.
 `--motor` (Priya 11-09: "motor version as well (ALM, tjM1)"): the same balance over the motor areas ALM + tjM1 instead;
 outputs carry the suffix `_motor` (the orofacial tables are untouched).
 """

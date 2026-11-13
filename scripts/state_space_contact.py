@@ -11,7 +11,7 @@ did not touch the spout; landing csv `contact`), for each class:
   r_pre        correlation of the class mean (bins x areas, centered per area) with the spout's pre template
 Contrast = incomplete - contact, averaged over the session's spouts. Pre sessions give the pre-stroke contrast; post
 contrasts are shown as levels and as change vs own pre (boot_delta). Alignment from WF_SS_ALIGN.
-Output: Widefield/state_space_recovery/contact{tag}/contact_{classes,contrast}.csv, page_figs/ss_contact_<align>.png.
+Output: <rebuild root>/state_space_recovery/contact{tag}/contact_{classes,contrast}.csv, page_figs/ss_contact_<align>.png.
 Exploratory.
 """
 from __future__ import annotations

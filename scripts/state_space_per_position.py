@@ -9,7 +9,7 @@ table): mean x (pre (0) -> chronic (1) line of that spout) and y (acute-departur
   (b) the spout's OWN executed landing: mean 3-D lateral landing (side_ml) of its first licks minus the animal's pre mean
       at that spout (mm; landing join).
 Post-stroke sessions; per-animal r (rule 8), within-animal slope with a within-animal shuffle (aim / landing permuted
-within animal, 2000 draws). Output: Widefield/state_space_recovery/per_position{tag}/, page_figs/ss_perpos_<suffix>.png.
+within animal, 2000 draws). Output: <rebuild root>/state_space_recovery/per_position{tag}/, page_figs/ss_perpos_<suffix>.png.
 Exploratory.
 """
 from __future__ import annotations

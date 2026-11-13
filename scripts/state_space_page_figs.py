@@ -1,13 +1,13 @@
 """Figures for the state-space recovery results page (Priya 11-07, "draft a results page").
 
-Reads only the tables the analysis scripts wrote under Widefield/state_space_recovery/ (no imaging reload):
+Reads only the tables the analysis scripts wrote under <rebuild root>/state_space_recovery/ (no imaging reload):
   sim/sim_detection_n{0,15}.csv                       state_space_sim.py
   trials{,_on_target,_landing}/state_space_trials_*.csv  state_space_recovery_trials.py [--condition]
   landing/balance_cells*.csv                          state_space_balance_cells.py
   path_tests/{drift_direction,repertoire_before_mean,trial_alpha}.csv   state_space_path_tests.py [--trial-alpha]
 Page conventions: sessions = open markers (shape = animal, color = epoch), pooled = filled marker + 95 % CI in the epoch
 color, no lines across epochs, stars in the top band, no top spine, no figure numbers inside images.
-Writes PNGs to Widefield/state_space_recovery/page_figs/.
+Writes PNGs to <rebuild root>/state_space_recovery/page_figs/.
 """
 from __future__ import annotations
 
@@ -470,6 +470,7 @@ def fig_drift(out):
 
 
 def main():
+    S.check_root()
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--out", default=str(ROOT / "page_figs"))
     ap.add_argument("--only", nargs="*")

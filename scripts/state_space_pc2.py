@@ -8,7 +8,7 @@ PC2 amplitudes are so much higher for close spouts".) First-lick-aligned (WF_SS_
 3. The same trials' first lick (3-D, licks.csv.gz via the landing join's trial_id): reach_mm, speed_peak, latency
    (rt_ms), contact, and the number of further licks within 0.7 s of the first (a burst sums more lick responses).
    Within-animal trial-level association of the PC2 transient with each (Spearman), per epoch, close spouts.
-Output: Widefield/state_space_recovery/pc2_lick/ (pc2_trials.csv, pc2_loadings.csv). Exploratory.
+Output: <rebuild root>/state_space_recovery/pc2_lick/ (pc2_trials.csv, pc2_loadings.csv). Exploratory.
 """
 from __future__ import annotations
 

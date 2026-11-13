@@ -19,7 +19,7 @@ Per session:
                  (position code), each relative to the template's.
   * reassoc_<i>_<j>  correlation of the session's spout-i position code with the template's spout-j code (6 x 6).
 
-Light: ~0.5 MB per session, numpy only. Writes CSVs + figures under Widefield/state_space_recovery/.
+Light: ~0.5 MB per session, numpy only. Writes CSVs + figures under <rebuild root>/state_space_recovery/.
 """
 from __future__ import annotations
 

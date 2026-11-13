@@ -49,7 +49,9 @@ from wfield_local.orofacial_cohort import EPOCH_LINE  # noqa: E402
 EPS = SB.EPS
 OUT = S.ROOT / f"shift_movement{S.tag()}"
 FIGS = S.ROOT / "page_figs"
-PRIYA = Path("M:/MICROSCOPE/Priya")
+from wfield_local.paths import PathResolver  # noqa: E402
+
+PRIYA = Path(PathResolver().root("microscope"))   # was the literal M:/MICROSCOPE/Priya (drive letters move)
 JAW = PRIYA / "DeepLabCut/Widefield/session_poses/pose3d/kinematics/jaw_trials.csv.gz"
 FR = PRIYA / "DeepLabCut/Widefield/o2/fr_cam4_20261021/factors/master_pre_v1/proj"
 EVENTS = PRIYA / "Behavior_logs/Widefield/behavior_summary/events"

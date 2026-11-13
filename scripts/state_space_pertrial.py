@@ -10,7 +10,7 @@ B. WITHIN SESSION: each trial's x and y against its order in the session (trial 
 C. RESPONSE SIZE PER TRIAL: full-space (45 glue-free areas; 62 before 11-09) response norm per trial (state_space_sim.BAL_BINS response minus
    baseline), log2 vs the animal x spout pre median; ECDFs per spout (thin = sessions, thick = epoch pool) and the
    change of the 10th / 50th / 90th percentile vs own pre (uniform shift vs a subset of large trials).
-Output: Widefield/state_space_recovery/pertrial{tag}/, page_figs/ss_pt_{plane,order,size}_<suffix>.png. Exploratory.
+Output: <rebuild root>/state_space_recovery/pertrial{tag}/, page_figs/ss_pt_{plane,order,size}_<suffix>.png. Exploratory.
 """
 from __future__ import annotations
 

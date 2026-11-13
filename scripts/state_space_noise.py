@@ -16,7 +16,7 @@ Allen areas, alignment from WF_SS_ALIGN (state_space_sim):
    ~0 post = trial noise is what the larger responses predict (noise scales with signal: spread_norm is the right
    model); > 0 = extra variability beyond the signal (raw spread is the right model).
 All values per session as log2 vs the animal's own pre mean (except the mean-variance excess, already pre-referenced).
-Output: Widefield/state_space_recovery/noise{tag}/noise_sessions.csv, page_figs/ss_noise_<align>.png. Exploratory.
+Output: <rebuild root>/state_space_recovery/noise{tag}/noise_sessions.csv, page_figs/ss_noise_<align>.png. Exploratory.
 """
 from __future__ import annotations
 
