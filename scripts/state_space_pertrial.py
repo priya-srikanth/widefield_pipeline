@@ -36,7 +36,7 @@ from wfield_local.figure_layout import save_png_svg  # noqa: E402  (PNG + svg/ t
 ROOT = S.ROOT
 OUT = ROOT / f"pertrial{S.tag()}"
 FIGS = ROOT / "page_figs"
-SUF = S.tag().lstrip("_") or "cue"
+SUF = S.fig_suffix()
 plt.rcParams.update({"font.size": 9, "axes.titlesize": 9.5, "axes.spines.top": False, "axes.spines.right": False})
 
 

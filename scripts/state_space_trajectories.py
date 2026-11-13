@@ -53,7 +53,7 @@ from wfield_local.figure_layout import save_png_svg  # noqa: E402  (PNG + svg/ t
 ROOT = S.ROOT
 OUT = ROOT / f"trajectories{S.tag()}"
 FIGS = ROOT / "page_figs"
-SUF = S.tag().lstrip("_") or "cue"            # figure suffix: alignment (+ _k / _x variants)
+SUF = S.fig_suffix()            # figure suffix: alignment (+ _k / _x variants)
 EPOCHS = R.EPOCHS
 N_BOOT = 400
 LABEL = S.ALIGN_LABEL

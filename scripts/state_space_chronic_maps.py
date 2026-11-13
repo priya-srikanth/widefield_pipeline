@@ -145,7 +145,7 @@ if WIN == "precue":
     BASE_LABEL = {k: v.replace("response window", "PRE-CUE lick-free (>= 1 s) ENL window") for k, v in BASE_LABEL.items()}
 OUT = S.ROOT / f"chronic_maps{S.tag()}{BSUF}"
 FIGS = S.ROOT / "page_figs"
-SUF = S.tag().lstrip("_")
+SUF = S.tag().lstrip("_")                # NOT S.fig_suffix(): empty for cue (the published map names)
 REST = S.ROOT / "rest_baseline_svd"
 ENL = S.ROOT / "enl_baseline_svd"
 BASIS_DIR = S.SVD_BASIS

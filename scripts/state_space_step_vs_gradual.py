@@ -43,7 +43,7 @@ from wfield_local.figure_layout import save_png_svg  # noqa: E402  (PNG + svg/ t
 
 ROOT = S.ROOT
 OUT = ROOT / f"step_vs_gradual{S.tag()}"
-SUF = S.tag().lstrip("_") or "cue"
+SUF = S.fig_suffix()
 AIM = S.ITI_W / "aim_deficit_sessions.csv"
 READ = [("x", "position pre (0) -> chronic (1)\n(fraction of pre -> chronic distance)"),
         ("y", "acute-departure axis\n(same units)"),

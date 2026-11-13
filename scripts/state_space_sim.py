@@ -234,9 +234,16 @@ BASIS_LABEL = {"allen": "", "svd": "cohort SVD basis (100 components, glue-free 
 
 
 def tag():
-    """Output-folder suffix: '' for the original cue alignment, else '_<align>'."""
+    """Output-folder suffix: '' for the cue alignment on the Allen basis at k 8 untransformed, else the parts that differ
+    ('_<align>', '_k<K>', '_x<XFORM>', '_<basis>' + 'bm' for the brain-masked LocaNMF bundle)."""
     return (("" if ALIGN == "cue" else f"_{ALIGN}") + ("" if K == 8 else f"_k{K}") + (f"_x{XFORM}" if XFORM else "")
             + ("" if BASIS == "allen" else f"_{BASIS}") + ("bm" if BASIS == "lnmf" and LNMF_MASK == "brain" else ""))
+
+
+def fig_suffix():
+    """Figure-name suffix: `tag` without its leading '_', and 'cue' for the default (per_position, pertrial,
+    step_vs_gradual, trajectories; chronic_maps keeps its own empty-for-cue form, which its figure names already use)."""
+    return tag().lstrip("_") or "cue"
 
 
 def _epoch(lab, ep):
