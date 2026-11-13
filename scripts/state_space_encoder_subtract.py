@@ -48,7 +48,7 @@ from wfield_local.figure_layout import save_png_svg  # noqa: E402
 from wfield_local.orofacial_cohort import EPOCH_LINE  # noqa: E402
 
 OUT = S.ROOT / "encoder_subtract"
-EPS = ["acute", "subacute", "chronic"]
+EPS = S.POST
 MIN_TR = 5
 COND = {"data": [], "-lick": ["lick", "exec_locked", "exec_within", "contact"], "-face": ["fr", "fr_dir"],
         "-both": ["lick", "exec_locked", "exec_within", "contact", "fr", "fr_dir"]}

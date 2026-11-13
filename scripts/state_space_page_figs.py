@@ -39,10 +39,8 @@ TAG = "" if ALIGN == "cue" else f"_{ALIGN}"
 # <dir><align><basis>, figures named <name><align><basis>, the basis written top left. Allen = no suffix (unchanged).
 BTAG = S.btag()
 ALIGN_LABEL = S.ALIGN_LABEL
-POST = ["acute", "subacute", "chronic"]
-EPOCHS = ["pre"] + POST
-POS = S.POS                               # canonical spout order
-POS_LABEL = {p: p.replace("_", " ") for p in POS}
+POST, EPOCHS = S.POST, S.EPOCHS
+POS, POS_LABEL = S.POS, S.POS_LABEL       # canonical spout order and its figure text
 COND = [("target", "trials", "by target (all trials)", "k"),
         ("on_target", "trials_on_target", "on-target trials only", "#2166ac"),
         ("landing", "trials_landing", "grouped by landing", "#e08214")]
@@ -279,7 +277,7 @@ def fig_like(out, rng, cond=None, cols=None, name="ss_like_for_like",
 # areas). Tables from state_space_balance_{cells,angle}.py [--motor].
 LAND = ROOT / ("landing" if ALIGN == "cue" else f"landing_{ALIGN}")   # balance tables per alignment
 BAL_WIN = {"cue": "0-1 s after the cue", "lick": "0.1-0.5 s after the first lick"}.get(ALIGN, ALIGN_LABEL[ALIGN])
-BAL_AREAS = {"": ("Orofacial", "orofacial", "SSp-m, SSp-n, SSs"), "_motor": ("Motor", "motor", "ALM, tjM1")}
+BAL_AREAS = {"": ("Orofacial", "orofacial", ", ".join(S.OROFACIAL)), "_motor": ("Motor", "motor", ", ".join(S.MOTOR))}
 
 
 def fig_balance(out, rng, sfx=""):

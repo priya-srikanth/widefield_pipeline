@@ -44,7 +44,7 @@ import state_space_trajectories as TR  # noqa: E402
 from wfield_local.figure_layout import save_png_svg  # noqa: E402
 from wfield_local.orofacial_cohort import EPOCH_LINE  # noqa: E402
 
-EPS = ["acute", "subacute", "chronic"]
+EPS = S.POST
 OUT = S.ROOT / f"part_maps{S.tag()}"
 FIGS = S.ROOT / "page_figs"
 WINDOWS = [(-1.0, -0.7), (-0.7, -0.4), (-0.4, -0.1), (-0.1, 0.1), (0.1, 0.4), (0.4, 0.7)]

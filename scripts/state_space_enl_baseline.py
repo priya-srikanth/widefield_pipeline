@@ -31,7 +31,7 @@ import o2_state_space_lnmf as L  # noqa: E402
 import state_space_sim as S  # noqa: E402
 
 OUT = S.ROOT / "enl_baseline_svd"
-BUNDLE = S.SVD.parents[1]
+BUNDLE = S.BUNDLE
 
 
 def _worker(label):

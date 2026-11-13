@@ -42,11 +42,11 @@ import pandas as pd  # noqa: E402
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import state_space_sim as S  # noqa: E402
 
-BASIS_DIR = S.SVD.parent / "basis"
+BASIS_DIR = S.SVD_BASIS
 OUT = S.ROOT / "why_cleaner_lick"
 FIGS = S.ROOT / "page_figs"
 SS_MAPS = S.ROOT / "chronic_maps_lick_svd_rest" / "maps.npz"
-EPS = ["acute", "subacute", "chronic"]
+EPS = S.POST
 POS = ["close_L", "close_center", "close_R", "far_L", "far_center", "far_R"]     # = S.POS order (L = ipsilesional)
 COLS = ["mean", *S.POS]
 STEPS = ["S0 15r as rendered", "S1 + glue-free mask", "S2 + one unit per animal", "S3 + cohort SVD",

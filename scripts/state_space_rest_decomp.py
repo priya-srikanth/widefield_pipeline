@@ -45,10 +45,10 @@ import o2_state_space_lnmf as L  # noqa: E402
 import state_space_sim as S  # noqa: E402
 
 OUT = S.ROOT / "rest_decomp_svd"
-BUNDLE = S.SVD.parents[1]
+BUNDLE = S.BUNDLE
 CLASSES = ["rest", "trial", "lick", "quit", "pretask", "other"]
 TRIAL_S = 3.5                     # the task's response window (gui_config timing.response_window, 3500 ms)
-EPS = ["acute", "subacute", "chronic"]
+EPS = S.POST
 
 
 def _worker(label):

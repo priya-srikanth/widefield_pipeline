@@ -53,7 +53,7 @@ from wfield_local.figure_layout import save_png_svg  # noqa: E402
 from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE  # noqa: E402
 
 OUT = S.ROOT / f"fr_coupling{S.tag()}"
-EPS = ["acute", "subacute", "chronic"]
+EPS = S.POST
 COVS = C.KIN_COLS + ["FR lick sum"] + [f"FR f{k}" for k in (0, 1, 3, 6, 9, 10)]
 GROUPS = {"all": slice(0, 15), "kinematics": slice(0, 8), "face": slice(8, 15)}
 SHOW = ["n_licks", "n_contacts", "reach_mm", "side_ml", "FR lick sum"]

@@ -81,6 +81,20 @@ def check_root():
 LANDING = ROOT / "landing" / "first_lick_landing.csv"
 OUT = ROOT / "sim"                        # method-check tables; main() appends tag() (cue + Allen = sim/, as before)
 POS = list(oc.POS_ORDER)                  # the canonical spout order (close ipsi .. far contra)
+POS_LABEL = {p: p.replace("_", " ") for p in POS}                       # figure text: "close ipsi" .. "far contra"
+RINGS = {"close": POS[:3], "far": POS[3:]}
+# EPOCHS: the extract's per-session epoch labels (baked in at extraction, + the June override in `_epoch`); POST = the
+# epochs every change-vs-pre is reported for (`analysis_kit.epoch_change`).
+EPOCHS = ["pre", "acute", "subacute", "chronic"]
+POST = EPOCHS[1:]
+# NAMED AREA SETS. Three DIFFERENT sets are each called "orofacial" in the write-ups; they are kept apart on purpose
+# (merging them would change published numbers):
+#   OROFACIAL      hemispheric balance (FINDINGS 0b; balance_cells / balance_angle / recovery_trials bal_oro*)
+#   MOTOR          the motor balance version (Priya 11-09: "motor version as well (ALM, tjM1)")
+#   SHIFT_REGIONS  the region weights of the shift_* map analyses (B27; orofacial includes tjM1, not SSs)
+OROFACIAL = ("SSp-m", "SSp-n", "SSs")
+MOTOR = ("ALM", "tjM1")
+SHIFT_REGIONS = {"orofacial": ["tjM1", "SSp-m", "SSp-n"], "posterior-medial": ["RSPd", "SSp-tr", "SSp-ll"]}
 # top-k pre space. 8 = convention when written; checked 11-07 (Priya "how did you choose 8?"): top 8 capture 97-99 % of a
 # HELD-OUT pre session's spout-specific variance in every animal / alignment (k=4: 89-97 %, >8 adds < 3 %).
 # WF_SS_K overrides for the sensitivity runs (outputs then carry _k<K>).
@@ -126,6 +140,8 @@ CACHE = ROOT / "cache"
 BASIS = os.environ.get("WF_SS_BASIS", "allen")
 LNMF = REBUILD / "o2" / "ss_lnmf_20261108" / "out" / "sessions"
 SVD = REBUILD / "o2" / "ss_svdbm_20261108" / "out" / "sessions"     # brain mask, no glue / bulbs (ss_svd_: superseded)
+BUNDLE = SVD.parents[1]                   # the SVD O2 bundle (its rest / ENL baseline products live beside out/)
+SVD_BASIS = SVD.parent / "basis"          # U_cohort, atlas, mask of the cohort SVD basis
 if BASIS not in ("allen", "lnmf", "svd"):
     raise ValueError(f"WF_SS_BASIS={BASIS!r}")
 SRC = {"lnmf": str(LNMF), "svd": str(SVD)}.get(BASIS, ITI)               # the per-trial files the loaders read

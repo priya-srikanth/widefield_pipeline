@@ -54,7 +54,7 @@ from wfield_local import sig_marks  # noqa: E402
 from wfield_local.figure_layout import save_png_svg  # noqa: E402
 from wfield_local.orofacial_cohort import EPOCH_LINE  # noqa: E402
 
-EPS = ["acute", "subacute", "chronic"]
+EPS = S.POST
 SHIFTBASE = __import__("os").environ.get("WF_SS_SHIFTBASE", "")
 if SHIFTBASE not in ("", "rest", "enl"):
     raise ValueError(f"WF_SS_SHIFTBASE={SHIFTBASE!r}")

@@ -39,7 +39,7 @@ from wfield_local import analysis_kit as kit  # noqa: E402
 from wfield_local.figure_layout import save_png_svg  # noqa: E402  (PNG + svg/ twin, Priya 11-06)
 
 OUT = S.ROOT / f"trials{S.tag()}"   # WF_SS_ALIGN suffix
-EPOCHS = ["pre", "acute", "subacute", "chronic"]
+EPOCHS = S.EPOCHS
 MIN_TRIALS = 5
 N_RESAMPLE = 3
 READ = ["r", "amp", "rot_gain", "out_var", "hemi_gain", "shift_snr", "spread_norm", "spread_raw",
@@ -47,7 +47,7 @@ READ = ["r", "amp", "rot_gain", "out_var", "hemi_gain", "shift_snr", "spread_nor
         "alpha", "chronic_like", "aligned", "dist_pre", "step"]
 
 
-OROFACIAL = ("SSp-m", "SSp-n", "SSs")
+OROFACIAL = S.OROFACIAL                 # the hemispheric-balance areas (FINDINGS 0b)
 BASE_BINS, RESP_BINS = S.BAL_BINS[S.ALIGN]          # cue: -0.5..0 s and 0..1 s; lick / splice: see state_space_sim
 
 

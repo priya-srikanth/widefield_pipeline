@@ -103,7 +103,7 @@ if _ENV.get("WF_SS_VERSIONS"):
     VERSIONS = {k: v for k, v in VERSIONS.items() if k in _ENV["WF_SS_VERSIONS"].split(",")}
 NOSTATS = _ENV.get("WF_SS_NOSTATS") == "1"
 LABEL = {"full": "full change", "nocw": "minus the cortex-wide mode", "spout": "spout-specific part"}
-EPS = ["acute", "subacute", "chronic"]
+EPS = S.POST
 N_BOOT = 2000
 N_PERM = 1000
 BASE = __import__("os").environ.get("WF_SS_MAPBASE", "lick")
@@ -147,7 +147,7 @@ FIGS = S.ROOT / "page_figs"
 SUF = S.tag().lstrip("_")
 REST = S.ROOT / "rest_baseline_svd"
 ENL = S.ROOT / "enl_baseline_svd"
-BASIS_DIR = S.SVD.parent / "basis"
+BASIS_DIR = S.SVD_BASIS
 
 
 def _wrap(title, width=150):

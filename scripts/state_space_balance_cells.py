@@ -28,8 +28,7 @@ import state_space_recovery_trials as R  # noqa: E402
 import state_space_sim as S  # noqa: E402
 
 OUT = S.ROOT / ("landing" if S.ALIGN == "cue" else f"landing_{S.ALIGN}")   # per alignment (WF_SS_ALIGN; cue = landing/)
-MOTOR = ("ALM", "tjM1")
-AREAS, SFX = (MOTOR, "_motor") if "--motor" in sys.argv else (R.OROFACIAL, "")   # balance areas, output suffix
+AREAS, SFX = (S.MOTOR, "_motor") if "--motor" in sys.argv else (S.OROFACIAL, "")   # balance areas, output suffix
 
 
 def sizes(M, cols):
