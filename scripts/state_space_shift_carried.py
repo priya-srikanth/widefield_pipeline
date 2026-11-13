@@ -85,14 +85,13 @@ def rebase(an, sess):
     out = []
     for lab, ep, day, Y, pos, *rest in sess:
         if SHIFTBASE == "rest":
-            c = C._rest(lab, an) if (C.REST / f"{lab}.npz").exists() else None
+            c = C.rest_level(lab, an)
             if c is None:
                 continue
             out.append((lab, ep, day, Y - c, pos, *rest))
         else:
-            f = C.ENL / f"{lab}.npz"
-            E = np.load(f)["b"].astype(float) if f.exists() else None
-            if E is None or len(E) != len(pos):
+            E = C.enl_trials(lab, len(pos))
+            if E is None:
                 continue
             keep = np.isfinite(E).all(1)
             E = C._xf_vectors(E[keep], pos[keep], an)

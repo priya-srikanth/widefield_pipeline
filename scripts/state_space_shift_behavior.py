@@ -100,9 +100,9 @@ def main():
         Tpre = R.template(pre)
         unit = SM.pre_unit_px(Tpre)                                       # pixel RMS of the pre template
         for lab, ep, day, Y, pos, tid, rt in sess:
-            if ep not in ("pre", *EPS) or not (C.REST / f"{lab}.npz").exists():
+            if ep not in ("pre", *EPS):
                 continue
-            c = C._rest(lab, an)
+            c = C.rest_level(lab, an)
             if c is None:
                 continue
             Z = (Y - c) / unit                                                    # trials x bins x K

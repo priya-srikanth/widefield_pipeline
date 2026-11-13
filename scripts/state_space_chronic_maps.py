@@ -179,6 +179,22 @@ def _rest(lab, an):
     return c
 
 
+def rest_level(lab, an):
+    """`_rest`, or None when the session has no RESTnl file (state_space_rest_baseline.py did not write one). The ONE
+    per-session RESTnl load of the map scripts (11-13 cleanup; five shift_* scripts had their own existence check)."""
+    return _rest(lab, an) if (REST / f"{lab}.npz").exists() else None
+
+
+def enl_trials(lab, n):
+    """The session's per-trial lick-free pre-cue ENL vectors (n, K), raw (no transform), or None when the file is
+    missing or its trial count is not ``n`` (the extract and the ENL file must describe the same trials)."""
+    f = ENL / f"{lab}.npz"
+    if not f.exists():
+        return None
+    E = np.load(f)["b"].astype(float)
+    return E if len(E) == n else None
+
+
 FR_WIN = (0.0, 0.5)                          # s after the first lick (response window 0.1..0.5 s + 0.1 s GCaMP lag)
 FR_CACHE = S.ROOT / "fr_cov"
 RESP_CACHE = S.ROOT / "chronic_maps_resp"     # per-session responses per configuration x version (pickle)
@@ -334,8 +350,8 @@ def session_spouts(lab, an, Y, pos):
     keep = np.ones(len(pos), bool)
     E = None
     if BASE == "enl" or WIN == "precue":
-        E = np.load(ENL / f"{lab}.npz")["b"].astype(float) if (ENL / f"{lab}.npz").exists() else None
-        if E is None or len(E) != len(pos):
+        E = enl_trials(lab, len(pos))
+        if E is None:
             return np.full((6, K), np.nan)
         keep = np.isfinite(E).all(1)
         E = _xf_vectors(np.where(keep[:, None], E, np.nan), pos, an)

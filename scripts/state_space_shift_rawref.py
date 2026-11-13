@@ -64,14 +64,10 @@ def main():
         Tpre = R.template([s for s in sess if s[1] == "pre"])
         unit = SM.pre_unit_px(Tpre)                                       # pixel RMS of the pre template
         for lab, ep, day, Y, pos in sess:
-            if ep not in ("pre", *EPS) or not (C.REST / f"{lab}.npz").exists():
+            if ep not in ("pre", *EPS):
                 continue
-            c = C._rest(lab, an)
-            f = C.ENL / f"{lab}.npz"
-            if c is None or not f.exists():
-                continue
-            E = np.load(f)["b"].astype(float)
-            if len(E) != len(pos):
+            c, E = C.rest_level(lab, an), C.enl_trials(lab, len(pos))
+            if c is None or E is None:
                 continue
             keep = np.isfinite(E).all(1)
             r = {"animal": an, "label": lab, "epoch": ep, "day": day}
