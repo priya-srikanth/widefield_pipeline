@@ -239,3 +239,16 @@ epoch_shape_cohort_v2/n100_backup_20261107/). Acute numbers unchanged (were alre
   itself near-tied (margin .026, cos .86; pre / subacute / chronic margins .19 / .18 / .34). So the wide acute null is
   partly matching ambiguity; the chronic pooled lick_left asymmetry (-.14, MORE lateralized) is not a matching effect.
   Pooled-vs-per-session direction disagreement for chronic lick_left remains (per session +.10, 3 / 4 own fits +.27).
+- 11-12 (Priya: gut-check the lick_left match): `scripts/face_rhythm_lick_left_match_check.py` ->
+  readouts/master_pre_v1/lick_left_match_check/ (pooled_lick_left.png, session_mean_lick_left.png,
+  sessions_lick_left_<animal>.png). POOLED: pre / subacute / chronic pick a compact ipsilesional mouth-corner blob like
+  the master (cos .94-.99, margins .07-.35); every ACUTE pooled fit (COHORT + 4 LOAO, and LOAO-PS92 subacute) picks a
+  diffuse column (cos .71-.88, margin <= .05) whose runner-up is just as diffuse -> acute pooled lick_left has no clean
+  match. Chronic pooled column is as compact as pre or more (asym -.83) -> the pooled "more lateralized" is real for
+  that fit. PER SESSION: pre fits mostly clean; post fits often flagged (margin < .05: PS94 acute 5/5, chronic 5/8,
+  PS95 subacute 4/5), the pick and runner-up are similar (mean asym -.39 vs -.42; only 4 / 41 flagged picks share a
+  column with another lick unit). Post-stroke matched columns keep the ipsilesional blob, weaker, plus a contralesional
+  cheek spot and lower lip (also in unflagged chronic sessions, e.g. PS94 0910 / 1001 / 1005). Asym change vs own pre,
+  UNFLAGGED sessions only: chronic PS92 +.09, PS93 -.04, PS94 +.22, PS95 .00 (all recovered: +.11 / -.06 / +.29 /
+  +.06); acute has 0-1 clean session per animal. So the per-session contralesional shift is real in PS94, small
+  elsewhere, and partly carried by sessions where lick_left is split over two similar diffuse columns.
