@@ -1649,3 +1649,12 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   0/4 up (cue; lick -.09 / -.10*), was n.s. -> conflicts with SS page section 5 "It is not one hemisphere gaining
   everywhere". Caveat: the area set is asymmetric after the glue mask (12 left / 5 right areas dropped) -> check with a
   hemisphere-symmetric area set before any wording.
+
+## 11-13 ~10:30 — hemisphere gain on a MATCHED area set (Priya: "yes we should compute on a matched set")
+- Script + table: `docs/status/ss_rerun_1112/hemi_matched.py`, `hemi_matched.csv` (from the saved per-area `gain_t_<area>` columns, no re-run; full set reproduces the saved `hemi_gain_t` to 1e-15).
+- Glue mask leaves 21 left / 24 right areas; matched = 21 pairs (drops right VISp / VISal / VISl only).
+- Matched, ln(ipsi gain) - ln(contra gain), change vs own pre: cue -.09 / -.10* / -.09* (acute / sub / chronic), lick -.11* / -.11* / -.10*; 0/4 up subacute + chronic, every animal negative (PS95 smallest).
+- OLD glue-in run, SAME 21 pairs: -.11 / -.10 / -.09 (cue), 4/4 negative subacute + chronic. The effect was already there; the old n.s. full-set number was diluted by the 10 glued lateral pairs (AUD x3, TEa, lateral VIS x6), whose gains were noisy (PS93 acute +3.1).
+- Per pair (chronic, cue): largest VISpm -.25, VISrl -.23, SSp-n -.18, SSp-bfd -.16, VISam -.16, SSs -.12, MOs / ALM -.10; ~0 in SSp-ul / -ll / -tr, RSPv, ACAd, PL. Broad, not orofacial-only.
+- Same direction and size as the encoding page's late within-spout balance rise (log2 contra / ipsi +.13 / +.16 subacute / chronic, 4/4, visual + RSP rise too): -.10 ln = +.14 log2.
+- CONCLUSION CHANGE (to Priya before text): SS page section 5 "It is not one hemisphere gaining everywhere" no longer holds -> contralesional areas gain relative to their ipsilesional partners from subacute on, 4/4, broad across cortex.
