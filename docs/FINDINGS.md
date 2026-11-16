@@ -705,6 +705,11 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   offset -0.04 mm (ns) -> framing HOLDS acutely (target-blind reference on the same licks -0.15, 4/4); subacute /
   chronic within-spout balance +0.13 / +0.16 (4/4) with decoder ~0. ITI: within-spout balance acute -0.18 (4/4),
   decoder +0.29 / +0.19 / +0.22 mm (4/4, CIs exclude 0) -> genuine ITI state shift.
+  BALANCE VS LICK ANGLE (goal page Fig 14.13, redrawn 11-16 on the current pipeline: camera working period, LP v36 licks,
+  DAQ detector daqlk, glue-free mask; figdata 11-11): cued same-angle shift tjM1 -.20 / -.12 / -.05, SSp-n -.41 / -.18 /
+  +.04; the ITI response-ratio shift in ALM / tjM1 (+0.07 / +0.10) is NOT significant (was +0.14 / +0.15 on the 10-28
+  render); ITI tjM1 hemispheric difference -2.07 / -1.24 / -1.56 (p < .05 each epoch) but not 4/4 (PS95 chronic -0.78
+  vs pre -0.94).
   CUED WITHIN-SPOUT BALANCE RISES ABOVE PRE (per animal pre / acute / subacute / chronic: PS92 0 / +0.06 / +0.17 /
   +0.06, PS93 0 / -0.10 / +0.07 / +0.18, PS94 0 / +0.08 / +0.20 / +0.27, PS95 -0.01 / +0.03 / +0.06 / +0.13): an
   overshoot, not a return; tracks cued aim within animals r -0.15 / 0.85 / 0.81 / 0.46 but not beyond log(day)
@@ -1132,8 +1137,10 @@ August-only pre, every readout vs the animal's OWN pre; `*` = boot_delta, LMM as
 3. **The detour tracks the behavioral deficit, at every spout, gradually.** Its size (acute-departure axis) tracks
    far-contra first-lick aim within animal (r -.78 to -.93, 4/4), also within epochs; all six spouts track it; readouts
    and aim are ~linear in log days (a step model wins 2 / 24 fits). The axis shares ~70 % of its within-animal variance
-   with the 0b balance marker but tracks aim beyond it in 4/4 animals (partial r -.35 to -.88, first-lick aligned); the
-   balance beyond the axis is weaker (3/4). Balance values from the pre-rebuild render (rebuild re-render queued).
+   with the 0b balance marker but tracks aim beyond it in 4/4 animals (partial r -.89 / -.27 / -.37 / -.65, PS92-95,
+   pooled -.68; PS93 weak; first-lick aligned, Allen basis); the balance also tracks aim beyond the axis in 4/4
+   (+.56 / +.33 / +.38 / +.65). Balance = the rebuild's glue-free recprim_sessions.csv (11-11; re-run 11-16, branch
+   fix/ss-paths-1116, outputs state_space_recovery/pathfix_20261116/); circular-shift p < .0005 throughout.
    PROVISIONAL.
 4. **Slide vs switch within sessions cannot be tested here.** Whether trials slide or switch between pre-like and
    chronic-like states is not resolvable: single-trial scatter along the pre -> chronic line is ~1.4x the whole
