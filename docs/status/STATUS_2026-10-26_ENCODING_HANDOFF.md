@@ -39,6 +39,47 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 3. Then tell **sabatinilab-e3** (PI deck) the decoder figures are final: per figure the share PNG path, page Fig N.k,
    script + args, headline numbers, methods text (they asked 10-26 ~22:30; reply sent: not final yet).
 
+### 00-COMPACT-42 (11-16 evening) -- READ FIRST; supersedes 41 for STATE (41's naming / two-measure / sign-frame notes and 38 section 1 RULES still apply)
+Session f082ee0c; scratchpad `C:/Users/SABATI~1/AppData/Local/Temp/claude/179e1046909c5be2/f082ee0c-b33c-49a8-a537-dcee3bb7c84c/scratchpad`. Detail: RUNNING_LIST_2026-11-06.md entry "11-16 (evening)".
+
+**ON MAIN (pushed 11-16 evening, Priya "ok to push"):** feat/ss-balance-level-row-1116 (619c95a3), feat/balance-angle-sharedy-1116
+(c6416ed3), analysis/attempt-coding MERGED into main (704f71f1; one conflict s1_refit_basis_table.py -> main's 1.0 s LP ENL + the
+branch's --suffix / camlickpl arms), fix/ss-nulls-1116 (affe7d3e: circular shift + whole-spout-block splits), fix/kin-gated-pooled-1116
+(cc8ce9d0: doc KIN_PAGE_GATE_ITEMS_2026-11-16.md). Earlier: FINDINGS decoder-offset wording (fa9a4907). attempt-coding is no longer
+a separate line of history: branch new work from origin/main.
+
+**RESULTS (11-16 evening, scratch `prelick_test/` + `prelick_test/head_to_head/`):**
+- RESTnl session levels (107 sessions, checkpointed `rest_sessions/`): orofacial REST_R - REST_L change vs own pre acute -0.73 / -1.98 /
+  -2.82 / -2.55 (every pair 4/4), chronic +0.80 / -2.13 / -0.46 / -0.82 (session-mean reference: partly the mirror of the task-period
+  contralesional rise). dec_rest - pre_rest == decbc to 1.6e-14.
+- Head-to-head vs far-contra aim (post n = 75, circular shift 10k, ln(day)-detrended): 14.18 marker +.78 / +.54 cued, +.70 / +.59 ITI
+  (p <= .0001); RESTnl level +.49 / +.34 (4/4); raw evoked ratio resp02 n.s. / +.29 (2/4); gain, dec, pre-lick variants lose it after
+  detrending; r(rest, marker) ~ +.3 n.s. Raw ratio rises acutely while the angle-matched marker falls (acute licks land ipsilesionally;
+  the pre line at that angle predicts an even larger contralesional share).
+- Null fix: no star changes (SS 6.3 / 6.4 / 10.25); section 10 p values move; Priya: KEEP Fig 10.23 framing (time and recovery are linked).
+- Kinematics gate: Priya "new figures look good"; jaw opening far contra acute -2.42 -> -1.85 mm, 4 small jaw stars lost.
+
+**RUNNING (delegated helpers, this session):**
+1. Page update (3 pages): KINEMATICS (gate figures + captions; PI-slide-35 far-contra outcome figure becomes Fig 6.1, rest renumbered),
+   SS (circular-shift wording + p values; figures copied to a page_figs_nullfix_20261116 folder), ENCODING / goal page (new rest-level
+   figure after the section 14 balance figures; 14.18 trend-safe sentence; old ITI "-0.15 r, -23 %" -> Fig 10.3's -0.130 / -0.122 / -0.130).
+2. Analysis deck (branch fix/deck-section-g-1116, worktree wf_adeck1116): G2b / G3 / G6 / counts -> LP video licks; outdated text out;
+   small-lesion slides dropped; NEW key-figures section from the four pages; of the missing families outside the queue render only
+   those cited on a page or in FINDINGS (report before any > 30 min render). Push the branch when it finishes.
+
+**DECISIONS (Priya 11-16):** 14.18 pool = current five areas; rest-level result on the ENCODING page with a title / caption that says it
+has no lick in it; 14.18 caption gets the trend-safe sentence; whole-number figure numbering, no letters; deck as in RUNNING item 2.
+
+**TO DO / OPEN:**
+- Relay page links + deck report to Priya; push fix/deck-section-g-1116 after the rebuild.
+- Production path bugs (from the null-fix helper): within_session_behavior.WSD and detour_vs_balance.RECPRIM resolve under
+  rebuild_20261103 where the files do not exist (join silently skipped; detour would fail); block_size_max_for finds no behavior dir
+  on this box (every session uses 8).
+- Fig 14.13 shared-y version onto the goal page (Priya not yet asked to decide); block-permutation p for the per-lick fits (open).
+- Fig 9.10 re-run (bundle moved: o2/enc_rebuild_20261104b/env.json); SS section 7 detour + Fig 3.9 / 6.12 sources; CUT_FIGURES rows for
+  the IMG cuts; re-render deck sections A-C after the code cleanup.
+- Kinematics: section 6 per-animal jaw-only table, section 7 no-contact table and Fig 7.6 not re-gated (outside the class shares).
+
 ### 00-COMPACT-41 (11-16) -- READ FIRST; supersedes 40 for STATE (38 section 1 RULES still apply)
 State after the glue-free re-run (v20, done 11-12) and the 11-16 page / deck pass. Detail: RUNNING_LIST_2026-11-06.md,
 entries "11-13" and "11-16"; per-artifact reports in the session scratchpad pages/<goal|img|ss|adeck|pideck>/REPORT.md.
