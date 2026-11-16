@@ -97,9 +97,10 @@ pre the aligned readout cosine is only .52-.65 (half-session fit), so part of th
 session against each animal's own pre (within-animal shuffles, Holm across every epoch and measure, drift-controlled),
 both lateral lick factors CHANGE SHAPE after the stroke and lose side specificity at every epoch (lick_right spatial
 +14.6 / +7.6 / +5.5 deg, side specificity -.38 / -.25 / -.13; lick_left +12.1 / +10.5 / +9.9 deg, -.31 / -.23 / -.10),
-lick_left moves toward the contralesional face (+.23 / +.18 / +.10; PROVISIONAL, 11-13: carried mainly by PS94, and after
-the stroke lick_left often splits over two similar, more diffuse columns; with clean matches only the chronic change
-by animal is +.09 / -.04 / +.22 / .00), and lick_right's weight leaves the central face
+lick_left moves toward the contralesional face (+.23 / +.18 / +.10; acute 4 / 4 animals, subacute 3 / 4, and the same or larger
+if the runner-up column is taken instead; the chronic +.10 is small and PROVISIONAL, mainly PS94; after the stroke
+lick_left is more diffuse and often a near-tie between two columns, the matched one being the left-spout-selective
+one, 11-16), and lick_right's weight leaves the central face
 for the ipsilesional cheek and jaw (map, 4 / 4 animals' sessions); none of this is pre-stroke drift or the loss of
 right licks. Many other face factors also change shape (per-session tests, and the pooled null at 500 permutations, 11-12), but
 none of them changes its asymmetry: what is specific to the lick factors is the change in asymmetry and the loss of side specificity. Against a longer, 2-month pre-stroke floor (June sessions, FACE_RHYTHM_FINDINGS 6e-June, 11-09) lick_right's spatial change is beyond June acutely / subacutely but its chronic and spectral changes are within it (uncorrected; PROVISIONAL). Acutely the lick rhythm slows (video licks: within-bout interval +15-25 ms at every spout) and the face
@@ -1977,10 +1978,16 @@ each animal's own pre. Factor names, not numbers (numbers shift between fits).*
     columns (asym -.39 vs -.42; only 4 / 41 share a column with another lick unit). The matched columns keep a weaker
     ipsilesional blob and add a contralesional cheek spot and lower lip, also in clean chronic sessions. Chronic asym
     change vs own pre, clean matches only: PS92 +.09, PS93 -.04, PS94 +.22, PS95 .00 (all recovered: +.11 / -.06 / +.29 /
-    +.06); acutely 0-1 clean sessions per animal. So the lick_left contralesional shift is clear in PS94 only; the robust
-    lick_left result is the loss of side specificity and the shape change (it becomes diffuse / split).
-    **STANDS** (lick pair spatial angle, side specificity, lick_right map); **PROVISIONAL** (lick_left asymmetry
-    shift, mainly PS94; acute fast-lick factor LOSS per session; other units). Since 11-07 night every
+    +.06); acutely 0-1 clean sessions per animal. FOLLOW-UP 11-16: asym change by animal (all recovered sessions) acute 4 / 4 animals, subacute 3 / 4 (by animal +.26 / +.13 / +.27 / +.25 acute, +.02 / +.20 / +.24 / +.25
+    subacute, +.11 / -.06 / +.29 / +.06 chronic);
+    taking the RUNNER-UP column instead gives the same or a larger shift, so the near-ties do not create it. Trial-
+    aligned expression of the own columns (`scripts/face_rhythm_own_temporal.py`): the matched lick_left is the
+    left-spout-selective column (ipsi / contra spout response 4.7 pre, 2.3-2.7 post) and the runner-up is not (~1.3);
+    the matched column is the more left-selective one in 27 / 35 flagged post-stroke sessions (PS94 the split case,
+    2.2 vs 2.3); PS95's low-cosine subacute columns still fire strongly on left-spout trials (lick_left is present, its
+    footprint changed). So the clean-match-only table above under-counts real lick_left sessions.
+    **STANDS** (lick pair spatial angle, side specificity, lick_right map; lick_left asymmetry shift acute + subacute);
+    **PROVISIONAL** (lick_left chronic asymmetry, mainly PS94; acute fast-lick factor LOSS per session; other units). Since 11-07 night every
     map test uses 10,000 shuffles (only change vs 2,000 that touched text: the cue-aligned speed-map drift control lost
     its far_center cluster, 2 clusters left at far_R).
     RHYTHM-BAND MOVEMENT + LICK RATE (11-07 night, Priya; FACE_RHYTHM_FINDINGS 6f). Video licks (LP v36): the within-bout

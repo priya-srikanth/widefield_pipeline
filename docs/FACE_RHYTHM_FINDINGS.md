@@ -581,9 +581,13 @@ many sessions, so its per-session maps flip. LICK_LEFT MATCH CHECK (11-13, `scri
 ipsilesional mouth-corner blob (cos .94-.99), but every acute pooled fit picks a diffuse column with an equally diffuse
 runner-up. Per session, many post-stroke matches are near-ties between two similar diffuse columns (rarely another lick
 unit); the matched columns keep a weaker ipsilesional blob plus a contralesional cheek spot and lower lip. Chronic
-asymmetry change vs own pre with clean matches only: PS92 +.09, PS93 -.04, PS94 +.22, PS95 .00. **STANDS** (lick pair
-spatial angle, side specificity, lick_right map); **PROVISIONAL** (lick_left asymmetry shift, carried mainly by PS94;
-acute fast-lick loss; other units).
+asymmetry change vs own pre with clean matches only: PS92 +.09, PS93 -.04, PS94 +.22, PS95 .00. Follow-up 11-16: by animal
+(all recovered sessions) acute 4 / 4 animals, subacute 3 / 4 (by animal +.26 / +.13 / +.27 / +.25 acute, +.02 / +.20 / +.24 / +.25
+subacute, +.11 / -.06 / +.29 / +.06 chronic); the runner-up column gives the same or a larger shift; the matched lick_left is
+the left-spout-selective column in its trial-aligned expression (ipsi / contra spout response 4.7 pre, 2.3-2.7 post; runner-up
+~1.3), including PS95's low-cosine subacute sessions. **STANDS** (lick pair spatial angle, side specificity, lick_right map;
+lick_left asymmetry shift acute + subacute); **PROVISIONAL** (lick_left chronic asymmetry, mainly PS94; acute fast-lick
+loss; other units).
 
 Figures: session_shape_v2/session_scalars.png (normalized, with leave-one-out pre column), session_scalars_raw.png (raw
 angles >= 0 / own asymmetry and side specificity), session_loss.png, session_maps_scaled_lick.png (headline maps),
@@ -784,6 +788,7 @@ FR run A / master FR in the encoder is summarized by the encoding window (ENCODI
 
 ## Change log
 
+* 2026-11-16: lick_left asymmetry shift STANDS acute + subacute, chronic PROVISIONAL (runner-up + trial-aligned check; Priya).
 * 2026-11-13: lick_left match check; lick_left asymmetry shift downgraded to PROVISIONAL (Priya).
 * 2026-11-12: pooled permutation null complete at 500 permutations (section 6e sentence; FINDINGS 5.10).
 

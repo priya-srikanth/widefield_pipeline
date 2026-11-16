@@ -298,3 +298,11 @@ Preview stats (matched columns): lick_right falls on far contra trials at every 
 far mid (-1.22** / -.47** / -.54*), close contra unchanged; lick_left RISES on close contra acutely (+1.31**) and far
 contra subacutely (+.69*), falls on close ipsi chronically (-.50**) and far mid acutely (-.76**). Runner-ups: one Holm
 pass (lick_right runner-up close contra subacute -.55**).
+
+## 11-16: lick_left asymmetry wording applied (Priya "sure")
+STANDS acute (4 / 4) + subacute (3 / 4), chronic small / PROVISIONAL (mainly PS94): FINDINGS headline + 5.10,
+FACE_RHYTHM_FINDINGS 6e + change log; PI deck slide 90 (new bullet + notes line; backup
+Overview_2026-11-06.bak_pre_a8_lickleft_20261116.pptx); FR page text edited LOCALLY (headline row, overview row, 7a.1,
+7a.10, 7.13), published together with the own_temporal figures after the all-trials re-render.
+Stale, not mine to edit without asking: deck slide 163 (Big picture) status line still says "lick_left subacute + chronic
+(cohort permutation null, 100 permutations per epoch, 10-26)".
