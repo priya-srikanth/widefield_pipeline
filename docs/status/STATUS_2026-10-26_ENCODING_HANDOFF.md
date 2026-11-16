@@ -39,6 +39,44 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 3. Then tell **sabatinilab-e3** (PI deck) the decoder figures are final: per figure the share PNG path, page Fig N.k,
    script + args, headline numbers, methods text (they asked 10-26 ~22:30; reply sent: not final yet).
 
+### 00-COMPACT-41 (11-16) -- READ FIRST; supersedes 40 for STATE (38 section 1 RULES still apply)
+State after the glue-free re-run (v20, done 11-12) and the 11-16 page / deck pass. Detail: RUNNING_LIST_2026-11-06.md,
+entries "11-13" and "11-16"; per-artifact reports in the session scratchpad pages/<goal|img|ss|adeck|pideck>/REPORT.md.
+- PUBLISHED 11-16: GOAL page v313 (D1-D5), IMG page v53/54 (D6 + session-mean twins, Q9 cuts), SS page v38 (45 areas,
+  61 number edits, 5-row balance figures, hemi-gain wording, naming). PI deck Overview_2026-11-06.pptx rewritten 13:03
+  (backup .bak_pre_rebuild_20261116); FR window then edited slides 90 and 163 (its own backups).
+- CODE ON MAIN (11-13, cfb83124): state-space consolidation (docs/STATE_SPACE_CODE.md); state_space_recovery output root
+  moved to rebuild_20261103/state_space_recovery. UNPUSHED BRANCHES: feat/ss-balance-level-row-1116 (5-row balance
+  figures, AREA_SET_NAME naming, balance_defined: no balance under gsr / spout), feat/balance-angle-sharedy-1116 (Fig
+  14.13 one y scale per column), fix/deck-section-g-1116 (deck text; A-C + small-lesion removal in progress).
+- NAMING (Priya 11-16): "orofacial" alone = SENSORIMOTOR; say "orofacial sensory" (SSp-m, SSp-n, SSs) / "orofacial motor"
+  (ALM, tjM1) for the subsets. The pooled sets differ by figure (14.13 = ALM + tjM1 + SSp-m + SSp-n; SS section 10 =
+  tjM1 + SSp-m + SSp-n; 14.18 primary marker = those four + SSs): state the areas in each caption.
+- TWO BALANCE MEASURES (keep apart; they disagree on ITI licks):
+  * RESPONSE RATIO (resp; 14.9 / 14.13 image 1): log2(contra / ipsi AUC 0..1.0 s after the lick, each hemisphere minus
+    its own -1.0..-0.5 s baseline). Needs lick-free windows on both sides, so it exists only for the FIRST cued lick and
+    the ITI bout start after >= 2 s without licks (6-7 Hz licking puts ~6 other lick responses inside a later lick's
+    1 s window). A ratio: invariant to a bilateral gain.
+  * DECODER-WINDOW BALANCE (dec; 12.17 / 14.13 image 2): X_right - X_left averaged over 0..0.2 s after the lick peak,
+    x1e3 dF/F, NO baseline -- X = the per-lick Allen-area traces (iti_X / tr_X) that are the INPUT FEATURES of the
+    per-lick lateral WHERE-decoder (iti_lick_order / iti_where_decoder: ridge on Allen areas with the ALM / tjM1 split,
+    lags 0..0.2 s, features z-scored within session, trained on August pre licks per set, pre sessions leave-one-out;
+    predicts the lick's lateral landing in mm). Defined for EVERY lick, but carries the pre-lick level (tonic offsets,
+    earlier licks' responses) and, as a difference, scales with response size. The where-decoder's lateral weights are
+    largely ipsi-minus-contra (11.13), so this balance is roughly a one-number summary of what that decoder reads: it
+    behaves like the decoder (ITI similar to cued, smaller) where the response ratio does not (partly circular; see
+    lick_balance_reference.py docstring). NOT the frozen spout-position decoder of section G / IMG 2.x.
+  * 11-16 scratch (scratchpad bal_angle4/): decoder-window balance for first cued / all cued / ITI bout start (>= 1 s
+    gap) / all ITI licks: all-lick rows are tighter and steeper; ITI licks track angle in every area incl. ALM / tjM1
+    (about half the cued slope); post-stroke ITI shows an ipsilesional shift at the same angle (orofacial -3.3 / -1.7 /
+    -1.6) that the response ratio does not. Exact ">= 2 s quiet" ITI-first version pending (needs the per-lick table).
+- RUNNING (helpers, 11-16): analysis-deck rebuild without A-C + small-lesion slides; kinematics gate items (section 6
+  accepted; incomplete-lick text + legacy-gate sensitivity row; gated pooled re-run on fix/kin-gated-pooled-1116).
+- OPEN WITH PRIYA: 14.18 marker with / without SSs (table check offered); ">= 2 s" ITI version of the 4-set figure; goal
+  page old ITI numbers vs new Fig 10.3; SS section 7 detour + Fig 3.9 / 6.12 sources not re-run glue-free; Fig 9.10 re-run
+  blocked (state_space_why_cleaner reads o2/enc_rebuild_20261104b/env.json, bundle moved 11-11); A-C re-render after the
+  code cleanup (agreed: yes, later); C6 balance numbers + HELD list (PAGE_DRAFT_REBUILD_2026-11-10.md) unchanged.
+
 ### 00-COMPACT-40 (11-09 ~07:50) -- READ FIRST; supersedes 39 for STATE (38 section 1 RULES still apply)
 
 **Where things are:** running list `docs/status/RUNNING_LIST_2026-11-06.md` (11-09 entries at the end);
