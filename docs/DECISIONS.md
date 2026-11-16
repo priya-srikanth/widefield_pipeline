@@ -1,3 +1,13 @@
+## 2026-11-16 -- June sessions against August-frozen references: drift sub-analyses only (Priya; a8 window)
+- Priya 11-09 asked for the frozen pre-stroke analyses on the June sessions (August-frozen reference); scope settled
+  11-16: **"just for drift sub-analyses"**. June is used as a longer (~2-month) pre-stroke drift floor for a readout,
+  not as an extra baseline and not to re-run every frozen analysis. Done in FR (June floor, FR page supplement to Fig
+  7.1) and in the jaw 3-D composition floor. Other arms (imaging position decoder, behavioral-state decoder, frozen
+  encoder, no-lick decoder, CD trajectories) add June only where a drift sub-analysis is the question.
+- FR per-trial readouts (a8, 11-16): prevalence vs amplitude-given-movement and per-trial timing are read on single
+  trials and summarized per session; statistics stay at the session level (animal -> session bootstrap); conditioned
+  quantities are tested only with a pre baseline in >= 3 animals; expression floored at 1 before log2.
+
 ## 2026-11-09 -- Aligned frozen decoder: the gate is alignment efficiency (Priya)
 - GATE SWITCHED AFTER THE FIRST RUN (`scripts/aligned_decoder.py`). Written before the run: pre -> pre gap fraction
   (aligned - frozen) / (refit - frozen) >= .7 in >= 3/4. It cannot pass when nothing has moved: size-matched frozen and
