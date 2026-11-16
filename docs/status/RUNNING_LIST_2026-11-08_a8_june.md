@@ -323,3 +323,6 @@ Stale, not mine to edit without asking: deck slide 163 (Big picture) status line
   Session-label shuffles fine. Trend caveat (two session series both trending over days): the only FR association test
   is session_shape_tests lick_right map change vs right-lick share (Spearman, parametric p, within epoch; rho -.14 n.s.) --
   a shared trend would inflate, not hide, an association, so the null result stands; detrend if it is ever re-tested.
+- 11-16 ~15:10: all-trials run STOPPED at 64 / 108 (window 3c: box at 2.3 GB free; my 6 workers held ~42 GB of memory-mapped
+  spectrogram pages). Fix in session_curves: plain per-trial file reads (verified byte-identical to the memmap); measured
+  0.42 GB working set per worker (was 8-10 GB). Resumed with --jobs 4 (completed sessions kept in the cache).
