@@ -56,7 +56,25 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
 
 ## 2. Next, in order
 
-00-A8-1116. **11-16 NIGHT (a8) -- START HERE.** Page https://claude.ai/artifact/X8NDdQNHi3zMP77PBrZAC1 = **v52**
+00-A8-1116b. **11-16 LATE (a8) -- START HERE; the to-do list below (item 00-A8-1116) is DONE except where noted.**
+   Page = **v54**. Priya: deck slide yes; delete superseded n12 = yes (done, 118 files, list in the running list); block-
+   permutation hold = ok.
+   * DONE: (1) epoch_shape_angles redrawn without shading from the v1 tables (`--plot-only --match-rule v1`, both
+     own_epoch and own_epoch_cohort; numbers unchanged) -> page 9.11 / 10.18. (2) Per-trial timing = page Fig 5.5
+     (`per_trial_timing.png`); section 5 take line + status row rewritten: acute later lick_right follows the later first
+     right lick; chronic close contra peaks .50 s later relative to it (*, PROVISIONAL). (3) Amplitude three ways = page
+     Fig 2.6 (`per_trial_amplitude.png`, collapsed under 2.5) with (5) the isolated-lick numbers in its take line.
+     (4) Fig 7.13 caption: one sentence on the own-fit vs frozen far-contra lick_left gap. (6d) Spout-in-mesh control =
+     page Fig 6.2 (collapsed under 6.1); section 6 note's "not yet checked" sentence replaced.
+   * DECK: new **slide 81** "Per trial: contra lick movements are smaller, not just rarer" (deck crop
+     per_trial/per_trial_deck.png; notes = methods + FIGURE SOURCE), after per-lick slide 79 + hidden LMM 80. Backup
+     `Overview_2026-11-06.bak_pre_a8_pertrial_slide_20261116.pptx`. **EVERY SLIDE AFTER 80 MOVED +1** (deck now 206):
+     FR slides 71-96; old 87 / 89 / 90 / 93 / 94 -> 88 / 90 / 91 / 94 / 95; old 163 -> 164; quiet events 151-156 ->
+     152-157. Other windows' docs citing slide numbers > 80 are now one low.
+   * STILL OPEN: which non-FR frozen analyses extend to June (needs Priya); the il.OUT diagnostic (needs its owner's
+     spec); deck-wide notes "Data:" pass (large, not started); block-permutation hold (a2).
+
+00-A8-1116. **11-16 NIGHT (a8).** Page https://claude.ai/artifact/X8NDdQNHi3zMP77PBrZAC1 = **v52**
    (source: a8 session scratchpad fr_page/; from a new session READ the URL first, then publish with `url`). Log of the
    day: `docs/status/RUNNING_LIST_2026-11-08_a8_june.md` (11-16 entries).
    * **RUNNING: nothing.** All a8 jobs finished; no O2 jobs of ours pending.
