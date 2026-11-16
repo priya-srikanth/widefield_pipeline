@@ -38,6 +38,12 @@ OUR VERSION (differences, each deliberate):
   share = 1 - residual^2 / total^2 is reported alongside. Scaling to the animal's own pre (Priya 11-07: every readout as
   delta vs the animal's own pre) happens at the cohort step (`cohort_tables`), not here.
 
+ENGAGEMENT STATES (planned; Priya 11-16): if states are defined by a GLM-HMM as in Yin et al., the HMM is fitted on ALL
+trials of the session -- never on engaged / working trials, which would remove the disengaged stretches it exists to
+find. Our observation per trial is the outcome class (contact / incomplete / jaw-only / no response), inputs = spout
+position + previous outcome (+ latency); the camera classes and the quit tail are compared with the inferred states,
+not used to define them. TIM / the encoders are then split by state (trial counts matched, as the paper does).
+
 Kept apart from the encoders on purpose: nothing here reads imaging, so it can run on every session with LP windows.
 """
 from __future__ import annotations
