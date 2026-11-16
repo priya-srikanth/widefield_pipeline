@@ -276,3 +276,15 @@ about the same. PS95: no good column at all in most flagged sessions (pick .72-.
 0818 subacute: the spatially best column (cos .86) looks like the master but fails on frequency (.31). Recovery at
 spatial cos >= .8 instead of .7: PS92-94 unchanged; PS95 loses acute (1 -> 0 sessions) and subacute (5 -> 1). Asym change
 at >= .8: acute +.26 / +.13 / +.27 / - ; subacute +.02 / +.20 / +.24 / +.17 (1 session); chronic +.11 / -.06 / +.27 / .00.
+
+## 11-16: own-fit lick columns, trial-aligned expression by spout (Priya: matched vs runner-up on lick-left trials?)
+`scripts/face_rhythm_own_temporal.py` (new): each session's trial spectrograms projected on all 12 own8 columns (unit-norm
+A / B, absolute = weight x D, 12 trials per spout; cache ~/wfield_cache/fr_own_temporal/) -> own_temporal_lick.png +
+per animal + data/own_temporal_lick.csv in lick_left_match_check/. Response window (cue 0..+2 s) ipsi / contra spout
+ratio, mean of animals: lick_left MATCHED 4.7 pre -> 2.5 / 2.3 / 2.7 (ipsi trials fall a little, contra trials rise);
+RUNNER-UP 1.3 / 1.8 / 1.4 / 1.3 (not side-selective). lick_right matched contra/ipsi 5.7 pre, stays selective; its
+runner-up ~1. Post-stroke FLAGGED sessions: matched column more left-selective than the runner-up in 27 / 35 (median
+ratio 2.3 vs 1.3); PS92 10 / 10, PS93 5 / 5, PS94 8 / 13 (2.2 vs 2.3), PS95 4 / 7. PS95 subacute matched lick_left is
+strongly expressed on left-spout trials (Priya: lick_left is there behaviorally; my "not really there" was wrong -- the
+footprint changed, the factor did not vanish). PS93 0822 / 0824: matched column more left-selective (1.42 vs 1.07; 1.31
+vs .35) -> the tie-break picked the right column in both.
