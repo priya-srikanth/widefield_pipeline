@@ -110,3 +110,36 @@ Each supplement keeps its key figure(s); these secondary views were removed from
 | figure (PNG) | was on page | what it shows | answers questions like | script / data |
 |---|---|---|---|---|
 | early_predictors.png | Fig 0.13 (Priya: "not useful") | early features (lesion %, day-1 residuals, acute retention, coupling) vs chronic outcomes, Spearman per animal, n=4; only lesion size orders recovery speed perfectly | "does lesion size / day-1 signal predict recovery?" | scripts/early_predictors.py |
+
+## 2026-11-16: Cortical Spout Coding page (IMG, https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV), v53 / v54
+
+Priya 11-16 (caption pass Q9: "yes, off the page, into CUT_FIGURES; files kept"): the DAQ ENL 2 s arms (retired), the
+DAQ-trained frozen-decoder twins of the LP figures, the DAQ spout-contact map twins of the LP maps (B11), and the pre-cue
+Haufe maps came off the IMG page. Files below are the page's published names (the page's source copies; the producing
+scripts and their CSVs are kept). Every cut figure is on DAQ spout contact; the LP-lick / camera working-trial version
+named in the last column stays on the page.
+
+| figure (PNG) | was on page | what it shows | answers questions like | script / data |
+|---|---|---|---|---|
+| d_refit_precue.png | IMG Fig 1.1 | within-session refit 6-way decoder, pre-cue 2 s (DAQ ENL), per position x epoch; no acute loss at any position, far contra ~0.3-0.4 in every epoch | "is the low pre-cue far-contra code specific to the frozen decoder?" | wfield_local/epoch_accuracy.py (`_frozen_vs_refit`) on grant_confusion._refit_pred; epoch family 5r (10-07) |
+| d_within_precue_nolines.png | IMG Fig 2.1 | frozen pre-stroke decoder, pre-cue 2 s (DAQ ENL); far contra low even at baseline (pre ENL .51, cue .90, lick .95) | "how decodable is position before the cue on the 2 s window?" | wfield_local/epoch_accuracy.py; on the page: LP 1.0 / 1.5 s ENL (Figs 2.6, 2.8) |
+| d_enl1s_nolines.png | IMG Fig 2.2 | frozen decoder, DAQ ENL 1 s; far contra roughly halves acutely 4 / 4 (.29 -> .15, .33 -> .16, .54 -> .30, .40 -> .14) | ENL 1 s far-contra loss on the DAQ lick definition | wfield_local/epoch_accuracy.py (arm grant_figures/DAQ_ENL1s); on the page: Fig 2.8 |
+| d_lp_lick_daq.png | IMG Fig 2.4b | frozen decoder, lick window, LP lick gate, decoder trained on DAQ-contact pre trials: acute far contra .90 -> .26, 4 / 4 (first run 11-02) | "does the Fig 2.4 lick-window loss depend on which lick definition trained the decoder?" (no) | wfield_local/epoch_accuracy.py (WIDEFIELD_LICK_SOURCE=lp, WIDEFIELD_EPOCH_FROZEN=1, stored frozen decoders) |
+| d_lpf_enl15_daq_nolines.png | IMG Fig 2.5 | final LP arm, ENL 1.5 s, DAQ-trained frozen decoder: far contra .48 -> .21 acute **, 4 / 4 | DAQ-trained twin of Fig 2.6 | scripts/lp_final_render.py decoders --source lp --trained daq --window 1.5 |
+| d_lpf_enl1_daq_nolines.png | IMG Fig 2.7 | final LP arm, ENL 1.0 s, DAQ-trained frozen decoder: far contra .42 -> .20 acute **, 4 / 4 | DAQ-trained twin of Fig 2.8 | scripts/lp_final_render.py decoders --source lp --trained daq --window 1.0 |
+| map_REST_precue_contact.png, map_RESTNL_precue_contact.png | IMG Fig 7.1, 7.1b | pre-cue 2 s contact-gate response maps, pooled, REST / RESTnl reference (RESTnl: acute far-contra rise 4 / 4, PS94 flips) | anticipatory position map on the 2 s DAQ window | wfield_local/epoch_maps.py (position_reference_maps.py, beta_maps.py); scripts/restnl_maps.py --arm contact |
+| drift_REST_precue_contact.png, drift_RESTNL_precue_contact.png | IMG Fig 7.2, 7.2b | June -> August drift for the 2 s contact pre-cue maps (chronic far-contra fall drift-sized; chronic far middle .53 beyond drift; RESTnl acute far contra 1.80) | "is a pre-cue map change beyond the June -> August drift?" (DAQ arm) | scripts/map_drift_prepre.py [--refs restnl] |
+| map_REST_enl1s_contact.png, map_RESTNL_enl1s_contact.png | IMG Fig 7.5, 7.5b | DAQ ENL 1 s contact maps, pooled (REST acute far contra 1.67; RESTnl 2.04, 4 / 4) | contact twin of the LP 1 s pre-cue map (Fig 7.3) | wfield_local/epoch_maps.py; scripts/restnl_maps.py --arm enl1s |
+| drift_REST_enl1s_contact.png, drift_RESTNL_enl1s_contact.png | IMG Fig 7.6, 7.6b | drift for the DAQ ENL 1 s maps (far-middle chronic .35 / .49 beyond drift) | DAQ ENL 1 s drift check | scripts/map_drift_prepre.py [--refs restnl] |
+| map_REST_cue_contact.png, map_RESTNL_cue_contact.png | IMG Fig 7.7, 7.7b | cue-window contact maps, pooled (acute far contra .48 REST / .53 RESTnl of pre, far middle .66 / .76, near ipsi up to 1.43) | contact twin of the cue map (Fig 7.10 / 7.10b) | wfield_local/epoch_maps.py; scripts/restnl_maps.py --arm contact |
+| map_REST_cue_contact_by_animal.png, map_RESTNL_cue_contact_by_animal.png | IMG Fig 7.8, 7.8b | cue-window contact far-contra maps per animal (acute loss 4 / 4) | per-animal contact cue maps | wfield_local/epoch_maps.py (family 15rpa); scripts/restnl_maps.py --arm contact |
+| drift_REST_cue_contact.png, drift_RESTNL_cue_contact.png | IMG Fig 7.9, 7.9b | cue contact drift (far-contra acute .49 / .53 beyond drift .95 / .93; far middle not separable from drift) | contact cue drift check | scripts/map_drift_prepre.py [--refs restnl] |
+| map_PRECUE_cue_contact.png | IMG Fig 7.12 | cue contact maps, PRECUE reference: cue-evoked far-contra increment .18 of pre acutely, far middle .52 | contact twin of the PRECUE cue map | wfield_local/epoch_maps.py |
+| drift_PRECUE_cue_contact.png | IMG Fig 7.13 | PRECUE cue contact drift (far contra .18 and far middle .55 beyond drift) | contact PRECUE drift check | scripts/map_drift_prepre.py |
+| map_REST_lick_contact.png, map_RESTNL_lick_contact.png | IMG Fig 7.16, 7.16b | lick-window contact maps; acute far-contra panel empty (< 20 contact trials); RESTnl near positions 1.42-1.67, far ipsi 1.50 | lick-window maps on DAQ contact (other positions) | wfield_local/epoch_maps.py; scripts/restnl_maps.py --arm contact |
+| drift_REST_lick_contact.png, drift_RESTNL_lick_contact.png | IMG Fig 7.17, 7.17b | lick contact drift; no acute far-contra estimate; near-spout acute rises, opposite to drift | contact lick drift check | scripts/map_drift_prepre.py [--refs restnl] |
+| map_PRECUE_lick_contact.png | IMG Fig 7.21 | lick contact maps, PRECUE reference; acute far contra empty | contact twin of Fig 7.23 | wfield_local/epoch_maps.py |
+| drift_PRECUE_lick_contact.png | IMG Fig 7.22 | PRECUE lick contact drift: far-contra increment grew June -> August (1.32, learning); no acute estimate | "did the cue-referenced lick map change before the stroke?" | scripts/map_drift_prepre.py |
+| haufe_precue.png | IMG Fig 14.1 | Haufe decoder maps, pre-cue window, pooled: weak (pre split-half r .73-.96), only near middle's acute change significant | "where does the pre-cue decode come from?" | wfield_local/epoch_maps.py (maps and tests wfield_local/beta_maps.py) |
+| haufez_precue.png | IMG Fig 14.4 | pre-cue Haufe maps tested against zero: few significant bins in any epoch | pre-cue Haufe bins per position / epoch | wfield_local/epoch_maps.py (beta_maps.py) |
+| haufepa_precue.png | IMG Fig 14.7 | far-contra pre-cue Haufe map per animal: acute change does not replicate (2 / 4 up, PS94 down) | per-animal pre-cue Haufe maps | wfield_local/epoch_maps.py (beta_maps.py) |
