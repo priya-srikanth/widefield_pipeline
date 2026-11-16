@@ -28,7 +28,8 @@ Consolidated 2026-11-13 (branch `refactor/ss-cleanup-1113`); the section at the 
 | Cohort SVD basis, split areas, region weights, pixel-RMS unit, ROI outlines | `state_space_svdmaps` | 8 map scripts |
 | RESTnl level / ENL trials per session: `rest_level`, `enl_trials` | `state_space_chronic_maps` | `shift_*`, `chronic_maps` |
 | Change vs own pre, per epoch (animal-weighted nested bootstrap) | `analysis_kit.epoch_change` (on `boot_delta`) | every table and figure with a change |
-| Within-animal shuffle p: `permute_within`, `within_shuffle_p` | `analysis_kit` | step_vs_gradual, per_position, detour_vs_balance, within_session_behavior, shift_precue, shift_rawref |
+| Within-animal null p: `within_shuffle_p` (`permute_within` free shuffle; `mode="circular"` + `order=day` = `circular_shift_within`, 11-16) | `analysis_kit` | step_vs_gradual, per_position, detour_vs_balance, within_session_behavior, shift_precue, shift_rawref, shift_recovery (via step_vs_gradual) -- all CIRCULAR since 11-16 |
+| Spout block ids per extract session / whole-block split parts: `spout_blocks` (= `block_ids.block_ids` + `block_size_max_for`, the decoders' GroupKFold blocks), `block_split` | `state_space_sim` | orth_check, shift_spout_timing (11-16) |
 | LMM backup (dagger) | `analysis_kit.epoch_change_lmm` | `page_figs.lmm_p` |
 | Stars in the top band, no top spine | `sig_marks.star_top`, `reserve_headroom` | figures |
 | PNG + svg twin | `figure_layout.save_png_svg` | figures |
@@ -121,6 +122,14 @@ Every script's module docstring names its question, inputs, outputs and readouts
   +.18 (cue, carried by PS93): no consistent sign.
 - **Shuffle p** = share of within-animal shuffles with |null| ≥ |observed|, two-sided, no +1. It is not
   `lick_templates.perm_p`, which is one-sided with the +1.
+- **Session-level association tests use the CIRCULAR null** (Priya 11-16, "block permutation everywhere it makes
+  sense"): two per-session series that both move with days (readout vs far-contra aim, pre-cue vs pre-lick level, ...)
+  are not exchangeable across sessions, so `within_shuffle_p(..., order=<day>, mode="circular")` rotates one series
+  over the animal's day-sorted sessions by a random non-zero lag. Same p convention. It protects against serial
+  correlation, NOT against two shared monotone trends (measured in tests/test_epoch_change.py; that needs detrending).
+  With n_a sessions an animal has only n_a - 1 distinct rotations, so the null is coarse.
+- **Split halves keep spout blocks whole** (11-16): trial-level splits put block-mates (shared slow drift) in both
+  halves and make a cross-half product optimistic. `S.block_split(S.spout_blocks(label, pos), pos, n_parts, rng)`.
 - **Draw order.** `epoch_change` takes one `boot_delta` per epoch, in order, on the caller's rng. A loop that
   interleaves epochs with other draws passes `epochs=[ep]`. Do not reorder calls on a shared rng.
 - **`sim.run` keeps its own pre-session loop** (file order; `load_sessions` sorts by day). Switching it would move the

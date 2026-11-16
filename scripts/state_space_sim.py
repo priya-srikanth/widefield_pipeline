@@ -508,6 +508,35 @@ def load_sessions(hook=None, june=False):
     return {a: sorted(v, key=lambda s: s[2]) for a, v in data.items()}, (cols if BASIS == "lnmf" else last)
 
 
+def spout_blocks(label, pos):
+    """Spout BLOCK id per trial of one extract session (rows in trial order, as the extract writes them), the decoders'
+    definition: `block_ids.block_ids(codes, block_size_max_for(session))` -- a new block where the spout changes, a run
+    longer than the scheduler's block_size_max split evenly (two adjacent same-spout blocks). The extract keeps only
+    first-lick trials, so a dropped trial is simply absent: it does not break a run (as a -1 in `block_ids`), but the
+    even split of an over-long run counts the trials present. Negative ids (none here: every extract row has a spout)
+    would become singletons."""
+    from wfield_local.block_ids import block_ids, block_size_max_for
+    code = {p: i for i, p in enumerate(POS)}
+    b = block_ids(np.array([code.get(str(p), -1) for p in pos]), block_size_max_for({"label": label}))
+    neg = b < 0
+    b[neg] = b.max(initial=-1) + 1 + np.arange(neg.sum())
+    return b
+
+
+def block_split(blocks, pos, n_parts, rng):
+    """Part label (0..n_parts-1) per trial with every spout BLOCK whole in one part (Priya 11-16: block-mates in both
+    halves make a split-half estimate optimistic). Per spout in POS order, its blocks (first-appearance order) are dealt
+    to parts by ``rng.permutation(np.arange(n_blocks) % n_parts)`` -- the trial-level deal it replaces, one level up.
+    A spout with fewer blocks than parts leaves some parts without that spout in this session."""
+    blocks, pos = np.asarray(blocks), np.asarray(pos)
+    part = np.full(len(pos), -1)                                   # -1 = a spout outside POS (in no part)
+    for p in POS:
+        m = np.flatnonzero(pos == p)
+        ub, inv = np.unique(blocks[m], return_inverse=True)
+        part[m] = rng.permutation(np.arange(len(ub)) % n_parts)[inv]
+    return part
+
+
 def spout_means(Y, pos):
     """trials x ... -> 6 spouts x ... in POS order (NaN where a spout has no trial)."""
     return np.stack([Y[pos == p].mean(0) if (pos == p).any() else np.full(Y.shape[1:], np.nan) for p in POS])

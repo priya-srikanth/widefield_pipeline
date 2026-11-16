@@ -335,3 +335,1728 @@ Handoff: STATUS_2026-10-26_ENCODING_HANDOFF.md, section 00-COMPACT-19. All PROVI
   imaging 3.5 is NOT bit-reproducible across BLAS thread counts (contradicts CLAUDE.md). attempt-coding trial merge = 60 conflicts
   -> new helper resolving + wiring the remaining camera gates (fail closed) + narrowing the map key to the yaml keys used.
   Independent code REVIEWER launched in parallel (REBUILD_CODE_REVIEW_20261103.md). For Priya: camera "stopped" = no_response?
+- 11-03: INDEPENDENT REVIEW of rebuild tip 85af6485 (wf_rebuild REBUILD_CODE_REVIEW_20261103.md, 8c6edf55): 4 HIGH (attempt_axes
+  DAQ cross-check constant fingerprint; tagged runs overwrite local deck PNGs; attempt_maps / attempt_coding unrouted + skip-if-
+  exists; camera-class inputs not in cache keys), 10 MED, 6 LOW. Verified OK: defaults unchanged, hemo switch everywhere, no stored /
+  projected mixing, fingerprint on all 15 kinds, prune guard, camera lick class, merges. Imaging 3.4 no longer matches its 11-02
+  original (input rewritten 11-03 by main's bal_em decoder). All findings sent to the merge / gate helper to fix; second review
+  pass after.
+- 11-03 DECISIONS (Priya): DRIFT option A = NO new drift step in the shared signal; final cohort 1 variant =
+  hemo_meegkit_hpfit_lag_refitT_swapmask (already built, 120 sessions). KEEP the encoder / ITI own drift steps (reverses D9). They
+  are one constant: combined_encoding.DRIFT_MIN_PERIOD_S = 600 s, projected out of Y and every design column (FWL), reused by
+  scripts/iti_licks.py:361. Check whether 10 min is too short (position cycle 5-22 min p95, PS92 up to 40): encoder + ITI
+  headline at 600 vs longer cutoffs, per animal. LocaNMF: PROJECTION (per-session + joint), no refit.
+- 11-03 DECISION (Priya): camera "stopped" = no_response trials in a SUSTAINED stop. Implemented as a run of >= behavior.tail_min_misses
+  (6) consecutive camera no_response trials ("unknown" skipped, never stopped); isolated no_response in neither class; "any
+  no_response" = sensitivity; rule name in selection_tag. Applies to section 11 / ENL states, epoch 12s / 12b, miss_vs_stopped,
+  nolick categories.
+- 11-03 ~12:50 INCIDENT (checked): the encoder drift-check helper was flagged for "interfering with workloads". Its log shows: at
+  4-6 GB free RAM it tried Stop-Process on its own ITI run (36004) plus two workers chosen BY PARENT PID (rule breach); the
+  classifier blocked that; it then stopped its own background task (TaskStop). Only its own processes ended; other sessions'
+  jobs (freeze_models, pytest, encoder, jupyter) untouched. ITI run paused at 6-7 / 107 sessions; resumes at 1 worker. Helpers
+  re-told: stop only via TaskStop / exact own PIDs.
+- 11-03 interim: under the ENCODER's own procedure (engaged trial rows only, gapped), slow cosines are not orthogonal to faster
+  bands: cycle-band kept .71 / .78 / .82 / .88 / .95 at 10 / 15 / 20 / 25 / 40 min. Full 107-session encoder runs + ITI going.
+  Possible fix to raise with Priya: fit the drift on the continuous session, apply to the trial rows.
+- 11-03 DECISION (Priya, via e3; main b506c1e3): primary camera "working" also ends at the session's LAST camera lick (contact |
+  incomplete): trial_classes.in_working(..., end="lick"); robustness anchors end="contact" / "close" / "none"; drops 1.0% of working
+  trials (1.8% acute; jaw-only trials after the last lick). Tag "sel-camera-cue_stop-endlick". Sent to the rebuild merge / gate helper.
+- 11-03: rebuild code tip f7bb4302: attempt-coding merged (60 conflicts resolved, 39 byte-identical, 9 by hand), camera gate wired /
+  fail-closed with a call-site register test, sustained stopped + end-at-last-lick in cue_classes_for (tag sel-camera-cue_stop-
+  endlick-stopRun6), map key = only the yaml keys builders read, all review H/M/L1-L4 fixed; 12 attempt-coding make_spec calls fixed.
+  Full suite @86280b8a: 4,402 passed, 11 pre-existing parallel-ordering failures in attempt-coding scripts. SECOND review pass sent.
+  Questions for Priya: no-lick trials classed contact; rest-baseline working period; empty noattempt class under camera; 7 scripts
+  break the ordering rule; 3 scripts not on stored read-outs.
+- 11-03: SECOND REVIEW @f7bb4302 (630c277b): suite 4,402 passed / 11 known failures; merge sound; camera gate no fail-open path;
+  13 / 20 first-pass findings fixed, 4 partial, M7 regressed. New HIGH: N1 attempt readers read the old folder, N2 lp_final DAQ
+  cross-check cannot find its model, N3 writeguard refuses the lp_final store; 8 MED. Sent back for fixing; third review after.
+  New questions for Priya: N6 exclude PS92_0908 (82.5% video) from camera-gated cells; N7 does a jaw-only trial after the last
+  lick break a no-response run.
+- 11-03 DECISIONS (Priya): (1) no-lick trials classed contact -> neither class; count them per animal x epoch to see what they are
+  (undetected DAQ contacts vs grooming); (2) rest-baseline working period ends at the last camera lick; (3) camera noattempt =
+  isolated no_response inside the working period (lapse vs sustained stop); (4) fix the 7 ordering-rule scripts; (5) convert the 3
+  in-memory decoders to stored read-outs; (6) KEEP PS92_0908 in camera gating for its 82.5% covered trials (rules computed within the
+  covered span; partial coverage flagged + captioned); (7) jaw-only after the last lick does not break a stop run. Sent to the fix helper.
+- 11-03 DECISION (Priya): the no-lick analysis uses the RESPONSE WINDOW (per-session, 3.5 s) for its camera classes, not cue_stop.
+  Requested window="response" in trial_classes from e3 (owner); rebuild no-lick categorisation calls it; tag carries the window.
+  (Correction: the "no-lick trials classed contact" are post-cue no-DAQ-lick trials, not pre-cue windows; likely late licks /
+  sensor misses, being counted.)
+- 11-03: checked trial_classes: "contact" = the DAQ spout-contact sensor (from cue + 70 ms), so "no-lick trials classed contact" are
+  LATE contacts (after the no-lick response window, before trial stop), not sensor misses (Priya: sensor misses unlikely). Under the
+  response-window rule they should vanish; residuals = mismatch between detect_licks and the contact table, to be reported.
+- 11-03 DECISION (Priya, supersedes the response-window rule): classifier AND no-lick analysis both count to the TRIAL STOP (cue_stop;
+  contacts from cue + 70 ms). Trial stop (v36 response_end_ms) >= 3.5 s, usually 3.525 s, mean 3.7-4.0 s, max ~7 s (PS92 / PS93 / PS94
+  sessions checked) -> helper reports trials > 3.6 s per animal x epoch (trial-length differences matter for licks-per-trial).
+  e3's window="response" request cancelled.
+- 11-03 (Priya via e3): LMM hidden-slide versions of 14 wf_attempt PI-deck figures (analysis_kit.epoch_change_lmm + lmm_stars, Holm
+  across the figure; scripts/lmm_change_fig.py on main). Helper building them on CURRENT data with per-session extractors
+  (scripts/lmm_hidden/, re-runnable on rebuild outputs) -> grant_figures/lmm_hidden_20261103/ + README (star differences vs
+  bootstrap). Tell a8 when they land; tell e3 when the rebuild's *_sessions.csv exist (slides 10 / 11 / 12 / 19).
+- 11-03: imaging page LIVE v50 (published by sabatinilab-e0 under Priya's HMS account): section 1 on camera-defined working up to the
+  last camera lick; Fig 1.4 = a8's campllick re-plot. e0 can publish any window's pages if this window's Artifact tool is off.
+  Read v50 live before any imaging-page edit in the rebuild page pass.
+- 11-03: LMM HIDDEN-SLIDE FIGURES DONE (grant_figures/lmm_hidden_20261103/ + README; code wf_lmm_main branch lmm-hidden-20261103,
+  053dfb76 / e677657b / 09d767e9, not pushed; extractors re-runnable with --root). All 14 extractors reproduce the published per-cell
+  changes exactly. Under the LMM ~half of the bootstrap stars drop, incl. caption headlines: rec_wlc csm_share (all epochs n.s.),
+  rec_kn chronic norm (p .14), spec_groups acute residuals (p .065-.16); kept: acute ITI / cued landing offsets, first-lick acute /
+  subacute, landing slopes, decoder_retention failed-attempt cells (now **). Curve shapes: cued_ramp_summary_row2 + iti_ramp_row1
+  made (pre-specified AUC); gauss_curves / lick_order curves not time courses -> not made. a8 + e3 told.
+- 11-03: rebuild code tip 5c17d76a: second-review fixes + Priya decisions 1-7 (classify_session); FULL SUITE 4,441 passed, 0 failed
+  (ordering failures fixed). Check on 3 sessions: undetected-but-contact disagreement 0 / 1 / 0; trial stop > 3.6 s on most trials
+  (median stop 3.66-3.77 s). Remaining before render: ~44 older unrouted writers, ITI run labels, cache-key gaps, attempt readers,
+  a single render profile (variant, LocaNMF projection, camera end=lick stopRun6, Aug-only pre, LP-trained, fresh store) ->
+  helper; THIRD review pass launched in parallel.
+- 11-03: LMM figures re-drawn through main's fixed lmm_change_fig (9a820fbb) + 9 slide-layout splits (_a/_b, _cued/_cue/_iti), stats
+  byte-identical (sha256), each image checked against its _lmm.csv; Holm stays the whole figure's family. Branch lmm-hidden-20261103
+  (09b8feae merge main, 07e2b8de, 73732319). File names sent to a8.
+- 11-03: THIRD REVIEW @5c17d76a (62d1dbc4): suite 4,435 passed / 0 failed. HIGH T1 attempt writers refused under LP, T2 ITI refused
+  in non-data modes, T3 decision 7 labelled jaw-only trials themselves "stopped" (stopped +62% cohort-wide; PS94_0825 run = 12 no-resp
+  + 28 jaw-only) -> implementing as approved: jaw-only after the last lick BRIDGES but is not stopped and not counted; >= 6 no_response
+  needed. MED T4-T10 (empty RESTnl maps, tagged nightly overwrites deck, reader/writer mismatches, coverage edge cases, s1 second
+  classifier). Provisional: no-response runs before the first lick = warm-up, neither class (to confirm with Priya). Fourth review after.
+- 11-03: THIRD-PASS FIXES DONE (rebuild tip 85786d3b; code 3ef70b5b): T1-T10 + LOW; DECISIONS.md "2026-11-03 (night) -- Camera trial gate"
+  records all of Priya's camera rules; suite 4,476 passed / 0 failed. T3 effect (119 sessions): 513 trials stopped -> after_end (stopped
+  2,339 -> 1,830); working / camera-lick sets unchanged. Warm-up (provisional): 4 trials in 4 sessions. Partial coverage: PS93_0813 none,
+  PS92_0904 377/378, PS92_0908 321/389. Contact / no-lick disagreements all late licks -> 0 under the cue_stop rule. TRIAL LENGTH: acute
+  only 53-68% of trials > 3.6 s vs 86-92% pre -> licks-per-trial readouts confounded by trial length (decision for Priya). Run tag:
+  hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_sel-camera-cue_stop-endlick-stopRun6. Tables copied to rebuild_20261103/. Fourth review sent.
+- 11-03: FOURTH REVIEW (a1b6064a): T1-T9 hold in real modes; profile tag verified; suite 4,470 / 0 failed (6 git-history tests skip in a
+  clean export). NOT SAFE TO RENDER YET: R1 Fig 12.1b stale + default overwrite, R2 tagged deck reads untagged figures, R3 rebuild_figs
+  read old inputs by default, R4 attempt_maps silently partial, R5 refusals ignore LP / ENL modes and the profile does not clear stray
+  env vars; ~120 more unrouted writers in subfolders / wfield_local. Switched to a STRUCTURAL fix: one rebuild root for every derived
+  output under the profile, writeguard refuses writes outside it, readers resolve inside it (raw inputs untouched). Fifth review after.
+- 11-03: fourth-pass ADDENDUM (0fc49ee8): T3 rules verified correct (jaw-only bridges but not stopped / counted; >= 6 no_response; warm-up;
+  MIN_UNCOVERED_RUN 5; rest ends at last camera lick); DECISIONS entry matches the code (3 behaviours to add). PS94_0825 stopped 40 -> 12,
+  PS93_0925 86 -> 38 (only the bridging jaw-only trials move). Correction: the moved trials are mostly the jaw-only bridges themselves, not
+  runs below 6. Remaining blockers R1 / R2 / R3 / R5 being fixed via the rebuild-root design.
+- 11-03: ENCODER / ITI DRIFT CUTOFF CHECK DONE (ENCODER_DRIFT_CUTOFF_20261103.md; outputs grant_figures/encoder_drift_cutoff_20261103/).
+  600 s reproduces the 11-02 swapmask encoder exactly. No cutoff reaches cycle retention >= .98 everywhere under the encoder procedure
+  (gapped engaged rows leak); 600 s strips up to 82% of PS92 subacute cycle power. Headlines keep sign / counts / significance at every
+  cutoff: target unique chronic -.013 -> -.012 (0/4), spout contra - ipsi +.018 -> +.021 (4/4) at 1500 s. Longer cutoffs bring back
+  PS92_0824's drift failure (frozen R2 .44 -> .19 at 1500 s). ITI baseline-subtracted readouts unchanged (max .014); only the pre-cue
+  level moves. RECOMMEND keep 600 s; add 1200 / 1500 s as a sensitivity row for spout contra - ipsi + ITI level readouts. Decision: Priya.
+- 11-03 DECISIONS (Priya): encoder / ITI drift = keep 600 s + a 20-25 min sensitivity row (spout contra - ipsi, ITI level readouts).
+  Licks per trial = TOTAL licks from cue to trial stop while the spout is present; lick RATE is a separate metric (reported alongside).
+- 11-03 DECISIONS (Priya): task rule = after the first lick the animal has 3.5 s; no lick -> trial ends at cue + 3.5 s (so trial length
+  = first-lick latency + 3.5 s). Licks per trial = total cue -> trial stop; lick RATE from inter-lick intervals, NOT count / time.
+  "Stopped" runs must start >= 5 min after the first cue (replaces the warm-up rule); checking that no current stopped run moves.
+  LMM captions: main slides keep their bootstrap captions; each LMM hidden slide carries the LMM results + its own LMM caption (a8 asked).
+- 11-03: a8 DONE: the four LMM hidden slides carry an on-slide bold LMM caption (estimate [95% CI], p, df = 3; "main-slide claim =
+  bootstrap"): rec_wlc csm_share -.13 / -.15 / -.14, p .13 / .13 / .17; rec_kn chronic norm -.10, p .14 (acute .052); recovery_timing
+  acute gap +.17, p .21; spec_groups acute residuals p .065-.13 (on spec_groups_b). Main captions untouched. Script lmm_not_sig_captions_1103.py.
+
+## 11-03 EVENING (Priya away): questions, findings, decisions, running -- newest block, read this first
+
+### Questions for Priya
+- REST PERIOD START: with the warm-up rule replaced by the 5-min stop rule, should the rest-baseline working period still start
+  at the session's FIRST camera lick? RECOMMEND yes (pre-first-lick time is not working; keeps the rest baseline unchanged).
+  Implemented as a named setting.
+- Lick metrics NOT moved to cue -> trial stop (need your call): session licks-per-minute curves (a session-time rate, different
+  quantity), enl_lick_rates (pre-cue ENL), FaceRhythm fixed-window licks. RECOMMEND leave all three (none is "licks per trial").
+- Slide 94 text: acute cued rise carried by 2 animals (PS94, PS95); keep or add that caveat? (see 95-98 entry)
+- PI deck slide 34 (far contra attempts) has NO tests: a8's fig_farcontra_attempts_sessions.py is descriptive only (made to replace
+  the per-animal table). RECOMMEND: add paired animal-weighted change-vs-pre stars in the top band + an LMM hidden slide, drawn in
+  the rebuild from the new camera-class trial_attempts_sessions.csv (the current inputs are the pre-rebuild v36 tables).
+- Pre-cue maps on PI slide 24 (epoch_15r precue, RESTW ref) are the 1.0 s lick-free window; B12 made 1.5 s primary for the LP ENL
+  arm, but NO 1.5 s map render exists, and the rebuild profile does not set WIDEFIELD_ENL_WINDOW_S=1.5 (LP_ENL_WINDOW_S = 1.0).
+  RECOMMEND: the rebuild sets 1.5 s for the LP precue arm (decoders AND maps), 1.0 s as the labelled sensitivity. Confirm B12 covers maps.
+- PI slide 35 "no response": denominator = DAQ-engaged trials (orofacial_cohort.engagement_keep = behaviour `engaged`: sated tail
+  >= 6 trailing misses + rolling-rate collapse removed). So the quit tail is out by the DAQ rule; DAQ misses include incomplete
+  (no-contact) licks, so acute far-contra runs of trying can be cut. In the rebuild the share figure's denominator must be every
+  trial INSIDE the camera working period (to the last camera lick, stop runs out) -- NOT in_gate("working"), which excludes
+  no_response by definition. (answered Priya 11-03 evening)
+- PI slide 43 (one-panel LMM hidden) too wide: asked a8 to re-render with --figsize ~6x4.5, place ~6-7 in wide.
+- PI slide 52 (3-D lick phase, kinematics_pooled_figs fig_phase): NO test drawn; no sharey (per-panel y blows up near-spout noise),
+  phase 0-1 incl. noisy ends, all post-cue licks (no engagement gate; slide 46 is engaged), >= 3 animals per bin, no smoothing.
+  Asked e3: add the 2-D phase cluster-permutation bars, sharey per row, 0.1-0.9, engaged licks, figdata / --plot-only.
+  e3 DONE ceb8d2b4 (test bars, sharey, 0.1-0.9, smoothing, animal lines, figdata); a8 has the path. curves.csv.gz has no engaged
+  lick set -> REBUILD LIST: an engaged / working-trial 3-D phase lick set. Kin page Fig 9.7 caption ("engaged") rewritten by e3.
+- PI slide 59 (goal Fig 14.18 S21c paths): x axis flipped, contralesional on the LEFT (c217ae07, within_lick_correction.py,
+  per-animal Fig 5 too); goal-page copy updated locally (page publish at the page pass); a8 asked to re-crop.
+- PI slides 65 vs 66 (landing change matrices): both "epoch minus pre within animal, mean of 4", same licks / width 1, but cells
+  differ by .01-.05 (largest close ipsi own -.19 vs -.22, close contra own -.19 vs -.24, cI->fI +.26 vs +.30; far contra own
+  -.68 vs -.69). The per-animal means on 65 reproduce its "mean of 4" (fC own: mean(-.63,-.54,-.80,-.75) = -.68), so 65 = each
+  animal's licks pooled over sessions; 66 is the bootstrap's point estimate, most likely session-weighted (mean of per-session
+  matrices, as its trajectory twin lick_path_softmax.boot_change does, probably with a >= 10 licks per row floor). NOT confirmed:
+  the landing script is not in the repo (not in rebuild_figs either; lost scratch). REBUILD LIST: recreate it; one estimate
+  (session-weighted, = the test) on both figures.
+- PI slides 95-98 (LMM hidden, cued / ITI lick-ramp AUC): MY ERROR. They test AUC 0-0.5 s PER SPOUT (126 cells), taken from the
+  per-spout supplement's window via a DECISIONS 11-03 row ("the response AUC 0-0.5 s already used on lick_cued_ramp_perspout"),
+  while main slide 94 is AUC 0-1.0 s / pre, spouts POOLED (Priya 10-28 evening: "0-1 s should be default now"; RESP_W, d57b6098).
+  Helper redoing both on the main slide's quantity (new files, old kept as per-spout supplement); then a8 swaps; the DECISIONS row
+  gets rewritten (e3).
+- PEAK vs AUC (ramp_window_tests.csv, spouts pooled, change vs pre): CUED -- AUC 0-0.5, AUC 0-1 and peak give the same picture
+  (the same 18 of 21 cells significant under all three; median CI width .35 / .32 / .30). ITI -- peak CIs are much tighter (median
+  .71 vs 1.92 for AUC 0-1) because the 0-1 s AUC integrates the slow ITI tail; peak flags ALM acute / subacute where AUC 0-1
+  does not. RECOMMEND keep AUC 0-1 primary (pre-decided; it captures DURATION -- the acute far-contra response reaches the pre
+  peak but decays sooner, which a peak cannot see), peak as a labelled sensitivity. Caveat on peak: the max of a noisy PETH is
+  biased up, more so with fewer trials (acute sessions have fewer licks), so it can inflate acute changes.
+  DECISION (Priya 11-03 evening): regional response sizes = AUC 0-1 s PRIMARY, PEAK (max of the session PETH 0..1.5 s / pre)
+  SECONDARY. Now: the slides 95-98 helper also makes _peak LMM companions. REBUILD LIST: every regional response-size figure
+  (goal 14.10 / 14.11 response sizes, 14.23 row 2 cued, ITI response summary) gets a labelled peak row / supplement beside the
+  0-1 s AUC; caption the peak's small-n upward bias. DECISIONS entry to add at the rebuild merge.
+- PI slide 118 (lick order, cued row): Priya wants an ITI backup (landing offset + decoder offset by lick number). The panels exist
+  (top row of goal Fig 13.2, docked ITI; whole figure already on slide 177 "Backup: lick-order curves"). Asked a8: hidden backup
+  right after 118 with the ITI row only, and fix 118's bullet / notes, which name a non-existent backup title. Pending the deck
+  being closed (a8: open in a PowerPoint window since 18:27, likely Priya's).
+- PI DECK UPDATED 18:50 by a8 on Priya's saved file (her hide / unhide edits kept; backup backup_priya_saved_1850_1103.pptx;
+  hidden-state diff before / after: only the new slide changed). Applied: slide 59 paths contra-left; slide 52 p_phase with
+  permutation bars; natural-width one-panel hidden slides 12 / 18 / 43; NEW hidden slide 119 "Backup: lick order, ITI bouts"
+  (slide 118 bullet repointed). Deck now 183 slides (slides after 118 shift by +1). Waiting: 95-98 LMM 0-1 s (+ peak) swap.
+- Slides 95-98 REDONE (4cc7cd8d, lmm-hidden-20261103): slide 94's quantity (spouts pooled, AUC 0-1 s / pre), reproduced exactly
+  (cued 749 rows, docked ITI 714 rows; ramp_window_tests 21/21). LMM (df 3, Holm over 21): cued AUC 8 / 21 (subacute + chronic
+  contralesional tjM1 / SSp-m, NO acute cell, p .08-.40); cued peak 11 / 21; docked ITI AUC 0 / 21 (smallest p .07); ITI peak
+  8 / 21 (acute ALM / tjM1 / SSp-m contra, cortex; chronic tjM1 / SSp-m). Bootstrap on the same numbers: cued 18 / 18, ITI AUC 9,
+  peak 17. Per animal: the ACUTE cued rise is PS94 + PS95 (PS95 one session), PS92 ~0; ITI ratios unstable (PS94 small pre AUC ->
+  +8 to +10). Sent to a8 (95 cued AUC, 96 cued peak, 97 ITI AUC, 98 ITI peak); main slide 94 unchanged.
+  FOR PRIYA: slide 94's "larger after stroke" holds subacute / chronic under the LMM but the ACUTE part does not (2 animals);
+  the ITI AUC does not survive the LMM at all, the ITI peak partly does. Main-slide text unchanged pending you.
+  a8 SWAPPED 95-98 in the deck (backup backup_before_ramp_w01_peak_1103.pptx; hidden states unchanged, 78 / 183; slide 94 untouched).
+- CODE HELPER round done (rebuild branch f58c5d86, suite 4,517 passed / 0 failed; log 8.10-8.12):
+  - 5-MIN STOP RULE CHECK: 0 of 159 stopped runs (1,830 trials, 119 sessions) start < 5 min after the first cue (earliest 46 min,
+    PS95_0820) -> Priya's condition met; rule being IMPLEMENTED (warm-up class removed; its 4 trials become isolated lapses).
+  - Licks per trial = cue + 70 ms -> trial stop (DAQ trial_end TTL; fallback first contact + 3.5 s / cue + 3.5 s); rate = 1 / median
+    ILI. Moved: spout_behavior, engagement_decomposition, quit_prodrome, lick_bout_structure (were cue -> next cue, incl. ITI licks).
+  - Trial-stop check (6 sessions): hits stop - first contact median 3.528 s [3.39, 3.72]; misses stop - cue 3.525 s. 49 hits > 250 ms
+    off (mostly stop EARLY: the task timer started on a lick before the first DAQ contact after cue + 70 ms).
+  - Rebuild root + fence + R1-R5 + 1500 s drift arm done. Next: merge main (helper) -> fifth review -> rebuild_root init -> render.
+- CODE HELPER: 5-MIN RULE + MAIN MERGE DONE (rebuild tip a7b95785; suite 4,550 passed / 178 skipped / 0 failed; log 8.13-8.15).
+  - 5-min rule (c23a7aeb): stop = >= 6 no_response run STARTING >= 300 s after the first cue (trial_selection.stop_min_start_s);
+    an earlier run = new class early_run (neither working nor stopped). Warm-up removed (its 4 trials = isolated lapses); no
+    stopped run moved. Rest start = named setting trial_selection.rest_start: first_lick (question above still open).
+  - Merge of main e8491dc8 (698c4e57 + fixes c6f9be2d): all 9 conflicts kept both sides. Every stored pre-stroke model is now
+    fitted in the bal_em frame (FrozenFrame store= hook; spec carries scaling + train-data fingerprint); camera-gate masks kept
+    everywhere. in_working on-hold item = option (b), nothing extra needed. A5 lands with this branch (cue_classes_for).
+- QUESTION (method, decided by default -- tell me if you disagree): the bal_em EM centre was fitted on ALL DAQ-engaged rows of a
+  session (main's design), so under the camera gate it included rows the camera calls after_end / unknown. Your 11-03 rule is
+  "camera gate everywhere", so I asked the helper to fit the centre on the camera WORKING rows only (named setting; the
+  DAQ-engaged centre kept as the alternative). Still label-free, still never no-lick rows.
+- GAP being closed before the review: june_august_drift's stored month model was the session_z fit; under bal_em it fitted in
+  memory (breaks "every pre-stroke decoder is frozen"). Helper storing it in the bal_em frame.
+- BOTH DONE (rebuild tip 642d7b3b, log 8.16-8.18; run tag unchanged): bal_em.centre_rows auto (= working under camera gate,
+  engaged under DAQ gate) | working | engaged; fails closed if a site has no camera classes; sessions with < 2 working rows
+  (no-video, e.g. PS93_0813) fall back to engaged rows, logged; centre set in the stored-model spec id. june_august_drift month
+  model now stored. Suite 4,556 passed / 2 source-text failures fixed in 642d7b3b (full re-run is part of the review).
+- FIFTH REVIEW sent (reviewer aa0138ac1e9c354a7) on 642d7b3b. Next: review -> rebuild_root init -> render G0-G8.
+- MERGE REVIEW (scope C, a38758e5) on 642d7b3b: 1 BLOCKER -- four stored pre-stroke kinds (nolick_reference, coding_decoder,
+  engagement_states posdec-ff, g_lickonly -ff) key their leave-one-session-out models by pooled INTEGER id, not label; under the
+  DAQ-trained LP cross-check the ids shift (LP pool lacks PS93_0813) so PS93 pre sessions get scored by a model trained on them
+  (silent leak; proven by probe). Same hazard latent in the default arm for nolick (N1). Non-blockers: two except blocks swallow
+  the camera fail-closed raise (N2), dead in-memory fits (N3), june_august_drift size-matched draws still in memory (N4), memo
+  keys miss gate / centre (N8). Merge conflict resolutions otherwise all OK; A3 draws respect ordering rules. Sent to the helper.
+- FIFTH REVIEW (partial): full suite at 642d7b3b 4,552 passed / 0 failed; profile --check and drift1500 arm tags correct and
+  separate. Confirms the same B1 + N1-N8; N5 (A3 path-argument scripts outside the writer register, no run-tag check) added to
+  the helper batch. STILL OWED: early_run consumers / 5-min rule (Q3) and centre_rows / stores / < 2-row fallback (Q1, Q4).
+  Render waits for B1 fixed + those two checks.
+- FIFTH REVIEW, scopes A + B DONE: early_run read as neither working nor stopped everywhere (Q3 OK); licks-per-trial window and
+  5-min rule verified on real sessions (159 runs / 1,830 trials match). New non-blockers sent to helper: GUI-fallback sessions
+  (08-05, 08-06, PS92 08-12) cut licks/trial at 2.0 s not the stop (behaviour writers refused under the profile, so not in the
+  render, but the pre lpt__ baseline mixes windows); rest_start missing from cache keys; a snapshot script bypasses the 5-min rule;
+  edge tests; "licks / trial" labels; one shared 70 ms constant. Still owed: Q1 / Q4 (centre rows, stores, fallback).
+- FIFTH REVIEW, scope D + E DONE: 3 more BLOCKERS, sent to helper -- (1) section G silently refits a pre-stroke decoder in
+  memory, session_z frame, untagged, on ANY store error (poststroke_compare frozen()); (2) the "fail-closed" centre errors are
+  swallowed by two generic excepts; (3) the PS93_0813 centre fallback was log-only. My decision (method; tell me if you
+  disagree): PS93_0813's centre = its DAQ contact (lick-class) rows, the rows the gate actually scores for it; recorded in the
+  spec id, every result sidecar and the log; minimum raised to 20 working rows (all other sessions have >= 20). Store identity
+  OK (no two settings share an entry unless training rows identical); june_august_drift month model stored OK.
+- QUESTION (open): PRE_FROM 0801 is only passed to the two decoder blocks; asked helper to list other G0-G8 families that would
+  use June + August pre, before deciding whether the profile needs more block_args.
+- PRIYA ASKED (11-03 late): is PS93_0813 (no video) still used for DAQ-contact-only analyses, e.g. hits? Answer: lick-aligned
+  imaging YES (lick class = DAQ contacts); hit rate / miss / no-response / cue-aligned working / rest NO (denominator = camera
+  working trials, none; no DAQ fallback by design). Recommended keep; alternative = DAQ-gate denominator for that session's
+  DAQ-only behaviour rates, labelled. Waiting on her choice.
+- HELPER BATCH DONE (rebuild tip c86be4a0; suite 4,572 passed / 1 failed at a06f7fb7, fixed by a rename in c86be4a0, full re-run
+  pending; log 8.19-8.22): all review blockers fixed (LOSO keyed by label; section G refuses instead of refitting; centre errors
+  can't be swallowed; PS93_0813 centre = its DAQ contact rows, recorded in spec / sidecars / captions / log, min 20 rows) and
+  the non-blockers (A3 scripts check run tag; GUI-fallback licks/trial uses the session window; rest_start in tags; edge tests;
+  labels; one 70 ms constant; last trial included).
+- DECIDED (mine, method): lick COUNTS use one detector (detect_licks, yaml params -- the trial table / camera contacts one);
+  two count consumers used a second detector (2.5 / 1.0 V, 100 ms refractory): PS93_0908 differs on 101 / 511 trials by 1 lick.
+  Imaging lick alignment keeps its deliberate 0.1 s refractory.
+- QUESTION FOR PRIYA (blocks the render): August-only pre is passed only to the two decoder render blocks. A source scan finds
+  33 other scripts (rest arm, transfer / rotation maps, locomotor decoder, grant encoder, CD trajectories, chronic stability,
+  lick ramps ...) that would take June + August pre. Make Aug-only pre profile-wide (except june_august_drift and 12.1b, which
+  pick their own)? RECOMMEND yes (rebuild plan: "Aug-only pre ... aligning with the imaging maps, encoding model and
+  kinematics"). Helper checking each at run time first.
+- LP blocks: the profile gets per-block WIDEFIELD_LICK_SOURCE=lp; three LP writers will refuse without it.
+- HELPER ROUND DONE (rebuild tip 3a772a26; FULL suite 4,576 passed / 0 failed at 8b67097d; log 8.23-8.25): lick counts on the one
+  detector (lick_count_samples; imaging alignment + engagement-gate response detection unchanged); profile block_env sets the LP
+  lick source per block, LP_licks writers refuse without it. Reviewer re-verifying all fixes on 3a772a26.
+- PRE-SET CHECK (run time, under the profile): pre = 44 sessions incl. 12 June; Aug-only = 32. 27 scripts would use June + Aug
+  pre (12 non-rest incl. grant_encoder, locomotor_decoder, cd_trajectories, chronic_stability / drift_vs_reorg, lick_iti_prelick;
+  15 rest_migration incl. rest_frozen_decoder, rest_coupling, transfer_arms, rotation_maps, quit_point, flatpool_vs_restw);
+  4 inherit their upstream tables' labels (lick_cued_ramp, lick_code_noisematch, reference_family_figure, face_prelaunch_aim).
+  Profile-wide = WIDEFIELD_PRE_FROM 0801 in the profile (adds pre0801 to every tag) + block_env able to unset it for
+  june_august_drift and 12.1b. Epoch boundaries unaffected. STILL WAITING ON PRIYA.
+- RE-VERIFY at 3a772a26: NO BLOCKERS; LOSO keying (0 leaks), section G refusal, centre refusal, 20-row minimum + PS93_0813
+  fallback in spec id, cache keys -- all confirmed by probes. Non-blockers sent to helper: disengagement_tests had moved hit /
+  latency to the count detector (would shift goal S28); sidecars list configured not used fallback; profile --check ignores
+  --block and unknown blocks pass silently; one memo key. Plus a dry count of working engaged imaging rows per session (the
+  20-row minimum was checked on cues, not rows) before the render.
+- PRIYA (11-03 late): (1) Aug-only pre profile-wide -- "yes i guess so". Helper: PRE_FROM 0801 in the profile, unset for
+  june_august_drift + 12.1b, tags updated, DECISIONS line. (2) PS93_0813 in hit rate: "why can't we use?" -- answered: it can,
+  with a DAQ-defined working period (last DAQ lick, same stop rule on DAQ no-response) for the DAQ-only behaviour rates only;
+  cost = one session on a different gate definition. Helper building it + an agreement check (camera vs DAQ fallback on every
+  Aug pre session with video); wire it in only if they agree (~1-2 points) and Priya confirms.
+  PRIYA: "yes if so let's use it" -> criterion set: <= 2 points (hit, no-response) and <= 20 ms (median latency) on every Aug
+  pre session with video; pass = wired automatically, fail = back to Priya with the table.
+- PRIYA ASLEEP (11-03 ~23:30): "progress without me ... running list of changed results, new findings, decisions, questions".
+- DECISION RECEIVED via a8 (Priya 11-03 late, main 39bb3d5e; evidence widefield_pipeline JAW_ONLY_CHECKS_2026-11-03.md):
+  JAW-ONLY OUT OF WORKING. Working = contact + incomplete, cut at the last camera lick; jaw_only its own class like
+  no_response; applies to frozen training, bal_em centre, pre panel, scored set. Checks: jaw-only trials decode like
+  no-response (PS94 / PS95 cue .21 / .29 vs none .20 / .25 vs contact .93 / .94); adding them to training does not move the pre
+  reference (<= .01) but centring acute sessions on them lowered every spout (PS95 acute close ipsi .832 -> .642).
+  Rebuild helper implementing it first (new selection tag; validation vs the checks' row: pre .856, acute cI .727).
+- QUESTION FOR PRIYA (default chosen, reversible): stop runs with jaw-only in them. Default = jaw_only BRIDGES a run of
+  no_response but does not count toward the 6 and is not labelled stopped (the old after-last-lick rule, now session-wide).
+  Alternative: jaw_only counts as a non-response toward the 6.
+- Told a8: no current PI-deck figure from this window uses in_working with jaw; the rebuild replacements will move (per-slide
+  old vs new list at the replacement pass).
+- a8: will NOT run a main-branch render tonight; holds PI slides 10-13 / 19 / 89 for the rebuild replacement pass (asks Priya in
+  the morning whether she wants an interim swap; will tell us before any render). a8's jaw-only helper on main is light, capped.
+  OWED to a8: per-slide old-vs-new list at the replacement pass.
+- 11-04: jaw-only-out landed on main (48f2cc6d; WIDEFIELD_WORKING_TRIALS in_working / in_working_jaw / quit_tail; tag
+  cls-contact-incomplete; 20 new frozen ids in main's store). Rebuild helper told to MATCH main's names / tag / stop-run
+  semantics (and adopt main's stop-run rule if it differs from my default). Box free of a8's jobs.
+- HELPER (rebuild tip a8791963; FULL suite 4,588 / 0 failed; log 8.27-8.32):
+  - Aug-only pre PROFILE-WIDE done (june_august_drift + 12.1b unset it; ITI extracts keyed by pre set).
+  - Jaw-only-out MATCHES main 48f2cc6d (working_trials.py byte-identical; tag ...-endlick-cls-contact-incomplete-stopRun6;
+    in_working_jaw = robustness arm). Main has no stop rule, so my default stands (jaw_only bridges, not counted) -- question
+    for Priya stays open.
+  - Dry count: every session >= 174 working engaged rows (min PS94_0819 acute) except PS93_0813 (0, contact fallback).
+  - RESULT FOR PRIYA: the PS93_0813 DAQ-fallback AGREEMENT CHECK FAILED -> NOT used. On 31 Aug pre sessions with video the
+    DAQ-defined working period reads a HIGHER hit rate on 9 sessions (+2.2 to +15.9 points; PS95_0806 +15.9, PS95_0812 +8.2,
+    PS94_0812 +4.4, PS93_0814 +3.9), latency identical. Why: camera incomplete / jaw-only trials are DAQ misses, so DAQ miss runs
+    get longer and the DAQ stop rule cuts misses the camera keeps. PS93_0813 stays out of hit / miss / no-response rates.
+  - BLOCKER FOUND (mine to fix, sent): the rebuild trained / centred / scored on DAQ-contact rows only, so camera-INCOMPLETE
+    trials never entered; Priya's rule (and main) is contact + incomplete. Helper mirroring main's row construction, then a
+    two-arm validation: rebuild code on the checks' old inputs must reproduce .856 / .727 (code check); profile minus that =
+    the data effect (first try on rebuild data, contact-only rows: pre .876, acute close ipsi .839).
+- BLOCKER FIXED (rebuild tip 6a85304d; FULL suite 4,593 / 0 failed; log 8.33-8.34): cue / precue frozen decoder trains,
+  centres and scores the camera contact + incomplete rows (DAQ-engaged AND no-lick arms), as main. Acute adds 1,324 no-lick
+  working rows cohort-wide. Dry count: min 224 rows (PS92_0812 pre); only PS93_0813 has 0 (neither trained nor scored in
+  working selections; still in lick-aligned).
+- VALIDATION (finding): rebuild code on the jaw checks' data reproduces their "jaw as its own class" row to .001 in every
+  animal (pre .856, acute close ipsi .727) -> no code difference. DATA EFFECT of the rebuild inputs (swap-mask hemo + LocaNMF
+  projection): pre panel +.004 (.856 -> .860); acute close ipsi +.007 mean (.727 -> .734) but mixed per animal (PS94 +.10,
+  PS93 -.05, PS92 -.01, PS95 -.02). The earlier .839 was the contact-only rows + trial pooling, not data.
+- Final pre-render review sent (reviewer aa0138ac1e9c354a7) on 6a85304d.
+- REVIEW 7A (working rows) at 6a85304d: 2 BLOCKERS, sent to helper. (1) Fig 5b would still be drawn from coding_direction.json,
+  whose decoder is trained / scored on DAQ-engaged rows (incl. jaw_only / after_end / unknown and PS93_0813) -> the working
+  path never ran. MAIN HAS THE SAME SHORTCUT (main grant_confusion :332) -> tell a8 (main's 5b is not jaw-only-out either).
+  (2) pooled_frozen_loso / joint_xsession and section G scored / pre-panel sets still engaged while the model is working-
+  trained. Non-blockers: grant similarity / geometry / encoder / matching pre reference = DAQ lick rows; "working" captions
+  stale; PS93_0813's exclusion silent. Spec ids verified distinct for in_working vs in_working_jaw; quit_tail refused under
+  camera; jaw_only bridges stop runs as intended. Validation was cue-only, in-memory: helper extending to precue + stored path.
+- REVIEW 7B (Aug-only pre / profile blocks): profile --check tags correct for primary, drift1500, LP and June blocks; typo
+  blocks now raise; every decoder / encoder / CD / ITI family is Aug-only under the profile. 3 BLOCKERS sent to helper:
+  june_august_drift (Fig 4.3) refuses to run under ANY profile tag (its June exemption was dead); map_drift_prepre (Figs 7.2 /
+  7.4 / 7.6) has no June block; reembedding_test silently DROPS its June reference epoch under Aug-only. Also: the analysis
+  deck reads the untagged epoch folder and skips missing files silently (section I would be empty) -> fixing before the pass.
+- CORRECTION OF MY 7A INSTRUCTION (a8 + main DECISIONS 11-03): main deliberately keeps the section D / G SCORED sets as
+  engaged / all trials (only the frozen model + frame are working) and the pattern families' PRE reference as lick trials.
+  Main's 5b already has the camera guard (my "main has the same shortcut" was wrong). Rebuild now FOLLOWS MAIN on D / G /
+  pattern families (captions to say so); 5b gets main's guard.
+  QUESTION FOR PRIYA (a8 is asking it too): should the D / G scored sets and the pattern families' pre reference also be
+  camera working (contact + incomplete), i.e. "working on both sides" everywhere? Both branches would change together.
+- 7A + 7B FIXED (rebuild tip 11817e27, code cf94e7c3, log 8.35): 5b always on the working path (main's guard); D / G / pattern
+  families documented as main's design (corner stamp + sidecar + captions); PS93_0813's exclusion logged + in sidecars;
+  Fig 4.3 / 7.2-7.6 / RESTnl CLI run in June blocks; reembedding keeps June; deck reads the tagged folders and counts MISSING.
+- VALIDATION (finding, clean export, stored path): rebuild code on the jaw checks' data reproduces cue AND precue to .001
+  (cue pre .856 / acute cI .727; precue .558 / .568). DATA EFFECT of the rebuild inputs: cue pre +.004, acute cI +.007;
+  precue pre +.006, acute cI -.017 (per animal PS92 -.14, PS93 .00, PS94 +.05, PS95 +.02) -> small on average, PS92 precue
+  acute close ipsi is the one sizeable move (one animal).
+- Focused re-verify + full suite sent to reviewer. If clean -> rebuild_root init -> render.
+- REVIEW 8A (part of re-verify): 5b / captions / _collect_7 / PS93 log FIXED; 1 BLOCKER, a regression from the NB4 fix --
+  section D (pooled_frozen_loso / joint_xsession) would crash for PS93 cue + precue because PS93_0813 (pre, no video) gets
+  treated as a post session with 0 working rows. Sent to helper with small non-blockers (jaw-arm titles, design stamp, sidecar
+  wording, env-sensitive test).
+- REVIEW 8B: map_drift_prepre / restnl_mask blocks, reembedding June, 12.1b compare FIXED; --check tags all correct. BLOCKER:
+  Fig 4.3 (june_august_drift) still can't render -- it used the input labcams root, and the recovery CSV it needs has no tagged
+  writer. Deck: LP deck mislabels the DAQ-ENL1s section K figure; sections H / I still silent when a whole family is missing;
+  section K legends carry pre-rebuild numbers (marked for the replacement pass). Sent to helper.
+- 8A + 8B FIXED (rebuild tip 78e60f5a, log 8.36; suite 4,612 passed from root and from tests/, 1 scanner-list failure fixed
+  in 2ddcf9fb): pre / post decided by session phase (PS93 section D crash gone, tested); Fig 4.3 + recovery CSV + chronic_stability
+  on tagged paths; deck counts whole missing families; section K legends marked REBUILD-TODO(numbers).
+- RENDER TRAP found: pytest / python run outside the worktree imports wfield_local from the editable install = the MAIN
+  checkout. The render must import the wf_rebuild code; helper making render_profile --check refuse otherwise. Also routing
+  chronic_drift_vs_reorg (Fig 10.2) + a scan for other untagged writers in REDO rows. Then render.
+- Helper (tip 47a36184; suite 4,615 / 0 failed; log 8.37): Fig 10.2 routed; render_profile --check prints the imported
+  wfield_local and refuses the main checkout. SCAN: 47 REDO scripts still refuse under the profile by design (encoder family,
+  frozen_* / encoding_* / spout_* / within_spout_* / exec_*, fr_*, layer2_*, summary_figures_1021, within_lick_correction) --
+  they fail loudly, never write wrong. DECISION (mine, layout): route each to <its default dir>/<run tag>/ like
+  chronic_stability; helper doing it family by family. 22 possible untagged writers being triaged.
+- RENDER STARTED (render runner, from a PINNED worktree wf_rebuild_render at 47a36184, PYTHONPATH set; log
+  M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/RENDER_LOG.md): rebuild_root init -> RESTnl baselines -> frozen fits ->
+  maps / epoch decoders / grant figures / LP arm / rest 12.1 + 12.1b / section G / nolick / cd / coding / attempt / recovery /
+  chronic / June drift / drift maps / joint. Encoder / fr / ITI / quiet / O2 families join as they are routed.
+- Render: rebuild_root init was blocked by its own read fence (fixed 41cfe67e; a `python -m` double-import bug remains, init
+  run in-process with my OK). INIT DONE: 4 seeds copied + sha256-verified; camera_coverage.csv missing (its producer refused
+  under the profile) -> figure families HELD until it is routed and run, so camera-gated stamps name PS92_0908's 82.5 %
+  coverage. RESTnl baselines + frozen fits running.
+- Coverage table routed (38f81c0c; a missing table now raises in a tagged run) + init CLI fixed (f31b72b1). ENCODER FAMILY
+  routed (b97a39f9, 29 scripts -> imaging_encoding/<tag>/); render runner told to render it after the current families.
+  DECISIONS (mine): trial_attempts.py becomes REDO (the mixed models and PI slides 34 / 35 need its camera-class table);
+  compare_map_tests + imaging_baseline_compare -> NO (they compare against the pre-rebuild archive / June+Aug pre).
+- trial_attempts routed (f49709ca) then ALL attempts readers switched to the new camera-class table, old seeded table dropped
+  (c22507df): LP lick source, attempt_coding / maps, combined_encoding fingerprint, orofacial gates, 10 REDO scripts. In the
+  new table stopped trials are "stopped" (not no_try); jaw_only = non-attempt; denominator = working period. Render runner:
+  trial_attempts first, then any attempts-dependent family; anything already rendered on the old table marked SUPERSEDED and
+  redone.
+- Render progress: setup done; DAQ-gate RESTnl baselines 120 / 120 OK (PS93_0813 excluded, no video licks). LP-gate baselines
+  read the old attempts table -> SUPERSEDED, rebuilt after trial_attempts. No figure drawn yet. fr_* routed (74986bd6),
+  family 3 (layer2, summary_figures_1021, within_lick_correction + allsession_encoder) routed (f8e690b9). Helper: 10 misc
+  refusers + 22-writer triage next.
+- All 47 refusing scripts routed (934f9ccf). learned_compensation (needed by the prelaunch-aim goal-page rows) and
+  misdirected_lick_counts made REDO + routed (09290e7f). FINDING: the misdirected-lick behaviour counts used by
+  misdirected_lick_decode went through the old DAQ engagement gate -> the existing ones are stale; the rebuild recomputes them on
+  the camera working period with attempts (Aug-only pre).
+- INCIDENT (render runner, 11-04 05:46): camera_coverage_tables ran ONCE without the profile (a shell-script argument bug; the
+  profile was never applied, so no fence) and wrote 4 derived tables into the ORIGINAL tree:
+  M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/qc/{camera_coverage,
+  camera_contact_nolick, camera_contact_nolick_trials, camera_stop_lengths}.csv. No older camera_* files there and the table
+  was previously only in scratch -> very likely NEW files, not overwrites. Nothing deleted. Every other run had the profile (log
+  headers checked). Runner's wrapper now fails closed and runs render_profile --check before every command.
+  QUESTION FOR PRIYA: delete those 4 files (derived, default-mode = adopted hemo / DAQ gate), or keep? I kept them.
+- 22-writer triage done (5cc29488): quiet-events family, cohort1_subset_headline, rest_baseline_epoch_drift fixed (would have
+  been refused); 4 DeepLabCut-tree writers being mapped into the root (my decision); iti_nmatch_check retired (NO).
+- CODE COMPLETE for the render (rebuild tip 4dd21a7c, code 621c81de; FULL suite 4,690 passed / 0 failed; log 8.38): every
+  refusing REDO script routed; nothing known un-renderable. Render runner moving to it; required order recorded in log 8.38.
+- ENCODER COMMANDS compiled (docs/status/rebuild_20261103/ENCODER_RENDER_COMMANDS.md) from handoffs + scratchpad launchers.
+  FINDINGS: (1) no rebuild doc held the production command lines -- they lived only in two TEMP scratchpads; backed up to
+  M:/MICROSCOPE/Priya/Widefield/encoding_goal_page_src/scratchpad_scripts_backup_20261104/. (2) Several goal-page figure
+  scripts exist ONLY in scratch (fig_goal_summary / fig_goal_epochs, Layer-2 fig_layer2 / fig_rsplit / fig_pooled, softmax /
+  residual fig_*) -> rebuild gap; need bringing into the repo (RECONCILIATION section 7).
+  QUESTION FOR PRIYA: the per-session combined_encoding runs (Figs 1.13-1.15 binned contest, 21.x FR, 21.12 variance maps,
+  22.1) came from an O2 bundle of ADOPTED data; rebuilding them needs a new O2 bundle + ~14 job arrays. Deferred -- want me to
+  build and submit it (needs your O2 login), or run a reduced set locally?
+- Scratch-only page figure scripts brought into the repo + routed (rebuild 1806eaf6, suite 4,722 / 0 failed).
+- RENDER 06:35-06:58: the epoch decoders failed on all 5 arms at the first write to the FROZEN MODEL STORE (the write
+  fence's tag rule refused <root>/frozen_models; the store was never registered as a data store). Nothing written. Helper
+  registering every profile store + an end-to-end store-write smoke test. trial_attempts running since 05:47 (checking it
+  is not stuck); coverage table after it.
+- Store fix 7b5d3334 (suite 4,723 / 0 failed). RENDER MILESTONE G2 DONE (07:30): coverage note reads "PS93_0813 0.0%,
+  PS92_0908 82.5%"; RESTnl baselines DAQ gate + LP gate (new attempts table) 120 / 120 each, 0 errors (PS93_0813 excluded, no
+  video licks). trial_attempts 63 min. Epoch decoders (all families but 15e) running since 07:30; then grant figures,
+  section G, then the encoder frames.
+- a8 (Priya): WAIT for the rebuild -- no main render, no interim swaps. The replacement pass's per-slide old-vs-new list
+  must cover PI slides 9-13, 19, 89 and imaging page sections 1-4, 6, 7. Still open with Priya: B (state discriminators in
+  spout frame), C (projections in spout frame), the D / G scored-set question; a8 forwards answers.
+- PRIYA 11-04 ~08:00:
+  - (2) YES: jaw_only COUNTS toward the 6 in a stop run. The render was stopped (it started at 07:30, epoch decoders, no
+    outputs yet); the helper is implementing it with a new selection tag; then redo trial_attempts / coverage / RESTnl /
+    epoch decoders.
+  - (6) DELETED the 4 mistaken tables in LP_analysis/.../imaging_encoding/qc (camera_coverage, camera_contact_nolick,
+    camera_contact_nolick_trials, camera_stop_lengths; all timestamped 05:46:27, the incident run). Kept list = this entry.
+  - Asked to clarify: (1) the D / G scored-set question, (3) the rest-period start, (4) the three lick measures, (5) the
+    slide 94 caveat, and (7) why the O2 encoder runs need rebuilding. Answered in chat.
+  - The render runner's stop of its own epoch render was DENIED by the session permission classifier. Still running under
+    the OLD tag (PIDs 19008 parent, 35904 / 24008 arms); outputs go to the old-tag folder (to be marked SUPERSEDED); the
+    runner's queue is held by a STOP file. ASKED PRIYA: stop those 3 PIDs herself (recommended), or let them finish.
+- PRIYA via a8 (11-04), for both branches:
+  - (B) state discriminators in the spout bal_em frame (centre from working rows), after a re-check;
+  - (C) projections: she asked why not all three (CDs, patterns, engagement axis) in the spout frame with a working-row
+    centre; being re-checked;
+  - (D) the section D scored set becomes working trials, pre and post;
+  - (G) section G groups by camera classes (contact / incomplete / jaw_only / none within cue -> stop, plus "after end");
+    pre panel = working; the old DAQ grouping kept as robustness.
+  a8's helper implements these on main; the rebuild PORTS those commits (not reimplemented). "Rebuild follows main 11-03"
+  is superseded for D / G. The pattern families' pre reference (lick vs working) is not addressed yet: still my question 1.
+- PRIYA (11-04 ~08:30):
+  - D / G confirmed (D scores working, engaged = robustness; G groups by camera class).
+  - (3) asked: "I thought rest was spout docked" -- yes, see chat.
+  - (4) asked what the FR fixed-window licks are -- see chat.
+  - (5) slide 94 caveat YES -> sent to a8.
+  - (7) REBUILD the O2 encoder runs, wants the O2 commands -> the helper is making o2_encoding rebuild-aware (bundle in the
+    root, full profile env recorded and applied on O2, tag refusal, bundle-vs-local check), then building bundle
+    enc_rebuild_20261104 + COMMANDS.md for Priya.
+  - The old-tag epoch render (PIDs 19008 / 35904 / 24008) is still running.
+- Jaw_only stop rule in (c3cb3c0c, tag ...stopRun6j; related tests 144 passed, full suite running). A run of >= 6 jaw_only
+  trials with no no_response now counts as a stop (rule as written). The redo runs from a SECOND worktree
+  (wf_rebuild_render2) so the code under the still-running old render doesn't change. Old-vs-new stop counts per animal x
+  epoch coming.
+- Old-tag epoch render stopped externally at 07:57 (Priya); it wrote 0 figures; the old-rule frozen models it stored
+  (PS92-94) are listed SUPERSEDED in RENDER_LOG, not deleted. Redo under stopRun6j started from wf_rebuild_render at c3cb3c0c.
+- PRIYA: (3) rest start stays at the first camera lick (rest = docked lick-free stretches inside it) -- settled.
+  (4) asked whether the FR validation's fixed window (cue -2..+4 s) should run "until trial stop"; I recommended keeping it
+  (it keeps pre-cue licks and a fixed length matched to the FR window); middle option -2 s -> trial stop offered. Waiting.
+- PRIYA wants the O2 bundle ASAP: helper building it (o2_encoding rebuild-aware first, then the bundle). Waiting on the new
+  attempts table (~09:05-09:10).
+- PRIYA via a8 (11-04): ALL Allen-ROI analyses use the SPLIT area basis (iti_licks AREA BASIS, Priya 10-27: no cortex /
+  whole MOs / MOp; ALM + tjM1; MOs_rest / MOp_rest per hemisphere; iti_licks.roi_masks); plain = robustness only. ONE shared
+  function + new spec ids. Inventory of every ROI consumer running (for a8, to put "can't switch" cases to Priya). Checking
+  first whether combined_encoding (the O2 bundle) uses Allen areas; if so, the encoder path switches before the bundle.
+- O2 BUNDLE PLAN (helper, 08:10):
+  - The attempts table is read at bundle time (engagement gate), but the heavy imaging (~28 GB) is pre-warmed into the input
+    cache now.
+  - combined_encoding uses Allen areas ONLY for its region tables. The split basis is computed on O2 from the bundled
+    imaging, so no re-bundle is needed; it goes into the bundle's code as primary, with plain as robustness rows.
+  - The 10-24 bundle took ~2 h. ETA to a checked bundle ~2.5-3 h from 08:10 (~10:40-11:10), mostly share reads.
+- SPLIT BASIS, Priya's replies:
+  - (5) leave the LocaNMF-label analyses.
+  - (2) "should already have these": yes, quiet events define orofacial = ALM, tjM1, SSp-m, SSp-n (limb = SSp-ul, SSp-ll).
+    Adopted for every orofacial group; MOs-vs-MOp contrasts become ALM vs tjM1.
+  - (3) "why not px based": proposed pixel-based significance as primary, with the area table descriptive.
+  - (1) asked what the rim is: v8 = the thin LATERAL rim anterior of AP -0.5 (not the full rim) + the ALM front line.
+  - (4) asked where the cortex rows are.
+  Replies in chat; a8 told.
+  PRIYA CONFIRMED:
+  - (1) v8 masks everywhere, encoder rows included. Cortex +3.2 % pixels, SSp-m +32 %, MOs / MOp +5-6 %.
+  - (2) orofacial = ALM, tjM1, SSp-m, SSp-n; MOs-vs-MOp contrasts become ALM vs tjM1.
+  - (3) residual_roi: pixel-based stays primary; the per-area stats adjust for the larger family of comparisons (split
+    areas).
+  - (4) keep the cortex rows, with v8 cortex.
+  - (5) leave the LocaNMF-label analyses.
+  - residual_roi detail (a8): the area table gets real tests, corrected over the split family (not descriptive).
+- FINDING, jaw_only counting toward stop runs (120 curated sessions):
+  - Stop runs 177 -> 283; stopped trials 3,267 -> 5,944 (2,353 of them jaw_only; +324 no_response newly stopped).
+  - Working trials unchanged (54,676); early_run 0 under both rules.
+  - Biggest moves:
+    - PS94 acute: 543 -> 1,012 stopped;
+    - PS95 subacute: 714 -> 1,173;
+    - PS95 chronic: 246 -> 567;
+    - PS95 pre: 214 -> 425.
+  - Table: scratchpad r4/jawcmp2/jaw_count_compare.csv.
+  - Effect: stopped-trial analyses (5c stopped, nolick stopped, miss_vs_stopped) get ~2x the trials; attempt-rate
+    denominators lose the jaw trials inside stop runs.
+- O2 bundle code committed (fb3b6304 cache key, a6a29dd7 split basis in the encoder, a7aec872 rebuild-aware o2_encoding; 14
+  TAGs). Pre-warm done (107 / 107, 23 min). The bundle waits only on the stopRun6j attempts table.
+- O2 BUNDLE enc_rebuild_20261104 building since 09:27 (--jobs 6, 1.8 sessions / min). ETA inputs ~10:25, checked ~10:45.
+  Smoke on PS92_0806: v8 cortex R2 0.6152 vs old-mask cortex_stat 0.6160 (-0.001).
+- RENDER RUNNER handed back while HELD (nothing running). Done under stopRun6j: init (6 seeds), trial_attempts
+  (07:59-09:29), coverage tables (07:59-09:39; note = PS93_0813 0 %, PS92_0908 82.5 %).
+  Queue ready: scratchpad/queue2.sh (RESTnl DAQ + LP -> epoch -> grant -> section G -> joint -> nolick / cd / coding /
+  recovery / chronic / June drift / rest 12.1 + 12.1b -> attempt coding / maps -> restnl / LP final / drift maps ->
+  misdirected). To launch: remove HOLD_j_g2a / HOLD_j_g2b, `nohup bash queue2.sh &`. Then the encoder family
+  (ENCODER_RENDER_COMMANDS A, B, D-F), rebuild_figs, the drift1500 arm. The superseded old-rule caches / models are listed in
+  RENDER_LOG; none deleted.
+- Slide 94 caveat added by a8 (backup_before_ramp_caveat_1104.pptx; hidden states unchanged).
+- The 05:46 incident coverage copies differ from the rebuild ones only by the 12 June sessions (Aug-only pre); the partial-
+  coverage rows are identical.
+
+### Findings
+- main moved while the rebuild branch was being fixed (34 commits not in rebuild/cohort1-20261103). Two matter for the rebuild:
+  - 054c78df: bal_em centring on every cross-session spout decoder (in-memory fits; store models unchanged). The merge brings it
+    into the rebuild, so rebuild numbers are compared against the bal_em-era pages (imaging v51), not older pages.
+  - 054c78df also put the epoch families' camera "working" gate ON HOLD on main: 13 of 44 pre sessions have no camera classes
+    (all June 0606-0608 + PS93_0813), options (a) DAQ-engaged pre, (b) in_working pre, (c) mixed. The REBUILD already answers it:
+    August-only pre removes June, and PS93_0813 is in neither working class but stays in the lick (contact) class (rebuild
+    DECISIONS "Camera trial gate", "Sessions without video"). That is option (b), consistent with Priya's 11-03 decisions
+    (camera gate everywhere; PS93_0813 for contact-only analyses). No new decision needed; the merge must keep the rebuild's
+    wiring where the two touch poststroke_compare / precue_engagement_states.
+  - e9a7dc31 (DECISIONS, Priya): firmware check -- the spout holds 3.5 s after the first lick, a miss docks at cue + 3.5 s,
+    measured stop - first DAQ contact = 3.53 s; lick counts = cue + 70 ms -> trial stop. Matches the rebuild's task rule.
+
+### Running
+- Code helper (wf_rebuild): rebuild root DONE (c812a3c0, b422ae83: one derived root, fenced by an audit hook, R1-R5 closed);
+  600 s + 1500 s drift arm DONE (bc57f786). Now: the 5-min stop-rule check, licks/trial cue -> stop + ILI rate, trial-stop
+  verification. `rebuild_root init` (copies seed inputs into the root on M:) not yet run -- runs before the render.
+- 11-03 ~19:45: helper hit the session limit mid-task (lick-count edits uncommitted in 5 files; stop-rule check had not
+  produced a result); resumed with its context.
+- SEQUENCING CHANGE (mine, reversible): merge main BEFORE the fifth review, so the review covers the merged decoder code
+  (git merge-tree: 9 conflicts -- DECISIONS, poststroke_compare, precue_engagement_states, nolick_decoder, grant_confusion,
+  locanmf_frozen_decoder, position_coding_directions, june_august_drift, quiet_task_events_followup).
+- A3 is on main (1decbe53). A5 (one responded(source)) is still open on e3's side; told e3 the rebuild's trial_classes already
+  implements that design (gate_mode / run_selection / selection_tag) and proposed A5 lands with the rebuild merge.
+- Next: helper finishes -> merge main -> fifth review -> init root -> render G0-G8 -> two verifiers -> replacement pass.
+
+- **11-04 ~10:05: DECISION (Priya via a8): split by camera class wherever trials are grouped or gated by outcome.**
+  - This covers lick / miss / stopped / DAQ lick vs no-lick / engaged vs undetected.
+  - Classes: contact, incomplete, jaw_only, none, after_end. Close mid (jaw not judged) counts as none, flagged with jaw_judged.
+  - Report per class where it makes sense.
+  - Example: the section G state discriminators train on DAQ lick vs no-lick. a8's helper is testing working vs none, with
+    jaw_only / after_end scored separately; it will be sent for porting.
+  - Inventory requested, now being built (read-only helper):
+    docs/status/rebuild_20261103/CAMERA_CLASS_INVENTORY_20261104.md.
+  - Bundle at 10:05: 85 / 107 inputs.
+- **11-04 ~10:12: camera-class inventory written** (docs/status/rebuild_20261103/CAMERA_CLASS_INVENTORY_20261104.md).
+  - 6 groups are already on camera classes, 7 kinds should switch, 8 cases stay on DAQ, and there are 12 questions for
+    Priya. Sent to a8.
+  - **The O2 bundle is NOT affected.** It runs with OROFACIAL_GATE=attempted. Its engaged set = attempted (contact +
+    incomplete) in this run's camera-class trial_attempts.csv (stopRun6j), so stopped, after_end, jaw_only and none trials
+    are all non-engaged.
+  - Per-class readouts (e.g. jaw_only on its own) would be a reader-side or model-spec change made later, not a rebundle.
+  - Inventory item 3e ("encoder default gate is reference") applies only to runs that don't set OROFACIAL_GATE. Every
+    production encoder block sets it.
+- **11-04 ~10:25: DECISION (Priya): every camera class must be reportable from the O2 encoder data.**
+  - **Gap.** The encoder fits and scores only working trials (contact + incomplete) and saves per-position averages. It
+    has no per-trial output and no trial ids, so it cannot split contact from incomplete and cannot score jaw_only / none /
+    stopped / after_end / early_run.
+  - **Fix in progress** on branch rebuild/encoder-classes (worktree wf_rebuild_cls, helper):
+    - the fit is unchanged and the existing outputs stay identical;
+    - every cue trial is scored out of sample (non-working trials with the full-data beta);
+    - a new sessions/<label>_trials.npz holds per-trial cue- and lick-aligned area traces for data / prediction /
+      components;
+    - classes are joined locally by trial_id;
+    - a per-class reader is added;
+    - an o2_encoding `refresh-code` step updates the bundle's code snapshot without rebuilding the 40 GB inputs.
+  - **Effect on O2.** Priya can rsync the inputs as soon as the bundle is done. Submitting waits for the code refresh and
+    the check.
+- **11-04 ~10:25: DECISION (Priya via a8): measures OF engagement move to camera.**
+  - quit = last camera lick; the stop rule; quit_prodrome etc.
+  - DAQ versions become robustness rows.
+  - Recorded as inventory row 3h (bd8019be).
+  - The 09-20 engagement findings need a re-test on camera.
+- **11-04 ~10:30: ERROR CAUGHT. The first O2 bundle had the wrong encoder inputs and is being rebuilt.**
+  - Cause: `o2_encoding --profile` -> render_profile.apply clears COMBINED_ENCODING_* / WFIELD_* before setting the
+    profile env.
+  - Effect: the exported production settings were wiped, so the 107 pickles carried the default cam4 licks / tongue / exec:
+    - LICKS=combined, TONGUE=3d, EXEC=polar;
+    - the EXEC3D / TARGET3D / BINS_CALIB tables.
+  - The checks would have passed anyway, because they compare like with like.
+  - Nothing was transferred or submitted.
+  - Rebuild: the profile is applied first, then the vars; same commit; more workers. ETA ~11:00-11:10.
+  - The code fix (preserve the caller's encoder vars across apply, and a test that env.json carries them) goes on
+    rebuild/encoder-classes. The helper is also checking whether other --profile encoder scripts (frozen_encoder,
+    allsession_encoder, the ENCODER_RENDER_COMMANDS frames) have the same wipe.
+  - The render queue stays HELD until that is answered.
+- **11-04 ~10:40: DECISIONS (Priya via a8): camera-class inventory section 5.**
+  - Answered: 1, 2, 4, 5, 6, 7, 9-12. Still open: 3 (hit-rate period) and 8 (discriminator classes).
+  - The answers are recorded in CAMERA_CLASS_INVENTORY_20261104.md section 5.
+  - Running now: a census for Q6 (contact vs DAQ mismatch, with examples) and for Q4 (unjudged close spouts), both
+    read-only.
+- **11-04 ~10:50: DECISION (Priya via a8), Q3: hit rate uses the camera working period.**
+  - Condition: the last far-spout failure block(s) before the quit tail must not be left out.
+  - **Proposed guard:** a stop run / quit tail counts as stopped only if it includes non-response at a reference (close)
+    spout. The end of session moves to the first reference-spout block with no camera lick after the last camera lick.
+  - A census of the current rule vs the guarded rule is running: STOP_RULE_GUARD_CENSUS_20261104.md, per animal x epoch
+    x spout, with hit rates.
+  - **Expected effect on the O2 bundle: none.** Stop runs and the quit tail contain only no_response / jaw_only, so the
+    guard only moves failure trials back into the working period. contact + incomplete (the encoder's engaged set and the
+    decoders' working rows) cannot change. The census confirms this.
+- **11-04 ~11:00: PENDING (Priya via a8): the cue + 70 ms contact floor (trial_classes.CONTACT_FROM_CUE_S).**
+  - a8 is measuring first-contact latency. No change until a8 sends the rule.
+  - If 70 ms stays, licks at 0-70 ms are excluded from both post-cue and pre-cue (today they count in licks_precue).
+    That moves the pre-cue lick tables only; the classes stay the same.
+  - If the floor is SHORTENED, trials with a contact at <floor..70 ms> can change class (e.g. no_response -> contact).
+    That changes:
+    - the working set;
+    - trial_attempts (a new tag);
+    - the O2 bundle's engaged set (an input rebuild);
+    - every class-dependent render.
+  - So decide this before the O2 jobs are submitted.
+- **11-04 ~11:05: FINDING (a8, interim): the cue + 70 ms floor does not change classes.**
+  - Counted over 54,808 cohort-1 trials. Only 3 trials change class at floor 0, and 2 at floor 50.
+  - So trial_attempts, the working set and the O2 engaged set do not depend on the floor, and O2 does not wait for it.
+  - 2,167 trials (4 %) have their first post-cue contact < 70 ms, mostly PS92 / PS93. Examples: PS92 pre 401 / 2,314,
+    PS93 chronic 414 / 6,068.
+  - Excluding 0-70 ms licks from licks_precue moves only the pre-cue lick tables and any cue-anchored latency readout.
+  - The encoder's continuous lick kernels use every lick and are not cue-windowed, so they are unaffected.
+  - The final rule is pending from a8.
+- **11-04 ~11:10: DECISION (Priya via a8): the cue + 70 ms rule.**
+  - Source: widefield_pipeline docs/status/CUE70_CHECK_2026-11-04.md, 9533758f.
+  - KEEP the 70 ms post-cue floor: DAQ contacts from cue + 70 ms; camera licks by lick PEAK >= cue + 70 ms.
+  - 0-70 ms licks are excluded, marked with the explicit context "excluded_0_70". They count as neither pre-cue nor
+    post-cue. Camera licks are judged by peak, not onset.
+  - Effect: 2,277 DAQ contacts and 608 camera licks leave the pre-cue tables. Post-cue counts, classes and the O2 engaged
+    set are unchanged.
+  - Being implemented on branch rebuild/cue70 (worktree wf_rebuild_cue70). The helper checks that the encoder Behaviour
+    and the trial classes are unchanged, and identifies who writes licks_precue / licks_all and how they re-render
+    under the profile.
+  - Side finding: the DAQ sees contacts inside the GUI's 2 s ENL that the GUI missed: PS92 pre 10.7 %, PS93 8.6 %. Our
+    sliding ENL selection already handles them.
+- **11-04 ~11:20: FINDINGS (census CONTACT_DAQ_MISMATCH_20261104.md; 107 sessions, 57,048 video-matched trials).**
+  - **Q6: DAQ no-lick but camera contact = 23 trials.** That is 0.23 % of DAQ no-lick trials.
+    - All 23 have contact AFTER max_rt (3.5 s): first contact at 3501-3686 ms, before the trial stop.
+    - No table mismatches.
+    - 19 of the 23 are at far spouts.
+    - 11 examples with cam4 / cam1 frame ranges are listed.
+    - The reverse case (DAQ engaged, no camera contact) is 2 trials.
+  - **Q4: unjudged close-mid (close_center) no_response = 1,121 trials.**
+    - 852 are in stopped runs, 5 after_end, and 264 in the working period (3.1 % of close-mid working trials; acute 7.4 %).
+    - Side-camera judging could re-class at most ~264 isolated lapses. Stopped runs cannot move, because jaw_only already
+      counts toward the 6.
+  - **Q9: DAQ-timing fallback needed for 0 of 46,825 contact trials.** Every contact trial has an LP time (7 from cam1
+    only).
+    - The real issue is different: in 10 trials the first LP lick is > 100 ms after the first DAQ contact (64 at > 50 ms),
+      i.e. the video missed the contacting lick. 8 of the 10 are at close spouts.
+    - Option: use the DAQ time (timing_source = daq) when LP is later than the contact by more than a tolerance, at
+      lp_licks.py:394-403.
+  - Process note: the census helper briefly pushed free RAM to ~1.5 GB (it stopped its own workers).
+- **11-04 ~11:30: DECISIONS (Priya).**
+  - **(1) Licks after the response window (cue + max_rt, 3.5 s) do not count toward the class**, because the spout is
+    already moving. Camera classes use licks from cue + 70 ms (peak) to min(cue + max_rt, stop).
+    - About 23 contact trials change class (13 become incomplete).
+    - This is a class change: trial_attempts and the working set move slightly.
+    - The O2 engaged set gets re-derived from the shipped table, so no input rebuild.
+    - Being implemented on rebuild/cue70, together with the 0-70 ms exclusion.
+  - **(2) Unjudged close spouts: OK.** Kept apart, no wait for the side cameras.
+  - **(3) DAQ timing fallback: yes, with tolerance ~100 ms** (Priya: "maybe 100 ms?").
+    - Rule: if the first LP lick is > 100 ms after the first DAQ contact, or there is none, align on the DAQ contact and
+      flag timing_source = daq.
+    - Read-only investigation of WHY LP misses these (64 trials > 50 ms) is running: lp_missed_contact/.
+    - The tolerance is to be confirmed against its cause mix.
+- **11-04 ~11:40: FINDING (STOP_RULE_GUARD_CENSUS_20261104.md): the reference-spout guard matters, through mid-session
+  stop runs.** DECISION NEEDED (Priya).
+  - **Risk (a), the end cut, is small:** only 43 trials are after_end cohort-wide.
+  - **Risk (b) is real:** 85 of 277 stop runs contain no close ipsi / close mid trial (48 acute). In acute, 39 of those 48
+    runs were preceded by a close-spout contact. Example: PS95_0817 has 62 stopped trials, all at far contra / far mid.
+  - **Stopped trials:** 5,882 -> 4,152 (trial-level guard) or 3,265 (block-level). Classes change in 57 of 107 sessions.
+  - **Hit rate, pooled acute:** .691 -> .631. The acute deficit vs pre goes -.265 -> -.310 (far ipsi -.159 -> -.212,
+    close contra -.065 -> -.122). Subacute -.059 -> -.083. Chronic is unchanged.
+  - **The guard is not deficit-specific:** pre hit .956 -> .941, so it also restores some real disengagement. Read the
+    current rule as a lower bound on the deficit and the guard as closer to an upper bound.
+  - **Trial-level is the cleaner version.** Block-level puts reference-spout failures back.
+  - **Unchanged:** the working set, the rest period, contact-given-attempt, and the O2 engaged set.
+  - **Changed:** the stopped set, which moves the no-lick decoder's stopped arm, the ENL working-vs-stopped contrast and
+    the attempt-rate denominator.
+  - **Open calls for Priya:**
+    - trial- vs block-level guard;
+    - whether a stop starts at the first reference failure or at the run start;
+    - the 13 sessions with no reference trial after the last lick;
+    - whether close mid's default no_response counts as stop evidence;
+    - a refinement (a reference contact on both sides of a run).
+- **11-04 11:22: O2 bundle enc_rebuild_20261104 written.**
+  - 107 / 107 inputs, 30 GB.
+  - env.json is verified: LICKS=combined, TONGUE=3d, EXEC=polar, the three tables, OROFACIAL_GATE=attempted, and the
+    full profile env.
+  - The rsync was given to Priya.
+  - The checks (PS93_0814 + PS93_0818) started 11:23.
+  - Before submitting:
+    - the checks pass;
+    - the encoder-classes merge, then refresh-code (through the wrapper or after the --profile fix);
+    - a regenerated trial_attempts (max_rt rule) is shipped in tables/;
+    - a small re-rsync of code/ and tables/.
+- **11-04 ~11:50: DECISIONS (Priya via a8) on the stop-rule guard, round 1.**
+  - close_center unjudged no_response counts as stop evidence.
+  - Trials after the last camera lick are always stopped.
+  - The block-level guard is dropped.
+  - Census round 2 is running (STOP_RULE_GUARD_CENSUS_R2_20261104.md). Arms:
+    - current;
+    - trial guard;
+    - both-sides refinement;
+    - runs > 8 / > 10 / > 12;
+    - end cut only.
+  - Each arm is scored on hit rate and deficit, with the pre hit rate as the specificity check, plus stopped trials and
+    no-reference runs.
+- **11-04 ~12:10: FINDING (STOP_RULE_GUARD_CENSUS_R2_20261104.md). DECISION NEEDED (Priya): the stop rule arm.**
+  - **A2 (both sides) is the only arm with pre exactly unchanged** (.956). It restores 222 acute far-spout trials and
+    moves the acute pooled deficit -.265 -> -.289. The effect comes mostly from PS94 / PS95 (PS95_0817).
+  - **A3 run > 8 / > 10:** pre -.002. Acute deficit -.287 / -.299.
+  - **A1 trimmed:** pre -.011. Acute deficit -.309.
+  - **A4 end cut only: ruled out.** Acute close ipsi .782, i.e. disengagement scored as failure.
+  - **Every arm:** working set and rest period unchanged; chronic barely moves.
+  - **A2 caveat:** it requires the NEAREST reference trial on each side of the run to be a contact.
+- **11-04 ~12:40: DECISION (Priya via a8): stop rule = A2 "both sides" PRIMARY.**
+  - Robustness rows: A0 (current) and A3 > 10.
+  - Everything after the last camera lick is stopped.
+  - Implementation is added to rebuild/cue70 together with cue + 70 and max_rt, so trial_attempts is regenerated ONCE.
+    It gets a new run tag.
+  - Merge it as the last branch before the render.
+- **FYI (a8):** the G4 mix-shift test (widefield_pipeline G4_CAMCLASS_MIXSHIFT_2026-11-04.md, 5f01f2dc) finds the state
+  discriminators' z frame is mix-stable.
+  - B stays OFF, and the discriminators stay in z.
+  - Only the camera-class discriminator version gets ported: working vs none, with jaw_only / after_end scored
+    separately. The port list will come from a8.
+- **O2:** Priya has the inputs on O2 scratch. Submission waits for:
+  - the checks;
+  - the class-output merge and code refresh;
+  - the final trial_attempts.
+- **11-04 ~12:50: Priya's review of the LP missed-contact sheets (lp_missed_contact/).**
+  - The non-grooming cases are real licks at close_center that cam1 (and maybe cam4) doesn't see.
+    - The DAQ timing fallback is the right handling for now.
+    - Side cameras (cam2/3) should help later. Add this to the side-camera class revision with the unjudged close-spout
+      jaw trials.
+  - Some cases are grooming: a DAQ contact that is not a lick. The helper is quantifying them, checking where they count
+    as contact, and proposing an automatic grooming flag.
+- **11-04 ~13:10: PENDING (a8): the frozen spout decoder's bal_em centre, and the C projection centre.**
+  - Question: working rows or contact-only?
+  - Reason: working-row centres drift as the incomplete share rises.
+  - Test: CENTRE_MIXSHIFT_2026-11-04.md.
+  - Do not lock it in the render until the result arrives. It changes the scored frame only; models stay.
+  - The port exposes the centre as a spec-carried option.
+- **11-04: DECISION (Priya via a8): G4 state discriminator labels come from camera classes / LP licks, with the z
+  centre on CONTACT rows.**
+- **11-04 ~13:20: DECISION (Priya via a8): G9 coding-direction classes move to camera classes, with guards.**
+  - The guards:
+    - per-spout or position-balanced contrasts;
+    - a minimum n of 10 per animal x epoch x class x spout;
+    - a matched pre reference: the same class, otherwise pre working, labelled; never post incomplete vs pre contact;
+    - a contact-row z centre until the centre test reports;
+    - DAQ G9 kept as a robustness row, with old -> new per animal reported before any figure switches;
+    - classes via g_group.
+  - Any figure that cannot meet the guards stays on DAQ and is flagged.
+  - Passed to the port helper.
+- **11-04 ~13:40: FINDING (lp_missed_contact/LP_MISSED_CONTACT_20261104.md). DECISION NEEDED (Priya).**
+  - Normal lag: the LP onset precedes the DAQ contact (median -16 ms at close spouts, -48 ms at far). The tail starts at
+    +10-20 ms.
+  - The 50-100 ms trials are real misses: in 52 of 54 the first LP lick is the NEXT lick.
+  - Of the 64 trials, 56 are real misses, all at close spouts (41 pre):
+    - 34: the spout hides the tongue in cam4, and cam1's droplet flag drops the event;
+    - 11: gate M's 80 ms interval;
+    - 11: a 1-3 frame or flat tongue.
+    cam4 also misses all 56.
+  - 8 are grooming (paw), 7 of them at far spouts. They keep their class (contact, from later real licks). Only their
+    first-lick time is wrong.
+  - Recommended:
+    - 50 ms tolerance at CLOSE spouts only, with timing_source = daq;
+    - at FAR spouts, > 50 ms = a grooming flag (7 of 8 caught, 0 false alarms). Keep the LP time.
+    - 100 ms would leave 49 misses timed about one lick late.
+  - Optional source fixes (LP lick-detection changes; would recover 38 of the 56):
+    - keep droplet-flagged cam1 events that overlap a DAQ contact;
+    - let a DAQ contact break gate-M ties;
+    - rise-start onset.
+  - RAM fell to 0.6-1.7 GB during this run, caused by two other python processes (15 GB + 12 GB); the helper waited.
+- **11-04 ~14:00: DECISION (Priya via a8): a standard contact vs incomplete panel in sections D and G.**
+  - Frozen-decoder accuracy per spout, per epoch, cue and precue.
+  - Pre reference per class, otherwise pre working (labelled).
+  - Chance .167; n floor 10.
+  - Session dots; stars in the top band.
+  - The same centre for both classes, following the pending centre test.
+  - Added to the port helper as its own commit.
+- **OPEN for Priya:** the DAQ timing fallback. Recommended: 50 ms at close spouts only, with a grooming flag at far
+  spouts (LP_MISSED_CONTACT_20261104.md).
+- **11-04 ~14:15: The O2 bundle checks PASSED.**
+  - PS93_0814: max |diff| 6.5e-8, 952 / 952 rows. PS93_0818: max |diff| 6.4e-8, 952 / 952 rows. Zero share reads.
+  - Recorded in RENDER_LOG.md.
+  - Still to do before submitting:
+    - the class-output merge, then refresh code/ with --no-inputs. Use the wrapper r4/o2_wrap.py, or wait for the
+      --profile env fix, which is on rebuild/encoder-classes (38436a2b);
+    - ship the final trial_attempts;
+    - Priya re-rsyncs code/ and tables/.
+- **11-04 ~14:15: stop-run review clips written.** 8 clips + index.md, 50 MB, at
+  M:/MICROSCOPE/Priya/Widefield/review_clips/stop_runs_20261104/.
+- **11-04 ~14:20: DECISION (Priya): the DAQ timing fallback for lick-aligned arms.**
+  - Close spouts: if the LP onset is missing or > 50 ms after the first DAQ contact, use the DAQ time
+    (timing_source = daq).
+  - Far spouts: keep LP, and flag grooming_suspect when LP is > 50 ms late.
+  - Implemented on rebuild/cue70 (lp_licks) and in the encoder's per-trial outputs (rebuild/encoder-classes).
+  - LP source fixes (droplet / gate M / onset) are deferred; they are not in this rebuild.
+- **11-04 ~14:30: Priya: "by definition, there should not be licks in the stopped time."**
+  - The current rule only guarantees no lick in each trial's response window (cue + 70 ms .. stop).
+  - It can still contain licks in:
+    - the ENL / pre-cue period;
+    - 0-70 ms after the cue;
+    - the ITI;
+    - after max_rt. The pending max_rt rule creates these.
+  - A census is running: STOPPED_LICKS_CENSUS_20261104.md.
+  - Likely rule: any camera lick or DAQ contact in the run's time span breaks the run. To be implemented on
+    rebuild/cue70 once the counts are in.
+- **11-04 ~15:00: FINDING (STOPPED_LICKS_CENSUS_20261104.md). DECISION NEEDED (Priya).**
+  - Stopped trials never contain a cue response: 0 licks at cue + 70 ms .. max_rt, verified per trial.
+  - Stopped TIME does contain licks, almost all pre-cue (median -2.8 s, often bouts) or in the ITI:
+    - 88 of 200 A2 mid-session runs;
+    - 19 of 59 quit tails;
+    - 273 of 5,611 stopped trials touched (4.9 %).
+  - The pending max_rt / 70 ms rule has almost no effect: 15 trials, 2 become stopped, hit rates move <= .004.
+  - Options:
+    - break runs at each lick and re-form: 5,339 stopped; acute pooled hit .667 -> .656;
+    - STRICT (the touched trial also leaves the run): 5,255 stopped, 0 licks left in stopped time; acute hit .652.
+      Cost lands on the acute close spouts (close contra .911 -> .881);
+    - or EXCISE the touched trials into neither class: hit rates unchanged.
+  - The quit tail could start after the last lick EVENT, not the last lick trial: 19 sessions, tail 1,313 -> 1,044.
+- **11-04 ~15:20: FINDING (e0; Priya approved the fix on main): the pose3d per-frame spout was 1.04 mm behind the
+  commanded tip in ap.**
+  - Cause: cam1's spout edge offset was not applied in the triangulation.
+  - Fix: pose3d.edge_shifted.
+  - Effect on the rebuild: the encoder's polar TARGET set (lateral angle, angle^2, tilt, 3-D distance) is computed at
+    bundle time from COMBINED_ENCODING_TARGET3D_TABLE and baked into the 107 O2 input pickles. The shift does not cancel
+    through the polar transform.
+  - So the bundle inputs need re-cutting once the spout table is regenerated. Questions to e0: per-session size,
+    affected columns, re-run cost, a new tagged table.
+  - The O2 submit was already waiting on the final class table, so this adds little delay if run in parallel.
+- **11-04 ~15:30: DECISION (Priya, leaning): stopped-period trials with pre-cue / ITI licks but no response are EXCISED.**
+  - They get their own class, stopped_licking (273 under A2).
+  - They are in neither stopped nor working, but are reportable.
+  - The remaining run trials stay stopped, and A2 hit rates are unchanged.
+  - The strict break is a robustness option.
+  - Implemented on rebuild/cue70.
+  - Still open: does the quit tail start after the last lick EVENT? It is an option; the default stays the last lick
+    trial.
+- **11-04 ~15:40: pose3d spout bias (e0, main bddf02e7).**
+  - Size: ap -1.02 mm (range -0.91 .. -1.07) and dv -0.14 in every session.
+  - Only the spout columns and the TARGET3D table are affected. Mouth zero, tongue / jaw xyz and the EXEC3D kinematics
+    are unchanged.
+  - **Decision (coordinator): option (b).** TARGET3D = the commanded spout positions (spout_world.commanded_world), as a
+    new tagged table pose3d_spout_positions_commanded_20261104.csv. e0 is building and verifying it.
+  - Why: it equals the corrected measurement to PnP residual; it needs no 2.5 h pose3d re-run; and lick aim uses
+    commanded targets too.
+  - Then the O2 bundle inputs are rebuilt (~1.5 h) and Priya does a full re-rsync.
+- **11-04 ~15:45: INSTRUCTION (Priya): when the updated bundle is handed over, the stale one is deleted.**
+  - Plan: build the corrected bundle under a NEW name (enc_rebuild_20261104b) so nothing mixes.
+  - When it passes its checks:
+    - delete M:/.../rebuild_20261103/o2/enc_rebuild_20261104. It is a derived output; the deletion list goes in
+      RENDER_LOG.md;
+    - give Priya the O2 scratch command to remove /n/scratch/users/p/ps150/o2/enc_rebuild_20261104, together with the new
+      rsync and the sbatch commands.
+- **11-04 ~15:55: commanded TARGET3D table built (e0, main scripts/pose3d_spout_commanded.py).**
+  - File: C:/Users/SabatiniLab/wfield_cache/pose3d_inputs/pose3d_spout_positions_commanded_20261104.csv. 642 rows =
+    107 sessions x 6 positions. No June sessions.
+  - New minus old: ap +1.02 (0.89 .. 1.14), dv +0.14, ml ~0.
+  - Verification: within ~0.05 mm of (old minus measured bias); PS94_0820 ap 0.09 at one position.
+  - Flag: PS92_0929 close_R had a measured spout 0.67 mm lower than its other positions (a physical deviation or
+    tracking). The commanded table cannot represent it.
+  - **Bundle plan, revised.** The bundle identity carries the run tag / selection, and the final classes change the tag.
+    So the new bundle (enc_rebuild_20261104b) is built AFTER:
+    1. the four rebuild branches are merged (encoder-classes, cue70, enl-window, bcdg-port) and the full suite passes;
+    2. trial_attempts is regenerated under the new tag (~90 min);
+    3. the inputs are built with COMBINED_ENCODING_TARGET3D_TABLE = the commanded table (~1.5 h);
+    4. the checks run;
+    5. the stale bundle is deleted and the handover goes to Priya.
+- **11-04 ~16:05: PS92_0929 close_R resolved (e0).**
+  - Not a physical spout deviation. The old measured median mixed in frames after the spout had retracted to the
+    stage's safe z, 4 mm below the mouth.
+  - Evidence: per-trial dv is bimodal (-1.55 vs -4.07); reprojection 1.6 px; no geometry changes.
+  - The commanded value is correct. No flag needed.
+- **11-04 ~16:30: rebuild/encoder-classes DONE (7 commits, tip 7d463e8a).**
+  - Every cue trial is scored per trial.
+  - The existing outputs are bit-identical on PS93_0814 and PS93_0818 (max |d| = 0).
+  - Full suite: 4,763 passed / 0 failed. Related tests: 194 passed.
+  - Non-engaged trials are predicted by the full-data fit. The shuffle / relabel models cannot be scored for them (NaN,
+    flagged).
+  - Per-trial storage is automatic per TAG: full for main, SSE-only for bins / musall_shuf / fr, off for the others.
+    That is ~53 GB more on O2 scratch.
+  - **Peak RAM ~28-29 GiB per session against the 32G sbatch.** Proposal: --mem=40G for every array.
+  - Caveat for readers: per-class cvR2 is measured against the session mean, so a non-engaged class can score high from
+    its offset alone. Use trial-to-trial R2 for class comparisons.
+  - Smoke check (PS93_0818, acute): contact 0.553 / incomplete 0.386 cvR2.
+  - Also fixed: `--profile` keeps the encoder settings, and refresh-code / check cover trials.npz.
+- **11-04 ~16:40: rebuild/enl-window DONE (cb7b1f49, 17deee17, b8632a07).**
+  - One ENL window definition, lp_licks.enl_post_s: LP 1.0 / DAQ 2.0.
+  - Four scripts gated on DAQ licks under LP; fixed.
+  - cd_trajectories used 2 s windows under LP; fixed. Its caches recompute once.
+  - Frozen ids and the default cache keys are unchanged. O2 inputs are unchanged.
+  - Full suite: 4,787 passed / 1 failed. The failure is test_review_7ab byte-identity vs live main, because main changed
+    working_trials in 4a37cbc8; the bcdg port resolves it.
+  - **DECISIONS for Priya:**
+    1. quiet_task_events is cohort 1. Its ev_enl should match the LP frozen decoder (1.0 s)? It is still on DAQ 2.0, and
+       switching needs MIN_CLEAN_S re-decided.
+    2. within_spout_deviation enl = 1 s, not lick-gated (contact-free by task design): OK?
+    3. The s1_refit tables pin ENL at 2.0 s under LP (Priya 11-03). Keep that as a sensitivity row?
+    4. The encoder's "enl" R2 scoring window is fixed at cue - 2 s .. cue and not lick-gated. Change it to follow the lick
+       source before the new O2 bundle? It is scoring only, not inputs.
+    - Gap: the ENL tag is missing in session_cache.effective_kind for override runs. Left as is.
+- **11-04 ~16:50: DECISION (Priya): quiet_task_events moves to the LP no-lick ENL, 1.0 s, matching the frozen LP decoder.**
+  - Implementing on rebuild/enl-window.
+  - MIN_CLEAN_S is to be re-derived. If "clean" means lick-free, the LP gate already covers it.
+  - Still open: ENL decisions 2-4 (within_spout_deviation; the s1_refit 2.0 s; the encoder's "enl" scoring window).
+- **11-04 ~16:55: DECISION (Priya): any ENL prediction uses a LICK-FREE ENL.**
+  - within_spout_deviation gets the lick gate under the run's lick source.
+  - The helper is also sweeping for any other ungated ENL predictor.
+  - Still open: the s1_refit 2.0 s pin, and the encoder's "enl" scoring window. The rule suggests the encoder window
+    should also follow (lick-free, 1.0 s under LP); asking to confirm.
+- **11-04 ~17:00: DECISION (Priya): the s1 refit tables switch to the LP lick-free 1.0 s ENL.**
+  - These are the imaging page section 1 / PI slide 9 numbers, previously run as LP_licks_ENL2s.
+  - 2.0 s is kept at most as a labelled sensitivity row.
+  - **Conclusion-change watch:** slide 9 / section 1 numbers will move. Report old vs new before any text changes.
+- **11-04 ~17:10: CORRECTION (Priya): ENL predictors use the SLIDING lick-free window search.**
+  - That means the decoders' function: find a lick-free 1 s window within the ENL. It does not mean dropping trials that
+    have a lick in a fixed (-1, 0) window.
+  - This applies to within_spout_deviation, quiet_task_events, the s1 refit and any other gated ENL predictor.
+  - A trial is dropped only if no lick-free window exists.
+- **11-04 ~17:10: The encoder "enl" scoring window is under discussion with Priya.**
+  - Proposal: keep the bundle window (2 s, ungated, for comparability) and compute the lick-free 1 s ENL R2 post hoc from
+    the per-trial outputs (0.5 s cue-aligned bins, per-trial exclusion), as the primary readout.
+  - Checks proposed: bin alignment, models covered, which figures use the enl rows.
+- **11-04 ~17:15: DECISION (Priya): the encoder "enl" scoring window becomes the lick-free sliding ENL.**
+  - LP 1.0 s, using the decoders' search, from the bundle's lick data. It changes before the new O2 bundle is built.
+  - The old fixed 2 s ungated window is kept as the "enl_fixed2s" robustness row.
+  - Implementing on rebuild/encoder-classes. Other outputs must stay bit-identical.
+- **11-04 ~17:25: FINDING. The production encoder has NO pre-cue lick kernels.**
+  - COMBINED_ENCODING_LICKS_ALL is not set in the bundle env.
+  - The lick sources start at the cue: LP licks.csv post-cue, DAQ contacts at cue + 70 ms .. stop.
+  - Pre-cue licking is modelled only by the continuous tongue / jaw / nose video regressors, which are blanked outside
+    strobe .. trial end.
+  - pos_enl = a per-position strobe-locked arrival kernel (0-2 s) + a spout-present state (strobe .. cue). It is fixed
+    timing, independent of licks.
+  - So the lick-free scoring window is only a per-trial frame mask on the same prediction.
+  - BUT the pickle lacks pre-cue licks, so it needs the context-lick data.
+  - **DECISION NEEDED (Priya):**
+    - (A) bundle the pre-cue licks for scoring only, with the model unchanged;
+    - (B) LICKS_ALL=split: add pre-cue and ITI lick kernels to the production model.
+- **11-04 ~17:35: DECISION (Priya): option B. The production encoder gets COMBINED_ENCODING_LICKS_ALL=split.**
+  - It adds its own pre-cue lick kernel and its own ITI lick kernel to the post-cue kernel.
+  - The lick-free enl scoring window uses the same pre-cue licks.
+  - Robustness TAG: main_nolicksall.
+  - Every lick lands in exactly one kernel. 0-70 ms licks are still modelled; the 0-70 exclusion is about counting only.
+  - Implementing on rebuild/encoder-classes.
+- **OPEN (conflicting relay, asked Priya):** a8 relayed "encoder enl not lick-gated", "quiet events fully clean trials",
+  "within_spout lick gate". Priya's direct messages said lick-free / sliding. Proceeding on the direct messages, with
+  both built as options.
+- **11-04 ~17:40: CONFIRMED (Priya, direct; this supersedes a8's relay).**
+  - Encoder enl = lick-free.
+  - quiet_task_events = sliding lick-free 1 s.
+  - within_spout_deviation = sliding lick-free 1 s.
+  - s1 refit = LP 1.0 s, with 2.0 s as a sensitivity row.
+- **11-04 ~17:55: DECISION (Priya): the encoder separates cued from spontaneous licking.**
+  - Variables:
+    - licks (post-cue + contacts) = instructed;
+    - licks_pre (ENL) = UNINSTRUCTED;
+    - licks_iti = UNINSTRUCTED.
+  - They share one lick penalty, so the fit is the same.
+  - New drop models in main: drop:licks_pre, drop:licks_iti, drop:both (all spontaneous licking).
+  - Caveat: the tongue / jaw traces stay instructed over the whole trial.
+  - Implementing on rebuild/encoder-classes.
+- **11-04 ~18:05: DECISION (Priya via a8, PROVISIONAL): spout-decoder and CD / pattern projection centre = Wt.**
+  - Wt = the true-label balanced centre on all working rows, with no EM and no pre-stroke fill.
+  - Robustness rows: N and Cto. The engagement axis stays z.
+  - Caveat: about -.024 drift under a high incomplete share.
+  - Passed to the port helper.
+- **QUEUED (after render):** re-run the 11-03 lick-direction frame check (decoder_mix_checks/lick/) on the rebuild
+  lick sets. Report per animal first, before / after.
+  - Note to a8: the fallback is 50 ms at close spouts, not > 100 ms.
+- **HOLD:** a rest-centred arm (restdock05 / restw frame), pending Priya.
+- **11-04 ~18:10: Priya: there are enough working trials per spout even in acute, now that incomplete licks are
+  included.**
+  - Wt: no fill / fallback; a loud refusal guard instead.
+  - The port reports the minimum per-spout working count per animal x epoch to confirm.
+- **11-04 ~18:30: rebuild/cue70 DONE.**
+  - Commits: 9f0d6efe, 395a9124, 0988a1cf, 5463a0b6, 3613cf0b, log 8.45.
+  - Full suite: 4,790 passed / 1 failed (the same byte-identity-vs-main test).
+  - The encoder Behaviour is IDENTICAL, with and without LICKS_ALL=split.
+  - Census counts reproduced: A2 5,611; excise 273 on the census inputs, 276 on the final code.
+  - New primary tag: ...-cls-contact-incomplete-stopA2jexrt3500c70.
+  - Cohort transitions (57,048 cues):
+    - working 49,111 -> 49,087;
+    - stopped 5,882 -> 5,347;
+    - stopped_licking 276;
+    - after_end 43 -> 0 (folded into stopped under A2).
+    - The max_rt rule: contact -> incomplete 17, -> jaw_only 6, -> no_response 2.
+    - The A2 guard returns 314 trials, mostly acute far spouts.
+  - LP fallback: 55 close-spout trials DAQ-timed, 6 far grooming flags (vs 57 / 7 in the report). The difference is cue
+    clocks differing by up to 14 ms.
+  - Pre-cue lick tables: readers split by peak at read time, so no re-render is needed. The writers would target v36 and
+    are refused by writeguard.
+  - Merge actions:
+    - g_group must give stopped_licking its own group;
+    - the quit tail needs its own "quit" label, because after_end is now 0 (sent to the port helper);
+    - renumber the log sections.
+- **11-04 ~18:35: FINDING (a8, REST_CENTRE_2026-11-04.md, 2916dde9): the rest-centred arm fails.**
+  - The rest centre shifts toward a far-contra penalty post-stroke in 4 of 4 animals.
+  - Cue chronic far contra: .720 -> .296.
+  - Held-out pre accuracy: -.030.
+  - No rest arm will be built. Wt stays the provisional default.
+- **11-04 ~18:45: DECISION (Priya via a8): Wt is the FINAL centre.**
+  - Applies to the spout decoder and the CD / pattern projections. The engagement axis stays z on contact rows.
+  - Robustness rows: N and Cto.
+  - Method note: ~.024 drift under a high incomplete share; the rest frame was rejected.
+  - Set as the rebuild default on bcdg-port.
+- **11-04 ~19:00: rebuild/enl-window DONE.**
+  - Commits: cb7b1f49, 17deee17, b8632a07, 9efc3c22, c73d04ee, 8d912ae5, f056c223.
+  - Full suite: 4,790 passed / 1 failed (the same byte-identity-vs-main test).
+  - s1 refit, quiet_task_events, within_spout_deviation, enl_table and enl_trials now use the decoders' sliding search
+    at LP 1.0 s. Outputs are keyed by window.
+  - quiet_task_events "clean" = the event-detection mask (no contact / run / swap within 0.5 s), not the lick test. So
+    MIN_CLEAN_ENL_S = 0.5 x window. Kept 48,919 vs 49,113 before; a fully clean window would keep only 22 %.
+  - within_spout_deviation: 46,495 -> 46,092 trials (99.1 %).
+  - **DECISION (Priya):** two families are lick-gated but do NOT slide:
+    - the iti_licks ENL family (lick_enl_angle_decode, lick_enl_target_test, lick_enl_offset_explore, the pre-cue parts
+      of prelaunch_aim_tracking / revup_neural): fixed [-W, -0.10] window, a lick drops the trial. Their traces start at
+      -2 s, and sliding would mix in the spout-arrival transient;
+    - fr_enl_decode: fixed 1 / 2 s on the FaceRhythm grid.
+    - Recommendation: keep them fixed (lick-free by drop) and say so in the methods.
+- **11-04 ~19:15: rebuild/bcdg-port DONE (first pass).**
+  - Commits: 724862f9, fecc69c9 (G9, separable), d15fe9af (panel, separable), 361c83bd, 3bedd477.
+  - Full suite: 4,777 passed / 0 failed. The port also brought main 26fd5b44's B/C base (default OFF).
+  - Centre: WIDEFIELD_SPOUT_SCORE_CENTRE = wt (default), with a loud refusal below 20 rows.
+  - Dry count: the minimum is PS94 acute far contra at 21 working cues. The imaging pool could drop a few, so the
+    refusal might trip there; watch it.
+  - New frozen kinds: g_lickonly_decoder, g_cam_disc. Other ids are unchanged.
+  - Follow-ups requested:
+    - turn C ON with Wt for the CD / pattern projections, with a per-readout split keeping eax on z;
+    - run-tag parts for non-default centre / option arms;
+    - G4 figures read the camclass primary;
+    - joint_xsession D on working rows;
+    - G9 figure layouts after the render.
+  - cue70 is adding stop_kind_for (run / tail) so g_group keeps "quit" and "stopped" separate.
+- **11-04 ~19:25: cue70 + stop_kind_for (88b1cb8e).** The quit tail and mid-session runs are now separable for g_group.
+  - Merge preview, overlapping files:
+    - lp_licks (cue70 / enl);
+    - combined_encoding + test_o2_encoding_env (cue70 / cls);
+    - trial_classes, the profile and test_review_7ab (cue70 / bcdg);
+    - attempt_coding, position_axes, position_coding_directions, precue_engagement_states (enl / bcdg);
+    - the log file in all four.
+  - Merge order once cls and the bcdg follow-ups finish: cls -> cue70 -> enl -> bcdg, then the full suite.
+- **11-04 ~19:40: encoder-classes is done with split + the lick-free enl window.**
+  - Commits: f13c608d, 2064c4f4, aa844490, 377f160e, 148af7ec, 29a19ba3.
+  - Full suite: 4,762 passed / 2 failed. One was fixed (148af7ec); the other is the same vs-main test.
+  - FINDING: the old pickles held 0 ENL-period licks, against 3,524 in the LP train. So the pre-cue licking was never in
+    any lick regressor.
+  - Smokes (cortex):
+    - split raises full cvR2: PS93_0814 .526 -> .540, PS93_0818 .405 -> .432;
+    - unique spontaneous licks: .009 / .017;
+    - **drop:pos_enl in the enl window, PS93_0814 (pre): .0085 -> .0019 under split.** Most of that session's pre-cue
+      position credit was unmodelled lick activity. PS93_0818 rises .0029 -> .0064. Conclusion-change watch for every
+      encoder pre-cue position claim; per-animal numbers to come after the O2 run.
+    - Under the LP 1.0 s window: full enl .479 / .190.
+  - Peak RAM 31.5 GiB, so the bundle sbatch default is now 48G.
+  - Decisions (coordinator):
+    - production split = the plain folder name, robustness = the _nolicksall suffix;
+    - ENL source = lp (Priya's 1.0 s);
+    - three-variable vs stacked differ by <= .0015 region R2, because of the group orthogonalisation; accepted.
+- **11-04 ~19:50: encoder-classes final (825020c2).**
+  - Production split = plain movement_first; robustness = movement_first_nolicksall.
+  - ENL source = LP 1.0 s by default. Memory 48G.
+  - Correction to the earlier finding: with the PRIMARY LP 1.0 s enl window, drop:pos_enl goes no-licksall -> split:
+    PS93_0814 .0072 -> .0029, PS93_0818 .0044 -> .0037. Both fall. The ".0029 -> .0064 rise" was on the fixed DAQ
+    window.
+  - Merging encoder-classes, cue70 and enl-window into rebuild/cohort1-20261103 now (merge helper). bcdg-port follows
+    after its follow-ups.
+- **11-04 ~20:00: DECISION (Priya): the between-trial lick ENL family and fr_enl_decode also SLIDE, for consistency.**
+  - Families: lick_enl_angle_decode, lick_enl_target_test, lick_enl_offset_explore, prelaunch_aim_tracking /
+    revup_neural pre-cue parts, fr_enl_decode.
+  - Proposed guard: the window must stay inside each family's extracted span (traces / the FR grid start at cue - 2 s)
+    and start >= strobe + 0.3 s, the encoder's ENL-state settle, so the spout-arrival transient stays out.
+  - These are frozen-decoder families, so expect new ids.
+  - Queued as a new branch off the merged tip, after the current merge.
+- **11-04 ~20:15: Priya deleted the stale O2 scratch copy** (/n/scratch/users/p/ps150/o2/enc_rebuild_20261104).
+  - The M: copy stays until enc_rebuild_20261104b passes its checks. Then it is deleted and logged in RENDER_LOG.md.
+- **11-04 ~20:25: e0 says 4cam 3-D is days away.**
+  - Still to do for 4cam: Part B labels -> round-2 side model -> cam2/3 O2 inference -> a 4cam production run.
+  - On review clips it is unbiased vs 2cam (lateral +0.08 deg, reach +0.004 mm); no precision gain shown yet.
+  - Decision: build enc_rebuild_20261104b on 2cam. 4cam is a later revision of the rebuild inputs; whether it replaces
+    2cam is Priya's call.
+  - Main's WIDEFIELD_POSE3D_SOURCE switch defaults to 2cam, so there is no rebuild effect.
+- **11-04 ~20:50: FINDING (a8, SD_RISE_2026-11-04.md, 371b6e1e). Conclusion-change watch.**
+  - The PI deck "Lick response larger after stroke" (slide 95; lick_cued_ramp.py / iti_licks.py, raw dF/F) is mostly a
+    global signal-SD gain.
+  - Per-session z-scoring removes the ACUTE cued increase: contra tjM1 +.47* -> +.03 (2 of 4 animals).
+  - Subacute / chronic contra tjM1 / SSp-m keep ~1/3. ALM does not survive. Docked ITI licks keep ~60 % in contra
+    SSp-m / tjM1.
+  - An F0 correction would make the raw rise larger.
+  - Priya is deciding: re-caption, or add a z-scored companion. NO text change until then.
+  - The rebuild render of the lick chain should produce both raw and session-z versions, so either choice is ready.
+- **11-04 ~21:00: bcdg-port follow-ups DONE (tip 81dbf4cc). Full suite: 4,798 passed / 0 failed.**
+  - The projection frame is ON with Wt (C ON). Per-readout split:
+    - Wt for coding directions / position_axes pairwise / attempt axes / grant patterns / pattern_similarity;
+    - z on contact rows for the engagement axis.
+    - coding_directions and attempt_axes get new fingerprints.
+  - sc-* run-tag parts for non-default options. Arms: centreN, centreCto.
+  - G4 figures: the camera-class discriminator is primary, DAQ is robustness.
+  - Bug fixed: the contact / incomplete panel would have drawn no dots (T.align resolved to the pandas method).
+  - G9 figure switch estimated at ~2.5-3 days, after the render.
+  - The merge helper merges it 4th, and wires g_group to stop_kind (tail -> quit, run -> stopped; stopped_licking on its
+    own).
+- **11-04 ~21:10: REQUEST (Priya via a8): a z-scored hidden comparison slide for slide 95.**
+  - Uses current pre-rebuild data. The main slide stays for now.
+  - Session-z per SD_RISE variant (c), plus an LMM version if cheap.
+  - Being rendered with a _sessz suffix; originals are untouched.
+- **11-04 ~21:40: the slide-95 session-z hidden slide is rendered (07e03c76, pre-rebuild).** Sent to a8.
+  - Folder: .../v36/imaging_encoding/iti_licks/slide95_sessz_20261104/.
+  - Raw reproduces slide 95 exactly.
+  - Under z:
+    - the acute cued increase is gone in every ROI;
+    - subacute / chronic contra tjM1 / SSp-m keep +.11-.14 (nested bootstrap *), about 1/4-1/3 of raw;
+    - the LMM (Holm) has no stars under z (smallest p .051);
+    - docked ITI contra tjM1 / SSp-m keeps ~60 %.
+- **11-04 ~21:50: the deck has hidden slides 100 and 101 (a8).**
+  - 100 = lick response, session-z (slide95_both_sessz). 101 = its LMM version.
+  - Deck: 186 slides, 81 hidden.
+  - TODO for the replacement pass: add fig:lick_slide95_both_sessz and fig:lick_lmm_sessz to the per-slide old -> new
+    list, refreshed together with the raw pair.
+- **11-04 ~22:20: TARGET3D for the new bundle switched to the commanded table.** Changed in run_bundle.sh, run_check.sh
+  and o2_wrap.py; the last two-camera build used the 20261023 measured table.
+  - Other rebuild 3-D inputs are unaffected:
+    - EXEC3D (commanded-relative);
+    - BINS_CALIB (built from tongue peaks);
+    - the frame env blocks don't set EXEC / TARGET3D.
+  - lick_template_test should be given the commanded table if it renders.
+- **Priya (via a8): close watch on B12.** When O2 lands, send FIRST: drop:pos_enl split vs no-licksall per animal x
+  epoch (LP enl + enl_fixed2s), with n sessions and CIs, plus the list of encoder page / deck pre-cue position claims.
+  The claim list is being prepared now.
+- **11-04 ~18:20 (clock): trial_attempts regeneration started under the new tag.**
+  - The render worktree is moved to 9fb2d964, the merged tip of all four branches. The runner is a new helper.
+  - It runs in parallel with the merge's final full suite. trial_attempts depends on trial_classes (cue70), not on the
+    reader-side g_group wiring.
+  - The bundle (enc_rebuild_20261104b) build waits for the suite to pass. Then come the checks and the handover.
+- **11-04 ~18:30 (clock): DELETED the superseded O2 bundle enc_rebuild_20261104 on M:.** Priya asked for the old
+  measured spout table to be gone.
+  - 644 files, 29.3 GB, including tables/pose3d_spout_positions_20261023.csv.
+  - Out/ was empty, nothing was submitted, and no process referenced it. The O2 scratch copy was already removed by Priya.
+  - The file list is in RENDER_LOG.md.
+  - No other copy of the 20261023 table exists in the rebuild root or the scratchpad. The local wfield_cache copy is e0's.
+  - The B12 smoke numbers came from inputs the class helper built in scratch (cls/). They re-run from the new bundle.
+- **11-04 19:16: trial_attempts regenerated under ...stopA2jexrt3500c70 (code 9fb2d964).** It matches the cue70 census
+  exactly:
+  - 57,048 cues / 107 sessions;
+  - working 49,087; stopped 5,347 (stop_kind run 4,310 / tail 1,313); stopped_licking 276; after_end 0;
+  - timing_source = daq for 73 trials; grooming_suspect 6.
+  - Note: camera_coverage.csv was written at 18:52, before trial_attempts finished; checking whether it needs a rerun.
+- **~20:40: both helpers stopped at the spend limit and were resumed.**
+  - The merge helper finishes the g_group wiring and the final suite.
+  - The runner holds for the go on the bundle build.
+- **11-04 ~20:50: all four branches merged into rebuild/cohort1-20261103 (tip c149decf). Full suite: 4,923 passed /
+  0 failed.**
+  - Merge commits: 3c4eb932 / 28939c46 / 2387cf20 / 9fb2d964.
+  - One ENL search (enl_window.precue_window_start) and one length (lp_licks.enl_post_s) for decoders, encoder and time
+    scripts, with a test.
+  - g_group: run -> stopped, tail -> after_end ("quit"), stopped_licking on its own.
+  - All 8 profile tags match. Primary: ...stopA2jexrt3500c70.
+  - Small inconsistency: for a far-spout trial with no LP onset, the encoder falls back to DAQ, while lp_licks leaves it
+    untimed. The census says 0 contact trials lack an LP time, so it is moot for now. Align at the next code pass.
+  - Runner given the GO: bundle enc_rebuild_20261104b from c149decf, then the checks.
+- **11-04 ~20:45: FINDING (a8, GAIN_BIO_2026-11-04.md, 93f5ef84): the post-stroke gain looks biological but
+  brain-wide.**
+  - Rest SD acute +.35 in 4 of 4 animals, uniform over all 46 areas, with no orofacial or ipsilesional excess.
+  - It persists in movement-matched still frames and away from quiet events.
+  - Corrected 470 = raw 470, so the correction did not create it.
+  - 415 rises about half as much, with a peri-lesional haemodynamic map.
+  - So the acute raw lick-response rise is real but not lick-specific.
+  - Plan: the raw main slide + the session-z hidden slide. Wording is Priya's choice.
+  - Question 14 (frozen encoder spontaneous lick kernels) is pending with Priya via a8.
+- **11-04 ~20:55: DECISION (Priya via a8): the FROZEN encoder also gets the spontaneous lick terms.**
+  - It matches the combined encoder: licks / licks_pre / licks_iti, with pre and ITI uninstructed.
+  - New frozen ids; v7g3_t3d is never overwritten and stays as a labelled robustness row.
+  - The same 0-70 / LP timing / stop-quit rules apply.
+  - Implementing on rebuild/frozen-licks (new worktree).
+  - When O2 lands, report FIRST: the B12 combined-encoder pos_enl per animal + the frozen target columns before / after.
+    These cover page 2.1 (+ its deck slide), 2.10 / 2.12, 20.3-20.7 and 1.1.
+- **11-04 ~21:00 (e0): main's scripts/prep_3d_inputs.py now writes the COMMANDED spout table**
+  (pose3d_spout_positions_commanded_<tag>.csv). It matches the adopted 20261104 file to 4.5e-5 mm.
+  - The rebuild branch still has the old prep_3d_inputs (measured). Port the main change at the next main merge.
+  - Any re-cut must point TARGET3D at the _commanded_ name.
+- **11-04 ~22:45: O2 bundle enc_rebuild_20261104b READY. Both checks PASSED. Commands handed to Priya.**
+  - 107 sessions, 30 GB, code c149decf, tag ...stopA2jexrt3500c70.
+  - env.json carries split, ENL lp, commanded TARGET3D, the camera gate, and the Wt centres.
+  - Checks:
+    - PS93_0814: max |diff| 5.3e-8, 1088 / 1088 rows;
+    - PS93_0818: max |diff| 3.8e-8, 1088 / 1088 rows;
+    - 0 share reads.
+  - Gap: the trials.npz comparison was not exercised (ONLY=drop:task returns no per-trial outputs). Covered in practice
+    by inspecting the 1-task test's main output.
+  - Note for collect: export COMBINED_ENCODING_LICKS_ALL=split + ENL_SOURCE=lp, like the check needed.
+- **11-04 ~23:10: swap-mask check. The interpolated swap frame pairs are a tiny share of each session.**
+  - Median 0.07 %, mean 0.10 %, max 0.37 % (PS92_0828); no session above 1 %.
+  - The encoders fit on the interpolated frames (they are not dropped), which is harmless at this size. The O2 run
+    stands.
+  - The O2 1-task test job 58601937 is submitted (pending).
+- **11-04 ~23:30: the O2 test job 58601937 FAILED in 3 s. The conda module conda/miniforge3/24.11.3-0 no longer exists on
+  O2; the current one is 26.9.4-1.**
+  - Priya submitted the 15 arrays early; they will fail the same way. She is cancelling them
+    (scancel -n enc_enc_rebuild_20261104b).
+  - Fix: run_enc.sbatch patched on M: and given to Priya as a sed for scratch. She tests `conda activate lp` under the new
+    module first.
+  - TODO (code): update the hard-coded module everywhere. Sites:
+    - configs/defaults.yaml :947 / :1335;
+    - scripts/o2_encoding.py :336;
+    - o2_face_rhythm.py :763 / :780 / :1116;
+    - o2_lp_train_bundle.py :108;
+    - runbooks/o2_pose_inference.md.
+    Do it on rebuild and main; tell e0 / a8, since every O2 bundle is affected.
+- **11-04 ~23:45: the O2 test job 58602462 started correctly under conda 26.9.4-1** ("task 1 TAG=main ... on
+  compute-b-16-181", empty .err). Waiting for "full cvR2" and _trials.npz before the 15 arrays go.
+- **11-04 ~23:45: the frozen encoder frames start NOW on this box with v7g3_t3d (Priya asked).**
+  - This is the robustness design without spontaneous lick terms.
+  - New render runner, code c149decf, new tag. Output folders must carry the design name so the later primary
+    (frozen-licks) run never collides.
+- **11-04 ~23:55: Priya: start every job as soon as it is able, parallelized appropriately.**
+  - Frozen v7g3_t3d (robustness) frames: GO now.
+  - The new primary design v7g3_t3d_spont (frozen-licks branch, first commit 910c408b) launches as soon as it is merged.
+  - The O2 15 arrays go once test task 58602462 checks out.
+
+## 11-04 23:20: O2 first outputs checked; frozen spont design merged
+- **O2 bundle b, first copy-back:** bins_w1 PS92_0806 + PS92_0812 complete and consistent.
+  - The run.json env matches the bundle: split licks, LP 1 s lick-free ENL, commanded TARGET3D, the stopA2jexrt3500c70 attempts table (same sha).
+  - Fitted trials = contact + incomplete, exactly (364 = 353 + 11; 224 = 221 + 3). The non-working cues are scored only.
+  - No NaNs. All 11 bin models are scorable. Cortex R2 all-frames .62 / .58.
+  - main / bins_w05 / bins_w2 have no sessions yet.
+- **Frozen v7g3_t3d_spont:** rebuild/frozen-licks (910c408b, efc4d517; log 8.51) is merged into rebuild/cohort1-20261103 at **34425934**.
+  - The full suite is running on the merge.
+  - The runner has been asked to launch spont lanes from a new worktree wf_rebuild_render_spont (frames only; v7g3_t3d lanes untouched).
+  - Smoke: full R2 +.010 / +.021. Spont unique comes mainly out of the cued-lick group; target unique barely moves.
+- **Stray process:** PID 30404 is a leftover frozen_encoder from the 11-03 encoder-drift chain (first drift1200 start, superseded by the 15:08 restart). It is idle with ~0 GB and is mine. It was left running; stop it only on Priya's OK.
+- **23:22, the stray process was stopped (Priya OK).**
+  - Stopped PID 30404 (exit logged as 127).
+  - Its parent chain_enc.sh then started its next step, a drift900 re-run: PID 3384 plus its 4 pool workers. Stopped within about 1 minute; the chain has now ended (900 was its last cutoff).
+  - Checked: no file under encoder_drift_cutoff_20261103/encoding/drift900 (4,691 files) and nothing in the encdrift caches was written after 23:00. The 11-03 drift outputs are intact.
+  - The v7g3_t3d render lanes (24068, 35928) were untouched.
+- **23:50: full suite on 34425934 stopped (mine, PID 33764).**
+  - It was one pytest process and had grown to 14 GB, which put free RAM at 8.3 GB under the frozen lanes. After the stop: 20.6 GB free.
+  - It was 40 % through with no failures so far. NOT a full-suite record.
+  - Re-run in 4 shards, one at a time, when the frozen fit phases are done. Do the same before merging rebuild/frozen-trials.
+- **Frozen v7g3_t3d progress at 23:41:** noFR 12/107, frA 6/107; main frames ETA ~01:30.
+  - Lane 3 (frAsplit / ls / te variants) is STOPPED for RAM and must be relaunched by hand. Command: Start-Process on scratchpad/frozen_v7g3/lane3_variants.sh.
+  - Spont lanes are prepared in scratchpad/frozen_v7g3_spont/ and HELD for the per-class trials output (rebuild/frozen-trials, helper a51f).
+
+## 11-05 00:15: DECISION (Priya): switch imaging to the DAQ behaviour lick detector NOW, before the render
+- **Source:** a8's relay, plus Priya's direct "ok" to change once now. Measurements: widefield_pipeline LICK_DETECTOR_COMPARE_2026-11-04.md (a69fb9c3).
+  - 0.58 % of licks restored (PS95 1.4 %).
+  - 0 hit changes; 10 / 6,520 RTs change.
+- **Frozen:** v7g3_t3d lanes 1+2 STOPPED (STOP file plus exact PIDs) at 20/107 and 17/107. The partial folders are superseded (delete with a kept list later).
+- **O2:**
+  - Priya cancels every bundle-b array except main + main_nolicksall, which are kept as an EARLY look at B12 only.
+  - ~~Bundle b is superseded; delete it~~ REVISED 02:40: bundle b is VALID under `_daqlk` (its inputs are
+    byte-identical under the new code, see Q1 below). Keep it; the 183 copied bins sessions stay valid too.
+- **Code:** a helper is on rebuild/daq-lick-detector (worktree wf_rebuild_lickdet, off 34425934):
+  - one yaml accessor, all imaging call sites routed through it;
+  - the min_ili fallback fixed to 40 ms;
+  - cache bumps and a new run-tag token;
+  - onset counts pinned before / after;
+  - a trial_attempts diff preview.
+- **Order once both helpers land:**
+  1. Merge frozen-trials + daq-lick-detector, then run the full suite sharded.
+  2. Rebuild trial_attempts under the new tag and diff it.
+  3. Build the new O2 bundle; delete bundle b.
+  4. Run the frozen spont + v7g3_t3d frames with the per-class output.
+  5. Then G0-G8.
+
+## 11-05 overnight (Priya asleep; proceed per "ok please proceed overnight")
+### MORNING: O2 commands (ready; run if you agree with Q1)
+Q1 is now VERIFIED (02:40): bundle b's encoder inputs are identical under the new detector code, so no re-stage and no
+bundle c. Resubmit the 13 cancelled arrays from bundle b. Sessions already done (bins_*, droppos partials) are
+skipped by the runner; only the rest run.
+
+Login node (ssh ps150@o2.hms.harvard.edu):
+```bash
+B=/n/scratch/users/p/ps150/o2/enc_rebuild_20261104b; A=tables/trial_attempts.csv
+sbatch --array=1-107%60 --export=ALL,TAG=bins_w1,ORDER=movement_first,ONLY=nokin:,VIDEO=,FR=,ATTEMPTS=$A,BINS=1 $B/run_enc.sbatch
+sbatch --array=1-107%60 --export=ALL,TAG=bins_w05,ORDER=movement_first,ONLY=nokin:,VIDEO=,FR=,ATTEMPTS=$A,BINS=1,BINS_WIDTH=0.5 $B/run_enc.sbatch
+sbatch --array=1-107%60 --export=ALL,TAG=bins_w2,ORDER=movement_first,ONLY=nokin:,VIDEO=,FR=,ATTEMPTS=$A,BINS=1,BINS_WIDTH=2 $B/run_enc.sbatch
+sbatch --array=1-107%60 --export=ALL,TAG=droppos,ORDER=movement_first,ONLY=droppos-,VIDEO=,FR=,ATTEMPTS=$A $B/run_enc.sbatch
+sbatch --array=1-107%60 --export=ALL,TAG=shufpos,ORDER=movement_first,ONLY=shufpos-,VIDEO=,FR=,ATTEMPTS=$A $B/run_enc.sbatch
+sbatch --array=1-107%60 --export=ALL,TAG=nodir,ORDER=movement_first,ONLY=nodir:,VIDEO=,FR=,ATTEMPTS=$A $B/run_enc.sbatch
+sbatch --array=1-107%60 --export=ALL,TAG=drop,ORDER=movement_first,ONLY=drop:,VIDEO=,FR=,ATTEMPTS=$A $B/run_enc.sbatch
+sbatch --array=1-107%60 --export=ALL,TAG=trmodels,ORDER=movement_first,ONLY=trmodels,VIDEO=,FR=,ATTEMPTS=$A $B/run_enc.sbatch
+sbatch --array=1-107%60 --export=ALL,TAG=musall_shuf,ORDER=musall,ONLY=shuf:,VIDEO=,FR=,ATTEMPTS=$A $B/run_enc.sbatch
+sbatch --array=1-107%60 --export=ALL,TAG=fr_A,ORDER=movement_first,ONLY=fr:,VIDEO=,ATTEMPTS=$A,FR=master_pre_v1,FR_GROUPS=master_v1:A $B/run_enc.sbatch
+sbatch --array=1-107%60 --export=ALL,TAG=fr_B,ORDER=movement_first,ONLY=fr:,VIDEO=,ATTEMPTS=$A,FR=master_pre_v1,FR_GROUPS=master_v1:B $B/run_enc.sbatch
+sbatch --array=1-107%60 --export=ALL,TAG=fr_S,ORDER=movement_first,ONLY=fr:,VIDEO=,ATTEMPTS=$A,FR=master_pre_v1,FR_GROUPS=master_v1:S $B/run_enc.sbatch
+sbatch --array=1-107%60 --export=ALL,TAG=fr_D,ORDER=movement_first,ONLY=fr:,VIDEO=,ATTEMPTS=$A,FR=master_pre_v1,FR_GROUPS=master_v1:D $B/run_enc.sbatch
+squeue -u ps150 | head
+```
+(Same lines as the bundle's COMMANDS.md, minus the duplicate empty `FR=` before `FR=master_pre_v1`.) Copy-back is
+unchanged (COMMANDS.md section 3). I collect on the desktop under `_daqlk`; collect now prints that it accepted the
+bundle without `daqlk` and writes a provenance json.
+
+### QUESTIONS FOR PRIYA (newest first)
+- **Q1: ANSWERED BY MEASUREMENT 02:40, needs only your OK to resubmit (commands above).** Helper rebuilt the input
+  pickles under 90b7ddd5 with bundle b's env for PS95_0917, PS94_0819, PS93_0814 (video): 342 / 342 / 444 leaves
+  compared, 0 differences (PS93_0814 file 253 bytes shorter = pickle dtype memo only; re-pickled objects identical).
+  Code: `o2_bundle.NON_INPUT_TAG_PARTS = ("daqlk",)`, exact part-name match, one way only; merged into
+  rebuild/cohort1-20261103 at **e05ece18** (log 8.54, 12 new tests). Full suite on it: 4,965 passed, 0 failed (4 shards).
+  Original question text: The per-session encoder and the frozen encoder do NOT read the imaging
+  lick detector: they use cue / pco digital edges, LP licks and DAQ contacts, which already come from the behaviour
+  detector. trial_attempts also showed 0 changes on 3 sessions.
+  - So bundle b's outputs should be valid as they are. A helper is verifying this byte-for-byte on 3 sessions' input
+    pickles.
+  - Proposal if identical: accept bundle b under the new `_daqlk` tag (explicit "not an encoder input" token list) and
+    resubmit the 13 cancelled arrays from bundle b, with no re-stage. Otherwise build bundle c.
+  - Morning commands will follow whichever result.
+- **Q2.** Lick-aligned products in session folders (`lick_aligned_affine8v1` maps, `locanmf_lick_aligned_affine8v1/*.npz`;
+  readers locanmf_lick_pool / cards / event_master / contralateral, plus preprocess_deck) were made with the old 0.10 s
+  refractory and carry no detector tag.
+  - They sit in the imaging preprocessing folders (outside the Priya subtree, so they can't be regenerated in place).
+  - Regenerate under the rebuild root for any figure that is on the pages, or leave them as legacy (preprocessing deck
+    only)? Default overnight: leave them, and list which page figures read them.
+- **Q3.** The default untagged run does not carry `daqlk`. Its skip-if-exists outputs from the old detector are not
+  separated; only its per-session caches are, via CACHE_VERSION 14. The rebuild always runs tagged, so this matters
+  only outside the rebuild.
+- **Q4.** cohort2_qc scripts were switched too, reading "everywhere" literally. Kept switched unless you say
+  otherwise.
+
+### DECISIONS taken overnight (reversible; why)
+- Frozen trials files are kept at float32 (encoder layout; ~28-32 MB per session). float16 would halve the size and
+  move the unique shares < 3e-5. Default variants = joint + the headline unique shares; more via FROZEN_TRIAL_VARIANTS.
+
+### FINDINGS overnight
+- **The lick-detector switch does NOT touch the encoders or the camera classes** (helper 8.53, checked in code).
+  - Encoder DAQ reads are digital edges only; licks are LP plus DAQ contacts (already the behaviour detector).
+    trial_attempts: 0 class / RT / timing changes on PS95_0917, PS93_0908, PS94_0819.
+  - Onsets (imaging profile old -> new), 16 sessions: 101,816 -> 102,406 (+0.58 %); PS95 +1.4 %, largest +2.1 %
+    (PS95_0811). Fixture tests/fixtures/lick_detector_onsets_20261105.csv.
+  - Consequence (my error): stopping the frozen v7g3_t3d lanes at 00:15 was unnecessary; ~1.5 h of frames were lost.
+    I recommended the stop before checking which consumers read the detector.
+- **Frozen per-class smoke (PS93 only; ONE session pair, PROVISIONAL).** Joint, cortex, held out, cue -3..+3 s:
+  - Contact trials ALONE fall pre -> acute: trial-to-trial R2 .539 -> .387 (v7g3_t3d); .543 -> .399 (spont).
+  - So the drop is not only class composition, in this pair.
+  - Acute incomplete vs contact: trial-to-trial similar (.369 vs .387), cvR2 lower (.367 vs .469).
+  - Pre has only 24 incomplete trials. The full frame decides.
+
+### PROGRESS log
+- 00:45: handoff 00-COMPACT-27 (b7c24670). Helpers running:
+  - frozen-trials (per-class frozen trials output);
+  - daq-lick-detector.
+- Plan: merge both, run the suite in shards, rebuild trial_attempts under the new tag, build O2 bundle c (commands
+  waiting for Priya in the morning), then the frozen frames (spont first) on this box overnight.
+- 00:55: conda module fix committed on rebuild/o2-conda-module (931cd777, worktree wf_rebuild_conda, off 34425934;
+  O2 tests 50 passed). To merge with the two helper branches. a8 told that main still has the old module (to pass on to
+  e0).
+- 01:00: a8 put the same conda module swap on main (981b4647; it pushes after its pre-push suite). e0 is told. No action
+  needed here; the rebuild keeps 931cd777.
+- 01:10: **a8 merge notes for the eventual rebuild -> main merge** (main fc420c2e fixed 3 pre-existing main suite
+  failures):
+  - (a) kinematics_pooled_figs.py + lmm_curve_summaries.py: the sidecar_for lines were ported verbatim from the rebuild,
+    BUT keep main's pose3d_dir() (ae2bcd86) on those lines.
+  - (b) tests/test_pooled_bundle_memo.py: take the REBUILD side (`(an, align, _tck.gate_mode(),
+    _tck.run_selection_tag())`).
+  - (c) the shared clone's core.hooksPath is now the relative `.githooks` (repo config; it affects every worktree's
+    hooks, which is fine).
+- ~01:15: frozen-trials landed (984116bd + 7f9cc707; full suite on 984116bd 4,942 passed / 0 failed).
+  - Merged into rebuild/cohort1-20261103 (6a9f62c4), plus the conda branch (0a1a85e8).
+  - `--trials-only` post hoc scoring works (bit-identical to a full run; ~25-35 min per 107-session frame with 4
+    workers). The old design can get its trials files without a refit.
+  - Gap: frA frame not exercised.
+  - Waiting on daq-lick-detector.
+- 01:30: daq-lick-detector landed (cd35e594 + 28eb6cb5; full suite on its branch 4,946 passed / 0 failed).
+  - Merged into rebuild/cohort1-20261103 at **90b7ddd5**. The only conflict was the REBUILD_CODE log (kept 8.52 + 8.53).
+  - New run tag `...stopA2jexrt3500c70_daqlk`; render_profile --check exit 0 on 90b7ddd5.
+- 01:32: **frozen v7g3_t3d_spont lanes 1 (noFR, jobs 2) + 2 (frA, jobs 3) LAUNCHED** from worktree wf_rebuild_render_spont
+  (detached 90b7ddd5).
+  - Python winpids 11344 / 25352; lane bash 28460 / 33132.
+  - Scripts in scratchpad/frozen_v7g3_spont/ (ENC updated to the _daqlk root). They write trials.npz by default.
+  - Next: the v7g3_t3d robustness lanes and the lane-3 variants once these finish fitting (RAM).
+- 01:35: helper asked to (1) byte-compare bundle-b input pickles against a rebuild under 90b7ddd5 (3 sessions), (2) if
+  identical, add a "not an encoder input" tag-token exemption so bundle b collects under _daqlk, (3) run the full
+  suite on the merge in shards.
+- 02:40: helper (bundle check) landed: Q1 verified (inputs identical), exemption + tests on rebuild/daqlk-bundle-accept
+  (23726438, 26469db7), full suite 4,965 passed / 0 failed. Merged into rebuild/cohort1-20261103 at **e05ece18**.
+  Morning O2 resubmit commands written at the top of this section. Bundle b stays (no deletion). The frozen spont lanes run
+  from the detached 90b7ddd5 worktree; e05ece18 changes only o2_bundle / o2_encoding, so they are unaffected.
+  Scratch pickles from the check (~950 MB, scratchpad/lickdet/) are mine and derived; deleting them later.
+- 03:06: frozen spont progress: noFR 28/107, frA 38/107 sessions scored (~1.5 h in; ETA noFR ~06:30, frA ~05:30).
+  - **Lane 3 (spont variants) LAUNCHED** (bash 31920; frAsplit python winpid 820; jobs 2, RAM gate 16 GB). Its NOVAR
+    list now includes novar_licks_pre / novar_licks_iti (the spont design's 2 new variables; all 50 variant names
+    checked against frozen_encoder.VARIANTS; 28 / 28 per-variable drops covered).
+  - **Lane 4 (robustness, arm frozenNoSpont = FROZEN_LICKS_ALL=none) QUEUED** (bash 10188): waits for spont noFR
+    (11344) to exit, then v7g3_t3d noFR (jobs 2) then frA (jobs 3), into frame tags without "spont" under the `_daqlk` root.
+  - RAM 24 GB free with 3 lanes; watcher b438im6l1 covers all chain logs (FAILED / STOP / < 7 GB).
+  - Scratch pickles from the bundle check deleted (scratchpad only, mine, derived; 1.9 GB -> logs + scripts kept).
+- 03:15: order step 2 ("rebuild trial_attempts under the new tag and diff") had only a 3-session check. trial_attempts is
+  keyed by SELECTION (qc/<selection>/), not run tag, so the frozen lanes and bundle b read the pre-switch table. Helper
+  started: full-cohort rebuild into scratch (never M:) + exact diff against the pre-switch table. If anything changes,
+  that goes to the top of QUESTIONS (it would touch every gate-attempted output).
+- Render queue G0-G8 for `_daqlk`: NOT launched tonight (order: frozen frames first; lanes hold the RAM until ~midday).
+  queue2.sh points at wf_rebuild_render (c149decf, old tag); the new queue must use a worktree at >= e05ece18.
+- ~03:50: **FINDING: trial_attempts is UNCHANGED by the detector switch, cohort-wide.** Rebuilt under 90b7ddd5 into
+  scratch (never M:): trial_attempts.csv / _gate.csv / _sessions.csv byte-identical to the pre-switch tables (sha256
+  bef06b0a / 0c3784aa / 1f4c6d89); 107 sessions, 57,048 trials, 0 changed cells. Order step 2 closed; every
+  gate-attempted output (frozen lanes, bundle b) stands. Record: scratchpad/attempts_daqlk/SUMMARY.md.
+  - Engineering note (not fixed): scripts/trial_attempts.py re-reads the cohort YAML per row in epochs.epoch_of /
+    days_since_stroke (~57k rows; ~35 min of single-core CPU after the workers finish). A per-label cache fixes it
+    with identical output (measured: same hashes). Candidate small fix for the rebuild branch.
+- 04:38: **frozen spont frA main frame DONE** (107/107, exit 0) -> frozen_encoder_gate-attempted_v7g3_t3d_spont_frA under
+  `_daqlk`. Lane 2 moved on to frA_pos (--reuse-stats, pos-info variants). noFR 78/107; lane 3 frAsplit 31/107; lane 4
+  waiting. 26 GB free.
+- 05:25: **frozen spont noFR main frame DONE** (107/107, exit 0) -> frozen_encoder_gate-attempted_v7g3_t3d_spont. Both
+  headline spont frames (noFR, frA) are now complete under `_daqlk`, with per-class trials files.
+  - Lane 1 -> noFR_basis (target basis, jobs 2); lane 4 (robustness v7g3_t3d noFR, jobs 2) started 05:26.
+  - Now 4 frozen processes, 9 workers (2+3+2+2): one over the 8-worker cap, RAM 30 GB free. Left running (frA_pos is
+    a short --reuse-stats pass); noted, not repeated. New watcher (failure / < 7 GB / all lanes done).
+- ~07:20: **FINDINGS (early look, frozen spont frames, cortex, cue -3..+3 s, contact = attempts `hit`; PROVISIONAL, no CIs).**
+  Per-session table: scratchpad/frozen_peek/per_session_class.csv.
+  - Contact trials alone, animal-mean trial-to-trial R2 pre / acute / subacute / chronic: .506 / .415 / .440 / .340
+    (noFR); incomplete .589 / .402 / .530 / .532 (pre incomplete = 321 trials, PS94 no session with >= 10).
+  - Per session, the acute step on contact trials is clear in PS93 (.51-.65 pre -> .40 / .32 days 1-2), PS94 (.42-.65 ->
+    .33 / .33 days 1-2, back by day 4) and PS95 (.35-.45 -> .28 / .22 / .24 days 1-3). **PS92 has NO acute step**: its
+    contact R2 declines steadily from the first pre session (.62 day -11 -> .40 day -3 -> .45 acute -> .15 day 50); cvR2
+    likewise (.65 -> .54 pre, .52-.60 acute, .39-.45 days 39-50). So "drops in all four" was wrong: 3 / 4, and PS92 is a
+    slow trend that starts before the stroke.
+  - **PS95 chronic**: PS95_0907 (day 22, the known lick-heavy session) cvR2 -0.21; dropping the spontaneous-lick kernels
+    gives +0.16 (no_lick -0.03): the pre-stroke spont / lick kernels over-predict a lick-heavy session. Days 29-50 cvR2
+    .18-.35 with no_spont and no_lick ABOVE the joint model in most sessions (e.g. 0928 .221 vs no_spont .295), i.e. the
+    pre lick kernels over-predict late-chronic PS95 too. Even without them, late PS95 stays ~.2-.3 vs ~.5 pre.
+  - Class-fixed comparison only rules out the contact / incomplete MIX; changes WITHIN contact trials (latency, lick
+    count, movement) are not controlled.
+  - Next: same table on the robustness frame (no spont kernels, lane 4 running) for PS95; lick-count / ITI-lick per
+    session vs R2; pre-only time trend per animal (PS92) as a covariate.
+- ~08:00: **O2 bundle b main + main_nolicksall COLLECTED** into the `_daqlk` encoding folder (collect accepted the bundle
+  without `daqlk`, provenance json written): `movement_first_exec-polar_licks-combined/sessions` and
+  `..._nolicksall/sessions`, 428 files / 107 sessions each, no JSON repairs.
+  - Verified all 856 files by name, size and sha256 against the bundle copies (scratchpad/collect_verify/verify_result.json).
+  - **DELETED (Priya approved 11-05) the bundle copies** `o2/enc_rebuild_20261104b/out/main/sessions` (428 files,
+    46.0 GB) and `out/main_nolicksall/sessions` (428 files, 27.3 GB); `run.json` kept + `COLLECTED_AND_DELETED.txt` marker.
+  - `collect --move` (8.55, 31ec5c1a) for every later TAG: no second copy. Priya OK'd moving our derived outputs within
+    her M: folder (memory move-own-derived-on-m).
+  - O2 resubmit status (Priya, ~07:00): 216 tasks started, 0 errors; later arrays pending on fair-share (0.09, 400 jobs
+    waiting in short), not a fault.
+- ~08:30: **B12 (EARLY, O2 bundle b, collected under _daqlk): pre-cue position credit, with vs without spontaneous
+  lick kernels.** Unique pos_enl = full - drop:pos_enl, cortex, LP 1.0 s lick-free ENL window, session mean per animal
+  (x1e-3 R2; sessions pre / acute / subacute / chronic = 31 / 16 / 17 / 43). Table: scratchpad/frozen_peek/b12_sessions.csv.
+  - with -> without spont: PS92 pre -4.5 / -4.9, chronic 43.6 / 41.2; PS93 pre 4.2 / 6.3, chronic 16.4 / 13.7;
+    PS94 pre 9.4 / 11.3, chronic 11.1 / 11.8; PS95 pre 3.3 / 1.6, chronic 18.6 / 16.7. Animal mean pre 3.1 / 3.6,
+    acute -0.3 / 1.3, subacute 5.3 / 5.0, chronic 22.5 / 20.9.
+  - Reading: the smoke-session drop (PS93_0814 .0072 -> .0029) does NOT generalise. The spont kernels move pre-cue
+    position credit by < 0.002 in every animal x epoch, in both directions (PS93 / PS94 down, PS95 up). Pre-cue unique
+    position credit is small pre (PS92 negative; PS94 ~.01), and RISES chronically in 3 / 4 animals (PS92 .044, PS93
+    .016, PS95 .019; PS94 flat) in BOTH arms, so the chronic rise is not a spont-lick artefact. Same in enl_fixed2s.
+  - Full-model ENL R2 is +.002-.016 higher with the spont kernels (they explain real pre-cue activity).
+  - No CIs yet. B12 claim list (B12_PRECUE_POSITION_CLAIMS_20261104.md) A-rows: direction unchanged by the kernels.
+- ~08:40: bins_w1 / bins_w05 / bins_w2 MOVED (collect --move, first use) into the _daqlk folder:
+  `movement_first_subset-nokin_exec-polar_licks-combined_bins[_bw0.5|_bw2]/sessions`, 428 files / 107 sessions each;
+  bundle `out/<TAG>/sessions` now empty + MOVED_TO.txt. daqlk acceptance printed for each.
+- ~10:20: **9 more O2 bundle-b TAGs MOVED** (collect --move) into the `_daqlk` folder, each 107 sessions, daqlk acceptance
+  printed, no JSON repairs: drop, nodir, shufpos, trmodels (321 files each: no `_trials.npz` for subset runs), musall_shuf,
+  fr_A / fr_B / fr_S / fr_D (428 each). Before moving: every file checked complete (npz zip directory, JSON parse, CSV rows;
+  scratchpad/collect_verify/validate.py) and each destination previewed as a new empty folder (preview_dst.py).
+  - droppos: 93 / 107 so far, left in the bundle until complete.
+  - Priya's re-run of the whole-`out/` rsync RE-COPIED main, main_nolicksall and bins_w1/w05/w2 (already collected /
+    moved). Verifying those re-copies by size + sha256 against the collected copies, then deleting them (approved
+    category: verified bundle copies). Copy-back from now: rsync only the new TAGs (or exclude the collected ones).
+- ~10:45: **droppos 14 tasks OUT_OF_MEMORY** (array 58635573, tasks 3,4,5,7,8,15,27,29-34,57 = PS92 0809-0814/0826/1006,
+  PS93 0807-0814, PS94 0810; MaxRSS 42-50 GB vs --mem=48G, killed after 0:22-1:20). No code error. Resubmit those tasks
+  with --mem=96G (command given to Priya); move droppos when 107.
+- ~10:50: **Re-copies DELETED** (Priya: "feel free to delete those that are duplicate"): main / main_nolicksall / bins_w1 /
+  bins_w05 / bins_w2 bundle sessions/ (2,140 files, 98.8 GB), each first matched file-by-file by size + sha256 to the
+  collected copy (scratchpad/collect_verify/verify2_result.json); RECOPY_DELETED.txt marker in each TAG folder.
+- Section C (O2-dependent encoder figures) handed to a helper on wf_rebuild 31ec5c1a (report ->
+  docs/status/rebuild_20261103/SECTION_C_RENDER_20261105.md); droppos panels wait on the 96G resubmit.
+- ~11:05: **Contact-only frozen test on the NO-SPONT frame** (v7g3_t3d, done 09:42; same method as the spont table:
+  cortex, cue -3..+3 s, contact trials, session mean per animal; scratchpad/frozen_peek/per_session_class_nospont.csv).
+  Animal mean pre / acute / subacute / chronic: no-spont .492 / .413 / .433 / .347 vs spont .507 / .415 / .440 / .340.
+  Per animal within ~.01 except PS95 (pre .348 vs .387; chronic .133 vs .086). Same reading and caveats as the spont table
+  (PS92 = trend, PS95 late chronic partly kernel over-prediction, mix-only control, no CIs). Sent to a8, who asked for
+  this test (it had found no scheduled step).
+- Merge helper started (Priya OK 11-05 ~10:55): worktree wf_merge_main, branch merge/rebuild-into-main-20261105 from
+  origin/main + rebuild 31ec5c1a; full suite sharded; unpushed; report MERGE_REBUILD_INTO_MAIN_20261105.md.
+- ~11:40: **droppos MOVED** (96G resubmit done; all 107 checked, collect --move): all 15 bundle-b TAGs are now in the
+  `_daqlk` folder; nothing left to copy from O2 for this bundle.
+  - Leftover re-copies from the earlier whole-out/ rsync (drop, nodir, shufpos, trmodels, musall_shuf, fr_S, fr_D
+    partial 269/428) DELETED file by file after size + sha256 match: 2,409 files, 32.9 GB, 0 unmatched
+    (scratchpad/collect_verify/verify_delete3_result.json; RECOPY_DELETED.txt per TAG).
+- ~12:30: **rebuild -> main MERGE done (unpushed)**: branch merge/rebuild-into-main-20261105 (worktree wf_merge_main), merge
+  2730033a of rebuild 31ec5c1a into origin/main 6c00efbb, fixes fed41d8d / 51dae7cd, report ca6f6a06
+  (docs/status/MERGE_REBUILD_INTO_MAIN_20261105.md). 21 conflicts (14 modules = rebuild file, main already hand-ported;
+  main fixes kept in grant_similarity / s1_trial_class_snapshot / softmax_neural_vs_lick; a8 notes a / b applied).
+  Suite 5011 passed / 175 skipped / 6 failed pre-fix, all 6 explained + fixed (only those files re-run).
+  - DECISION for Priya: non-profile `nightly_figs` now uses June + August pre (main's PRE_FROM=0801 default dropped; the
+    profile sets it per block). Proposed: restore the 0801 default only when no render profile is active.
+  - Push waits on Priya.
+- ~13:45: Merge branch updated: decision 1 applied (3284cc25: August pre default only without a render profile, test
+  added); origin/main 138048a3 merged (1ba23601; preprocess_deck conflict kept both sides; 2 guard-test lists updated),
+  then a8's docs commits to a99a612a (clean). Targeted tests pass. Still UNPUSHED, waiting on Priya.
+- a8 relayed Priya's 11-05 answers (DECISIONS_PENDING_MERGE (f) 1-9). Mine to apply at the replacement pass: A14
+  per-class encoder figure on the MAIN encoding page; slide 95 numbers (tell a8 if they change); 3.67 PNG vs TFCE
+  caption. Decision 9 (ITI stats -> ak) = a8, post-merge.
+- a8 item B (widefield_pipeline docs/status/reanalysis_20261105/FROZEN_FOLLOWUP_2026-11-05.md; EARLY, to Priya):
+  - PS92 pre trend: pre slope -26e-3/day. Per-animal extrapolation is not usable (it predicts impossible R2).
+    Shared-slope and last-3-pre baselines still give drops, with CIs excluding 0 (-.10 / -.08 / -.21 and
+    -.09 / -.07 / -.17). PS92 vs its last 3 pre: acute ~0, chronic -.155, so the trend explains PS92's acute step,
+    not its chronic drop.
+  - PS95 licks: the spont-minus-nospont difference scales with licks (rho -.81 LP ITI), but it is only ~.09 of
+    PS95's ~.30 chronic drop. R2 is lower on lick-heavy contact trials in every animal (r ~ -.4, 4/4). This is a
+    within-contact confound to keep in mind. PS95 LP vs DAQ ITI lick rates disagree (0907: 72 vs 16 per min).
+- ~13:20: **Section C render DONE** (helper; report docs/status/rebuild_20261103/SECTION_C_RENDER_20261105.md, 9d31c5eb).
+  All scripts exit 0, 107 sessions / 4 animals each, nothing outside the rebuild root; droppos included. fig_pooled
+  NOT run (its section-B inputs are not rendered yet). Code fixes on rebuild/cohort1-20261103: 24d604cc (FR scripts
+  read the collected folder names via fr_groups.run_folder; combined_encoding_figures ignores the `_exec-...` suffix;
+  fr_direction_mechanism `--bundle`; `--jobs` flags), 19d3cf71 (encoding_mixed reads suffixed runs). These are AFTER
+  the merge base 31ec5c1a -> must be merged into main before the overnight render.
+  - DECISION for Priya: encoding_mixed `cam4:*` measures are blank (no separate `_subset-nokin` / `_win` runs in the
+    rebuild; main run holds `nokin:*` models + extra windows). Feed cam4 measures from main's nokin models, or drop?
+  - FLAG: fr_pixel_significance null calibration above 5% on some maps (full_fr cue 16 px .12, unique_position lick
+    32 px .10, several .08); variance_maps .00-.02.
+  - FLAG (conclusion text, Priya): fig10_softmax_width title "Chronic target lead holds across widths (PS94 ties at
+    2)"; in this render PS94 chronic lick width 2 has executed slightly above target.
+  - Convention fixes for the replacement pass: droppos / shufpos position_each_maps rows not in canonical spout
+    order; fig10 draws a top spine.
+- ~14:50: **Merge push REJECTED by pre-push** (full serial suite 2 h 21 m: 1 failed / 5,028 passed / 175 skipped):
+  test_no_imaging_literal_left, because main's new scripts/cohort2_qc/led_490_vs_470_dprime.py (138048a3) passed the retired
+  imaging lick profile. Fixed 411c8385 (takes the config.lick_detector default; that figure changes only on its next
+  re-run). Section C commits 24d604cc / 19d3cf71 merged in (6abf515c). Targeted tests 144 passed. Re-push running
+  (~2 h 20 m hook); a8 is still holding main pushes and has been told.
+- ~15:10: origin/main moved to e8407872 (e0's FR spout-in-mesh docs push carried a8's 8 held docs commits) while the
+  re-push was in its hook -> stopped my push (own PIDs only), merged origin/main cleanly (136807cf), re-pushed. Full
+  suite again (~2 h 20 m, main ~17:30). Asked a8 to have the shared-checkout windows hold main pushes until then.
+- ~16:18: **rebuild -> main MERGE PUSHED: origin/main = 136807cf** (e8407872..136807cf; pre-push full suite 5,030 passed /
+  175 skipped / 0 failed, 1 h 11 m). Includes rebuild through 19d3cf71 + fix 411c8385. a8 told; other windows released.
+  Next: overnight `_daqlk` render queue in a new detached worktree at 136807cf after the frozen lanes.
+- ~16:30: frozen lanes: frA_ls EXIT 0 14:37, frA_nospont EXIT 0 14:23; frA_ls_basis running (19/107 at 16:18, ETA ~midnight).
+  Overnight render queue being BUILT (not launched) by a helper in a new detached worktree wf_render_daqlk @ 136807cf;
+  plan doc -> rebuild_20261103/RENDER_QUEUE_DAQLK_20261105.md. Steps needing frA_ls_basis go last, gated.
+- ~16:30: DELETED superseded old-tag frozen partials under `...stopA2jexrt3500c70/` (no `_daqlk`):
+  frozen_encoder_gate-attempted_v7g3_t3d (978 files, 1.3 GB), _frA (1,242 files, 1.5 GB), _frAsplit (empty). File list
+  kept in that folder: DELETED_SUPERSEDED_FROZEN_20261105.txt.
+- ~16:39: **Render queue LANE G LAUNCHED** (scratchpad/render_daqlk/queue_daqlk.sh, SECTIONS=G, worktree wf_render_daqlk @
+  9aaa4cc6 = 136807cf + local fix; plan doc RENDER_QUEUE_DAQLK_20261105.md, 880f7e3a). 227 steps total, ~36-40 h serial
+  (estimates). G = 31 steps, ~10-12 h. Lane 2 (`SECTIONS="A B D E F Z"`) to launch after frA_ls_basis (~midnight).
+  - Local fix 9aaa4cc6 (branch fix/misdirected-decode-bundle-dir-20261105, unpushed): misdirected_lick_decode resolves the
+    O2 bundle via o2_encoding.bundle_dir (it looked in the old DLC store under the rebuild root). Push needs Priya's OK.
+  - DECISIONS for Priya: (1) priority G > A,B > D > E > F,Z (won't all fit tonight); (2) te + frA_lsland frames never
+    rendered -> render (~4-5 h each) or retire te_readout / te partial-self-fit / contest_lines; (3) binned residual Figs
+    7/7c/7d have no producer -> recreate or drop; (4) push 9aaa4cc6 to main.
+- ~17:00: **Priya 11-05 answers:** (1) queue order OK; (2) RENDER te + lsland frames (helper adding them as section T
+  after B in lane 2, gated on frA_ls_basis); (3) Figs 7 / 7c / 7d: explained, waiting on keep/delete; (4) push OK ->
+  **origin/main = e53f1cd2** (a6edab62 = 9aaa4cc6 misdirected decode bundle_dir; e53f1cd2 = fig10 title reworded per this
+  render's numbers + no top spine, re-drawn under the rebuild root). fig10 chronic target - executed (x1e-3): positive in
+  4/4 at every width except PS94 lick width 2 (-1.4); executed rises with width in every animal.
+  - cam4 panels (encoding_mixed): explained to Priya; proposal = switch the 3 cam4 panels to the 3-D contest measures
+    (3d:ceiling / 3d:u_target, already computed); waiting.
+- ~17:00: **Section T (te + lsland + frlag frames and readers) added** by the queue helper in scratchpad/render_daqlk/
+  queue_daqlk2.sh (plan doc f8139475). te must run NON-spont (merged code refuses FROZEN_DESIGN=te with FROZEN_LICKS_ALL=
+  split: te has its own pre-cue / ITI lick families) -> tags `..._frA_te`, `..._frA_te_basis`. lsland uses the 10-25
+  trimmed variants (no no_spont); frlag added because contest_lines reads it. ~16 h (estimates).
+  - Launcher (scratchpad/render_daqlk/launcher.sh, log logs/launcher.out): lane 2 `A B D E F Z` when frozen lane 3 ends
+    (~midnight); lane T when lane G ends (~early morning). Max ~6-7 workers.
+  - Incident 16:50: a first launcher version matched an OLD lane-G end line (helper test run) and started lane T early;
+    it was only waiting at its gate. Stopped (exact PIDs 38612 / 7704 + its 2 wrapper bashes), fixed, relaunched. Lane G
+    unaffected.
+- 17:44: **frozen lane 3 DONE** (frA_ls_basis EXIT 0, much earlier than the midnight estimate); all frozen frames done.
+  Launcher started lane 2 at 17:45; its first step a_decomp_noFR_cue failed (lp_encoder_decompose builds its output
+  name from `--folder`, and the queue passed an absolute path -> invalid file name). Fixed in queue_daqlk2.sh (4 decompose
+  steps now pass the folder relative to the encoding root, which is also the name fig_pooled reads); lane 2 relaunched
+  ~17:50 (resumes; log logs/laneENC2.out). Lane T still waits for lane G's end via the launcher.
+- ~18:00: lane 2 halted again at a_relabel_noFR: frozen_relabel wrote to the UNTAGGED encoding root (write guard
+  refused, correctly). Fix a76352f3 on wf_render_daqlk (branch fix/misdirected-decode-bundle-dir-20261105, unpushed):
+  output via frozen_encoder.out_root() (where its readers already look); tests 99 passed. queue_daqlk2 EXPECT_SHA
+  += a76352f3; lane 2 relaunched (log logs/laneENC3.out). Push of a76352f3 to main: ask Priya (batch with later fixes).
+- ~18:15: Priya: push OK (a76352f3 -> main as 5bd7faa2); mixed-model angle panels -> 3-D (2dc96a9e: FIG_PANELS
+  cam4:ceiling / cam4:u_target -> 3d:ceiling / 3d:u_target); both pushing to main. encoding_mixed re-running under the
+  profile from wf_merge_main (~90 min, log render_daqlk/logs/encoding_mixed_3d.log).
+  - Figs 7 / 7c / 7d: Priya OK to delete, replace with the "full resolution" equivalent. Clarified: the queued
+    frozen_residual_significance already tests on 8 px blocks (nested bootstrap, Bonferroni over bins) + a full-res
+    cluster test; Figs 7 used 16 / 32 px blocks (fewer bins, smaller Bonferroni penalty). Proposed: add a --bin option
+    and render 16 px as the replacement; waiting on her pick.
+- ~18:20: **Priya: Figs 7 / 7c / 7d -> 8 px for now.** At the replacement pass: remove goal-page Figs 18.1, 18.4,
+  18.10-18.14 (fig7_residual_far_contra_16px, fig7c_residual_allspouts_{16,32}px, fig7d_residual_perspout_{cue,lick}_
+  {16,32}px) and deck slides that reuse them (10-26 deck slide 47, 11-02 deck slide 70); replace with the queued
+  frozen_residual_significance figures (8 px nested bootstrap + full-res cluster; per spout in canonical order + all).
+  fig_resid16 / fig_resid_spout are not run. No --bin option added.
+- ~18:45: Priya: add the block-size option -> 5993d70e (beta_maps.significance_contour factor= / frozen_residual_significance
+  --bin N; default 8 px unchanged, non-default writes *_<N>px). Tests 254 passed; pushing to main. Not rendered at 16 px
+  (8 px stays the replacement for Figs 7).
+  - Priya asked: start the cleanup window now? Answer: yes (render runs from its own pinned worktree; ask it to keep
+    outputs / computations identical until the replacement pass, fetch before every push, not touch wf_render_daqlk or
+    render processes, no heavy runs on the box). Decks: analysis deck + PI deck updated in the replacement pass, after the
+    render + verifiers, using a8's REPLACEMENT_PASS_MAP; coordinate PI-deck edits with the window that owns it.
+- ~18:58: **Priya: parallelise as much as possible** (CPU was ~22-65 %). Launcher stopped (exact PIDs 6024 / 30416 / 780);
+  lane T launched by hand (gate open, 107/107); NEW lanes D, E, F from queue_daqlk3.sh (= v2 + an atomic per-step claim,
+  mkdir logs/<step>.claim, so parallel v3 lanes never run a step twice). E / F have no cross-section deps; D waits on
+  a_relabel_trial for one step. Now 6 lanes (G, 2 = A B D E F Z, T, D, E, F); RAM self-limits (MINFREE 10 GB, FLOOR 6 GB
+  -> STOP). CPU 79 %, 34 GB free at launch. CAVEAT: lane 2 (v2, no claims) will skip D / E / F steps already .done but
+  could re-run one still in progress if it reaches D before lane D finishes (A + B first, ~12 h, so unlikely); watch.
+- 19:50: encoding_mixed re-run with 3-D panels DONE (exit 0; 6 figures in <E>/figures/mixed_models). All 6 panels now
+  filled. Cortex, behaviour model: 3d:ceiling cue post:deficit -11.3 (q<.001), 3d:u_target cue -3.33 (q<.001), 3d:u_target
+  lick -1.99 (q .29, n.s.). Convention fix for the replacement pass: these panels still draw a top spine.
+  - Lane T: t_frame_te EXIT 0 19:42 (45 min vs 3-4 h estimate).
+- ~20:15: **Lick-window target vs deficit: cam4 significant before, 3-D n.s. now (Priya worried).** EARLY, no page text
+  changed. Cortex, behaviour model, lick window:
+  - pre level of unique target: cam4 22.8 (10-21) vs 3-D 11.9 (now) / 15.7 (10-21, 47 sessions); unique EXECUTED: cam4 3.8
+    vs 3-D 7.7 / 6.2 -> with 3-D the executed term ~doubles and the target term shrinks = what a noisier executed regressor
+    leaking into "target" predicts (cf. ENCODING_FINDINGS: pre-stroke target advantage suspended after the
+    coordinate-matched 3-D contest).
+  - post:deficit: cam4 u_target -3.21 (q .001); 3-D u_target -5.23 (q .059, 47 sess, 10-21) -> -1.99 (q .29, 107, now);
+    3-D u_exec -1.32 (q .011, now).
+  - per animal (3-D u_target lick, pre / acute / sub / chronic): PS92 7.1 / 4.6 / 18.4 / 22.6; PS93 18.3 / 9.5 / 9.8 /
+    21.4; PS94 7.2 / 8.4 / 16.5 / 22.3; PS95 15.4 / 25.5 / 10.6 / 24.2 -> acute dip in 2/4 only; chronic up in 4/4.
+  - Not like-for-like: cam4 numbers are the 10-21 pipeline. Proposed check: cam4 contest (nokin subset) under _daqlk on
+    O2 so only the angle source differs. ttc_log deficit sensitivity running (5a6b7986, unpushed).
+- ~20:30: **Correction (Priya: "didn't we do xyz2 vs polar?"):** yes -- ENCODING_FINDINGS (10-24): polar's target set has
+  more capacity than xyz2's (angle^2 expresses midline-vs-side), so polar flatters target; DECISIONS 10-24 made the BINNED
+  contest PRIMARY (u_tgtbin vs u_exbin). The mixed-model panels used polar u_target -> switched to 3d:u_tgtbin (76066e01;
+  + --plot-only from qc/encoding_mixed_long*.csv.gz). Re-running default + ttc_log in parallel. Binned, cortex, behaviour
+  model (current table): lick u_tgtbin post +10.7 (q .003), slope vs deficit -0.28 (q .69); lick u_exbin slope -2.42
+  (q <.001); cue u_tgtbin slope -2.81 (q .047), cue u_exbin -1.37 (q .077). Per animal lick u_tgtbin pre / acute / sub /
+  chronic: PS92 1.8 / 13.6 / 14.8 / 11.6; PS93 9.7 / -1.3 / 16.7 / 33.4; PS94 3.7 / 23.2 / 12.7 / 10.4; PS95 3.1 / 0.7 /
+  3.1 / 12.9. Commits 5a6b7986 / 76066e01 unpushed.
+- ~20:40: **DECISION (Priya 11-05): mixed-model angle panels use the BINNED contest (3d:u_tgtbin), as the 10-24 primary.**
+  Pushing 5a6b7986 (ttc_log deficit) + 76066e01 (binned panels, --plot-only) to main. Replacement pass: the encoding
+  page's mixed-model text follows the binned result (lick: target above pre, not tracking deficit; landing tracks deficit;
+  cue: target tracks deficit weakly) -- wording to Priya before rewriting.
+- ~20:55: **DECISION AUDIT done** (DECISION_AUDIT_20261105.md, cc1aba94). Merge + today's commits clean. Found:
+  REVERTED (decided, never implemented, render uses old default): (1) state discriminators still train on DAQ engaged vs
+  all no-lick, incl. stopped / incomplete / jaw_only -- (f)1 Priya 11-05; affects g5_epoch 12s/12b/13s, g5_section_g,
+  g6_grant, g7 state figs; (2) lick ENL family + fr_enl_decode + prelaunch_aim pre-cue parts not sliding (11-04).
+  POSSIBLE: Fig 0.2 hit rate still DAQ gate ((f)2); robustness rows with no queue step (no-spont downstream, DAQ quit-tail
+  row, drift1500, enl_fixed2s); b_encoding_key_figures will fail (reads E/movement_first) + stale suptitle; 12.1b pre-set
+  wording. CONVENTION: sig_marks.sig_star puts stars on data (fix: call star_top), non-canonical spout order in 3 scripts,
+  top spines in mixed_models + several scripts.
+  - Helper implementing (f)1 / (f)2 / ENL slide on branch fix/decisions-f1-f2-enl-20261105 (worktree wf_decisions), no
+    push; then re-run the affected steps.
+- ~20:50: lane E halted at e_iti_main (20:10): iti_licks summarise needs zscore_check/session_sd(_split) tables whose
+  producers (iti_zscore_check, iti_area_split_sd) were queued after it / not at all. queue_daqlk4.sh adds them before
+  e_iti_main; lane E relaunched from v4 (log laneE2.out).
+- ~21:15: a8 relayed Priya's replacement-map check answers: (a) behaviour-only figures -> camera working period + August
+  pre, re-rendered (encoding 10.6, 16.6, 16.9, 16.10, 30 inline panels of 14.18 / 14.21; deck 8, 57-64); (b) imaging
+  15.1-15.7 -> pointer to encoding section 23 (e0); (c) deck 144 kept. a8 inventory: disengagement_tests (DAQ quit) and
+  revup_behaviour (fixed qc path) need code -> added to the decisions helper's branch; learned_compensation /
+  within_lick_correction likely just re-run; iti_lick_rate / lick_aim_deficit / iti_lmm_figures / iti_recovery_measure
+  to inspect. Fig 16.9 lmm_time_behaviour producer unknown (mine). Imaging 11.2 d_enl_move + deck 102 gain_bio: queue
+  helper adding section X (gain gated on the ENL-slide fix; 11.2 only if it reads the D1 projection).
+- ~21:30: **Priya answers:** (1) 12.1b pre set = AUGUST only (code / queue already; fix the DECISIONS + profile wording at
+  the replacement pass); (2) te = target-vs-execution frozen design (explained; runs with LICKS_ALL=none by construction,
+  its execution group already holds pre-cue / ITI licks) -- recommended keep; (3) add no_spont to lsland + check what else
+  co-varies with spont -> audit helper re-tasked (SPONT_COVARIATION_AUDIT_20261105.md); (4) fr_pixel_significance null
+  calibration -> investigate (helper; FR_PIXEL_CALIBRATION_20261105.md); (5) local input cache for the NEXT render: yes
+  (after this one); (6) xyz2 re-run: not needed.
+  - Lane X launched (queue_daqlk5.sh: x_enl_move DAQ 2 s arm -> x_fig_enl_move (Fig 11.2; reads the D1 projection),
+    x_covref, held ENLv chain until logs/ENL_SLIDE_FIX.done).
+  - Deck 102 gain_bio_1104 is NOT lick_enlv_curves: it is decoder_mix_checks/gain_bio_1104 (gain_bio -> summarise ->
+    gain_stats -> fig_sessions), scripts outside the repo, adopted hemo + adopted quiet-spikes input; re-rendering needs
+    porting into the repo + rebuilding quiet spikes under the root. Ask Priya.
+- ~20:30: **Priya: Fig 11.2 = unified 1 s (LP) version; slide 102 = rebuild.**
+  - Lane X (DAQ 2 s x_enl_move, started 20:21) STOPPED (exact PIDs); queue_daqlk6.sh runs x_enl_move / x_fig_enl_move with
+    WIDEFIELD_LICK_SOURCE=lp (enl_post_s 1.0; output <root>/labcams/LP_licks_<tag>/enl_movement_multisession/). Relaunched.
+  - te frame + readers had "succeeded" on 0 sessions: frozen_encoder's FROZEN_LICKLAND_CALIB defaults to
+    <input cache>/pose3d_inputs/exec_bins_calib_20261023.csv, missing there. Copied it in (sha256 732b0d12 = the O2
+    bundle's tables/ copy); te outputs moved aside (*__nocalib_failed_20261105); te steps re-running (laneTE.out).
+  - Spont co-variation audit (SPONT_COVARIATION_AUDIT_20261105.md, 1529b6bd): add no_spont (+ no_other) to lsland, no_spont
+    to frlag, --variants ... no_spont no_other to a_svf_ls / b_svf_frA. Lane T was running lsland from v2 without it ->
+    STOPPED (exact PIDs), partial folder moved aside (*__stopped_nospont_20261105), lane T relaunched from v6; svf_ls /
+    svf_frA running now from v6 (ONLY) ahead of lane 2 (v2), which will skip them once .done. Optional (Priya): no_spont in
+    pixmusall twins / frAsplit_basis; a spont_only variant needs code. Captions to rewrite at the replacement pass
+    (uninstructed / lick labels; movement unique includes spontaneous licks).
+  - Slide 102: helper porting gain_bio chain into the repo (branch port/gain-bio-20261105) + quiet-spikes rebuild plan.
+  - e0 asked for env to re-render kinematics 1.7 / 1.8 (lick_aim_deficit, iti_lick_rate): told to wait (in my queue /
+    being checked for camera gate + August pre).
+- ~20:45: lane E: e_iti_zscore_pre failed only in its where_decoder comparison (needs a later step); its SD tables were
+  written (20:13 / 20:17) -> marked done (logged), lane E relaunched from v6 (laneE4.out). Full e_zscore stays later.
+- ~20:50: **Slide 102 port done** (1b9eb446, branch port/gain-bio-20261105, worktree wf_gainbio; unpushed; tests 33 + 13
+  pass). scripts/gain_bio/{gb_common,gain_bio,summarise_gain_bio,gain_stats,fig_sessions}.py, routed to
+  <root>/labcams/<tag>/gain_bio; session list rule reproduces the old 107 / 31 pre exactly. Render order: quiet_spikes_v2
+  (nobody has it queued; ~1-1.5 h at 3 workers) -> gain_bio (~1 h with a warm FR cache) -> summarise -> stats -> fig.
+  DECISIONS for Priya: (1) copy the adopted FaceRhythm own_series cache (FR-only, 1.6 GB) into the root, else ~0.5-1 TB
+  re-read; (2) rest frames use stored restdock05 masks built with the old 0.10 s detector (not rebuilt under daqlk);
+  (3) task window = all cues before quit vs camera working rows; (4) r470_hp / r415_hp from raw SVT, corr = swapmask;
+  (5) quiet events DAQ v2_quiet vs LP 1 s v2_quiet_lp; (6) August pre consistent; (7) ROI v8 areas.
+- ~21:10: **fr_pixel_significance calibration investigated** (FR_PIXEL_CALIBRATION_20261105.md, 61cdf9f1). 0.12 = noise
+  over 28 correlated cells (6/50 CI .045-.243); 250 fresh splits/map: pooled 4.9 % (16 px), 4.6 % (32 px); only full_fr cue
+  16 px slightly high (8.3 % of 300). Calibration loop correct. The correction is MAX-STAT (beta_maps.CORRECTION), not
+  Bonferroni -> every "Bonferroni" docstring / caption is wrong (Figs 1.1, 2.1, 21.2 / 21.3, 21.12, 22.5 / 22.6, ...).
+  REAL issue: pre-stroke DRIFT (late vs early pre significant in 10/14 maps, 4/4 animals same sign). unique_position cue
+  chronic: all 232 sig bins share the pre-drift sign, 90 drift-significant alone -> continues a pre trend. DECISIONS for
+  Priya: captions "max-statistic per panel"; --n-null 250 + per-map seeds; a drift control (late-vs-early pre panel, or
+  epoch vs late pre) for the FR pixel maps (and probably the other map families).
+- ~21:20: **Decisions branch done** (fix/decisions-f1-f2-enl-20261105, wf_decisions, base a8f1651d; unpushed):
+  a49795b3 (f)1 precue_engagement_states camera classes (work vs no_response, stopped etc scored only; new frozen align
+  `-disc-cls-work-v-noresp`; G4 already compliant, pinned; audit over-reached: 12s/12b/13s are the 3-way state decoder,
+  no re-render); ae051fc0 + 7e192257 (f)2 Fig 0.2 on the camera period, DAQ quit-tail as robustness figure; 8f4399d2
+  ENL slide (wfield_local/enl_window.py; lick_enl_angle_decode / target_test / offset_explore / revup_neural /
+  fr_enl_decode slide primary, 2 s robustness; new frozen ids enl_w1_lfslide / enl_w0.5_lfslide); 802c3d54
+  disengagement_tests camera quit (A6), revup_behaviour reads the run's attempts table; 92702a33 status note. Tests pass
+  (test_frozen_default partial: 33 + subset 5, none failed).
+  New queue steps needed: precue_engagement_states (precue + cue), fig_behaviour_hits, lick_enl_angle_decode --extract ->
+  offset_explore --history --offset -> target_test -> re-run e_pat_summarise; revup_neural; fr_enl_decode;
+  disengagement_tests; revup_behaviour; lane-X ENLv chain (create logs/ENL_SLIDE_FIX.done once merged).
+  Questions for Priya: precue discriminator late window with few no_response trials; 1b epoch hit rate stays DAQ?;
+  the camera attempts table on disk is the 11-04 pre-daqlk one?; iti_lick_rate / within_lick_correction ungated.
+- ~21:45: **ttc_log (log fold change of ttc) mixed models** refit from the saved long table (scratchpad mixed_log/
+  refit_log.py; qc/encoding_mixed*_ttc_log.*, figures *_ttc_log.png). The 20:30 full run had failed (KeyError): it
+  imported wfield_local from the shared widefield_pipeline checkout (older than 5a6b7986) because PYTHONPATH used Git-Bash
+  /c/ paths, which Windows Python ignores. RULE from now: PYTHONPATH="$(pwd -W);$(pwd -W)/scripts". The binned default
+  run is valid (library = main minus ttc_log). Cortex, behaviour model, slope vs log deficit (linear in brackets):
+  cue: ceiling -39.9 q<.001 (-11.3 q<.001), u_tgtbin -8.1 q .015 (-2.8 q .047), u_exbin -3.15 q .004 (-1.4 q .077),
+  position -29.3 q<.001 (-8.4 q<.001); lick: ceiling -25.4 q<.001 (-6.7 q .002), u_tgtbin -4.5 q .55 (-0.3 q .69),
+  u_exbin -6.77 q<.001 (-2.4 q<.001), position -20.4 q<.001 (-8.6 q .17), distance -16.6 q<.001 (-4.4 q<.001).
+  Figure x-label still says "relative to pre" -> fix to "log(ttc / pre ttc)" if adopted.
+- ~22:05: **Linear vs log deficit** (scratchpad mixed_log/compare_lin_log.py; qc/encoding_mixed_lin_vs_log.csv;
+  figures/mixed_models/encoding_mixed_lin_vs_log_cortex.png, original axis with both curves). ML fits, same RE.
+  dAIC(log - lin): ceiling cue -19.8 / lick -9.8; u_tgtbin cue -10.6 / lick -2.1; position cue -12.1 / lick -8.8;
+  distance cue -19.3 / lick -15.9; u_exbin cue +0.2 / lick +0.7; far-close / contra-ipsi ~0. Log fits better for the
+  overall coding measures + target in cue; executed equal. Per-animal post-session Spearman (y vs deficit): u_tgtbin cue
+  -.73 / -.85 / -.13 / -.49; u_tgtbin lick +.19 / -.70 / +.20 / -.43 (mixed); u_exbin lick -.35 / +.05 / -.15 / -.48.
+  Awaiting Priya: adopt log as primary deficit axis?
+- ~22:10: **Priya:** push the decisions branch OK (pushing; full pre-push suite); (2) 1b hit rate -> camera period YES;
+  (3) iti_lick_rate + within_lick_correction cut to the working period YES; (4) rebuild trial attempts under daqlk in
+  scratch + diff YES (helper, new branch fix/decisions-followup-20261105); (1) precue discriminator late window: "not sure
+  dropping it helps, let's say 15 min?" -> asked Priya: last 15 min of the session, or everything after the first 15 min.
+  Log vs linear deficit: not yet answered.
+- ~22:30: **Priya: log deficit = PRIMARY behaviour axis.** b185ad70 + ef663dc7 on branch fix/log-deficit-primary-20261105
+  (wf_merge_main, off main d882558d; unpushed): DEFICIT = ttc_log; deficit() returns a Deficit carrying its transform;
+  add_deficit keeps deficit_x (raw) so plot_fits draws the original axis with the a + b*log1p(x) curve; linear ttc = *_ttc
+  sensitivity; no top spine in plot_fits / plot_epoch. Tests 86 + 9 pass. encoding_mixed outputs renamed (old default
+  linear -> *_ttc; *_ttc_log -> default) and redrawn (--plot-only). OTHER behaviour-model consumers (imaging_lmm, remap_lmm,
+  remap_checks, within_spout_mixed, iti_lmm_figures) pick up log at their next render; the pinned render worktree
+  (a76352f3) still uses linear -> re-run those steps after merging.
+  - Priya (1): precue discriminator = keep the late window, MINIMUM 15 trials (was 20) -> sent to the follow-up helper.
+  - 22:24 LOW RAM (4-5 GB): my decisions push's pre-push pytest (13 GB, targeted files) + lanes -> STOP file written
+    (nothing killed); lane T halted. Remove STOP + relaunch halted lanes once the push finishes.
+- ~22:45: **Priya: LMM figures -> shape = animal, colour = epoch (black / pink / yellow / green).** 905f3ca0 on
+  fix/log-deficit-primary-20261105: mixed_models.plot_fits uses cat_points.animal_marker + orofacial_cohort.EPOCH_LINE,
+  open markers, legend = fits + animal shapes + epoch colours (plot_epoch already did). Every plot_fits caller follows
+  (encoding_mixed redrawn; imaging_lmm, iti_lmm_figures, remap_lmm, remap_checks at their re-run on the merged code).
+  - STOP cleared 22:45 (19 GB free; cause = my pre-push tests); lane T relaunched (laneT3.out). Other lanes never halted.
+- ~22:50: decisions push REJECTED by pre-push (targeted tests: 14 failed / 574 passed; visible: test_rebuild_root
+  require_default_covers_lp_gate_lp_and_enl[env1/2], r3_rebuild_figs_defaults_follow_the_run, test_spout_behavior
+  curated_mmdds_includes_future_onward_dates). Both files pass alone (87 passed) -> likely environment / concurrency.
+  Re-pushing with the full hook log (scratchpad/push_decisions_2.log). Progress note: 11 / ~227 steps done at 22:34;
+  per-step times 2-4x estimates (network-bound); forecast now ~weekend. IO / local-cache measurement helper started.

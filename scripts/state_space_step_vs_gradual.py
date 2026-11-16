@@ -6,7 +6,8 @@ behavioural recovery axis: far-contra FIRST-cued-lick aim vs the animal's pre la
 `aim_deficit_sessions.csv` farcontra_first, the 14.16 recovery axis, rebuild _daqlk run).
 
 1. AGAINST RECOVERY, post-stroke sessions: per-animal r (printed first, rule 8); within-animal slope of readout on aim
-   (animal fixed effects) with a within-animal shuffle null (aim permuted within animal, 2000 draws); descriptive
+   (animal fixed effects) with a within-animal CIRCULAR-SHIFT null (aim rotated over the animal's day-sorted sessions by a
+   random non-zero lag, 2000 draws; a free shuffle until 11-16); descriptive
    MixedLM readout ~ aim + (1 | animal); and readout ~ aim + C(epoch) + (1 | animal): does aim explain the readout
    WITHIN epochs (gradual coupling) or only through the epoch step?
 2. AGAINST TIME, post-stroke sessions, per animal, leave-one-session-out squared error of
@@ -71,8 +72,10 @@ def within_slope(d, c):
 
 def shuffle_p(d, c, rng, n=2000):
     b, g = within_slope(d, c)
+    # circular shift of aim over the animal's day-sorted sessions (Priya 11-16): readout and aim both move with days,
+    # so a free within-animal shuffle is not a null (analysis_kit.within_shuffle_p mode="circular")
     _, p = kit.within_shuffle_p(lambda a: within_slope(g.assign(aim=a), c)[0], g.aim.to_numpy(), g.animal.to_numpy(),
-                                rng, n)
+                                rng, n, order=g.day.to_numpy(), mode="circular")
     return b, p
 
 

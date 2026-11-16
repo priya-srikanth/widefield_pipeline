@@ -150,3 +150,76 @@ def test_within_shuffle_p_matches_the_detour_loop():
         null[i] = np.corrcoef(sh, rt)[0, 1]
     p_old = float((np.abs(null) >= abs(r0)).mean())
     assert kit.within_shuffle_p(lambda a: np.corrcoef(a, rt)[0, 1], rp.to_numpy(), an, r2, 200)[1] == p_old
+
+
+# --- 11-16: the session-level circular-shift null (mode="circular")
+
+def _trend_table(seed=5):
+    rng = np.random.default_rng(seed)
+    rows = []
+    for an, n in (("PS92", 9), ("PS93", 6), ("PS94", 1), ("PS95", 12)):
+        day = rng.permutation(np.arange(1, n + 1) * 3.0)                  # rows NOT in day order
+        rows += [dict(animal=an, day=d, y=d + rng.normal(0, 0.1), x=rng.normal()) for d in day]
+    return pd.DataFrame(rows)
+
+
+def test_default_mode_is_bit_identical_to_explicit_permute():
+    d = _post_table()
+    x = d.x.to_numpy()
+    stat = lambda y: float((x * y).sum() / (x ** 2).sum())  # noqa: E731
+    a = kit.within_shuffle_p(stat, d.y.to_numpy(), d.animal.to_numpy(), np.random.default_rng(0), 300)
+    b = kit.within_shuffle_p(stat, d.y.to_numpy(), d.animal.to_numpy(), np.random.default_rng(0), 300,
+                             order=np.arange(len(d)), mode="permute")
+    assert a == b
+
+
+def test_circular_shift_is_a_rotation_in_day_order():
+    d = _trend_table()
+    rng = np.random.default_rng(1)
+    y, an, day = d.y.to_numpy(), d.animal.to_numpy(), d.day.to_numpy()
+    seen = {a: set() for a in np.unique(an)}
+    for _ in range(200):
+        s = kit.circular_shift_within(y, an, day, rng)
+        for a in np.unique(an):
+            m = an == a
+            o = np.argsort(day[m], kind="stable")
+            ys, ss = y[m][o], s[m][o]
+            assert sorted(ss) == sorted(ys)                               # same values
+            if m.sum() == 1:
+                assert (ss == ys).all()
+                continue
+            k = [k for k in range(1, len(ys)) if (np.roll(ys, k) == ss).all()]
+            assert len(k) == 1                                            # a non-zero rotation
+            seen[a].add(k[0])
+            # lag-1 autocorrelation (circular) preserved exactly
+            assert np.isclose(np.sum(ss * np.roll(ss, 1)), np.sum(ys * np.roll(ys, 1)), rtol=0, atol=1e-12)
+    assert seen["PS95"] == set(range(1, 12)) and seen["PS93"] == set(range(1, 6))   # every lag reachable
+
+
+def test_circular_null_holds_size_for_two_autocorrelated_series():
+    """Two INDEPENDENT AR(1) series per animal (phi 0.8, 15 sessions): the free shuffle rejects far above 5 % (it breaks
+    the serial structure), the circular shift stays near 5 % (measured 11-16 at 100 reps: 0.17 vs 0.06). NOT a cure for a
+    shared MONOTONE trend: two independent linear trends + noise reject at 100 % under both nulls (a rotated ramp is
+    still a ramp for small lags) -- that question needs detrending, see within_shuffle_p."""
+    rng = np.random.default_rng(7)
+
+    def ar(n):
+        x = np.zeros(n)
+        for i in range(1, n):
+            x[i] = 0.8 * x[i - 1] + rng.normal()
+        return x
+    an, day = np.repeat(np.arange(4), 15), np.tile(np.arange(15.0), 4)
+    p_perm, p_circ = [], []
+    for _ in range(60):
+        a, b = (np.concatenate([(lambda v: v - v.mean())(ar(15)) for _ in range(4)]) for _ in range(2))
+        stat = lambda x, b=b: np.corrcoef(x, b)[0, 1]  # noqa: E731
+        p_perm.append(kit.within_shuffle_p(stat, a, an, rng, 200)[1])
+        p_circ.append(kit.within_shuffle_p(stat, a, an, rng, 200, order=day, mode="circular")[1])
+    fp_perm, fp_circ = np.mean(np.array(p_perm) < 0.05), np.mean(np.array(p_circ) < 0.05)
+    assert fp_perm > 0.1 and fp_circ < fp_perm and fp_circ <= 0.12
+
+
+def test_circular_mode_needs_order():
+    import pytest
+    with pytest.raises(ValueError):
+        kit.within_shuffle_p(np.mean, np.arange(4.0), np.zeros(4), np.random.default_rng(0), 5, mode="circular")
