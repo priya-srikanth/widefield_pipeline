@@ -15,6 +15,7 @@ Consolidated 2026-11-13 (branch `refactor/ss-cleanup-1113`); the section at the 
 |---|---|---|
 | Every input and output path; the run tags XTAG / WTAG; ROOT (outputs) | `state_space_sim` (top block) | every script |
 | `check_root()` | `state_space_sim` | `load_sessions`, `prefill`, `page_figs.main` |
+| Inputs from other arms, by owner (11-16 path fix; were `ROOT.parent / ...`, i.e. the rebuild root since the 11-12 reroute, where neither exists): `RECPRIM` = `ITI_W/recprim_sessions.csv` (the rebuild's 0b balance, 11-11 render), `WSD_SLOPES` = `SHARE/within_session_decline/tables/session_slopes.csv`; read through `require(path, what)`, which raises on a missing input (nothing is skipped) | `state_space_sim` | `detour_vs_balance`, `within_session_behavior` |
 | `POS` / `POS_LABEL` / `RINGS` (canonical spout order = `orofacial_cohort.POS_ORDER`) | `state_space_sim` | every script |
 | `EPOCHS` / `POST` | `state_space_sim` | every script |
 | Area sets `OROFACIAL` / `MOTOR` / `SHIFT_REGIONS` | `state_space_sim` | balance and shift scripts (see section 4) |
@@ -29,7 +30,7 @@ Consolidated 2026-11-13 (branch `refactor/ss-cleanup-1113`); the section at the 
 | RESTnl level / ENL trials per session: `rest_level`, `enl_trials` | `state_space_chronic_maps` | `shift_*`, `chronic_maps` |
 | Change vs own pre, per epoch (animal-weighted nested bootstrap) | `analysis_kit.epoch_change` (on `boot_delta`) | every table and figure with a change |
 | Within-animal null p: `within_shuffle_p` (`permute_within` free shuffle; `mode="circular"` + `order=day` = `circular_shift_within`, 11-16) | `analysis_kit` | step_vs_gradual, per_position, detour_vs_balance, within_session_behavior, shift_precue, shift_rawref, shift_recovery (via step_vs_gradual) -- all CIRCULAR since 11-16 |
-| Spout block ids per extract session / whole-block split parts: `spout_blocks` (= `block_ids.block_ids` + `block_size_max_for`, the decoders' GroupKFold blocks), `block_split` | `state_space_sim` | orth_check, shift_spout_timing (11-16) |
+| Spout block ids per extract session / whole-block split parts: `spout_blocks` (= `block_ids.block_ids` + `block_size_max_for`, the decoders' GroupKFold blocks; `block_size_max_for` found no log folder for a bare-label session until the 11-16 fix -- every session fell back to 8, which is also every session's real value, so no block changed), `block_split` | `state_space_sim` | orth_check, shift_spout_timing (11-16) |
 | LMM backup (dagger) | `analysis_kit.epoch_change_lmm` | `page_figs.lmm_p` |
 | Stars in the top band, no top spine | `sig_marks.star_top`, `reserve_headroom` | figures |
 | PNG + svg twin | `figure_layout.save_png_svg` | figures |

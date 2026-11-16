@@ -1773,3 +1773,29 @@ missing groups still cited on a page or in FINDINGS. Page updates and deck rebui
   within 0.0011 of the 11-08 run (chronic mean / far contra r with S4 .630 / .855 at S0, .630 / .844 at S3; split-half
   .989 / .976; 99.57 % inside the SVD; sig frac .155 / .124 S0, .465 / .282 S4). Changed: the rebuild brain mask is now
   glue-free (151,447 px = the analysis mask), so S0 = S1 exactly; the caption's "still holds the painted glue (A9)" goes.
+
+
+## 11-16 night -- state-space path fixes + re-runs (branch fix/ss-paths-1116; helper)
+- PATH BUG fixed: `within_session_behavior.WSD` / `detour_vs_balance.RECPRIM` were `ROOT.parent / ...` = the rebuild
+  root since the 11-12 reroute (neither file there). Now `S.WSD_SLOPES` (share root) and `S.RECPRIM` = `ITI_W/
+  recprim_sessions.csv` (the rebuild's 11-11 render, beside the aim table), read through `S.require` (raises).
+- `block_size_max_for`: no log folder for any bare-label session (spout_blocks) nor the June baselines -> default 8.
+  Fixed (label lookup, baseline DAQ names, exact-name / nearest-time pick). All 139 sessions: true max 8 / min 4 ->
+  no block changes anywhere (orth_check, shift_spout_timing, decoders, block_permute inputs). `_behavior_dir` now
+  returns a different folder for PS92_0812 (concat log), PS93_0805 (real log, was the camera folder), PS94/95_0601
+  (was None): only `disengagement_tests` reads other files from it (response window, rewards).
+- NEW OUTPUTS (nothing overwritten): `rebuild_20261103/state_space_recovery/pathfix_20261116/` = detour_vs_balance
+  x {allen, svd, lnmfbm} x {cue, lick}, orth_check (same 6), pertrial_lick (within_session_behavior + join),
+  trials_{landing,on_target}_lick_xspout.
+- DETOUR (lick, Allen) partial r(y, aim | balance) per animal -.89 / -.27 / -.37 / -.65 (was -.88 / -.58 / -.35 / -.67),
+  pooled -.68 (was -.69), circular p < .0005; balance beyond y .56 / .33 / .38 / .65 (was .51 / -.10 / .44 / .62: now
+  4/4 positive); x beyond balance .77 / .32 / .52 / .55 (was .78 / .43 / .50 / .60); y~bal R2 .72. The change is the
+  BALANCE INPUT (rebuild vs pre-rebuild recprim; same 107 labels, within-animal r .88-.99 between the two): with the
+  pre-rebuild file and today's trajectories the old numbers come back (PS93 -.59 / -.11). Decision for Priya: which
+  balance the detour should use (code now = rebuild).
+- ORTH_CHECK (whole-block splits + current cache): Allen lick corrected share .88 / .75 / .91 / .86 (var .77 / .56 /
+  .84 / .74), within .01 of 11-08 everywhere; section 7 "~75-90 % length / ~55-85 % variance" stands.
+- Fig 3.9 like-for-like (spout-specific, lick): by landing acute rot_gain +.034 [.009, .057] 4/4 (was +.033), on target
+  +.038 n.s. 3/4 (was +.033). Fig 6.12 per-animal r(s_x, landing drift): PS93 .76 / .44 (caption .75), PS95 .21 / .17
+  (caption range .18-.38 -> .17-.38); slopes identical to 11-12. Join p values move with the circular null (post s_y
+  vs far / fc landing p .024 / .050 -> .16 / .13; pre s_x vs latency .14 -> .034); not on the page.
