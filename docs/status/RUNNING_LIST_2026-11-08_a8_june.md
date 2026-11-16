@@ -521,3 +521,7 @@ PI deck (backup Overview_2026-11-06.bak_pre_a8_renumber_20261116.pptx): FR page 
   13 FR slides), 32 / 206 now carry the block; INFERRED / UNKNOWN rows not written (~150 slides wait). Record
   docs/status/DECK_DATA_BLOCK_PASS_2026-11-16.csv; slide 4 conflict (confirmed row vs notes on the trial gate) left for
   the behavior arm.
+- 11-16 late, Priya "confirm provenance": re-ran 34's provenance scripts on today's render logs ->
+  FIGURE_PROVENANCE_20261116_rerun.csv (+ _RERUN.md): CONFIRMED 45 -> 257 (deck 8 -> 38); Data: blocks on 26 more slides
+  (deck 58 / 206). Remaining deck rows need per-figure work (no script named 48, older kept runs 47, missing fields 20,
+  steps not done ~30).
