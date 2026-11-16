@@ -363,10 +363,14 @@ def fig_traces(Tr: pd.DataFrame, measure: str, ylab: str, path: Path) -> None:
                 ax.spines[s_].set_visible(False)
     hs = [plt.Line2D([], [], color=EP_COL[e], lw=2, label=e) for e in EPS]
     fig.legend(handles=hs, loc="lower center", ncol=4, frameon=False, fontsize=9)
-    fig.suptitle(f"Cue-aligned {ylab} by trial class, POOLED: 20 ms bins, mean per session (>= {MIN_TR} trials of the "
-                 "class at the spout), then per animal x epoch, then mean over animals (band = SEM over animals); pre = "
-                 "August; trials = " + denom() + ";\ncorner = animals / sessions / trials per epoch (< 2 animals: not drawn); gray = before the cue. Rows: jaw moves without a "
-                 "lick (cam1-corrected) | licked but never touched the spout | touched the spout", fontsize=9.5)
+    # wrapped to the canvas width (11-16: the one-line title ran past both edges and was cut at the left)
+    import textwrap
+    title = (f"Cue-aligned {ylab} by trial class, POOLED: 20 ms bins, mean per session (>= {MIN_TR} trials of the "
+             "class at the spout), then per animal x epoch, then mean over animals (band = SEM over animals); pre = "
+             "August; trials = " + denom() + "; corner = animals / sessions / trials per epoch (< 2 animals: not "
+             "drawn); gray = before the cue. Rows: jaw moves without a lick (cam1-corrected) | licked but never touched "
+             "the spout | touched the spout")
+    fig.suptitle(textwrap.fill(title, 190), fontsize=9.5)
     fig.tight_layout(rect=(0, 0.04, 1, 0.92))
     save_png_svg(fig, path, dpi=100)
     plt.close(fig)
@@ -385,7 +389,26 @@ def main(argv=None) -> int:
     ap.add_argument("--trials", default=None, help="camera-gated trial_attempts.csv: working-period trials + classes "
                     "(see the docstring); needs --out")
     ap.add_argument("--out", default=None, help="output folder (default: the run's trial_classes folder)")
+    ap.add_argument("--traces-only", default=None, metavar="SRC",
+                    help="plot-only: redraw the two trace figures from SRC/traces.csv.gz (denominator from "
+                         "SRC/denominator.txt) into --out/figures; no tests, no session loop")
     a = ap.parse_args(argv)
+    if a.traces_only:
+        import os
+        src = Path(a.traces_only)
+        if not a.out or Path(a.out).resolve() == src.resolve():
+            ap.error("--traces-only needs its own --out folder")
+        dn = src / "denominator.txt"
+        if dn.exists():
+            os.environ[DENOM_ENV] = dn.read_text(encoding="utf-8").strip()
+        Tr = pd.read_csv(src / "traces.csv.gz", dtype={"date": str})
+        F = Path(a.out) / "figures"
+        F.mkdir(parents=True, exist_ok=True)
+        for m, y, n in (("jaw_open", "jaw opening from rest (mm, 3-D)", "jaw"),
+                        ("tongue_out", "share of frames with the tongue out", "tongue")):
+            fig_traces(Tr, m, y, F / f"trial_class_{n}_traces.png")
+        print(f"wrote {F} (plot-only from {src})")
+        return 0
     if a.trials and not a.out:
         ap.error("--trials needs --out (its own folder; the behavior-gate outputs stay as they are)")
     if a.trials:
