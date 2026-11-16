@@ -420,8 +420,9 @@ patch, marked when the 95 % interval excludes 0 AND 4 / 4 animals share the sign
   toward the TARGET side, i.e. directed movement, not a close_R artifact. Same in every epoch; since 5f's statistics are
   changes vs each animal's own pre, a stable offset cancels there.
 
-**5g. WHEN each factor is expressed after the cue: the contralesional lick factor is re-timed LATER (STANDS, 4 / 4,
-10-24 evening).** Priya: "should we also look at when each behavior is expressed with respect to cue and whether that
+**5g. WHEN each factor is expressed after the cue: the contralesional lick factor is expressed LATER (STANDS, 4 / 4,
+10-24 evening; per-trial split 11-16: acutely it follows a later first right lick, chronically at close contra it peaks
+.50 s later relative to that lick, PROVISIONAL; FR page Fig 5.5, FINDINGS FR item 6).** Priya: "should we also look at when each behavior is expressed with respect to cue and whether that
 changes?" `scripts/face_rhythm_peak.py` (`peak/timing_by_epoch_{com,t_half}[_side,_position].png`,
 data/timing_epoch_stats*.csv): per session the trial average's CENTER OF MASS above its pre-cue level over cue 0..+4 s
 (and the half-rise time), change vs pre in seconds by `boot_delta`; reference row = median first-lick latency of the
@@ -654,7 +655,7 @@ the close spouts. The band-map drift control has 13 small clusters (mean +.03 lo
 later-epoch band increases there need that caveat. Fast-lick share (licks with a neighbor < 250 ms) falls acutely only
 at far contra (-.44) / far mid (-.13), partly because licks per trial fall there (far contra 3.1 vs 8.7 pre).
 Figures: band_maps/band_maps_<unit>.png, band_maps_driftpre.png; LP_analysis/.../cohort_lick_rate_by_position.png.
-FR page section 8 (was 7b until v51); PI deck slides 83-85.
+FR page section 8 (was 7b until v51); PI deck slides 84-86 (83-85 before the 11-16 slide 81 insert).
 
 ## 6d. Task vs non-task, asymmetry, severity (10-24)
 

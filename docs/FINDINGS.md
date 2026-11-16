@@ -1829,10 +1829,13 @@ each animal's own pre. Factor names, not numbers (numbers shift between fits).*
 5. **The pre-stroke vocabulary fits post-stroke movement worse acutely.** EVR ratio frozen / own, vs pre: acute -.035
    [-.045, -.025] 4 / 4; subacute -.008, 4 / 4; chronic -.008 [-.016, -.0003], 3 / 4 (PS92 / PS94; PS93 fully back).
    **STANDS** acutely, **PROVISIONAL** chronically (6-master).
-6. **The contralesional lick movement is re-timed later in the response window, not delayed at its start.** lick_right
-   center of mass, contra-spout trials: subacute +.40 s, chronic +.41 s [.23, .59], 4 / 4 later; first lick on the same
-   trials EARLIER chronically (-.06 s, 0 / 4 later). **STANDS**, caveat: a trial average mixes within-trial timing with
-   which trials carry the movement (per-bout timing pending) (5g).
+6. **The contralesional lick movement is expressed later in the response window.** lick_right center of mass,
+   contra-spout trials: subacute +.40 s, chronic +.41 s [.23, .59], 4 / 4 later (**STANDS**, trial average). PER TRIAL
+   (11-16, trials with a right lick; FR page Fig 5.5): acutely / subacutely much of it is a later first RIGHT lick
+   (close contra +.70 / +.69 / +.26 s, far contra +1.21 / +.41 / +.08 s; the first lick of any direction is slightly
+   earlier chronically, -.06 s) and the lick_right peak follows that lick (far contra peak - first lick -.25 s n.s.);
+   chronically at close contra lick_right peaks .50 s later relative to the first right lick (*): re-timing within the
+   trial, PROVISIONAL (5g).
 7. **Survey of every factor (peak amplitude).** Acute drops in the shared lick and pre-lick nose / sniff factors
    (lick_ongoing_7Hz -1.22**, lick_fast_close -1.01**, nose_prelick_slow -.78**, sniff_prelick -.68**); chronically
    several factors ABOVE pre (lick_fast_close +.72**, lick_ongoing_7Hz +.50**, lick_far_nose +.42**, whisk_run +.42**).

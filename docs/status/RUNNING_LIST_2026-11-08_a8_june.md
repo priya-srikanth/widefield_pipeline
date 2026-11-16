@@ -387,3 +387,130 @@ drawn as "not tested", out of Holm). Key numbers unchanged by either fix.
 PI deck (backup Overview_2026-11-06.bak_pre_a8_renumber_20261116.pptx): FR page numbers in notes of slides 87 (8.10 ->
 10.10), 89 (7.1 -> 9.1; Figs 7.11-7.15 -> 9.11-9.15), 90 (section 7a -> 7), 93 (7.2 -> 9.2; 7.15 -> 9.15), 94 (7.12 ->
 9.12, x2). Each #f- id checked: v50 number = old note number, v52 number = new. No slide text touched.
+
+### 11-16 late -- to-do pass (Priya "go ahead with the to-do's"; deck slide yes; delete superseded n12 yes; hold ok)
+- Page v53 / v54: Fig 2.6 (amplitude three ways + isolated licks), Fig 5.5 (per-trial lick_right timing; section 5 take +
+  status row rewritten: acute later expression follows later first right lick; chronic close contra peaks .50 s later
+  relative to it, *), Fig 6.2 (spout-in-mesh control; section 6 note sentence replaced), Fig 7.13 caption sentence
+  (own-fit vs frozen far-contra lick_left), Figs 9.11 / 10.18 redrawn without epoch shading (v1 tables, numbers same).
+- Deck: new slide 81 (per-trial; backup .bak_pre_a8_pertrial_slide_20261116.pptx). ALL SLIDES AFTER 80 MOVED +1 (206).
+- FINDINGS FR item 6 + FACE_RHYTHM_FINDINGS 5g: timing claim refined (per-trial split, chronic re-timing PROVISIONAL).
+- DELETED (superseded derived, Priya "ok to delete if superseded"), 118 files:
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260806_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260807_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260809_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260810_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260811_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260812_cam4_v1_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260812_cam4_v2_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260813_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260814_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260818_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260819_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260820_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260821_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260822_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260824_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260826_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260828_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260901_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260904_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260908_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260911_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260915_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260918_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260922_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260925_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260929_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20261002_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20261006_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260806_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260807_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260809_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260810_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260811_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260812_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260814_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260818_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260819_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260820_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260821_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260822_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260824_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260826_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260828_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260901_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260904_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260908_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260911_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260915_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260918_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260922_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260925_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260929_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20261002_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20261006_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260806_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260807_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260809_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260810_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260811_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260812_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260813_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260814_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260817_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260818_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260819_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260820_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260821_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260823_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260825_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260827_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260831_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260903_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260907_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260910_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260914_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260917_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260921_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260924_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260928_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20261001_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20261005_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260806_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260807_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260809_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260810_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260811_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260812_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260813_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260814_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260817_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260818_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260819_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260820_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260821_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260823_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260825_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260827_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260831_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260903_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260907_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260910_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260914_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260917_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260921_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260924_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260928_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20261001_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20261005_cam4_n12.npz
+    M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/master_pre_v1/lick_left_match_check/data/own_temporal_lick_n12.csv
+    M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/master_pre_v1/lick_left_match_check/data/own_temporal_lick_stats_n12.csv
+    M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/master_pre_v1/lick_left_match_check/own_temporal_lick_PS92_n12.png
+    M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/master_pre_v1/lick_left_match_check/own_temporal_lick_PS93_n12.png
+    M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/master_pre_v1/lick_left_match_check/own_temporal_lick_PS94_n12.png
+    M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/master_pre_v1/lick_left_match_check/own_temporal_lick_PS95_n12.png
+    M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/master_pre_v1/lick_left_match_check/own_temporal_lick_by_position_n12.png
+    M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/master_pre_v1/lick_left_match_check/own_temporal_lick_by_position_norm_n12.png
+    M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/master_pre_v1/lick_left_match_check/own_temporal_lick_n12.png
+    M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/master_pre_v1/lick_left_match_check/own_temporal_lick_stats_n12.png
