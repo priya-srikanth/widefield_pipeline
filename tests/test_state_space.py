@@ -267,3 +267,22 @@ def test_check_root_refuses_an_unmoved_tree(mods, monkeypatch, tmp_path):
         S.check_root()
     (tmp_path / "new").mkdir()
     S.check_root()
+
+
+def test_spout_blocks_and_block_split(mods, monkeypatch):
+    """11-16: split halves keep each spout BLOCK whole (`block_split`), blocks = `block_ids` runs (long runs split)."""
+    S, _ = mods
+    from wfield_local import block_ids as B
+    monkeypatch.setattr(B, "block_size_max_for", lambda s, default=8: 4)
+    pos = np.array(["far_contra"] * 6 + ["close_ipsi"] * 3 + ["far_contra"] * 2 + ["mystery"] + ["close_ipsi"] * 4)
+    b = S.spout_blocks("PSxx_0000", pos)
+    # 6 far_contra -> 3 + 3 (even split at max 4); then 3 close_ipsi; 2 far_contra; unknown = own block; 4 close_ipsi
+    assert b.tolist() == [0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 5, 4, 4, 4, 4]
+    rng = np.random.default_rng(0)
+    for _ in range(50):
+        part = S.block_split(b, pos, 2, rng)
+        for k in np.unique(b):
+            assert len(set(part[b == k])) == 1                       # a block never straddles parts
+        assert part[pos == "mystery"].tolist() == [-1]
+        for p in ("far_contra", "close_ipsi"):                      # >= 2 blocks -> both parts get some
+            assert set(part[pos == p]) == {0, 1}

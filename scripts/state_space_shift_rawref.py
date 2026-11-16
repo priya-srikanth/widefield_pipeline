@@ -13,7 +13,7 @@ split-basis areas, ROI v8), cohort SVD basis, units of the animal's pre-template
 and the same three task levels minus RESTnl. Change vs own pre, animal-weighted nested bootstrap (`boot_delta`, 2,000),
 * = 95 % CI excludes 0; per-animal values printed first (rule 8). Plus, across post-stroke sessions (animal-demeaned), how
 much of the vs-RESTnl tonic level is carried by the raw pre-cue level vs by the raw rest level (within-animal slopes,
-within-animal shuffle, 2,000).
+within-animal circular shift over days, 2,000; a free shuffle until 11-16).
 Caveat: the session mean itself contains the task (licking time, engagement), so a raw level is relative to a reference
 that can move too; neither reference is absolute. The test is whether the two references AGREE.
 Outputs: <state_space_recovery>/shift_rawref{tag}/{sessions,changes,coupling}.csv, page_figs/ss_shift_rawref{tag}.png.
@@ -128,7 +128,8 @@ def main():
             b = float((x_ * post[y + " dm"]).sum() / (post[y + " dm"] ** 2).sum())   # share of tonic variance: x on y
             yd = post[y + " dm"].to_numpy()
             _, p = kit.within_shuffle_p(lambda x, yd=yd, sgn=sgn: float((sgn * x * yd).sum() / (yd ** 2).sum()),
-                                        post[xcol].to_numpy(), post.animal.to_numpy(), rng)
+                                        post[xcol].to_numpy(), post.animal.to_numpy(), rng,
+                                        order=post.day.to_numpy(), mode="circular")      # Priya 11-16
             r_an = {an: round(float(np.corrcoef(g[y + " dm"], sgn * g[xcol])[0, 1]), 2) for an, g in post.groupby("animal")}
             coup.append({"region": reg, "source": ("+" if sgn > 0 else "-") + src, "share_of_tonic": b, "shuffle_p": p,
                          "r_by_animal": r_an})
@@ -156,7 +157,7 @@ def main():
         "(filled), and the three task levels minus RESTnl (open; = raw level - raw RESTnl). Top: change vs own pre "
         "(nested bootstrap animals -> sessions, 2,000; * = 95 % CI excludes 0). Bottom: post-stroke sessions, "
         "animal-demeaned; the share of the vs-RESTnl pre-cue level carried by the raw pre-cue level and by minus the raw "
-        "rest level (the two shares sum to 1), within-animal shuffle (2,000)."), y=1.04, fontsize=9.5)
+        "rest level (the two shares sum to 1), within-animal circular shift over days (2,000)."), y=1.04, fontsize=9.5)
     sig_marks.reserve_headroom(fig)
     fig.tight_layout()
     save_png_svg(fig, FIGS / f"ss_shift_rawref{S.tag()}.png", dpi=130, bbox_inches="tight")

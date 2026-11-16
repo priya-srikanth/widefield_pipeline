@@ -15,7 +15,7 @@ then within-animal r of s_x with each behavior slope across post-stroke sessions
 same neural slopes (+ s_y, the acute-departure axis) joined session by session to THAT arm's behavior slopes
 (`Widefield/within_session_decline/tables/session_slopes.csv`, per normalized session "_ord" = the same unit as s_x:
 far-contra / all-far landing, latency, licks per trial), within-animal r per animal (rule 8) and pooled within-animal r
-with a within-animal shuffle, pre and post-stroke separately.
+with a within-animal circular shift over days (a free shuffle until 11-16), pre and post-stroke separately.
 Output: <rebuild root>/state_space_recovery/pertrial{tag}/within_session_behavior_slopes.csv, within_session_join.csv.
 Exploratory.
 """
@@ -73,7 +73,7 @@ def main():
 
 def join(out, n_shuf=2000):
     rng = np.random.default_rng(0)
-    J = out[["animal", "label", "epoch", "s_x", "s_y"]].merge(pd.read_csv(WSD)[["label", *JOIN]], on="label")
+    J = out[["animal", "label", "epoch", "day", "s_x", "s_y"]].merge(pd.read_csv(WSD)[["label", *JOIN]], on="label")
     rows = []
     for grp, G in (("pre", J[J.epoch == "pre"]), ("post", J[J.epoch != "pre"])):
         for nv in ("s_x", "s_y"):
@@ -84,7 +84,7 @@ def join(out, n_shuf=2000):
                 b = (g[bv] - g.groupby("animal")[bv].transform("mean")).to_numpy()
                 r0 = float(np.corrcoef(a, b)[0, 1])
                 _, p = kit.within_shuffle_p(lambda x, b=b: np.corrcoef(x, b)[0, 1], a.to_numpy(), g.animal.to_numpy(),
-                                            rng, n_shuf)
+                                            rng, n_shuf, order=g.day.to_numpy(), mode="circular")   # Priya 11-16
                 rows.append({"sessions": grp, "neural": nv, "behavior": bv, "n": len(g), "r_within": r0,
                              "shuffle_p": p,
                              **{f"r_{an}": round(v, 2) for an, v in per.items()}})

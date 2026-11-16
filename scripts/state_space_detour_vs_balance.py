@@ -9,7 +9,8 @@ aim_deficit_sessions.csv). CAVEAT: recprim_sessions.csv exists only for the PRE-
 trials gate) -- the rebuild never re-rendered it; the session labels are the same.
 Within animal (rule 8 table first), post-stroke sessions: r(y, aim), r(balance, aim), r(y, balance); partial r of each
 predictor with aim given the other (both residualized on the other within animal, pooled within-animal slope / r), with a
-within-animal shuffle of the tested predictor's residual (2000 draws); share of y's within-animal variance explained by
+within-animal circular shift of the tested predictor's residual over the animal's day-sorted sessions (2000 draws;
+a free shuffle until 11-16); share of y's within-animal variance explained by
 balance. Output <state_space_recovery>/detour_vs_balance{tag}/. EXPLORATORY.
 """
 from __future__ import annotations
@@ -53,10 +54,12 @@ def resid(d, v, on):
 
 
 def partial(d, pred, ctrl, target, rng):
-    """Pooled within-animal partial r of pred with target given ctrl, + within-animal shuffle p (pred residual permuted)."""
+    """Pooled within-animal partial r of pred with target given ctrl, + within-animal circular-shift p (pred residual
+    rotated over days)."""
     rp, rt = resid(d, pred, ctrl), resid(d, target, ctrl)
     r0 = float(np.corrcoef(rp, rt)[0, 1])
-    _, p = kit.within_shuffle_p(lambda a: np.corrcoef(a, rt)[0, 1], rp.to_numpy(), d.animal.to_numpy(), rng, N_SHUF)
+    _, p = kit.within_shuffle_p(lambda a: np.corrcoef(a, rt)[0, 1], rp.to_numpy(), d.animal.to_numpy(), rng, N_SHUF,
+                                order=d.day.to_numpy(), mode="circular")      # rotated over days (Priya 11-16)
     return r0, p
 
 

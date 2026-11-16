@@ -7,8 +7,9 @@ template and u = the unit pre -> chronic direction, averaged over spouts. Two pr
 variance share), and trial noise in the acute template (few trials) adds mostly orthogonal length, so the raw share is
 biased toward 1 (a random direction in D dims has share ~sqrt(1 - 1/D), ~.996 at D = 136).
 
-Cross-fitted estimate, per animal, N_SPLIT random trial splits (within session and spout): pre trials in thirds, acute
-trials in halves, chronic whole. u from chronic - pre third 3; a1 = acute half 1 - pre third 1, a2 = acute half 2 - pre
+Cross-fitted estimate, per animal, N_SPLIT random BLOCK splits (within session and spout, whole spout blocks; trial-level
+until 11-16, which put block-mates in both parts and shared their slow drift): pre blocks in thirds, acute blocks in
+halves, chronic whole. u from chronic - pre third 3; a1 = acute half 1 - pre third 1, a2 = acute half 2 - pre
 third 2: independent noise, so a1.a2 estimates |a|^2 and (a1.u)(a2.u) estimates (a.u)^2 without the noise terms. Noise
 in u (chronic + one pre third) only attenuates the along part a little (biases the share UP, conservative for "less
 sideways than reported"). Per spout and pooled over spouts (sums of squares). Same fixed space as the main analysis.
@@ -32,13 +33,11 @@ OUT = S.ROOT / f"orth_check{S.tag()}"
 
 
 def split_template(sess, n_parts, rng):
-    """[template of part k] for k < n_parts: each session's trials split at random within spout."""
+    """[template of part k] for k < n_parts: each session's spout BLOCKS dealt at random to the parts within spout
+    (`S.block_split`; whole blocks, Priya 11-16 -- trial-level splits put block-mates in both parts)."""
     parts = [[] for _ in range(n_parts)]
     for lab, ep, day, Y, pos in sess:
-        lab_k = np.empty(len(pos), int)
-        for p in S.POS:
-            m = np.flatnonzero(pos == p)
-            lab_k[m] = rng.permutation(np.arange(len(m)) % n_parts)
+        lab_k = S.block_split(S.spout_blocks(lab, pos), pos, n_parts, rng)
         for k in range(n_parts):
             parts[k].append((lab, ep, day, Y[lab_k == k], pos[lab_k == k]))
     return [R.template(p) for p in parts]
