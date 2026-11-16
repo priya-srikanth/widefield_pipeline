@@ -55,6 +55,16 @@ Old (page) vs gated, `pose3d_change_pooled_contra.csv` (96 cells) and `pose3d_da
 * `cam4 angle` (Fig 3.6, `angle_change_pooled_contra.csv`): pooled <= 0.12 deg, per animal <= 0.47 deg, no star change
   (far contra acute -29.1 -> -29.2).
 
+Re-render 11-16 (`<D>/kinematics_pooled_figs_20261116/`): a full recompute (`kinematics_pooled_figs --out`) was stopped
+after 2.5 h -- profiled: re-gating 119 sessions is network-bound (nt.stat ~17 ms each inside `config.load_sessions` /
+`PathResolver`, ~25-65 s per session today vs ~40 min total on 11-07). Instead the 11-07 gated per-session table
+(`<D>/kinematics_pooled_figs/pose3d_sessions.csv`, written by the same `sessions3d()`; trial-class code digest unchanged
+since) was preloaded into the script's memo and only the figures were drawn (6.2 min). Every pooled CSV equals the 11-07
+gated run to <= 6e-14. Page files: Fig 7.5 = pose3d_change_pooled_contra.png, Fig 9.6 = pose3d_days_pooled_contra.png,
+Fig 3.6 = angle_change_pooled_contra.png, Fig 3.7 = pose3d_cue_pooled_contra.png, Fig 4.11 =
+pose3d_paths_pooled_contra_cam.png, Fig 9.7 = pose3d_phase_pooled_contra.png (open markers: shape = animal, color =
+epoch).
+
 ## Item 2: close-spout incomplete rise + legacy-gate sensitivity row
 
 Cause (CLOSE_INCOMPLETE_CAUSE_20261106, commit 52b5dc18): no trial changed class; the working period keeps the
