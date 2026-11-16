@@ -146,10 +146,10 @@ def plot(F: dict) -> None:
                       fontsize=9)
         ax.set_title("how much of the offset the hemispheric balance accounts for\n(blank = no significant offset to "
                      "explain)", fontsize=9.5)
-    fig.suptitle("Does the CONTRA / IPSI BALANCE explain the like-for-like read-out offset? Partial-linear reference "
-                 "(as 12.16): landing kernel + balance terms fitted on PRE licks; balance = X_right - X_left in the decoder's "
+    fig.suptitle("Does the CONTRA - IPSI DIFFERENCE explain the like-for-like read-out offset? Partial-linear reference "
+                 "(as 12.16): landing kernel + difference terms fitted on PRE licks; difference = X_right - X_left in the decoder's "
                  "0..0.2 s window per pair.\nPARTLY CIRCULAR: the decoder is a linear read-out of the same features, so "
-                 "balance terms reconstruct part of it by construction; informative = one uniform balance number vs the "
+                 "difference terms reconstruct part of it by construction; informative = one uniform difference number vs the "
                  "four pairs, and which pair. PROVISIONAL", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
     save_png_svg(fig, il.OUT_W / "figures" / "lick_balance_reference.png", dpi=100)

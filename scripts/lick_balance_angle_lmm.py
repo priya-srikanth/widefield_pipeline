@@ -11,6 +11,14 @@ session contributes one point per spout and the lick angle varies across spouts 
                      x1e3 dF/F, no per-lick baseline) -- the measure of 12.17
               resp = log2(contra / ipsi response AUC 0..1.0 s, baseline -1.0..-0.5 s) -- the measure of 14.9
               (cued: first cued licks; ITI: bout starts)
+              WHICH DECODER (11-16): the per-lick lateral WHERE-decoder (iti_lick_order / iti_where_decoder; ridge on
+              Allen areas with the ALM / tjM1 split, lags 0..0.2 s, z-scored within session, trained on August pre
+              licks; predicts lateral landing in mm) -- NOT the frozen spout-position decoder. X = its input features
+              before z-scoring. Its lateral weights are largely ipsi - contra (11.13), so dec is roughly a one-number
+              summary of what it reads (partly circular). dec has NO baseline: it carries the pre-lick level as well
+              as the evoked response, is defined for every lick, and as a difference scales with response size;
+              resp is baseline-corrected and a ratio (gain-invariant) but needs lick-free windows (first licks only).
+              The two disagree on ITI licks (handoff 00-COMPACT-41).
 MODELS (statsmodels MixedLM, random intercept per animal, ML; centered angle):
   y ~ angle * post          post = any post-stroke epoch: (1) slope of balance on angle pre-stroke; (2) angle x post =
                             does the slope change; (3) post = the shift at the SAME angle (the landing-matched balance
@@ -148,8 +156,8 @@ def plot(F: dict) -> None:
     from wfield_local.orofacial_cohort import EPOCH_LINE
     col = {"pre": "k", **EPOCH_LINE}
     S, M = F["S"], F["M"]
-    for meas, lab in (("dec", "decoder-window balance X_right - X_left (x1e3 dF/F)"),
-                      ("resp", "response ratio log2(contra / ipsi AUC 0..1.0 s)")):
+    for meas, lab in (("dec", "hemispheric DIFFERENCE X_right - X_left, 0..0.2 s, no baseline (x1e3 dF/F)"),
+                      ("resp", "hemispheric BALANCE (ratio) log2(contra / ipsi AUC 0..1.0 s)")):
         sets = ("cued", "cued later", "iti", "iti later") if meas == "dec" else ("cued", "iti")
         fig, axs = plt.subplots(len(sets), len(PAIRS), figsize=(24, 4.75 * len(sets)), squeeze=False)
         for i, st in enumerate(sets):
@@ -189,11 +197,29 @@ def plot(F: dict) -> None:
                     ax.set_xlabel("lick angle from midline (deg, + = contralesional)", fontsize=8.5)
                 if j == 0:
                     ax.set_ylabel(f"{ROWLAB[st]}\n{lab}", fontsize=8)
+        # ONE y scale per column (Priya 11-16: "make the ITI scale more similar to the cued first lick scale so the
+        # relationship is clearer"): every row takes the cued row's 1-99th percentile range (+10 %); points beyond it are
+        # counted in the panel, not dropped from any fit.
+        for j, a in enumerate(PAIRS):
+            v = S.loc[S.set == "cued", f"{meas}_{a}"].dropna()
+            if not len(v):
+                continue
+            lo, hi = np.nanpercentile(v, [1, 99])
+            pad = 0.1 * (hi - lo)
+            lo, hi = lo - pad, hi + pad
+            for i, st in enumerate(sets):
+                ax = axs[i, j]
+                ax.set_ylim(lo, hi)
+                w = S.loc[S.set == st, f"{meas}_{a}"].dropna()
+                off = int(((w < lo) | (w > hi)).sum())
+                if off:
+                    ax.text(0.99, 0.02, f"{off} of {len(w)} points off scale", transform=ax.transAxes, ha="right",
+                            va="bottom", fontsize=7, color="0.4")
         fig.legend(handles=[Line2D([], [], color=col[e], marker="o", lw=0, label=e) for e in il.EP4]
                    + [Line2D([], [], color="k", lw=1.7, label="pre fit")]
                    + [Line2D([], [], color=col[e], lw=1.4, ls="--", label=f"{e} fit") for e in EP],
                    loc="lower center", ncol=8, fontsize=9, frameon=False)
-        fig.suptitle(f"Hemispheric balance vs lick angle by epoch ({meas}): one point per session x spout (cued: target; "
+        fig.suptitle(f"Hemispheric {'DIFFERENCE (X_right - X_left)' if meas == 'dec' else 'BALANCE (ratio)'} vs lick angle by epoch ({meas}): one point per session x spout (cued: target; "
                      "ITI: previous trial's spout); mixed model y ~ angle * epoch + (1 | animal), sessions x spouts as "
                      "observations\n(anti-conservative at 4 animals; per-animal x epoch slopes in balance_angle_animals.csv). "
                      "Titles: a/s/c = acute / subacute / chronic vs pre; BOLD = p < 0.05; 'shift at same angle' = epoch "

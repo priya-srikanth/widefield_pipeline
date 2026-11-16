@@ -141,7 +141,7 @@ def _plot_one(F, rows, fname, col, Line2D, plt) -> None:
             if i == 0:
                 ax.set_title(a + (" (ALM + tjM1 + SSp-m + SSp-n)" if a == "orofacial" else ""), fontsize=10)
             if j == 0:
-                ax.set_ylabel(f"{SETS[st]}\nbalance {REFS[r]}\n(X_right - X_left, x1e3 dF/F)", fontsize=8)
+                ax.set_ylabel(f"{SETS[st]}\nhemispheric difference {REFS[r]}\n(X_right - X_left, x1e3 dF/F)", fontsize=8)
             if i == len(rows) - 1:
                 ax.set_xlabel("lick order", fontsize=8.5)
     fig.legend(handles=[Line2D([], [], color=col[e], lw=2, marker="o", ms=4, label=e) for e in il.EP4],

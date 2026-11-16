@@ -131,6 +131,24 @@ def epoch_panel(ax, df, col, title, rng, unit=""):
     ax.set_ylabel(f"change vs own pre{unit}")
 
 
+def level_panel(ax, df, col, title, rng):
+    """x = epoch (pre included); session dots = the value ITSELF (no pre subtraction); filled = pooled LEVEL with its
+    95 % CI (`analysis_kit.boot_ci`, flat-pool mean, nested animals -> sessions: the level estimator, not boot_delta).
+    No stars: a level is not a test of change (the change rows above carry those)."""
+    d = df.assign(d=df[col]).dropna(subset=["d"])
+    ax.axhline(0, color="0.6", lw=0.8, zorder=0)
+    for i, ep in enumerate(EPOCHS):
+        g = d[d.epoch == ep]
+        scatter_sessions(ax, g, i)
+        iv = kit.boot_ci({a: v.d.tolist() for a, v in g.groupby("animal")}, rng) if len(g) else None
+        if iv is not None:
+            ax.errorbar(i + 0.3, iv.point, yerr=[[iv.point - iv.lo], [iv.hi - iv.point]], fmt="o",
+                        color=EPOCH_LINE[ep], ms=6, lw=2, capsize=0, zorder=4)
+    ax.set_xticks(range(len(EPOCHS)), EPOCHS)
+    ax.set_xlim(-0.5, 3.6)
+    ax.set_title(title)
+
+
 def legend_animals_epochs(fig, y=0.995):
     hs = [plt.Line2D([], [], marker=ANIMAL_MARKER[a], ls="", mfc="none", mec="k", label=a) for a in sorted(ANIMAL_MARKER)]
     hs += [plt.Line2D([], [], marker="o", ls="", mfc=EPOCH_LINE[e], mec=EPOCH_LINE[e], label=e) for e in EPOCHS]
@@ -277,7 +295,8 @@ def fig_like(out, rng, cond=None, cols=None, name="ss_like_for_like",
 # areas). Tables from state_space_balance_{cells,angle}.py [--motor].
 LAND = ROOT / ("landing" if ALIGN == "cue" else f"landing_{ALIGN}")   # balance tables per alignment
 BAL_WIN = {"cue": "0-1 s after the cue", "lick": "0.1-0.5 s after the first lick"}.get(ALIGN, ALIGN_LABEL[ALIGN])
-BAL_AREAS = {"": ("Orofacial", "orofacial", ", ".join(S.OROFACIAL)), "_motor": ("Motor", "motor", ", ".join(S.MOTOR))}
+BAL_AREAS = {"": (S.AREA_SET_NAME["OROFACIAL"].capitalize(), S.AREA_SET_NAME["OROFACIAL"], ", ".join(S.OROFACIAL)),
+             "_motor": (S.AREA_SET_NAME["MOTOR"].capitalize(), S.AREA_SET_NAME["MOTOR"], ", ".join(S.MOTOR))}
 
 
 def fig_balance(out, rng, sfx=""):
@@ -285,10 +304,13 @@ def fig_balance(out, rng, sfx=""):
     tgt = pd.read_csv(LAND / f"balance_cells_target{sfx}.csv")
     cel = pd.read_csv(LAND / f"balance_cells_sessions{sfx}.csv")
     on = cel[cel.target == cel.land]
-    ang = pd.read_csv(LAND / f"balance_angle_sessions{sfx}.csv").rename(columns={"bal_matched": "bal"})
-    fig, axs = plt.subplots(3, 6, figsize=(16, 9.6), sharey="row")
+    ang0 = pd.read_csv(LAND / f"balance_angle_sessions{sfx}.csv")
+    ang = ang0.rename(columns={"bal_matched": "bal"})                               # every trial (beyond the pre range:
+    ang_in = ang0.drop(columns="bal_matched").rename(columns={"bal_matched_inrange": "bal"})   # extrapolated) / in range only
+    fig, axs = plt.subplots(5, 6, figsize=(16, 16), sharey="row")
     rows = ((tgt, "all trials, by target"), (on, "landed on target only"),
-            (ang, "matched for target + landing"))
+            (ang, "matched target + landing,\nall trials (incl. extrapolated)"),
+            (ang_in, "matched target + landing,\nin pre landing range only"))
     for row, (df, lab) in enumerate(rows):
         for j, p in enumerate(POS):
             ax = axs[row, j]
@@ -299,6 +321,11 @@ def fig_balance(out, rng, sfx=""):
             else:
                 ax.set_ylabel("balance change vs own pre\nlog2 contra / ipsi")
             ax.tick_params(axis="x", labelsize=7)
+    for j, p in enumerate(POS):                 # bottom row (Priya 11-16): the balance itself, NOT pre-normalized
+        ax = axs[4, j]
+        level_panel(ax, tgt[tgt.target == p], "bal", f"{POS_LABEL[p]}\nall trials, by target: level", rng)
+        ax.set_ylabel("" if j else "balance (level, not vs pre)\nlog2 contra / ipsi")
+        ax.tick_params(axis="x", labelsize=7)
     legend_animals_epochs(fig, y=1.02)
     fig.suptitle(f"{title} hemispheric balance ({areas}; {BAL_WIN}), per spout: by target, "
                  "landed on target vs matched for lateral landing", y=1.05)
