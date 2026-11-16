@@ -137,14 +137,9 @@ def block_permute(y, g, rng):
     block carried. A trial-wise shuffle would also destroy the within-block correlation, making the
     null easier than the data and every p value optimistic.
     """
-    y, g = np.asarray(y), np.asarray(g)
-    blocks = np.unique(g)
-    lab = {b: y[g == b][0] for b in blocks}
-    shuffled = rng.permutation([lab[b] for b in blocks])
-    out = np.empty_like(y)
-    for b, v in zip(blocks, shuffled):
-        out[g == b] = v
-    return out
+    # ONE definition (rule 9): `analysis_kit.block_permute`, the same draw (pinned in tests/test_block_permute.py)
+    from wfield_local import analysis_kit as ak
+    return ak.block_permute(y, g, rng, strict=False)
 
 
 def _matched(pipe_fn, X, y, g, n_target, rng):

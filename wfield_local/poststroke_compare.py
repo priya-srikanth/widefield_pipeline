@@ -856,7 +856,14 @@ def decode_matched(d, keep, post_all_trials=True):
     else:
         Xpost, ypost = XEf[te], d["YE"][te]
     post_pred = clf.predict(Xpost)
-    out = na.evaluate_arm(ypost, post_pred, n_perm=1000, labels=pos)
+    # block-permutation null (Priya 11-16) where every scored row is an ENGAGED trial with a block id; the no-lick rows
+    # (post_all_trials) and the lick-only working rows carry no block ids yet -> trial-wise null, flagged ``null``
+    _blk = None
+    if not post_all_trials and lo_w is None:
+        from wfield_local import analysis_kit as _ak
+        _BEf = _ak.pooled_block_ids(d["GE"], np.concatenate([np.asarray(b_, int) for b_ in d["BE"]]))
+        _blk = _BEf[te] if len(_BEf) == len(d["YE"]) else None
+    out = na.evaluate_arm(ypost, post_pred, n_perm=1000, labels=pos, blocks=_blk)
     out["accuracy"] = float(accuracy_score(ypost, post_pred))
     out["post_arm"] = ("ALL trials" if post_all_trials else
                        f"lick-only spouts, camera WORKING trials ({_work_txt()})" if lo_w is not None

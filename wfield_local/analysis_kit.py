@@ -440,6 +440,49 @@ def permute_within(x, groups, rng) -> np.ndarray:
     return out
 
 
+def block_permute(y, blocks, rng, *, strict: bool = True) -> np.ndarray:
+    """``y`` with its labels permuted BETWEEN blocks, block structure intact -- THE permutation null for any per-trial
+    label that follows the spout block (position, trial target, previous target; Priya 11-16: "we should use block
+    permutation everywhere it makes sense"; audit docs/status/BLOCK_PERMUTATION_AUDIT_2026-11-16.md).
+
+    Spouts are presented in blocks of 4-8 trials (`block_ids`). A trial-wise shuffle also destroys the within-block
+    correlation (slow drift, adaptation, a decoder whose errors cluster in time), so its null is easier than the data
+    and every p value is optimistic. Here each block keeps its size and its own internal label; what is destroyed is
+    WHICH label each block carried.
+
+    ``blocks`` = one id per trial (`block_ids`; ids must be unique across sessions when trials are pooled). A trial with
+    a negative id (no block: unresolved position) is its own singleton block. Raises if one block holds two labels
+    (that would not be a block of this task); ``strict=False`` = the legacy helpers' behaviour (each block carries its
+    FIRST trial's label), kept only for their aliases. The draw equals the two module helpers it replaces
+    (`precue_significance.permute_block_labels`, `transfer_matrix.block_permute`: blocks in `np.unique` order, one
+    ``rng.permutation`` of their labels) -- pinned in tests/test_block_permute.py."""
+    y, g = np.asarray(y), np.asarray(blocks)
+    if y.shape != g.shape:
+        raise ValueError(f"block_permute: y {y.shape} and blocks {g.shape} differ")
+    if (g < 0).any():                                  # unblocked trials -> unique singleton ids above every real one
+        g = g.copy()
+        neg = np.flatnonzero(g < 0)
+        g[neg] = (g.max(initial=-1) + 1) + np.arange(neg.size)
+    ub, first, inv = np.unique(g, return_index=True, return_inverse=True)
+    lab = y[first]
+    if strict and not np.array_equal(lab[inv], y):
+        raise ValueError("block_permute: a block holds more than one label (pass block_ids of THESE trials)")
+    return rng.permutation(lab)[inv]
+
+
+def pooled_block_ids(sessions, blocks) -> np.ndarray:
+    """Per-trial block ids made UNIQUE ACROSS SESSIONS for `block_permute` on pooled trials: `block_ids` restart at 0 in
+    every session, so block 3 of two sessions would otherwise be permuted as one block. Negative ids (no block) stay
+    negative (singletons in `block_permute`)."""
+    s, b = np.asarray(sessions, dtype=object), np.asarray(blocks, int)
+    out = np.full(b.shape, -1, int)
+    ok = b >= 0
+    if ok.any():
+        _u, inv = np.unique(np.array([f"{x}\x00{y}" for x, y in zip(s[ok], b[ok])], dtype=object), return_inverse=True)
+        out[ok] = inv
+    return out
+
+
 def within_shuffle_p(stat, x, groups, rng, n: int = 2000):
     """``(observed, p)`` of ``stat(x)`` against ``n`` within-group shuffles of ``x`` (`permute_within`), where p =
     share of shuffles with ``|null| >= |observed|`` -- two-sided, WITHOUT the +1 correction (the convention of every

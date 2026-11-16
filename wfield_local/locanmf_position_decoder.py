@@ -716,7 +716,7 @@ def main() -> int:
         # Both references are cheap here because the model's predictions are held FIXED: the
         # permutation shuffles labels only, so nothing is refitted.
         floor = na.majority_class_floor(y, labels=DISPLAY_ORDER)
-        nullv = na.permutation_null(y, pred, n_perm=1000, labels=DISPLAY_ORDER)
+        nullv = na.permutation_null(y, pred, n_perm=1000, labels=DISPLAY_ORDER, blocks=gblk)
         balanced = na.balanced_accuracy(y, pred, labels=DISPLAY_ORDER)
         summary[s["label"]] = {"n_trials": int(X.shape[0]), "n_feat": int(X.shape[1]), "acc": accs,
                                "positions": [POSITION_NAMES[c] for c in DISPLAY_ORDER],

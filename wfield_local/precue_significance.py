@@ -61,13 +61,9 @@ def permute_block_labels(y, g, rng):
     null "the activity in a block is unrelated to which position that block was". Trial-level shuffling
     would additionally destroy the within-block correlation and understate the null.
     """
-    blocks = np.unique(g)
-    lab = np.array([y[g == b][0] for b in blocks])
-    perm = rng.permutation(lab)
-    out = np.empty_like(y)
-    for b, p in zip(blocks, perm):
-        out[g == b] = p
-    return out
+    # ONE definition (rule 9): `analysis_kit.block_permute`, the same draw (pinned in tests/test_block_permute.py)
+    from wfield_local import analysis_kit as ak
+    return ak.block_permute(y, g, rng, strict=False)
 
 
 def analyse(lab, variant="strobedetrend", align="precue", n_perm=200, seed=0, verbose=True):

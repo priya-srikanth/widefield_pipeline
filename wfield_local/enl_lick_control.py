@@ -145,7 +145,7 @@ def analyse(pooled, n_perm=na.N_PERM, n_boot=2000):
         p = ed.transfer(lead_train, groups["success_clean"])
         res["transfer_lead_to_clean"] = (
             na.evaluate_arm(groups["success_clean"]["y"], p, target_frac=tf, n_perm=n_perm,
-                            labels=list(labels))
+                            labels=list(labels), blocks=groups["success_clean"]["g"])
             if p is not None else {"skipped": "no usable lead arm"})
     return res
 

@@ -106,36 +106,67 @@ def majority_class_floor(y_true, labels=DISPLAY_ORDER):
     return float(max((y_true == c).mean() for c in labels))
 
 
-def permutation_null(y_true, y_pred, n_perm=N_PERM, seed=0, labels=DISPLAY_ORDER):
+def permutation_null(y_true, y_pred, n_perm=N_PERM, seed=0, labels=DISPLAY_ORDER, blocks=None):
     """Null distribution for raw AND balanced accuracy, with the model's predictions held fixed.
 
     Shuffling the LABELS (not the predictions) keeps the decoder's prediction bias exactly as it is
     and destroys only the trial-to-label correspondence, so the null inherits both skews. This is
     the difference between a null of 0.211 and a null of 0.167 for PS93.
+
+    ``blocks`` (one `block_ids` id per trial; unique across sessions when pooled): the labels are
+    permuted BETWEEN spout blocks (`analysis_kit.block_permute`; Priya 11-16, audit
+    docs/status/BLOCK_PERMUTATION_AUDIT_2026-11-16.md) -- the primary keys are then the block null
+    and ``null`` = "block". The old TRIAL-WISE null is kept beside it under ``*_trialwise`` keys
+    (same seed, the exact draw the trial-wise default makes), so every caller reports both until the
+    before / after record is written. ``blocks=None`` = the trial-wise null alone (``null`` =
+    "trial"): position decoders must pass blocks.
     """
     y_true, y_pred = np.asarray(y_true), np.asarray(y_pred)
     n = y_true.size
     if n == 0:
         nan2 = [float("nan")] * 2
         return {"raw_null_mean": float("nan"), "raw_null_ci": nan2, "raw_p": float("nan"),
-                "bal_null_mean": float("nan"), "bal_null_ci": nan2, "bal_p": float("nan"), "n_perm": 0}
-    rng = np.random.RandomState(seed)
+                "bal_null_mean": float("nan"), "bal_null_ci": nan2, "bal_p": float("nan"), "n_perm": 0,
+                "null": "block" if blocks is not None else "trial"}
     raw_obs = float((y_pred == y_true).mean())
     bal_obs = balanced_accuracy(y_true, y_pred, labels)
-    raw, bal = np.empty(n_perm), np.empty(n_perm)
-    for i in range(n_perm):
-        ysh = rng.permutation(y_true)
-        raw[i] = (y_pred == ysh).mean()
-        bal[i] = balanced_accuracy(ysh, y_pred, labels)
-    # +1 in numerator and denominator: with n_perm draws a p of exactly 0 is not a value the test
-    # can produce, and reporting one invites it to be read as certainty.
-    return {"raw_null_mean": float(raw.mean()),
-            "raw_null_ci": [float(np.percentile(raw, 2.5)), float(np.percentile(raw, 97.5))],
-            "raw_p": float((np.sum(raw >= raw_obs) + 1) / (n_perm + 1)),
-            "bal_null_mean": float(np.nanmean(bal)),
-            "bal_null_ci": [float(np.nanpercentile(bal, 2.5)), float(np.nanpercentile(bal, 97.5))],
-            "bal_p": float((np.sum(bal >= bal_obs) + 1) / (n_perm + 1)),
-            "n_perm": int(n_perm)}
+
+    def _summary(raw, bal):
+        # +1 in numerator and denominator: with n_perm draws a p of exactly 0 is not a value the test
+        # can produce, and reporting one invites it to be read as certainty.
+        return {"raw_null_mean": float(raw.mean()),
+                "raw_null_ci": [float(np.percentile(raw, 2.5)), float(np.percentile(raw, 97.5))],
+                "raw_p": float((np.sum(raw >= raw_obs) + 1) / (n_perm + 1)),
+                "bal_null_mean": float(np.nanmean(bal)),
+                "bal_null_ci": [float(np.nanpercentile(bal, 2.5)), float(np.nanpercentile(bal, 97.5))],
+                "bal_p": float((np.sum(bal >= bal_obs) + 1) / (n_perm + 1))}
+
+    def _draws(shuffle):
+        raw, bal = np.empty(n_perm), np.empty(n_perm)
+        for i in range(n_perm):
+            ysh = shuffle()
+            raw[i] = (y_pred == ysh).mean()
+            bal[i] = balanced_accuracy(ysh, y_pred, labels)
+        return raw, bal
+
+    rng = np.random.RandomState(seed)
+    trial = _summary(*_draws(lambda: rng.permutation(y_true)))
+    if blocks is None:
+        return {**trial, "n_perm": int(n_perm), "null": "trial"}
+    from wfield_local import analysis_kit as ak
+    g = np.asarray(blocks)
+    # a block holding two labels cannot happen with `block_ids` of these trials (ids come from the spout codes); it is
+    # COUNTED rather than raised so a caller passing the wrong ids is visible in every result (``n_mixed_blocks``,
+    # expected 0), and such a block carries its first trial's label (the legacy helpers' rule)
+    _gm = g[g >= 0]
+    _ym = y_true[g >= 0]
+    n_mixed = int(sum(np.unique(_ym[_gm == b_]).size > 1 for b_ in np.unique(_gm)))
+    brng = np.random.RandomState(seed)
+    out = _summary(*_draws(lambda: ak.block_permute(y_true, g, brng, strict=False)))
+    out["n_mixed_blocks"] = n_mixed
+    out.update({f"{k}_trialwise": v for k, v in trial.items() if k.endswith(("_p", "_ci", "_mean"))})
+    out.update({"n_perm": int(n_perm), "null": "block", "n_blocks": int(np.unique(g[g >= 0]).size)})
+    return out
 
 
 def match_profile(y, target_frac, seed=0, labels=DISPLAY_ORDER, n_draws=200):
@@ -172,7 +203,7 @@ def match_profile(y, target_frac, seed=0, labels=DISPLAY_ORDER, n_draws=200):
 # --------------------------------------------------------------------------------------------------
 # one arm of one session
 # --------------------------------------------------------------------------------------------------
-def evaluate_arm(y_true, y_pred, target_frac=None, n_perm=N_PERM, seed=0, labels=DISPLAY_ORDER):
+def evaluate_arm(y_true, y_pred, target_frac=None, n_perm=N_PERM, seed=0, labels=DISPLAY_ORDER, blocks=None):
     """Every number this module reports for one set of trials and one set of predictions."""
     y_true, y_pred = np.asarray(y_true), np.asarray(y_pred)
     n = int(y_true.size)
@@ -186,7 +217,7 @@ def evaluate_arm(y_true, y_pred, target_frac=None, n_perm=N_PERM, seed=0, labels
                          for c in labels},
            "recall_by_position": per_position_recall(y_true, y_pred, labels),
            "chance_uniform": CHANCE}
-    out.update(permutation_null(y_true, y_pred, n_perm=n_perm, seed=seed, labels=labels))
+    out.update(permutation_null(y_true, y_pred, n_perm=n_perm, seed=seed, labels=labels, blocks=blocks))
     out["above_null_raw"] = bool(n and out["accuracy"] > out["raw_null_ci"][1])
     out["above_null_balanced"] = bool(n and out["balanced_accuracy"] > out["bal_null_ci"][1])
     # The old flag, kept ONLY so its disagreement with the corrected one is visible in the record

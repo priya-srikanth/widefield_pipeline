@@ -41,6 +41,7 @@ from wfield_local import config, lp_licks, nolick_analysis as na, session_cache
 from wfield_local.behavior_position import classify_cues_with_backup
 from wfield_local.locanmf_crossanimal_dff import _frames
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS
+from wfield_local import analysis_kit as ak
 from wfield_local.block_ids import block_ids, block_size_max_for
 from wfield_local.locanmf_position_decoder import (
     _bins_for,
@@ -523,7 +524,7 @@ def analyse_session(s, align="cue", source="locanmf", post_s=2.0, n_perm=na.N_PE
     pred_e = (cross_val_predict(_pipe(), E["X"], E["y"], cv=GroupKFold(ng), groups=E["g"])
               if ng >= 2 else np.full(E["y"].shape, -1))
     eng_frac = {POSITION_NAMES[c]: float((E["y"] == c).mean()) for c in DISPLAY_ORDER}
-    res["engaged"] = na.evaluate_arm(E["y"], pred_e, n_perm=n_perm)
+    res["engaged"] = na.evaluate_arm(E["y"], pred_e, n_perm=n_perm, blocks=E["g"])
 
     clf = _pipe().fit(E["X"], E["y"])
     for c in ("late_rewarded", "undetected"):
@@ -531,7 +532,7 @@ def analyse_session(s, align="cue", source="locanmf", post_s=2.0, n_perm=na.N_PE
         if d["y"].size == 0:
             res[c] = {"n": 0}
             continue
-        res[c] = na.evaluate_arm(d["y"], clf.predict(d["X"]), target_frac=eng_frac, n_perm=n_perm)
+        res[c] = na.evaluate_arm(d["y"], clf.predict(d["X"]), target_frac=eng_frac, n_perm=n_perm, blocks=d["g"])
 
     # the pipeline's historical arm = late + undetected pooled, kept so the new split can be
     # reconciled against every number already in the decks
@@ -539,8 +540,9 @@ def analyse_session(s, align="cue", source="locanmf", post_s=2.0, n_perm=na.N_PE
         F["late_rewarded"]["y"].size + F["undetected"]["y"].size) else np.array([], int)
     if pooled_y.size:
         pooled_X = np.concatenate([x for x in (F["late_rewarded"]["X"], F["undetected"]["X"]) if x.size])
+        pooled_g = np.concatenate([F["late_rewarded"]["g"], F["undetected"]["g"]])
         res["nolick_pooled"] = na.evaluate_arm(pooled_y, clf.predict(pooled_X),
-                                               target_frac=eng_frac, n_perm=n_perm)
+                                               target_frac=eng_frac, n_perm=n_perm, blocks=pooled_g)
         res["compare"] = na.compare_arms(res["engaged"], res["nolick_pooled"])
 
     # graded handle WITHIN engaged: does a slower response already carry a weaker code?
@@ -548,7 +550,7 @@ def analyse_session(s, align="cue", source="locanmf", post_s=2.0, n_perm=na.N_PE
         med = float(np.nanmedian(E["rt"]))
         for nm, m in (("engaged_fast", E["rt"] <= med), ("engaged_slow", E["rt"] > med)):
             if m.sum() >= 20:
-                res[nm] = na.evaluate_arm(E["y"][m], pred_e[m], n_perm=n_perm)
+                res[nm] = na.evaluate_arm(E["y"][m], pred_e[m], n_perm=n_perm, blocks=E["g"][m])
         res["engaged_rt_median_s"] = med
 
     an = s["label"].split("_")[0]
@@ -753,6 +755,10 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
         return np.concatenate(acc[k][f]) if acc[k][f] else np.array([])
 
     XE, YE, SE = _cat("engaged", "X"), _cat("engaged", "y").astype(int), _cat("engaged", "sess")
+    # spout BLOCKS unique across the pooled sessions, per arm (block permutation null, Priya 11-16)
+    _ak_blk = {c: ak.pooled_block_ids(_cat(c, "sess"), _cat(c, "blk")) if _cat(c, "y").size else np.array([], int)
+               for c in CATEGORIES}
+    BE = _ak_blk["engaged"]
     res = {"animal": animal, "align": align, "n_sessions": len(labs),
            "source": "joint" if basis is not None else source,
            "n_by_category": {c: int(_cat(c, "y").size) for c in CATEGORIES}}
@@ -833,7 +839,7 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
         pred_e = _pf[m_pre]
     else:
         pred_e = cross_val_predict(_pipe(), XE[m_pre], YE[m_pre], cv=LeaveOneGroupOut(), groups=SE[m_pre])
-    res["engaged"] = na.evaluate_arm(YE[m_pre], pred_e, n_perm=n_perm)
+    res["engaged"] = na.evaluate_arm(YE[m_pre], pred_e, n_perm=n_perm, blocks=BE[m_pre])
     res["engaged"]["loso_accuracy"] = float(accuracy_score(YE[m_pre], pred_e))
     # The MATCHING TARGET is the pre-stroke engaged position profile, for the same reason: it is what
     # the other arms are being made comparable to.
@@ -847,7 +853,7 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
             res[c] = {"n": 0}
             continue
         res[c] = na.evaluate_arm(Y, clf.predict(_sc(_cat(c, "X"), _cat(c, "sess"))), target_frac=eng_frac,
-                                 n_perm=n_perm)
+                                 n_perm=n_perm, blocks=_ak_blk[c])
 
     # SPLIT THE UNDETECTED ARM BY ENGAGEMENT STATE. A miss inside a working stretch is a candidate
     # "tried and fell short"; a miss in the satiation tail is "stopped working". Pre-stroke they are
@@ -865,7 +871,7 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
                       ("undetected_disengaged", ~Eu.astype(bool))):
             if m.sum() >= 30:
                 res[nm] = na.evaluate_arm(Yu_all[m].astype(int), clf.predict(Xu_all[m]),
-                                          target_frac=eng_frac, n_perm=n_perm)
+                                          target_frac=eng_frac, n_perm=n_perm, blocks=_ak_blk["undetected"][m])
             else:
                 res[nm] = {"n": int(m.sum()),
                            "note": "too few trials to evaluate (need >=30)"}
@@ -875,7 +881,8 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
         Xp = np.concatenate([x for x in (_sc(_cat("late_rewarded", "X"), _cat("late_rewarded", "sess")),
                                          _sc(_cat("undetected", "X"), _cat("undetected", "sess"))) if x.size])
         res["nolick_pooled"] = na.evaluate_arm(Yp, clf.predict(Xp), target_frac=eng_frac,
-                                               n_perm=n_perm)
+                                               n_perm=n_perm, blocks=np.concatenate([_ak_blk["late_rewarded"],
+                                                                                     _ak_blk["undetected"]]))
         res["compare"] = na.compare_arms(res["engaged"], res["nolick_pooled"])
 
     # PER SESSION, from the SAME frozen model rather than 61 separate refits. Two reasons, and the
@@ -910,7 +917,7 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
         d = {}
         ie = idx_e[lab]
         if ie.size >= 20:
-            d["engaged"] = na.evaluate_arm(YE[ie], pred_pooled[ie], n_perm=max(200, n_perm // 4))
+            d["engaged"] = na.evaluate_arm(YE[ie], pred_pooled[ie], n_perm=max(200, n_perm // 4), blocks=BE[ie])
         for c in ("late_rewarded", "undetected"):
             if not cat_y[c].size:
                 continue
@@ -919,13 +926,14 @@ def analyse_animal(animal, dates=None, align="cue", source="roi", post_s=2.0,
                 d[c] = {"n": 0}
                 continue
             d[c] = na.evaluate_arm(cat_y[c][m].astype(int), clf.predict(cat_X[c][m]),
-                                   n_perm=max(200, n_perm // 4))
+                                   n_perm=max(200, n_perm // 4), blocks=_ak_blk[c][m])
         nl = [c for c in ("late_rewarded", "undetected") if isinstance(d.get(c), dict) and d[c].get("n")]
         if nl and "engaged" in d:
             ym = np.concatenate([cat_y[c][np.flatnonzero(cat_sess[c] == lab)] for c in nl]).astype(int)
             xm = np.concatenate([cat_X[c][np.flatnonzero(cat_sess[c] == lab)] for c in nl])
+            bm = np.concatenate([_ak_blk[c][np.flatnonzero(cat_sess[c] == lab)] for c in nl])
             d["nolick_pooled"] = na.evaluate_arm(ym, clf.predict(xm),
-                                                 n_perm=max(200, n_perm // 4))
+                                                 n_perm=max(200, n_perm // 4), blocks=bm)
             d["compare"] = na.compare_arms(d["engaged"], d["nolick_pooled"])
         if basis is not None and lab in var_cap:
             d["variance_captured"] = var_cap[lab]

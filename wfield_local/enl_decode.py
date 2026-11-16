@@ -430,7 +430,7 @@ def _score_shared(sc, target_frac, n_perm, labels):
         return {"skipped": "no position is shared by all arms in this epoch", "n_total": sc["n_total"],
                 "coverage": sc["coverage"], "positions_used": 0}
     out = na.evaluate_arm(sc["y"], sc["pred"], target_frac=target_frac, n_perm=n_perm,
-                          labels=list(labels))
+                          labels=list(labels), blocks=sc["g"])
     out["n_total"] = sc["n_total"]
     out["coverage"] = sc["coverage"]
     out["positions_used"] = len(labels)
@@ -521,7 +521,7 @@ def analyse(pooled, n_perm=na.N_PERM, do_transfer=True, n_boot=2000):
     tf = shared_profile([pooled[a]["y"] for a in ARMS])
     for arm in ARMS:                                            # readouts 1 and 2
         pred = decode_within(pooled[arm])
-        res[arm] = (na.evaluate_arm(pooled[arm]["y"], pred, target_frac=tf, n_perm=n_perm)
+        res[arm] = (na.evaluate_arm(pooled[arm]["y"], pred, target_frac=tf, n_perm=n_perm, blocks=pooled[arm]["g"])
                     if pred is not None else {"n": int(len(pooled[arm]["y"])),
                                               "skipped": "not cross-validatable"})
     if "skipped" not in res["stopped"] and "skipped" not in res["miss_working"]:
@@ -532,7 +532,8 @@ def analyse(pooled, n_perm=na.N_PERM, do_transfer=True, n_boot=2000):
         for src in ("miss_working", "success"):
             pred = transfer(pooled[src], pooled["stopped"])
             res[f"transfer_{src}_to_stopped"] = (
-                na.evaluate_arm(pooled["stopped"]["y"], pred, target_frac=tf, n_perm=n_perm)
+                na.evaluate_arm(pooled["stopped"]["y"], pred, target_frac=tf, n_perm=n_perm,
+                                blocks=pooled["stopped"]["g"])
                 if pred is not None else {"skipped": "no usable training arm"})
 
     # Readout 4: the like-for-like ratio. Profile matched across ALL THREE arms it compares, not
