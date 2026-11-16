@@ -4,14 +4,10 @@ github.com/htong1/Priya_ARHMM2026, adapted to this rig; decisions 11-16 in docs/
     python -m wfield_local.arhmm_features --all [--jobs 4]       # one npz per curated session
 
 ONE ROW PER 40 ms BIN (25 Hz) of DAQ time over the session's pose coverage. Columns (FEATURES):
-  tongue_ml / _ap / _dv, tongue_ext   3-D tongue tip, mm, mouth-centred (`pose3d` frames; ml signed so + = CONTRALESIONAL
-                                      -- the pose3d frame is + = mouse right, lesions are left in cohort 1, sign taken from
-                                      `config` stroke laterality); IN THE MOUTH (cam4 tongue_x == 0 and no 3-D point) = 0;
-                                      out of the mouth but not triangulated = NaN
-  jaw_ml / _ap / _dv                  3-D jaw, mm; gaps filled from cam4 2-D jaw by a per-session linear map (flag
-                                      ``jaw_filled``, fit R2 ``jaw_fill_r2``)
-  nose_x / _y                        cam4 2-D, mouth-relative px (3-D nose missing on 42-84 % of frames); x signed
-                                      contralesional-positive by its correlation with the 3-D tongue ml
+  tongue_ml / tongue_ap / tongue_ext  3-D tongue (`combined_encoding.tongue_3d_traces`, the encoder's TONGUE=3d):
+                                      lateral (signed + = CONTRALESIONAL), forward, 3-D distance; in the mouth = 0
+  jaw_x / jaw_y, nose_x / nose_y     cam4 (the encoder's jaw / nose: cleaned jaw, nose minus mouth, likelihood >= 0.6),
+                                      x signed contralesional-positive (sign from the cam4-vs-3-D tongue correlation)
   run_fwd, run_back                    treadmill speed mm/s split by sign (backward = paw push; frozen-encoder v7 note)
   fr_<label> x 12                      FaceRhythm `master_pre_v1` factors, ABSOLUTE expression (weights x the bin's FR
                                        normaliser, the encoder's default): 25 Hz in cue -2 .. +4 s, the 5 Hz session bins
@@ -34,10 +30,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-VERSION = 1
+VERSION = 2
 BIN_S = 0.04
 MAX_INTERP_S = 0.2
-POSE_PARTS = ("tongue",)           # 3-D tongue; jaw = 3-D filled from cam4, nose = cam4 2-D (see session_features)
 
 
 def out_dir() -> Path:
@@ -84,98 +79,57 @@ def _interp_short(x, max_n):
 
 
 def session_features(label: str) -> dict | None:
+    """The ENCODER'S production behaviour variables (`combined_encoding.load_behaviour` with TONGUE=3d; Priya 11-16:
+    "don't reinvent the wheel - what did we use for our encoding analyses?"): 3-D tongue via
+    `combined_encoding.tongue_3d_traces` (lateral ml, forward ap, 3-D distance; in the mouth = 0, untriangulated = NaN),
+    cam4 cleaned jaw x / y (v35 jaw cleaning, rest-relative), cam4 nose minus the mouth (likelihood >= 0.6), the
+    canonical DAQ treadmill speed -- the same loaders, so the AR-HMM and the encoders see identical behaviour. Added
+    here: 25 Hz binning of the whole session, lateral columns signed contralesional-positive, running split by sign,
+    FR factors (below)."""
     from wfield_local import behavior_events as be
+    from wfield_local import combined_encoding as ce
     from wfield_local import face_rhythm_outputs as fro
     from wfield_local import orofacial_cohort as oc
     from wfield_local import orofacial_outputs as oo
     from wfield_local.paths import PathResolver
-    from wfield_local.pose3d import pose3d_dir
     from wfield_local.spout_behavior import _daq_h5_for
     rv = PathResolver()
     animal, date = label.split("_")
-    fp = pose3d_dir(rv) / f"{animal}_{date}_frames.csv.gz"
     sd = Path(oo.session_dir(rv, oc.RUN, animal, date))
-    if not fp.exists() or not (sd / "windows.npz").exists():
+    f3 = ce.pose3d_frames_path(rv, animal, date)
+    h5 = _daq_h5_for(rv, animal, date)
+    if not f3.exists() or not (sd / "clean.npz").exists() or h5 is None:
         return None
-    cols = ["trial_id", "t_ms", "t_daq_ms"] + [f"{p}_{a}" for p in ("tongue", "jaw") for a in ("ml", "ap", "dv")]
-    F = pd.read_csv(fp, usecols=cols)
-    # tongue IN THE MOUTH = 0 (cam4 convention): cam4 tongue_x == 0 on the paired frame and no 3-D point
-    W = np.load(sd / "windows.npz", allow_pickle=True)
-    C = np.load(sd / "clean.npz", allow_pickle=True)
-    cam4 = pd.DataFrame({"trial_id": W["ix_trial_id"], "t_ms": W["ix_t_ms"], "c4x": C["tongue_x"]})
-    F = F.merge(cam4.drop_duplicates(["trial_id", "t_ms"]), on=["trial_id", "t_ms"], how="left")
-    # pose3d ``t_daq_ms`` is CUE-RELATIVE (each frame's camera-template time from its trial's cue, `o2_inference`); the
-    # absolute DAQ time adds the trial's cue (`trial_classes.session_trials` cue_daq, the DAQ clock of every other stream)
-    from wfield_local import trial_classes as tc_
-    S = tc_.session_trials(f"{animal}_{date}")
-    if S is None:
-        return None
-    cue_of = dict(zip(S.trial_id.to_numpy(), S.cue_daq.to_numpy(float)))
-    t = F.trial_id.map(cue_of).to_numpy(float) + F.t_daq_ms.to_numpy(float) / 1000.0
-    ok_t = np.isfinite(t)
-    t0, t1 = np.nanmin(t), np.nanmax(t)
-    edges = np.arange(t0, t1 + BIN_S, BIN_S)
+    S = oo.load_session(rv, oc.RUN, animal, date)
+    t_pose = S["index"].daq_s.to_numpy(float)
+    cl, pose = S["clean"], S["pose"]
+    o = np.load(sd / "clean.npz")["tongue_origin"].astype(float)
+    F3 = pd.read_csv(f3, usecols=["trial_id", "t_ms", "tongue_ml", "tongue_ap", "tongue_dv"])
+    c4x = cl.tongue_x.to_numpy(float)
+    tx, ty, prot = ce.tongue_3d_traces(S["index"], c4x, F3)
+    jx, jy = cl.jaw_x.to_numpy(float), cl.jaw_y.to_numpy(float)
+    nlik = pose.nose_likelihood.to_numpy(float) >= 0.6
+    nx = np.where(nlik, pose.nose_x.to_numpy(float) - o[0], np.nan)
+    ny = np.where(nlik, pose.nose_y.to_numpy(float) - o[1], np.nan)
+    ok_t = np.isfinite(t_pose)
+    edges = np.arange(np.nanmin(t_pose), np.nanmax(t_pose) + BIN_S, BIN_S)
     tc = edges[:-1] + BIN_S / 2
-    sgn = contra_sign(animal)
-    cols_out, X = [], []
-    tongue_in = (F.c4x.to_numpy(float) == 0) & ~np.isfinite(F.tongue_ml.to_numpy(float))
-    # 3-D TONGUE (complete: in the mouth = 0, triangulated otherwise; the direction feature)
-    for a in ("ml", "ap", "dv"):
-        v = np.where(tongue_in, 0.0, F[f"tongue_{a}"].to_numpy(float))
-        X.append(_bin(t[ok_t], (sgn * v if a == "ml" else v)[ok_t], edges))
-        cols_out.append(f"tongue_{a}")
-    ml, ap, dv = (F[f"tongue_{a}"].to_numpy(float) for a in ("ml", "ap", "dv"))
-    ext = np.where(tongue_in, 0.0, np.sqrt(ml ** 2 + ap ** 2 + dv ** 2))
-    X.append(_bin(t[ok_t], ext[ok_t], edges))
-    cols_out.append("tongue_ext")
-    # JAW = 3-D (mm; Priya 11-16: "is 3d jaw not better than cam4"), its gaps FILLED from cam4: on PS92_0822 the 3-D
-    # jaw is cam1-only on 75 % of frames, two-camera on 7 %, missing on 16 % in long runs (median 0.7 s; 98 % of missing
-    # frames in runs > 0.2 s), so interpolation cannot fill it; cam4 2-D jaw exists on > 99 %. Per session, each 3-D
-    # axis is regressed on [1, cam4 jaw x, y] over bins with both, and missing bins take the prediction
-    # (``jaw_filled`` = 1 there). NOSE = cam4 2-D (3-D nose missing on 42-84 % of frames). Lateral sign of every cam4
-    # x set FROM THE DATA: cam4 tongue x vs the 3-D contralesional tongue ml on the same bins (contra-positive).
-    tw = W["ix_daq_s"].astype(float)
-    okw = np.isfinite(tw)
-    parts = list(W["parts"])
-    nose = W["pose"][:, parts.index("nose"), :]
-    mouth = np.asarray(C["tongue_origin"], float)
-    c4 = {"c4_tongue_x": np.asarray(C["tongue_x"], float),
-          "jaw_x": np.asarray(C["jaw_x"], float), "jaw_y": np.asarray(C["jaw_y"], float),
-          "nose_x": np.where(nose[:, 2] >= 0.5, nose[:, 0] - mouth[0], np.nan),
-          "nose_y": np.where(nose[:, 2] >= 0.5, nose[:, 1] - mouth[1], np.nan)}
-    B = {k: _bin(tw[okw], v[okw], edges) for k, v in c4.items()}
-    both = np.isfinite(B["c4_tongue_x"]) & np.isfinite(X[0]) & (X[3] > 0)
-    xs = float(np.sign(np.corrcoef(B["c4_tongue_x"][both], X[0][both])[0, 1])) if both.sum() > 100 else np.nan
+    sgn = contra_sign(animal)                                # pose3d ml: + = mouse right
+    # cam4 image x (jaw, nose) -> contralesional-positive, sign FROM THE DATA: cam4 tongue x vs the 3-D ml on the same
+    # frames (cam4 face video: ipsilesional = image right, memory image-side-conventions; checked, not assumed)
+    both = np.isfinite(c4x) & np.isfinite(tx) & (np.abs(tx) > 0)
+    xs = float(np.sign(np.corrcoef(c4x[both], tx[both])[0, 1])) * sgn if both.sum() > 1000 else np.nan
     if not np.isfinite(xs) or xs == 0:
         return None
-    jx, jy = xs * B["jaw_x"], B["jaw_y"]
-    J3 = {a: _bin(t[ok_t], (sgn * F[f"jaw_{a}"].to_numpy(float) if a == "ml" else F[f"jaw_{a}"].to_numpy(float))[ok_t],
-                  edges) for a in ("ml", "ap", "dv")}
-    D2 = np.column_stack([np.ones(len(jx)), jx, jy])
-    ok2 = np.isfinite(jx) & np.isfinite(jy)
-    filled = np.zeros(len(jx), bool)
-    jaw_fit_r2 = {}
-    for a, v in J3.items():
-        fit = ok2 & np.isfinite(v)
-        if fit.sum() < 500:
-            return None
-        beta = np.linalg.lstsq(D2[fit], v[fit], rcond=None)[0]
-        pred = D2 @ beta
-        jaw_fit_r2[a] = float(1 - np.var(v[fit] - pred[fit]) / np.var(v[fit]))
-        miss = ~np.isfinite(v) & ok2
-        filled |= miss
-        X.append(np.where(miss, pred, v))
-        cols_out.append(f"jaw_{a}")
-    for k in ("nose_x", "nose_y"):
-        X.append(xs * B[k] if k.endswith("_x") else B[k])
+    traces = {"tongue_ml": sgn * tx, "tongue_ap": ty, "tongue_ext": prot,
+              "jaw_x": xs * jx, "jaw_y": jy, "nose_x": xs * nx, "nose_y": ny}
+    cols_out, X = [], []
+    for k, v in traces.items():
+        X.append(_bin(t_pose[ok_t], v[ok_t], edges))
         cols_out.append(k)
     nan_pose = np.mean(~np.isfinite(np.column_stack(X)), axis=0)
     X = [_interp_short(x, int(round(MAX_INTERP_S / BIN_S))) for x in X]
-    # treadmill (canonical DAQ speed)
-    h5 = _daq_h5_for(rv, animal, date)
-    if h5 is None:
-        return None
-    ts, sp = be.session_speed(Path(h5))
+    ts, sp = be.session_speed(Path(h5))                       # the encoder's `session_speed`
     s = _bin(ts, sp, edges)
     X += [np.clip(s, 0, None), np.clip(-s, 0, None)]
     cols_out += ["run_fwd", "run_back"]
@@ -192,7 +146,6 @@ def session_features(label: str) -> dict | None:
         cols_out.append(names[k] if k < len(names) else f"fr_{k}")
     X = np.column_stack(X).astype(np.float32)
     return {"X": X, "t_daq_s": tc, "features": np.array(cols_out), "nan_frac_pose_raw": nan_pose,
-            "jaw_filled": filled, "jaw_fill_r2": np.array([jaw_fit_r2[a] for a in ("ml", "ap", "dv")]),
             "cam4_x_sign": xs,
             "nan_frac": np.mean(~np.isfinite(X), axis=0), "label": label, "version": VERSION}
 
