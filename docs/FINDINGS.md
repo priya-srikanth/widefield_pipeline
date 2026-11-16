@@ -645,8 +645,15 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
 - **Primary balance by lick order (page 14.14):** cued acute ~-0.35 at every order 0-4, ~0 chronic (the raw balance's
   chronic overshoot is gone); ITI only the acute bout start (-0.28). Uncapped first licks (~476 / session vs ~138):
   within-animal r 0.77/0.87/0.94/0.74, unseen animal 0.65. PROVISIONAL.
-- **HYPOTHESIS (updated 10-29, with Priya):** after the ipsilesional VLS lesion, the orofacial cortical code for lick
-  direction SHIFTS toward the contralesional reading (frozen-decoder offset), persistently for self-initiated licks. The
+- **HYPOTHESIS (updated 10-29, with Priya; read-out persistence revised 11-16):** after the ipsilesional VLS lesion,
+  licks are READ as more contralesional by the frozen pre-stroke lateral where-decoder (like-for-like offset, glue-free
+  data, change vs own pre, mm, acute / subacute / chronic: ITI +.35 / +.24 / +.26, cued first lick +.35 / +.21 / +.16, all
+  CIs above 0). The offset is not a gain effect (dividing out each session's response size leaves it intact). From the
+  evoked response alone (each lick's pre-lick level -0.5..-0.3 s removed, gain divided out) ITI licks are read
+  contralesionally acutely (+.21, 4/4) and subacutely (+.10, 4/4) but not chronically (+.06, n.s.); cued first licks in
+  every epoch (+.17 / +.14 / +.08, 4/4 each). The chronic ITI offset depends on the activity just before the lick, which
+  cannot be separated from the decoder's reliance on that window (removing it also lowers pre-stroke accuracy, ITI r .63
+  -> .53, cued .76 -> .59). (Decoder check 11-16: running list 11-16; scratch decoder_check/.) The
   recovery-relevant part of the shift is a HEMISPHERIC difference concentrated in SSp-n (nose / upper-lip S1) as the
   pre-stroke code weights it, plus a broader orofacial + SSs gain imbalance (ipsilesional cortex over-responds acutely
   relative to contralesional at the same lick direction) that places unseen animals for cued licks. Both are
