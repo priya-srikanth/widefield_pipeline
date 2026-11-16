@@ -1687,3 +1687,20 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
 - NOT DONE: Fig 9.10 re-run (script reads o2/enc_rebuild_20261104b/env.json, bundle moved 11-11); SS section 7 detour
   numbers + Fig 3.9 / 6.12 sources (orth_check / landing-spout folders not re-run); PI deck (next; FaceRhythm window
   waits for my message; leave FR slides alone).
+
+## 11-16 -- why the two balance measures disagree on ITI licks (pre-lick test; Priya OK) + 14.18 marker pools
+- Test (scratchpad prelick_test/, env = production l_bal_angle_lmm_g exactly; dec reproduced to 7e-15 on all 2,512 cells):
+  per lick PRE = X_R - X_L at -0.5..-0.3 s; DEC_bc = dec - PRE; RESP_02 = log2 contra / ipsi AUC 0..0.2 s (baselined).
+- ITI ANGLE SLOPE is NOT pre-lick level: ITI-first (>= 2 s quiet) PRE slope ~0 (orofacial +.001; ALM -.017, tjM1 +.012 n.s.),
+  DEC_bc keeps the dec slope (ALM -.19*, tjM1 -.28*). All ITI licks: PRE carries ~1/3 (earlier licks' responses).
+- POST-STROKE IPSILESIONAL ITI SHIFT is partly PRE: orofacial dec -4.04* / -1.63* / -1.58*, PRE -1.83* / -.92* / -1.04*,
+  DEC_bc -2.30* / -.77 / -.59*. ALM / tjM1: ALL of it is PRE (DEC_bc ALM +.34 / +.68* / +.70*, tjM1 n.s.). SSp-m / SSp-n keep
+  an evoked acute shift (DEC_bc -3.7*, -5.0*).
+- RESP_02 behaves like resp (shift ~0): the window is NOT the cause. The evoked remainder is GAIN: contra + ipsi size rises
+  post-stroke (+3.94* / +2.38* / +3.04* on pre 6.1) and scales the pre-stroke ipsi > contra difference; a ratio cancels it.
+- So dec vs resp on ITI = pre-lick level (all of it in ALM / tjM1, ~half pooled) + bilateral gain (sensory remainder).
+  Caveat: ALM / tjM1 keep a small ratio slope on this lick set (RESP_02 -.012*, -.026*) unlike production resp (different
+  trace files; production excludes licks near cues / spout moves).
+- 14.18 primary marker, unseen-animal R2 (cued -> aim / ITI -> ITI angle / ITI -> aim), glue-free: current pool (ALM, tjM1,
+  SSp-m, SSp-n, SSs) .665 / .437 / .567; no SSs .668 / .326 / .440; SSp-m+n .671 / .404 / .516; orofacial SENSORY (SSp-m, SSp-n,
+  SSs) .650 / .445 / .579 (days alone .17-.23). Decision pending with Priya (keep vs switch to orofacial sensory).
