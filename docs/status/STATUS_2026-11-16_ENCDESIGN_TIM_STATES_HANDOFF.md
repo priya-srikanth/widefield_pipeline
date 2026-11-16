@@ -72,6 +72,10 @@ Run code from a worktree with `PYTHONPATH=$(pwd -W)` (Windows form). AR-HMM mode
    encoder `shuf:position` -> block permutation, movement shuffle -> block-segment permutation; then measure the
    pooled arms and record changed numbers in DECISIONS before merging `fix/block-perm-null-1116`.
 7. Context-gated instructed / uninstructed TE design (new design tag) -- after the state work.
+8. CONDITIONAL: input-driven AR-HMM ("GLM-AR-HMM": cue / spout / contact driving syllable transitions). Not now (Priya
+   11-16 OK): jax-moseq has no inputs; dynamax EM over-segments (Hillary's DECISIONS 06-08). First measure task
+   dependence post hoc (syllable probability around cue / first lick / contact, by spout and epoch); build it only if
+   that dependence is strong and changes post-stroke, with the post-hoc result as the benchmark.
 
 ## 5. Pitfalls found today
 
