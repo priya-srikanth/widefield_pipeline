@@ -312,3 +312,14 @@ Stale, not mine to edit without asking: deck slide 163 (Big picture) status line
   leave-one-out, SEM across pre sessions), supporting 7a.15-7a.27 (absolute by spout, per animal, flagged pick vs
   runner-up, session sheets, pooled matches); status row added. Figures are the 12-trials-per-spout preview: SWAP for the
   all-trials render (same ids / file names) and update the 7a.13 numbers + status row when bkwv2ffli finishes.
+- 11-16: BLOCK-PERMUTATION audit (window a2; Priya: block permutation everywhere it makes sense). FR arm: only
+  scripts/fr_enl_decode.py is affected (FR page Fig 6.1, PROVISIONAL): its per-session null permutes position labels
+  trial-wise against the block-CV predictions -> HOLD claims until a2's shared block helper lands, then re-run with block
+  permutation. All other FR nulls shuffle session labels within animal (unaffected); own_temporal stats = bootstrap.
+- 11-16: a2 audit done (branch analysis/tim-encdesign-1116, docs/status/BLOCK_PERMUTATION_AUDIT_2026-11-16.md, a7ec0482).
+  Class A in the FR / ENL arm (trial-wise spout-label null vs block-CV predictions -> block permutation): fr_enl_decode.py:118,
+  enl_fr_removed_decode.py:119, enl_movement_multisession.py:253, enl_video_spout_check.py:142, movement_position_angle.py:79
+  (+98). HOLD new p values on these until a2's trial-wise vs block-wise measurement + shared analysis_kit.block_permute.
+  Session-label shuffles fine. Trend caveat (two session series both trending over days): the only FR association test
+  is session_shape_tests lick_right map change vs right-lick share (Spearman, parametric p, within epoch; rho -.14 n.s.) --
+  a shared trend would inflate, not hide, an association, so the null result stands; detrend if it is ever re-tested.
