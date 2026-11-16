@@ -24,15 +24,17 @@ Output: <out_dir>/sessions/<label>.npz with X (bins x features), t_daq_s, featur
 from __future__ import annotations
 
 import argparse
+import json
 import os
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-VERSION = 2
+VERSION = 3
 BIN_S = 0.04
 MAX_INTERP_S = 0.2
+JAW_INTERP_S = 0.6                 # jaw gaps left after the 3-D fill (median gap 0.36-0.52 s; tongue hides the jaw)
 
 
 def out_dir() -> Path:
@@ -108,6 +110,25 @@ def session_features(label: str) -> dict | None:
     c4x = cl.tongue_x.to_numpy(float)
     tx, ty, prot = ce.tongue_3d_traces(S["index"], c4x, F3)
     jx, jy = cl.jaw_x.to_numpy(float), cl.jaw_y.to_numpy(float)
+    # JAW GAPS FILLED FROM THE 3-D JAW (11-16): the cam4 jaw is NaN when the tongue hides it (v35 cleaning) -- 5-14x
+    # more often with the tongue out, gaps 0.36-0.52 s median -- so unfilled gaps cut the sequences AT LICKS and licking
+    # was under-represented (14 % of PS92_0811 unassigned). The pose3d jaw (cam1 where cam4 is lost) exists on 38-55 % of
+    # those frames and equals the cam4 jaw where both exist (r = -0.99 / -1.00), so each cam4 coordinate is mapped from
+    # [1, jaw_ml, jaw_ap, jaw_dv] by a per-session least-squares fit on frames with both, and filled where cam4 is NaN.
+    J3 = S["index"][["trial_id", "t_ms"]].merge(
+        pd.read_csv(f3, usecols=["trial_id", "t_ms", "jaw_ml", "jaw_ap", "jaw_dv"]).drop_duplicates(["trial_id", "t_ms"]),
+        on=["trial_id", "t_ms"], how="left")
+    D3 = np.column_stack([np.ones(len(J3))] + [J3[c].to_numpy(float) for c in ("jaw_ml", "jaw_ap", "jaw_dv")])
+    ok3 = np.isfinite(D3).all(1)
+    jaw_fill = {}
+    for nm, v in (("jaw_x", jx), ("jaw_y", jy)):
+        fit = ok3 & np.isfinite(v)
+        miss = ok3 & ~np.isfinite(v)
+        if fit.sum() > 1000 and miss.any():
+            beta = np.linalg.lstsq(D3[fit], v[fit], rcond=None)[0]
+            r2 = 1 - np.var(v[fit] - D3[fit] @ beta) / np.var(v[fit])
+            v[miss] = D3[miss] @ beta
+            jaw_fill[nm] = (float(miss.mean()), float(r2))
     nlik = pose.nose_likelihood.to_numpy(float) >= 0.6
     nx = np.where(nlik, pose.nose_x.to_numpy(float) - o[0], np.nan)
     ny = np.where(nlik, pose.nose_y.to_numpy(float) - o[1], np.nan)
@@ -128,7 +149,8 @@ def session_features(label: str) -> dict | None:
         X.append(_bin(t_pose[ok_t], v[ok_t], edges))
         cols_out.append(k)
     nan_pose = np.mean(~np.isfinite(np.column_stack(X)), axis=0)
-    X = [_interp_short(x, int(round(MAX_INTERP_S / BIN_S))) for x in X]
+    X = [_interp_short(x, int(round((JAW_INTERP_S if c.startswith("jaw") else MAX_INTERP_S) / BIN_S)))
+         for c, x in zip(cols_out, X)]
     ts, sp = be.session_speed(Path(h5))                       # the encoder's `session_speed`
     s = _bin(ts, sp, edges)
     X += [np.clip(s, 0, None), np.clip(-s, 0, None)]
@@ -146,7 +168,7 @@ def session_features(label: str) -> dict | None:
         cols_out.append(names[k] if k < len(names) else f"fr_{k}")
     X = np.column_stack(X).astype(np.float32)
     return {"X": X, "t_daq_s": tc, "features": np.array(cols_out), "nan_frac_pose_raw": nan_pose,
-            "cam4_x_sign": xs,
+            "cam4_x_sign": xs, "jaw_fill": json.dumps(jaw_fill),
             "nan_frac": np.mean(~np.isfinite(X), axis=0), "label": label, "version": VERSION}
 
 
