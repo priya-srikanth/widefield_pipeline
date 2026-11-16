@@ -41,6 +41,7 @@ import state_space_chronic_maps as C  # noqa: E402
 import state_space_recovery_trials as R  # noqa: E402
 import state_space_shift_behavior as SB  # noqa: E402
 import state_space_sim as S  # noqa: E402
+import state_space_svdmaps as SM  # noqa: E402
 import state_space_trajectories as TR  # noqa: E402
 
 from wfield_local import analysis_kit as kit  # noqa: E402
@@ -64,9 +65,7 @@ def pos_style(p):
     return dict(color=SIDE_COLOR[side], ls="-" if ring == "close" else "--")
 
 
-def spout_mean(v, pos):
-    """trials x bins -> spouts x bins (NaN where a spout has no trial)."""
-    return np.stack([v[pos == p].mean(0) if (pos == p).any() else np.full(v.shape[1], np.nan) for p in POS])
+spout_mean = S.spout_means                 # trials x bins -> spouts x bins (NaN where a spout has no trial)
 
 
 def cv_energies(V, pos, P, tix, early, late, rng):
@@ -94,18 +93,7 @@ def cv_energies(V, pos, P, tix, early, late, rng):
 def main():
     if S.BASIS != "svd" or S.ALIGN != "lick":
         sys.exit("state_space_shift_spout_timing: needs WF_SS_BASIS=svd WF_SS_ALIGN=lick")
-    from wfield_local import area_basis, beta_maps
-    Uc = np.load(C.BASIS_DIR / "U_cohort.npy").astype(np.float64)
-    atlas = np.load(S.SVD.parents[1] / "atlas.npy")
-    mask = np.load(C.BASIS_DIR / "mask.npy").reshape(atlas.shape)
-    flat = np.flatnonzero(mask.ravel())
-    split = area_basis.basis_masks(area_basis.roi_masks(atlas.ravel()[flat], beta_maps.stat_mask().ravel()[flat],
-                                                        dict(S._atlas_names()), flat, mask.shape))["split"]
-    W = {}
-    for reg, areas in SB.REGIONS.items():
-        for side, hemi in SB.SIDES.items():
-            px = np.logical_or.reduce([np.asarray(split[f"{a}_{hemi}"], bool) for a in areas if f"{a}_{hemi}" in split])
-            W[f"{reg} {side}"] = Uc[px].mean(0)
+    W = SM.region_weights(SB.REGIONS)                                   # K-vector per region x side
     t, _ = TR.times()
     tix = np.flatnonzero(t > 0)                                                   # post-lick bins (0..0.7 s)
     wix = {w: np.flatnonzero((t >= a - 1e-9) & (t < b - 1e-9)) for w, (a, b) in WINS.items()}
@@ -114,13 +102,11 @@ def main():
     sess_tr = []
     for an, sess in sorted(data.items()):
         Tpre = R.template([s for s in sess if s[1] == "pre"])
-        ok = np.isfinite(Tpre).all(axis=(1, 2))
-        B0 = Tpre[ok] - S.flat(Tpre[ok]).mean(0)
-        unit = float(np.sqrt((B0 ** 2).sum() / B0.size * B0.shape[-1] / Uc.shape[0]))
+        unit = SM.pre_unit_px(Tpre)                                       # pixel RMS of the pre template
         for lab, ep, day, Y, pos in sess:
-            if ep not in ("pre", *EPS) or not (C.REST / f"{lab}.npz").exists():
+            if ep not in ("pre", *EPS):
                 continue
-            c = C._rest(lab, an)
+            c = C.rest_level(lab, an)
             if c is None:
                 continue
             Z = (Y - c) / unit
@@ -154,13 +140,9 @@ def main():
             for wn, ix in wix.items():
                 g = g.assign(v=g[[bcols[k] for k in ix]].mean(1))
                 for ep in EPS:
-                    post = {a: h.v.dropna().tolist() for a, h in g[g.epoch == ep].groupby("animal")}
-                    post = {a: v for a, v in post.items() if v and (g[g.epoch == "pre"].animal == a).any()}
-                    pre_v = {a: g[(g.epoch == "pre") & (g.animal == a)].v.dropna().tolist() for a in post}
-                    iv = kit.boot_delta(post, pre_v, rng)
-                    up = sum(np.mean(post[a]) > np.mean(pre_v[a]) for a in post)
+                    iv = kit.epoch_change(g, "v", rng, [ep])[ep]
                     recs.append({"region": r, "spout": p, "window": wn, "epoch": ep, "change": iv.point, "lo": iv.lo,
-                                 "hi": iv.hi, "k_up": up, "n": len(post)})
+                                 "hi": iv.hi, "k_up": iv.n_up, "n": iv.n_animals})
     CH = pd.DataFrame(recs)
     CH.to_csv(OUT / "changes.csv", index=False)
 
@@ -207,14 +189,11 @@ def main():
         g = E[E.region == r]
         for en in ENER:
             for ep in EPS:
-                pre_v = {a: h[en].dropna().tolist() for a, h in g[g.epoch == "pre"].groupby("animal")}
-                post = {a: h[en].dropna().tolist() for a, h in g[g.epoch == ep].groupby("animal")}
-                post = {a: v for a, v in post.items() if v and pre_v.get(a)}
-                per = {a: round(float(np.mean(post[a]) - np.mean(pre_v[a])), 3) for a in post}
-                iv = kit.boot_delta(post, pre_v, rng)
+                iv = kit.epoch_change(g, en, rng, [ep])[ep]
+                per = {a: round(v, 3) for a, v in iv.per_animal.items()}
                 spec.append({"region": r, "energy": en, "epoch": ep,
-                             "pre_mean": float(np.mean([np.mean(v) for v in pre_v.values()])), "change": iv.point,
-                             "lo": iv.lo, "hi": iv.hi, "k_up": sum(v > 0 for v in per.values()), "n": len(per),
+                             "pre_mean": float(g[g.epoch == "pre"].groupby("animal")[en].mean().mean()),
+                             "change": iv.point, "lo": iv.lo, "hi": iv.hi, "k_up": iv.n_up, "n": iv.n_animals,
                              "per_animal": per})
                 print(f"  {r} {en} {ep}: per animal {per} -> {iv.point:+.3f} [{iv.lo:+.3f}, {iv.hi:+.3f}]", flush=True)
     SP = pd.DataFrame(spec)

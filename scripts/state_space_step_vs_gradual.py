@@ -17,7 +17,7 @@ behavioural recovery axis: far-contra FIRST-cued-lick aim vs the animal's pre la
    with 2-4 fitted parameters by grid + least squares; the same for the aim itself, so the neural and the
    behavioural time courses are compared on one footing. Reported: which model wins per animal, and the fitted step
    day / ramp span / tau.
-Output: Widefield/state_space_recovery/step_vs_gradual{tag}/, page_figs/ss_step_{suffix}.png. Exploratory.
+Output: <rebuild root>/state_space_recovery/step_vs_gradual{tag}/, page_figs/ss_step_{suffix}.png. Exploratory.
 """
 from __future__ import annotations
 
@@ -36,12 +36,14 @@ sys.path.insert(0, str(Path(__file__).parent))
 import state_space_page_figs as F  # noqa: E402
 import state_space_sim as S  # noqa: E402
 
+from wfield_local import analysis_kit as kit  # noqa: E402
+
 from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE  # noqa: E402
 from wfield_local.figure_layout import save_png_svg  # noqa: E402  (PNG + svg/ twin, Priya 11-06)
 
 ROOT = S.ROOT
 OUT = ROOT / f"step_vs_gradual{S.tag()}"
-SUF = S.tag().lstrip("_") or "cue"
+SUF = S.fig_suffix()
 AIM = S.ITI_W / "aim_deficit_sessions.csv"
 READ = [("x", "position pre (0) -> chronic (1)\n(fraction of pre -> chronic distance)"),
         ("y", "acute-departure axis\n(same units)"),
@@ -69,13 +71,9 @@ def within_slope(d, c):
 
 def shuffle_p(d, c, rng, n=2000):
     b, g = within_slope(d, c)
-    null = []
-    for _ in range(n):
-        h = g.copy()
-        h["aim"] = h.groupby("animal").aim.transform(lambda v: rng.permutation(v.to_numpy()))
-        null.append(within_slope(h, c)[0])
-    null = np.asarray(null)
-    return b, float((np.abs(null) >= abs(b)).mean())
+    _, p = kit.within_shuffle_p(lambda a: within_slope(g.assign(aim=a), c)[0], g.aim.to_numpy(), g.animal.to_numpy(),
+                                rng, n)
+    return b, p
 
 
 def mixed(d, c, formula):

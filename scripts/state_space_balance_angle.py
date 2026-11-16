@@ -16,7 +16,7 @@ Also refits the same model per post epoch to compare the landing SLOPE (does the
 
 Step 1 (`--collect`, ~9 min of share I/O): per-trial table -> landing/trial_sizes.csv. Step 2 (default): the analysis
 -> landing/balance_angle_{sessions,coefs}.csv. Exploratory.
-`--motor` (Priya 11-09): the same over the motor areas ALM + tjM1 (state_space_balance_cells.MOTOR); every table carries
+`--motor` (Priya 11-09): the same over the motor areas ALM + tjM1 (state_space_sim.MOTOR); every table carries
 the suffix `_motor`.
 """
 from __future__ import annotations
@@ -32,9 +32,8 @@ import state_space_recovery_trials as R  # noqa: E402
 import state_space_sim as S  # noqa: E402
 
 OUT = S.ROOT / ("landing" if S.ALIGN == "cue" else f"landing_{S.ALIGN}")   # per alignment (WF_SS_ALIGN; cue = landing/)
-MOTOR = ("ALM", "tjM1")                                                 # = state_space_balance_cells.MOTOR
-AREAS, SFX = (MOTOR, "_motor") if "--motor" in sys.argv else (R.OROFACIAL, "")
-RINGS = {"close": ["close_ipsi", "close_mid", "close_contra"], "far": ["far_ipsi", "far_mid", "far_contra"]}
+AREAS, SFX = (S.MOTOR, "_motor") if "--motor" in sys.argv else (S.OROFACIAL, "")
+RINGS = S.RINGS
 
 
 def collect():

@@ -22,6 +22,8 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).parent))
 import state_space_sim as S  # noqa: E402
+
+from wfield_local import analysis_kit as kit  # noqa: E402
 import state_space_step_vs_gradual as SG  # noqa: E402
 
 RECPRIM = (S.ROOT.parent / "LP_analysis" / "lp_r4_heatmap_20261013__clean_v36" / "imaging_encoding" / "iti_licks"
@@ -54,15 +56,8 @@ def partial(d, pred, ctrl, target, rng):
     """Pooled within-animal partial r of pred with target given ctrl, + within-animal shuffle p (pred residual permuted)."""
     rp, rt = resid(d, pred, ctrl), resid(d, target, ctrl)
     r0 = float(np.corrcoef(rp, rt)[0, 1])
-    null = np.empty(N_SHUF)
-    an = d.animal.to_numpy()
-    for i in range(N_SHUF):
-        sh = rp.copy()
-        for a in np.unique(an):
-            m = an == a
-            sh[m] = rng.permutation(sh[m].to_numpy())
-        null[i] = np.corrcoef(sh, rt)[0, 1]
-    return r0, float((np.abs(null) >= abs(r0)).mean())
+    _, p = kit.within_shuffle_p(lambda a: np.corrcoef(a, rt)[0, 1], rp.to_numpy(), d.animal.to_numpy(), rng, N_SHUF)
+    return r0, p
 
 
 def main():

@@ -43,12 +43,13 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import o2_state_space_lnmf as L  # noqa: E402
 import state_space_sim as S  # noqa: E402
+import state_space_svdmaps as SM  # noqa: E402
 
 OUT = S.ROOT / "rest_decomp_svd"
-BUNDLE = S.SVD.parents[1]
+BUNDLE = S.BUNDLE
 CLASSES = ["rest", "trial", "lick", "quit", "pretask", "other"]
 TRIAL_S = 3.5                     # the task's response window (gui_config timing.response_window, 3500 ms)
-EPS = ["acute", "subacute", "chronic"]
+EPS = S.POST
 
 
 def _worker(label):
@@ -150,32 +151,19 @@ def analyze():
     import matplotlib.pyplot as plt
     import pandas as pd
 
-    import state_space_chronic_maps as C
     import state_space_recovery_trials as R
-    import state_space_shift_behavior as SB
     from wfield_local import analysis_kit as kit
-    from wfield_local import area_basis, beta_maps, sig_marks
+    from wfield_local import sig_marks
     from wfield_local.figure_layout import save_png_svg
     from wfield_local.orofacial_cohort import EPOCH_LINE
-    Uc = np.load(C.BASIS_DIR / "U_cohort.npy").astype(np.float64)
-    atlas = np.load(BUNDLE / "atlas.npy")
-    mask = np.load(C.BASIS_DIR / "mask.npy").reshape(atlas.shape)
-    flat = np.flatnonzero(mask.ravel())
-    split = area_basis.basis_masks(area_basis.roi_masks(atlas.ravel()[flat], beta_maps.stat_mask().ravel()[flat],
-                                                        dict(S._atlas_names()), flat, mask.shape))["split"]
-    W = {}
-    for side, hemi in SB.SIDES.items():
-        px = np.logical_or.reduce([np.asarray(split[f"{a}_{hemi}"], bool) for a in SB.REGIONS["orofacial"]
-                                   if f"{a}_{hemi}" in split])
-        W[f"orofacial {side}"] = Uc[px].mean(0)
+    Uc = SM.basis().Uc
+    W = SM.region_weights({"orofacial": S.SHIFT_REGIONS["orofacial"]})
     W["whole brain"] = Uc.mean(0)
     data, _ = S.load_sessions()
     rows = []
     for an, sess in sorted(data.items()):
         Tpre = R.template([q for q in sess if q[1] == "pre"])
-        ok = np.isfinite(Tpre).all(axis=(1, 2))
-        B0 = Tpre[ok] - S.flat(Tpre[ok]).mean(0)
-        unit = float(np.sqrt((B0 ** 2).sum() / B0.size * B0.shape[-1] / Uc.shape[0]))
+        unit = SM.pre_unit_px(Tpre)                                       # pixel RMS of the pre template
         for lab, ep, day, _Y, _pos in sess:
             f = OUT / f"{lab}.npz"
             if ep not in ("pre", *EPS) or not f.exists():
@@ -208,13 +196,9 @@ def analyze():
     D.to_csv(OUT / "sessions.csv", index=False)
     rng = np.random.default_rng(0)
 
-    def change(col, ep):
-        pre = {a: g[g.epoch == "pre"][col].dropna().tolist() for a, g in D.groupby("animal")}
-        post = {a: g[g.epoch == ep][col].dropna().tolist() for a, g in D.groupby("animal")}
-        post = {a: v for a, v in post.items() if v and pre.get(a)}
-        per = {a: round(float(np.mean(post[a]) - np.mean(pre[a])), 3) for a in post}
-        iv = kit.boot_delta(post, pre, rng)
-        return iv.point, iv.lo, iv.hi, sum(v > 0 for v in per.values()), len(per), per
+    def change(col, ep):                   # + the per-animal table (rounded for the CSV): analysis_kit.epoch_change
+        c = kit.epoch_change(D, col, rng, [ep])[ep]
+        return c.point, c.lo, c.hi, c.n_up, c.n_animals, {a: round(v, 3) for a, v in c.per_animal.items()}
 
     recs = []
     cols = ([f"f_{k}" for k in CLASSES]

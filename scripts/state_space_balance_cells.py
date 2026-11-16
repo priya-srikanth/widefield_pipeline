@@ -11,7 +11,7 @@ Balance = log2 contralesional (_right) / ipsilesional (_left) response size of t
 0-1 s after the cue minus -0.5-0 s, on the cell's trial mean (FINDINGS 0b measure; same as `balance()` in the trials
 script). Cells pool the trials of all sessions of an animal x epoch (n >= MIN_TRIALS) and are also kept per session.
 Also per session x TARGET over all first-lick trials (landing ignored; the "target" grouping).
-Output: Widefield/state_space_recovery/landing/balance_cells{,_sessions,_target}.csv. Exploratory.
+Output: <rebuild root>/state_space_recovery/landing/balance_cells{,_sessions,_target}.csv. Exploratory.
 `--motor` (Priya 11-09: "motor version as well (ALM, tjM1)"): the same balance over the motor areas ALM + tjM1 instead;
 outputs carry the suffix `_motor` (the orofacial tables are untouched).
 """
@@ -28,14 +28,11 @@ import state_space_recovery_trials as R  # noqa: E402
 import state_space_sim as S  # noqa: E402
 
 OUT = S.ROOT / ("landing" if S.ALIGN == "cue" else f"landing_{S.ALIGN}")   # per alignment (WF_SS_ALIGN; cue = landing/)
-MOTOR = ("ALM", "tjM1")
-AREAS, SFX = (MOTOR, "_motor") if "--motor" in sys.argv else (R.OROFACIAL, "")   # balance areas, output suffix
+AREAS, SFX = (S.MOTOR, "_motor") if "--motor" in sys.argv else (S.OROFACIAL, "")   # balance areas, output suffix
 
 
 def sizes(M, cols):
-    out = {h: float(v) for h, v in S.hemi(S.evoked(M), cols, AREAS).items()}
-    out["bal"] = float(np.log2(out["contra"] / out["ipsi"])) if out["contra"] > 0 and out["ipsi"] > 0 else np.nan
-    return out
+    return R.balance_sides(M, cols, AREAS)
 
 
 def main():

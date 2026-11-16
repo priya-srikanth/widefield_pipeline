@@ -47,6 +47,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import state_space_chronic_maps as C  # noqa: E402
 import state_space_part_maps as PM  # noqa: E402
 import state_space_sim as S  # noqa: E402
+import state_space_svdmaps as SM  # noqa: E402
 import state_space_trajectories as TR  # noqa: E402
 
 from wfield_local import analysis_kit as kit  # noqa: E402
@@ -54,7 +55,7 @@ from wfield_local import sig_marks  # noqa: E402
 from wfield_local.figure_layout import save_png_svg  # noqa: E402
 from wfield_local.orofacial_cohort import EPOCH_LINE  # noqa: E402
 
-EPS = ["acute", "subacute", "chronic"]
+EPS = S.POST
 SHIFTBASE = __import__("os").environ.get("WF_SS_SHIFTBASE", "")
 if SHIFTBASE not in ("", "rest", "enl"):
     raise ValueError(f"WF_SS_SHIFTBASE={SHIFTBASE!r}")
@@ -84,14 +85,13 @@ def rebase(an, sess):
     out = []
     for lab, ep, day, Y, pos, *rest in sess:
         if SHIFTBASE == "rest":
-            c = C._rest(lab, an) if (C.REST / f"{lab}.npz").exists() else None
+            c = C.rest_level(lab, an)
             if c is None:
                 continue
             out.append((lab, ep, day, Y - c, pos, *rest))
         else:
-            f = C.ENL / f"{lab}.npz"
-            E = np.load(f)["b"].astype(float) if f.exists() else None
-            if E is None or len(E) != len(pos):
+            E = C.enl_trials(lab, len(pos))
+            if E is None:
                 continue
             keep = np.isfinite(E).all(1)
             E = C._xf_vectors(E[keep], pos[keep], an)
@@ -153,14 +153,8 @@ def maxstat(b):
 def main():
     if S.BASIS != "svd":
         sys.exit("state_space_shift_carried: needs the cohort SVD basis (WF_SS_BASIS=svd)")
-    from wfield_local import area_basis, beta_maps
-    Uc = np.load(C.BASIS_DIR / "U_cohort.npy").astype(np.float64)
-    PM.NPIX = Uc.shape[0]
-    atlas = np.load(S.SVD.parents[1] / "atlas.npy")
-    mask = np.load(C.BASIS_DIR / "mask.npy").reshape(atlas.shape)
-    flat = np.flatnonzero(mask.ravel())
-    split = area_basis.basis_masks(area_basis.roi_masks(atlas.ravel()[flat], beta_maps.stat_mask().ravel()[flat],
-                                                        dict(S._atlas_names()), flat, mask.shape))["split"]
+    B = SM.basis()                                                         # cohort SVD basis + split areas
+    Uc, split = B.Uc, B.split
     names = area_names(split)
     t, _ = TR.times()
     rows = session_rows(Uc, split, names, t)

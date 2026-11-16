@@ -2,7 +2,7 @@
 
 spread_raw vs spread_norm (= spread / amplitude^2) disagree whenever amplitude changes: raw spread rises a little
 post-stroke, amplitude-free spread falls. spread_norm assumes trial noise scales with the signal (an imaging gain:
-F0, expression). Two measurements decide it, per session, within spout, first-lick trials (contact + incomplete), all 62
+F0, expression). Two measurements decide it, per session, within spout, first-lick trials (contact + incomplete), all 45 (glue-free; 62 before 11-09)
 Allen areas, alignment from WF_SS_ALIGN (state_space_sim):
 
 1. BASELINE NOISE: trial-to-trial variance around the spout mean in the baseline bins (state_space_sim.BAL_BINS: cue
@@ -16,7 +16,7 @@ Allen areas, alignment from WF_SS_ALIGN (state_space_sim):
    ~0 post = trial noise is what the larger responses predict (noise scales with signal: spread_norm is the right
    model); > 0 = extra variability beyond the signal (raw spread is the right model).
 All values per session as log2 vs the animal's own pre mean (except the mean-variance excess, already pre-referenced).
-Output: Widefield/state_space_recovery/noise{tag}/noise_sessions.csv, page_figs/ss_noise_<align>.png. Exploratory.
+Output: <rebuild root>/state_space_recovery/noise{tag}/noise_sessions.csv, page_figs/ss_noise_<align>.png. Exploratory.
 """
 from __future__ import annotations
 
@@ -120,7 +120,7 @@ def figure(s):
         ax.set_ylabel("")
     axs[0].set_ylabel("log2 vs own pre")
     F.legend_animals_epochs(fig, y=1.08)
-    fig.suptitle(f"Does trial noise scale with the signal? ({F.ALIGN_LABEL[S.ALIGN]}; 62 areas, within spout)", y=1.15)
+    fig.suptitle(f"Does trial noise scale with the signal? ({F.ALIGN_LABEL[S.ALIGN]}; {S.areas_label()}, within spout)", y=1.15)
     fig.tight_layout()
     F.flush_marks(fig)
     F.sig_marks.reserve_headroom(fig)
