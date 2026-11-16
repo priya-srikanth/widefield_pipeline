@@ -55,7 +55,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-VERSION = 1
+VERSION = 2
 BIN_MS = 40.0                     # 10 frames at 250 fps
 TBIN_MS = {"precue": 100.0, "response": 100.0, "iti": 250.0}
 PRECUE_CAP_S = 10.0
@@ -87,19 +87,28 @@ def out_dir() -> Path:
         return Path(env)
     from wfield_local import orofacial_outputs as oo
     from wfield_local.paths import PathResolver
-    return Path(oo.root(PathResolver())) / _run() /"task_independent_movement" / f"v{VERSION}"
+    return Path(oo.root(PathResolver())) / _run() / "task_independent_movement" / f"v{VERSION}"
 
 
 # ----------------------------------------------------------------------------------------------------------- frames ----
+#: the six spouts in ONE fixed order for every session (dummy coding must mean the same column in every session, or the
+#: frozen pre-stroke model would read another spout's column)
+POSITIONS = ("close_L", "close_R", "close_center", "far_L", "far_R", "far_center")
+NX = 13                                                  # design width (response period; others zero-padded)
+
+
 def frame_table(sd: Path) -> pd.DataFrame:
     """Per-BIN_MS bin of every trial window: trial_id, t_ms (bin centre, cue-relative), strobe_ms, stop_ms, the six
-    traces (bin means; NaN where no valid frame)."""
+    traces (bin means; NaN where no valid frame). Tongue / jaw are in the mouth frame (`clean.npz`); the nose is made
+    MOUTH-RELATIVE here (raw LP px minus the session's `tongue_origin`), so a different placement of the animal in the
+    frame is not read as movement by the FROZEN model (within-session fits are unaffected: a constant)."""
     W = np.load(sd / "windows.npz", allow_pickle=True)
     C = np.load(sd / "clean.npz", allow_pickle=True)
     parts = list(W["parts"])
     nose = W["pose"][:, parts.index("nose"), :]
-    nx = np.where(nose[:, 2] >= NOSE_MIN_P, nose[:, 0], np.nan)
-    ny = np.where(nose[:, 2] >= NOSE_MIN_P, nose[:, 1], np.nan)
+    mouth = np.asarray(C["tongue_origin"], float)
+    nx = np.where(nose[:, 2] >= NOSE_MIN_P, nose[:, 0] - mouth[0], np.nan)
+    ny = np.where(nose[:, 2] >= NOSE_MIN_P, nose[:, 1] - mouth[1], np.nan)
     t = W["ix_t_ms"].astype(float)
     F = pd.DataFrame({"trial_id": W["ix_trial_id"], "b": np.floor(t / BIN_MS).astype(np.int64),
                       "strobe_ms": W["ix_strobe_ms"], "stop_ms": W["ix_stop_ms"],
@@ -135,10 +144,11 @@ def label_periods(G: pd.DataFrame, trials: pd.DataFrame) -> pd.DataFrame:
 
 
 # ---------------------------------------------------------------------------------------------------------- design ----
-def trial_design(trials: pd.DataFrame, pos_order) -> dict:
-    """trial_id -> regressor vector per period (see module docstring)."""
-    P = {p: i for i, p in enumerate(pos_order)}
-    k = len(pos_order) - 1
+def trial_design(trials: pd.DataFrame) -> dict:
+    """trial_id -> regressor vector per period (module docstring), zero-padded to NX; spouts dummy-coded in POSITIONS
+    order (close_L = reference)."""
+    P = {p: i for i, p in enumerate(POSITIONS)}
+    k = len(POSITIONS) - 1
 
     def onehot(p):
         v = np.zeros(k)
@@ -146,6 +156,9 @@ def trial_design(trials: pd.DataFrame, pos_order) -> dict:
         if i > 0:
             v[i - 1] = 1.0
         return v
+
+    def pad(v):
+        return np.r_[v, np.zeros(NX - len(v))]
     pos = trials.position.to_numpy()
     hit = trials.hit.to_numpy(float)
     out = {}
@@ -153,85 +166,62 @@ def trial_design(trials: pd.DataFrame, pos_order) -> dict:
         pp, ph = (pos[j - 1], hit[j - 1]) if j else (None, np.nan)
         prev = np.r_[onehot(pp), ph if np.isfinite(ph) else 0.0]
         cur = onehot(pos[j])
-        out[tid] = {"precue": np.r_[1.0, cur, prev],
-                    "response": np.r_[1.0, cur, prev, hit[j]],
-                    "iti": np.r_[1.0, cur, hit[j]]}    # owner = the trial that just ended
+        out[tid] = {"precue": pad(np.r_[1.0, cur, prev]),
+                    "response": pad(np.r_[1.0, cur, prev, hit[j]]),
+                    "iti": pad(np.r_[1.0, cur, hit[j]])}    # owner = the trial that just ended
     return out
 
 
 # ------------------------------------------------------------------------------------------------------------- fit ----
 TRACES = [f"{p}_{a}" for p in PARTS for a in "xy"]
-
+XCOLS = [f"x{i}" for i in range(NX)]
 
 #: light RIDGE on every regressor but the intercept (units: trials). Plain OLS failed on the first session (PS92_0811):
 #: within spout BLOCKS the previous spout equals the current one on most trials, so the combination at a block
 #: boundary is barely seen in training and OLS extrapolated it wildly on held-out trials (nose CV "task share" -3.8).
+#: The zero-padded columns are penalised too, so every system stays invertible.
 RIDGE = 2.0
 
 
-def _fit_predict(Xtr, Ytr, Xte):
-    """Ridge (RIDGE, intercept unpenalised) per trace with that trace's finite training rows; NaN where it cannot fit."""
-    out = np.full((len(Xte), Ytr.shape[1]), np.nan)
-    pen = np.full(Xtr.shape[1], RIDGE)
+def _pen(n: int) -> np.ndarray:
+    pen = np.full(n, RIDGE)
     pen[0] = 0.0
-    for c in range(Ytr.shape[1]):
-        ok = np.isfinite(Ytr[:, c])
-        if ok.sum() < MIN_TRAIN:
+    return np.diag(pen)
+
+
+def _stats(X, Y):
+    """Sufficient statistics per trace: (A [C, n, n], b [C, n], m [C]) over each trace's finite rows."""
+    C = Y.shape[1]
+    A = np.zeros((C, X.shape[1], X.shape[1]))
+    b = np.zeros((C, X.shape[1]))
+    m = np.zeros(C)
+    for c in range(C):
+        ok = np.isfinite(Y[:, c])
+        Xo = X[ok]
+        A[c], b[c], m[c] = Xo.T @ Xo, Xo.T @ Y[ok, c], ok.sum()
+    return A, b, m
+
+
+def _predict(st, Xte, ncol=None):
+    """Predictions [rows, C] from statistics (task model; ``ncol=1`` = intercept-only); NaN where too few rows."""
+    A, b, m = st
+    C = A.shape[0]
+    k = A.shape[1] if ncol is None else ncol
+    out = np.full((len(Xte), C), np.nan)
+    for c in range(C):
+        if m[c] < MIN_TRAIN:
             continue
-        A = Xtr[ok]
-        b = np.linalg.solve(A.T @ A + np.diag(pen), A.T @ Ytr[ok, c])
-        out[:, c] = Xte @ b
+        beta = np.linalg.solve(A[c][:k, :k] + _pen(k), b[c][:k])
+        out[:, c] = Xte[:, :k] @ beta
     return out
 
 
-def residuals(G: pd.DataFrame, design: dict, working: set, fold_of: dict) -> pd.DataFrame:
-    """Adds pred_<trace> (task model) and mean_<trace> (intercept-only) to every bin, cross-validated over folds."""
-    G = G.copy()
-    for c in TRACES:
-        G[f"pred_{c}"] = np.nan
-        G[f"mean_{c}"] = np.nan
-    for (per, _tb), H in G.groupby(["period", "tbin"], sort=False):
-        X = np.vstack([design[o][per] for o in H.owner.to_numpy()])
-        Y = H[TRACES].to_numpy(float)
-        w = H.owner.map(lambda o: o in working).to_numpy(bool)
-        fo = H.owner.map(lambda o: fold_of.get(o, -1)).to_numpy()
-        pred = np.full_like(Y, np.nan)
-        mean = np.full_like(Y, np.nan)
-        if w.sum() < MIN_TRAIN:
-            continue
-        for f in np.unique(fo[w]):                       # held-out working trials
-            te = w & (fo == f)
-            tr = w & (fo != f)
-            pred[te] = _fit_predict(X[tr], Y[tr], X[te])
-            mean[te] = _fit_predict(X[tr][:, :1], Y[tr], X[te][:, :1])
-        if (~w).any():                                   # non-working trials: fit on every working trial
-            pred[~w] = _fit_predict(X[w], Y[w], X[~w])
-            mean[~w] = _fit_predict(X[w][:, :1], Y[w], X[~w][:, :1])
-        idx = H.index
-        G.loc[idx, [f"pred_{c}" for c in TRACES]] = pred
-        G.loc[idx, [f"mean_{c}" for c in TRACES]] = mean
-    return G
-
-
-def per_trial(G: pd.DataFrame) -> pd.DataFrame:
-    """Per owner trial x period x part: mean Euclidean residual (TIM, px), mean deviation from the bin mean (total, px),
-    bins used."""
-    rows = []
-    for p in PARTS:
-        x, y = G[f"{p}_x"].to_numpy(float), G[f"{p}_y"].to_numpy(float)
-        res = np.hypot(x - G[f"pred_{p}_x"].to_numpy(float), y - G[f"pred_{p}_y"].to_numpy(float))
-        tot = np.hypot(x - G[f"mean_{p}_x"].to_numpy(float), y - G[f"mean_{p}_y"].to_numpy(float))
-        D = pd.DataFrame({"trial_id": G.owner.to_numpy(), "period": G.period.to_numpy(), "part": p,
-                          "res": res, "tot": tot, "res2": res ** 2, "tot2": tot ** 2})
-        D = D[np.isfinite(D.res) & np.isfinite(D.tot)]
-        rows.append(D.groupby(["trial_id", "period", "part"]).agg(tim_px=("res", "mean"), total_px=("tot", "mean"),
-                                                                  res2=("res2", "mean"), tot2=("tot2", "mean"),
-                                                                  n_bins=("res", "size")).reset_index())
-    return pd.concat(rows, ignore_index=True)
-
-
 # --------------------------------------------------------------------------------------------------------- session ----
-def session_tim(label: str) -> pd.DataFrame | None:
+def session_bins(label: str) -> pd.DataFrame | None:
+    """Every bin of the session with period / tbin / owner, the six traces, the owner's design row (x0..), working flag,
+    CV fold (working trials only; -1 otherwise) and the owner's position / class / block."""
+    from sklearn.model_selection import GroupKFold
+
     from wfield_local import block_ids as bi
     from wfield_local import trial_classes as tc
     sd = session_dir(label)
@@ -244,43 +234,182 @@ def session_tim(label: str) -> pd.DataFrame | None:
         return None
     S = S.sort_values("trial_id").reset_index(drop=True)
     S["hit"] = (S.cls == "contact").astype(float)
-    pos_order = sorted(S.position.dropna().unique())
     # PRODUCTION working gate (11-03 late): the run's camera classes (contact + incomplete) AND at or before the
     # session's last anchor trial (`before_session_end`: the quit tail is not working)
     work = tc.in_sel(S.cls.to_numpy()) & tc.before_session_end(S.cls.to_numpy(), S.trial_id.to_numpy(float),
                                                                position=S.position.to_numpy())
-    codes = S.position.map({p: i for i, p in enumerate(pos_order)}).fillna(-1).astype(int).to_numpy()
+    codes = S.position.map({p: i for i, p in enumerate(POSITIONS)}).fillna(-1).astype(int).to_numpy()
     blocks = bi.block_ids(codes)
-    from sklearn.model_selection import GroupKFold
     wi = np.flatnonzero(work & (blocks >= 0))
-    fold_of = {}
+    fold = np.full(len(S), -1)
     if len(np.unique(blocks[wi])) >= N_FOLDS:
         for f, (_tr, te) in enumerate(GroupKFold(N_FOLDS).split(wi, groups=blocks[wi])):
-            for i in wi[te]:
-                fold_of[S.trial_id.iat[i]] = f
-    working = set(S.trial_id.to_numpy()[wi])
+            fold[wi[te]] = f
     G = label_periods(frame_table(sd), S[["trial_id"]])
-    G = residuals(G, trial_design(S, pos_order), working, fold_of)
-    R = per_trial(G)
-    meta = S[["trial_id", "position", "cls"]].assign(working=work, block=blocks)
+    des = trial_design(S)
+    X = np.vstack([des[o][p] for o, p in zip(G.owner.to_numpy(), G.period.to_numpy())])
+    G[XCOLS] = X
+    meta = pd.DataFrame({"owner": S.trial_id.to_numpy(), "working": work & (blocks >= 0), "fold": fold,
+                         "position": S.position.to_numpy(), "cls": S.cls.to_numpy(), "block": blocks})
+    G = G.merge(meta, on="owner", how="left")
+    G["label"] = f"{animal}_{date}"
+    keep = ["label", "owner", "period", "tbin", *TRACES, *XCOLS, "working", "fold", "position", "cls", "block"]
+    G = G[keep].astype({c: np.float32 for c in TRACES})
+    G["working"] = G.working.fillna(False).astype(bool)
+    G["fold"] = G.fold.fillna(-1).astype(int)
+    return G.reset_index(drop=True)
+
+
+def cached_bins(label: str) -> pd.DataFrame | None:
+    f = out_dir() / "bins" / f"{label}.pkl"
+    if f.exists() and not os.environ.get("TIM_FORCE"):
+        return pd.read_pickle(f)
+    G = session_bins(label)
+    if G is None:
+        return None
+    f.parent.mkdir(parents=True, exist_ok=True)
+    tmp = f.with_name(f.name + f".tmp{os.getpid()}")
+    G.to_pickle(tmp)
+    os.replace(tmp, f)
+    return G
+
+
+def within_predictions(G: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
+    """REFIT frame: (task, intercept-only) predictions, cross-validated over the session's block folds for working
+    trials; other trials from the fit on every working trial."""
+    pred = np.full((len(G), len(TRACES)), np.nan)
+    mean = np.full_like(pred, np.nan)
+    for (_per, _tb), H in G.groupby(["period", "tbin"], sort=False):
+        ix = H.index.to_numpy()
+        X, Y = H[XCOLS].to_numpy(float), H[TRACES].to_numpy(float)
+        w, fo = H.working.to_numpy(bool), H.fold.to_numpy()
+        if w.sum() < MIN_TRAIN:
+            continue
+        st_all = _stats(X[w], Y[w])
+        for f in np.unique(fo[w & (fo >= 0)]):
+            te = w & (fo == f)
+            st = _stats(X[w & (fo != f)], Y[w & (fo != f)])
+            pred[ix[te]], mean[ix[te]] = _predict(st, X[te]), _predict(st, X[te], 1)
+        rest = ~(w & (fo >= 0))
+        if rest.any():
+            pred[ix[rest]], mean[ix[rest]] = _predict(st_all, X[rest]), _predict(st_all, X[rest], 1)
+    return pred, mean
+
+
+def session_stats(G: pd.DataFrame) -> dict:
+    """(period, tbin) -> sufficient statistics of the session's WORKING bins (the frozen model's training unit)."""
+    out = {}
+    for key, H in G[G.working].groupby(["period", "tbin"], sort=False):
+        out[key] = _stats(H[XCOLS].to_numpy(float), H[TRACES].to_numpy(float))
+    return out
+
+
+def frozen_predictions(G: pd.DataFrame, pooled: dict, own: dict | None) -> tuple[np.ndarray, np.ndarray]:
+    """FROZEN frame: predictions from the animal's August-pre statistics ``pooled`` minus this session's own ``own``
+    (a pre session is scored leave-one-session-out; ``own`` None for a post session)."""
+    pred = np.full((len(G), len(TRACES)), np.nan)
+    mean = np.full_like(pred, np.nan)
+    for key, H in G.groupby(["period", "tbin"], sort=False):
+        if key not in pooled:
+            continue
+        A, b, m = pooled[key]
+        if own is not None and key in own:
+            A, b, m = A - own[key][0], b - own[key][1], m - own[key][2]
+        ix = H.index.to_numpy()
+        X = H[XCOLS].to_numpy(float)
+        pred[ix], mean[ix] = _predict((A, b, m), X), _predict((A, b, m), X, 1)
+    return pred, mean
+
+
+def per_trial(G: pd.DataFrame, pred: np.ndarray, mean: np.ndarray, frame: str) -> pd.DataFrame:
+    """Per owner trial x period x part: mean Euclidean residual (TIM, px), mean deviation from the bin mean (total, px),
+    their squares (for the variance share), bins used, the owner's position / class / working flag."""
+    rows = []
+    for j, p in enumerate(PARTS):
+        x, y = G[f"{p}_x"].to_numpy(float), G[f"{p}_y"].to_numpy(float)
+        res = np.hypot(x - pred[:, 2 * j], y - pred[:, 2 * j + 1])
+        tot = np.hypot(x - mean[:, 2 * j], y - mean[:, 2 * j + 1])
+        D = pd.DataFrame({"trial_id": G.owner.to_numpy(), "period": G.period.to_numpy(), "part": p,
+                          "res": res, "tot": tot, "res2": res ** 2, "tot2": tot ** 2})
+        D = D[np.isfinite(D.res) & np.isfinite(D.tot)]
+        rows.append(D.groupby(["trial_id", "period", "part"]).agg(tim_px=("res", "mean"), total_px=("tot", "mean"),
+                                                                  res2=("res2", "mean"), tot2=("tot2", "mean"),
+                                                                  n_bins=("res", "size")).reset_index())
+    R = pd.concat(rows, ignore_index=True)
+    meta = G.drop_duplicates("owner")[["owner", "position", "cls", "working", "block"]].rename(
+        columns={"owner": "trial_id"})
     R = R.merge(meta, on="trial_id", how="left")
-    R.insert(0, "label", f"{animal}_{date}")
-    R.insert(1, "animal", animal)
+    R.insert(0, "frame", frame)
+    R.insert(0, "label", G.label.iat[0])
+    R.insert(1, "animal", G.label.iat[0].split("_")[0])
     return R
 
 
-def _job(label: str):
-    out = out_dir() / "sessions" / f"{label}.csv.gz"
-    if out.exists() and not os.environ.get("TIM_FORCE"):
-        return label, str(out)
-    R = session_tim(label)
-    if R is None:
-        return label, None
+def session_tim(label: str) -> pd.DataFrame | None:
+    """Within-session (refit) TIM of one session."""
+    G = cached_bins(label)
+    if G is None:
+        return None
+    return per_trial(G, *within_predictions(G), "within")
+
+
+# ----------------------------------------------------------------------------------------------------------- driver ----
+def is_august_pre(label: str) -> bool:
+    from wfield_local import epochs, run_mode
+    return epochs.epoch_of(label) == "pre" and label[-4:] >= run_mode.PRIMARY_PRE_FROM
+
+
+def _write(R: pd.DataFrame, out: Path) -> None:
     out.parent.mkdir(parents=True, exist_ok=True)
     tmp = out.with_name(out.name + f".tmp{os.getpid()}")
     R.to_csv(tmp, index=False, compression="gzip")
     os.replace(tmp, out)
-    return label, str(out)
+
+
+def _within_job(label: str):
+    out = out_dir() / "sessions" / f"{label}_within.csv.gz"
+    if out.exists() and not os.environ.get("TIM_FORCE"):
+        return str(out)
+    R = session_tim(label)
+    if R is None:
+        return None
+    _write(R, out)
+    return str(out)
+
+
+def _frozen_job(animal: str):
+    """One animal: pooled August-pre statistics, then every session of the animal scored in that frame."""
+    labels = [lab for lab in all_labels() if lab.startswith(animal + "_")]
+    pre = [lab for lab in labels if is_august_pre(lab)]
+    stats = {}
+    for lab in pre:
+        G = cached_bins(lab)
+        if G is not None:
+            stats[lab] = session_stats(G)
+    if len(stats) < 2:
+        return f"{animal}: only {len(stats)} August pre session(s)"
+    pooled = {}
+    for st in stats.values():
+        for key, (A, b, m) in st.items():
+            if key in pooled:
+                pA, pb, pm = pooled[key]
+                pooled[key] = (pA + A, pb + b, pm + m)
+            else:
+                pooled[key] = (A.copy(), b.copy(), m.copy())
+    n = 0
+    for lab in labels:
+        out = out_dir() / "sessions" / f"{lab}_frozen.csv.gz"
+        if out.exists() and not os.environ.get("TIM_FORCE"):
+            n += 1
+            continue
+        G = cached_bins(lab)
+        if G is None:
+            continue
+        R = per_trial(G, *frozen_predictions(G, pooled, stats.get(lab)), "frozen")
+        R["frozen_pre"] = ";".join(sorted(stats))
+        _write(R, out)
+        n += 1
+    return f"{animal}: {n} sessions ({len(stats)} pre)"
 
 
 def all_labels() -> list[str]:
@@ -292,12 +421,19 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("labels", nargs="*")
     ap.add_argument("--all", action="store_true")
+    ap.add_argument("--frozen", action="store_true", help="also the frozen-pre frame (per animal; needs the pre bins)")
     ap.add_argument("--jobs", type=int, default=4)
     a = ap.parse_args(argv)
     labels = all_labels() if a.all else a.labels
     from wfield_local import analysis_kit as ak
-    res, fails = ak.fan_sessions(labels, _job, jobs=a.jobs)
-    print(f"done {len(res)}  failed {len(fails)}  -> {out_dir()}")
+    res, fails = ak.fan_sessions(labels, _within_job, jobs=a.jobs)
+    print(f"within: {len(res)} sessions, {len(fails)} failed -> {out_dir()}")
+    if a.frozen:
+        animals = sorted({lab.split("_")[0] for lab in labels})
+        fres, ffails = ak.fan_sessions(animals, _frozen_job, jobs=min(a.jobs, len(animals)))
+        for _k, v in fres:
+            print("frozen:", v)
+        fails = [*fails, *ffails]
     for f in fails:
         print("  FAIL", f)
     return 0 if not fails else 1
