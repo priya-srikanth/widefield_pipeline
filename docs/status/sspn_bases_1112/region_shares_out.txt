@@ -1,0 +1,169 @@
+side                            left  right   both  total  share_both
+set   epoch    animal basis                                          
+iti   acute    PS92   areas    0.120  0.365  0.485  0.224       2.166
+                      locanmf  0.013  0.287  0.301  0.377       0.798
+                      svd      0.023  0.207  0.230  0.333       0.690
+               PS93   areas    0.085 -0.004  0.081  0.124       0.653
+                      locanmf  0.032 -0.010  0.022  0.272       0.082
+                      svd      0.025 -0.009  0.016  0.103       0.154
+               PS94   areas    0.789 -0.410  0.379  0.567       0.669
+                      locanmf  0.599 -0.153  0.446  0.576       0.775
+                      svd      0.223 -0.095  0.129  0.567       0.227
+               PS95   areas   -0.943  1.273  0.330  0.514       0.642
+                      locanmf -0.478  0.582  0.105  0.214       0.489
+                      svd     -0.099  0.066 -0.032  0.235      -0.137
+      chronic  PS92   areas    0.120  0.130  0.249  0.155       1.612
+                      locanmf -0.017  0.147  0.129  0.064       2.025
+                      svd     -0.138  0.139  0.001  0.156       0.006
+               PS93   areas    0.055 -0.044  0.012  0.048       0.239
+                      locanmf  0.032 -0.059 -0.027 -0.092       0.297
+                      svd     -0.033  0.009 -0.024 -0.047       0.524
+               PS94   areas    0.647 -0.275  0.372  0.536       0.694
+                      locanmf  0.464 -0.076  0.388  0.590       0.658
+                      svd      0.103  0.114  0.217  0.390       0.556
+               PS95   areas   -0.878  1.052  0.174  0.312       0.558
+                      locanmf -0.443  0.540  0.097  0.346       0.280
+                      svd     -0.036  0.066  0.030  0.269       0.112
+      subacute PS92   areas    0.196  0.208  0.404  0.308       1.312
+                      locanmf -0.038  0.172  0.133  0.201       0.665
+                      svd     -0.076  0.160  0.084  0.214       0.392
+               PS93   areas    0.040 -0.022  0.018 -0.008      -2.405
+                      locanmf  0.030 -0.035 -0.004  0.043      -0.103
+                      svd      0.015 -0.015  0.000 -0.083      -0.000
+               PS94   areas    0.615 -0.295  0.321  0.429       0.748
+                      locanmf  0.434 -0.112  0.322  0.540       0.597
+                      svd      0.117  0.030  0.147  0.303       0.485
+               PS95   areas   -0.213  0.428  0.215  0.277       0.777
+                      locanmf -0.054  0.230  0.176  0.343       0.513
+                      svd     -0.018  0.077  0.059  0.233       0.255
+trial acute    PS92   areas    0.222  0.123  0.345  0.282       1.221
+                      locanmf  0.100  0.142  0.242  0.370       0.654
+                      svd      0.028  0.198  0.226  0.194       1.161
+               PS93   areas    0.100  0.013  0.114  0.107       1.062
+                      locanmf  0.079 -0.002  0.077  0.260       0.298
+                      svd      0.021 -0.021 -0.000  0.044      -0.001
+               PS94   areas    0.213 -0.202  0.011  0.218       0.051
+                      locanmf  0.267 -0.127  0.139  0.233       0.599
+                      svd      0.047 -0.212 -0.164  0.270      -0.608
+               PS95   areas    0.023  0.134  0.156  0.040       3.906
+                      locanmf  0.005  0.038  0.043 -0.175      -0.248
+                      svd     -0.040  0.000 -0.039  0.069      -0.566
+      chronic  PS92   areas   -0.003  0.043  0.040 -0.053      -0.760
+                      locanmf -0.027  0.063  0.035 -0.107      -0.329
+                      svd     -0.153  0.174  0.022 -0.091      -0.236
+               PS93   areas   -0.052  0.022 -0.030 -0.146       0.206
+                      locanmf  0.019  0.004  0.023 -0.190      -0.120
+                      svd     -0.035 -0.031 -0.066 -0.229       0.288
+               PS94   areas   -0.155  0.183  0.028 -0.000    -756.491
+                      locanmf -0.146  0.110 -0.035  0.103      -0.341
+                      svd     -0.052 -0.087 -0.139  0.034      -4.099
+               PS95   areas   -0.223  0.298  0.075  0.040       1.885
+                      locanmf -0.244  0.139 -0.104 -0.026       3.984
+                      svd     -0.060  0.066  0.007  0.089       0.076
+      subacute PS92   areas    0.211 -0.069  0.142  0.143       0.988
+                      locanmf  0.065 -0.018  0.047 -0.016      -2.960
+                      svd     -0.081  0.161  0.080  0.009       8.865
+               PS93   areas    0.044 -0.030  0.014 -0.050      -0.269
+                      locanmf  0.037 -0.044 -0.007 -0.035       0.189
+                      svd      0.027 -0.055 -0.027 -0.321       0.085
+               PS94   areas   -0.075  0.125  0.050  0.056       0.896
+                      locanmf -0.038  0.118  0.080  0.112       0.712
+                      svd     -0.014 -0.100 -0.115  0.073      -1.562
+               PS95   areas    0.028  0.050  0.078  0.161       0.486
+                      locanmf  0.073  0.030  0.103  0.098       1.056
+                      svd      0.025  0.019  0.045  0.134       0.333
+  basis   set    epoch          area  contrib  total  pooled_share
+  areas   iti    acute    VISa_right   -0.165  0.357        -0.463
+  areas   iti    acute    VISpm_left   -0.148  0.357        -0.414
+  areas   iti    acute   RSPagl_left    0.192  0.357         0.538
+  areas   iti    acute   SSp-n_right    0.306  0.357         0.857
+  areas   iti    acute        cortex    0.357  0.357         1.000
+locanmf   iti    acute    VISa_right   -0.120  0.360        -0.333
+locanmf   iti    acute  SSp-bfd_left   -0.106  0.360        -0.296
+locanmf   iti    acute    VISam_left   -0.102  0.360        -0.282
+locanmf   iti    acute   SSp-n_right    0.177  0.360         0.491
+locanmf   iti    acute        cortex    0.284  0.360         0.790
+    svd   iti    acute     MOs_right   -0.048  0.309        -0.155
+    svd   iti    acute    SSp-n_left    0.043  0.309         0.140
+    svd   iti    acute    SSp-m_left    0.053  0.309         0.172
+    svd   iti    acute SSp-bfd_right    0.062  0.309         0.201
+    svd   iti    acute        cortex    0.309  0.309         1.000
+  areas   iti  chronic  SSp-tr_right   -0.217  0.263        -0.826
+  areas   iti  chronic   SSp-n_right    0.216  0.263         0.821
+  areas   iti  chronic  SSp-ll_right    0.241  0.263         0.918
+  areas   iti  chronic        cortex    0.263  0.263         1.000
+  areas   iti  chronic   RSPagl_left    0.264  0.263         1.004
+locanmf   iti  chronic    VISa_right   -0.210  0.227        -0.924
+locanmf   iti  chronic    VISam_left   -0.177  0.227        -0.778
+locanmf   iti  chronic   SSp-n_right    0.138  0.227         0.608
+locanmf   iti  chronic    tjM1_right    0.178  0.227         0.785
+locanmf   iti  chronic     VISa_left    0.230  0.227         1.012
+    svd   iti  chronic    SSp-m_left    0.028  0.192         0.148
+    svd   iti  chronic     MOs_right    0.038  0.192         0.199
+    svd   iti  chronic      MOp_left    0.043  0.192         0.226
+    svd   iti  chronic   SSp-n_right    0.082  0.192         0.427
+    svd   iti  chronic        cortex    0.192  0.192         1.000
+  areas   iti subacute    VISa_right   -0.178  0.252        -0.707
+  areas   iti subacute   SSp-ll_left   -0.149  0.252        -0.592
+  areas   iti subacute    SSp-n_left    0.160  0.252         0.634
+  areas   iti subacute   SSp-tr_left    0.188  0.252         0.745
+  areas   iti subacute        cortex    0.252  0.252         1.000
+locanmf   iti subacute    VISa_right   -0.198  0.282        -0.703
+locanmf   iti subacute    VISam_left   -0.094  0.282        -0.335
+locanmf   iti subacute  SSp-un_right    0.104  0.282         0.370
+locanmf   iti subacute     VISa_left    0.125  0.282         0.445
+locanmf   iti subacute        cortex    0.201  0.282         0.715
+    svd   iti subacute  SSp-bfd_left    0.015  0.167         0.088
+    svd   iti subacute    SSp-m_left    0.019  0.167         0.114
+    svd   iti subacute      MOp_left    0.039  0.167         0.236
+    svd   iti subacute   SSp-n_right    0.063  0.167         0.379
+    svd   iti subacute        cortex    0.167  0.167         1.000
+  areas trial    acute   SSp-un_left   -0.204  0.162        -1.260
+  areas trial    acute     MOp_right   -0.119  0.162        -0.733
+  areas trial    acute    SSp-n_left    0.139  0.162         0.861
+  areas trial    acute        cortex    0.162  0.162         1.000
+  areas trial    acute      MOp_left    0.213  0.162         1.317
+locanmf trial    acute    RSPd_right    0.087  0.172         0.507
+locanmf trial    acute    tjM1_right    0.090  0.172         0.524
+locanmf trial    acute    SSp-n_left    0.113  0.172         0.656
+locanmf trial    acute      MOs_left    0.137  0.172         0.798
+locanmf trial    acute        cortex    0.186  0.172         1.081
+    svd trial    acute     tjM1_left   -0.053  0.144        -0.364
+    svd trial    acute      ALM_left   -0.047  0.144        -0.328
+    svd trial    acute   SSp-ul_left    0.034  0.144         0.238
+    svd trial    acute    SSp-m_left    0.070  0.144         0.484
+    svd trial    acute        cortex    0.144  0.144         1.000
+  areas trial  chronic  SSp-ul_right    0.181 -0.040        -4.547
+  areas trial  chronic   SSp-n_right    0.137 -0.040        -3.435
+  areas trial  chronic    RSPv_right   -0.132 -0.040         3.313
+  areas trial  chronic   SSp-tr_left   -0.155 -0.040         3.900
+  areas trial  chronic  SSp-un_right   -0.187 -0.040         4.706
+locanmf trial  chronic   SSp-un_left    0.114 -0.055        -2.063
+locanmf trial  chronic    SSp-n_left   -0.099 -0.055         1.806
+locanmf trial  chronic    ACAd_right   -0.101 -0.055         1.839
+locanmf trial  chronic      MOs_left   -0.123 -0.055         2.233
+locanmf trial  chronic   SSp-tr_left   -0.134 -0.055         2.435
+    svd trial  chronic   SSp-n_right    0.031 -0.049        -0.620
+    svd trial  chronic     MOs_right    0.028 -0.049        -0.564
+    svd trial  chronic   SSp-m_right   -0.029 -0.049         0.581
+    svd trial  chronic        cortex   -0.049 -0.049         1.000
+    svd trial  chronic    SSp-n_left   -0.075 -0.049         1.511
+  areas trial subacute  SSp-ll_right   -0.120  0.077        -1.544
+  areas trial subacute   SSp-tr_left   -0.117  0.077        -1.514
+  areas trial subacute  SSp-un_right   -0.109  0.077        -1.411
+  areas trial subacute    RSPv_right   -0.099  0.077        -1.272
+  areas trial subacute  SSp-ul_right    0.156  0.077         2.012
+locanmf trial subacute      MOs_left   -0.109  0.040        -2.736
+locanmf trial subacute   SSp-tr_left   -0.095  0.040        -2.373
+locanmf trial subacute    RSPd_right    0.085  0.040         2.128
+locanmf trial subacute  SSp-tr_right    0.106  0.040         2.656
+locanmf trial subacute        cortex    0.199  0.040         5.002
+    svd trial subacute    SSp-m_left    0.049 -0.026        -1.858
+    svd trial subacute        cortex   -0.026 -0.026         1.000
+    svd trial subacute   SSp-m_right   -0.037 -0.026         1.428
+    svd trial subacute      MOp_left   -0.045 -0.026         1.734
+    svd trial subacute     tjM1_left   -0.060 -0.026         2.280
+
+real	0m21.424s
+user	0m0.000s
+sys	0m0.015s
