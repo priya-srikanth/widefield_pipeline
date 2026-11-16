@@ -259,3 +259,11 @@ epoch_shape_cohort_v2/n100_backup_20261107/). Acute numbers unchanged (were alre
   specificity + shape change (diffuse / split after the stroke). Acute pooled lick_left has no clean match.
 - FR page: headline row, overview row, 7a.1, 7.10, 7.13 reworded; new Figs 7a.10 (session_mean_lick_left) and 7a.11
   (PS94 session sheet). Published with the 500-permutation edits (v47).
+
+## 11-16: lick_left per-session shift by animal x epoch (correction to the 11-13 downgrade)
+Asym change vs own pre (per-session, recovered sessions): acute +.26 / +.13 / +.27 / +.25 (4 / 4), subacute
++.02 / +.20 / +.24 / +.25 (3 / 4), chronic +.11 / -.06 / +.29 / +.06 (PS92-95). Taking the RUNNER-UP column instead
+gives the same or a larger shift (acute +.15 / -.01 / +.29 / +.22; subacute +.46 / -.02 / +.40 / +.34; chronic +.27 /
++.16 / +.34 / +.49), so the near-ties do not create the shift. Clean-only sets are 0-2 sessions acute / subacute (not
+informative). The 11-13 "clear in PS94 only" was based on chronic alone and overstated. Proposed to Priya: acute +
+subacute STANDS; chronic small (PROVISIONAL). Awaiting her ok before re-editing FINDINGS / page / deck.
