@@ -654,7 +654,7 @@ the close spouts. The band-map drift control has 13 small clusters (mean +.03 lo
 later-epoch band increases there need that caveat. Fast-lick share (licks with a neighbor < 250 ms) falls acutely only
 at far contra (-.44) / far mid (-.13), partly because licks per trial fall there (far contra 3.1 vs 8.7 pre).
 Figures: band_maps/band_maps_<unit>.png, band_maps_driftpre.png; LP_analysis/.../cohort_lick_rate_by_position.png.
-FR page section 7b (v41); PI deck slides 83-85.
+FR page section 8 (was 7b until v51); PI deck slides 83-85.
 
 ## 6d. Task vs non-task, asymmetry, severity (10-24)
 

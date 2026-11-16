@@ -360,3 +360,21 @@ spouts) -> readouts/master_pre_v1/per_trial/ (data/per_trial_{trials,licks}.pkl,
   the unit's direction): prevalence x amplitude-given-lick, timing only on those trials.
 Fig 7.3: per-epoch shading removed, pooled squares + stars centred on the epoch (Priya 11-16); page v50. Same shading
 removed in code from epoch_shape_angles (page 7.11 / 8.18) -- takes effect at their next render.
+
+### 11-16 ~18:00 -- movement-conditioned per-trial readouts; FR page renumbered (v51)
+Conditioned on movement (trials with >= 1 lick in the unit's direction; prevalence = fraction of such trials):
+- lick_right at far contra: prevalence -.87** / -.36** / -.07 (fraction); amplitude GIVEN a right lick -.83** / -.58** /
+  -.61** log2 (4/4 below every epoch) -> the chronic deficit is per-movement amplitude, not prevalence. Timing: first
+  right lick later +1.21 s acute (+.41 subacute, +.08 chronic n.s.); lick_right peak relative to the first right lick
+  unchanged (-.25 n.s. acute) -> acute "later" expression follows later licking (reaction time), not re-timing.
+  Chronic: peak +.24 s* / COM +.32 s** with first lick on time (peak - first lick +.12 n.s.) -- weak.
+- lick_left at far contra: prevalence +.38** / +.27** / +.12; amplitude given a left lick unchanged (-.06 / +.24 / +.11
+  n.s.) -> the rise is MORE trials with leftward licks, not bigger ones. On far-contra trials WITHOUT a leftward lick
+  lick_left still rises subacute / chronic (+.77** / +.60**), and at close contra (leftward licks ~absent) it rises on
+  no-left-lick trials +.65* / +.81** / +.98** -> contralesional-target licks made with the lick_left face pattern
+  (fits FINDINGS 5d "ipsilesional lick pattern used for contralesional targets").
+- Caveat: no-lick trials also fall acutely for lick_right (-.79**): less face movement overall acutely.
+FR page v51: sections renumbered in page order 7a->7, 7b->8, 7->9, 8->10, 9->11 (Priya: "7a, 7, and 7 is confusing");
+checked: 0 link mismatches, titles = data-num, no non-figure text changed. Doc pointers updated. PI deck notes on slides
+87 / 89 / 93 / 94 still cite the OLD numbers (8.10, 7.1, 7.2, 7.12 -> now 10.10, 9.1, 9.2, 9.12; #f- ids still valid):
+ASK Priya before editing the deck.

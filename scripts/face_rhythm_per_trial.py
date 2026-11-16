@@ -115,6 +115,11 @@ def session_table(T: pd.DataFrame, Lk: pd.DataFrame) -> pd.DataFrame:
     rows = []
     T = T.copy()
     T["pos_all"] = "all"
+    # first lick of each direction per trial (s from cue, 0..+4 s); trials are indexed per proj KEY (split videos)
+    for d in ("left", "right"):
+        fl = Lk[Lk.direction == d].groupby(["key", "trial"]).t_from_cue.min().rename(f"first_{d}") if len(Lk) \
+            else pd.Series(dtype=float, name=f"first_{d}")
+        T = T.join(fl, on=["key", "trial"])
     for (lab, an, ep), g in T.groupby(["label", "animal", "epoch"], sort=True):
         for p in (*POS, "all"):
             m = g if p == "all" else g[g.pos == p]
@@ -131,6 +136,26 @@ def session_table(T: pd.DataFrame, Lk: pd.DataFrame) -> pd.DataFrame:
                 rows.append({**base, "q": f"{u}|median_trial_peak", "v": m[f"{u}_peak04"].median()})
                 rows.append({**base, "q": f"{u}|median_trial_tpeak", "v": m[f"{u}_tpeak04"].median()})
                 rows.append({**base, "q": f"{u}|median_trial_com", "v": m[f"{u}_com04"].median()})
+                # CONDITIONED ON MOVEMENT (11-16): only trials with >= 1 lick in the unit's direction (cue 0..+4 s).
+                # Removes the two per-trial artifacts of flat trials -- a peak that is just the largest noise value,
+                # and a peak time / centre of mass that drifts to the window middle. Prevalence = frac_trials_<dir>.
+                # Min 1 trial (pre far-contra leftward licks are 0-5 per session); n_trials records the count.
+                if m.has_licks.all():
+                    d = UNIT_DIR[u]
+                    on = m[m[f"n_{d}04"] > 0]
+                    if len(on):
+                        b2 = {**base, "n_trials": len(on)}
+                        rows.append({**b2, "q": f"{u}|lick_trial_peak", "v": on[f"{u}_peak04"].median()})
+                        rows.append({**b2, "q": f"{u}|lick_trial_mean04", "v": on[f"{u}_mean04"].mean()})
+                        rows.append({**b2, "q": f"{u}|lick_trial_tpeak", "v": on[f"{u}_tpeak04"].median()})
+                        rows.append({**b2, "q": f"{u}|lick_trial_com", "v": on[f"{u}_com04"].median()})
+                        rows.append({**b2, "q": f"{u}|lick_trial_first_lick", "v": on[f"first_{d}"].median()})
+                        rows.append({**b2, "q": f"{u}|lick_trial_peak_minus_first_lick",
+                                     "v": (on[f"{u}_tpeak04"] - on[f"first_{d}"]).median()})
+                    off = m[m[f"n_{d}04"] == 0]
+                    if len(off):
+                        rows.append({**base, "n_trials": len(off), "q": f"{u}|nolick_trial_peak",
+                                     "v": off[f"{u}_peak04"].median()})
     S = pd.DataFrame(rows)
     if len(Lk):
         for (lab, an, ep), g in Lk.groupby(["label", "animal", "epoch"], sort=True):
@@ -162,7 +187,8 @@ def trial_average_readouts(fdir: Path, names: list[str]) -> pd.DataFrame:
 
 
 #: quantities on a log2-vs-pre scale; the rest (times, fractions) as difference from the animal's pre mean
-TIME_Q = ("median_trial_tpeak", "median_trial_com", "com_of_average")
+TIME_Q = ("median_trial_tpeak", "median_trial_com", "com_of_average", "lick_trial_tpeak", "lick_trial_com",
+          "lick_trial_first_lick", "lick_trial_peak_minus_first_lick")
 
 
 def relative(S: pd.DataFrame) -> pd.DataFrame:

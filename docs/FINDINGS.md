@@ -1873,7 +1873,7 @@ each animal's own pre. Factor names, not numbers (numbers shift between fits).*
     Match galleries + per-fit candidate panels on the FR page (`--gallery`, `--candidates`).
     COHORT FITS (10-25 evening; `fr_factors.py fitcohort` on O2, 30 fits = all four animals pooled + each animal left out,
     x pre / preA / preB / acute / subacute / chronic, 5,500 rows per animal; `face_rhythm_epoch_shape.py --own-dir
-    own_epoch_cohort` -> `readouts/master_pre_v1/epoch_shape_cohort/`; FR page section 7). lick_right is recovered as the
+    own_epoch_cohort` -> `readouts/master_pre_v1/epoch_shape_cohort/`; FR page section 9). lick_right is recovered as the
     same factor in every fit (best spatial match own 4, cos .87-.97) and **stays changed through chronic**: r with the
     pre far_R spout pattern .71 / .72 (pre halves) -> .53 / .54 / .46 (acute / subacute / chronic), with close-center .25
     -> .50; loading moves from the contralesional mid-face to the contralesional mouth rim and lower cheeks; spatial angle
@@ -1905,7 +1905,7 @@ each animal's own pre. Factor names, not numbers (numbers shift between fits).*
     cohort fits on lick_left after acute (cohort: recovered by subacute; per session: still changed chronically); the
     cohort permutation null + early-vs-late pre drift fits (O2, submitted 10-25 night: `fitcohortnull` tasks 1-600,
     `fitcohort` tasks 31-40) decide. **lick_left STANDS per session; lick_right PROVISIONAL.**
-    HEADLINE (Priya 10-25; FR page Fig 7.1): per-point loading change with each animal / its own pre-session SD (floored at
+    HEADLINE (Priya 10-25; FR page Fig 9.1): per-point loading change with each animal / its own pre-session SD (floored at
     1/4 of its median SD), FDR .05 of 1,282 points: lick_right 717 / 760 / 54, lick_left 660 / 208 / 33. SPECTRAL twin
     (Fig 7.2; same test over the 36 frequencies of the matched factor's frequency loading): lick_right loses weight at its
     6.5-7.3 Hz peak (-2 SD) and gains at 4.6-5.1 and 10.4-11.7 Hz (+2 SD); 5 / 6 / 2 frequencies FDR .05, the 10-12 Hz
