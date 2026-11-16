@@ -70,7 +70,7 @@ from wfield_local import epochs as _epochs
 # about, as data. This module decides which of it EXISTS on disk, and where it goes.
 from wfield_local.deck_registry import (   # noqa: F401  (re-exported: the coverage
                                             #  script and tests import EPOCH_FIGURES from here)
-    ALIGNS, BASES, CD_FIGURES, EPOCH_FIGURES, GRANT_FIGURES, LP_GATED_FIGURES, NOLICK_BASES, _CCF_LEGEND, _CI_LEGEND, _REF_LEGEND, _ROT_LEGEND,
+    ALIGNS, BASES, CD_FIGURES, EPOCH_FIGURES, GRANT_FIGURES, KEY_FIGURES, LP_GATED_FIGURES, NOLICK_BASES, _CCF_LEGEND, _CI_LEGEND, _REF_LEGEND, _ROT_LEGEND,
 )
 # The deck's PROSE lives in `deck_text` (see its docstring). Imported by name rather than
 # `import *` so what the builder uses stays greppable and ruff can still see an unused one.
@@ -587,6 +587,9 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     #: Slides whose figures come from the LP camera-lick section G run (Priya 11-16): their provenance line is resolved
     #: under the LP lick source (pre-cue window 1.0 s, LP licks), not the deck's default DAQ settings.
     _lp_slides = set()
+    #: Slides whose notes already carry the figure's own window (the key-figure slides: the page caption); no
+    #: filename-derived window line is added to them.
+    _no_window_line = set()
 
     # A SESSION THAT DOES NOT EXIST IS NOT A MISSING FIGURE.
     # The per-session slides iterate animals x dates, which assumes every animal ran every night.
@@ -671,6 +674,36 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         r.font.size = Pt(12.5)
         r.font.color.rgb = NAVY if line.startswith(("WHAT", "THE FIX", "MEASURED", "SIGN", "NOT")) else GREY
     note(s, M_PRECUE_CAVEAT, specific=S_DRIFT)
+
+    # ---------------- KEY FIGURES (Priya 11-16): each results page's key-figure cards, first ----------------
+    # Main point on the slide (the page's figure title), the page's caption + source file in the notes. Optional like
+    # section K: an absent file is skipped, and nothing is placed when `src` is not the share's figure root (a test
+    # deck on a tmp dir must not pick up real figures from MICROSCOPE).
+    try:
+        _key_on_share = Path(src).resolve() == Path(PathResolver().root("figures_working")).resolve()
+    except Exception:                                                  # noqa: BLE001
+        _key_on_share = False
+    _key_found = []
+    for _page, _url, _lab, _kroot, _krel, _kttl, _klicks, _kcap, _kdate in (KEY_FIGURES if _key_on_share else ()):
+        try:
+            _kf = Path(PathResolver().root(_kroot)) / _krel
+        except Exception:                                              # noqa: BLE001
+            continue
+        if _kf.exists():
+            _key_found.append((_page, _url, _lab, _kf, _kttl, _klicks, _kcap, _kdate))
+    if _key_found:
+        divider("KEY FIGURES — the key-figure cards of each results page",
+                "Shown as published on the page (same image file). Only the Attempt Encoding Figures page marks key "
+                "figures; the Cortical Spout Coding, State-Space Recovery and Licking Kinematics pages have none yet.")
+        for _page, _url, _lab, _kf, _kttl, _klicks, _kcap, _kdate in _key_found:
+            s = slide()
+            _no_window_line.add(id(s._element))     # the page caption states the window; a filename guess would not
+            title(s, _kttl, f"{_page} page, {_lab} · {_klicks}")
+            note(s, f"{_page} page ({_url}), {_lab}. PAGE CAPTION: {_kcap}\n\nSOURCE: {_kf} (rendered {_kdate}; the "
+                    "page's published image, byte-identical). This is a PRE-REBUILD render (LP run v36, before the "
+                    "11-09 glue-mask fix), placed because the page shows it.")
+            # the title box grows with the main point (24 pt, ~80 characters a line); the figure starts below it
+            big(s, _kf, top=min(3.0, 0.75 + 0.42 * (len(_kttl) // 80 + 1) + 0.35), width=12.5)
 
     # SECTIONS A-C (per-session WITHIN-DAY decode / encode / pre-cue lick-free control) are placed only when
     # `within_day` is set (default). Priya 11-16: the rebuild deck leaves them out until they are re-rendered with
@@ -2319,8 +2352,21 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                 "unaffected. All PROVISIONAL (first renders 10-22 / 10-24).")
         for _n, _ttl, _legend, _f in _k_found:
             _sl = slide()
+            if "LP_licks" in str(_f):
+                _lp_slides.add(id(_sl._element))
+            _leg = _legend or _CI_LEGEND
+            if run_mode.tag():
+                # A TAGGED (rebuild) RUN places its own renders, so the registry's PRE-REBUILD prose must not travel with
+                # them (Priya 11-16: remove outdated text; captions replaced, not annotated): the WHAT IT SHOWS numbers
+                # come from the 10-21 / 10-24 renders (REBUILD-TODO in deck_registry) and the baseline line names the
+                # June + August pre that the rebuild (pre0801) does not use.
+                _leg = _leg.split("\n\nWHAT IT SHOWS")[0]
+                _leg = _leg.replace(" Status PROVISIONAL (first LP render 10-22, re-rendered 10-24 unchanged);",
+                                    " Status PROVISIONAL;")
+                _leg = _leg.replace("Baseline June + August pre (the decoder families' default).",
+                                    "Baseline: August-only pre-stroke sessions (this run, pre0801).")
             title(_sl, f"K{_n}. {_ttl}", "")
-            note(_sl, (_legend or _CI_LEGEND) + chr(10) + chr(10) + "Source: " + _f.name)
+            note(_sl, _leg + chr(10) + chr(10) + "Source: " + str(_f))
             big(_sl, _f, top=1.40, width=12.6)
 
     out_path = Path(out_path)
@@ -2345,7 +2391,8 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     for _sl in slide_order:
         _figs = figs_by_slide.get(id(_sl._element), [])
         _cap = figure_caption(_figs, years=_years)
-        _line = window_provenance(_figs, lick_source="lp" if id(_sl._element) in _lp_slides else None)
+        _line = ("" if id(_sl._element) in _no_window_line else
+                 window_provenance(_figs, lick_source="lp" if id(_sl._element) in _lp_slides else None))
         if not _cap and not _line:
             continue
         _tf = _sl.notes_slide.notes_text_frame
