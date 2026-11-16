@@ -114,7 +114,7 @@ def plot(F: dict) -> None:
     h = [Line2D([], [], color=EPOCH_LINE[e], marker="o", lw=0, label=e) for e in ("acute", "subacute", "chronic")]
     h += [Line2D([], [], color="0.3", marker=ANIMAL_MARKER.get(x, "o"), lw=0, label=x) for x in ("PS92", "PS93", "PS94", "PS95")]
     fig.legend(handles=h, loc="lower center", ncol=7, fontsize=9, frameon=False)
-    fig.suptitle("Does the orofacial hemispheric balance predict RECOVERY (far-contra first-lick aim)? One point per "
+    fig.suptitle("Does the orofacial hemispheric difference (X_right - X_left) predict RECOVERY (far-contra first-lick aim)? One point per "
                  "post-stroke session (gray = pre sessions, left-out reference, not fitted). Mixed models with log(day) and a random intercept per animal (sessions as "
                  "observations, anti-conservative):\nleft = concurrent (aim ~ balance), right = predictive (next-session "
                  "aim change ~ this session's balance + current aim). Within-animal slope bold when p < 0.05. PROVISIONAL",

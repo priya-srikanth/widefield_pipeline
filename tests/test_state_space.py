@@ -286,3 +286,14 @@ def test_spout_blocks_and_block_split(mods, monkeypatch):
         assert part[pos == "mystery"].tolist() == [-1]
         for p in ("far_contra", "close_ipsi"):                      # >= 2 blocks -> both parts get some
             assert set(part[pos == p]) == {0, 1}
+
+
+def test_balance_only_on_real_responses():
+    """Priya 11-16: no hemispheric balance under the gsr / spout transforms (sizes can be <= 0; log ratio undefined)."""
+    import importlib
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+    R = importlib.import_module("state_space_recovery_trials")
+    assert R.balance_defined("") and R.balance_defined("z")
+    assert not R.balance_defined("gsr") and not R.balance_defined("spout")

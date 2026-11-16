@@ -115,7 +115,7 @@ def plot(F: dict) -> None:
             for sp in ("top", "right"):
                 ax.spines[sp].set_visible(False)
             if i == 1:
-                ax.set_xlabel("session balance at the same angle & order\n(X_right - X_left vs pre, x1e3 dF/F)", fontsize=8)
+                ax.set_xlabel("session hemispheric difference at the same angle & order\n(X_right - X_left vs pre, x1e3 dF/F)", fontsize=8)
             if j == 0:
                 ax.set_ylabel(f"{st}: session like-for-like offset\n(mm, + = contralesional)", fontsize=8.5)
     h = [Line2D([], [], color=EPOCH_LINE[e], marker="o", lw=0, label=e) for e in ("acute", "subacute", "chronic")]

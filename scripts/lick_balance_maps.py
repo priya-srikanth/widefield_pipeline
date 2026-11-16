@@ -133,8 +133,8 @@ def plot(F: dict) -> None:
                 ax.imshow(ol, cmap="Greys", vmin=0, vmax=1.2, alpha=0.45, interpolation="nearest")
                 ax.set_title(f"{ttl}\n{ep}", fontsize=8.5)
                 ax.axis("off")
-            fig.colorbar(im, ax=axs[i, :], fraction=0.015, pad=0.01).set_label("cvR2 of the balance", fontsize=8)
-        fig.suptitle(f"{st.upper()} licks: how much of each area pair's hemispheric BALANCE (X_right - X_left, decoder's "
+            fig.colorbar(im, ax=axs[i, :], fraction=0.015, pad=0.01).set_label("cvR2 of the hemispheric difference", fontsize=8)
+        fig.suptitle(f"{st.upper()} licks: how much of each area pair's hemispheric DIFFERENCE (X_right - X_left, decoder's "
                      "0..0.2 s window) is explained by TASK (spout) vs MOVEMENT (lick angle, reach, speed); Musall-style "
                      "alone / unique cvR2 (leave-one-session-out, per animal x epoch; mean of animals).\nEach pair's value "
                      "is painted on both hemispheres; ALM / tjM1 separate; image left = ipsilesional. PROVISIONAL",

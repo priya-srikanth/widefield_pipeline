@@ -791,9 +791,7 @@ def main(argv=None) -> int:
                 for ep in frc.POST_EPOCHS:
                     nb = int(d[d.epoch == ep][f"beyond_{mode}"].sum())
                     labels.append(f"{ep[:5]}\n{nb}/{d[d.epoch == ep].animal.nunique()} >")
-                ax.set_xticks(x, labels, fontsize=6)
-                for e_i, ep in enumerate(frc.POST_EPOCHS, start=1):
-                    ax.axvspan(e_i - 0.4, e_i + 0.4, color=ecol[ep], alpha=0.06, lw=0)
+                ax.set_xticks(x, labels, fontsize=6)        # Priya 11-16: no epoch shading (as every other FR figure)
                 ax.set_title(f"{k} {nm}: {mode}", fontsize=8)
                 if c_i == 0:
                     ax.set_ylabel("angle (deg)")

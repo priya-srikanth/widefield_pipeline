@@ -91,14 +91,16 @@ RINGS = {"close": POS[:3], "far": POS[3:]}
 # epochs every change-vs-pre is reported for (`analysis_kit.epoch_change`).
 EPOCHS = ["pre", "acute", "subacute", "chronic"]
 POST = EPOCHS[1:]
-# NAMED AREA SETS. Three DIFFERENT sets are each called "orofacial" in the write-ups; they are kept apart on purpose
-# (merging them would change published numbers):
-#   OROFACIAL      hemispheric balance (FINDINGS 0b; balance_cells / balance_angle / recovery_trials bal_oro*)
-#   MOTOR          the motor balance version (Priya 11-09: "motor version as well (ALM, tjM1)")
-#   SHIFT_REGIONS  the region weights of the shift_* map analyses (B27; orofacial includes tjM1, not SSs)
+# NAMED AREA SETS. Three DIFFERENT sets; kept apart on purpose (merging them would change published numbers). NAMING
+# (Priya 11-16): "orofacial" alone = SENSORIMOTOR; a sensory-only or motor-only set says so. Figure / page text takes
+# the name from AREA_SET_NAME; the identifiers and table columns (OROFACIAL, bal_oro*, *_motor) predate the rule and stay.
+#   OROFACIAL      orofacial SENSORY: hemispheric balance (FINDINGS 0b; balance_cells / balance_angle / recovery_trials bal_oro*)
+#   MOTOR          orofacial MOTOR: the motor balance version (Priya 11-09: "motor version as well (ALM, tjM1)")
+#   SHIFT_REGIONS  "orofacial" = orofacial SENSORIMOTOR (tjM1 + SSp-m + SSp-n; B27): region weights of the shift_* maps
 OROFACIAL = ("SSp-m", "SSp-n", "SSs")
 MOTOR = ("ALM", "tjM1")
 SHIFT_REGIONS = {"orofacial": ["tjM1", "SSp-m", "SSp-n"], "posterior-medial": ["RSPd", "SSp-tr", "SSp-ll"]}
+AREA_SET_NAME = {"OROFACIAL": "orofacial sensory", "MOTOR": "orofacial motor", "orofacial": "orofacial (sensorimotor)"}
 # top-k pre space. 8 = convention when written; checked 11-07 (Priya "how did you choose 8?"): top 8 capture 97-99 % of a
 # HELD-OUT pre session's spout-specific variance in every animal / alignment (k=4: 89-97 %, >8 adds < 3 %).
 # WF_SS_K overrides for the sensitivity runs (outputs then carry _k<K>).

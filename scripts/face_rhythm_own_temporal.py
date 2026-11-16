@@ -70,10 +70,19 @@ def session_curves(key: str, per_pos: int = 12) -> str:
     freqs = M["freqs"].astype(np.float64)
     dfn = lambda x: normaliser(x * s, freqs, float(pr.get("vqt_norm", 0.95)), float(pr.get("one_over_f", 0.5)))  # noqa: E731
     f = out_dir(sd) / f"{key}_trials.npz"
-    S = npz_memmap(f, "spec")
+    M_ = npz_memmap(f, "spec")
+    shape, dtype, off = M_.shape, M_.dtype, int(M_.offset)
+    del M_          # 11-16: a memmap kept every touched page resident (8-10 GB per worker on a shared box)
+    tr_bytes = int(np.prod(shape[1:])) * dtype.itemsize
+    fh = open(f, "rb", buffering=0)
+
+    def read_trial(ti):
+        """One trial (151, 2, P, F) by a plain read, so nothing stays mapped."""
+        fh.seek(off + ti * tr_bytes)
+        return np.frombuffer(fh.read(tr_bytes), dtype=dtype).reshape(shape[1:])
     meta = npz_small(f, ("t_ms", "position"))
     with np.load(sd / "proj" / f"{key}.npz") as z:
-        lossy = z["trials_lossy"].astype(bool) if "trials_lossy" in z.files else np.zeros(S.shape[:2], bool)
+        lossy = z["trials_lossy"].astype(bool) if "trials_lossy" in z.files else np.zeros(shape[:2], bool)
     pos = meta["position"].astype(str)
     out = {"t_ms": meta["t_ms"]}
     for p in POS:
@@ -84,12 +93,13 @@ def session_curves(key: str, per_pos: int = 12) -> str:
         for ti in idx:
             if lossy[ti].all():
                 continue
-            W, _E, _N2, D = project_rows(_scaled(np.asarray(S[ti:ti + 1][0]), s), A, B, row_fn=dfn)
+            W, _E, _N2, D = project_rows(_scaled(read_trial(ti), s), A, B, row_fn=dfn)
             X = W.astype(np.float64) * D[:, None]
             X[lossy[ti]] = np.nan
             cur.append(X)
-        out[f"{p}_mean"] = np.nanmean(cur, 0) if cur else np.full((S.shape[1], A.shape[1]), np.nan)
+        out[f"{p}_mean"] = np.nanmean(cur, 0) if cur else np.full((shape[1], A.shape[1]), np.nan)
         out[f"{p}_n"] = np.array(len(cur))
+    fh.close()
     CACHE.mkdir(parents=True, exist_ok=True)
     tmp = dst.with_suffix(".part.npz")
     np.savez(tmp, **out)
