@@ -693,6 +693,10 @@ push; (0..1 s) - (-1.5..-0.5 s), push minus random.
 -> No pre + post master for pushes (Priya's question answered by the check, DECISIONS 10-24): the face movement that
 accompanies a push is already in the pre-stroke repertoire; pushes stay a treadmill regressor for the encoder.
 
+## 6g. Per trial: how often vs how large (11-16)
+
+PER-TRIAL SPLIT (11-16; `scripts/face_rhythm_per_trial.py`, frozen master, engaged trials, cue 0..+4 s, LP v36 licks by direction; FR page Fig 2.5): at far contra fewer trials have a right lick (-.87 / -.36 / -.07 of trials) AND lick_right is smaller on the trials that do (-.83 / -.58 / -.61 log2, 4 / 4 every epoch) -> the lasting deficit is per movement; acutely the first right lick is 1.2 s later and the lick_right peak moves with it (peak - first lick -.25 s n.s.) -> later expression follows slower licking. lick_left at contra spouts rises through MORE leftward-lick trials (far contra +.38 / +.27 / +.12), not larger ones (-.06 / +.24 / +.11 n.s.), and on contra trials with NO leftward lick (close contra +.65 / +.81 / +.98 log2) -> contralesional targets licked with the lick_left pattern. Frozen lick_left at far contra rises acutely (+.73, 4 / 4) where the own-fit column (FR page Fig 7.13) is flat. **PROVISIONAL** (new; session-level bootstrap, Holm over 6 spouts).
+
 ## 7. Spout position from face movement in the lick-free pre-cue (ENL) window (PROVISIONAL, four animals, 10-25)
 
 Priya 10-25: "can we also analyze whether we can decode spout position from fr factors in the no-lick ENL time
