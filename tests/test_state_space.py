@@ -267,3 +267,14 @@ def test_check_root_refuses_an_unmoved_tree(mods, monkeypatch, tmp_path):
         S.check_root()
     (tmp_path / "new").mkdir()
     S.check_root()
+
+
+def test_balance_only_on_real_responses():
+    """Priya 11-16: no hemispheric balance under the gsr / spout transforms (sizes can be <= 0; log ratio undefined)."""
+    import importlib
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+    R = importlib.import_module("state_space_recovery_trials")
+    assert R.balance_defined("") and R.balance_defined("z")
+    assert not R.balance_defined("gsr") and not R.balance_defined("spout")

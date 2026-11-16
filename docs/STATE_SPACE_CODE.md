@@ -105,6 +105,20 @@ Every script's module docstring names its question, inputs, outputs and readouts
   - `OROFACIAL` = SSp-m, SSp-n, SSs: the balance.
   - `MOTOR` = ALM, tjM1: the motor balance.
   - `SHIFT_REGIONS["orofacial"]` = tjM1, SSp-m, SSp-n: the shift maps.
+- **Area-set names (Priya 11-16).** "Orofacial" alone means SENSORIMOTOR (`SHIFT_REGIONS["orofacial"]` = tjM1, SSp-m,
+  SSp-n). The balance sets say what they are: `OROFACIAL` = orofacial SENSORY (SSp-m, SSp-n, SSs), `MOTOR` = orofacial
+  MOTOR (ALM, tjM1). Figure / page text takes the name from `S.AREA_SET_NAME`; identifiers and columns (`OROFACIAL`,
+  `bal_oro*`, `*_motor`) predate the rule and stay.
+- **Hemispheric balance only on real responses** (`recovery_trials.balance_defined`, Priya 11-16). The balance is
+  log2 (contra / ipsi) of response SIZES, so it exists only when both sizes are positive: raw and `WF_SS_XFORM=z` (the
+  per-area scale cancels in change vs own pre; lick bal_oro +.11 / +.19 / +.21 vs raw +.13 / +.19 / +.20). Under `gsr`
+  (cortex-wide mode removed) and `spout` (cross-spout mean removed) a size becomes a difference from a shared pattern,
+  can be <= 0, and the log ratio is undefined or explodes (11-16: spout 30-83 % of sessions valid, far-ring values
+  near -5.5; gsr pre spread +-.9 vs +-.3), so those tables carry no `bal_*` columns. Removing the cortex-wide mode is not
+  needed for the balance in any case: a log RATIO is invariant to a bilateral gain by construction, and the balance
+  shift does not follow the cortex-wide amplitude: within animal, post-stroke sessions, r(amplitude ratio, bal_oro) =
+  +.11 / +.74 / -.54 / -.31 (PS92-95, lick; far ring -.19 / +.74 / -.22 / -.42), within-animal slope -.002 (lick) /
+  +.18 (cue, carried by PS93): no consistent sign.
 - **Shuffle p** = share of within-animal shuffles with |null| ≥ |observed|, two-sided, no +1. It is not
   `lick_templates.perm_p`, which is one-sided with the +1.
 - **Draw order.** `epoch_change` takes one `boot_delta` per epoch, in order, on the caller's rng. A loop that
