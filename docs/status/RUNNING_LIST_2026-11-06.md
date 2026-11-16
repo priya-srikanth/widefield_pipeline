@@ -1731,3 +1731,37 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   SS Figs 6.3 / 6.4 / 10.23, the queued head-to-head) are not exchangeable -> detrend both series or circularly shift one
   over the animal's session order. HOLD new null-based claims in these until fixed; a2 builds the shared trial-block helper
   in analysis_kit (coordinate before touching analysis_kit).
+
+## 11-16 (evening) -- RESTnl levels, head-to-head, 14.18 trend-safe check, null fix + kinematics gate results, Priya's decisions
+
+**RESTnl session levels (all 107 sessions; scratch `prelick_test/restnl_levels.py`, checkpointed per session; M: stalled 15:20-16:33, rerun 16:33-16:52).**
+`dec_rest - pre_rest == decbc` to 1.6e-14. Orofacial REST_R - REST_L (x1e3 dF/F, session-mean zero), change vs own pre, acute
+PS92-95 -0.73 / -1.98 / -2.82 / -2.55 (every pair drops acutely 4/4); chronic +0.80 / -2.13 / -0.46 / -0.82. Lesion left, so the
+rest level shifts toward the IPSILESIONAL hemisphere (relative to the session mean: partly the mirror of the task-period
+contralesional rise, not necessarily an absolute rest drop).
+
+**Head-to-head (scratch `prelick_test/head_to_head/`; post-stroke n = 75, orofacial pair, change vs own pre, circular shift over
+day order 10k; detrend = per-animal a + b ln(day) removed from both series).** Within-animal r with far-contra first-cued-lick aim
+(raw / detrended): RESTnl level +.49 (p .002) / +.34 (p .004, 4/4); gain -.45 / -.24 (n.s.); raw evoked ratio resp02 -.08 / +.29
+(2/4); pre-lick level and dec variants n.s. after detrending. **14.18 marker (angle-matched gain ratio) in the same frame:**
+cued +.78 / +.54 (3/4), ITI first after quiet +.70 / +.59 (4/4), both p <= .0001; r(rest level, marker) +.28-.31 n.s. Unseen-animal
+cvR2 of the h2h is NOT comparable to 14.18 (h2h re-subtracted each animal's pre mean, days baseline .42 vs .23).
+Why raw ratio up but 14.18 down acutely: acute licks land ipsilesionally, and the pre line at that angle predicts an even larger
+contralesional share; the angle-matched marker reads the shortfall.
+
+**Null fix (branch fix/ss-nulls-1116, wf_ssnulls; 1b50f932 + 8aab5c2d).** Circular shift within animal over day order for the
+seven session-series association tests; whole spout blocks for orth_check / spout_timing splits. No star changes in SS Figs
+6.3 / 6.4 / 10.25; section 10 text p values move (10.23 contra .010, 10.24 .29 / .55, 10.26 posterior-medial n.s.). Detrending
+removes the 10.23 pre-lick vs aim coupling (r .00 / +.12) -- **Priya: keep the framing; time and recovery are inextricably linked,
+correlation with time does not invalidate it.** Production path bugs found: within_session_behavior.WSD and
+detour_vs_balance.RECPRIM resolve under rebuild_20261103 where the files do not exist; block_size_max_for falls back to 8.
+
+**Kinematics gate items 1-3 (branch fix/kin-gated-pooled-1116, wf_kingate; record docs/status/KIN_PAGE_GATE_ITEMS_2026-11-16.md).**
+Priya: "new figures look good". Jaw opening far contra acute -2.42 -> -1.85 mm (4/4), four smaller jaw stars lost; section 6
+far-contra acute .05 / .62 / .22 / .10.
+
+**Decisions (Priya 11-16):** 14.18 pool stays the current five areas; the rest-level result goes on the ENCODING page section 14
+with a title/caption that says how it differs from the balance figures; add the 14.18 trend-safe sentence; add PI-slide-35
+far-contra outcome figure to kinematics section 6 (whole-number figure numbering, no letters); analysis deck: G2b / G3 / G6 /
+counts -> LP video licks, remove outdated items, drop small-lesion slides, add a page key-figures section, render only the
+missing groups still cited on a page or in FINDINGS. Page updates and deck rebuild delegated (in progress).
