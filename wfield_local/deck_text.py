@@ -65,11 +65,10 @@ TRIALS_BEHAVIOUR = (
 
 S_G1B = (
     "READ THE DENOMINATOR FIRST. A position with zero engaged trials has no lick-only decoding "
-    "number at all -- not a low one. PS94 8/20 has ZERO engaged far_R and 17 far_center against ~70 "
-    "elsewhere; PS93 is at 8-10 far_R; PS92 reached 4 by 8/21. FALSIFIER: if the no-lick bars were "
-    "also near zero, the position stopped being PRESENTED and this is a task artifact. They are not "
-    "-- the spout still moves there every trial -- so this is the animal declining, which is the "
-    "phenotype the rest of section G is trying to explain.")
+    "number at all -- not a low one. Engaged = an LP video lick (contact or incomplete, cam4 + cam1) "
+    "within 3.5 s of the cue; undetected = no LP lick in that window. FALSIFIER: if the undetected "
+    "bars were also near zero, the position stopped being PRESENTED and the gap would be a task "
+    "artifact rather than behavior.")
 
 S_G2 = (
     "The BAND is the animal's own pre-stroke leave-one-session-out range, so a point inside it means "
@@ -299,9 +298,7 @@ S_G0 = (
     "every panel and the panels ARE comparable; LICK-ONLY is 1/n for that session's attempted "
     "positions and the panels are NOT comparable with each other. The band on later slides is the "
     "animal's OWN pre-stroke leave-one-session-out range, so inside the band means 'within this "
-    "animal's ordinary day-to-day variation', not 'normal'. And PS92/PS93 are the SMALL-LESION arm "
-    "of a severity contrast -- NOT a negative control, because they were lesioned too, just mildly "
-    "enough to leave no overt deficit (Priya, 2026-08-18).")
+    "animal's ordinary day-to-day variation', not 'normal'.")
 
 S_G1 = (
     "BEHAVIOR FIRST, because most of Section G is only interpretable against it. The lesion marker "
@@ -312,17 +309,17 @@ S_G1 = (
     "Behavioral severity tracks the neural effect; dose does not (DECISIONS 2026-08-19).")
 
 S_G2B = (
-    "PER-POSITION RECALL NEEDS ITS COLUMN BASELINE, which is printed under each column. The frozen "
-    "decoder predicts far_R on ~35% of ALL PS94 post-stroke trials, so far_R 'recall' is inflated by "
-    "prediction bias before any position information is involved. Under a label permutation the "
+    "PER-POSITION RECALL NEEDS ITS COLUMN BASELINE. A frozen decoder that over-predicts one "
+    "position inflates that position's 'recall' by prediction bias before any position information "
+    "is involved. Under a label permutation the "
     "expected recall for a position is exactly its prediction rate -- that is the number a diagonal "
     "must clear. Read against 1/6 instead and this figure manufactures a result (Priya, 2026-08-18).")
 
 S_G3 = (
-    "The POST arm includes NO-LICK trials by design (Priya, 2026-08-18): PS94 has ZERO engaged "
-    "trials at far_center and far_R, the two positions worth reading, so an engaged-only matrix "
-    "leaves both rows blank. The PRE arm stays engaged-only because it is the reference for what the "
-    "code looks like when the movement succeeds. THE QUESTION: does far_center get read as far_R -- "
+    "The ALL-trials POST arm includes NO-LICK trials by design (Priya, 2026-08-18): at a spout the "
+    "animal no longer licks, a lick-only matrix leaves that row thin or blank. The PRE reference "
+    "(panel 1) uses camera WORKING trials only, because it is the reference for what the code looks "
+    "like when the movement succeeds. THE QUESTION: does far_center get read as far_R -- "
     "the animal aiming right and undershooting -- or does the row simply disperse? Off-diagonal "
     "STRUCTURE is the claim; off-diagonal magnitude means nothing without the pre-stroke matrix "
     "beside it.")
@@ -336,12 +333,12 @@ S_G4B = (
 
 S_G6 = (
     "THE SPLIT IS PER SESSION, because 'still attempts this position' is a behavioral state that "
-    "changes overnight -- PS95 far_R is 1/120 on 8/17 and 88/112 on 8/18. A trial is therefore "
+    "can change overnight. A trial is therefore "
     "labeled by what the animal was doing THAT night, not by an animal-level verdict. READ THE "
     "PRESERVED ARM AS THE CONTROL: if the decoder cannot read a position from a no-lick trial even "
     "where the animal is working that position, then 'no lick -> no code' is a property of no-lick "
-    "trials in general and says nothing about the lesion. That arm is thin per session -- PS95 8/17 "
-    "is n=38, p=0.11, which is UNDERPOWERED, not negative. G6b is the sharper form of this contrast.")
+    "trials in general and says nothing about the lesion. That arm can be thin per session, and a "
+    "thin arm is UNDERPOWERED, not negative. G6b is the sharper form of this contrast.")
 
 S_G7B = (
     "THE PREMISE OF THE WHOLE SMALL-LESION ARM: all six positions still attempted. If that fails, "
