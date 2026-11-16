@@ -189,6 +189,24 @@ def plot(F: dict) -> None:
                     ax.set_xlabel("lick angle from midline (deg, + = contralesional)", fontsize=8.5)
                 if j == 0:
                     ax.set_ylabel(f"{ROWLAB[st]}\n{lab}", fontsize=8)
+        # ONE y scale per column (Priya 11-16: "make the ITI scale more similar to the cued first lick scale so the
+        # relationship is clearer"): every row takes the cued row's 1-99th percentile range (+10 %); points beyond it are
+        # counted in the panel, not dropped from any fit.
+        for j, a in enumerate(PAIRS):
+            v = S.loc[S.set == "cued", f"{meas}_{a}"].dropna()
+            if not len(v):
+                continue
+            lo, hi = np.nanpercentile(v, [1, 99])
+            pad = 0.1 * (hi - lo)
+            lo, hi = lo - pad, hi + pad
+            for i, st in enumerate(sets):
+                ax = axs[i, j]
+                ax.set_ylim(lo, hi)
+                w = S.loc[S.set == st, f"{meas}_{a}"].dropna()
+                off = int(((w < lo) | (w > hi)).sum())
+                if off:
+                    ax.text(0.99, 0.02, f"{off} of {len(w)} points off scale", transform=ax.transAxes, ha="right",
+                            va="bottom", fontsize=7, color="0.4")
         fig.legend(handles=[Line2D([], [], color=col[e], marker="o", lw=0, label=e) for e in il.EP4]
                    + [Line2D([], [], color="k", lw=1.7, label="pre fit")]
                    + [Line2D([], [], color=col[e], lw=1.4, ls="--", label=f"{e} fit") for e in EP],
