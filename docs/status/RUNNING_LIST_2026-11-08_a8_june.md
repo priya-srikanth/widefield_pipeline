@@ -312,3 +312,7 @@ Stale, not mine to edit without asking: deck slide 163 (Big picture) status line
   leave-one-out, SEM across pre sessions), supporting 7a.15-7a.27 (absolute by spout, per animal, flagged pick vs
   runner-up, session sheets, pooled matches); status row added. Figures are the 12-trials-per-spout preview: SWAP for the
   all-trials render (same ids / file names) and update the 7a.13 numbers + status row when bkwv2ffli finishes.
+- 11-16: BLOCK-PERMUTATION audit (window a2; Priya: block permutation everywhere it makes sense). FR arm: only
+  scripts/fr_enl_decode.py is affected (FR page Fig 6.1, PROVISIONAL): its per-session null permutes position labels
+  trial-wise against the block-CV predictions -> HOLD claims until a2's shared block helper lands, then re-run with block
+  permutation. All other FR nulls shuffle session labels within animal (unaffected); own_temporal stats = bootstrap.
