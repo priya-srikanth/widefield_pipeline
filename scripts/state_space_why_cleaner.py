@@ -5,7 +5,8 @@ one step at a time'"; plan: running list B17).
 Start from the 15r lick / lick arm AS RENDERED and change ONE thing per step toward the state-space map:
   S0  15r as rendered: the rebuild session cache (`position_reference_maps.maps_by_epoch("lick", "lick")`, camera
       working-trial gate), RESTnl reference (`raw - restnl_base`), each animal x position divided by its own pre RMS over
-      `brain_mask()` -- which under the rebuild profile still holds the painted glue (A9) -- contours =
+      `brain_mask()` -- which under the rebuild profile held the painted glue until the 11-09 glue fix (A9; since then
+      it IS the analysis mask, 151,447 px, so S1 = S0: re-run 11-16) -- contours =
       `significance_contour` pre-normalized on the profile's stat mask (glue in)
   S1  + the glue-free analysis mask (the state-space bundle's mask: Allen brain - bulbs - painted glue) for the scale,
       the test and the display

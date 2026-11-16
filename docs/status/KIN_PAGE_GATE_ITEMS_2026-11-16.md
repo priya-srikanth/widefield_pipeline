@@ -92,3 +92,38 @@ Other cells where the two gates disagree on a star: close ipsi contact subacute 
 acute (** vs *), jaw-only close contra acute (* vs **), close contra no response acute (+0.020 * vs +0.039 **), and the
 chronic below-pre cells (no response close ipsi / far ipsi / far contra, jaw-only far ipsi / far contra: * under legacy,
 n.s. on the working period).
+
+## Item (d), 11-16 (branch fix/todo-1116): section 6 jaw-only table, section 7 no-contact table, Fig 7.6 re-gated
+
+Gate = the section 6 class shares' working period: `canonical` trials of the production camera run's per-trial table
+(`rebuild_20261103/LP_analysis/<v36>/imaging_encoding/qc/sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70/trial_attempts.csv`,
+11-04). Checked first: its canonical trials reproduce the gated `<D>/jaw_only_incomplete_figs/sessions.csv` exactly (642 / 642
+session x spout cells, identical n_trials, class shares within the 4-digit rounding). Code: `cam1_incomplete_licks.py
+--working <that csv> --out <dir>` (commit c6f7a924; trials, their cam4 / cam1-only licks and the run's jaw-only class;
+v36 trial ids / positions asserted). Run 46 s (0.2 s per session; no per-session re-gating). Fig 7.6:
+`fig_farcontra_attempts_sessions.py --incomplete <new sessions.csv> --out <new>` under profile cohort1_rebuild_20261103.
+
+Outputs (new only): `<D>/cam1_incomplete_working_20261116/` (sessions.csv, by_epoch.csv, figures/) and
+`<D>/farcontra_attempts_sessions_working_20261116/` (farcontra_attempts_sessions.png / .csv, data/).
+
+Far contra (far_R), mean of session values per animal (PS92 / PS93 / PS94 / PS95; mean of animals):
+
+| measure | epoch | page (live) | 11-03 all-trial table | working period (new) |
+|---|---|---|---|---|
+| jaw moves, no lick (section 6 table) | pre | .016 / .009 / .050 / .075 | .014 / .008 / .049 / .073 | .009 / .000 / .016 / .024; .012 |
+| | acute | .277 / .282 / .387 / .577 | .201 / .209 / .278 / .475 | .094 / .100 / .205 / .486 (1 session); .221 |
+| | subacute | - | .056 / .092 / .094 / .140 | .068 / .027 / .033 / .053; .045 |
+| | chronic | .000 / .022 / .037 / .065 | .000 / .021 / .036 / .062 | .000 / .003 / .011 / .020; .008 |
+| licks without contact (section 7 table) | pre / acute / chronic | unchanged | | per session <= 0.0009 (no 3-digit change) |
+
+* The page's section 6 jaw-only table and Fig 7.6 jaw panel are the pre-11-03 jaw-QC'd-trial version (mean .04 / .38 / .11
+  / .03); the working period gives .012 / .221 / .045 / .008 = the jaw-only row of Fig 6.1 (same trials). Acute still
+  above pre in 4 / 4 and back near pre chronically; the acute size roughly halves in PS92 / PS93 (most jaw-only trials
+  there were in the quit tail / stopped runs); PS95 (one session) .486.
+* Licks without contact: dropping the outside-period trials removes almost no licks (8,494 of 9,481 far_R trials kept;
+  largest change PS93_0821 .820 -> .819), so the section 7 table and Fig 7.6 panel 3 stand (.25 / .89 / .48 / .39).
+* Fig 7.6 attempt rate / completion: unchanged by this gate (already the run's camera classes), but the page image
+  predates the rebuild: rebuild values attempt .980 / .676 / .932 / .985 (page .97 / .65 / .93 / .99; acute per animal
+  .842 / .832 / .663 / .367, page .79 / .80 / .65 / .34), completion .977 / .068 / .796 / .978 (acute .053 / .152 / .042
+  / .025, page .05 / .15 / .04 / .02). Caption's "nothing re-run" / "engaged trials" / "all-trial" set sentences need
+  the working-period wording.
