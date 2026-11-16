@@ -73,7 +73,27 @@ LICKS3D = pose3d_dir() / "kinematics" / "licks.csv.gz"                   # 3-D f
 # WF_SS_ROOT (11-13, refactor pins): a different output root for VERIFICATION runs only (old vs new code into two scratch
 # roots, then compare every table); never set in a production queue.
 ROOT = Path(os.environ.get("WF_SS_ROOT") or REBUILD / "state_space_recovery")   # every state-space output
-LEGACY_ROOT = Path(PathResolver().root("microscope")) / "Widefield" / "state_space_recovery"
+SHARE = Path(PathResolver().root("microscope")) / "Widefield"                     # the share root (read-only here)
+LEGACY_ROOT = SHARE / "state_space_recovery"
+# Inputs from OTHER arms (11-16 path fix): until then within_session_behavior and detour_vs_balance built these as
+# `ROOT.parent / ...`, which was the share root before the 11-12 reroute and is the REBUILD root after it, where
+# neither file exists -- the within-session join was silently skipped and the detour would have failed. They are named
+# here, by owner, and read through `require` (a missing input raises; nothing is skipped).
+#   RECPRIM: the 0b primary balance marker (lick_recovery_primary -> iti_licks.OUT_W/recprim_sessions.csv). The rebuild
+#     re-rendered it on 11-11 into the SAME run-table folder as the aim table (ITI_W), so the detour now reads the
+#     rebuild's balance next to the rebuild's aim (it read the pre-rebuild, original-hemo copy on the share before).
+#   WSD_SLOPES: the within-session-decline arm's per-session behavior slopes (scripts/within_session_decline.py OUT,
+#     on the share root; never part of the rebuild).
+RECPRIM = ITI_W / "recprim_sessions.csv"
+WSD_SLOPES = SHARE / "within_session_decline" / "tables" / "session_slopes.csv"
+
+
+def require(path, what):
+    """`path` if it exists, else FileNotFoundError naming the input (never skip a missing input silently)."""
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(f"state-space input missing: {what} at {path}")
+    return path
 
 
 def check_root():

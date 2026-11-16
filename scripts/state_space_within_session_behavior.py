@@ -35,7 +35,8 @@ from wfield_local import analysis_kit as kit  # noqa: E402
 
 ROOT = S.ROOT
 DIR = ROOT / f"pertrial{S.tag()}"               # run with WF_SS_ALIGN=lick for the page numbers (Fig 6.12)
-WSD = ROOT.parent / "within_session_decline" / "tables" / "session_slopes.csv"
+OUT = DIR                                       # output folder (a verification run may point it elsewhere)
+WSD = S.WSD_SLOPES      # the decline arm's table on the share root (was ROOT.parent: the rebuild root since 11-12)
 JOIN = ["fc_dside_ord", "far_dside_ord", "lat_ord", "nlick_ord", "contact_ord"]
 
 
@@ -61,19 +62,22 @@ def main():
                      "s_fc_dside": float(np.polyfit(fc.order, fc.dside, 1)[0]) if len(fc) >= 8 else np.nan,
                      "contact": g.contact.mean()})
     out = pd.DataFrame(rows)
-    out.to_csv(DIR / "within_session_behavior_slopes.csv", index=False)
+    OUT.mkdir(parents=True, exist_ok=True)
+    out.to_csv(OUT / "within_session_behavior_slopes.csv", index=False)
     with pd.option_context("display.width", 220, "display.precision", 3):
         print(out.groupby(["animal", "epoch"])[["s_x", "s_contact", "s_dside", "s_fc_dside", "s_rt"]].mean())
         for an, g in out[out.epoch != "pre"].groupby("animal"):
             print(an, {c: round(float(g[["s_x", c]].dropna().corr().iloc[0, 1]), 2)
                        for c in ("s_contact", "s_dside", "s_fc_dside", "s_rt")})
-    if WSD.exists():
-        join(out)
+    join(out)          # a missing decline-arm table raises (11-16: it was silently skipped since the 11-12 reroute)
 
 
 def join(out, n_shuf=2000):
     rng = np.random.default_rng(0)
-    J = out[["animal", "label", "epoch", "day", "s_x", "s_y"]].merge(pd.read_csv(WSD)[["label", *JOIN]], on="label")
+    W = pd.read_csv(S.require(WSD, "within-session-decline session slopes (scripts/within_session_decline.py analyze)"))
+    J = out[["animal", "label", "epoch", "day", "s_x", "s_y"]].merge(W[["label", *JOIN]], on="label")
+    if J.empty:
+        raise ValueError(f"no session label of {DIR} matched {WSD}")
     rows = []
     for grp, G in (("pre", J[J.epoch == "pre"]), ("post", J[J.epoch != "pre"])):
         for nv in ("s_x", "s_y"):
@@ -89,7 +93,7 @@ def join(out, n_shuf=2000):
                              "shuffle_p": p,
                              **{f"r_{an}": round(v, 2) for an, v in per.items()}})
     R_ = pd.DataFrame(rows)
-    R_.to_csv(DIR / "within_session_join.csv", index=False)
+    R_.to_csv(OUT / "within_session_join.csv", index=False)
     with pd.option_context("display.width", 220, "display.precision", 3, "display.max_rows", 100):
         print()
         print("== neural within-session slope vs the decline arm's behavior slopes (within animal) ==")

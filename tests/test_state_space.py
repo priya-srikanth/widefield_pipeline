@@ -297,3 +297,42 @@ def test_balance_only_on_real_responses():
     R = importlib.import_module("state_space_recovery_trials")
     assert R.balance_defined("") and R.balance_defined("z")
     assert not R.balance_defined("gsr") and not R.balance_defined("spout")
+
+
+def test_cross_arm_inputs_resolve_by_owner_and_fail_loudly(mods, monkeypatch, tmp_path):
+    """11-16 path bug: within_session_behavior.WSD and detour_vs_balance.RECPRIM were built as `ROOT.parent / ...`. After
+    the 11-12 reroute ROOT.parent is the REBUILD root, where neither file exists, so the within-session join was silently
+    skipped and the detour would fail. Both are now named in state_space_sim by owner, and a missing one raises."""
+    import pandas as pd
+    S, _ = mods
+    import state_space_detour_vs_balance as DV
+    import state_space_within_session_behavior as WB
+    assert S.RECPRIM == S.ITI_W / "recprim_sessions.csv" and DV.RECPRIM == S.RECPRIM     # beside the aim table
+    assert S.WSD_SLOPES == S.SHARE / "within_session_decline" / "tables" / "session_slopes.csv"
+    assert WB.WSD == S.WSD_SLOPES and S.REBUILD not in S.WSD_SLOPES.parents
+    with pytest.raises(FileNotFoundError, match="state-space input missing: x"):
+        S.require(tmp_path / "nope.csv", "x")
+    assert S.require(tmp_path, "x") == tmp_path
+    # within_session_behavior: the join raises instead of being skipped
+    monkeypatch.setattr(WB, "WSD", tmp_path / "missing.csv")
+    monkeypatch.setattr(WB, "OUT", tmp_path)
+    out = pd.DataFrame({"animal": ["PS92"], "label": ["PS92_0901"], "epoch": ["acute"], "day": [2], "s_x": [0.], "s_y": [0.]})
+    with pytest.raises(FileNotFoundError, match="within-session-decline"):
+        WB.join(out)
+    # detour_vs_balance: a missing balance table raises
+    monkeypatch.setattr(S, "ROOT", tmp_path)
+    (tmp_path / f"trajectories{S.tag()}").mkdir()
+    out.assign(x=0., y=0.)[["label", "animal", "epoch", "day", "x", "y"]].to_csv(
+        tmp_path / f"trajectories{S.tag()}" / "days_sessions.csv", index=False)
+    monkeypatch.setattr(DV, "RECPRIM", tmp_path / "no_recprim.csv")
+    with pytest.raises(FileNotFoundError, match="primary balance marker"):
+        DV.load()
+
+
+def test_cross_arm_inputs_exist_on_the_share(mods):
+    """Where the share is mounted, both inputs are where state_space_sim says they are."""
+    S, _ = mods
+    if not S.SHARE.exists():
+        pytest.skip("share not mounted")
+    assert S.RECPRIM.exists(), S.RECPRIM
+    assert S.WSD_SLOPES.exists(), S.WSD_SLOPES
