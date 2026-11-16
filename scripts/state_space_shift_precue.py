@@ -9,7 +9,8 @@ Per trial, cohort SVD basis, minus the session's RESTnl level, units of the anim
 and pre-lick - pre-cue (what the cue -> first-lick period adds on top of the pre-cue state). Session means, change vs
 own pre, animal-weighted nested bootstrap (`boot_delta`, 2,000); * = 95 % CI excludes 0, k/4. Plus, across post-stroke
 sessions, the within-animal correlation of the pre-cue change with the pre-lick and post-lick changes (animal-demeaned;
-per-animal r printed first, rule 8; within-animal shuffle, 2,000).
+per-animal r printed first, rule 8; within-animal circular shift over days, 2,000;
+a free shuffle until 11-16).
 Outputs: <state_space_recovery>/shift_precue{tag}/{sessions,changes,coupling}.csv, page_figs/ss_shift_precue{tag}.png.
 EXPLORATORY.
 """
@@ -111,7 +112,7 @@ def main():
             b = float((post["pre-cue"] * post[rd]).sum() / (post["pre-cue"] ** 2).sum())
             xc = post["pre-cue"].to_numpy()
             _, p = kit.within_shuffle_p(lambda y, xc=xc: float((xc * y).sum() / (xc ** 2).sum()), post[rd].to_numpy(),
-                                        post.animal.to_numpy(), rng)
+                                        post.animal.to_numpy(), rng, order=post.day.to_numpy(), mode="circular")
             coup.append({"region": reg, "vs": rd, "r_by_animal": r_an, "within_slope": b, "shuffle_p": p})
             for an, g in post.groupby("animal"):
                 ax.scatter(g["pre-cue"], g[rd], marker=ANIMAL_MARKER[an] if rd == "pre-lick" else mk,
@@ -134,7 +135,7 @@ def main():
         "before the first lick, 0..+0.7 s after it, and pre-lick minus pre-cue. Top: change vs own pre (nested bootstrap "
         "animals -> sessions, 2,000; * = 95 % CI excludes 0). Bottom: post-stroke sessions, animal-demeaned, pre-cue "
         "level vs pre-lick (open, shape = animal) and post-lick (filled triangles); within-animal slope with a "
-        "within-animal shuffle (2,000)."), y=1.04, fontsize=9.5)
+        "within-animal circular shift over days (2,000)."), y=1.04, fontsize=9.5)
     sig_marks.reserve_headroom(fig)
     fig.tight_layout()
     save_png_svg(fig, FIGS / f"ss_shift_precue{S.tag()}.png", dpi=130, bbox_inches="tight")

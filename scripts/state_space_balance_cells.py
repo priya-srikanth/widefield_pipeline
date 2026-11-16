@@ -7,12 +7,12 @@ target), so those columns do not compare the same spouts. This tests it directly
   same LANDING, different TARGET: e.g. first licks that landed in the far-ipsi bin, aimed at far-contra vs at far-ipsi;
   same TARGET, different LANDING: far-contra-aimed licks that landed on target vs elsewhere.
 
-Balance = log2 contralesional (_right) / ipsilesional (_left) response size of the orofacial areas (SSp-m, SSp-n, SSs),
+Balance = log2 contralesional (_right) / ipsilesional (_left) response size of the orofacial SENSORY areas (SSp-m, SSp-n, SSs),
 0-1 s after the cue minus -0.5-0 s, on the cell's trial mean (FINDINGS 0b measure; same as `balance()` in the trials
 script). Cells pool the trials of all sessions of an animal x epoch (n >= MIN_TRIALS) and are also kept per session.
 Also per session x TARGET over all first-lick trials (landing ignored; the "target" grouping).
 Output: <rebuild root>/state_space_recovery/landing/balance_cells{,_sessions,_target}.csv. Exploratory.
-`--motor` (Priya 11-09: "motor version as well (ALM, tjM1)"): the same balance over the motor areas ALM + tjM1 instead;
+`--motor` (Priya 11-09: "motor version as well (ALM, tjM1)"): the same balance over the orofacial MOTOR areas ALM + tjM1 instead;
 outputs carry the suffix `_motor` (the orofacial tables are untouched).
 """
 from __future__ import annotations

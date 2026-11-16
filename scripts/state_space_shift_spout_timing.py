@@ -9,8 +9,8 @@ trace FOR THAT SPOUT (so the spout's own pre-stroke timing is removed).
 Readouts per spout: early (0..0.3 s) and late (0.3..0.7 s) change (nested bootstrap animals -> sessions, `boot_delta`,
 2,000), traces animal-weighted.
 TEST of spout specificity, per SESSION (post-lick bins 0..0.7 s; D = spouts x bins change vs the pre spout traces; pre
-sessions against a leave-session-out pre trace = the drift floor): each spout's trials are split at random into two
-halves (20 splits) and only cross-half products are kept, so trial noise does not enter:
+sessions against a leave-session-out pre trace = the drift floor): each spout's BLOCKS are dealt at random into two
+halves (20 splits; whole spout blocks, `S.block_split`, a spout needs >= 2 blocks; random trial halves until 11-16) and only cross-half products are kept, so trial noise does not enter:
   shared energy          mean(dA * dB), d = the spout-mean change trace
   spout-specific energy  mean(rA * rB), r = D - d (what differs between spouts, size or timing)
   specific TIMING energy the same for each spout's late-minus-early contrast of r (a spout-specific shift in timing)
@@ -68,19 +68,23 @@ def pos_style(p):
 spout_mean = S.spout_means                 # trials x bins -> spouts x bins (NaN where a spout has no trial)
 
 
-def cv_energies(V, pos, P, tix, early, late, rng):
-    """One session's (shared, spout-specific, specific timing) cross-validated energies; P = pre spouts x bins."""
-    keep = [i for i, p in enumerate(POS) if (pos == p).sum() >= MIN_TR and np.isfinite(P[i]).all()]
+def cv_energies(V, pos, blk, P, tix, early, late, rng):
+    """One session's (shared, spout-specific, specific timing) cross-validated energies; P = pre spouts x bins; blk = the
+    trials' spout-block ids (`S.spout_blocks`). Halves keep each spout BLOCK whole (`S.block_split`, Priya 11-16): a spout
+    needs >= MIN_TR trials and >= 2 blocks. Until 11-16 the halves were equal-size random TRIAL halves, which put
+    block-mates (sharing slow drift) in both halves."""
+    nb = {p: len(np.unique(blk[pos == p])) for p in POS}
+    keep = [i for i, p in enumerate(POS) if (pos == p).sum() >= MIN_TR and nb[p] >= 2 and np.isfinite(P[i]).all()]
     if len(keep) < 3:
         return (np.nan,) * 3
     out = []
     for _ in range(NSPLIT):
         A, B = [], []
+        part = S.block_split(blk, pos, 2, rng)
         for i in keep:
-            ix = rng.permutation(np.flatnonzero(pos == POS[i]))
-            h = len(ix) // 2
-            A.append(V[ix[:h]].mean(0) - P[i])
-            B.append(V[ix[h:2 * h]].mean(0) - P[i])
+            m = pos == POS[i]
+            A.append(V[m & (part == 0)].mean(0) - P[i])
+            B.append(V[m & (part == 1)].mean(0) - P[i])
         A, B = np.array(A), np.array(B)
         dA, dB = A.mean(0), B.mean(0)
         rA, rB = A - dA, B - dB
@@ -178,9 +182,10 @@ def main():
     srng = np.random.default_rng(1)
     erows = []
     for an, lab, ep, day, V, pos in sess_tr:
+        blk = S.spout_blocks(lab, pos)
         for r in regs:
             P = np.nanmean([m[r] for lb, m in pre_sess[an] if lb != lab], 0)
-            e = cv_energies(V[r], pos, P, tix, wix["early (0..0.3 s)"], wix["late (0.3..0.7 s)"], srng)
+            e = cv_energies(V[r], pos, blk, P, tix, wix["early (0..0.3 s)"], wix["late (0.3..0.7 s)"], srng)
             erows.append({"animal": an, "label": lab, "epoch": ep, "day": day, "region": r, **dict(zip(ENER, e))})
     E = pd.DataFrame(erows)
     E.to_csv(OUT / "energies.csv", index=False)
@@ -269,7 +274,7 @@ def main():
         "first-lick-aligned, units of the animal's pre-template pixel RMS), per spout, as change vs the animal's own pre "
         "trace for the SAME spout. Left: animal-weighted change traces (solid = close, dashed = far; blue ipsi, gray mid, "
         "red contra); title = change vs own pre of the spout-specific energy. Middle: per-spout early / late change. Right: per-session "
-        "split-half cross-validated energy over 0..0.7 s of the shared (spout-mean) change, its spout-specific part, and "
+        "split-half (whole spout blocks) cross-validated energy over 0..0.7 s of the shared (spout-mean) change, its spout-specific part, and "
         "the spout-specific part of the late-minus-early contrast (pre sessions vs a leave-session-out pre trace), change "
         "vs own pre; k/4 = animals up. Far right: all spouts, trials whose 700-ms bout touched the spout vs trials with no contact (3-D "
         "licks; B27 trial table). Nested bootstrap animals -> sessions (2,000); * = 95 % CI excludes 0."), y=1.05, fontsize=9.5)

@@ -91,14 +91,16 @@ RINGS = {"close": POS[:3], "far": POS[3:]}
 # epochs every change-vs-pre is reported for (`analysis_kit.epoch_change`).
 EPOCHS = ["pre", "acute", "subacute", "chronic"]
 POST = EPOCHS[1:]
-# NAMED AREA SETS. Three DIFFERENT sets are each called "orofacial" in the write-ups; they are kept apart on purpose
-# (merging them would change published numbers):
-#   OROFACIAL      hemispheric balance (FINDINGS 0b; balance_cells / balance_angle / recovery_trials bal_oro*)
-#   MOTOR          the motor balance version (Priya 11-09: "motor version as well (ALM, tjM1)")
-#   SHIFT_REGIONS  the region weights of the shift_* map analyses (B27; orofacial includes tjM1, not SSs)
+# NAMED AREA SETS. Three DIFFERENT sets; kept apart on purpose (merging them would change published numbers). NAMING
+# (Priya 11-16): "orofacial" alone = SENSORIMOTOR; a sensory-only or motor-only set says so. Figure / page text takes
+# the name from AREA_SET_NAME; the identifiers and table columns (OROFACIAL, bal_oro*, *_motor) predate the rule and stay.
+#   OROFACIAL      orofacial SENSORY: hemispheric balance (FINDINGS 0b; balance_cells / balance_angle / recovery_trials bal_oro*)
+#   MOTOR          orofacial MOTOR: the motor balance version (Priya 11-09: "motor version as well (ALM, tjM1)")
+#   SHIFT_REGIONS  "orofacial" = orofacial SENSORIMOTOR (tjM1 + SSp-m + SSp-n; B27): region weights of the shift_* maps
 OROFACIAL = ("SSp-m", "SSp-n", "SSs")
 MOTOR = ("ALM", "tjM1")
 SHIFT_REGIONS = {"orofacial": ["tjM1", "SSp-m", "SSp-n"], "posterior-medial": ["RSPd", "SSp-tr", "SSp-ll"]}
+AREA_SET_NAME = {"OROFACIAL": "orofacial sensory", "MOTOR": "orofacial motor", "orofacial": "orofacial (sensorimotor)"}
 # top-k pre space. 8 = convention when written; checked 11-07 (Priya "how did you choose 8?"): top 8 capture 97-99 % of a
 # HELD-OUT pre session's spout-specific variance in every animal / alignment (k=4: 89-97 %, >8 adds < 3 %).
 # WF_SS_K overrides for the sensitivity runs (outputs then carry _k<K>).
@@ -504,6 +506,35 @@ def load_sessions(hook=None, june=False):
         data.setdefault(an, []).append((lab, ep, epochs.days_since_stroke(lab),
                                         *(hook(lab, Y, pos) if hook else (Y, pos))))
     return {a: sorted(v, key=lambda s: s[2]) for a, v in data.items()}, (cols if BASIS == "lnmf" else last)
+
+
+def spout_blocks(label, pos):
+    """Spout BLOCK id per trial of one extract session (rows in trial order, as the extract writes them), the decoders'
+    definition: `block_ids.block_ids(codes, block_size_max_for(session))` -- a new block where the spout changes, a run
+    longer than the scheduler's block_size_max split evenly (two adjacent same-spout blocks). The extract keeps only
+    first-lick trials, so a dropped trial is simply absent: it does not break a run (as a -1 in `block_ids`), but the
+    even split of an over-long run counts the trials present. Negative ids (none here: every extract row has a spout)
+    would become singletons."""
+    from wfield_local.block_ids import block_ids, block_size_max_for
+    code = {p: i for i, p in enumerate(POS)}
+    b = block_ids(np.array([code.get(str(p), -1) for p in pos]), block_size_max_for({"label": label}))
+    neg = b < 0
+    b[neg] = b.max(initial=-1) + 1 + np.arange(neg.sum())
+    return b
+
+
+def block_split(blocks, pos, n_parts, rng):
+    """Part label (0..n_parts-1) per trial with every spout BLOCK whole in one part (Priya 11-16: block-mates in both
+    halves make a split-half estimate optimistic). Per spout in POS order, its blocks (first-appearance order) are dealt
+    to parts by ``rng.permutation(np.arange(n_blocks) % n_parts)`` -- the trial-level deal it replaces, one level up.
+    A spout with fewer blocks than parts leaves some parts without that spout in this session."""
+    blocks, pos = np.asarray(blocks), np.asarray(pos)
+    part = np.full(len(pos), -1)                                   # -1 = a spout outside POS (in no part)
+    for p in POS:
+        m = np.flatnonzero(pos == p)
+        ub, inv = np.unique(blocks[m], return_inverse=True)
+        part[m] = rng.permutation(np.arange(len(ub)) % n_parts)[inv]
+    return part
 
 
 def spout_means(Y, pos):

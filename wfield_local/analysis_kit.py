@@ -440,15 +440,57 @@ def permute_within(x, groups, rng) -> np.ndarray:
     return out
 
 
-def within_shuffle_p(stat, x, groups, rng, n: int = 2000):
-    """``(observed, p)`` of ``stat(x)`` against ``n`` within-group shuffles of ``x`` (`permute_within`), where p =
-    share of shuffles with ``|null| >= |observed|`` -- two-sided, WITHOUT the +1 correction (the convention of every
-    within-animal shuffle published from the state-space arm; `lick_templates.perm_p` is the one-sided +1 form and is a
-    different number). Use it for "does the session-to-session co-variation hold within animals" (rule 8: the
-    between-animal spread is removed by permuting inside each animal only)."""
+def within_shuffle_p(stat, x, groups, rng, n: int = 2000, *, order=None, mode: str = "permute"):
+    """``(observed, p)`` of ``stat(x)`` against ``n`` within-group null draws of ``x``, where p = share of draws with
+    ``|null| >= |observed|`` -- two-sided, WITHOUT the +1 correction (the convention of every within-animal shuffle
+    published from the state-space arm; `lick_templates.perm_p` is the one-sided +1 form and is a different number).
+    Use it for "does the session-to-session co-variation hold within animals" (rule 8: the between-animal spread is
+    removed by drawing inside each animal only).
+
+    ``mode="permute"`` (default; the draws are bit-identical to before 11-16, pinned in tests/test_epoch_change.py):
+    each draw is `permute_within`, a free shuffle of ``x`` inside each group. Valid only when the elements of a group
+    are EXCHANGEABLE.
+
+    ``mode="circular"`` (Priya 11-16, "block permutation everywhere it makes sense"): each draw is
+    `circular_shift_within` -- inside each group, ``x`` sorted by ``order`` (e.g. the session's day) is rotated by a
+    random non-zero lag 1..n_g-1. Use it when ``x`` and the series ``stat`` pairs it with BOTH trend over ``order``
+    (session-level readout vs recovery aim, both moving with days since stroke): a free shuffle breaks each series'
+    trend, so two unrelated trending series look coupled far more often than p says. The rotation keeps each group's
+    values and their serial (autocorrelation) structure and only breaks the alignment between the two series. A group
+    with one element is left unchanged. Coarser null: with n_g sessions a group has only n_g - 1 distinct draws, so
+    with four animals the smallest attainable p is bounded away from 0 (draws repeat; p is still the share of draws).
+    ``order`` is required for this mode (ties broken by input position, stable).
+    WHAT IT DOES NOT FIX (measured 11-16, tests/test_epoch_change.py): it holds size for independent AUTOCORRELATED
+    series (AR(1) phi 0.8, 15 sessions x 4 animals: false-positive rate 0.06 vs 0.17 for the free shuffle), but two
+    independent MONOTONE trends (a ramp + noise each) reject ~100 % under BOTH nulls -- a ramp rotated by a small lag is
+    still mostly a ramp. "Coupled beyond the shared time course" needs both series detrended on ``order`` first.
+    """
+    if mode not in ("permute", "circular"):
+        raise ValueError(f"within_shuffle_p: mode={mode!r} (permute | circular)")
+    if mode == "circular" and order is None:
+        raise ValueError("within_shuffle_p: mode='circular' needs order= (e.g. the session day)")
     obs = float(stat(np.asarray(x)))
-    null = np.array([stat(permute_within(x, groups, rng)) for _ in range(n)], float)
+    if mode == "permute":
+        null = np.array([stat(permute_within(x, groups, rng)) for _ in range(n)], float)
+    else:
+        null = np.array([stat(circular_shift_within(x, groups, order, rng)) for _ in range(n)], float)
     return obs, float((np.abs(null) >= abs(obs)).mean())
+
+
+def circular_shift_within(x, groups, order, rng) -> np.ndarray:
+    """``x`` with its values ROTATED within each group along ``order`` (the `within_shuffle_p` ``mode="circular"``
+    draw). Groups visited in sorted order; per group of n_g >= 2 elements one ``rng.integers(1, n_g)`` lag k, and the
+    element at sorted rank i receives the value at rank (i - k) mod n_g. Groups of one element are unchanged and draw
+    nothing. Element positions in the output are the input positions (only the values move)."""
+    x, groups, order = np.asarray(x), np.asarray(groups), np.asarray(order)
+    out = x.copy()
+    for g in np.unique(groups):
+        idx = np.flatnonzero(groups == g)
+        if len(idx) < 2:
+            continue
+        srt = idx[np.argsort(order[idx], kind="stable")]
+        out[srt] = np.roll(x[srt], int(rng.integers(1, len(idx))))
+    return out
 
 
 def boot_delta_pairs(pairs, rng, n_boot: int = N_BOOT):
