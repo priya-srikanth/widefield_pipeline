@@ -1722,3 +1722,12 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   .63 -> .53, cued .76 -> .59) -> not cleanly attributable. Acute + subacute contralesional ITI offset survives evoked-only
   (4/4). POSSIBLE CONCLUSION CHANGE (FINDINGS 10-29 hypothesis "persistently for self-initiated licks") -> proposed wording
   to Priya; baseline numbers moved with the glue fix (10-29 +.39 / +.29).
+- 11-16 BLOCK-PERMUTATION AUDIT (window a2; Priya 11-16: block permutation wherever trials come in spout blocks; doc
+  docs/status/BLOCK_PERMUTATION_AUDIT_2026-11-16.md on analysis/tim-encdesign-1116 a7ec0482). My arm: class A trial-wise
+  label nulls -> aligned_decoder.py:321 (SS section 11 Procrustes shuffle control; section held), reembedding_test.py:334,
+  lick_code_subspace.py:411 / 446; shared nolick_analysis.permutation_null (decoder p values; a2 measuring first). Split-
+  half ceilings with block-mates in both halves (optimistic): state_space_orth_check (SS section 7 detour %), 
+  state_space_shift_spout_timing (Fig 10.25). SESSION-level association nulls (readout vs aim, both trending with days:
+  SS Figs 6.3 / 6.4 / 10.23, the queued head-to-head) are not exchangeable -> detrend both series or circularly shift one
+  over the animal's session order. HOLD new null-based claims in these until fixed; a2 builds the shared trial-block helper
+  in analysis_kit (coordinate before touching analysis_kit).
