@@ -212,6 +212,67 @@ def fig_by_position(T, curves, t, title, out_png, methods):
         frf.save(fig, out_png, methods)
 
 
+def animal_curves_norm(T, curves, unit, which, epoch, p, floor=1.0, sessions=False):
+    """(animals, time): per animal, the mean over its sessions of log2(session trace) minus the mean log2 trace of the
+    animal's PRE sessions, per time bin. PRE sessions are each scored against the mean of the animal's OTHER pre sessions
+    (leave-one-out), which averages to exactly 0 per animal and keeps the real session-to-session spread (animals with
+    one pre session give no pre curve)."""
+    out = []
+    rec = T[T[f"{unit}_rec"]]
+    for _an, g in rec.groupby("animal"):
+        def trace(r):
+            c = curves[r.key]
+            return c[f"{p}_mean"][:, getattr(r, f"{unit}_{which}")] if int(c[f"{p}_n"]) > 0 else None
+        pre = [(r.key, trace(r)) for r in g[g.epoch == "pre"].itertuples()]
+        pre = [(k, x) for k, x in pre if x is not None]
+        if not pre:
+            continue
+        lg = lambda a: np.log2(np.maximum(a, floor))  # noqa: E731
+        if epoch == "pre":
+            if len(pre) < 2:
+                continue
+            cs = [lg(x) - np.nanmean([lg(y) for k2, y in pre if k2 != k], 0) for k, x in pre]
+        else:
+            m = np.nanmean([lg(x) for _k, x in pre], 0)
+            cs = [lg(x) - m for x in (trace(r) for r in g[g.epoch == epoch].itertuples()) if x is not None]
+        if cs:
+            out.extend(cs) if sessions else out.append(np.nanmean(cs, 0))
+    return np.array(out)
+
+
+def fig_by_position_norm(T, curves, t, title, out_png, methods):
+    """As `fig_by_position`, each animal normalized to its own pre trace (log2), pre = leave-one-out."""
+    from wfield_local import face_rhythm_figures as frf
+    from wfield_local.face_rhythm import common as frc
+    ecol = frc.epoch_colors()
+    with frf.style():
+        fig, axs = frf.subplots(len(ROWS), len(POS), figsize=(2.3 * len(POS), 1.95 * len(ROWS)), squeeze=False,
+                                sharex=True, sharey="row")
+        for r_i, (u, w) in enumerate(ROWS):
+            for c_i, p in enumerate(POS):
+                ax = axs[r_i, c_i]
+                ax.axhline(0, color="0.5", lw=0.5)
+                for ep in EPOCHS:
+                    Y = animal_curves_norm(T, curves, u, w, ep, p, sessions=(ep == "pre"))
+                    if len(Y):
+                        # pre: the animal-weighted mean of leave-one-out values is 0 by construction; band from sessions
+                        y = np.zeros(len(t)) if ep == "pre" else np.nanmean(Y, 0)
+                        ax.plot(t, y, color=ecol[ep], lw=1.1, label=ep)
+                        if len(Y) > 1:
+                            se = np.nanstd(Y, 0, ddof=1) / np.sqrt(len(Y))
+                            ax.fill_between(t, y - se, y + se, color=ecol[ep], alpha=BAND_ALPHA, lw=0)
+                _tidy(ax)
+                if r_i == 0:
+                    ax.set_title(POS_LAB[p], fontsize=9, color=pos_style(p)["color"])
+                if c_i == 0:
+                    ax.set_ylabel(f"{u}\n{ROW_LAB[w]}\nlog2(vs own pre)", fontsize=7.5)
+                if r_i == len(ROWS) - 1:
+                    ax.set_xlabel("time from cue (s)")
+        axs[0, -1].legend(fontsize=7, frameon=False, loc="upper left", bbox_to_anchor=(1.0, 1.0))
+        fig.suptitle(title, fontsize=10)
+        frf.save(fig, out_png, methods)
+
+
 def readouts(T, curves, t):
     """One row per session (split videos merged by label) x unit x column x spout: response-window mean (cue 0..+2 s)
     of the absolute expression, and log2 vs the same animal's pre sessions."""
@@ -337,6 +398,14 @@ animals (none where one animal). y axis shared within a row. Descriptive."""
                  out / f"own_temporal_lick{sfx}.png", traces + " Columns = epochs, lines = spouts.")
     fig_by_position(T, curves, t, "Per-session fits: matched vs runner-up lick columns by epoch, per spout",
                     out / f"own_temporal_lick_by_position{sfx}.png", traces + " Columns = spouts, lines = epochs.")
+    fig_by_position_norm(T, curves, t, "Per-session fits: lick columns by epoch, per spout, vs each animal's own pre",
+                         out / f"own_temporal_lick_by_position_norm{sfx}.png", base + """ Each session's log2 trace minus the
+mean log2 trace of the same animal's pre sessions, per time bin (values floored at 1 before the log); PRE sessions each
+against the mean of the animal's OTHER pre sessions (leave-one-out), so pre averages exactly 0 per animal and the band
+shows its real session-to-session spread. Post epochs: per animal the mean over its sessions; line = mean over animals, band = +- SEM across animals.
+PRE: line = 0 by construction (mean over animals of each animal's mean leave-one-out value); band = +- SEM across all
+pre sessions' leave-one-out traces (pre-session variability; across animals it would be 0). Columns =
+spouts, lines = epochs; y shared within a row. Descriptive (tests: own_temporal_lick_stats).""")
     for an in sorted(T.animal.unique()):
         fig_by_epoch(T[T.animal == an], curves, t, f"{an}: matched vs runner-up lick columns by spout",
                      out / f"own_temporal_lick_{an}{sfx}.png",

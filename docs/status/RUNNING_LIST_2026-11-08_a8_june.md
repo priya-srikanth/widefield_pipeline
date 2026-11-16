@@ -307,3 +307,8 @@ Overview_2026-11-06.bak_pre_a8_lickleft_20261116.pptx); FR page text edited LOCA
 Stale, not mine to edit without asking: deck slide 163 (Big picture) status line still says "lick_left subacute + chronic
 (cohort permutation null, 100 permutations per epoch, 10-26)".
 - 11-16: deck slide 163 notes status clause updated (Priya "yes ok"; backup Overview_2026-11-06.bak_pre_a8_s163_20261116.pptx).
+- 11-16: FR page v48 published: lick_left wording (STANDS acute + subacute), new section-7a block "Does the matched factor
+  fire on its own spout's trials?" -- Figs 7a.12 own_temporal_lick (key), 7a.13 stats, 7a.14 by_position_norm (pre =
+  leave-one-out, SEM across pre sessions), supporting 7a.15-7a.27 (absolute by spout, per animal, flagged pick vs
+  runner-up, session sheets, pooled matches); status row added. Figures are the 12-trials-per-spout preview: SWAP for the
+  all-trials render (same ids / file names) and update the 7a.13 numbers + status row when bkwv2ffli finishes.
