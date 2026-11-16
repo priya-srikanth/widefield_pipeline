@@ -92,10 +92,9 @@ All are run by hand from the handoff's commands. None is in a queue yet.
 - `detour_vs_balance`
 - `orth_check`
 - `june_drift`
-- `pc2` (throwaway, handoff 11-07)
 
-**Superseded:** `state_space_recovery` is the first-pass encoder-PETH version (58 areas). It is kept for its record;
-retire it only with Priya's OK.
+**Archived 2026-11-13 (Priya OK):** `state_space_recovery` (the first-pass encoder-PETH version, 58 areas) and `pc2` (a
+one-off probe) are in `scripts/archive/` with a line each in its README.
 
 Every script's module docstring names its question, inputs, outputs and readouts. Run any of them as
 `python scripts/state_space_<name>.py [flags]` from the repo root, with the environment from section 2.
@@ -140,5 +139,10 @@ Pin new shared helpers with exact-equality tests against frozen copies of the co
 - **Balance:** `balance_cells` uses `recovery_trials.balance_sides`; `shift_spout_timing` uses `S.spout_means`.
 - **Parallel reads:** `landing.build` and `shift_movement.face_running` read their files in parallel, in file order.
 - **Cache key:** `chronic_maps`' response cache is keyed by bundle and version.
+- **Archived:** `state_space_recovery.py`, `state_space_pc2.py`.
 
-Verified by the v20v pin run; the result is in the running list, 11-13.
+**Verified 2026-11-13.** Every Allen-basis step of the v20u queue was re-run on the new code into a scratch root
+(v20v): 137 of 138 tables were identical to production. The SVD map family was run on the old and the new code: all 38
+tables were identical. The one difference is a correction, not a change of result: `n_animals` of `bal_oro_far` (lick
+alignment, spout transform) had counted animals with post-stroke sessions but no pre value; it now counts the animals the
+bootstrap uses (acute 2 -> 1, subacute 3 -> 2, chronic 3 -> 1). Deltas and intervals are unchanged.

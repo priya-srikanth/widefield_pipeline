@@ -29,6 +29,8 @@ them would leave a conclusion in `DECISIONS.md` with no working behind it.
 | `gate_bias_probe.py` | does the reference-restricted engagement gate leave residual satiety at the non-reference positions? |
 | `basis_residual.py` | **a control that does not work at this rank, kept so it is not rebuilt** — the module says so in its own first line. Subspace overlap 0.996–0.997 makes the residual uninformative |
 | `lick_bout_decoder.py` | do extra lick-bout onsets buy real readout, or just enlarge n? CV grouped by trial, so the comparison is honest rather than flattering |
+| `state_space_recovery.py` | the FIRST-PASS state-space view (11-07): encoder PETHs, 58 areas, gate attempted. Superseded by the per-trial arm (`state_space_sim` / `state_space_recovery_trials`, 45 areas); its numbers are the plan doc's first pass. Archived 2026-11-13 (Priya OK) |
+| `state_space_pc2.py` | why is the post-stroke PC2 transient larger at the close spouts (Priya 11-07)? One-off probe; result in the 11-07 state-space handoff. Archived 2026-11-13 (Priya OK) |
 | `_qc_from_standby.py` | one-off: regenerate motion-correction QC for dates whose movies had been cleaned from E: |
 
 ## What did NOT come here

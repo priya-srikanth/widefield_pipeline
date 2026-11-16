@@ -7,7 +7,7 @@ acute far-contra drop carried by its lick + contact groups. Here the state-space
 OWN saved per-trial values, before and after removing its predicted movement contributions -- like-for-like with the
 encoder by construction.
 
-Source: the frozen encoder run `frozen_encoder_gate-attempted_v7g3_t3d_spont_frA` (the run `state_space_recovery.py`
+Source: the frozen encoder run `frozen_encoder_gate-attempted_v7g3_t3d_spont_frA` (the run `archive/state_space_recovery.py`
 reads), `joint/sessions/<label>.npz` `trial_parts` (parts x trials x windows x 59 Allen-area targets), the LICK window =
 mean over -0.1..+1.0 s after the first lick (`frozen_encoder.MUSALL_WINDOWS`; NOT the 0.1-0.5 s of Figs 9.x; the
 predictions are not saved per frame, and rebuilding them reloads every session). Trials: the run's attempted gate
