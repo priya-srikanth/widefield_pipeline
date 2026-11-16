@@ -46,7 +46,49 @@ PROFILE = "cohort1_rebuild_20261103"
 ENC = "enc_rebuild_20261104b"                       # the rebuild's O2 encoding bundle (its inputs/ are reused)
 import state_space_sim as S  # noqa: E402
 
-ENC_SHARE = S.REBUILD / "o2" / ENC
+
+
+def enc_share(enc: str = ENC) -> Path:
+    """The encoding bundle's folder on the share. `<rebuild root>/o2/<enc>` while it is there; once moved aside (11-09
+    glue fix: `enc_rebuild_20261104b` -> `<rebuild root>/_superseded_glue_20261109/o2/`, MANIFEST_20261109_171046.csv),
+    the move manifest's row (source = `.../o2/<enc>`, status moved) gives the new place, re-rooted on the manifest's own
+    folder (drive letters move on this box). Raises when neither holds an env.json, or two manifests disagree -- never
+    a guessed path. Only the bundle's SETTINGS (env.json, labels.txt, '@' tables) are read here; a moved-aside bundle's
+    per-session products are mask-stale and must not be reused."""
+    import csv
+    live = S.REBUILD / "o2" / enc
+    if (live / "env.json").exists():
+        return live
+    tail = ("o2", enc.lower())
+    found, seen = set(), []
+    for man in sorted(S.REBUILD.glob("_superseded*/*.csv")):
+        seen.append(man)
+        with open(man, newline="", encoding="utf-8") as fh:
+            for row in csv.DictReader(fh):
+                src = Path((row.get("source") or "").replace("\\", "/"))
+                if row.get("status") != "moved" or tuple(x.lower() for x in src.parts[-2:]) != tail:
+                    continue
+                dst = Path((row.get("dest") or "").replace("\\", "/"))
+                parts = [x.lower() for x in dst.parts]
+                if man.parent.name.lower() not in parts:
+                    raise RuntimeError(f"{man}: dest {dst} is not under the manifest's folder {man.parent}")
+                cand = man.parent.joinpath(*dst.parts[parts.index(man.parent.name.lower()) + 1:])
+                if (cand / "env.json").exists():
+                    found.add(cand)
+    if len(found) == 1:
+        return found.pop()
+    raise FileNotFoundError(f"encoding bundle {enc}: no env.json at {live}"
+                            + (f"; several moved copies {sorted(found)}" if found else
+                               f"; no 'moved' row with an existing dest in {len(seen)} manifest(s) "
+                               f"under {S.REBUILD}/_superseded*/"))
+
+
+def __getattr__(name):                                  # `L.ENC_SHARE` stays valid for importers, resolved lazily
+    if name == "ENC_SHARE":
+        return enc_share()
+    raise AttributeError(name)
+
+
 CACHE = "C:/Users/SabatiniLab/wfield_cache/input_cache_rebuild_20261104"
 JUNE = ("0606", "0607", "0608")                     # the curated June pre days (configs/animals.yaml date_policy)
 TIMES = S.ITI_W / "cued_first_lick_times.csv"        # the rebuild run's OUT_W (iti_licks._first_lick_times rows)
@@ -118,10 +160,11 @@ def _env(cache: str) -> None:
     """The rebuild profile + the encoding bundle's COMBINED_ENCODING_* / OROFACIAL_* settings ('@' tables resolved in
     that bundle on the share), so behaviour / imaging hit the rebuild's local input cache (same keys)."""
     import o2_encoding as oe
-    enc = json.loads((ENC_SHARE / "env.json").read_text())
+    share = enc_share()
+    enc = json.loads((share / "env.json").read_text())
     for k, v in enc.items():
         if k.startswith(oe.KEEP_PREFIXES):
-            os.environ[k] = str(ENC_SHARE / v[1:]) if v.startswith("@") else v
+            os.environ[k] = str(share / v[1:]) if v.startswith("@") else v
     os.environ.setdefault("WFIELD_INPUT_CACHE", cache)
     oe.apply_profile(PROFILE)
 
@@ -194,7 +237,7 @@ def cmd_bundle(a) -> None:
     writeguard.assert_writable(d)
     for sub in ("rows", "logs", "out", "uatlas", "bases"):
         (d / sub).mkdir(parents=True, exist_ok=True)
-    enc_labels = set(ENC_SHARE.joinpath("labels.txt").read_text().split())
+    enc_labels = set(enc_share().joinpath("labels.txt").read_text().split())
     labels = a.labels or sorted(p.stem for p in Path(S.ITI).glob("*.npz") if p.stem in enc_labels)
     june = [f"{an}_{dd}" for an in ("PS92", "PS93", "PS94", "PS95") for dd in JUNE] if a.june else []
     todo = [(lab, str(d), lab in june) for lab in [*labels, *june] if not (d / "rows" / f"{lab}.npz").exists()]
@@ -267,7 +310,7 @@ rsync -ah {share_b}/ {b}/
 {bases}
 rsync -ah --files-from={b}/uatlas.txt {share}/ {b}/uatlas/
 ls {s}/o2/{ENC}/inputs | wc -l      # expect 107; if the scratch copy was purged:
-# rsync -ah {oi.o2_path(ENC_SHARE, rv)}/inputs/ {s}/o2/{ENC}/inputs/
+# rsync -ah {oi.o2_path(enc_share(), rv)}/inputs/ {s}/o2/{ENC}/inputs/
 find {b}/uatlas -name U_atlas.npy | wc -l      # expect {n}
 ```
 

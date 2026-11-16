@@ -1765,6 +1765,15 @@ with a title/caption that says how it differs from the balance figures; add the 
 far-contra outcome figure to kinematics section 6 (whole-number figure numbering, no letters); analysis deck: G2b / G3 / G6 /
 counts -> LP video licks, remove outdated items, drop small-lesion slides, add a page key-figures section, render only the
 missing groups still cited on a page or in FINDINGS. Page updates and deck rebuild delegated (in progress).
+- 11-16 ~18:05 (fix/todo-1116, helper): FIG 9.10 RE-RUN DONE. Bundle `enc_rebuild_20261104b` was moved 11-09 17:10 to
+  `rebuild_20261103/_superseded_glue_20261109/o2/` (MANIFEST_20261109_171046.csv, guarded / mask-stale; its env.json is
+  identical to the production `enc_rebuild_20261110g`). `o2_state_space_lnmf.enc_share()` follows the manifest (re-rooted
+  on the manifest folder, raises when absent; tests/test_ss_enc_share.py), commit c96109a6; `why_cleaner --out`. Output
+  `state_space_recovery/why_cleaner_lick_20261116/` (steps.csv, maps.npz, ss_why_cleaner_lick.png); ~5 min. Every number
+  within 0.0011 of the 11-08 run (chronic mean / far contra r with S4 .630 / .855 at S0, .630 / .844 at S3; split-half
+  .989 / .976; 99.57 % inside the SVD; sig frac .155 / .124 S0, .465 / .282 S4). Changed: the rebuild brain mask is now
+  glue-free (151,447 px = the analysis mask), so S0 = S1 exactly; the caption's "still holds the painted glue (A9)" goes.
+
 
 ## 11-16 night -- state-space path fixes + re-runs (branch fix/ss-paths-1116; helper)
 - PATH BUG fixed: `within_session_behavior.WSD` / `detour_vs_balance.RECPRIM` were `ROOT.parent / ...` = the rebuild

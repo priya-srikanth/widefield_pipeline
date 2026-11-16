@@ -236,9 +236,31 @@ POS_LAB = {"close_L": "close ipsi", "close_center": "close mid", "close_R": "clo
 EPOCHS = ("pre", "acute", "subacute", "chronic")
 
 
+#: per-trial TIMING of lick_right on trials with a right lick (s from cue, minus the animal's pre mean)
+TIMING_ROWS = (("lick_right|lick_trial_first_lick", "first right lick\n(s, vs own pre)", "diff"),
+               ("lick_right|lick_trial_tpeak", "lick_right peak time\n(s, vs own pre)", "diff"),
+               ("lick_right|lick_trial_peak_minus_first_lick", "lick_right peak\nminus first right lick\n(s, vs own pre)",
+                "diff"))
+#: amplitude three ways: peak of the trial average (as Figs 1.1 / 2.1), median per-trial peak, peak on movement trials
+AMP_ROWS = (("lick_right|peak_of_average", "lick_right:\npeak of trial average\nlog2(vs own pre)", "log2"),
+            ("lick_right|median_trial_peak", "lick_right:\nmedian per-trial peak\nlog2(vs own pre)", "log2"),
+            ("lick_right|lick_trial_peak", "lick_right:\npeak, right-lick trials\nlog2(vs own pre)", "log2"),
+            ("lick_left|peak_of_average", "lick_left:\npeak of trial average\nlog2(vs own pre)", "log2"),
+            ("lick_left|median_trial_peak", "lick_left:\nmedian per-trial peak\nlog2(vs own pre)", "log2"),
+            ("lick_left|lick_trial_peak", "lick_left:\npeak, left-lick trials\nlog2(vs own pre)", "log2"))
+
+
 def fig_conditioned(S: pd.DataFrame, ST: pd.DataFrame, out_png: Path) -> None:
-    """Prevalence vs amplitude-given-movement (11-16): rows `COND_ROWS`, columns = spouts (canonical order), epochs on
-    x: session dots (shape = animal, colour = epoch), mean +- SEM across animals, stars in the top band."""
+    """Prevalence vs amplitude-given-movement (11-16), page Fig 2.5."""
+    fig_rows(S, ST, COND_ROWS, out_png,
+             "Frozen master factors, per trial: how often the lick movement happens vs how large it is when it does",
+             COND_METHODS)
+
+
+def fig_rows(S: pd.DataFrame, ST: pd.DataFrame, rows, out_png: Path, title: str, methods: str) -> None:
+    """Rows = (quantity, y label, scale), columns = spouts (canonical order), epochs on x: session dots (shape =
+    animal, colour = epoch), mean +- SEM across animals, stars in the top band; cells without a pre baseline in
+    `MIN_PRE_ANIMALS` animals say so and are not tested."""
     import face_rhythm_peak as frp
 
     from wfield_local import cat_points as cp
@@ -247,9 +269,9 @@ def fig_conditioned(S: pd.DataFrame, ST: pd.DataFrame, out_png: Path) -> None:
     from wfield_local.face_rhythm import stats as frs
     from wfield_local.spout_behavior import position_style
     with frf.style():
-        fig, axs = frf.subplots(len(COND_ROWS), len(POS), figsize=(2.35 * len(POS), 2.5 * len(COND_ROWS)),
+        fig, axs = frf.subplots(len(rows), len(POS), figsize=(2.35 * len(POS), 2.5 * len(rows)),
                                 squeeze=False, sharey="row")
-        for r_i, (q, ylab, _sc) in enumerate(COND_ROWS):
+        for r_i, (q, ylab, _sc) in enumerate(rows):
             for c_i, p in enumerate(POS):
                 ax = axs[r_i, c_i]
                 d = S[(S.q == q) & (S.pos == p)]
@@ -279,9 +301,11 @@ def fig_conditioned(S: pd.DataFrame, ST: pd.DataFrame, out_png: Path) -> None:
         cp.add_animal_entries(axs[0, -1], sorted(S.animal.unique()))
         axs[0, -1].legend(fontsize=7, frameon=False, loc="upper left", bbox_to_anchor=(1.0, 1.0))
         sig_marks.reserve_headroom(fig)
-        fig.suptitle("Frozen master factors, per trial: how often the lick movement happens vs how large it is when "
-                     "it does", fontsize=10)
-        frf.save(fig, out_png, """
+        fig.suptitle(title, fontsize=10)
+        frf.save(fig, out_png, methods)
+
+
+COND_METHODS = """
 Per session and spout, from single trials (engaged trials, cue 0 .. +4 s; frozen master master_pre_v1, absolute =
 weight x D). PREVALENCE: fraction of trials with >= 1 LP video lick of the factor's direction (|executed angle| > 12 deg;
 lick_right -> rightward, lick_left -> leftward), minus the animal's pre mean. AMPLITUDE: median per-trial peak of the
@@ -289,7 +313,22 @@ factor over trials WITH such a lick (row 2, 4) or WITHOUT one (row 5), log2 minu
 sessions; sessions with >= 1 qualifying trial (pre leftward licks at contra spouts are rare: 0-5 trials per session).
 Faded open markers = sessions (shape = animal, colour = epoch); filled = mean +- SEM across animals. Under each epoch:
 change vs pre, `analysis_kit.boot_delta` (paired animals -> sessions bootstrap, animal-weighted); * = 95 % interval
-excludes 0, ** = also Holm over the 6 spouts of that row x epoch. Script: scripts/face_rhythm_per_trial.py.""")
+excludes 0, ** = also Holm over the 6 spouts of that row x epoch. Script: scripts/face_rhythm_per_trial.py."""
+
+TIMING_METHODS = """
+Per session and spout, lick_right on single trials WITH >= 1 rightward LP video lick (cue 0 .. +4 s, engaged trials;
+frozen master master_pre_v1): median first rightward lick (s from cue), median per-trial peak time of lick_right, and
+their per-trial difference; each minus the animal's pre mean (s). Separates WHEN the animal licks from when the face
+movement peaks relative to that lick. Sessions with >= 1 qualifying trial; tested only with a pre baseline in >= 3
+animals. Statistics as Fig 2.5 (boot_delta; * interval excludes 0; ** Holm over 6 spouts). Script:
+scripts/face_rhythm_per_trial.py."""
+
+AMP_METHODS = """
+The same per-session amplitude read three ways (frozen master master_pre_v1, cue 0 .. +4 s, engaged trials): PEAK OF THE
+TRIAL AVERAGE (as Figs 1.1 / 2.1; falls when the movement happens on fewer trials or at scattered times), MEDIAN
+PER-TRIAL PEAK (every trial; a trial without the movement contributes its largest noise value), and the median peak on
+trials WITH a lick of the factor's direction (amplitude given movement, as Fig 2.5). log2 vs the animal's own pre
+(values floored at 1). Statistics as Fig 2.5. Script: scripts/face_rhythm_per_trial.py."""
 
 
 def main(argv=None) -> int:
@@ -311,8 +350,8 @@ def main(argv=None) -> int:
     (out / "data").mkdir(parents=True, exist_ok=True)
     names = frc.factor_names(fdir)
     if a.fig_only:
-        fig_conditioned(pd.read_csv(out / "data" / "per_trial_sessions.csv"),
-                        pd.read_csv(out / "data" / "per_trial_stats.csv"), out / "per_trial_conditioned.png")
+        all_figures(pd.read_csv(out / "data" / "per_trial_sessions.csv"),
+                    pd.read_csv(out / "data" / "per_trial_stats.csv"), out)
         return 0
     ft, fl = out / "data" / "per_trial_trials.pkl", out / "data" / "per_trial_licks.pkl"
     if a.plot_only and ft.exists():
@@ -336,9 +375,59 @@ def main(argv=None) -> int:
     pd.set_option("display.max_rows", 500)
     show = ["q", "pos", "epoch", "PS92", "PS93", "PS94", "PS95", "delta", "ci_lo", "ci_hi", "p_holm"]
     print(ST[[c for c in show if c in ST.columns]].round(3).to_string(index=False))
-    fig_conditioned(S, ST, out / "per_trial_conditioned.png")
+    all_figures(S, ST, out)
     print("->", out)
     return 0
+
+
+#: the PI-deck version of Fig 2.5 (2 x 3 cells): (quantity, spout, panel title, y label)
+DECK_CELLS = (("frac_trials_right", "far_R", "far contra: trials with a right lick", "fraction, vs own pre"),
+              ("lick_right|lick_trial_peak", "far_R", "far contra: lick_right peak,\nright-lick trials", "log2 vs own pre"),
+              ("lick_right|lick_trial_first_lick", "far_R", "far contra: first right lick", "s, vs own pre"),
+              ("frac_trials_left", "far_R", "far contra: trials with a left lick", "fraction, vs own pre"),
+              ("lick_left|lick_trial_peak", "far_R", "far contra: lick_left peak,\nleft-lick trials", "log2 vs own pre"),
+              ("lick_left|nolick_trial_peak", "close_R", "close contra: lick_left peak,\ntrials WITHOUT a left lick",
+               "log2 vs own pre"))
+
+
+def fig_deck(S: pd.DataFrame, ST: pd.DataFrame, out_png: Path) -> None:
+    """Compact 2 x 3 version of Fig 2.5 for the PI deck (no suptitle; the slide carries the point)."""
+    import face_rhythm_peak as frp
+
+    from wfield_local import cat_points as cp
+    from wfield_local import face_rhythm_figures as frf
+    from wfield_local import sig_marks
+    from wfield_local.face_rhythm import stats as frs
+    with frf.style():
+        fig, axs = frf.subplots(2, 3, figsize=(9.6, 6.6), squeeze=False)
+        for i, (q, p, title, ylab) in enumerate(DECK_CELLS):
+            ax = axs[i // 3, i % 3]
+            d = S[(S.q == q) & (S.pos == p)]
+            frp.epoch_points(ax, d, "rel", seed=7 * i)
+            ch = {r["epoch"]: r for r in ST[(ST.q == q) & (ST.pos == p)].to_dict("records")}
+            for e_i, ep in enumerate(EPOCHS[1:], start=1):
+                if ep in ch and frs.mark(ch[ep]):
+                    sig_marks.star_top(ax, e_i, frs.mark(ch[ep]))
+            ax.axhline(0, color="k", lw=0.5)
+            ax.set_xticks(range(len(EPOCHS)),
+                          ["pre", *(frp.change_tick(ep, ch.get(ep), interval=False) for ep in EPOCHS[1:])], fontsize=8)
+            ax.set_title(title, fontsize=9)
+            ax.set_ylabel(ylab, fontsize=8)
+        cp.add_animal_entries(axs[0, -1], sorted(S.animal.unique()))
+        axs[0, -1].legend(fontsize=7, frameon=False, loc="upper left", bbox_to_anchor=(1.0, 1.0))
+        sig_marks.reserve_headroom(fig)
+        frf.save(fig, out_png, "PI-deck crop of Fig 2.5 (see per_trial_conditioned.png for methods).")
+
+
+def all_figures(S: pd.DataFrame, ST: pd.DataFrame, out: Path) -> None:
+    fig_deck(S, ST, out / "per_trial_deck.png")
+    fig_conditioned(S, ST, out / "per_trial_conditioned.png")
+    fig_rows(S, ST, TIMING_ROWS, out / "per_trial_timing.png",
+             "Frozen master factors, per trial: lick_right timing on right-lick trials -- when the lick comes vs when "
+             "the movement peaks", TIMING_METHODS)
+    fig_rows(S, ST, AMP_ROWS, out / "per_trial_amplitude.png",
+             "Frozen master factors: one amplitude read three ways -- trial average, every trial, movement trials",
+             AMP_METHODS)
 
 
 if __name__ == "__main__":
