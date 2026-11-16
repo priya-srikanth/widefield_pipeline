@@ -304,10 +304,13 @@ def fig_balance(out, rng, sfx=""):
     tgt = pd.read_csv(LAND / f"balance_cells_target{sfx}.csv")
     cel = pd.read_csv(LAND / f"balance_cells_sessions{sfx}.csv")
     on = cel[cel.target == cel.land]
-    ang = pd.read_csv(LAND / f"balance_angle_sessions{sfx}.csv").rename(columns={"bal_matched": "bal"})
-    fig, axs = plt.subplots(4, 6, figsize=(16, 12.8), sharey="row")
+    ang0 = pd.read_csv(LAND / f"balance_angle_sessions{sfx}.csv")
+    ang = ang0.rename(columns={"bal_matched": "bal"})                               # every trial (beyond the pre range:
+    ang_in = ang0.drop(columns="bal_matched").rename(columns={"bal_matched_inrange": "bal"})   # extrapolated) / in range only
+    fig, axs = plt.subplots(5, 6, figsize=(16, 16), sharey="row")
     rows = ((tgt, "all trials, by target"), (on, "landed on target only"),
-            (ang, "matched for target + landing"))
+            (ang, "matched target + landing,\nall trials (incl. extrapolated)"),
+            (ang_in, "matched target + landing,\nin pre landing range only"))
     for row, (df, lab) in enumerate(rows):
         for j, p in enumerate(POS):
             ax = axs[row, j]
@@ -319,7 +322,7 @@ def fig_balance(out, rng, sfx=""):
                 ax.set_ylabel("balance change vs own pre\nlog2 contra / ipsi")
             ax.tick_params(axis="x", labelsize=7)
     for j, p in enumerate(POS):                 # bottom row (Priya 11-16): the balance itself, NOT pre-normalized
-        ax = axs[3, j]
+        ax = axs[4, j]
         level_panel(ax, tgt[tgt.target == p], "bal", f"{POS_LABEL[p]}\nall trials, by target: level", rng)
         ax.set_ylabel("" if j else "balance (level, not vs pre)\nlog2 contra / ipsi")
         ax.tick_params(axis="x", labelsize=7)
