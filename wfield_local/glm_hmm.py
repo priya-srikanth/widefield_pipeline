@@ -347,14 +347,18 @@ def _null_ll(train, test, n_cls) -> np.ndarray:
     return out
 
 
-def select_k(data: dict, ks=(1, 2, 3, 4, 5), n_folds: int = 4, seed: int = 0) -> pd.DataFrame:
+def select_k(data: dict, ks=(1, 2, 3, 4, 5), n_folds: int = 4, seed: int = 0, labels=None) -> pd.DataFrame:
     """Held-out fit by number of states over session folds of the August PRE sessions (Priya 11-16: "look at explained
     variance with different state numbers and choose"): total held-out log-likelihood, its gain over K = 1 in bits per
     trial cycle, and per output the McFadden pseudo-R2 = 1 - ll_model / ll_null (null = marginal class frequencies;
     the per-output model term is the posterior-expected log-likelihood, so the outputs' shares are comparable)."""
-    pre = sorted(lab for lab in data if is_august_pre(lab))
-    rng = np.random.default_rng(seed)
-    fold = dict(zip(pre, rng.permutation(np.arange(len(pre)) % n_folds)))
+    if labels is None:
+        pre = sorted(lab for lab in data if is_august_pre(lab))
+        rng = np.random.default_rng(seed)
+        fold = dict(zip(pre, rng.permutation(np.arange(len(pre)) % n_folds)))
+    else:                       # given sessions (per animal, all epochs): folds INTERLEAVED in date order, so every
+        pre = sorted(labels)    # fold spans pre / acute / subacute / chronic
+        fold = {lab: i % n_folds for i, lab in enumerate(pre)}
     nc = n_classes()
     rows = []
     for f in range(n_folds):
@@ -423,6 +427,9 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--select-k", action="store_true")
     ap.add_argument("--k", type=int, default=None)
+    ap.add_argument("--per-animal", action="store_true",
+                    help="K selection PER ANIMAL over ALL its August-onward sessions (Priya 11-16: pooled pre states "
+                         "encoded animal identity)")
     a = ap.parse_args(argv)
     labels = sorted(ak.curated_ids())
     animals = sorted({lab.split("_")[0] for lab in labels})
@@ -430,7 +437,17 @@ def main(argv=None) -> int:
     od = out_dir()
     od.mkdir(parents=True, exist_ok=True)
     print(f"{len(data)} sessions, {sum(len(v[1]) for v in data.values())} trials; out {od}")
-    if a.select_k:
+    if a.select_k and a.per_animal:
+        out = []
+        for an in animals:
+            labs = [lab for lab in data if lab.startswith(an + "_") and lab[-4:] >= "0801"]
+            R = select_k(data, labels=labs)
+            R.insert(0, "animal", an)
+            out.append(R)
+            print(an, len(labs), "sessions")
+            print(R.groupby("K")[["bits_per_cycle_vs_K1", "pR2_total"]].mean().round(4), flush=True)
+        pd.concat(out).to_csv(od / "select_k_per_animal.csv", index=False)
+    elif a.select_k:
         R = select_k(data)
         R.to_csv(od / "select_k.csv", index=False)
         print(R.groupby("K")[["bits_per_cycle_vs_K1", "pR2_total", *[f"pR2_{o}" for o in OUTPUTS]]].mean().round(4))
