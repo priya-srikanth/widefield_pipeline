@@ -1710,3 +1710,8 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   gain; response family = ratio = balance). Per-lick pre-lick test agrees with the session-level one (numbers there).
 - Started: RESTnl-referenced hemispheric difference (helper); direct decoder check A / B / A+B (helper). Possible FINDINGS
   10-29 wording change -> Priya first.
+- QUEUED (Priya 11-16 "yes"): HEAD-TO-HEAD after the RESTnl difference + decoder check return. Same lick sets (cued first,
+  ITI first >= 2 s, all ITI): per session, (1) evoked LATERALIZATION = ratio, (2) GAIN = contra + ipsi response size, (3)
+  TONIC level = pre-lick hemispheric difference (session-mean AND RESTnl), (4) raw difference (their combination); which
+  tracks far-contra aim recovery best within animal (within-animal shuffle) and on unseen animals (LOAO cvR2, as
+  lick_recovery_primary). Recommendation to Priya: report (1)-(3) separately, raw difference / decoder offset derived.
