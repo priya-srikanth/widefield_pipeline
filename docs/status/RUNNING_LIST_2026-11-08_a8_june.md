@@ -306,3 +306,4 @@ Overview_2026-11-06.bak_pre_a8_lickleft_20261116.pptx); FR page text edited LOCA
 7a.10, 7.13), published together with the own_temporal figures after the all-trials re-render.
 Stale, not mine to edit without asking: deck slide 163 (Big picture) status line still says "lick_left subacute + chronic
 (cohort permutation null, 100 permutations per epoch, 10-26)".
+- 11-16: deck slide 163 notes status clause updated (Priya "yes ok"; backup Overview_2026-11-06.bak_pre_a8_s163_20261116.pptx).
