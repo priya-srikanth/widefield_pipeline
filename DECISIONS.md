@@ -23785,3 +23785,15 @@ Priya 11-03 late: August-only pre everywhere in the rebuild, except june_august_
 - A30 (Priya 11-06): `pose3d_summary_fig` session dots = OPEN markers, shape = animal (`cat_points.animal_marker`),
   color = epoch (`orofacial_cohort.EPOCH_LINE`; June pre gray) via `session_dots`; `pose3d_phase` hides the top spine
   on every 2-D panel (`no_top_spine` in its one save path).
+
+## 2026-11-16 -- Encoding design review: TIM, behavioural states, block permutation (window a2; Priya)
+
+Handoff `docs/status/STATUS_2026-11-16_ENCDESIGN_TIM_STATES_HANDOFF.md` (section 1 lists every decision); design
+`docs/status/ENCODING_DESIGN_TIM_STATES_2026-11-16.md`; audit `docs/status/BLOCK_PERMUTATION_AUDIT_2026-11-16.md`.
+- Instructed vs uninstructed by CONTEXT (response period vs pre-cue / ITI), not by body part; task-aligned vs
+  task-independent is measured (Musall partition), not assigned.
+- Permutation nulls over spout-following labels use BLOCK permutation (`analysis_kit.block_permute`, one definition);
+  first measurement: per-session decoders barely move (engaged arm unchanged; marginal arms reshuffle around 0.05).
+- TIM (Yin et al. 2025) in within-session and frozen-pre frames, response period separate; GLM-HMM states from ALL
+  trials over whole trial cycles, per animal over all epochs; AR-HMM (Hillary Tong's model) ported with this rig's
+  encoder variables at 25 Hz, pooled over animals and epochs, run on O2; state merges = multi-method cosine + video.
