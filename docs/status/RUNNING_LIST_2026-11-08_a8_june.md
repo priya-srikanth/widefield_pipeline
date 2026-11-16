@@ -530,3 +530,11 @@ PI deck (backup Overview_2026-11-06.bak_pre_a8_renumber_20261116.pptx): FR page 
   out_group*.json): 7 fields + level LOG (render log) / CODE (code + output file, no log) / UNRESOLVED, plus the current
   render path vs the deck image source (stale yes / no) and crop. Next: spot-check, write blocks (CODE labelled as such),
   swap stale images (as-is ones directly; crops reproduced), record.
+- 11-16 night, per-figure sweep DONE (6 helpers + 1 staleness check; outputs docs/status/provenance_sweep_20261116/):
+  126 swept slides = 39 traced to a render log, 76 to code + output file, 11 unresolved. Spot-checked 3 claims against the
+  logs (slide 13 decoder .37->.14 etc., slide 21 chronic Holm .057, slide 141 chronic -.288 / -.269): all exact.
+  Data: blocks on 38 more slides (image not stale; Correction line tagged [traced: render log] or [traced: code + output
+  file, no run log]); deck 96 / 206 with the block (DECK_DATA_BLOCK_PASS3_2026-11-16.csv; backup _datablock3).
+  STALE IMAGES: 109 slides (DECK_STALE_FIGURES_2026-11-16.csv): A 21 swap + recheck numbers, B 53 numbers / text change,
+  C 35 no rebuilt version. NO image swapped; per-slide approval asked from Priya. 3c: not editing the PI deck; holds
+  slide 13 picture, balance 135-140 / 203 (C6), state-space SVD / LocaNMF slides (pre-glue inputs).
