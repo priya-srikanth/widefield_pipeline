@@ -156,8 +156,8 @@ def plot(F: dict) -> None:
     from wfield_local.orofacial_cohort import EPOCH_LINE
     col = {"pre": "k", **EPOCH_LINE}
     S, M = F["S"], F["M"]
-    for meas, lab in (("dec", "decoder-window balance X_right - X_left (x1e3 dF/F)"),
-                      ("resp", "response ratio log2(contra / ipsi AUC 0..1.0 s)")):
+    for meas, lab in (("dec", "hemispheric DIFFERENCE X_right - X_left, 0..0.2 s, no baseline (x1e3 dF/F)"),
+                      ("resp", "hemispheric BALANCE (ratio) log2(contra / ipsi AUC 0..1.0 s)")):
         sets = ("cued", "cued later", "iti", "iti later") if meas == "dec" else ("cued", "iti")
         fig, axs = plt.subplots(len(sets), len(PAIRS), figsize=(24, 4.75 * len(sets)), squeeze=False)
         for i, st in enumerate(sets):
@@ -219,7 +219,7 @@ def plot(F: dict) -> None:
                    + [Line2D([], [], color="k", lw=1.7, label="pre fit")]
                    + [Line2D([], [], color=col[e], lw=1.4, ls="--", label=f"{e} fit") for e in EP],
                    loc="lower center", ncol=8, fontsize=9, frameon=False)
-        fig.suptitle(f"Hemispheric balance vs lick angle by epoch ({meas}): one point per session x spout (cued: target; "
+        fig.suptitle(f"Hemispheric {'DIFFERENCE (X_right - X_left)' if meas == 'dec' else 'BALANCE (ratio)'} vs lick angle by epoch ({meas}): one point per session x spout (cued: target; "
                      "ITI: previous trial's spout); mixed model y ~ angle * epoch + (1 | animal), sessions x spouts as "
                      "observations\n(anti-conservative at 4 animals; per-animal x epoch slopes in balance_angle_animals.csv). "
                      "Titles: a/s/c = acute / subacute / chronic vs pre; BOLD = p < 0.05; 'shift at same angle' = epoch "
