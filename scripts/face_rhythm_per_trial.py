@@ -44,6 +44,8 @@ UNITS = ("lick_left", "lick_right")
 UNIT_DIR = {"lick_left": "left", "lick_right": "right"}
 POS = frc.POSITIONS_DISPLAY
 PER_LICK_S = 0.2
+#: a cell is tested only with a pre baseline in at least this many animals
+MIN_PRE_ANIMALS = 3
 
 
 def _worker(task):
@@ -195,8 +197,10 @@ def relative(S: pd.DataFrame) -> pd.DataFrame:
     S = S.copy()
     is_t = S.q.str.split("|").str[-1].isin(TIME_Q) | S.q.str.startswith("frac_")
     pre = S[S.epoch == "pre"]
-    # log2 on the session value, minus the mean log2 of the animal's pre sessions (pre = 0); floor 1e-3 licks / trial
-    S["lv"] = np.where(is_t, S.v, np.log2(np.maximum(S.v, 1e-3)))
+    # log2 on the session value, minus the mean log2 of the animal's pre sessions (pre = 0). Floors: 1e-3 licks / trial;
+    # factor expression floored at 1 (as Fig 7.14): a near-zero session median gave log2 ~ -20 and swamped a row
+    floor = np.where(S.q.str.contains("|", regex=False), 1.0, 1e-3)
+    S["lv"] = np.where(is_t, S.v, np.log2(np.maximum(S.v, floor)))
     ref = S[S.epoch == "pre"].groupby(["animal", "pos", "q"]).lv.mean().rename("ref")
     S = S.join(ref, on=["animal", "pos", "q"])
     S["rel"] = S.lv - S.ref
@@ -212,12 +216,80 @@ def stats(S: pd.DataFrame) -> pd.DataFrame:
     for q in sorted(S.q.unique()):                       # fixed order: seeded draws reproduce
         for p in (*POS, "all"):
             d = S[(S.q == q) & (S.pos == p)]
-            if d.epoch.nunique() < 2:
+            # no test without a pre baseline in >= 3 animals (e.g. leftward licks at close contra: absent pre-stroke)
+            if d.epoch.nunique() < 2 or d[d.epoch == "pre"].animal.nunique() < MIN_PRE_ANIMALS:
                 continue
             rows += [dict(q=q, pos=p, **r) for r in frs.epoch_change(d, "rel", rng)]
     ST = pd.DataFrame(rows)
     ST = frs.add_holm(ST[ST.pos != "all"], ["q"]).pipe(lambda a: pd.concat([a, ST[ST.pos == "all"]]))
     return ST
+
+
+#: rows of the movement-conditioned figure: (quantity, y label, scale)
+COND_ROWS = (("frac_trials_right", "lick_right:\ntrials with a right lick\n(fraction, vs own pre)", "diff"),
+             ("lick_right|lick_trial_peak", "lick_right peak,\ntrials WITH a right lick\nlog2(vs own pre)", "log2"),
+             ("frac_trials_left", "lick_left:\ntrials with a left lick\n(fraction, vs own pre)", "diff"),
+             ("lick_left|lick_trial_peak", "lick_left peak,\ntrials WITH a left lick\nlog2(vs own pre)", "log2"),
+             ("lick_left|nolick_trial_peak", "lick_left peak,\ntrials WITHOUT a left lick\nlog2(vs own pre)", "log2"))
+POS_LAB = {"close_L": "close ipsi", "close_center": "close mid", "close_R": "close contra", "far_L": "far ipsi",
+           "far_center": "far mid", "far_R": "far contra"}
+EPOCHS = ("pre", "acute", "subacute", "chronic")
+
+
+def fig_conditioned(S: pd.DataFrame, ST: pd.DataFrame, out_png: Path) -> None:
+    """Prevalence vs amplitude-given-movement (11-16): rows `COND_ROWS`, columns = spouts (canonical order), epochs on
+    x: session dots (shape = animal, colour = epoch), mean +- SEM across animals, stars in the top band."""
+    import face_rhythm_peak as frp
+
+    from wfield_local import cat_points as cp
+    from wfield_local import face_rhythm_figures as frf
+    from wfield_local import sig_marks
+    from wfield_local.face_rhythm import stats as frs
+    from wfield_local.spout_behavior import position_style
+    with frf.style():
+        fig, axs = frf.subplots(len(COND_ROWS), len(POS), figsize=(2.35 * len(POS), 2.5 * len(COND_ROWS)),
+                                squeeze=False, sharey="row")
+        for r_i, (q, ylab, _sc) in enumerate(COND_ROWS):
+            for c_i, p in enumerate(POS):
+                ax = axs[r_i, c_i]
+                d = S[(S.q == q) & (S.pos == p)]
+                n_pre = d[d.epoch == "pre"].animal.nunique()
+                if n_pre < MIN_PRE_ANIMALS:          # no baseline: show nothing, say why (no stars, not in Holm)
+                    ax.text(0.5, 0.5, f"pre baseline in\n{n_pre} / 4 animals:\nnot tested", transform=ax.transAxes,
+                            ha="center", va="center", fontsize=7.5, color="0.45")
+                    ax.set_xticks(range(len(EPOCHS)), [e[:5] for e in EPOCHS], fontsize=6.5)
+                    if r_i == 0:
+                        ax.set_title(POS_LAB[p], fontsize=9, color=position_style(p)[0])
+                    if c_i == 0:
+                        ax.set_ylabel(ylab, fontsize=7.5)
+                    continue
+                frp.epoch_points(ax, d, "rel", seed=100 * r_i + 10 * c_i)
+                ch = {r["epoch"]: r for r in ST[(ST.q == q) & (ST.pos == p)].to_dict("records")}
+                for e_i, ep in enumerate(EPOCHS[1:], start=1):
+                    if ep in ch and frs.mark(ch[ep]):
+                        sig_marks.star_top(ax, e_i, frs.mark(ch[ep]))
+                ax.axhline(0, color="k", lw=0.5)
+                ax.set_xticks(range(len(EPOCHS)),
+                              ["pre", *(frp.change_tick(ep, ch.get(ep), interval=False) for ep in EPOCHS[1:])],
+                              fontsize=6.5)
+                if r_i == 0:
+                    ax.set_title(POS_LAB[p], fontsize=9, color=position_style(p)[0])
+                if c_i == 0:
+                    ax.set_ylabel(ylab, fontsize=7.5)
+        cp.add_animal_entries(axs[0, -1], sorted(S.animal.unique()))
+        axs[0, -1].legend(fontsize=7, frameon=False, loc="upper left", bbox_to_anchor=(1.0, 1.0))
+        sig_marks.reserve_headroom(fig)
+        fig.suptitle("Frozen master factors, per trial: how often the lick movement happens vs how large it is when "
+                     "it does", fontsize=10)
+        frf.save(fig, out_png, """
+Per session and spout, from single trials (engaged trials, cue 0 .. +4 s; frozen master master_pre_v1, absolute =
+weight x D). PREVALENCE: fraction of trials with >= 1 LP video lick of the factor's direction (|executed angle| > 12 deg;
+lick_right -> rightward, lick_left -> leftward), minus the animal's pre mean. AMPLITUDE: median per-trial peak of the
+factor over trials WITH such a lick (row 2, 4) or WITHOUT one (row 5), log2 minus the mean log2 of the animal's pre
+sessions; sessions with >= 1 qualifying trial (pre leftward licks at contra spouts are rare: 0-5 trials per session).
+Faded open markers = sessions (shape = animal, colour = epoch); filled = mean +- SEM across animals. Under each epoch:
+change vs pre, `analysis_kit.boot_delta` (paired animals -> sessions bootstrap, animal-weighted); * = 95 % interval
+excludes 0, ** = also Holm over the 6 spouts of that row x epoch. Script: scripts/face_rhythm_per_trial.py.""")
 
 
 def main(argv=None) -> int:
@@ -230,6 +302,7 @@ def main(argv=None) -> int:
     ap.add_argument("--bundle", default=fro.BUNDLE)
     ap.add_argument("--jobs", type=int, default=6)
     ap.add_argument("--plot-only", action="store_true", help="reuse data/per_trial_*.pkl")
+    ap.add_argument("--fig-only", action="store_true", help="redraw figures from data/per_trial_{sessions,stats}.csv")
     a = ap.parse_args(argv)
     rv = PathResolver()
     fdir = fro.factor_dir(rv, a.bundle, a.set)
@@ -237,6 +310,10 @@ def main(argv=None) -> int:
     writeguard.assert_writable(out)
     (out / "data").mkdir(parents=True, exist_ok=True)
     names = frc.factor_names(fdir)
+    if a.fig_only:
+        fig_conditioned(pd.read_csv(out / "data" / "per_trial_sessions.csv"),
+                        pd.read_csv(out / "data" / "per_trial_stats.csv"), out / "per_trial_conditioned.png")
+        return 0
     ft, fl = out / "data" / "per_trial_trials.pkl", out / "data" / "per_trial_licks.pkl"
     if a.plot_only and ft.exists():
         T, Lk = pd.read_pickle(ft), pd.read_pickle(fl)
@@ -259,6 +336,7 @@ def main(argv=None) -> int:
     pd.set_option("display.max_rows", 500)
     show = ["q", "pos", "epoch", "PS92", "PS93", "PS94", "PS95", "delta", "ci_lo", "ci_hi", "p_holm"]
     print(ST[[c for c in show if c in ST.columns]].round(3).to_string(index=False))
+    fig_conditioned(S, ST, out / "per_trial_conditioned.png")
     print("->", out)
     return 0
 

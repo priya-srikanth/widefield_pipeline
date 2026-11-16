@@ -378,3 +378,12 @@ FR page v51: sections renumbered in page order 7a->7, 7b->8, 7->9, 8->10, 9->11 
 checked: 0 link mismatches, titles = data-num, no non-figure text changed. Doc pointers updated. PI deck notes on slides
 87 / 89 / 93 / 94 still cite the OLD numbers (8.10, 7.1, 7.2, 7.12 -> now 10.10, 9.1, 9.2, 9.12; #f- ids still valid):
 ASK Priya before editing the deck.
+
+### 11-16 ~18:30 -- per-trial block on the page (v52); deck notes renumbered (Priya "yes add to page" / "and update deck")
+FR page v52: section 2 gains "Per trial: how often vs how large" (Fig 2.5 = per_trial/per_trial_conditioned.png) + a
+status row. Figure fixes before publishing: factor expression floored at 1 before log2 (a near-zero session gave -20),
+and a cell is tested only with a pre baseline in >= 3 animals (lick_left given a leftward lick at close contra: 2 / 4,
+drawn as "not tested", out of Holm). Key numbers unchanged by either fix.
+PI deck (backup Overview_2026-11-06.bak_pre_a8_renumber_20261116.pptx): FR page numbers in notes of slides 87 (8.10 ->
+10.10), 89 (7.1 -> 9.1; Figs 7.11-7.15 -> 9.11-9.15), 90 (section 7a -> 7), 93 (7.2 -> 9.2; 7.15 -> 9.15), 94 (7.12 ->
+9.12, x2). Each #f- id checked: v50 number = old note number, v52 number = new. No slide text touched.

@@ -1,0 +1,9 @@
+acute areas SSp-n:+0.89 RSPagl:+0.43 SSs:+0.36 VISam:+0.34
+acute locanmf SSp-n:+0.61 ALM:+0.32 RSPd:+0.28 SSp-m:+0.27
+acute svd SSp-n:+0.28 SSp-bfd:+0.26 SSp-m:+0.17 SSp-ul:+0.12
+subacute areas SSp-n:+0.95 VISam:+0.43 SSp-ul:+0.37 VISrl:+0.37
+subacute locanmf SSp-n:+0.56 RSPd:+0.37 VISpm:+0.31 SSp-tr:+0.31
+subacute svd SSp-n:+0.44 MOp:+0.28 SSp-bfd:+0.15 SSp-m:+0.12
+chronic areas RSPagl:+0.80 SSp-n:+0.77 RSPv:+0.55 SSp-ul:+0.47
+chronic locanmf RSPd:+0.75 SSp-n:+0.65 SSp-ll:+0.51 VISrl:+0.51
+chronic svd SSp-n:+0.29 MOs:+0.23 SSp-m:+0.20 MOp:+0.17

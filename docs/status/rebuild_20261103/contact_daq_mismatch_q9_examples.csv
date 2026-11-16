@@ -1,0 +1,5 @@
+label,epoch,trial_id,pos,contact_ms,daq_first_lick_ms,lp_first_ms,lag_ms,stop,cam4_frames,cam4_cue_frame,cam1_frames,cam4_video
+PS92_0806,pre,47,close_ipsi,74,64,1080,1006,3680,180818-181862,180943,180806-181851,M:\MICROSCOPE\Priya\Behavior_Cameras\Widefield\20260806\PS92\cam4_2026-08-06T12_47_40.avi
+PS93_0810,pre,403,close_contra,199,192,572,373,3793,1789285-1790357,1789409,1789281-1790354,M:\MICROSCOPE\Priya\Behavior_Cameras\Widefield\20260810\PS93\cam4_2026-08-10T14_23_19.avi
+PS92_0918,chronic,206,far_mid,337,352,592,255,3866,1086611-1087702,1086736,1086603-1087694,M:\MICROSCOPE\Priya\Behavior_Cameras\Widefield\20260918\PS92\cam4_2026-09-18T14_26_42.avi
+PS94_0819,acute,475,far_ipsi,120,128,316,196,3646,1256138-1257174,1256262,1256134-1257170,M:\MICROSCOPE\Priya\Behavior_Cameras\Widefield\20260819\PS94\cam4_2026-08-19T10_08_20.avi
