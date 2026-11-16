@@ -511,7 +511,7 @@ def _tagged_k(root, rel, grant_root):
 def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag=None, allow_missing=0,
                         allow_unresolved=0,
                         failed_steps=(), allow_failed_steps=False, run_start=None,
-                        grant_dir=None, sidecar_dir=None) -> dict:
+                        grant_dir=None, sidecar_dir=None, within_day=True) -> dict:
     """Build the refined analysis deck at ``out_path`` from figures in ``src``. Returns a summary dict.
 
     ``sidecar_dir`` is where the ``.manifest.json`` goes (default: beside the deck). The default deck lives in
@@ -664,115 +664,119 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         r.font.color.rgb = NAVY if line.startswith(("WHAT", "THE FIX", "MEASURED", "SIGN", "NOT")) else GREY
     note(s, M_PRECUE_CAVEAT, specific=S_DRIFT)
 
-    # ---------------- A. per-animal WITHIN-DAY decoding ----------------
-    divider("A. Per-animal WITHIN-DAY decoding across sessions",
-            "Post-cue 2 s (predicts no-lick trials too = no lick generalization) and pre-cue 2 s "
-            "(pre-cue position information) confusion + recall; then the rolling decoder across sessions. "
-            "Cross-day (frozen) decoding is Section D.")
-    for a in animals:
-        s = slide()
-        title(s, f"{a} — post-cue 2 s decoder (engaged, no-lick generalization)",
-              "Per session: confusion matrix + per-position recall (engaged vs held-out no-lick trials).",
-              trials=TRIALS_LICK)
-        note(s, M_DECODE, specific=S_DEC_CUE)
-        grid(s, [sess(f"{a}_{d}", "cue") for d, _ in date_labels if have(a, d)],
-             cols=3)
-        s = slide()
-        title(s, f"{a} — pre-cue 2 s decoder (pre-cue position information)",
-              "Position decodable in the pre-cue ENL window, before movement. NB the accuracies shown "
-              "are corrected (meegkit_hpfit); see slide 2 for the drift-removal decision.",
-              trials=TRIALS_LICK)
-        note(s, M_DECODE + M_PRECUE_CAVEAT, specific=S_DEC_PRECUE)
-        grid(s, [sess(f"{a}_{d}", "precue") for d, _ in date_labels if have(a, d)],
-             cols=3)
-        # LICK-ALIGNED, added 2026-08-26. `nightly_figs` has been running --align lick per day all
-        # along, so these figures were written every night and shown nowhere -- computed-and-hidden,
-        # the mirror of the frozen lick arm that was shown-nowhere-because-never-computed.
-        s = slide()
-        title(s, f"{a} — post-LICK 2 s decoder (aligned to the movement)",
-              "Per session, registered on the FIRST LICK rather than the cue. Read against the "
-              "post-cue slide above: cue-aligned mixes trials with different reaction times, so a "
-              "movement-locked signal is smeared by RT jitter there and sharp here.",
-              trials=TRIALS_LICK)
-        note(s, M_DECODE, specific=S_DEC_LICK)
-        grid(s, [sess(f"{a}_{d}", "lick") for d, _ in date_labels if have(a, d)],
-             cols=3)
-        s = slide()
-        title(s, f"{a} — rolling decoder across sessions (pre-cue ENL → post-cue)",
-              "Sliding 0.5 s window, block-CV, one line per session. Above-chance in the ENL = position information present before the cue. "
-              "(Per-animal accuracy across sessions is in the cross-session summary, Section E.)",
-              trials=TRIALS_LICK)
-        note(s, M_DECODE, specific=S_DEC_ROLL)
-        big(s, src / f"locanmf_decoder_rolling_by_animal_{a}.png", top=1.5, width=11.2)
-
-    # ---------------- B. per-animal encoder ----------------
-    divider("B. Per-animal WITHIN-DAY encoder — expected activity, predicted maps & explained variance",
-            "Position → expected cortical activity (SSp / MO), footprint-reconstructed predicted maps, and "
-            "encoding explained variance per position (raw + relative to the noise ceiling) across sessions.")
-    for a in animals:
-        # CUT 2026-08-19 (Priya): the expected-SSp/MO time-courses and the footprint-reconstructed
-        # predicted maps. They were a gut check that the encoder is not degenerate, and in three
-        # months never changed a conclusion -- the noise ceiling on the next slide does that job
-        # quantitatively. Recover from git history if a reviewer ever asks to see them.
-        s = slide()
-        title(s, f"{a} — encoder explained variance per position across sessions (raw & vs ceiling)",
-              "One graph per animal; sessions distinguished by colour/marker. Left: raw held-out R²; "
-              "right: relative to the per-position noise ceiling.",
-              trials=TRIALS_LICK)
-        note(s, M_ENCODE, specific=S_ENC_POS)
-        grid(s, [src / f"locanmf_encoder_ev_by_position_animal_{a}.png",
-                 src / f"locanmf_encoder_ev_ceiling_by_position_animal_{a}.png"], cols=2, top=1.5)
-        # CUT 2026-08-19 (Priya): per-SESSION encoder r2 by region. The region axis is rebuilt per
-        # session, so a cell in one panel is not the same region-set as the cell beside it and the
-        # panels cannot be read against each other.
-    # CUT 2026-09-13 (Priya, "it's the pooled FEVE i wanted to get rid of, slide 25"): the POOLED
-    # FEVE-by-region slide, `locanmf_encoder_feve_by_region_pooled.png`.
-    #
-    # THE PER-ANIMAL ENCODER EV SLIDES ABOVE STAY -- they are the four this was easy to confuse with,
-    # and the confusion was real: the edit list named "FEVE pooled" against slide 23, which is PS94's
-    # encoder EV, while the pooled FEVE is slide 25. Deleting on the number alone would have removed
-    # ONE animal's EV panel and left the other three, which is not a coherent deck state and would
-    # have looked deliberate.
-    #
-    # WHY IT GOES, now that the 2026-08-19 note above no longer holds it up: that note kept the
-    # pooled slide as "the comparable form" of the per-session r2 it was cutting. The comparison it
-    # served has since moved to the encoder-CEILING family, which reports the same fraction-of-
-    # explainable-variance question per POSITION and per EPOCH with bootstrap intervals, rather than
-    # per Allen region pooled over a phase. The figure is still written nightly; only the slide goes.
-    # CUT 2026-08-19 (Priya): the per-SESSION FEVE heatmap. Same objection as the per-session
-    # per-region r2 above -- the region axis is not fixed across sessions, so "stability" cannot be
-    # read off it.
-
-    if (src / "locanmf_encoder_ev_matrix.png").exists():
-        s = slide()
-        title(s, "Encoder — encoded variance per POSITION x SESSION, all animals on one scale",
-              "The summary the per-animal bar charts could not give (Priya, 2026-08-19): a position "
-              "that degrades across days is a COLUMN that changes color, and the lesion is a rule "
-              "rather than something the reader has to hold in mind. Ridge from a one-hot position "
-              "design, scored per position with the same block GroupKFold the decoders use. ONE "
-              "color scale across animals, so the panels are comparable.",
-              trials=TRIALS_LICK)
-        note(s, M_ENCODE, specific=S_ENC_MATRIX)
-        big(s, src / "locanmf_encoder_ev_matrix.png", top=1.6, width=12.6)
-
-    # ---------------- C. pre-cue without licking ----------------
-    divider("C. Pre-cue code without licking — the motor-confound control",
-            "Decode AND encode on a SEARCHED 2 s window: 2 consecutive lick-free seconds between the "
-            "spout-position strobe and the cue, taken as late as possible.")
-    for src_name in ("roi", "locanmf"):
+    # SECTIONS A-C (per-session WITHIN-DAY decode / encode / pre-cue lick-free control) are placed only when
+    # `within_day` is set (default). Priya 11-16: the rebuild deck leaves them out until they are re-rendered with
+    # the updated pipeline (`--no-within-day`); the code path stays.
+    if within_day:
+        # ---------------- A. per-animal WITHIN-DAY decoding ----------------
+        divider("A. Per-animal WITHIN-DAY decoding across sessions",
+                "Post-cue 2 s (predicts no-lick trials too = no lick generalization) and pre-cue 2 s "
+                "(pre-cue position information) confusion + recall; then the rolling decoder across sessions. "
+                "Cross-day (frozen) decoding is Section D.")
         for a in animals:
-            p = src / f"precue_lickfree_{a}_{src_name}.png"
-            if not p.exists():
-                continue
             s = slide()
-            title(s, f"{a} — pre-cue position code with NO licking in the window ({src_name})"
-                     "",
-                  "Exposure, decode (lick-free vs all vs with-licks), lick-free confusion matrix, and "
-                  "per-region encoding EV. The lick control itself is VALID — it just sits on top of "
-                  "corrected pre-cue values (meegkit_hpfit); see slide 2.",
-                  trials=TRIALS_NOLICK)
-            note(s, M_LICKFREE + M_PRECUE_CAVEAT, specific=S_LICKFREE)
-            big(s, p, top=1.5, width=12.9)
+            title(s, f"{a} — post-cue 2 s decoder (engaged, no-lick generalization)",
+                  "Per session: confusion matrix + per-position recall (engaged vs held-out no-lick trials).",
+                  trials=TRIALS_LICK)
+            note(s, M_DECODE, specific=S_DEC_CUE)
+            grid(s, [sess(f"{a}_{d}", "cue") for d, _ in date_labels if have(a, d)],
+                 cols=3)
+            s = slide()
+            title(s, f"{a} — pre-cue 2 s decoder (pre-cue position information)",
+                  "Position decodable in the pre-cue ENL window, before movement. NB the accuracies shown "
+                  "are corrected (meegkit_hpfit); see slide 2 for the drift-removal decision.",
+                  trials=TRIALS_LICK)
+            note(s, M_DECODE + M_PRECUE_CAVEAT, specific=S_DEC_PRECUE)
+            grid(s, [sess(f"{a}_{d}", "precue") for d, _ in date_labels if have(a, d)],
+                 cols=3)
+            # LICK-ALIGNED, added 2026-08-26. `nightly_figs` has been running --align lick per day all
+            # along, so these figures were written every night and shown nowhere -- computed-and-hidden,
+            # the mirror of the frozen lick arm that was shown-nowhere-because-never-computed.
+            s = slide()
+            title(s, f"{a} — post-LICK 2 s decoder (aligned to the movement)",
+                  "Per session, registered on the FIRST LICK rather than the cue. Read against the "
+                  "post-cue slide above: cue-aligned mixes trials with different reaction times, so a "
+                  "movement-locked signal is smeared by RT jitter there and sharp here.",
+                  trials=TRIALS_LICK)
+            note(s, M_DECODE, specific=S_DEC_LICK)
+            grid(s, [sess(f"{a}_{d}", "lick") for d, _ in date_labels if have(a, d)],
+                 cols=3)
+            s = slide()
+            title(s, f"{a} — rolling decoder across sessions (pre-cue ENL → post-cue)",
+                  "Sliding 0.5 s window, block-CV, one line per session. Above-chance in the ENL = position information present before the cue. "
+                  "(Per-animal accuracy across sessions is in the cross-session summary, Section E.)",
+                  trials=TRIALS_LICK)
+            note(s, M_DECODE, specific=S_DEC_ROLL)
+            big(s, src / f"locanmf_decoder_rolling_by_animal_{a}.png", top=1.5, width=11.2)
+
+        # ---------------- B. per-animal encoder ----------------
+        divider("B. Per-animal WITHIN-DAY encoder — expected activity, predicted maps & explained variance",
+                "Position → expected cortical activity (SSp / MO), footprint-reconstructed predicted maps, and "
+                "encoding explained variance per position (raw + relative to the noise ceiling) across sessions.")
+        for a in animals:
+            # CUT 2026-08-19 (Priya): the expected-SSp/MO time-courses and the footprint-reconstructed
+            # predicted maps. They were a gut check that the encoder is not degenerate, and in three
+            # months never changed a conclusion -- the noise ceiling on the next slide does that job
+            # quantitatively. Recover from git history if a reviewer ever asks to see them.
+            s = slide()
+            title(s, f"{a} — encoder explained variance per position across sessions (raw & vs ceiling)",
+                  "One graph per animal; sessions distinguished by colour/marker. Left: raw held-out R²; "
+                  "right: relative to the per-position noise ceiling.",
+                  trials=TRIALS_LICK)
+            note(s, M_ENCODE, specific=S_ENC_POS)
+            grid(s, [src / f"locanmf_encoder_ev_by_position_animal_{a}.png",
+                     src / f"locanmf_encoder_ev_ceiling_by_position_animal_{a}.png"], cols=2, top=1.5)
+            # CUT 2026-08-19 (Priya): per-SESSION encoder r2 by region. The region axis is rebuilt per
+            # session, so a cell in one panel is not the same region-set as the cell beside it and the
+            # panels cannot be read against each other.
+        # CUT 2026-09-13 (Priya, "it's the pooled FEVE i wanted to get rid of, slide 25"): the POOLED
+        # FEVE-by-region slide, `locanmf_encoder_feve_by_region_pooled.png`.
+        #
+        # THE PER-ANIMAL ENCODER EV SLIDES ABOVE STAY -- they are the four this was easy to confuse with,
+        # and the confusion was real: the edit list named "FEVE pooled" against slide 23, which is PS94's
+        # encoder EV, while the pooled FEVE is slide 25. Deleting on the number alone would have removed
+        # ONE animal's EV panel and left the other three, which is not a coherent deck state and would
+        # have looked deliberate.
+        #
+        # WHY IT GOES, now that the 2026-08-19 note above no longer holds it up: that note kept the
+        # pooled slide as "the comparable form" of the per-session r2 it was cutting. The comparison it
+        # served has since moved to the encoder-CEILING family, which reports the same fraction-of-
+        # explainable-variance question per POSITION and per EPOCH with bootstrap intervals, rather than
+        # per Allen region pooled over a phase. The figure is still written nightly; only the slide goes.
+        # CUT 2026-08-19 (Priya): the per-SESSION FEVE heatmap. Same objection as the per-session
+        # per-region r2 above -- the region axis is not fixed across sessions, so "stability" cannot be
+        # read off it.
+
+        if (src / "locanmf_encoder_ev_matrix.png").exists():
+            s = slide()
+            title(s, "Encoder — encoded variance per POSITION x SESSION, all animals on one scale",
+                  "The summary the per-animal bar charts could not give (Priya, 2026-08-19): a position "
+                  "that degrades across days is a COLUMN that changes color, and the lesion is a rule "
+                  "rather than something the reader has to hold in mind. Ridge from a one-hot position "
+                  "design, scored per position with the same block GroupKFold the decoders use. ONE "
+                  "color scale across animals, so the panels are comparable.",
+                  trials=TRIALS_LICK)
+            note(s, M_ENCODE, specific=S_ENC_MATRIX)
+            big(s, src / "locanmf_encoder_ev_matrix.png", top=1.6, width=12.6)
+
+        # ---------------- C. pre-cue without licking ----------------
+        divider("C. Pre-cue code without licking — the motor-confound control",
+                "Decode AND encode on a SEARCHED 2 s window: 2 consecutive lick-free seconds between the "
+                "spout-position strobe and the cue, taken as late as possible.")
+        for src_name in ("roi", "locanmf"):
+            for a in animals:
+                p = src / f"precue_lickfree_{a}_{src_name}.png"
+                if not p.exists():
+                    continue
+                s = slide()
+                title(s, f"{a} — pre-cue position code with NO licking in the window ({src_name})"
+                         "",
+                      "Exposure, decode (lick-free vs all vs with-licks), lick-free confusion matrix, and "
+                      "per-region encoding EV. The lick control itself is VALID — it just sits on top of "
+                      "corrected pre-cue values (meegkit_hpfit); see slide 2.",
+                      trials=TRIALS_NOLICK)
+                note(s, M_LICKFREE + M_PRECUE_CAVEAT, specific=S_LICKFREE)
+                big(s, p, top=1.5, width=12.9)
 
     # ---------------- D. cross-session (frozen) decoders & encoders, BOTH bases ----------------
     # Was interleaved into each animal's Section A, which mixed "does the code exist today" with "does
@@ -1453,7 +1457,10 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         # the single stacked file this used to read is a scratchpad-era orphan nothing rewrites.
         # The LICK alignment exists on the lick-only arm alone (a no-lick trial has no lick to
         # align to), so the all-trials glob simply finds nothing for it.
-        for _al, _nice in (("precue", "PRE-cue"), ("cue", "POST-cue"), ("lick", "POST-lick")):
+        # Priya 11-16: G7c now goes with the other small-lesion slides (behind `_SHOW_SMALL_LESION`): 8/17 is not in
+        # the rebuild, whose 'excluded' phase holds the June 6-8 pre sessions instead.
+        for _al, _nice in ((("precue", "PRE-cue"), ("cue", "POST-cue"), ("lick", "POST-lick"))
+                           if _SHOW_SMALL_LESION else ()):
             for _arm, _armn in (("all", "ALL trials"), ("lickonly", "LICK-ONLY")):
                 for _cf in sorted(src.glob(f"section_g_smalllesion_confusion_{_al}_{_arm}_*.png")):
                     _lab = "_".join(_cf.stem.split("_")[-2:])
@@ -2028,10 +2035,8 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             (f"EXCLUDED from every POOLED slide: {', '.join(_excluded)}. Their 8/16 attempt produced "
              "no deficit; the effective lesion (3.75 / 5.5 mW) followed the 8/17 session, so 8/17 is "
              "neither a clean baseline nor post-stroke and belongs to neither phase. They "
-             "are NOT unanalysed \u2014 they are the SMALL-LESION COMPARISON, shown per session at G7c. "
-             "They are not drawn or counted in G2c. "
-             "They also remain registered, are projected onto the joint bases, and appear "
-             "per-session in sections A\u2013D.")
+             "are not drawn or counted on any section G slide. "
+             "They remain registered and on disk.")
             if _excluded else
             "No sessions are currently in the 'excluded' phase.",
             ("RETIRED, not merely omitted: the working-vs-disengaged identity split. Its comparison "
@@ -2363,6 +2368,9 @@ def main(argv=None) -> int:
     ap.add_argument("--run-start", type=float, default=None, metavar="EPOCH",
                     help="epoch seconds this run began; placed figures older than it are "
                          "reported as not-refreshed in the manifest")
+    ap.add_argument("--no-within-day", action="store_true",
+                    help="leave out sections A-C (per-session within-day decode / encode / pre-cue "
+                         "control); Priya 11-16: the rebuild deck until they are re-rendered")
     args = ap.parse_args(argv)
     rv = PathResolver(machine=args.machine)
     src = args.src or Path(rv.root("figures_working"))
@@ -2373,7 +2381,8 @@ def main(argv=None) -> int:
     # the manifest stays in cohort_out (tag-routed the same way); an explicit --out keeps it beside the deck
     side = None if args.out else run_mode.routed_output(Path(rv.root("cohort_out")), guard=False)
     summary = build_analysis_deck(src, out, allow_missing=args.allow_missing,
-                                  run_start=args.run_start, sidecar_dir=side)
+                                  run_start=args.run_start, sidecar_dir=side,
+                                  within_day=not args.no_within_day)
     print(f"[analysis_deck] wrote {summary['out']}  ({summary['slides']} slides, "
           f"{summary['figures_present']} figures placed, {summary['figures_missing']} missing)", flush=True)
     return 0
