@@ -525,3 +525,8 @@ PI deck (backup Overview_2026-11-06.bak_pre_a8_renumber_20261116.pptx): FR page 
   FIGURE_PROVENANCE_20261116_rerun.csv (+ _RERUN.md): CONFIRMED 45 -> 257 (deck 8 -> 38); Data: blocks on 26 more slides
   (deck 58 / 206). Remaining deck rows need per-figure work (no script named 48, older kept runs 47, missing fields 20,
   steps not done ~30).
+- 11-16 late, Priya "yes do the per figure sweep" + "and update re-rendered figures": 6 read-only helpers, one per deck
+  slide group (126 picture slides without a Data: block; inputs + outputs in a8 scratchpad sweep/group*.json ->
+  out_group*.json): 7 fields + level LOG (render log) / CODE (code + output file, no log) / UNRESOLVED, plus the current
+  render path vs the deck image source (stale yes / no) and crop. Next: spot-check, write blocks (CODE labelled as such),
+  swap stale images (as-is ones directly; crops reproduced), record.
