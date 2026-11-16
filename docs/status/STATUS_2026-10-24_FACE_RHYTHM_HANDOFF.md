@@ -56,6 +56,51 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
 
 ## 2. Next, in order
 
+00-A8-1116. **11-16 NIGHT (a8) -- START HERE.** Page https://claude.ai/artifact/X8NDdQNHi3zMP77PBrZAC1 = **v52**
+   (source: a8 session scratchpad fr_page/; from a new session READ the URL first, then publish with `url`). Log of the
+   day: `docs/status/RUNNING_LIST_2026-11-08_a8_june.md` (11-16 entries).
+   * **RUNNING: nothing.** All a8 jobs finished; no O2 jobs of ours pending.
+   * **DONE 11-16:**
+     - lick_left match check: runner-up vs matched (`face_rhythm_lick_left_match_check.py`, flagged_lick_left_<animal>.png,
+       data/flagged_lick_left.csv); lick_left contralesional asymmetry shift STANDS acute (4/4) + subacute (3/4), chronic
+       small / PROVISIONAL (Priya approved wording; FINDINGS + page + deck slide 90 / 163 notes).
+     - Trial-aligned own-fit expression by spout (`face_rhythm_own_temporal.py`, ALL engaged trials; cache
+       ~/wfield_cache/fr_own_temporal/*_nall.npz, 108 sessions; reads trial files with plain reads, NOT memmap -- the
+       memmap held 8-10 GB per worker on the shared box). Page Figs 7.12-7.27.
+     - Per-trial / per-lick readouts on the FROZEN master (`face_rhythm_per_trial.py`; outputs readouts/master_pre_v1/
+       per_trial/; `--plot-only` reuses the pkl tables, `--fig-only` redraws from the CSVs). Page section 2, Fig 2.5.
+       Result: lick_right at far contra smaller on every right-lick trial (-.83 / -.58 / -.61 log2, 4/4) = lasting
+       deficit per movement; acute later expression follows later first licks; lick_left rises at contra spouts through
+       MORE leftward-lick trials (not larger) and on contra trials with no leftward lick (contra targets licked with the
+       lick_left pattern). Frozen lick_left at far contra rises acutely (+.73, 4/4) where own-fit Fig 7.13 is flat.
+     - Page renumbered in order (7a->7, 7b->8, 7->9, 8->10, 9->11; v51); doc pointers + deck notes (slides 87 / 89 / 90 /
+       93 / 94) updated; deck backups `.bak_pre_a8_*_20261116.pptx` in presentations/.
+     - Fig 7.3 (now 9.3): epoch shading removed, marks centred (Priya); same shading removed IN CODE from
+       `epoch_shape_angles` (page 9.11 / 10.18) -- NOT yet re-rendered.
+   * **PENDING / ASK PRIYA:**
+     - Deck slide for the per-trial result (page only so far)? Priya said "update deck" = the notes renumber; a new slide
+       was not requested yet.
+     - Superseded derived outputs on M: (Priya allows deletion of superseded derived; list, then ask): the 12-trial
+       preview files `lick_left_match_check/own_temporal_lick*_n12.png` + `data/own_temporal_lick*_n12.csv`, and the
+       `_n12` cache files in ~/wfield_cache/fr_own_temporal/ (local, ours).
+     - HOLD new p values on block-permutation class-A scripts (fr_enl_decode, enl_fr_removed_decode,
+       enl_movement_multisession, enl_video_spout_check, movement_position_angle) until window a2 lands
+       `analysis_kit.block_permute` + its trial-wise vs block-wise comparison.
+   * **TO DO, in order:**
+     1. Re-render `epoch_shape_angles` (page 9.11 cohort, 10.18 per-animal) with the shading fix; swap on the page.
+     2. Per-trial TIMING on the page: Figs 5.3 / 5.4 carry "caveat: trial average"; the conditioned per-trial timing
+        (peak time and first lick of the same direction on the same trials) is in per_trial_stats.csv -- a figure + a
+        caption rewrite of the 5.3 / 5.4 claim ("re-timed later, not delayed at its start"): acute = follows the later
+        first lick; chronic small (+.24 s* peak, first lick on time). Ask Priya before rewording.
+     3. Per-trial version of Figs 1.1 / 2.1 (median per-trial peak + conditioned peak, per side / spout): numbers in
+        per_trial_stats.csv (`median_trial_peak`, `lick_trial_peak`); not drawn.
+     4. Section 7 own-fit vs frozen discrepancy (far-contra lick_left acute): one sentence is in the Fig 2.5 take line;
+        decide with Priya whether section 7 needs its own note / sensitivity (e.g. own-fit matched + runner-up summed).
+     5. Isolated vs in-bout licks (isolated leftward licks ~30 % less lick_left acutely; 15 % of far-contra leftward
+        licks isolated acutely vs 2 % pre): CSV only; mention if Priya wants it.
+     6. Older open items (unchanged): which non-FR frozen analyses extend to June; the il.OUT diagnostic; deck-wide notes
+        "Data:" pass; spout-in-mesh control figure on the page (item 00 below).
+
 00. **11-05 (window e0, at a8's request "run now whatever can be run").**
    * DONE: FR SPOUT-IN-MESH CONTROL (`scripts/fr_spout_mesh_control.py`, ~3 h at 3 jobs; outputs readouts/master_pre_v1/
      spout_mesh_control/; reduced projections cached in C:/Users/SabatiniLab/wfield_cache/fr_spout_mesh_control/). The

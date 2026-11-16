@@ -1993,6 +1993,15 @@ each animal's own pre. Factor names, not numbers (numbers shift between fits).*
     runner-up is not (1.2-1.7); the matched column is the more left-selective one in 25 / 35 flagged post-stroke sessions
     (PS92 10 / 10, PS93 4 / 5, PS94 7 / 13, PS95 4 / 7); PS95's low-cosine subacute columns still fire strongly on left-spout trials (lick_left is present, its
     footprint changed). So the clean-match-only table above under-counts real lick_left sessions.
+    PER-TRIAL SPLIT (11-16; `scripts/face_rhythm_per_trial.py`, frozen master, engaged trials, cue 0..+4 s, LP v36
+    licks by direction; FR page Fig 2.5): at far contra fewer trials have a right lick (-.87 / -.36 / -.07 of
+    trials) AND lick_right is smaller on the trials that do (-.83 / -.58 / -.61 log2, 4 / 4 every epoch) -> the
+    lasting deficit is per movement; acutely the first right lick is 1.2 s later and the lick_right peak moves with
+    it (peak - first lick -.25 s n.s.) -> later expression follows slower licking. lick_left at contra spouts rises
+    through MORE leftward-lick trials (far contra +.38 / +.27 / +.12), not larger ones (-.06 / +.24 / +.11 n.s.),
+    and on contra trials with NO leftward lick (close contra +.65 / +.81 / +.98 log2) -> contralesional targets
+    licked with the lick_left pattern. Frozen lick_left at far contra rises acutely (+.73, 4 / 4) where the own-fit
+    column (FR page Fig 7.13) is flat. **PROVISIONAL** (new; session-level bootstrap, Holm over 6 spouts).
     **STANDS** (lick pair spatial angle, side specificity, lick_right map; lick_left asymmetry shift acute + subacute);
     **PROVISIONAL** (lick_left chronic asymmetry, mainly PS94; acute fast-lick factor LOSS per session; other units). Since 11-07 night every
     map test uses 10,000 shuffles (only change vs 2,000 that touched text: the cue-aligned speed-map drift control lost
