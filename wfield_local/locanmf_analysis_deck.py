@@ -58,7 +58,7 @@ import argparse
 import re
 import shutil
 import time
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 from pptx.util import Inches, Pt
@@ -676,32 +676,56 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     note(s, M_PRECUE_CAVEAT, specific=S_DRIFT)
 
     # ---------------- KEY FIGURES (Priya 11-16): each results page's key-figure cards, first ----------------
-    # Main point on the slide (the page's figure title), the page's caption + source file in the notes. Optional like
-    # section K: an absent file is skipped, and nothing is placed when `src` is not the share's figure root (a test
-    # deck on a tmp dir must not pick up real figures from MICROSCOPE).
+    # Main point on the slide (the page's figure title); provenance in the notes. Optional like section K: an absent
+    # file is skipped, and nothing is placed when `src` is not the share's figure root (a test deck on a tmp dir must not
+    # pick up real figures from MICROSCOPE).
+    # IN A TAGGED (REBUILD) RUN the figure is THIS run's re-render (``iti_licks/<run tag>/<same sub-path>``): the rebuild
+    # fence refuses the pre-rebuild file the page shows, by design. Its caption's numbers describe that earlier render,
+    # so they are NOT copied onto the re-render; the notes give the page, both files and the producing script. A key
+    # figure with no re-render of the same name is skipped (reported by the build, not placed).
     try:
         _key_on_share = Path(src).resolve() == Path(PathResolver().root("figures_working")).resolve()
     except Exception:                                                  # noqa: BLE001
         _key_on_share = False
-    _key_found = []
+    _key_found, _key_skipped = [], []
     for _page, _url, _lab, _kroot, _krel, _kttl, _klicks, _kcap, _kdate in (KEY_FIGURES if _key_on_share else ()):
         try:
-            _kf = Path(PathResolver().root(_kroot)) / _krel
+            if run_mode.tag():
+                _kbase, _ktail = _krel.split("/iti_licks/", 1)
+                _kf = Path(PathResolver().derived(_kroot, _kbase + "/iti_licks")) / run_mode.tag() / _ktail
+            else:
+                _kf = Path(PathResolver().root(_kroot)) / _krel
         except Exception:                                              # noqa: BLE001
+            _key_skipped.append(f"{_lab} ({_krel.rsplit('/', 1)[-1]})")
             continue
         if _kf.exists():
-            _key_found.append((_page, _url, _lab, _kf, _kttl, _klicks, _kcap, _kdate))
+            _key_found.append((_page, _url, _lab, _kf, _kttl, _klicks, _kcap, _kdate, _krel))
+        else:
+            _key_skipped.append(f"{_lab} ({_krel.rsplit('/', 1)[-1]})")
+    if _key_skipped:
+        print(f"[analysis_deck] key figures with no file in this run (not placed): {', '.join(_key_skipped)}",
+              flush=True)
     if _key_found:
         divider("KEY FIGURES — the key-figure cards of each results page",
-                "Shown as published on the page (same image file). Only the Attempt Encoding Figures page marks key "
-                "figures; the Cortical Spout Coding, State-Space Recovery and Licking Kinematics pages have none yet.")
-        for _page, _url, _lab, _kf, _kttl, _klicks, _kcap, _kdate in _key_found:
+                "Only the Attempt Encoding Figures page marks key figures; the Cortical Spout Coding, State-Space "
+                "Recovery and Licking Kinematics pages have none yet. In this rebuild deck each is THIS run's re-render "
+                "of the page figure; the page itself still shows the earlier render.")
+        for _page, _url, _lab, _kf, _kttl, _klicks, _kcap, _kdate, _krel in _key_found:
             s = slide()
-            _no_window_line.add(id(s._element))     # the page caption states the window; a filename guess would not
+            _no_window_line.add(id(s._element))     # windows are stated by the page caption, not guessable from a name
             title(s, _kttl, f"{_page} page, {_lab} · {_klicks}")
-            note(s, f"{_page} page ({_url}), {_lab}. PAGE CAPTION: {_kcap}\n\nSOURCE: {_kf} (rendered {_kdate}; the "
-                    "page's published image, byte-identical). This is a PRE-REBUILD render (LP run v36, before the "
-                    "11-09 glue-mask fix), placed because the page shows it.")
+            _kscript = re.search(r"Script:?\s+(\S+)", _kcap)
+            _kscript = _kscript.group(1).rstrip(".,;") if _kscript else "see the page caption"
+            if run_mode.tag():
+                _kmt = datetime.fromtimestamp(_kf.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
+                note(s, f"{_page} page ({_url}), {_lab}; slide title = the page's figure title. SOURCE: {_kf} (this "
+                        f"run's re-render, written {_kmt}; script {_kscript}; {_klicks}). The page shows the earlier "
+                        f"render ({_kroot} root, {_krel}, {_kdate}, LP run v36 before the 11-09 glue-mask fix); its "
+                        "caption's numbers describe that render and are not repeated here. Windows, trials, gate, "
+                        "baseline and statistics are as in the page caption for the same script.")
+            else:
+                note(s, f"{_page} page ({_url}), {_lab}. PAGE CAPTION: {_kcap}\n\nSOURCE: {_kf} (rendered {_kdate}; "
+                        "the page's published image).")
             # the title box grows with the main point (24 pt, ~80 characters a line); the figure starts below it
             big(s, _kf, top=min(3.0, 0.75 + 0.42 * (len(_kttl) // 80 + 1) + 0.35), width=12.5)
 
