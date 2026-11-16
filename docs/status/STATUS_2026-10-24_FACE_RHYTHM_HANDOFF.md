@@ -71,8 +71,14 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      `Overview_2026-11-06.bak_pre_a8_pertrial_slide_20261116.pptx`. **EVERY SLIDE AFTER 80 MOVED +1** (deck now 206):
      FR slides 71-96; old 87 / 89 / 90 / 93 / 94 -> 88 / 90 / 91 / 94 / 95; old 163 -> 164; quiet events 151-156 ->
      152-157. Other windows' docs citing slide numbers > 80 are now one low.
-   * STILL OPEN: which non-FR frozen analyses extend to June (needs Priya); the il.OUT diagnostic (needs its owner's
-     spec); deck-wide notes "Data:" pass (large, not started); block-permutation hold (a2).
+   * RESOLVED 11-16 (Priya): June vs August-frozen references = drift sub-analyses only (DECISIONS 2026-11-16).
+     "il.OUT diagnostic" DROPPED from the FR list: it was the 11-08 render-queue audit (docs/status/QUEUE_AUDIT_2026-11-08.md,
+     ~40 of 191 queued steps reading wrong `il.OUT` / imaging_encoding paths) -- belongs to the render-queue owners, not FR.
+   * STILL OPEN: deck-wide notes "Data:" pass (Priya's 11-01 request: a fixed 7-line provenance block at the top of every
+     deck note, Window / Licks / Trial period / Trial types / Gate / Baseline / Correction, filled ONLY from CONFIRMED rows
+     of docs/status/rebuild_20261103/FIGURE_PROVENANCE_20261106.csv -- still 45 CONFIRMED / 635 inferred / 152 unknown of
+     832 as of 11-16, last updated 11-06 -> blocked on that table; Priya unsure it is still wanted). Block-permutation
+     hold (a2).
 
 00-A8-1116. **11-16 NIGHT (a8).** Page https://claude.ai/artifact/X8NDdQNHi3zMP77PBrZAC1 = **v52**
    (source: a8 session scratchpad fr_page/; from a new session READ the URL first, then publish with `url`). Log of the
