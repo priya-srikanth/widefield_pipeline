@@ -2028,8 +2028,8 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             (f"EXCLUDED from every POOLED slide: {', '.join(_excluded)}. Their 8/16 attempt produced "
              "no deficit; the effective lesion (3.75 / 5.5 mW) followed the 8/17 session, so 8/17 is "
              "neither a clean baseline nor post-stroke and belongs to neither phase. They "
-             "are NOT unanalysed \u2014 they are the SMALL-LESION COMPARISON, shown per session at G7c "
-             "They are not drawn or counted in G2c (Priya 11-11). "
+             "are NOT unanalysed \u2014 they are the SMALL-LESION COMPARISON, shown per session at G7c. "
+             "They are not drawn or counted in G2c. "
              "They also remain registered, are projected onto the joint bases, and appear "
              "per-session in sections A\u2013D.")
             if _excluded else
@@ -2043,8 +2043,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             "vs never-attempted. Until then every no-lick claim above carries that ambiguity."),
             ("PS92/PS93 HAVE re-entered as post-stroke: their effective lesion followed the 8/17 "
             "session, so 8/18 is their post-stroke day 1 and appears in every pooled slide. 0817 "
-            "stays in their exclude list, which is what makes the before/after control above "
-            "possible."),
+            "stays in their exclude list (neither phase)."),
         ])
 
     # ---------------- H. GRANT FIGURES ----------------

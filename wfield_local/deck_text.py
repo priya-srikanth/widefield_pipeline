@@ -457,10 +457,8 @@ S_G8F = (
     "(PS95), against 0.88-0.96 post-cue.")
 
 S_GEXCL = (
-    "THE HONEST LEDGER, and it earns its place. PS92/PS93 8/17 were nearly dropped as failed-lesion "
-    "sessions, and keeping them analysable is the ONLY reason the within-animal before/after control "
-    "exists -- nothing outside the band on 8/17, the dissociation present one day later, same animal "
-    "and same rig. EXCLUDED IS NOT DELETED: every session listed here is on disk and re-analysable, "
+    "THE HONEST LEDGER, and it earns its place. PS92/PS93 8/17 (after the 8/16 laser that did not take) "
+    "belong to neither phase and are not drawn or counted in the G2c grid. EXCLUDED IS NOT DELETED: every session listed here is on disk and re-analysable, "
     "and the reason is recorded per session. Check this slide before concluding a session is missing "
     "from a grid.")
 
@@ -966,9 +964,6 @@ M_RECODING = (
     "the missing-movement objection but scores each session on its own preserved spouts, so chance can differ "
     "between sessions. With camera licks no spout drops out acutely (acute far-contra lick trials exist in every "
     "animal); on the DAQ sensor some do."
-    "\n\nREPLACED (11-12): the earlier headline 'the PLAN survives, EXECUTION does not, in all four animals, every "
-    "post-stroke day' and the 8/17 before/after control reading. The per-animal table did not support 'every day', "
-    "and 8/17 is skipped."
     "\n\nCAVEAT. PRE-CUE means pre-cue position information, not a demonstrated motor intention: the spout arrives "
     "~3 s before the cue, so a sustained sensory response and a held plan are temporally coextensive and this "
     "design cannot separate them (DECISIONS.md). The dissociation is between two WINDOWS; naming the earlier one a "
