@@ -11,6 +11,14 @@ session contributes one point per spout and the lick angle varies across spouts 
                      x1e3 dF/F, no per-lick baseline) -- the measure of 12.17
               resp = log2(contra / ipsi response AUC 0..1.0 s, baseline -1.0..-0.5 s) -- the measure of 14.9
               (cued: first cued licks; ITI: bout starts)
+              WHICH DECODER (11-16): the per-lick lateral WHERE-decoder (iti_lick_order / iti_where_decoder; ridge on
+              Allen areas with the ALM / tjM1 split, lags 0..0.2 s, z-scored within session, trained on August pre
+              licks; predicts lateral landing in mm) -- NOT the frozen spout-position decoder. X = its input features
+              before z-scoring. Its lateral weights are largely ipsi - contra (11.13), so dec is roughly a one-number
+              summary of what it reads (partly circular). dec has NO baseline: it carries the pre-lick level as well
+              as the evoked response, is defined for every lick, and as a difference scales with response size;
+              resp is baseline-corrected and a ratio (gain-invariant) but needs lick-free windows (first licks only).
+              The two disagree on ITI licks (handoff 00-COMPACT-41).
 MODELS (statsmodels MixedLM, random intercept per animal, ML; centered angle):
   y ~ angle * post          post = any post-stroke epoch: (1) slope of balance on angle pre-stroke; (2) angle x post =
                             does the slope change; (3) post = the shift at the SAME angle (the landing-matched balance
