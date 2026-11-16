@@ -1668,3 +1668,22 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
 - Also fixed on main: tests/test_share_writers_mode_safe.py was failing on main (frozen_refit_basis_compare.py unclassified) -> INDIRECT.
 - MOVED (rename, 4701 files): Widefield/state_space_recovery -> Widefield/rebuild_20261103/state_space_recovery, where the code on main now reads / writes (S.ROOT; check_root guards the old path). The old unkeyed chronic_maps_resp/*.pkl stay where they were, unused (the new cache is keyed by bundle + version; a cold rebuild is ~25 s per variant).
 - NEXT: SS page (section 5 hemi_gain wording, 45-area captions, D1 numbers, bal_oro_far star, ss_why_cleaner_lick) + republish; analysis deck + PI deck section G (coordinate with quiet-events window).
+
+## 11-16 -- page / deck pass after the glue-free re-run (Priya: "go ahead with updating figures, pages, and decks")
+- PUBLISHED: GOAL page v313 (D1-D5; Figs 1.1 / 1.8-1.10 dropped; report scratchpad pages/goal/REPORT.md); IMG page v53/54
+  (D6 + twins 7.3c/7.10c/7.18c/7.19c, Q9 cuts; pages/img/REPORT.md; CUT_FIGURES.md rows still to add); SS page v38
+  (45 areas + glue sentence; 61 number edits from pages/ss/num_report.md incl. 5 star / count edge changes listed to
+  Priya; 54 re-rendered figures; section 5 hemi-gain wording; balance naming).
+- NAMING (Priya 11-16): "orofacial" = sensorimotor (tjM1, SSp-m, SSp-n); balance sets = orofacial SENSORY (SSp-m, SSp-n,
+  SSs) / orofacial MOTOR (ALM, tjM1). Code: S.AREA_SET_NAME (branch feat/ss-balance-level-row-1116).
+- BALANCE (Priya 11-16): dropped under WF_SS_XFORM=gsr / spout (recovery_trials.balance_defined; log ratio of sizes needs
+  positive sizes); amplitude check: within-animal r(amp, bal_oro) +.11/+.74/-.54/-.31 (lick), slope ~0 -> the shift is not
+  the cortex-wide mode. Figs 5.1/5.3/5.5/5.7 now 5 rows: by target, on target, matched all trials (incl. extrapolated),
+  matched in-range only, LEVEL (not vs pre). Per-session cell figure (scratch) shows the off-target far-contra cell
+  intermediate in BOTH orofacial sensory and motor sets.
+- ANALYSIS DECK (rebuild): built (642 slides) but 396 figures missing (sections A-C per-session decoders never rendered) +
+  22 stale (15r DAQ lick maps 11-05); small-lesion slides now place June 6-8 pre sessions -> Priya. pages/adeck/REPORT.md;
+  text fix branch fix/deck-section-g-1116 8da65b70.
+- NOT DONE: Fig 9.10 re-run (script reads o2/enc_rebuild_20261104b/env.json, bundle moved 11-11); SS section 7 detour
+  numbers + Fig 3.9 / 6.12 sources (orth_check / landing-spout folders not re-run); PI deck (next; FaceRhythm window
+  waits for my message; leave FR slides alone).
