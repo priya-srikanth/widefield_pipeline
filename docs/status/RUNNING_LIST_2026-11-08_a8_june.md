@@ -514,3 +514,10 @@ PI deck (backup Overview_2026-11-06.bak_pre_a8_renumber_20261116.pptx): FR page 
     M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/master_pre_v1/lick_left_match_check/own_temporal_lick_by_position_norm_n12.png
     M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/master_pre_v1/lick_left_match_check/own_temporal_lick_n12.png
     M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/master_pre_v1/lick_left_match_check/own_temporal_lick_stats_n12.png
+
+### 11-16 late -- Priya on open items; deck "Data:" pass
+- June vs August-frozen: "just for drift sub-analyses" -> DECISIONS 2026-11-16. il.OUT item = the 11-08 render-queue
+  audit, dropped from the FR list. "Data:" pass: Priya "yes go ahead" -> 21 slides written (8 CONFIRMED provenance rows +
+  13 FR slides), 32 / 206 now carry the block; INFERRED / UNKNOWN rows not written (~150 slides wait). Record
+  docs/status/DECK_DATA_BLOCK_PASS_2026-11-16.csv; slide 4 conflict (confirmed row vs notes on the trial gate) left for
+  the behavior arm.

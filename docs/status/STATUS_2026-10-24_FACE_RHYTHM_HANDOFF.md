@@ -74,7 +74,16 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
    * RESOLVED 11-16 (Priya): June vs August-frozen references = drift sub-analyses only (DECISIONS 2026-11-16).
      "il.OUT diagnostic" DROPPED from the FR list: it was the 11-08 render-queue audit (docs/status/QUEUE_AUDIT_2026-11-08.md,
      ~40 of 191 queued steps reading wrong `il.OUT` / imaging_encoding paths) -- belongs to the render-queue owners, not FR.
-   * STILL OPEN: deck-wide notes "Data:" pass (Priya's 11-01 request: a fixed 7-line provenance block at the top of every
+   * DECK "Data:" PASS STARTED 11-16 (Priya "yes go ahead"): 7-line block (Window / Licks / Trial period / Trial types /
+     Gate / Baseline / Correction) inserted at the top of the notes, old text kept below, on 21 slides: 8 from CONFIRMED
+     provenance rows (4, 5, 36, 99, 102, 147, 200, 201; matched by picture name, the table's slide numbers are 11-02's)
+     and 13 FR slides (72-82, 87, 89, 94) from the FR page captions; deck now 32 / 206 with the block. Record:
+     docs/status/DECK_DATA_BLOCK_PASS_2026-11-16.csv; backup Overview_2026-11-06.bak_pre_a8_datablock_20261116.pptx;
+     script scripts/archive/deck_data_block_20261116.py. Slide 77 notes "peak expression per
+     trial" -> "peak of the trial-averaged expression". CONFLICT left for its owner: slide 4 confirmed row = camera
+     working-period trials (DAQ engaged gate = robustness) vs its notes "engaged trials only (spout_behavior
+     flag_engagement)". REMAINING ~150 picture slides: INFERRED / UNKNOWN rows only -> wait for confirmation.
+   * (history) deck-wide notes "Data:" pass (Priya's 11-01 request: a fixed 7-line provenance block at the top of every
      deck note, Window / Licks / Trial period / Trial types / Gate / Baseline / Correction, filled ONLY from CONFIRMED rows
      of docs/status/rebuild_20261103/FIGURE_PROVENANCE_20261106.csv -- still 45 CONFIRMED / 635 inferred / 152 unknown of
      832 as of 11-16, last updated 11-06 -> blocked on that table; Priya unsure it is still wanted). Block-permutation
