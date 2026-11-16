@@ -584,8 +584,8 @@ unit); the matched columns keep a weaker ipsilesional blob plus a contralesional
 asymmetry change vs own pre with clean matches only: PS92 +.09, PS93 -.04, PS94 +.22, PS95 .00. Follow-up 11-16: by animal
 (all recovered sessions) acute 4 / 4 animals, subacute 3 / 4 (by animal +.26 / +.13 / +.27 / +.25 acute, +.02 / +.20 / +.24 / +.25
 subacute, +.11 / -.06 / +.29 / +.06 chronic); the runner-up column gives the same or a larger shift; the matched lick_left is
-the left-spout-selective column in its trial-aligned expression (ipsi / contra spout response 4.7 pre, 2.3-2.7 post; runner-up
-~1.3), including PS95's low-cosine subacute sessions. **STANDS** (lick pair spatial angle, side specificity, lick_right map;
+the left-spout-selective column in its trial-aligned expression (left / right spout response 5.0 pre, 2.6 / 2.3 / 3.1 post, all
+engaged trials; runner-up 1.2-1.7), including PS95's low-cosine subacute sessions. **STANDS** (lick pair spatial angle, side specificity, lick_right map;
 lick_left asymmetry shift acute + subacute); **PROVISIONAL** (lick_left chronic asymmetry, mainly PS94; acute fast-lick
 loss; other units).
 

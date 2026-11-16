@@ -326,3 +326,14 @@ Stale, not mine to edit without asking: deck slide 163 (Big picture) status line
 - 11-16 ~15:10: all-trials run STOPPED at 64 / 108 (window 3c: box at 2.3 GB free; my 6 workers held ~42 GB of memory-mapped
   spectrogram pages). Fix in session_curves: plain per-trial file reads (verified byte-identical to the memmap); measured
   0.42 GB working set per worker (was 8-10 GB). Resumed with --jobs 4 (completed sessions kept in the cache).
+
+### 11-16 ~16:50 -- all-trials lick timing done; FR page v49
+All-trials cache (108 sessions, 0 errors) + render (`face_rhythm_own_temporal.py --per-pos 0`). Numbers move little vs the
+12-trial preview; three marks changed: lick_left far contra subacute +.78 (* -> **), lick_left close ipsi subacute -.32
+(none -> *), lick_right runner-up far contra acute (* -> none). Matched lick_right far contra -2.54** / -.84** / -.58**;
+lick_left close contra acute +1.36**. Left / right spout response ratio (both spouts per side, sessions pooled per epoch):
+matched lick_left 5.0 pre, 2.6 / 2.3 / 3.1 post; runner-up 1.2-1.7 (the 12-trial "4.7, 2.3-2.7" came from the first
+preview version). Flagged post sessions where the matched column is more left-selective: 25 / 35 (was 27 / 35; PS92 10/10,
+PS93 4/5, PS94 7/13, PS95 4/7). Conclusion unchanged. Page v49 (1794866489-396c): figures 7a.12-7a.20 swapped to all
+trials, captions / take line / status row rewritten (no 12-trial wording left). FINDINGS + FACE_RHYTHM_FINDINGS numbers
+updated.

@@ -1989,9 +1989,9 @@ each animal's own pre. Factor names, not numbers (numbers shift between fits).*
     subacute, +.11 / -.06 / +.29 / +.06 chronic);
     taking the RUNNER-UP column instead gives the same or a larger shift, so the near-ties do not create it. Trial-
     aligned expression of the own columns (`scripts/face_rhythm_own_temporal.py`): the matched lick_left is the
-    left-spout-selective column (ipsi / contra spout response 4.7 pre, 2.3-2.7 post) and the runner-up is not (~1.3);
-    the matched column is the more left-selective one in 27 / 35 flagged post-stroke sessions (PS94 the split case,
-    2.2 vs 2.3); PS95's low-cosine subacute columns still fire strongly on left-spout trials (lick_left is present, its
+    left-spout-selective column (left / right spout response 5.0 pre, 2.6 / 2.3 / 3.1 post; all engaged trials) and the
+    runner-up is not (1.2-1.7); the matched column is the more left-selective one in 25 / 35 flagged post-stroke sessions
+    (PS92 10 / 10, PS93 4 / 5, PS94 7 / 13, PS95 4 / 7); PS95's low-cosine subacute columns still fire strongly on left-spout trials (lick_left is present, its
     footprint changed). So the clean-match-only table above under-counts real lick_left sessions.
     **STANDS** (lick pair spatial angle, side specificity, lick_right map; lick_left asymmetry shift acute + subacute);
     **PROVISIONAL** (lick_left chronic asymmetry, mainly PS94; acute fast-lick factor LOSS per session; other units). Since 11-07 night every
