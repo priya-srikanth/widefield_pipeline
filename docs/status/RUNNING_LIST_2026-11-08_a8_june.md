@@ -276,3 +276,105 @@ about the same. PS95: no good column at all in most flagged sessions (pick .72-.
 0818 subacute: the spatially best column (cos .86) looks like the master but fails on frequency (.31). Recovery at
 spatial cos >= .8 instead of .7: PS92-94 unchanged; PS95 loses acute (1 -> 0 sessions) and subacute (5 -> 1). Asym change
 at >= .8: acute +.26 / +.13 / +.27 / - ; subacute +.02 / +.20 / +.24 / +.17 (1 session); chronic +.11 / -.06 / +.27 / .00.
+
+## 11-16: own-fit lick columns, trial-aligned expression by spout (Priya: matched vs runner-up on lick-left trials?)
+`scripts/face_rhythm_own_temporal.py` (new): each session's trial spectrograms projected on all 12 own8 columns (unit-norm
+A / B, absolute = weight x D, 12 trials per spout; cache ~/wfield_cache/fr_own_temporal/) -> own_temporal_lick.png +
+per animal + data/own_temporal_lick.csv in lick_left_match_check/. Response window (cue 0..+2 s) ipsi / contra spout
+ratio, mean of animals: lick_left MATCHED 4.7 pre -> 2.5 / 2.3 / 2.7 (ipsi trials fall a little, contra trials rise);
+RUNNER-UP 1.3 / 1.8 / 1.4 / 1.3 (not side-selective). lick_right matched contra/ipsi 5.7 pre, stays selective; its
+runner-up ~1. Post-stroke FLAGGED sessions: matched column more left-selective than the runner-up in 27 / 35 (median
+ratio 2.3 vs 1.3); PS92 10 / 10, PS93 5 / 5, PS94 8 / 13 (2.2 vs 2.3), PS95 4 / 7. PS95 subacute matched lick_left is
+strongly expressed on left-spout trials (Priya: lick_left is there behaviorally; my "not really there" was wrong -- the
+footprint changed, the factor did not vanish). PS93 0822 / 0824: matched column more left-selective (1.42 vs 1.07; 1.31
+vs .35) -> the tie-break picked the right column in both.
+
+## 11-16 (later): own-fit lick columns -- SEM bands, cohort palette, by-spout layout, stats (Priya)
+`face_rhythm_own_temporal.py` now: spout colors = `spout_behavior.position_style`; band = SEM across animals;
+own_temporal_lick[_by_position][_<animal>].png + own_temporal_lick_stats.png (response window cue 0..+2 s, log2 vs own
+pre, boot_delta, Holm over 18 per row) + data/own_temporal_lick_stats.csv. Preview from 12 trials / spout (suffix _n12);
+ALL-TRIALS cache running (~3.5 h, 50,929 trials, network-bound), then re-render without suffix.
+Preview stats (matched columns): lick_right falls on far contra trials at every epoch (-2.61** / -.86** / -.69**) and
+far mid (-1.22** / -.47** / -.54*), close contra unchanged; lick_left RISES on close contra acutely (+1.31**) and far
+contra subacutely (+.69*), falls on close ipsi chronically (-.50**) and far mid acutely (-.76**). Runner-ups: one Holm
+pass (lick_right runner-up close contra subacute -.55**).
+
+## 11-16: lick_left asymmetry wording applied (Priya "sure")
+STANDS acute (4 / 4) + subacute (3 / 4), chronic small / PROVISIONAL (mainly PS94): FINDINGS headline + 5.10,
+FACE_RHYTHM_FINDINGS 6e + change log; PI deck slide 90 (new bullet + notes line; backup
+Overview_2026-11-06.bak_pre_a8_lickleft_20261116.pptx); FR page text edited LOCALLY (headline row, overview row, 7a.1,
+7a.10, 7.13), published together with the own_temporal figures after the all-trials re-render.
+Stale, not mine to edit without asking: deck slide 163 (Big picture) status line still says "lick_left subacute + chronic
+(cohort permutation null, 100 permutations per epoch, 10-26)".
+- 11-16: deck slide 163 notes status clause updated (Priya "yes ok"; backup Overview_2026-11-06.bak_pre_a8_s163_20261116.pptx).
+- 11-16: FR page v48 published: lick_left wording (STANDS acute + subacute), new section-7a block "Does the matched factor
+  fire on its own spout's trials?" -- Figs 7a.12 own_temporal_lick (key), 7a.13 stats, 7a.14 by_position_norm (pre =
+  leave-one-out, SEM across pre sessions), supporting 7a.15-7a.27 (absolute by spout, per animal, flagged pick vs
+  runner-up, session sheets, pooled matches); status row added. Figures are the 12-trials-per-spout preview: SWAP for the
+  all-trials render (same ids / file names) and update the 7a.13 numbers + status row when bkwv2ffli finishes.
+- 11-16: BLOCK-PERMUTATION audit (window a2; Priya: block permutation everywhere it makes sense). FR arm: only
+  scripts/fr_enl_decode.py is affected (FR page Fig 6.1, PROVISIONAL): its per-session null permutes position labels
+  trial-wise against the block-CV predictions -> HOLD claims until a2's shared block helper lands, then re-run with block
+  permutation. All other FR nulls shuffle session labels within animal (unaffected); own_temporal stats = bootstrap.
+- 11-16: a2 audit done (branch analysis/tim-encdesign-1116, docs/status/BLOCK_PERMUTATION_AUDIT_2026-11-16.md, a7ec0482).
+  Class A in the FR / ENL arm (trial-wise spout-label null vs block-CV predictions -> block permutation): fr_enl_decode.py:118,
+  enl_fr_removed_decode.py:119, enl_movement_multisession.py:253, enl_video_spout_check.py:142, movement_position_angle.py:79
+  (+98). HOLD new p values on these until a2's trial-wise vs block-wise measurement + shared analysis_kit.block_permute.
+  Session-label shuffles fine. Trend caveat (two session series both trending over days): the only FR association test
+  is session_shape_tests lick_right map change vs right-lick share (Spearman, parametric p, within epoch; rho -.14 n.s.) --
+  a shared trend would inflate, not hide, an association, so the null result stands; detrend if it is ever re-tested.
+- 11-16 ~15:10: all-trials run STOPPED at 64 / 108 (window 3c: box at 2.3 GB free; my 6 workers held ~42 GB of memory-mapped
+  spectrogram pages). Fix in session_curves: plain per-trial file reads (verified byte-identical to the memmap); measured
+  0.42 GB working set per worker (was 8-10 GB). Resumed with --jobs 4 (completed sessions kept in the cache).
+
+### 11-16 ~16:50 -- all-trials lick timing done; FR page v49
+All-trials cache (108 sessions, 0 errors) + render (`face_rhythm_own_temporal.py --per-pos 0`). Numbers move little vs the
+12-trial preview; three marks changed: lick_left far contra subacute +.78 (* -> **), lick_left close ipsi subacute -.32
+(none -> *), lick_right runner-up far contra acute (* -> none). Matched lick_right far contra -2.54** / -.84** / -.58**;
+lick_left close contra acute +1.36**. Left / right spout response ratio (both spouts per side, sessions pooled per epoch):
+matched lick_left 5.0 pre, 2.6 / 2.3 / 3.1 post; runner-up 1.2-1.7 (the 12-trial "4.7, 2.3-2.7" came from the first
+preview version). Flagged post sessions where the matched column is more left-selective: 25 / 35 (was 27 / 35; PS92 10/10,
+PS93 4/5, PS94 7/13, PS95 4/7). Conclusion unchanged. Page v49 (1794866489-396c): figures 7a.12-7a.20 swapped to all
+trials, captions / take line / status row rewritten (no 12-trial wording left). FINDINGS + FACE_RHYTHM_FINDINGS numbers
+updated.
+
+### 11-16 ~17:30 -- per-trial / per-lick readouts (Priya: "start per-trial analyses"; far-contra lick_left question)
+New `scripts/face_rhythm_per_trial.py` (frozen master `proj/`, LP v36 licks; session-level animal bootstrap, Holm over
+spouts) -> readouts/master_pre_v1/per_trial/ (data/per_trial_{trials,licks}.pkl, _sessions.csv, _stats.csv). RESULTS
+(NOT on the page; to Priya first):
+- Far-contra leftward licks are real: trials with >= 1 leftward lick pre .01-.09 -> acute .22-.67 (4/4), subacute
+  .05-.81, chronic .02-.59 (PS94 persists).
+- FROZEN master lick_left on far-contra trials DOES rise acutely: trial mean 0-2 s +.73** log2 (4/4 up), subacute
+  +1.16**, chronic +.81**. Per leftward lick no change (-.11 acute, n.s.) -> the rise = more leftward licks, not bigger.
+  So the flat acute far-contra cell in own-fit Fig 7a.13 (+.01) is a property of the per-session own-fit matched column,
+  not of the behavior or the master factor. Peak of the TRIAL AVERAGE also hides it (+.21 n.s. acute) while the median
+  PER-TRIAL peak shows it (+.72**): leftward licks on ~half the far-contra trials, late and scattered (per-trial peak
+  time +1.16 s).
+- Isolated licks: isolated leftward licks express ~30 % less lick_left than in-bout ones acutely (ratio .59-.71, 4/4;
+  pre .67-.96); acutely 15 % of far-contra leftward licks are isolated (pre 2 %). Partial contribution, not the cause.
+- Window 0-4 s vs 0-2 s: same conclusions (far_R acute +.94** vs +.73**).
+- Per-trial vs trial-average amplitude: same direction everywhere; acute losses smaller per trial (lick_right far_R
+  -1.83** vs -2.43**). CAVEAT: per-trial peak of a flat trial = max of noise (positive floor), which compresses losses;
+  per-trial timing (COM / peak time) of near-flat trials drifts to the window middle, so acute "later" lick_right
+  per-trial timing (+.47 s) is confounded by the amplitude loss. NEXT: condition on movement (trials with a lick of
+  the unit's direction): prevalence x amplitude-given-lick, timing only on those trials.
+Fig 7.3: per-epoch shading removed, pooled squares + stars centred on the epoch (Priya 11-16); page v50. Same shading
+removed in code from epoch_shape_angles (page 7.11 / 8.18) -- takes effect at their next render.
+
+### 11-16 ~18:00 -- movement-conditioned per-trial readouts; FR page renumbered (v51)
+Conditioned on movement (trials with >= 1 lick in the unit's direction; prevalence = fraction of such trials):
+- lick_right at far contra: prevalence -.87** / -.36** / -.07 (fraction); amplitude GIVEN a right lick -.83** / -.58** /
+  -.61** log2 (4/4 below every epoch) -> the chronic deficit is per-movement amplitude, not prevalence. Timing: first
+  right lick later +1.21 s acute (+.41 subacute, +.08 chronic n.s.); lick_right peak relative to the first right lick
+  unchanged (-.25 n.s. acute) -> acute "later" expression follows later licking (reaction time), not re-timing.
+  Chronic: peak +.24 s* / COM +.32 s** with first lick on time (peak - first lick +.12 n.s.) -- weak.
+- lick_left at far contra: prevalence +.38** / +.27** / +.12; amplitude given a left lick unchanged (-.06 / +.24 / +.11
+  n.s.) -> the rise is MORE trials with leftward licks, not bigger ones. On far-contra trials WITHOUT a leftward lick
+  lick_left still rises subacute / chronic (+.77** / +.60**), and at close contra (leftward licks ~absent) it rises on
+  no-left-lick trials +.65* / +.81** / +.98** -> contralesional-target licks made with the lick_left face pattern
+  (fits FINDINGS 5d "ipsilesional lick pattern used for contralesional targets").
+- Caveat: no-lick trials also fall acutely for lick_right (-.79**): less face movement overall acutely.
+FR page v51: sections renumbered in page order 7a->7, 7b->8, 7->9, 8->10, 9->11 (Priya: "7a, 7, and 7 is confusing");
+checked: 0 link mismatches, titles = data-num, no non-figure text changed. Doc pointers updated. PI deck notes on slides
+87 / 89 / 93 / 94 still cite the OLD numbers (8.10, 7.1, 7.2, 7.12 -> now 10.10, 9.1, 9.2, 9.12; #f- ids still valid):
+ASK Priya before editing the deck.

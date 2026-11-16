@@ -581,9 +581,13 @@ many sessions, so its per-session maps flip. LICK_LEFT MATCH CHECK (11-13, `scri
 ipsilesional mouth-corner blob (cos .94-.99), but every acute pooled fit picks a diffuse column with an equally diffuse
 runner-up. Per session, many post-stroke matches are near-ties between two similar diffuse columns (rarely another lick
 unit); the matched columns keep a weaker ipsilesional blob plus a contralesional cheek spot and lower lip. Chronic
-asymmetry change vs own pre with clean matches only: PS92 +.09, PS93 -.04, PS94 +.22, PS95 .00. **STANDS** (lick pair
-spatial angle, side specificity, lick_right map); **PROVISIONAL** (lick_left asymmetry shift, carried mainly by PS94;
-acute fast-lick loss; other units).
+asymmetry change vs own pre with clean matches only: PS92 +.09, PS93 -.04, PS94 +.22, PS95 .00. Follow-up 11-16: by animal
+(all recovered sessions) acute 4 / 4 animals, subacute 3 / 4 (by animal +.26 / +.13 / +.27 / +.25 acute, +.02 / +.20 / +.24 / +.25
+subacute, +.11 / -.06 / +.29 / +.06 chronic); the runner-up column gives the same or a larger shift; the matched lick_left is
+the left-spout-selective column in its trial-aligned expression (left / right spout response 5.0 pre, 2.6 / 2.3 / 3.1 post, all
+engaged trials; runner-up 1.2-1.7), including PS95's low-cosine subacute sessions. **STANDS** (lick pair spatial angle, side specificity, lick_right map;
+lick_left asymmetry shift acute + subacute); **PROVISIONAL** (lick_left chronic asymmetry, mainly PS94; acute fast-lick
+loss; other units).
 
 Figures: session_shape_v2/session_scalars.png (normalized, with leave-one-out pre column), session_scalars_raw.png (raw
 angles >= 0 / own asymmetry and side specificity), session_loss.png, session_maps_scaled_lick.png (headline maps),
@@ -650,7 +654,7 @@ the close spouts. The band-map drift control has 13 small clusters (mean +.03 lo
 later-epoch band increases there need that caveat. Fast-lick share (licks with a neighbor < 250 ms) falls acutely only
 at far contra (-.44) / far mid (-.13), partly because licks per trial fall there (far contra 3.1 vs 8.7 pre).
 Figures: band_maps/band_maps_<unit>.png, band_maps_driftpre.png; LP_analysis/.../cohort_lick_rate_by_position.png.
-FR page section 7b (v41); PI deck slides 83-85.
+FR page section 8 (was 7b until v51); PI deck slides 83-85.
 
 ## 6d. Task vs non-task, asymmetry, severity (10-24)
 
@@ -784,6 +788,7 @@ FR run A / master FR in the encoder is summarized by the encoding window (ENCODI
 
 ## Change log
 
+* 2026-11-16: lick_left asymmetry shift STANDS acute + subacute, chronic PROVISIONAL (runner-up + trial-aligned check; Priya).
 * 2026-11-13: lick_left match check; lick_left asymmetry shift downgraded to PROVISIONAL (Priya).
 * 2026-11-12: pooled permutation null complete at 500 permutations (section 6e sentence; FINDINGS 5.10).
 
