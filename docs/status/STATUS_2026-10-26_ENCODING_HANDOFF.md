@@ -70,6 +70,32 @@ entries "11-13" and "11-16"; per-artifact reports in the session scratchpad page
     gap) / all ITI licks: all-lick rows are tighter and steeper; ITI licks track angle in every area incl. ALM / tjM1
     (about half the cued slope); post-stroke ITI shows an ipsilesional shift at the same angle (orofacial -3.3 / -1.7 /
     -1.6) that the response ratio does not. Exact ">= 2 s quiet" ITI-first version pending (needs the per-lick table).
+- TWO MEASURE FAMILIES -- say which one every number belongs to (Priya 11-16: "hard to keep straight"):
+  * DECODER-FEATURE family: raw lick-time activity 0..0.2 s, NO per-lick baseline, zero = each area's SESSION MEAN
+    (drift removal incl. the constant), divided by the frame-level SD -- no per-lick re-centering. Hemispheres combine as
+    a DIFFERENCE X_right - X_left (or the where-decoder's weighted sum). Picks up evoked lateralization + TONIC level
+    relative to the session mean + overall GAIN. Members: frozen where-decoder output and its like-for-like offset
+    (12.x, 14.22, FINDINGS 10-29 hypothesis), "hemispheric difference" figures (14.13 image 2, 12.17 decomposition,
+    lick_balance_{order,offset_lmm,regions,recovery,maps,reference}), pre-lick test rows 1-3. A whole-session constant
+    shift does NOT reach it; a change of lick-time activity RELATIVE to the session mean does.
+  * RESPONSE (AUC) family: evoked response = window minus that hemisphere's own pre-lick baseline; hemispheres combine as
+    a RATIO log2(contra / ipsi) = THE BALANCE. Evoked lateralization only (gain and pre-lick level removed). Members:
+    response ratio (14.9, 14.13 image 1), primary recovery marker (14.16 / 14.18, angle-matched gain ratio), state-space
+    balance + hemisphere gain (SS section 5).
+  * Labels: "balance" = ratio only; X_right - X_left = "hemispheric difference" (branch feat/balance-angle-sharedy-1116,
+    2d2107c5). SIGN FRAMES: hemisphere frame (which side larger; - = ipsilesional larger) vs read-out frame (decoder: + =
+    lick read more contralesional) are OPPOSITE: an ipsilesional-hemisphere shift reads as a contralesional lick.
+  * Why "contra gains relative to ipsi" (ratio) and "difference shifts ipsilesional" coexist: pre-stroke ipsi > contra at a
+    typical lick (e.g. 4 vs 5); both grow, contra relatively more (6.4 vs 7.5): ratio .80 -> .85 (contralesional), difference
+    -1.0 -> -1.1 (ipsilesional).
+- PER-LICK pre-lick test (11-16; scratch prelick_test/per_trial.py, OLS with session-clustered SEs -- MixedLM stalled at 0 on
+  one fit): ITI first >= 2 s, orofacial, a/s/c: raw difference -4.1 / -1.8 / -2.1, pre-lick level -1.7 / -1.4 / -1.4, evoked
+  difference -2.5 / -0.5 / -0.6; angle slope raw -.31 = evoked -.30, pre-lick -.01 (session-level fits agree). The
+  difference is session-mean referenced (NOT RESTnl); a RESTnl version is being built (helper; two-references rule).
+- DIRECT DECODER CHECK running (Priya OK 11-16; scratch decoder_check/): re-score the frozen where-decoder with (A) the
+  pre-lick level removed, (B) session response size divided out, (A+B); how much of the contralesional ITI offset
+  (+0.39 / +0.29) survives. If little: the FINDINGS 10-29 hypothesis wording ("code shifts contralesional") changes ->
+  Priya BEFORE any text.
 - RUNNING (helpers, 11-16): analysis-deck rebuild without A-C + small-lesion slides; kinematics gate items (section 6
   accepted; incomplete-lick text + legacy-gate sensitivity row; gated pooled re-run on fix/kin-gated-pooled-1116).
 - OPEN WITH PRIYA: 14.18 marker with / without SSs (table check offered); ">= 2 s" ITI version of the 4-set figure; goal

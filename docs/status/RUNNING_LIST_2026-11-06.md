@@ -1704,3 +1704,9 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
 - 14.18 primary marker, unseen-animal R2 (cued -> aim / ITI -> ITI angle / ITI -> aim), glue-free: current pool (ALM, tjM1,
   SSp-m, SSp-n, SSs) .665 / .437 / .567; no SSs .668 / .326 / .440; SSp-m+n .671 / .404 / .516; orofacial SENSORY (SSp-m, SSp-n,
   SSs) .650 / .445 / .579 (days alone .17-.23). Decision pending with Priya (keep vs switch to orofacial sensory).
+
+## 11-16 (late) -- measure families glossary; per-lick fits; decoder check started
+- Glossary written into handoff 00-COMPACT-41 (decoder-feature family = difference, session-mean zero, picks up level +
+  gain; response family = ratio = balance). Per-lick pre-lick test agrees with the session-level one (numbers there).
+- Started: RESTnl-referenced hemispheric difference (helper); direct decoder check A / B / A+B (helper). Possible FINDINGS
+  10-29 wording change -> Priya first.
