@@ -32,8 +32,14 @@ CACHE = Path(os.environ.get("FR_OWN_TEMPORAL_CACHE", Path.home() / "wfield_cache
 POS = ("close_L", "close_center", "close_R", "far_L", "far_center", "far_R")     # canonical order (ipsi, mid, contra)
 POS_LAB = {"close_L": "close ipsi", "close_center": "close mid", "close_R": "close contra", "far_L": "far ipsi",
            "far_center": "far mid", "far_R": "far contra"}
-POS_STYLE = {p: dict(color={"L": "#2166ac", "c": "0.45", "R": "#b2182b"}[p.split("_")[1][0]],
-                     ls="-" if p.startswith("close") else "--") for p in POS}
+
+
+def pos_style(p: str) -> dict:
+    """The cohort palette (`spout_behavior.position_style`: hue = side -- L / ipsilesional blue, center purple, R /
+    contralesional crimson; close deeper, far paler; linestyle by side)."""
+    from wfield_local.spout_behavior import position_style
+    c, _m, ls = position_style(p)
+    return dict(color=c, ls=ls)
 EPOCHS = ("pre", "acute", "subacute", "chronic")
 UNITS = ("lick_left", "lick_right")
 
@@ -42,13 +48,17 @@ def _unit(M: np.ndarray) -> np.ndarray:
     return M / np.maximum(np.linalg.norm(M, axis=0, keepdims=True), 1e-12)
 
 
+def _tag(per_pos: int) -> str:
+    return "nall" if per_pos <= 0 else f"n{per_pos}"
+
+
 def session_curves(key: str, per_pos: int = 12) -> str:
     """Worker: per-position trial-mean ABSOLUTE expression (151, 12) of every own8 column -> cache npz."""
     from wfield_local.face_rhythm import common as frc
     from wfield_local import face_rhythm_outputs as fro
     from wfield_local.face_rhythm.factors.cp import normaliser, project_rows, _scaled
     from wfield_local.face_rhythm.factors.files import load_master, load_plan, npz_memmap, npz_small, out_dir
-    dst = CACHE / f"{key}_n{per_pos}.npz"
+    dst = CACHE / f"{key}_{_tag(per_pos)}.npz"
     if dst.exists():
         return str(dst)
     sd = frc.default_set_dir(set_name=fro.SET)
@@ -68,7 +78,7 @@ def session_curves(key: str, per_pos: int = 12) -> str:
     out = {"t_ms": meta["t_ms"]}
     for p in POS:
         idx = np.nonzero(pos == p)[0]
-        if len(idx) > per_pos:
+        if 0 < per_pos < len(idx):
             idx = idx[np.round(np.linspace(0, len(idx) - 1, per_pos)).astype(int)]
         cur = []
         for ti in idx:
@@ -103,44 +113,175 @@ def _session_cols(fdir, keys):
     return out
 
 
-def figure(T, curves, t, title, out_png, methods):
-    """Rows: lick_left pick / runner-up, lick_right pick / runner-up; columns: epochs; lines: spouts."""
+
+
+ROWS = (("lick_left", "pick"), ("lick_left", "runner"), ("lick_right", "pick"), ("lick_right", "runner"))
+ROW_LAB = {"pick": "matched", "runner": "runner-up"}
+RESP = (0.0, 2.0)          # readout window, s from cue
+BAND_ALPHA = 0.15
+
+
+def animal_curves(T, curves, unit, which, epoch, p):
+    """(animals, time) array: per animal, the mean over its sessions (unit recovered) of column ``which``'s trial-mean
+    expression on spout ``p`` trials."""
+    sel = T[(T.epoch == epoch) & T[f"{unit}_rec"]]
+    out = []
+    for _an, g in sel.groupby("animal"):
+        cs = [curves[k][f"{p}_mean"][:, col] for k, col in zip(g.key, g[f"{unit}_{which}"])
+              if int(curves[k][f"{p}_n"]) > 0]
+        if cs:
+            out.append(np.nanmean(cs, 0))
+    return np.array(out)
+
+
+def _band(ax, t, Y, color, ls="-", lw=1.1, label=None):
+    """Mean over animals +- SEM across animals (band). Returns the top of the drawn band."""
+    if not len(Y):
+        return 0.0
+    y = np.nanmean(Y, 0)
+    ax.plot(t, y, color=color, ls=ls, lw=lw, label=label)
+    if len(Y) > 1:
+        se = np.nanstd(Y, 0, ddof=1) / np.sqrt(len(Y))
+        ax.fill_between(t, y - se, y + se, color=color, alpha=BAND_ALPHA, lw=0)
+        return float(np.nanmax(y + se))
+    return float(np.nanmax(y))
+
+
+def _tidy(ax):
+    for side in ("top", "right"):
+        ax.spines[side].set_visible(False)
+    ax.axvline(0, color="0.6", lw=0.5)
+
+
+def fig_by_epoch(T, curves, t, title, out_png, methods):
+    """Rows: matched / runner-up lick_left, lick_right; columns: epochs; lines: spouts (cohort palette)."""
     from wfield_local import face_rhythm_figures as frf
-    rows = [(u, w) for u in UNITS for w in ("pick", "runner")]
     with frf.style():
-        fig, axs = frf.subplots(len(rows), len(EPOCHS), figsize=(2.6 * len(EPOCHS), 1.9 * len(rows)), squeeze=False,
+        fig, axs = frf.subplots(len(ROWS), len(EPOCHS), figsize=(2.7 * len(EPOCHS), 1.95 * len(ROWS)), squeeze=False,
                                 sharex=True)
-        for r_i, (u, w) in enumerate(rows):
-            ymax = 0.0
+        for r_i, (u, w) in enumerate(ROWS):
+            top = 0.0
             for c_i, ep in enumerate(EPOCHS):
                 ax = axs[r_i, c_i]
-                sel = T[(T.epoch == ep) & T[f"{u}_rec"]]
-                nses = len(sel)
+                n_s = int((T[(T.epoch == ep) & T[f"{u}_rec"]]).shape[0])
                 for p in POS:
-                    # per animal: mean over its sessions; then mean over animals
-                    per_an = []
-                    for _an, g in sel.groupby("animal"):
-                        cs = [curves[k][f"{p}_mean"][:, col] for k, col in zip(g.key, g[f"{u}_{w}"])
-                              if int(curves[k][f"{p}_n"]) > 0]
-                        if cs:
-                            per_an.append(np.nanmean(cs, 0))
-                    if per_an:
-                        y = np.nanmean(per_an, 0)
-                        ymax = max(ymax, float(np.nanmax(y)))
-                        ax.plot(t, y, lw=1.0, label=POS_LAB[p], **POS_STYLE[p])
-                ax.axvline(0, color="0.6", lw=0.5)
-                for side in ("top", "right"):
-                    ax.spines[side].set_visible(False)
+                    st = pos_style(p)
+                    top = max(top, _band(ax, t, animal_curves(T, curves, u, w, ep, p), st["color"], st["ls"],
+                                         label=POS_LAB[p]))
+                _tidy(ax)
                 if r_i == 0:
                     ax.set_title(ep, fontsize=9)
-                ax.text(0.02, 0.97, f"{nses} sess", transform=ax.transAxes, fontsize=6.5, va="top", color="0.4")
+                ax.text(0.98, 0.97, f"{n_s} sess", transform=ax.transAxes, fontsize=6.5, va="top", ha="right",
+                        color="0.4")
                 if c_i == 0:
-                    ax.set_ylabel(f"{u}\n{'matched' if w == 'pick' else 'runner-up'}\n(abs.)", fontsize=7.5)
-                if r_i == len(rows) - 1:
+                    ax.set_ylabel(f"{u}\n{ROW_LAB[w]}\n(absolute)", fontsize=7.5)
+                if r_i == len(ROWS) - 1:
                     ax.set_xlabel("time from cue (s)")
             for ax in axs[r_i]:
-                ax.set_ylim(0, ymax * 1.08 if ymax > 0 else 1)
-        axs[0, -1].legend(fontsize=6, frameon=False, loc="upper right")
+                ax.set_ylim(0, top * 1.05 if top > 0 else 1)
+        axs[0, -1].legend(fontsize=6, frameon=False, loc="upper left", bbox_to_anchor=(1.0, 1.0))
+        fig.suptitle(title, fontsize=10)
+        frf.save(fig, out_png, methods)
+
+
+def fig_by_position(T, curves, t, title, out_png, methods):
+    """Rows as `fig_by_epoch`; columns: spouts (canonical order); lines: epochs."""
+    from wfield_local import face_rhythm_figures as frf
+    from wfield_local.face_rhythm import common as frc
+    ecol = frc.epoch_colors()
+    with frf.style():
+        fig, axs = frf.subplots(len(ROWS), len(POS), figsize=(2.3 * len(POS), 1.95 * len(ROWS)), squeeze=False,
+                                sharex=True)
+        for r_i, (u, w) in enumerate(ROWS):
+            top = 0.0
+            for c_i, p in enumerate(POS):
+                ax = axs[r_i, c_i]
+                for ep in EPOCHS:
+                    top = max(top, _band(ax, t, animal_curves(T, curves, u, w, ep, p), ecol[ep], label=ep))
+                _tidy(ax)
+                if r_i == 0:
+                    ax.set_title(POS_LAB[p], fontsize=9, color=pos_style(p)["color"])
+                if c_i == 0:
+                    ax.set_ylabel(f"{u}\n{ROW_LAB[w]}\n(absolute)", fontsize=7.5)
+                if r_i == len(ROWS) - 1:
+                    ax.set_xlabel("time from cue (s)")
+            for ax in axs[r_i]:
+                ax.set_ylim(0, top * 1.05 if top > 0 else 1)
+        axs[0, -1].legend(fontsize=7, frameon=False, loc="upper left", bbox_to_anchor=(1.0, 1.0))
+        fig.suptitle(title, fontsize=10)
+        frf.save(fig, out_png, methods)
+
+
+def readouts(T, curves, t):
+    """One row per session (split videos merged by label) x unit x column x spout: response-window mean (cue 0..+2 s)
+    of the absolute expression, and log2 vs the same animal's pre sessions."""
+    import pandas as pd
+
+    from wfield_local.face_rhythm import stats as frs
+    w = (t >= RESP[0]) & (t <= RESP[1])
+    rows = []
+    for r in T.itertuples():
+        c = curves[r.key]
+        for u, wh in ROWS:
+            if not getattr(r, f"{u}_rec"):
+                continue
+            col = getattr(r, f"{u}_{wh}")
+            for p in POS:
+                if int(c[f"{p}_n"]) > 0:
+                    rows.append(dict(label=r.label, key=r.key, animal=r.animal, epoch=r.epoch, unit=u, which=wh, pos=p,
+                                     flag=bool(getattr(r, f"{u}_flag")), n_trials=int(c[f"{p}_n"]),
+                                     resp=float(np.nanmean(c[f"{p}_mean"][w, col])),
+                                     base=float(np.nanmean(c[f"{p}_mean"][t < 0, col]))))
+    R = pd.DataFrame(rows)
+    R = (R.groupby(["label", "animal", "epoch", "unit", "which", "pos"], as_index=False)
+         .agg(resp=("resp", "mean"), base=("base", "mean"), n_trials=("n_trials", "sum"), flag=("flag", "max")))
+    R["log2_vs_pre"] = frs.log2_vs_pre(R, "resp", ["animal", "unit", "which", "pos"])
+    return R
+
+
+def stats_table(R):
+    import pandas as pd
+
+    from wfield_local.face_rhythm import stats as frs
+    rng = np.random.default_rng(0)
+    rows = []
+    for u, wh in ROWS:                       # fixed order: the seeded draws reproduce
+        for p in POS:
+            d = R[(R.unit == u) & (R.which == wh) & (R.pos == p)]
+            rows += [dict(unit=u, which=wh, pos=p, **r) for r in frs.epoch_change(d, "log2_vs_pre", rng)]
+    return frs.add_holm(pd.DataFrame(rows), ["unit", "which"])
+
+
+def fig_stats(R, ST, title, out_png, methods):
+    """Rows as `fig_by_epoch`; columns: spouts; epochs on x: session dots, mean +- SEM over animals, stars on top."""
+    import face_rhythm_peak as frp
+
+    from wfield_local import cat_points as cp
+    from wfield_local import face_rhythm_figures as frf
+    from wfield_local import sig_marks
+    from wfield_local.face_rhythm import stats as frs
+    with frf.style():
+        fig, axs = frf.subplots(len(ROWS), len(POS), figsize=(2.35 * len(POS), 2.7 * len(ROWS)), squeeze=False,
+                                sharey="row")
+        for r_i, (u, wh) in enumerate(ROWS):
+            for c_i, p in enumerate(POS):
+                ax = axs[r_i, c_i]
+                d = R[(R.unit == u) & (R.which == wh) & (R.pos == p)]
+                frp.epoch_points(ax, d, "log2_vs_pre", seed=100 * r_i + 10 * c_i)
+                ch = {r["epoch"]: r for r in ST[(ST.unit == u) & (ST.which == wh) & (ST.pos == p)].to_dict("records")}
+                for e_i, ep in enumerate(EPOCHS[1:], start=1):
+                    if ep in ch and frs.mark(ch[ep]):
+                        sig_marks.star_top(ax, e_i, frs.mark(ch[ep]))
+                ax.axhline(0, color="k", lw=0.5)
+                ax.set_xticks(range(len(EPOCHS)), ["pre", *(frp.change_tick(ep, ch.get(ep), interval=False) for ep in EPOCHS[1:])],
+                              fontsize=6.5)
+                if r_i == 0:
+                    ax.set_title(POS_LAB[p], fontsize=9, color=pos_style(p)["color"])
+                if c_i == 0:
+                    ax.set_ylabel(f"{u} {ROW_LAB[wh]}\nlog2(resp / own pre)", fontsize=7.5)
+        cp.add_animal_entries(axs[0, -1], sorted(R.animal.unique()))
+        axs[0, -1].legend(fontsize=7, frameon=False, loc="upper left", bbox_to_anchor=(1.0, 1.0))
+        sig_marks.reserve_headroom(fig)
         fig.suptitle(title, fontsize=10)
         frf.save(fig, out_png, methods)
 
@@ -153,10 +294,11 @@ def main(argv=None) -> int:
     import face_rhythm_epoch_shape as es
     from wfield_local import analysis_kit as ak
     from wfield_local import face_rhythm_outputs as fro
-    from wfield_local import writeguard
+    from wfield_local import figure_layout, writeguard
     from wfield_local.face_rhythm import common as frc
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--per-pos", type=int, default=12)
+    ap.add_argument("--per-pos", type=int, default=0, help="trials per spout per session; 0 = all trials")
+    ap.add_argument("--cache-only", action="store_true", help="fill the per-session cache, no figures")
     ap.add_argument("--jobs", type=int, default=6)
     a = ap.parse_args(argv)
     es.RULE = "v2"
@@ -166,58 +308,56 @@ def main(argv=None) -> int:
     S = frc.sessions(fdir, "own8")
     keys = list(S.key)
     from functools import partial
-    paths = ak.fan_sessions(keys, partial(session_curves, per_pos=a.per_pos), jobs=a.jobs) \
-        if hasattr(ak, "fan_sessions") else [session_curves(k, a.per_pos) for k in keys]
-    del paths
-    curves = {k: dict(np.load(CACHE / f"{k}_n{a.per_pos}.npz")) for k in keys}
+    _res, fails = ak.fan_sessions(keys, partial(session_curves, per_pos=a.per_pos), jobs=a.jobs)
+    if fails:
+        print("FAILED:", fails)
+        return 1
+    if a.cache_only:
+        return 0
+    curves = {k: dict(np.load(CACHE / f"{k}_{_tag(a.per_pos)}.npz")) for k in keys}
     t = curves[keys[0]]["t_ms"] / 1000.0
     cols = _session_cols(fdir, keys)
-    T = S[["key", "animal", "date", "epoch"]].copy()
+    T = S[["key", "label", "animal", "date", "epoch"]].copy()
     for u in UNITS:
-        T[f"{u}_pick"] = [cols[k][u][0] for k in keys]
-        T[f"{u}_runner"] = [cols[k][u][1] for k in keys]
-        T[f"{u}_rec"] = [cols[k][u][2] for k in keys]
-        T[f"{u}_flag"] = [cols[k][u][3] for k in keys]
-    methods = f"""
-Trial-aligned ABSOLUTE expression (temporal weight x FR normalizer D, not normalized) of the per-session own-fit
-(own8) column that rule v2 matches to the master lick_left / lick_right ("matched") and of its runner-up (the other
-column with the highest spatial cosine to the master), by spout position (lines; blue = ipsilesional = left spouts,
-gray = middle, red = contralesional = right spouts; solid = close, dashed = far). Each session's trial spectrograms
-(engaged trials, cue -2..+4 s, 25 Hz) projected onto all 12 own columns with spatial and spectral loadings fixed and
-scaled to unit norm (so amplitudes are comparable across columns and sessions); up to {a.per_pos} trials per spout per
-session, evenly spaced; lossy bins dropped. Per animal: mean over its sessions where that unit is recovered (spatial
-cos >= .7, spectral >= .5); drawn: mean over animals. y axis shared within a row. Descriptive; no test.
-Script: scripts/face_rhythm_own_temporal.py."""
-    figure(T, curves, t, "Per-session fits: matched vs runner-up lick columns, expression by spout (all animals)",
-           out / "own_temporal_lick.png", methods)
+        for i, f in enumerate(("pick", "runner", "rec", "flag")):
+            T[f"{u}_{f}"] = [cols[k][u][i] for k in keys]
+    ntr = "all trials" if a.per_pos <= 0 else f"up to {a.per_pos} trials per spout (evenly spaced)"
+    base = f"""
+ABSOLUTE expression (temporal weight x FR normalizer D, not normalized) of the per-session own-fit (own8) column that
+rule v2 matches to the master lick_left / lick_right ("matched") and of its runner-up (the other column with the
+highest spatial cosine to the master). Each session's trial spectrograms (engaged trials, cue -2..+4 s, 25 Hz) are
+projected onto all 12 own columns with spatial and spectral loadings fixed and scaled to unit norm, so amplitudes are
+comparable across columns and sessions; {ntr} per session; lossy bins dropped. Only sessions where that unit is
+recovered (spatial cos >= .7, spectral >= .5). Spout colors = the cohort palette (blue = left = ipsilesional, purple =
+middle, crimson = right = contralesional; close deeper, far paler). Script: scripts/face_rhythm_own_temporal.py."""
+    traces = base + """ Lines: mean over animals of each animal's mean over its sessions; band = +- SEM across
+animals (none where one animal). y axis shared within a row. Descriptive."""
+    sfx = "" if a.per_pos <= 0 else f"_n{a.per_pos}"
+    fig_by_epoch(T, curves, t, "Per-session fits: matched vs runner-up lick columns by spout (all animals)",
+                 out / f"own_temporal_lick{sfx}.png", traces + " Columns = epochs, lines = spouts.")
+    fig_by_position(T, curves, t, "Per-session fits: matched vs runner-up lick columns by epoch, per spout",
+                    out / f"own_temporal_lick_by_position{sfx}.png", traces + " Columns = spouts, lines = epochs.")
     for an in sorted(T.animal.unique()):
-        figure(T[T.animal == an], curves, t, f"{an}: matched vs runner-up lick columns, expression by spout",
-               out / f"own_temporal_lick_{an}.png", methods.replace("Per animal: mean over its sessions", "Mean over "
-                                                                    "this animal's sessions"))
-    # numbers: response-window (cue 0..+2 s) mean, left spouts vs right spouts, per unit x column x epoch
-    w = (t >= 0) & (t <= 2)
-    rows = []
-    for r in T.itertuples():
-        c = curves[r.key]
-        for u in UNITS:
-            if not getattr(r, f"{u}_rec"):
-                continue
-            for wh in ("pick", "runner"):
-                col = getattr(r, f"{u}_{wh}")
-                for p in POS:
-                    if int(c[f"{p}_n"]) > 0:
-                        rows.append(dict(animal=r.animal, epoch=r.epoch, key=r.key, unit=u, which=wh, pos=p,
-                                         flag=getattr(r, f"{u}_flag"), resp=float(np.nanmean(c[f"{p}_mean"][w, col])),
-                                         pre=float(np.nanmean(c[f"{p}_mean"][t < 0, col]))))
-    R = pd.DataFrame(rows)
-    from wfield_local import figure_layout
-    R.to_csv(figure_layout.sidecar_for(out, "own_temporal_lick", ".csv"), index=False, float_format="%.5g")
-    R["side"] = R.pos.str.split("_").str[1].map({"L": "ipsi", "R": "contra", "center": "mid"})
-    P = (R.groupby(["unit", "which", "epoch", "animal", "side"]).resp.mean().groupby(["unit", "which", "epoch", "side"])
-         .mean().unstack("side")[["ipsi", "mid", "contra"]])
-    P["ipsi/contra"] = P.ipsi / P.contra
-    pd.set_option("display.width", 200)
-    print(P.reindex(EPOCHS, level="epoch").round(3).to_string())
+        fig_by_epoch(T[T.animal == an], curves, t, f"{an}: matched vs runner-up lick columns by spout",
+                     out / f"own_temporal_lick_{an}{sfx}.png",
+                     traces.replace("mean over animals of each animal's mean over its sessions; band = +- SEM across\n"
+                                    "animals (none where one animal)", "mean over this animal's sessions (no band)"))
+    R = readouts(T, curves, t)
+    ST = stats_table(R)
+    R.to_csv(figure_layout.sidecar_for(out, f"own_temporal_lick{sfx}", ".csv"), index=False, float_format="%.5g")
+    ST.to_csv(figure_layout.sidecar_for(out, f"own_temporal_lick_stats{sfx}", ".csv"), index=False,
+              float_format="%.5g")
+    fig_stats(R, ST, "Per-session fits: lick-column response by spout and epoch, change vs own pre",
+              out / f"own_temporal_lick_stats{sfx}.png", base + f"""
+Readout: per session, the mean absolute expression in the response window (cue {RESP[0]:g} to +{RESP[1]:g} s) on that
+spout's trials, as log2 minus the mean log2 of the same animal's pre sessions (pre = 0, -1 = halved). Faded open
+markers = sessions (shape = animal, color = epoch); filled = mean +- SEM across animals of each animal's mean. Under
+each epoch: change vs pre, `analysis_kit.boot_delta` (paired animals -> sessions bootstrap, animal-weighted); 95 %
+intervals in data/own_temporal_lick_stats.csv. Stars (top band): * = interval excludes 0; ** = also Holm over the 18 tests of a row (6 spouts x 3
+epochs).""")
+    pd.set_option("display.width", 220)
+    print(ST[["unit", "which", "pos", "epoch", "delta", "ci_lo", "ci_hi", "p_holm", "mark"]].round(3)
+          .to_string(index=False))
     print("->", out)
     return 0
 

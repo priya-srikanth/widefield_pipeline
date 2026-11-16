@@ -288,3 +288,13 @@ ratio 2.3 vs 1.3); PS92 10 / 10, PS93 5 / 5, PS94 8 / 13 (2.2 vs 2.3), PS95 4 / 
 strongly expressed on left-spout trials (Priya: lick_left is there behaviorally; my "not really there" was wrong -- the
 footprint changed, the factor did not vanish). PS93 0822 / 0824: matched column more left-selective (1.42 vs 1.07; 1.31
 vs .35) -> the tie-break picked the right column in both.
+
+## 11-16 (later): own-fit lick columns -- SEM bands, cohort palette, by-spout layout, stats (Priya)
+`face_rhythm_own_temporal.py` now: spout colors = `spout_behavior.position_style`; band = SEM across animals;
+own_temporal_lick[_by_position][_<animal>].png + own_temporal_lick_stats.png (response window cue 0..+2 s, log2 vs own
+pre, boot_delta, Holm over 18 per row) + data/own_temporal_lick_stats.csv. Preview from 12 trials / spout (suffix _n12);
+ALL-TRIALS cache running (~3.5 h, 50,929 trials, network-bound), then re-render without suffix.
+Preview stats (matched columns): lick_right falls on far contra trials at every epoch (-2.61** / -.86** / -.69**) and
+far mid (-1.22** / -.47** / -.54*), close contra unchanged; lick_left RISES on close contra acutely (+1.31**) and far
+contra subacutely (+.69*), falls on close ipsi chronically (-.50**) and far mid acutely (-.76**). Runner-ups: one Holm
+pass (lick_right runner-up close contra subacute -.55**).
