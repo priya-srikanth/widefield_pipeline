@@ -24,7 +24,11 @@ so a cold cache stops the run instead of starting a ~119-session recompute. (Not
 source.) Runs under the rebuild profile in a child process (its write fence); the parent
 writes <state_space_recovery>/why_cleaner_lick/ (steps.csv, maps.npz) and page_figs/ss_why_cleaner_lick.png.
 
-    python scripts/state_space_why_cleaner.py
+    python scripts/state_space_why_cleaner.py [--out DIR]
+
+`--out DIR` writes steps.csv, maps.npz and ss_why_cleaner_lick.png (+ .svg) all into DIR instead (a re-run beside the
+published outputs, 11-16). The encoding bundle's settings are found by `o2_state_space_lnmf.enc_share` (follows a
+move-aside manifest; raises if the bundle is nowhere).
 """
 from __future__ import annotations
 
@@ -231,20 +235,20 @@ def _r(a, b):
     return float(np.corrcoef(a[ok], b[ok])[0, 1]) if ok.sum() > 10 else np.nan
 
 
-def main():
+def main(out: Path = OUT, figs: Path = FIGS):
     from concurrent.futures import ProcessPoolExecutor
 
     from wfield_local import beta_maps as bm
     import o2_state_space_svd as V
-    OUT.mkdir(parents=True, exist_ok=True)
+    out.mkdir(parents=True, exist_ok=True)
     atlas = np.load(S.SVD.parents[1] / "atlas.npy")
     mask1 = np.load(BASIS_DIR / "mask.npy").reshape(atlas.shape)
     assert int(mask1.sum()) == int(V.analysis_mask().sum()), "bundle mask != analysis mask"
     stat1 = bm.stat_mask() & mask1                              # no profile here: glue removed
-    np.save(OUT / "_mask1.npy", mask1)
-    np.save(OUT / "_stat1.npy", stat1)
+    np.save(out / "_mask1.npy", mask1)
+    np.save(out / "_stat1.npy", stat1)
     with ProcessPoolExecutor(1) as ex:                          # the profile lives only in the child
-        res = ex.submit(_child, str(OUT / "_mask1.npy"), str(OUT / "_stat1.npy"),
+        res = ex.submit(_child, str(out / "_mask1.npy"), str(out / "_stat1.npy"),
                         str(BASIS_DIR / "U_cohort.npy")).result()
     Uc = np.load(BASIS_DIR / "U_cohort.npy").astype(np.float64)
     z = np.load(SS_MAPS)
@@ -270,8 +274,8 @@ def main():
             rows.append({"step": STEPS[4], "epoch": ep, "spout": col, "r_with_S4": 1.0, "split_half_r": np.nan,
                          "energy_outside_svd": 0.0, "sig_frac": float(sig[ci][stat1].mean())})
     T = pd.DataFrame(rows)
-    T.to_csv(OUT / "steps.csv", index=False)
-    np.savez_compressed(OUT / "maps.npz", **{f"S{s}__{ep}": m for (s, ep), m in res["maps"].items()},
+    T.to_csv(out / "steps.csv", index=False)
+    np.savez_compressed(out / "maps.npz", **{f"S{s}__{ep}": m for (s, ep), m in res["maps"].items()},
                         **{f"S{s}__sig{ci}": k for (s, ci), k in res["sig"].items()})
     print(res["info"])
     with pd.option_context("display.width", 200, "display.precision", 3):
@@ -281,13 +285,13 @@ def main():
             print(t.pivot_table(index="step", columns="spout", values=["r_with_S4", "split_half_r",
                                                                          "energy_outside_svd", "sig_frac"],
                                 sort=False).to_string())
-    fig_steps(res, ss, mask1, atlas, z)
+    fig_steps(res, ss, mask1, atlas, z, figs)
     for p in ("_mask1.npy", "_stat1.npy"):
-        (OUT / p).unlink()
-    print(f"wrote {OUT}")
+        (out / p).unlink()
+    print(f"wrote {out}")
 
 
-def fig_steps(res, ss, mask1, atlas, z):
+def fig_steps(res, ss, mask1, atlas, z, figs: Path = FIGS):
     """Chronic, mean over spouts + far contra: one row per step, the step's own contour."""
     import state_space_chronic_maps as C
     from wfield_local import beta_maps as bm
@@ -318,9 +322,13 @@ def fig_steps(res, ss, mask1, atlas, z):
                          "state-space map (drift-removed signal, first-lick 0.1..0.5 s). Contour: nested bootstrap "
                          "animals -> sessions (2,000), each column's own test. Color scale per panel (99th pct |value|)."),
                  y=1.03, fontsize=9.5)
-    save_png_svg(fig, FIGS / "ss_why_cleaner_lick.png", dpi=110, bbox_inches="tight")
+    save_png_svg(fig, figs / "ss_why_cleaner_lick.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+    ap = argparse.ArgumentParser(description=__doc__.split(chr(10))[0])
+    ap.add_argument("--out", type=Path, default=None, help="write every output (tables + figure) here")
+    a = ap.parse_args()
+    main(a.out, a.out) if a.out else main()
