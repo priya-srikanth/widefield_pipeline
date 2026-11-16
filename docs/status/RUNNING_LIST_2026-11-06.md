@@ -1658,3 +1658,13 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
 - Per pair (chronic, cue): largest VISpm -.25, VISrl -.23, SSp-n -.18, SSp-bfd -.16, VISam -.16, SSs -.12, MOs / ALM -.10; ~0 in SSp-ul / -ll / -tr, RSPv, ACAd, PL. Broad, not orofacial-only.
 - Same direction and size as the encoding page's late within-spout balance rise (log2 contra / ipsi +.13 / +.16 subacute / chronic, 4/4, visual + RSP rise too): -.10 ln = +.14 log2.
 - CONCLUSION CHANGE (to Priya before text): SS page section 5 "It is not one hemisphere gaining everywhere" no longer holds -> contralesional areas gain relative to their ipsilesional partners from subacute on, 4/4, broad across cortex.
+
+## 11-13 — state-space code cleanup DONE, on main (Priya: "ok to push and move folder and to retire stale scripts")
+- On main at cfb83124 (merge of refactor/ss-cleanup-1113, which carries fix/ss-area-count-1112 + fix/ss-routing-1112). Code map: `docs/STATE_SPACE_CODE.md`.
+- Pin: every Allen step of the v20u queue re-run on the new code into a scratch root (v20v): 137/138 tables identical to production; SVD map family on old vs new code: 38/38 tables + 7/7 response caches identical. Reports: `docs/status/ss_rerun_1112/pin_report_{allen,svd}.csv` (`pin_compare.py`).
+- One difference, a correction: `n_animals` of `bal_oro_far` (lick, xspout) had counted animals with post sessions but no pre value; now counts the animals in the bootstrap (acute 2 -> 1, subacute 3 -> 2, chronic 3 -> 1). Deltas / CIs unchanged.
+- Not testable in the scratch root (same failure on old and new code; inputs looked up beside the output root): page_figs (needs the lnmf trials), detour_vs_balance (its shuffle is pinned in tests/test_epoch_change.py).
+- Archived (git mv): scripts/archive/state_space_recovery.py (first pass, 58 areas), scripts/archive/state_space_pc2.py.
+- Also fixed on main: tests/test_share_writers_mode_safe.py was failing on main (frozen_refit_basis_compare.py unclassified) -> INDIRECT.
+- MOVED (rename, 4701 files): Widefield/state_space_recovery -> Widefield/rebuild_20261103/state_space_recovery, where the code on main now reads / writes (S.ROOT; check_root guards the old path). The old unkeyed chronic_maps_resp/*.pkl stay where they were, unused (the new cache is keyed by bundle + version; a cold rebuild is ~25 s per variant).
+- NEXT: SS page (section 5 hemi_gain wording, 45-area captions, D1 numbers, bal_oro_far star, ss_why_cleaner_lick) + republish; analysis deck + PI deck section G (coordinate with quiet-events window).
