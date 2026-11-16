@@ -78,7 +78,6 @@ module load conda/miniforge3/26.9.4-1
 conda activate arhmm
 export PYTHONPATH={o}/code JAX_PLATFORMS=cpu
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK OPENBLAS_NUM_THREADS=$SLURM_CPUS_PER_TASK
-export XLA_FLAGS="--xla_cpu_multi_thread_eigen=true intra_op_parallelism_threads=$SLURM_CPUS_PER_TASK"
 COMMON="--feat {o}/inputs/features --out {o}/out --epochs {o}/inputs/epochs.json"
 """
     kap = ",".join(KAPPAS)

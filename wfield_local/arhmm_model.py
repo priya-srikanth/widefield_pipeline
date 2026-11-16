@@ -255,14 +255,17 @@ def main(argv=None) -> int:
     print(f"{a.frame}: {len(labs)} fit sessions; PCA {len(design.var_ratio)} dims ({design.var_ratio.sum():.2f})",
           flush=True)
     if a.cmd == "scan":
-        seqs, _o = seqs_of(feats, labs[: a.scan_sessions], design)
+        # spread over the (sorted, animal-contiguous) fit set so every animal is in the scan, not only the first
+        step = max(1, len(labs) // a.scan_sessions)
+        scan_labs = labs[::step][: a.scan_sessions]
+        seqs, _o = seqs_of(feats, scan_labs, design)
         data = make_data(seqs)
         for k in (float(x) for x in a.kappas.split(",")):
             m = fit(data, k, a.iters, seed=a.seed)
             d = durations_s(m["states"]["z"], data["mask"])
             row = {"kappa": k, "median_s": float(np.median(d)), "mean_s": float(np.mean(d)),
                    "n_used": int(len(np.unique(np.asarray(m["states"]["z"])))), "iters": a.iters,
-                   "sessions": labs[: a.scan_sessions]}
+                   "sessions": scan_labs}
             (out / f"scan_{a.frame}_k{k:.0e}.json").write_text(json.dumps(row, indent=1))
             print(row, flush=True)
         return 0
