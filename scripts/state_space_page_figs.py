@@ -295,7 +295,8 @@ def fig_like(out, rng, cond=None, cols=None, name="ss_like_for_like",
 # areas). Tables from state_space_balance_{cells,angle}.py [--motor].
 LAND = ROOT / ("landing" if ALIGN == "cue" else f"landing_{ALIGN}")   # balance tables per alignment
 BAL_WIN = {"cue": "0-1 s after the cue", "lick": "0.1-0.5 s after the first lick"}.get(ALIGN, ALIGN_LABEL[ALIGN])
-BAL_AREAS = {"": ("Orofacial", "orofacial", ", ".join(S.OROFACIAL)), "_motor": ("Motor", "motor", ", ".join(S.MOTOR))}
+BAL_AREAS = {"": (S.AREA_SET_NAME["OROFACIAL"].capitalize(), S.AREA_SET_NAME["OROFACIAL"], ", ".join(S.OROFACIAL)),
+             "_motor": (S.AREA_SET_NAME["MOTOR"].capitalize(), S.AREA_SET_NAME["MOTOR"], ", ".join(S.MOTOR))}
 
 
 def fig_balance(out, rng, sfx=""):
