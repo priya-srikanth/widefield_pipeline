@@ -1715,3 +1715,10 @@ decoders: page-feeding first, the rest after? (5) G1-G3 scored sets: which camer
   TONIC level = pre-lick hemispheric difference (session-mean AND RESTnl), (4) raw difference (their combination); which
   tracks far-contra aim recovery best within animal (within-animal shuffle) and on unseen animals (LOAO cvR2, as
   lick_recovery_primary). Recommendation to Priya: report (1)-(3) separately, raw difference / decoder offset derived.
+- 11-16 DIRECT DECODER CHECK (scratch decoder_check/; production reproduced to 4e-16): ITI-all like-for-like offset change vs
+  pre (mm, + = contralesional), glue-free production +.35* / +.24* / +.26*; A level removed +.21* / +.13* / +.09*; B gain
+  divided out +.37* / +.21* / +.24*; A+B +.21* / +.10* / +.06 n.s. (ITI first >= 2 s alike). Gain does NOT explain it; level
+  removal cuts 40 % acute / ~2/3 chronic but also cuts the CUED offset (+.35 -> +.13) and weakens the decoder (pre r ITI
+  .63 -> .53, cued .76 -> .59) -> not cleanly attributable. Acute + subacute contralesional ITI offset survives evoked-only
+  (4/4). POSSIBLE CONCLUSION CHANGE (FINDINGS 10-29 hypothesis "persistently for self-initiated licks") -> proposed wording
+  to Priya; baseline numbers moved with the glue fix (10-29 +.39 / +.29).
