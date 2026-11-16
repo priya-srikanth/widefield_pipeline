@@ -44,6 +44,7 @@ NLAGS = 3
 MIN_SEG_S = 5.0
 FIT_PER_CELL = 2                  # sessions per animal x epoch in the pooled fit set
 TARGET_MEDIAN_S = 0.5
+RUN_FLOOR = 0.3                   # mm/s, both running directions (Priya 11-16 "yes floor is ok"; `load_features`)
 BLOCKS = {"tongue": ("tongue_",), "jaw": ("jaw_",), "nose": ("nose_",), "run": ("run_",), "fr": ("fr_",)}
 
 
@@ -141,15 +142,24 @@ def durations_s(z, mask) -> np.ndarray:
 
 
 # ------------------------------------------------------------------------------------------------------------ sets ----
-def load_features(feat_dir):
+def load_features(feat_dir, run_floor: float = 0.0):
+    """{label: {X, columns}}; ``run_floor`` (mm/s) zeroes run_fwd / run_back below it -- the treadmill rest-noise floor
+    (rest p90 ~0.2 mm/s; 0.3 = the push variable's threshold), so sign-split jitter at rest is not modelled as
+    forward / backward movement (Priya 11-16 discussion; 0 = raw smoothed speed)."""
     out = {}
     for f in sorted(glob.glob(str(Path(feat_dir) / "sessions" / "*.npz"))):
         z = np.load(f, allow_pickle=True)
-        out[str(z["label"])] = {"X": z["X"].astype(np.float64), "columns": [str(c) for c in z["features"]]}
+        X = z["X"].astype(np.float64)
+        cols = [str(c) for c in z["features"]]
+        if run_floor > 0:
+            for c in ("run_fwd", "run_back"):
+                j = cols.index(c)
+                X[:, j] = np.where(X[:, j] < run_floor, 0.0, X[:, j])
+        out[str(z["label"])] = {"X": X, "columns": cols}
     return out
 
 
-def fit_labels(feats: dict, frame: str, epochs: dict, seed: int = 0) -> list[str]:
+def fit_labels(feats: dict, frame: str, epochs: dict, seed: int = 0, per_cell: int = FIT_PER_CELL) -> list[str]:
     """``pooled_all``: FIT_PER_CELL sessions per animal x epoch (random, seeded); ``pre``: every August-pre session."""
     rng = np.random.default_rng(seed)
     if frame == "pre":
@@ -162,7 +172,7 @@ def fit_labels(feats: dict, frame: str, epochs: dict, seed: int = 0) -> list[str
         cells.setdefault((lab.split("_")[0], e), []).append(lab)
     pick = []
     for _k, labs in sorted(cells.items()):
-        pick += list(rng.choice(labs, size=min(FIT_PER_CELL, len(labs)), replace=False))
+        pick += list(rng.choice(labs, size=min(per_cell, len(labs)), replace=False))
     return sorted(pick)
 
 
@@ -178,68 +188,73 @@ def seqs_of(feats, labels, design):
 
 # -------------------------------------------------------------------------------------------------------------- cli ----
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    ap = argparse.ArgumentParser(description=__doc__.split(chr(10) * 2)[0])
     ap.add_argument("cmd", choices=("scan", "fit", "decode"))
     ap.add_argument("--feat", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--epochs", required=True, help="json {label: epoch} (written by the analysis env)")
     ap.add_argument("--frame", default="pooled_all", choices=("pooled_all", "pre"))
     ap.add_argument("--kappa", type=float, default=1e8)
+    ap.add_argument("--kappas", default="1e6,1e7,1e8,1e9,1e10", help="scan: comma list (one value per O2 task)")
     ap.add_argument("--iters", type=int, default=50)
-    ap.add_argument("--kappas", default="1e6,1e7,1e8,1e9,1e10")
+    ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--per-cell", type=int, default=FIT_PER_CELL)
+    ap.add_argument("--run-floor", type=float, default=RUN_FLOOR)
+    ap.add_argument("--tag", default=None, help="model name (default <frame>_s<seed>)")
+    ap.add_argument("--label", default=None, help="decode: one session only (an O2 array task)")
+    ap.add_argument("--scan-sessions", type=int, default=4)
     a = ap.parse_args(argv)
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
-    feats = load_features(a.feat)
+    tag = a.tag or f"{a.frame}_s{a.seed}"
+    feats = load_features(a.feat, a.run_floor)
     epochs = json.loads(Path(a.epochs).read_text())
-    labs = fit_labels(feats, a.frame, epochs)
-    cols = feats[labs[0]]["columns"]
-    design = Design(cols, [feats[lab]["X"] for lab in labs])
+    if a.cmd == "decode":
+        with open(out / f"model_{tag}.pkl", "rb") as fh:
+            M = pickle.load(fh)
+        jnp = _jax().numpy
+        params = _jax().tree_util.tree_map(jnp.asarray, M["params"])
+        sd = out / f"states_{tag}"
+        sd.mkdir(exist_ok=True)
+        for lab in ([a.label] if a.label else sorted(feats)):
+            f = sd / f"{lab}.npz"
+            if f.exists():
+                continue
+            seqs, owner = seqs_of(feats, [lab], M["design"])
+            if not seqs:
+                continue
+            z = decode(make_data(seqs), {"params": params, "hypparams": M["hypparams"]})
+            full = np.full(len(feats[lab]["X"]), -1, np.int16)
+            for (_l, s0, s1), zi in zip(owner, z):
+                full[s0 + NLAGS:s1] = zi[: s1 - s0 - NLAGS]
+            np.savez_compressed(f, z=full)
+            print("decoded", lab, flush=True)
+        return 0
+    labs = fit_labels(feats, a.frame, epochs, seed=a.seed, per_cell=a.per_cell)
+    design = Design(feats[labs[0]]["columns"], [feats[lab]["X"] for lab in labs])
     print(f"{a.frame}: {len(labs)} fit sessions; PCA {len(design.var_ratio)} dims ({design.var_ratio.sum():.2f})",
           flush=True)
     if a.cmd == "scan":
-        seqs, _o = seqs_of(feats, labs[: max(4, len(labs) // 4)], design)
+        seqs, _o = seqs_of(feats, labs[: a.scan_sessions], design)
         data = make_data(seqs)
-        rows = []
         for k in (float(x) for x in a.kappas.split(",")):
-            m = fit(data, k, a.iters)
+            m = fit(data, k, a.iters, seed=a.seed)
             d = durations_s(m["states"]["z"], data["mask"])
-            rows.append({"kappa": k, "median_s": float(np.median(d)), "mean_s": float(np.mean(d)),
-                         "n_used": int(len(np.unique(np.asarray(m["states"]["z"]))))})
-            print(rows[-1], flush=True)
-        (out / f"kappa_scan_{a.frame}.json").write_text(json.dumps(rows, indent=1))
+            row = {"kappa": k, "median_s": float(np.median(d)), "mean_s": float(np.mean(d)),
+                   "n_used": int(len(np.unique(np.asarray(m["states"]["z"])))), "iters": a.iters,
+                   "sessions": labs[: a.scan_sessions]}
+            (out / f"scan_{a.frame}_k{k:.0e}.json").write_text(json.dumps(row, indent=1))
+            print(row, flush=True)
         return 0
-    if a.cmd == "fit":
-        seqs, owner = seqs_of(feats, labs, design)
-        data = make_data(seqs)
-        m = fit(data, a.kappa, a.iters)
-        d = durations_s(m["states"]["z"], data["mask"])
-        with open(out / f"model_{a.frame}.pkl", "wb") as fh:
-            pickle.dump({"params": _jax().tree_util.tree_map(np.asarray, m["params"]),
-                         "hypparams": m["hypparams"], "design": design, "fit_labels": labs, "kappa": a.kappa,
-                         "iters": a.iters, "median_dur_s": float(np.median(d))}, fh)
-        print(f"fit done: median syllable {np.median(d):.2f} s", flush=True)
-        return 0
-    with open(out / f"model_{a.frame}.pkl", "rb") as fh:                 # decode every session
-        M = pickle.load(fh)
-    jnp = _jax().numpy
-    params = _jax().tree_util.tree_map(jnp.asarray, M["params"])
-    sd = out / f"states_{a.frame}"
-    sd.mkdir(exist_ok=True)
-    for lab in sorted(feats):
-        f = sd / f"{lab}.npz"
-        if f.exists():
-            continue
-        seqs, owner = seqs_of(feats, [lab], M["design"])
-        if not seqs:
-            continue
-        z = decode(make_data(seqs), {"params": params, "hypparams": M["hypparams"]})
-        T = len(feats[lab]["X"])
-        full = np.full(T, -1, np.int16)
-        for (_l, s0, s1), zi in zip(owner, z):
-            full[s0 + NLAGS:s1] = zi[: s1 - s0 - NLAGS]
-        np.savez_compressed(f, z=full)
-        print("decoded", lab, flush=True)
+    seqs, _owner = seqs_of(feats, labs, design)
+    data = make_data(seqs)
+    m = fit(data, a.kappa, a.iters, seed=a.seed)
+    d = durations_s(m["states"]["z"], data["mask"])
+    with open(out / f"model_{tag}.pkl", "wb") as fh:
+        pickle.dump({"params": _jax().tree_util.tree_map(np.asarray, m["params"]), "hypparams": m["hypparams"],
+                     "design": design, "fit_labels": labs, "kappa": a.kappa, "iters": a.iters, "seed": a.seed,
+                     "run_floor": a.run_floor, "per_cell": a.per_cell, "median_dur_s": float(np.median(d))}, fh)
+    print(f"fit {tag} done: median syllable {np.median(d):.2f} s", flush=True)
     return 0
 
 
