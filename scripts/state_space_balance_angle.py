@@ -5,7 +5,7 @@ Bins (state_space_balance_cells.py) lose acute far-contra entirely (0-3 % land o
 continuous 3-D lateral coordinate `side_ml` of the first lick (licks.csv.gz via state_space_landing.py; mm, + toward the
 contralesional side as written there). Per animal and RING (close / far), on PRE trials only:
 
-    size_h(trial) = a_h[target] + b_h * side_ml        h = contralesional / ipsilesional orofacial response size
+    size_h(trial) = a_h[target] + b_h * side_ml        h = contralesional / ipsilesional orofacial sensory response size
                                                         (SSp-m, SSp-n, SSs; 0-1 s after the cue minus -0.5-0 s)
 
 The slope is shared across the ring's three targets, so a far-contra-aimed lick that lands far-ipsi is predicted with

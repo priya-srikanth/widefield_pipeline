@@ -60,6 +60,18 @@ def balance_sides(M, cols, sel):
     return out
 
 
+def balance_defined(xform):
+    """Is the hemispheric balance (log2 contra / ipsi response SIZE) a meaningful readout under this per-trial transform?
+
+    Only on real responses: raw ("") and z (each area / its pre SD; the scale cancels in change vs own pre, values match
+    raw: lick bal_oro +.11 / +.19 / +.21 vs +.13 / +.19 / +.20). NOT under "gsr" (cortex-wide mode projected out) or
+    "spout" (cross-spout mean subtracted): sizes become differences from a shared pattern, can be <= 0, and the log ratio
+    is undefined or explodes (11-16: spout 30-83 % of sessions valid, far-ring values -5.5; gsr pre spread +-.9 vs +-.3).
+    Not needed either: a log RATIO is invariant to a bilateral gain by construction, and within animal the session balance
+    does not follow the cortex-wide amplitude (11-16 check, docs/STATE_SPACE_CODE.md section 4). Priya 11-16: drop them."""
+    return xform in ("", "z")
+
+
 def balance(M, cols, sel):
     """log2 (contralesional / ipsilesional) response size of one spout's mean (bins x areas); NaN if either <= 0."""
     return balance_sides(M, cols, sel)["bal"]
@@ -272,7 +284,7 @@ def run(seed=0, mode="target"):
             row.update({f"gain_t_{c}": float(v) for c, v in zip(cols, g)})
             # hemispheric BALANCE as in FINDINGS 0b: response SIZE (0-1 s minus -0.5-0 s), log2 contra / ipsi,
             # within spout, for the orofacial areas and for all areas (the slope above is NOT a size measure)
-            for nm, sel in (("oro", OROFACIAL), ("all", None)):
+            for nm, sel in (("oro", OROFACIAL), ("all", None)) if balance_defined(S.XFORM) else ():
                 for ring, sp in (("", range(6)), ("_far", range(3, 6))):
                     v = [balance(A[s_], cols, sel) for s_ in sp if ok[s_]]
                     row[f"bal_{nm}{ring}"] = float(np.nanmean(v)) if v else np.nan

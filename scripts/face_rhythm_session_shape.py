@@ -289,7 +289,7 @@ def figures(T: pd.DataFrame, S: pd.DataFrame, out: Path, set_name: str) -> None:
     from wfield_local import sig_marks
     ecol = frc.epoch_colors()
     eps = ["pre", *frc.POST_EPOCHS]
-    SUMX = 0.3                              # the pooled summary sits right of each epoch's session dots
+    SUMX = 0.0                              # the pooled summary (and its marks) centred on the epoch, over the session dots
     with frf.style():
         fig, axs = frf.subplots(2, 2, figsize=(11, 7.5), squeeze=False)
         for r_i, nm in enumerate(FACTORS):
@@ -311,10 +311,10 @@ def figures(T: pd.DataFrame, S: pd.DataFrame, out: Path, set_name: str) -> None:
                     ax.errorbar(e_i + SUMX, pre_mean + s.change, yerr=[[s.change - s.lo], [s.hi - s.change]], fmt="s",
                                 ls="none", color=ecol[ep], ms=5, mec="w", mew=0.6, capsize=2.5, elinewidth=1.3, zorder=4)
                     star = "**" if s.p_holm < 0.05 else "*" if s.hi < 0 or s.lo > 0 else ""
+                    # Priya 11-16: no epoch shading; marks centred over the epoch's data (as every other FR figure)
                     if star:
                         sig_marks.star_top(ax, e_i + SUMX, star, color=ecol[ep], row=0)
                     sig_marks.star_top(ax, e_i + SUMX, str(s.same_sign), color=ecol[ep], row=1, fontsize=7)
-                    ax.axvspan(e_i - 0.45, e_i + 0.45, color=ecol[ep], alpha=0.06, lw=0)
                 ax.axhline(pre_mean, color="0.5", lw=0.6, ls=":")
                 ax.set_xticks(range(len(eps)), eps)
                 ax.set_title(f"{nm}: {'side-specificity (own-side r - other-side r)' if col == 'side_spec' else 'loading asymmetry (contra - ipsi) / sum'}",
