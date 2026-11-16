@@ -88,6 +88,23 @@ class Design:
         return (Z @ self.comps.T).astype(np.float32)
 
 
+#: pickled models must name the IMPORTABLE module, not ``__main__`` (this file runs as ``python -m``)
+Design.__module__ = "wfield_local.arhmm_model"
+
+
+def load_model(path):
+    """A saved model dict; also reads files pickled before the module fix (``__main__.Design``)."""
+    import pickle as _p
+
+    class _U(_p.Unpickler):
+        def find_class(self, module, name):
+            if name == "Design":
+                return Design
+            return super().find_class(module, name)
+    with open(path, "rb") as fh:
+        return _U(fh).load()
+
+
 # ----------------------------------------------------------------------------------------------------------- moseq ----
 def _jax():
     import jax
@@ -203,6 +220,7 @@ def main(argv=None) -> int:
     ap.add_argument("--tag", default=None, help="model name (default <frame>_s<seed>)")
     ap.add_argument("--label", default=None, help="decode: one session only (an O2 array task)")
     ap.add_argument("--scan-sessions", type=int, default=4)
+    ap.add_argument("--fit-labels", default=None, help="comma list: fit on exactly these sessions (sanity checks)")
     a = ap.parse_args(argv)
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -210,10 +228,11 @@ def main(argv=None) -> int:
     feats = load_features(a.feat, a.run_floor)
     epochs = json.loads(Path(a.epochs).read_text())
     if a.cmd == "decode":
-        with open(out / f"model_{tag}.pkl", "rb") as fh:
-            M = pickle.load(fh)
+        M = load_model(out / f"model_{tag}.pkl")
         jnp = _jax().numpy
-        params = _jax().tree_util.tree_map(jnp.asarray, M["params"])
+        tojx = lambda x: jnp.asarray(x) if isinstance(x, np.ndarray) else x                # noqa: E731
+        params = _jax().tree_util.tree_map(tojx, M["params"])
+        hyp = _jax().tree_util.tree_map(tojx, M["hypparams"])
         sd = out / f"states_{tag}"
         sd.mkdir(exist_ok=True)
         for lab in ([a.label] if a.label else sorted(feats)):
@@ -223,14 +242,15 @@ def main(argv=None) -> int:
             seqs, owner = seqs_of(feats, [lab], M["design"])
             if not seqs:
                 continue
-            z = decode(make_data(seqs), {"params": params, "hypparams": M["hypparams"]})
+            z = decode(make_data(seqs), {"params": params, "hypparams": hyp})
             full = np.full(len(feats[lab]["X"]), -1, np.int16)
             for (_l, s0, s1), zi in zip(owner, z):
                 full[s0 + NLAGS:s1] = zi[: s1 - s0 - NLAGS]
             np.savez_compressed(f, z=full)
             print("decoded", lab, flush=True)
         return 0
-    labs = fit_labels(feats, a.frame, epochs, seed=a.seed, per_cell=a.per_cell)
+    labs = (a.fit_labels.split(",") if a.fit_labels
+            else fit_labels(feats, a.frame, epochs, seed=a.seed, per_cell=a.per_cell))
     design = Design(feats[labs[0]]["columns"], [feats[lab]["X"] for lab in labs])
     print(f"{a.frame}: {len(labs)} fit sessions; PCA {len(design.var_ratio)} dims ({design.var_ratio.sum():.2f})",
           flush=True)
@@ -251,7 +271,10 @@ def main(argv=None) -> int:
     m = fit(data, a.kappa, a.iters, seed=a.seed)
     d = durations_s(m["states"]["z"], data["mask"])
     with open(out / f"model_{tag}.pkl", "wb") as fh:
-        pickle.dump({"params": _jax().tree_util.tree_map(np.asarray, m["params"]), "hypparams": m["hypparams"],
+        # plain numpy throughout (params AND hypparams), so the analysis env (no JAX) can read the model
+        tonp = lambda x: np.asarray(x) if hasattr(x, "shape") else x                       # noqa: E731
+        pickle.dump({"params": _jax().tree_util.tree_map(tonp, m["params"]),
+                     "hypparams": _jax().tree_util.tree_map(tonp, m["hypparams"]),
                      "design": design, "fit_labels": labs, "kappa": a.kappa, "iters": a.iters, "seed": a.seed,
                      "run_floor": a.run_floor, "per_cell": a.per_cell, "median_dur_s": float(np.median(d))}, fh)
     print(f"fit {tag} done: median syllable {np.median(d):.2f} s", flush=True)
