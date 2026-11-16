@@ -337,3 +337,26 @@ preview version). Flagged post sessions where the matched column is more left-se
 PS93 4/5, PS94 7/13, PS95 4/7). Conclusion unchanged. Page v49 (1794866489-396c): figures 7a.12-7a.20 swapped to all
 trials, captions / take line / status row rewritten (no 12-trial wording left). FINDINGS + FACE_RHYTHM_FINDINGS numbers
 updated.
+
+### 11-16 ~17:30 -- per-trial / per-lick readouts (Priya: "start per-trial analyses"; far-contra lick_left question)
+New `scripts/face_rhythm_per_trial.py` (frozen master `proj/`, LP v36 licks; session-level animal bootstrap, Holm over
+spouts) -> readouts/master_pre_v1/per_trial/ (data/per_trial_{trials,licks}.pkl, _sessions.csv, _stats.csv). RESULTS
+(NOT on the page; to Priya first):
+- Far-contra leftward licks are real: trials with >= 1 leftward lick pre .01-.09 -> acute .22-.67 (4/4), subacute
+  .05-.81, chronic .02-.59 (PS94 persists).
+- FROZEN master lick_left on far-contra trials DOES rise acutely: trial mean 0-2 s +.73** log2 (4/4 up), subacute
+  +1.16**, chronic +.81**. Per leftward lick no change (-.11 acute, n.s.) -> the rise = more leftward licks, not bigger.
+  So the flat acute far-contra cell in own-fit Fig 7a.13 (+.01) is a property of the per-session own-fit matched column,
+  not of the behavior or the master factor. Peak of the TRIAL AVERAGE also hides it (+.21 n.s. acute) while the median
+  PER-TRIAL peak shows it (+.72**): leftward licks on ~half the far-contra trials, late and scattered (per-trial peak
+  time +1.16 s).
+- Isolated licks: isolated leftward licks express ~30 % less lick_left than in-bout ones acutely (ratio .59-.71, 4/4;
+  pre .67-.96); acutely 15 % of far-contra leftward licks are isolated (pre 2 %). Partial contribution, not the cause.
+- Window 0-4 s vs 0-2 s: same conclusions (far_R acute +.94** vs +.73**).
+- Per-trial vs trial-average amplitude: same direction everywhere; acute losses smaller per trial (lick_right far_R
+  -1.83** vs -2.43**). CAVEAT: per-trial peak of a flat trial = max of noise (positive floor), which compresses losses;
+  per-trial timing (COM / peak time) of near-flat trials drifts to the window middle, so acute "later" lick_right
+  per-trial timing (+.47 s) is confounded by the amplitude loss. NEXT: condition on movement (trials with a lick of
+  the unit's direction): prevalence x amplitude-given-lick, timing only on those trials.
+Fig 7.3: per-epoch shading removed, pooled squares + stars centred on the epoch (Priya 11-16); page v50. Same shading
+removed in code from epoch_shape_angles (page 7.11 / 8.18) -- takes effect at their next render.
