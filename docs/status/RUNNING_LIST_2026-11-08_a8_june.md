@@ -267,3 +267,12 @@ gives the same or a larger shift (acute +.15 / -.01 / +.29 / +.22; subacute +.46
 +.16 / +.34 / +.49), so the near-ties do not create the shift. Clean-only sets are 0-2 sessions acute / subacute (not
 informative). The 11-13 "clear in PS94 only" was based on chronic alone and overstated. Proposed to Priya: acute +
 subacute STANDS; chronic small (PROVISIONAL). Awaiting her ok before re-editing FINDINGS / page / deck.
+
+## 11-16: flagged lick_left sessions, pick vs runner-up (Priya: "is the runner up a better match?")
+New figures flagged_lick_left_<animal>.png + data/flagged_lick_left.csv (match-check script). Flags: near-tie PS92 12,
+PS93 8, PS94 13, PS95 3; low cosine (.70-.80, still counted as recovered) ONLY in PS95 (5); not recovered PS93 11, PS95 4.
+Runner-up has a higher spatial cosine in 22 / 58 flagged sessions (frequency tie-break chose the pick); its asymmetry is
+about the same. PS95: no good column at all in most flagged sessions (pick .72-.78, runner-up .56-.76, both diffuse);
+0818 subacute: the spatially best column (cos .86) looks like the master but fails on frequency (.31). Recovery at
+spatial cos >= .8 instead of .7: PS92-94 unchanged; PS95 loses acute (1 -> 0 sessions) and subacute (5 -> 1). Asym change
+at >= .8: acute +.26 / +.13 / +.27 / - ; subacute +.02 / +.20 / +.24 / +.17 (1 session); chronic +.11 / -.06 / +.27 / .00.

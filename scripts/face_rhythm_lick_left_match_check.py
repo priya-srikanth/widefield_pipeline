@@ -183,6 +183,58 @@ RED = margin < .05, cosine < .8 or not recovered.""")
     return rows, summ
 
 
+def flagged_figures(fdir, nm, rows, out):
+    """Priya 11-16: in the flagged sessions, is the runner-up a better match? Per animal, every flagged session as a
+    column: matched column (top) and the runner-up = the best-spatial other column (bottom), same color scale as the
+    session sheets. Returns a per-session table (why flagged, pick vs runner cosines / asym)."""
+    import pandas as pd
+
+    from wfield_local import face_rhythm_figures as frf
+    from wfield_local import face_rhythm_matching as fm
+    from wfield_local import face_rhythm_readouts as frr
+    M, A_ref, _B, names = es.reference(fdir)
+    home, mid, k = M["home"], float(frr.MASTER_MIDLINE_X), names.index(nm)
+    mref = fm.spatial_view(A_ref, "magnitude")[:, k]
+    mref = mref / mref.sum()
+    hi = float(np.percentile(np.concatenate([mref] + [r["pick"]["load"] for r in rows]), 99.5))
+    acol = frc.epoch_colors()
+    T = []
+    for r in rows:
+        why = ("not recovered" if not r["rec"] else "near-tie" if r["margin"] < 0.05 else
+               "low cosine" if r["pick"]["cs"] < 0.8 else "")
+        T.append(dict(animal=r["animal"], date=r["date"], epoch=r["epoch"], flag=why, pick_col=r["pick"]["col"],
+                      pick_cs=r["pick"]["cs"], pick_cf=r["pick"]["cf"], pick_asym=r["pick"]["asym"],
+                      run_col=r["runner"]["col"], run_cs=r["runner"]["cs"], run_cf=r["runner"]["cf"],
+                      run_asym=r["runner"]["asym"], margin=r["margin"]))
+    T = pd.DataFrame(T)
+    for an in sorted({r["animal"] for r in rows}):
+        R = sorted([r for r in rows if r["animal"] == an and is_bad(r)], key=lambda r: r["date"])
+        if not R:
+            continue
+        nc = len(R) + 1
+        with frf.style():
+            fig, axs = frf.subplots(2, nc, figsize=(2.0 * nc, 4.8), squeeze=False)
+            for a in axs.ravel():
+                a.axis("off")
+            draw(axs[0, 0], home, mref, hi, "master", False, mid)
+            for i, r in enumerate(R, start=1):
+                p, q = r["pick"], r["runner"]
+                draw(axs[0, i], home, p["load"], hi, f"{r['date']} {r['epoch']}\nPICK own {p['col']}  cos {p['cs']:.2f}"
+                     f"  freq {p['cf']:.2f}\nasym {p['asym']:+.2f}" + ("" if r["rec"] else "  NOT REC"), True, mid)
+                draw(axs[1, i], home, q["load"], hi, f"runner-up own {q['col']}\ncos {q['cs']:.2f}  freq {q['cf']:.2f}"
+                     f"\nasym {q['asym']:+.2f}", False, mid)
+                axs[0, i].add_patch(__import__("matplotlib").patches.Rectangle(
+                    (0, 1.0), 1, 0.03, transform=axs[0, i].transAxes, color=acol.get(r["epoch"], "0.5"), clip_on=False))
+            fig.suptitle(f"{an}: {nm}, flagged sessions - matched column (top) vs runner-up (bottom)")
+            frf.save(fig, out / f"flagged_{nm}_{an}.png", f"""
+{an}, every per-session fit (own8) whose {nm} match is flagged (not recovered, margin to the runner-up < .05, or spatial
+cosine < .8). Top: the column rule v2 assigns (best spatial cosine; columns within .05 -> best frequency cosine).
+Bottom: the runner-up = the other column with the highest spatial cosine to the master. Loading magnitude per mesh point
+/ total, color scale shared with sessions_{nm}_<animal>.png; image left = contralesional, line = face midline. Colored
+bar = epoch. A runner-up with a HIGHER spatial cosine than the pick means the frequency tie-break chose the pick.""")
+    return T
+
+
 def main(argv=None) -> int:
     import matplotlib
     matplotlib.use("Agg")
@@ -206,6 +258,9 @@ def main(argv=None) -> int:
     print("PER SESSION (animal, epoch): n recovered, n flagged, mean asym")
     for s in summ:
         print(f"  {s[0]} {s[1]:9s} n {s[2]:2d}  flagged {s[3]:2d}  asym {s[4]:+.2f}")
+    T = flagged_figures(fdir, a.factor, rows, out)
+    from wfield_local import figure_layout
+    T.to_csv(figure_layout.sidecar_for(out, f"flagged_{a.factor}", ".csv"), index=False, float_format="%.4g")
     print("->", out)
     return 0
 
