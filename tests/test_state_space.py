@@ -23,6 +23,8 @@ def mods():
     sys.path.insert(0, str(SCRIPTS))
     import state_space_recovery_trials as R
     import state_space_sim as S
+    # tests never depend on whether this box's share still holds the pre-11-12 tree (check_root)
+    S.LEGACY_ROOT = S.LEGACY_ROOT.parent / "_no_legacy_state_space_recovery_in_tests"
     yield S, R
     for m in set(sys.modules) - before:
         f = getattr(sys.modules.get(m), "__file__", None) or ""
@@ -236,3 +238,32 @@ def test_lnmf_brain_mask_drops_occluded(mods, monkeypatch):
         S._mask_cols(np.zeros((1, 1, 2)), ["a", "b"], "PS92")
     monkeypatch.setattr(S, "LNMF_MASK", "none")
     assert S.tag().endswith("_lnmf") and S._mask_cols(xb, cols, "PS92")[1] == cols
+
+
+def test_outputs_are_routed_under_the_rebuild_root(mods):
+    """ROOT = <rebuild root>/state_space_recovery (11-12), so the rebuild fence allows the writes under the profile (it
+    refused the old share-root location, which also let the glue-in and glue-out runs overwrite one folder)."""
+    import subprocess
+    S, _ = mods
+    assert S.ROOT == S.REBUILD / "state_space_recovery" and S.LEGACY_ROOT != S.ROOT
+    code = ("import os\n"
+            "from wfield_local import render_profile as rp\n"
+            "env = dict(os.environ); rp.apply('%s', environ=env); os.environ.clear(); os.environ.update(env)\n"
+            "from wfield_local import rebuild_root as rr\n"
+            "print(repr(rr.write_refusal(r'%s')), '|', repr(rr.write_refusal(r'%s')))\n") % (
+        S.PROFILE, (S.ROOT / "x" / "t.csv").as_posix(), (S.LEGACY_ROOT / "x" / "t.csv").as_posix())
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True).stdout
+    new, old = out.strip().splitlines()[-1].split(" | ")
+    assert new == "None" and old != "None"
+
+
+def test_check_root_refuses_an_unmoved_tree(mods, monkeypatch, tmp_path):
+    import pytest
+    S, _ = mods
+    (tmp_path / "legacy").mkdir()
+    monkeypatch.setattr(S, "LEGACY_ROOT", tmp_path / "legacy")
+    monkeypatch.setattr(S, "ROOT", tmp_path / "new")
+    with pytest.raises(FileNotFoundError, match="move the old tree"):
+        S.check_root()
+    (tmp_path / "new").mkdir()
+    S.check_root()

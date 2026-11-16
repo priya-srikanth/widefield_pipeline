@@ -52,7 +52,10 @@ BEH = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__cl
 AIM = Path("M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/"
            "imaging_encoding/iti_licks/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-"
            "endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/aim_deficit_sessions.csv")
-SS_SLOPES = Path("M:/MICROSCOPE/Priya/Widefield/state_space_recovery/pertrial_lick/within_session_behavior_slopes.csv")
+# the state-space arm's table, routed under the cohort-1 rebuild root since 11-12 (state_space_sim.ROOT)
+from wfield_local import render_profile as _rp  # noqa: E402
+SS_SLOPES = (Path(_rp.load("cohort1_rebuild_20261103")["rebuild_root"]) / "state_space_recovery" / "pertrial_lick"
+             / "within_session_behavior_slopes.csv")
 #: licks.csv.gz / trial tables use image-side names; all four lesions are LEFT, so L = ipsi, R = contra
 SIDE = {"close_L": "close_ipsi", "close_center": "close_mid", "close_R": "close_contra",
         "far_L": "far_ipsi", "far_center": "far_mid", "far_R": "far_contra"}

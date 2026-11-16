@@ -9,7 +9,7 @@ table): mean x (pre (0) -> chronic (1) line of that spout) and y (acute-departur
   (b) the spout's OWN executed landing: mean 3-D lateral landing (side_ml) of its first licks minus the animal's pre mean
       at that spout (mm; landing join).
 Post-stroke sessions; per-animal r (rule 8), within-animal slope with a within-animal shuffle (aim / landing permuted
-within animal, 2000 draws). Output: Widefield/state_space_recovery/per_position{tag}/, page_figs/ss_perpos_<suffix>.png.
+within animal, 2000 draws). Output: <rebuild root>/state_space_recovery/per_position{tag}/, page_figs/ss_perpos_<suffix>.png.
 Exploratory.
 """
 from __future__ import annotations
@@ -28,6 +28,8 @@ sys.path.insert(0, str(Path(__file__).parent))
 import state_space_page_figs as F  # noqa: E402
 import state_space_recovery_trials as R  # noqa: E402
 import state_space_sim as S  # noqa: E402
+
+from wfield_local import analysis_kit as kit  # noqa: E402
 import state_space_step_vs_gradual as SG  # noqa: E402
 
 from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE  # noqa: E402
@@ -35,7 +37,7 @@ from wfield_local.figure_layout import save_png_svg  # noqa: E402  (PNG + svg/ t
 
 ROOT = S.ROOT
 OUT = ROOT / f"per_position{S.tag()}"
-SUF = S.tag().lstrip("_") or "cue"
+SUF = S.fig_suffix()
 plt.rcParams.update({"font.size": 9, "axes.titlesize": 9, "axes.spines.top": False, "axes.spines.right": False})
 
 
@@ -59,12 +61,8 @@ def wslope(g, c, v, rng, n=2000):
         y = h[c] - h.groupby("animal")[c].transform("mean")
         return float((x * y).sum() / (x ** 2).sum())
     b0 = b(g)
-    null = []
-    for _ in range(n):
-        h = g.copy()
-        h[v] = h.groupby("animal")[v].transform(lambda s: rng.permutation(s.to_numpy()))
-        null.append(b(h))
-    return b0, float((np.abs(np.asarray(null)) >= abs(b0)).mean())
+    _, p = kit.within_shuffle_p(lambda a: b(g.assign(**{v: a})), g[v].to_numpy(), g.animal.to_numpy(), rng, n)
+    return b0, p
 
 
 def main():

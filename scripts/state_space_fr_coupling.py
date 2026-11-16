@@ -53,7 +53,7 @@ from wfield_local.figure_layout import save_png_svg  # noqa: E402
 from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE  # noqa: E402
 
 OUT = S.ROOT / f"fr_coupling{S.tag()}"
-EPS = ["acute", "subacute", "chronic"]
+EPS = S.POST
 COVS = C.KIN_COLS + ["FR lick sum"] + [f"FR f{k}" for k in (0, 1, 3, 6, 9, 10)]
 GROUPS = {"all": slice(0, 15), "kinematics": slice(0, 8), "face": slice(8, 15)}
 SHOW = ["n_licks", "n_contacts", "reach_mm", "side_ml", "FR lick sum"]
@@ -125,15 +125,11 @@ def main():
     reads = [f"gain {g}" for g in GROUPS] + [f"off {g}" for g in GROUPS] + ["R2_ref"]
     for col in reads:
         for ep in EPS:
-            pre = {a: g[g.epoch == "pre"][col].tolist() for a, g in D.groupby("animal")}
-            post = {a: g[g.epoch == ep][col].tolist() for a, g in D.groupby("animal")}
-            post = {a: v for a, v in post.items() if v and pre.get(a)}
-            per = {a: round(float(np.mean(post[a]) - np.mean(pre[a])), 3) for a in post}
-            iv = kit.boot_delta(post, pre, rng)
-            pm = float(np.mean([np.mean(v) for v in pre.values()]))
+            iv = kit.epoch_change(D, col, rng, [ep])[ep]
+            per = {a: round(v, 3) for a, v in iv.per_animal.items()}
+            pm = float(D[D.epoch == "pre"].groupby("animal")[col].mean().mean())
             recs.append({"readout": col, "epoch": ep, "pre": pm, "change": iv.point, "lo": iv.lo, "hi": iv.hi,
-                         "k_up": sum(v > 0 for v in per.values()), "n": len(per),
-                         "star": bool(iv.lo > 0 or iv.hi < 0), "per_animal": per})
+                         "k_up": iv.n_up, "n": iv.n_animals, "star": iv.excludes_zero, "per_animal": per})
             print(f"  {col} | {ep}: pre {pm:+.3f} {per} -> {iv.point:+.3f} [{iv.lo:+.3f}, {iv.hi:+.3f}]", flush=True)
     Cg = pd.DataFrame(recs)
     Cg.to_csv(OUT / "changes.csv", index=False)

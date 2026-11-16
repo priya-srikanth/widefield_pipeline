@@ -1,4 +1,7 @@
-"""Can the state-space readouts tell gain, rotation, shift, new dimensions and trial spread apart? (Priya 11-07, plan
+"""THE CORE MODULE of the state-space arm (paths, constants, the session loader, the readouts; code map:
+docs/STATE_SPACE_CODE.md) and, as a script, its METHOD CHECK (`python scripts/state_space_sim.py [--n N]`):
+
+Can the state-space readouts tell gain, rotation, shift, new dimensions and trial spread apart? (Priya 11-07, plan
 docs/STATE_SPACE_RECOVERY_PLAN.md, "method check before the render lands".)
 
 Uses ONLY pre-stroke sessions. Plants a known change into one held-out pre session at a time, then scores it against
@@ -6,8 +9,9 @@ every other pre session of the same animal, single session vs single session at 
 held-out sessions give the null. Real trial noise, real trial counts; the acute-sized subsample asks what survives when
 far-contra trials are few.
 
-Data: per-trial area extracts (`first_cue`: first-lick trials x 71 lags (-1..2.5 s) x 63 Allen areas incl. ALM / tjM1),
-binned to 0.1 s over -0.5..2.0 s. Left hemisphere = ipsilesional (all four lesions left).
+Data: per-trial area extracts (`first_cue`: first-lick trials x 71 lags (-1..2.5 s) x 45 glue-free Allen areas incl. ALM /
+tjM1; 63 before the 11-09 glue mask), binned to 0.1 s over -0.5..2.0 s (WF_SS_ALIGN for the other alignments).
+Left hemisphere = ipsilesional (all four lesions left).
 
 Planted changes (to every trial of the test session; mu = the reference grand mean, P = the reference top-k space):
   none                      the null
@@ -61,10 +65,40 @@ WTAG = XTAG + "_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt35
 ITI = str(ENCODING / "iti_licks" / XTAG / il.SESS_NAME)                 # per-trial extracts (iti_licks.XOUT / SESS_NAME)
 ITI_W = ENCODING / "iti_licks" / WTAG                                    # run tables (iti_licks.OUT_W): aim, first-lick times
 LICKS3D = pose3d_dir() / "kinematics" / "licks.csv.gz"                   # 3-D first licks (landing join)
-ROOT = Path(PathResolver().root("microscope")) / "Widefield" / "state_space_recovery"   # every state-space output
+# OUTPUTS (11-12, Priya "route outputs by run"): under the rebuild root of PROFILE, beside the encoder tree they are built
+# from -- one run, one folder. Before 11-12 they went to Widefield/state_space_recovery on the share root: outside the
+# rebuild root (its write fence refused them under the profile, so the arm ran with the profile stripped) and shared by
+# every run, so the glue-in and glue-out runs overwrote one folder. LEGACY_ROOT is never written; reading a ROOT that does
+# not exist while LEGACY_ROOT does raises (`check_root`) instead of silently finding nothing.
+# WF_SS_ROOT (11-13, refactor pins): a different output root for VERIFICATION runs only (old vs new code into two scratch
+# roots, then compare every table); never set in a production queue.
+ROOT = Path(os.environ.get("WF_SS_ROOT") or REBUILD / "state_space_recovery")   # every state-space output
+LEGACY_ROOT = Path(PathResolver().root("microscope")) / "Widefield" / "state_space_recovery"
+
+
+def check_root():
+    """Refuse to run against an empty ROOT while the pre-11-12 outputs still sit at LEGACY_ROOT (not yet moved)."""
+    if not ROOT.exists() and LEGACY_ROOT.exists():
+        raise FileNotFoundError(f"state-space outputs are routed to {ROOT} since 11-12 but it does not exist while the "
+                                f"old location {LEGACY_ROOT} does: move the old tree there (own derived outputs) first.")
+
 LANDING = ROOT / "landing" / "first_lick_landing.csv"
 OUT = ROOT / "sim"                        # method-check tables; main() appends tag() (cue + Allen = sim/, as before)
 POS = list(oc.POS_ORDER)                  # the canonical spout order (close ipsi .. far contra)
+POS_LABEL = {p: p.replace("_", " ") for p in POS}                       # figure text: "close ipsi" .. "far contra"
+RINGS = {"close": POS[:3], "far": POS[3:]}
+# EPOCHS: the extract's per-session epoch labels (baked in at extraction, + the June override in `_epoch`); POST = the
+# epochs every change-vs-pre is reported for (`analysis_kit.epoch_change`).
+EPOCHS = ["pre", "acute", "subacute", "chronic"]
+POST = EPOCHS[1:]
+# NAMED AREA SETS. Three DIFFERENT sets are each called "orofacial" in the write-ups; they are kept apart on purpose
+# (merging them would change published numbers):
+#   OROFACIAL      hemispheric balance (FINDINGS 0b; balance_cells / balance_angle / recovery_trials bal_oro*)
+#   MOTOR          the motor balance version (Priya 11-09: "motor version as well (ALM, tjM1)")
+#   SHIFT_REGIONS  the region weights of the shift_* map analyses (B27; orofacial includes tjM1, not SSs)
+OROFACIAL = ("SSp-m", "SSp-n", "SSs")
+MOTOR = ("ALM", "tjM1")
+SHIFT_REGIONS = {"orofacial": ["tjM1", "SSp-m", "SSp-n"], "posterior-medial": ["RSPd", "SSp-tr", "SSp-ll"]}
 # top-k pre space. 8 = convention when written; checked 11-07 (Priya "how did you choose 8?"): top 8 capture 97-99 % of a
 # HELD-OUT pre session's spout-specific variance in every animal / alignment (k=4: 89-97 %, >8 adds < 3 %).
 # WF_SS_K overrides for the sensitivity runs (outputs then carry _k<K>).
@@ -110,6 +144,8 @@ CACHE = ROOT / "cache"
 BASIS = os.environ.get("WF_SS_BASIS", "allen")
 LNMF = REBUILD / "o2" / "ss_lnmf_20261108" / "out" / "sessions"
 SVD = REBUILD / "o2" / "ss_svdbm_20261108" / "out" / "sessions"     # brain mask, no glue / bulbs (ss_svd_: superseded)
+BUNDLE = SVD.parents[1]                   # the SVD O2 bundle (its rest / ENL baseline products live beside out/)
+SVD_BASIS = SVD.parent / "basis"          # U_cohort, atlas, mask of the cohort SVD basis
 if BASIS not in ("allen", "lnmf", "svd"):
     raise ValueError(f"WF_SS_BASIS={BASIS!r}")
 SRC = {"lnmf": str(LNMF), "svd": str(SVD)}.get(BASIS, ITI)               # the per-trial files the loaders read
@@ -198,9 +234,16 @@ BASIS_LABEL = {"allen": "", "svd": "cohort SVD basis (100 components, glue-free 
 
 
 def tag():
-    """Output-folder suffix: '' for the original cue alignment, else '_<align>'."""
+    """Output-folder suffix: '' for the cue alignment on the Allen basis at k 8 untransformed, else the parts that differ
+    ('_<align>', '_k<K>', '_x<XFORM>', '_<basis>' + 'bm' for the brain-masked LocaNMF bundle)."""
     return (("" if ALIGN == "cue" else f"_{ALIGN}") + ("" if K == 8 else f"_k{K}") + (f"_x{XFORM}" if XFORM else "")
             + ("" if BASIS == "allen" else f"_{BASIS}") + ("bm" if BASIS == "lnmf" and LNMF_MASK == "brain" else ""))
+
+
+def fig_suffix():
+    """Figure-name suffix: `tag` without its leading '_', and 'cue' for the default (per_position, pertrial,
+    step_vs_gradual, trajectories; chronic_maps keeps its own empty-for-cue form, which its figure names already use)."""
+    return tag().lstrip("_") or "cue"
 
 
 def _epoch(lab, ep):
@@ -318,6 +361,7 @@ def _fill_one(item):
 def prefill(paths, jobs=3):
     """Bin every uncached file once, fanned over a few workers (rule 6: these read the share; few, it is a shared box).
     The atlas names are resolved first, in this process, so workers never race to write them."""
+    check_root()
     bc = _bcache()
     todo = [p for p in paths if not all((bc / a / f"{Path(p).stem}.npz").exists() for a in SEGMENTS)]
     if not todo:
@@ -420,6 +464,25 @@ def load(path):
     return xb, pos, cols, _epoch(Path(path).stem, str(z["epoch"])), str(z["animal"])
 
 
+def allen_n_areas():
+    """Number of Allen area x hemisphere columns in THIS run's binned cache (45 since the glue mask, 11-09; 62 before): the
+    figure titles / legends state it instead of a literal (11-12). None when the cache has no file (label falls back)."""
+    if BASIS != "allen":
+        return None
+    for f in sorted((_bcache() / ALIGN).glob("*.npz"))[:1]:
+        with np.load(f) as z:
+            return len(_mask_cols(z["xb"][:1], [str(x) for x in z["cols"]], str(z["animal"]))[1])
+    return None
+
+
+def areas_label(full=False):
+    """'45 areas' (or 'the full 45-area space' with full=True); 'Allen areas' when the count is unknown."""
+    n = allen_n_areas()
+    if n is None:
+        return "the full Allen-area space" if full else "Allen areas"
+    return f"the full {n}-area space" if full else f"{n} areas"
+
+
 def load_sessions(hook=None, june=False):
     """Every extract session -> ({animal: [(label, epoch, day, Y, pos, ...)] sorted by day}, area columns), the ONE
     session loader of the state-space scripts (`load` per file, days from `epochs.days_since_stroke`). ``hook(label, Y,
@@ -427,6 +490,7 @@ def load_sessions(hook=None, june=False):
     per-trial column (contact) goes there. Files in sorted path order, sessions sorted by day (stable): the order every
     caller used before (rule 9: pools need a defined order). LocaNMF basis: cols = {animal: cols} (`cols_of`). June
     sessions (epoch 'june', LocaNMF basis only) only with ``june=True``: many scripts read 'not pre' as post-stroke."""
+    check_root()
     from wfield_local import epochs
     data, cols = {}, {}
     last = None
@@ -443,19 +507,23 @@ def load_sessions(hook=None, june=False):
 
 
 def spout_means(Y, pos):
+    """trials x ... -> 6 spouts x ... in POS order (NaN where a spout has no trial)."""
     return np.stack([Y[pos == p].mean(0) if (pos == p).any() else np.full(Y.shape[1:], np.nan) for p in POS])
 
 
 def flat(M):
+    """(..., features) -> (rows, features)."""
     return M.reshape(-1, M.shape[-1])
 
 
 def topk(M, k=K):
+    """Orthonormal basis (features x k) of the top-k principal directions of the spout means M (spouts with NaN dropped)."""
     F = flat(M[np.isfinite(M).all(axis=(1, 2))])
     return np.linalg.svd(F - F.mean(0), full_matrices=False)[2][:k].T
 
 
 def fit_gain(X, T):
+    """Per-column least-squares gain and offset of X on T (rows = observations): X ~ g * T + b; g = 1 where T is flat."""
     Tm, Xm = T.mean(0), X.mean(0)
     den = ((T - Tm) ** 2).sum(0)
     g = np.where(den > 0, ((T - Tm) * (X - Xm)).sum(0) / den, 1.0)
@@ -482,6 +550,7 @@ def rot_beyond_gain(X, T, P):
 
 
 def spread(Y, pos, P):
+    """Mean within-spout trial spread inside the space P (squared distance of each trial to its spout mean)."""
     d = []
     for p in POS:
         y = Y[pos == p]
@@ -492,6 +561,7 @@ def spread(Y, pos, P):
 
 
 def readouts(Ya, pa, Yb, pb, P):
+    """Session A vs session B readouts in the reference space P (module docstring, "Readouts"): {name: value}."""
     A, B = spout_means(Ya, pa), spout_means(Yb, pb)
     ok = np.isfinite(A).all(axis=(1, 2)) & np.isfinite(B).all(axis=(1, 2))
     Af, Bf = flat(A[ok]), flat(B[ok])
@@ -514,6 +584,7 @@ def readouts(Ya, pa, Yb, pb, P):
 
 
 def plant(Y, pos, kind, lvl, mu, P, ref_means, cols, rng):
+    """Y with the planted change ``kind`` at level ``lvl`` (module docstring, "Planted changes"); draws from ``rng``."""
     Yc = Y - mu
     if kind == "none":
         return Y
@@ -561,6 +632,8 @@ def subsample(Y, pos, n, rng):
 
 
 def run(n_per_spout, seed=0):
+    # Its own pre-session loop, NOT load_sessions: sessions in file order (load_sessions sorts by day), and the planted
+    # changes draw from ``rng`` session by session, so switching loaders would move the published detection limits.
     rng = np.random.default_rng(seed)
     sess, cols_an = {}, {}
     for f in sorted(glob.glob(SRC + "/PS9*.npz")):

@@ -61,7 +61,7 @@ OUT = S.ROOT / f"change_parts{S.tag()}"
 PARTS = ["global gain", "per-area gain", "per-area offset", "per-spout offset", "shared shift", "rotation",
          "other, on manifold", "off manifold"]
 COLORS = ["#1b7837", "#7fbf7b", "#80cdc1", "#35978f", "#2166ac", "#b2182b", "#f4a582", "#8c510a"]
-EPOCHS = ["acute", "subacute", "chronic"]
+EPOCHS = S.POST                           # (post epochs only, as before)
 
 
 def bases(Tp, ok, P):

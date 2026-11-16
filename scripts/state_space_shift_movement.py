@@ -49,7 +49,9 @@ from wfield_local.orofacial_cohort import EPOCH_LINE  # noqa: E402
 EPS = SB.EPS
 OUT = S.ROOT / f"shift_movement{S.tag()}"
 FIGS = S.ROOT / "page_figs"
-PRIYA = Path("M:/MICROSCOPE/Priya")
+from wfield_local.paths import PathResolver  # noqa: E402
+
+PRIYA = Path(PathResolver().root("microscope"))   # was the literal M:/MICROSCOPE/Priya (drive letters move)
 JAW = PRIYA / "DeepLabCut/Widefield/session_poses/pose3d/kinematics/jaw_trials.csv.gz"
 FR = PRIYA / "DeepLabCut/Widefield/o2/fr_cam4_20261021/factors/master_pre_v1/proj"
 EVENTS = PRIYA / "Behavior_logs/Widefield/behavior_summary/events"
@@ -60,37 +62,52 @@ MODELS = {"lick": SB.BEH, "lick + jaw": SB.BEH + JAWC, "lick + jaw + face + runn
 
 
 def face_running(T):
-    """Per (label, trial_id): FaceRhythm factor expression and running fraction in the first-lick window."""
+    """Per (label, trial_id): FaceRhythm factor expression and running fraction in the first-lick window. The FR files
+    are read in parallel (`analysis_kit.fan_sessions`; rows in file order, as the serial loop before 11-13)."""
+    from wfield_local import analysis_kit as kit
     rt = T.dropna(subset=["trial_id", "rt_s"]).set_index(["label", "trial_id"]).rt_s
-    rows = []
+    items = []
     for f in sorted(glob.glob(str(FR / "PS9*_cam4.npz"))):
-        z = np.load(f)
         an, date = Path(f).stem.split("_")[:2]
         lab = f"{an}_{date[4:]}"
-        ev = EVENTS / an / f"{date}.npz"
-        bouts = None
-        if ev.exists():
-            e = np.load(ev)
-            bouts = np.stack([e["running_starts"], e["running_stops"]], 1) / float(e["fs"])
-        X = z["trials"].astype(float) * z["trials_D"][..., None]
-        D = z["trials_D"].astype(float)
-        tms = z["t_ms"]
-        for i, tid in enumerate(z["trial_id"]):
-            r = rt.get((lab, float(tid)))
-            if r is None or not np.isfinite(r):
-                continue
-            ix = (tms >= (r + WIN[0]) * 1000) & (tms <= (r + WIN[1]) * 1000)
-            if ix.sum() < 10:
-                continue
-            row = {"label": lab, "trial_id": float(tid), "fr_D": np.log1p(D[i, ix].mean())}
-            row.update({f"fr{k}": np.log1p(max(X[i, ix, k].mean(), 0)) for k in range(12)})
-            a, b = z["cue_daq_s"][i] + r + WIN[0], z["cue_daq_s"][i] + r + WIN[1]
-            run = 0.0
-            if bouts is not None and len(bouts):
-                run = float(np.clip(np.minimum(bouts[:, 1], b) - np.maximum(bouts[:, 0], a), 0, None).sum() / (b - a))
-            row["run"] = run if bouts is not None else np.nan
-            rows.append(row)
-    return pd.DataFrame(rows)
+        items.append((f, rt[rt.index.get_level_values(0) == lab]))
+    res, fail = kit.fan_sessions(items, _face_running_rows, key=lambda it: it[0], label="FR")
+    if fail:
+        raise RuntimeError(f"state_space_shift_movement: {len(fail)} FR files failed: {fail[:3]}")
+    return pd.DataFrame([r for _, rows in res for r in rows])
+
+
+def _face_running_rows(item):
+    """One FaceRhythm file -> per-trial rows (module-level: fan_sessions)."""
+    f, rt = item
+    rows = []
+    z = np.load(f)
+    an, date = Path(f).stem.split("_")[:2]
+    lab = f"{an}_{date[4:]}"
+    ev = EVENTS / an / f"{date}.npz"
+    bouts = None
+    if ev.exists():
+        e = np.load(ev)
+        bouts = np.stack([e["running_starts"], e["running_stops"]], 1) / float(e["fs"])
+    X = z["trials"].astype(float) * z["trials_D"][..., None]
+    D = z["trials_D"].astype(float)
+    tms = z["t_ms"]
+    for i, tid in enumerate(z["trial_id"]):
+        r = rt.get((lab, float(tid)))
+        if r is None or not np.isfinite(r):
+            continue
+        ix = (tms >= (r + WIN[0]) * 1000) & (tms <= (r + WIN[1]) * 1000)
+        if ix.sum() < 10:
+            continue
+        row = {"label": lab, "trial_id": float(tid), "fr_D": np.log1p(D[i, ix].mean())}
+        row.update({f"fr{k}": np.log1p(max(X[i, ix, k].mean(), 0)) for k in range(12)})
+        a, b = z["cue_daq_s"][i] + r + WIN[0], z["cue_daq_s"][i] + r + WIN[1]
+        run = 0.0
+        if bouts is not None and len(bouts):
+            run = float(np.clip(np.minimum(bouts[:, 1], b) - np.maximum(bouts[:, 0], a), 0, None).sum() / (b - a))
+        row["run"] = run if bouts is not None else np.nan
+        rows.append(row)
+    return rows
 
 
 def fit(T, reads, cov, tag):
@@ -153,13 +170,8 @@ def main():
     Sx = T.groupby(["animal", "label", "epoch", "day"])[cols].mean().reset_index()
     rng = np.random.default_rng(0)
 
-    def change(col, ep):
-        pre = {a: g[g.epoch == "pre"][col].dropna().tolist() for a, g in Sx.groupby("animal")}
-        post = {a: g[g.epoch == ep][col].dropna().tolist() for a, g in Sx.groupby("animal")}
-        post = {a: v for a, v in post.items() if v and pre.get(a)}
-        iv = kit.boot_delta(post, pre, rng) if post else None
-        up = sum(np.mean(post[a]) > np.mean(pre[a]) for a in post)
-        return (iv.point, iv.lo, iv.hi, up, len(post)) if iv is not None else (np.nan,) * 3 + (0, 0)
+    def change(col, ep):                   # (point, lo, hi, n_up, n_animals): analysis_kit.epoch_change, one epoch
+        return kit.epoch_change(Sx, col, rng, [ep])[ep][:5]
 
     kinds = [("obs", "observed change", "o", 1.0)] + [(f"res {m}", f"residual beyond {m}", "D", a)
                                                      for m, a in zip(MODELS, (0.35, 0.6, 1.0))]

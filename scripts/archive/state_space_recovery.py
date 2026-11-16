@@ -19,7 +19,7 @@ Per session:
                  (position code), each relative to the template's.
   * reassoc_<i>_<j>  correlation of the session's spout-i position code with the template's spout-j code (6 x 6).
 
-Light: ~0.5 MB per session, numpy only. Writes CSVs + figures under Widefield/state_space_recovery/.
+Light: ~0.5 MB per session, numpy only. Writes CSVs + figures under <rebuild root>/state_space_recovery/.
 """
 from __future__ import annotations
 
@@ -39,7 +39,7 @@ import state_space_sim as S  # noqa: E402
 RUN = str(S.ENCODING / S.WTAG / "frozen_encoder_gate-attempted_v7g3_t3d_spont_frA" / "joint" / "sessions")
 OUT = S.ROOT
 POS = S.POS                               # canonical spout order, the encoder files' lesion-relative names
-POS_LABEL = ["close ipsi", "close mid", "close contra", "far ipsi", "far mid", "far contra"]
+POS_LABEL = [S.POS_LABEL[p] for p in POS]
 WINDOWS = {"cue": ("peth", -0.5, 2.0), "lick": ("peth_lick", -0.5, 1.0)}
 BIN_S = 0.1
 KS = (4, 8)
