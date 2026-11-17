@@ -685,3 +685,7 @@ PI deck (backup Overview_2026-11-06.bak_pre_a8_renumber_20261116.pptx): FR page 
 - 11-17 slide 139 applied (Priya title "Cued ipsi-contra balance places an unseen animal on recovery"; caveat kept; cued-angle and
   ITI / docked bullets; 4-column figure full width below bullets; caption at bottom; notes + Data: from specs/s139_cuedang.json;
   script deck_swap_20261117/s139_apply.py; backup .bak_pre_a8_s139_20261117.pptx; checked as an exported image).
+- 11-17 overlap audit (Priya "ensure text isn't obscured by or obscuring figures"): deck_swap_20261117/overlap_check.py (bbox) over
+  all 206 slides -> 6 flagged, checked as exported images: only slide 20 was a real problem (right figure ran off the slide,
+  legend cut) -> resized to fit. 3 / 18 / 37 / 105 / 147: frames overlap whitespace only. In-image issue not caught by bbox:
+  147 x-axis labels garbled where the purple footer was whited out (re-render with footer margin queued via curves helper).
