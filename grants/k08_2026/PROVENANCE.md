@@ -30,8 +30,20 @@ The compositors use draft letters (a, b, c, ...). The final letters were set by 
 | O | First-lick aim by spout | l | `render_grant_panels.py` `first_lick_aim_single()` | `aimstats/aim_by_spout_{sessions,tests}.csv` | `LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/`. Stars: `sig_bonf` |
 | P | 3-D tongue and jaw paths, front view | n | `paths_panel.py` → `Fig3P_paths_front.svg` (placed in Illustrator) | `pose3d_paths_pooled.csv`, `paths3d_front_sig.csv` (kept in `panels_src/`) | Pooling of `kinematics_pooled_figs.fig_paths3d`; markers = cluster permutation on session changes, labels permuted within animal, p < .05/3 |
 
-Not traced: the final legend has no panel D (it reads "C ... E-J"). `Fig3O_paths_front.svg` and `Fig3O_paths_short.svg` (9 Nov, 23:12 and 23:30) are in the grant
-folder, but no saved script writes them. They are likely an interim lettering of the paths panel.
+Traced 17 Nov (supersedes the earlier "not traced" note here):
+
+- `Fig3O_paths_front.svg` is the output of `session_scripts/paths_narrow.py` (9 Nov 23:06), written as
+  `Fig3O_paths_narrow.svg` and renamed on delivery; `Fig3O_paths_short.svg` is `session_scripts/paths_short.py`
+  (23:29). All three paths SVGs lost about 900 bytes of font declarations to `fontnorm.py` on the way in, which is
+  the only difference between the session copies and the ones in the grant folder.
+- Lettering: her hand-lettered `Figure3_behavior.svg` ran A, B, C, then E-P, with no D.
+  `session_scripts/edit_svg.py` closed the gap (E->D, F->E, ... P->O), so the submitted
+  `Figure3_behavior_relettered_v2.svg` carries a continuous A-O, and the v18 legend matches it
+  ("(C) Videofluoroscopy frames ... (D-I) Swallowing ... (J) Six-position task ... (O) 3-D paths").
+  The "C ... E-J" legend was the pre-shift draft.
+- `paths3d_front_sig.csv` was a one-off export of `kinematics_pooled_figs._paths3d_sig`, which the pipeline computes
+  for the figure but never writes to CSV. The original export was not saved;
+  `session_scripts/export_paths3d_front_sig.py` reproduces it.
 
 ## Figure 4: FaceRhythm  (`make_fig2.py` → `Figure4_facerhythm_DRAFT4.svg` → `Figure4_facerhythm_Dsplit_light.ai`)
 
@@ -40,8 +52,8 @@ folder, but no saved script writes them. They are likely an interim lettering of
 | A | Tracked mesh on the face | `make_fig2.py` | `fr/fr_mesh_face.png` (`panels_src/fr/`) | Overview deck slide 72 (`f3_FR_master_face.png`); master face PS95_20260812 |
 | B | Four of twelve frozen factors | `make_fig2.py` | `fr/fr_4factors.png` (`panels_src/fr/`) | `DeepLabCut/Widefield/o2/fr_cam4_20261021/factors/master_pre_v1/report/factor_gallery_abs.png` (deck slide 74) |
 | C | Face speed per point, far contra, epoch minus pre | `make_fig2.py` (crop) + `make_cbars.py` (`cbar_speed`) + `fr_mesh_underlay.py` | `fr/aligned_maps_lick_perm_mesh.svg` | FaceRhythm aligned maps (`scripts/face_rhythm_aligned_maps.py`), lick-aligned, permutation clusters |
-| D | Lick-factor loading change per point | `make_fig2.py` (crop) + `make_cbars.py` (`cbar_loading`) + `fr_mesh_underlay.py` | `fr/session_maps_scaled_lick_mesh.svg` | FR page (`Widefield/fr_page_src/fr_page/`); final split / light version finished in Illustrator (`Figure4_facerhythm_Dsplit_light.ai`) |
-| E | Side specificity of lick-factor loading | `make_fig2.py` (crop of `session_scalars.svg`); alternative re-plot in `render_grant_panels.py` `fr_side_specificity()` | `fr/session_scalars.svg` (`panels_src/fr/`, `_frstage/`); `frstats/peak_{epoch_stats,sessions}_side.csv` | FR page `fig/` and `lmm/` (`Widefield/fr_page_src/fr_page/`). Stars: Holm-corrected within-animal permutation |
+| D | Lick-factor loading change per point | `make_fig2.py` (crop) + `make_cbars.py` (`cbar_loading`) + `fr_mesh_underlay.py`; the split and light versions by `session_scripts/split_d.py` then `session_scripts/declip.py`, re-saved from Illustrator as the `.ai` | `fr/session_maps_scaled_lick_mesh.svg` | FR page (`Widefield/fr_page_src/fr_page/`) |
+| E | Side specificity of lick-factor loading | **`make_fig2.py`, crop of `session_scalars.svg`** — confirmed 17 Nov: the submitted SVG carries that crop's own strings ("loading asymmetry", "PS92 sessions") and none of the re-plot's labels, so `render_grant_panels.py` `fr_side_specificity()` was never used in the figure | `fr/session_scalars.svg` (`panels_src/fr/`, `_frstage/`); `frstats/peak_{epoch_stats,sessions}_side.csv` | FR page `fig/` and `lmm/` (`Widefield/fr_page_src/fr_page/`). Stars: Holm-corrected within-animal permutation |
 
 ## Figure 5: decoder and encoder  (`make_fig3.py` → `Figure5_decoder_encoder_DRAFT4.svg` → `Figure5_decoder_encoder_cuedD.ai`)
 
@@ -50,7 +62,7 @@ Rows A–B, D–E and F–H are each rendered as one canvas by `render_fig4_rows
 
 | Final | Content | Drawn / placed by | Staged input | Source |
 |---|---|---|---|---|
-| A | Frozen / refit / gap, pooled | `render_fig4_rows.py` `row_AB()` | `frbasis/sessions.csv`, `frbasis/stats.csv` (basis `lnmf`) | **`state_space_recovery/frozen_refit_basis`** (9–10 Nov, August-only pre). This replaced the `epoch_5rmo_frozen_refit_overall_cue_working` source in `FIGURE_SOURCES.md` (that one is still drawn by `render_grant_panels.py` `frozen_refit_gap_pooled()` but is not the submitted panel). Stars: Bonferroni-corrected paired bootstrap vs pre |
+| A | Frozen / refit / gap, pooled | `render_fig4_rows.py` `row_AB()` | `frbasis/sessions.csv`, `frbasis/stats.csv` (basis `lnmf`) | **`scripts/frozen_refit_basis_compare.py`** -> `state_space_recovery/frozen_refit_basis/{sessions,stats}.csv` (9–10 Nov, August-only pre; staged 9 Nov 19:58). That script is on `origin/main` but postdates the 9 Nov checkout, which is why it was not found earlier. This replaced the `epoch_5rmo_frozen_refit_overall_cue_working` source in `FIGURE_SOURCES.md` (that one is still drawn by `render_grant_panels.py` `frozen_refit_gap_pooled()` but is not the submitted panel). Stars: Bonferroni-corrected paired bootstrap vs pre |
 | B | Readout offset of the first cued lick | `render_fig4_rows.py` `row_AB()` (earlier: `render_grant_panels.py` `offset_cued_first()`) | `data/lick_cued_first_lick_{sessions,lmm}.csv` | `lmm_hidden/lick_cued_first_lick_*`. Stars: `star` |
 | C | Response around lick onset by region and epoch | `make_fig3.py`, deck raster with redrawn axes | `deck2/f3_traces_4roi.png` | Overview deck ROI-trace row (slide 96 family, `f3_cued_ROI_row.png` in `FIGURE_SOURCES.md`), cut to tjM1 + SSp-m both sides |
 | D | Lick-response AUC, fold of own pre | `render_fig4_rows.py` `row_DE()` | `data/cued_ramp_w01_{sessions,verify}.csv` | `lmm_hidden/cued_ramp_summary_row2_lmm_w0-1_{sessions,verify}.csv`. Stars: `boot_star` (see `FIGURE_SOURCES.md`, "Correction, 9 Nov"). Final "cued D" version: `Fig5D_cued.svg` (10 Nov 01:15), placed in Illustrator |
@@ -64,9 +76,15 @@ Rows A–B, D–E and F–H are each rendered as one canvas by `render_fig4_rows
 ## Gaps in this record
 
 - Staged inputs live only in the grant figures folder on the laptop (`data/`, `aimstats/`, `hitstats/`, `frstats/`,
-  `frbasis/`, `ssdata/`, `recov/`, `fr/`, `ss/`, `deck2/`, `airaster/`). Several of those folders are no longer there.
-  The server source above is the one to re-pull from.
-- Panels finished by hand in Illustrator (relettering, the Fig 4D split, the Fig 5D cued swap) have no script. The
-  `.ai` files in the grant folder are the record of those changes.
+  `frbasis/`, `ssdata/`, `recov/`, `fr/`, `ss/`, `deck2/`, `airaster/`, `camframes/`, `fluoro/`). Several of those
+  folders are no longer there. The server source above is the one to re-pull from. All thirteen were still held in
+  the 9-10 Nov session's scratch directory on 17 Nov, including every CSV listed in this file.
+- The relettering, the Fig 4D split and the Fig 5D cued swap were done BY SCRIPT, not by hand: see
+  `session_scripts/` (recovered 17 Nov). Illustrator was used only to open those SVGs and save the `.ai`
+  (and, for Fig 4, to re-save a more compact SVG). Fig 5C is `make_fig3.py`, a deck raster with redrawn axes.
+- Still without code anywhere: `data/ss_plane_sessions.csv` (no script on `origin/main` writes that name; its
+  columns are a join of `state_space_trajectories` days_sessions with landing and aim tables) and
+  `recov/balance_aim_{sessions,models}.csv` (derived from `lick_recovery_primary` figdata; see
+  `session_scripts/recov_README.txt`).
 - Where this file and `FIGURE_SOURCES.md` disagree, this file is newer for the submitted figures (Fig 5A is the known
   case).

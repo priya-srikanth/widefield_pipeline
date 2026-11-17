@@ -148,7 +148,10 @@ bootstrap (`analysis_kit.boot_delta`), and the block-permutation null for any la
   [`../grants/k08_2026/README.md`](../grants/k08_2026/README.md); provenance by final panel in
   [`../grants/k08_2026/PROVENANCE.md`](../grants/k08_2026/PROVENANCE.md); the stats file behind every star in
   [`../grants/k08_2026/FIGURE_SOURCES.md`](../grants/k08_2026/FIGURE_SOURCES.md)
-- **Code:** `grants/k08_2026/` (`render_grant_panels.py`, `render_fig4_rows.py`, `make_fig1/2/3.py`, `build_fig.py`, ...).
+- **Code:** `grants/k08_2026/` (`render_grant_panels.py`, `render_fig4_rows.py`, `make_fig1/2/3.py`, `build_fig.py`, ...),
+  plus `grants/k08_2026/session_scripts/` (added 11-17): the last-mile scripts that relettered Figure 3, split and
+  lightened Figure 4D, and swapped in the Figure 5D cued panel. They had never been copied out of the session that
+  wrote them, so until 11-17 the submitted figures were not reproducible from the repo.
   Not to be confused with the pipeline's nightly summary set `wfield_local/grant_figures.py` / `epoch_grant_figures.py`
   (branch F), which these scripts read from.
 
