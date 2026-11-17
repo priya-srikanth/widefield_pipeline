@@ -53,6 +53,8 @@ same URL, then re-start the artifact watch. Tick each item here and commit.
 
 - [ ] Lick-source caption edits (**goal DONE** in v316 (1794955854-a69e, built on live v315 1794870505-aeaf): regenerated against live after the ITI edits, 110 / 110 pairs matched once (identical to the pre-live list), incl. Fig 8.6 WRONG fix; "(was Fig 14.18/19/20)" labels replaced by Fig 14.18 S14a / S14b / S14c; applied list scratchpad/pages/goal/v316/lick_source_edits_applied_v316.json) (audit 11-17, branch fix/lick-source-wording-1117): `scratchpad/pages/{img,goal,ss,kin,fr}/lick_source_edits_1117.json`. **Image page DONE** (v58, 1794948981-2aab): all 42 pairs matched once on live v57 + Fig 2.3; also set the remaining pre-cue lick-free-window mentions to cam4 only (section 1 input + table header, section 2 LP-arm input, status row, Figs 2.5 / 2.6 window + tag, Figs 7.3b / 7.3c window). Goal / ss / kin / fr still open (42 / 110 / 142 / 27 / 12); regenerate against LIVE html with `scratchpad/licksrc/make_edits.py` (PYTHONPATH=wf_licksrc1117) before applying; re-run after the RESTnl-cam1 outputs are placed. Also fix the goal caption "(was Fig 14.20)" (annotation). FaceRhythm page is not this window's — send its list to the FR window.
 
+- Goal page later published by a8 as **v317** (1794959333-ffc1, built on v316): section 12 + Biology-in-brief only (Fig 12.2 = combined like-for-like lick_matched_panels.png; old gauss curves -> 12.2 S2; files net -2). Build any further goal edit on v317+.
+
 ## 3. State-space (9sGELLFEwADEt9k64fXTxe, v41) and kinematics (DKcKRJKbhBoratxxRc6qZv, v31)
 
 - Nothing pending. Re-start their watches after the switch.
