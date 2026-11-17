@@ -6,7 +6,9 @@ Priya 10-28 evening "0-1 s should be default now", commit d57b6098; constants re
 reproduction, not imported):
   per trial minus its mean over BASE_L (-1.5..-1.0 s); session PETH = mean over the session's trials (>= MIN_N = 10,
   all spouts); then minus the session PETH's mean over BASE_RESP (-1.0..-0.5 s), i.e. the response baseline;
-  auc  = trapezoid over 0..1.0 s            (PRIMARY:   resp_auc / ramp_window_tests `auc_0_1_n`)
+  auc  = trapezoid over the set's response window (PRIMARY: resp_auc / ramp_window_tests `auc_0_1_n` cued,
+         `auc_0_0.5_n` ITI): cued first lick 0..1.0 s, ITI bout starts 0..0.5 s (Priya 11-17, wf_cleanup2
+         iti_licks.CUED_RESP_WIN / ITI_RESP_WIN; ITI was 0..1.0 s 10-28 .. 11-17, files _w0-1)
   peak = max over 0..1.5 s                  (SECONDARY: ramp_window_tests `peak_n`; Priya 11-03: AUC primary, peak
                                              secondary for regional response sizes)
   value = that / the animal's mean PRE-session value at that ROI (pre = 1).
@@ -29,7 +31,17 @@ from scripts.lmm_hidden import lick_cued_ramp_perspout as lcp
 
 BASE_L = (-1.5, -1.0)        # iti_licks.BASE
 BASE_RESP = (-1.0, -0.5)     # iti_licks.BASE_RESP
-RESP_W = (0.0, 1.0)          # lick_cued_ramp.RESP_W
+RESP_W = (0.0, 1.0)          # lick_cued_ramp.RESP_W (cued first lick)
+ITI_RESP_W = (0.0, 0.5)      # lick_cued_ramp.ITI_RESP_W (ITI bout starts; Priya 11-17)
+
+
+def resp_w(key: str) -> tuple:
+    """Response-AUC window of a lick set: 'iti' -> ITI_RESP_W, else RESP_W (11-17)."""
+    return ITI_RESP_W if key == "iti" else RESP_W
+
+
+def _wt(w: tuple) -> str:
+    return f"{w[0]:g}-{w[1]:g}"
 PEAK_W = (0.0, 1.5)          # lick_cued_ramp._windows peak
 MIN_N = 10                   # lick_cued_ramp.MIN_N
 EP = lcp.EP
@@ -68,13 +80,14 @@ def table(root: Path, key: str = "lick", subset: str = "") -> pd.DataFrame:
         bl = (lags >= BASE_L[0]) & (lags <= BASE_L[1])
         br = (lags >= BASE_RESP[0]) & (lags <= BASE_RESP[1])
         pk = (lags >= PEAK_W[0]) & (lags <= PEAK_W[1])
+        rw = resp_w(key)
         mu = np.nanmean(P - np.nanmean(P[:, bl, :], 1, keepdims=True), 0)
         for roi in ROIS7:
             if roi in cols:
                 v = mu[:, cols.index(roi)]
                 v = v - np.nanmean(v[br])
                 rows.append({"label": x, "animal": an, "epoch": ep, "roi": roi, "n": len(P),
-                             "auc": lcp._auc(v, lags, *RESP_W), "peak": float(np.nanmax(v[pk]))})
+                             "auc": lcp._auc(v, lags, *rw), "peak": float(np.nanmax(v[pk]))})
     A = pd.DataFrame(rows)
     for v in ("auc", "peak"):
         pre = A[A.epoch == "pre"].groupby(["roi", "animal"])[v].mean()
@@ -144,7 +157,8 @@ def check(root: Path, A: pd.DataFrame, which: str) -> pd.DataFrame:
     W = pd.read_csv(root / wdir / "ramp_window_tests.csv")
     W = W[W.set == set_]
     out = []
-    for meas, col in (("auc", "auc_0_1_n"), ("peak", "peak_n")):
+    w = resp_w("iti" if which.startswith("iti") else "lick")
+    for meas, col in (("auc", f"auc_{w[0]:g}_{w[1]:g}_n"), ("peak", "peak_n")):
         D = as_sessions(A, meas)
         for c, g in D.groupby("position", sort=False):
             a = g.groupby(["epoch", "animal"]).value.mean().unstack("animal")
@@ -185,9 +199,15 @@ def report(D: pd.DataFrame, T: pd.DataFrame, V: pd.DataFrame, measure: str, outd
     return C
 
 
-MEASURES = {  # measure -> (file suffix, title words, y label)
-    "auc": ("_w0-1", "response AUC 0..1.0 s / the animal's pre (primary)", "AUC 0..1.0 s / pre,\nchange vs pre"),
-    "peak": ("_peak", "secondary: peak 0..1.5 s / the animal's pre", "peak 0..1.5 s / pre,\nchange vs pre")}
+def measures(key: str) -> dict:
+    """measure -> (file suffix, title words, y label); the AUC on the set's window (cued _w0-1, ITI _w0-0.5 since 11-17)."""
+    w = resp_w(key)
+    lab = f"{w[0]:g}..{w[1]:g} s"
+    return {"auc": (f"_w{_wt(w)}", f"response AUC {lab} / the animal's pre (primary)", f"AUC {lab} / pre,\nchange vs pre"),
+            "peak": ("_peak", "secondary: peak 0..1.5 s / the animal's pre", "peak 0..1.5 s / pre,\nchange vs pre")}
+
+
+MEASURES = measures("lick")
 
 
 def run(root: Path, outdir: Path, *, key: str, subset: str, which: str, name: str, what: str) -> dict:
@@ -198,7 +218,7 @@ def run(root: Path, outdir: Path, *, key: str, subset: str, which: str, name: st
     V = check(root, A, which)
     outdir.mkdir(parents=True, exist_ok=True)
     out = {}
-    for meas, (suf, words, ylab) in MEASURES.items():
+    for meas, (suf, words, ylab) in measures(key).items():
         nm = f"{name}{suf}"
         D = as_sessions(A, meas)
         f = outdir / f"{_paths.out_name(nm)}_sessions.csv"

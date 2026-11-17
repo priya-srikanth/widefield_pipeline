@@ -8,7 +8,9 @@ applies, spouts pooled. Value (`_pooled_resp`, = wf_attempt lick_cued_ramp.compu
 docked ITI bout starts (gap >= 2 s, dock flag), session PETH (>= 10 bout starts) baseline -1.0..-0.5 s, AUC 0..1.0 s /
 the animal's pre mean. It must reproduce the docked run's session table itidock_main/iti_ramp_auc_sessions_wide.csv
 (resp_auc_n) row for row and itidock_main/ramp_window_tests.csv (iti, auc_0_1_n) cell for cell before any model is
-fitted. SECONDARY (Priya 11-03): peak 0..1.5 s / pre (peak_n), same check. Outputs iti_ramp_row1_lmm_w0-1* (primary)
+fitted. SECONDARY (Priya 11-03): peak 0..1.5 s / pre (peak_n), same check. Outputs iti_ramp_row1_lmm_w0-0.5* (primary;
+ITI window 0..0.5 s since Priya 11-17 -- `_pooled_resp.resp_w`, check column auc_0_0.5_n; the 0..1.0 s files _w0-1 are
+the 10-28 .. 11-17 version)
 and iti_ramp_row1_lmm_peak* (secondary); one panel, ** = Holm across 7 ROIs x 3 epochs = 21 tests.
 
 `--perspout` = the earlier per-spout SUPPLEMENT (files without a suffix), described below:

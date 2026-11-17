@@ -24,7 +24,7 @@ FIGS = ["rec_wlc_primary", "rec_kn_epoch", "lick_cued_ramp_perspout", "fig9i3_cl
         "recovery_timing_pooled_epoch_lick", "spec_groups", "lick_matched_gauss_perspout_docked",
         "cued_ramp_summary_row2_lmm", "iti_ramp_row1_lmm",
         # slide 94 companions (11-03): spouts pooled, AUC 0-1 s (primary) and peak (secondary); one panel, no split
-        "cued_ramp_summary_row2_lmm_w0-1", "iti_ramp_row1_lmm_w0-1", "cued_ramp_summary_row2_lmm_peak",
+        "cued_ramp_summary_row2_lmm_w0-1", "iti_ramp_row1_lmm_w0-1", "iti_ramp_row1_lmm_w0-0.5", "cued_ramp_summary_row2_lmm_peak",
         "iti_ramp_row1_lmm_peak"]
 
 SLIDE = (13.0, 5.5)

@@ -31,7 +31,9 @@ from scripts.lmm_hidden import _paths, render
 NAME = "lick_lateral_ratio_auc_docked"
 ROOT = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks")
 VARIANT = "itidock_main"
-WIN = "logr_0-1"
+WIN = "logr_0-1"              # cued / cue rows (0..1.0 s)
+# per-set window (Priya 11-17): ITI row on 0..0.5 s; cued / cue rows keep 0..1.0 s (wf_cleanup2 lick_lateral_ratio.SET_WIN)
+SET_WIN = {"cued": "logr_0-1", "cue": "logr_0-1", "iti": "logr_0-0.5"}
 SETS = ("cued", "cue", "iti")
 PAIRS = ("ALM", "tjM1", "SSp-m", "SSp-n", "orofacial")
 POS = ("close_ipsi", "close_mid", "close_contra", "far_ipsi", "far_mid", "far_contra")
@@ -39,10 +41,12 @@ EP = ("acute", "subacute", "chronic")
 
 
 def table(root: Path) -> pd.DataFrame:
-    S = pd.read_csv(_paths.variant(root, VARIANT) / "lateral_ratio_sessions.csv").dropna(subset=[WIN])
+    S0 = pd.read_csv(_paths.variant(root, VARIANT) / "lateral_ratio_sessions.csv")
     rows = []
     for a in PAIRS:             # panel grid: one row per area pair, columns cued / cue / iti
         for st in SETS:
+            WIN = SET_WIN[st]
+            S = S0.dropna(subset=[WIN])
             g = S[(S.set == st) & (S.pair == a)]
             G = g[g.spout.isin(POS)]
             parts = [(p, G[G.spout == p]) for p in POS]
@@ -70,7 +74,7 @@ def animal_change(D: pd.DataFrame) -> pd.DataFrame:
 
 def published(root: Path) -> pd.DataFrame:
     T = pd.read_csv(_paths.variant(root, VARIANT) / "lateral_ratio_tests.csv")
-    T = T[(T.window == WIN) & T.spout.isin([*POS, "all"]) & (T.epoch != "pre")].copy()
+    T = T[(T.window == T.set.map(SET_WIN)) & T.spout.isin([*POS, "all"]) & (T.epoch != "pre")].copy()
     T["position"] = T.set + "|" + T.pair + ":" + T.spout
     T["boot_star"] = np.where(T.sig.astype(str) == "True", "*", "")
     return T[["position", "epoch", "delta", "lo", "hi", "boot_star"]]
@@ -90,8 +94,8 @@ def main(argv=None) -> int:
     for st in SETS:
         g0 = D[D.position == f"{st}|ALM:all"]
         print(st, g0.groupby("epoch").agg(sessions=("label", "size"), animals=("animal", "nunique")).to_dict("index"))
-    T = render.render(f, NAME, outdir, title="Contra / ipsi response ratio, log2 AUC 0..1 s, change vs own pre -- docked "
-                      "ITI row (LMM)", ylabel="change in log2(contra / ipsi AUC)", cells=list(D.position.unique()),
+    T = render.render(f, NAME, outdir, title="Contra / ipsi response ratio, log2 AUC (cued / cue rows 0..1.0 s, ITI row "
+                      "0..0.5 s), change vs own pre -- docked ITI row (LMM)", ylabel="change in log2(contra / ipsi AUC)", cells=list(D.position.unique()),
                       labels={c: "all\nspouts" for c in D.position.unique() if c.endswith(":all")},
                       panel_by="panel", ncols=3)
     V = animal_change(D).merge(published(root), on=["position", "epoch"], how="outer")
