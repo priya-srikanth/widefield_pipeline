@@ -550,8 +550,8 @@
  {
   "slide": 157,
   "title_now": "Pre-cue event: weaker code, cause unknown",
-  "status": "needs_priya",
-  "skip_reason": "Main point changed: on the rebuild the weaker pre-cue code with an event is present BEFORE the stroke too (pre strict -0.020, p .001, 3/4), so 'after the stroke' no longer holds; the exclusion / contamination follow-up (quiet_task_events_followup.py) was not re-run. Proposed rewrite below; image ready.",
+  "status": "ready",
+  "skip_reason": "",
   "pictures": [
    {
     "shape_name": "fig:q_task_outcome",
