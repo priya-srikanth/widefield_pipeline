@@ -1404,8 +1404,8 @@ coupling (direction not determined), not more face variability.
   alone the same (ITI chronic -0.148; in-trial -0.152 -> -0.076); visual + RSP areas (pre r ~0.4) lose about half for
   BOTH lick types (chronic ITI -0.204, in-trial -0.218, no recovery). The ITI loss holds at every swept configuration.
   -> the ITI loss is seen in every area set; the in-trial recovery is orofacial-specific. Whole cortex (raw dF/F AUC,
-  per Allen area, nested bootstrap): response larger in 41 / 45 areas acutely / subacutely (global), chronically only
-  MOp, SSp-m, tjM1 bilateral (+2.6..+3.0); build-up weaker chronically in SSp-n both sides (-1.5 / -1.3), SSp-un
+  per Allen area, nested bootstrap): ITI response (0-0.5 s since 11-17) larger in 42 / 45 areas acutely / subacutely (global), chronically 10 areas
+  (orofacial plus contralesional SSp-ll / SSp-tr / SSp-ul); build-up weaker chronically in SSp-n both sides (-1.5 / -1.3), SSp-un
   contra, ALM contra (SSp-m -1.2, tjM1 contra -1.0 just miss); medial / visual / RSP unchanged. Group test (divided
   by the animal's pre group-mean response): chronic build-up orofacial -0.11 [-0.21, -0.01], visual + RSP +0.10 n.s.
   Per-area normalization by each area's own pre response was dropped (near-zero denominators in small caudal areas).

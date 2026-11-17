@@ -215,12 +215,12 @@ No laterality support for Priya's reduced-thalamocortical-drive hypothesis after
    residual -> lower chronic cortical code on hits (-) and larger chronic residual (+); acute far-contra retention ->
    chronic code (sign open: - here); acute coupling on failed attempts -> recovery speed (open).
 4d0-DAY. **10-28 daytime additions (page v147-v166; handoff 00-COMPACT-12). PROVISIONAL.** (1) LICK-LOCKED ACTIVITY
-   (section 14): ITI bout-start response larger acutely across cortex (41 areas) and reverting by chronic (5 areas: tjM1
-   both sides, contralesional MOp-rest, SSp-m); FIRST CUED lick response larger in every epoch and still in 35 areas
+   (section 14): ITI bout-start response (0-0.5 s, DECISIONS 11-17) larger in 42 / 45 / 10 areas acute / subacute /
+   chronic (chronic = orofacial plus contralesional limb / trunk S1: SSp-ll, SSp-tr, SSp-ul); FIRST CUED lick response larger in every epoch and still in 35 areas
    chronically (tjM1 contra +5.0 / +5.9 / +5.4 x1e3 dF/F*s); cue response unchanged acutely, up subacute / chronic.
    Far-contra target trials: acute lick response NOT up, acute cue response LOWER (ALM contra -3.4, 27 areas), both up
-   chronically. Window (0-0.3 .. 0-1.5 s, peak) does not change the cued effect; the chronic ITI effect grows with longer
-   windows (0.53 -> 1.01 of pre). (2) OFFSET CONTRIBUTION MAPS: offset totals agree across bases, decoder weights share
+   chronically. Window (0-0.3 .. 0-1.5 s, peak) does not change the cued effect; ITI bout-start responses are biphasic (short
+   transient, then a dip below baseline at 0.6-1.2 s, mostly in pre sessions), so ITI uses 0-0.5 s (DECISIONS 11-17). (2) OFFSET CONTRIBUTION MAPS: offset totals agree across bases, decoder weights share
    the broad lateral structure but agree only modestly in detail (ITI weight-map r 0.13-0.39; cued contributions ~0) --
    not an area-level attribution. (3) NON-LINEAR decoder: cued offset larger (+0.06 / +0.08 / +0.05 mm, 4/4; subacute
    +0.11 vs linear +0.03), partly kernel shrinkage on unfamiliar post-stroke patterns (extra offset ~2x larger where few
@@ -592,8 +592,8 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
 - **Lick-evoked activity is LARGER after the stroke, in both hemispheres.** Cued licks: larger at every target in every
   epoch (response AUC 0-1 s), EXCEPT far-contra targets acutely -- the response reaches about the pre peak but decays
   sooner, so over 0-1 s it is, if anything, lower (0.5-1.0 s below pre in 3-4/4 animals; survives lick-vigor and landing
-  regression). ITI licks: larger acutely across most of cortex; chronically mainly orofacial motor cortex (contralesional
-  tjM1). PROVISIONAL.
+  regression). ITI licks (0-0.5 s): larger acutely across most of cortex; chronically orofacial motor cortex (contralesional
+  tjM1) plus contralesional limb / trunk S1. PROVISIONAL.
 - **The hemispheric BALANCE tracks the decoder's read-out OFFSET -- not the tongue's ipsilesional deviation.**
   Behavior: acutely the tongue lands ipsilesional of the target (aim deficit). Read-out offset: the frozen decoder reads
   each lick as more contralesional than where it landed. Balance: at a fixed lick angle, post-stroke licks carry
@@ -733,8 +733,8 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   decoder +0.29 / +0.19 / +0.22 mm (4/4, CIs exclude 0) -> genuine ITI state shift.
   BALANCE VS LICK ANGLE (goal page Fig 14.13, redrawn 11-16 on the current pipeline: camera working period, LP v36 licks,
   DAQ detector daqlk, glue-free mask; figdata 11-11): cued same-angle shift tjM1 -.20 / -.12 / -.05, SSp-n -.41 / -.18 /
-  +.04; the ITI response-ratio shift in ALM / tjM1 (+0.07 / +0.10) is NOT significant (was +0.14 / +0.15 on the 10-28
-  render); ITI tjM1 hemispheric difference -2.07 / -1.24 / -1.56 (p < .05 each epoch) but not 4/4 (PS95 chronic -0.78
+  +.04; the ITI response-ratio shift (0-0.5 s, 11-17 re-render) is significant in ALM (+0.06, p .005), not in tjM1 (+0.02)
+  or the orofacial pool (+0.04); ITI tjM1 hemispheric difference -2.07 / -1.24 / -1.56 (p < .05 each epoch) but not 4/4 (PS95 chronic -0.78
   vs pre -0.94).
   CUED WITHIN-SPOUT BALANCE RISES ABOVE PRE (per animal pre / acute / subacute / chronic: PS92 0 / +0.06 / +0.17 /
   +0.06, PS93 0 / -0.10 / +0.07 / +0.18, PS94 0 / +0.08 / +0.20 / +0.27, PS95 -0.01 / +0.03 / +0.06 / +0.13): an
@@ -1071,7 +1071,7 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   scripts/iti_dock_page_figures.py, iti_dock_where_preds.py; default-off WFIELD_ITI_FILTER hooks in 14 scripts). SAME on docked:
   like-for-like offset (+0.31/+0.21/+0.28), same-target offset, per-lick error shift, balance-blind decoders, lick order,
   lateral r loss (larger), offset-vs-aim detrended (-0.38, 4/4). WEAKER-SAME: curves, per-spout, decomposition, response
-  increase (subacute lost), LMMs. NOT on docked (kept all-ITI with a caption note): ITI hemispheric balance + recovery
+  increase (0-0.5 s: subacute kept, tjM1 contra +0.85*, SSp-m contra +0.78*), LMMs. NOT on docked (kept all-ITI with a caption note): ITI hemispheric balance + recovery
   tracking (14.18), balance-offset link (12.19), bout-start balance (14.14), SSp-n-term ITI tracking (12.17, 2/4),
   per-animal offset-vs-aim slopes (16.5), chronic build-up decrease (14.22). PROVISIONAL.
 - RESTnl BASELINE ADOPTED 10-29 (Priya): level family (Fig 14.21, S1, S2, S11-S13) re-rendered on the lick-free rest + current

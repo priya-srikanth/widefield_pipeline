@@ -668,3 +668,7 @@ PI deck (backup Overview_2026-11-06.bak_pre_a8_renumber_20261116.pptx): FR page 
   sent to 3c (hold page edits until Priya OKs).
 - 11-17 docked rebuild of decoded-vs-executed figures queued (matched curves incl. gap2dock + cued first lick, angle versions,
   recovery link 16.3-16.5, where scatter / delta, per-lick error) -> DOCKED_DECODED_VS_EXECUTED_20261117.md.
+- 11-17 Priya OK: ITI 0..0.5 s slide updates applied (105, 108, 110, 111, 135 [notes caveat], 136-138, 203; specs/iti05.json; backup
+  .bak_pre_a8_iti05_20261117.pptx). FINDINGS (4 places) + ENCODING_FINDINGS (1) ITI 0..1 s numbers replaced (one owner, per 3c).
+  3c told to swap goal-page figures. Curves figure: footer overlap + dashed (3-animal) acute docked ITI line -> fix queued with the
+  docked-figure helper.
