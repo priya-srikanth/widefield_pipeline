@@ -59,7 +59,7 @@ RULE = rule()
 SFX = ("_restnlc1" if C1 else "_restnl") + ("" if RULE == "wr" else "_strict")
 _WDEF = ("mean of the per-position medians over positions with >= 50 frames (>= 4 of 6, renormalized)" if RULE == "wr"
          else "position-weighted median, all 6 positions >= 50 frames")
-DEF = ((f"{NAME} = no-lick rest: restdock05 rest minus every cam4 / cam1-only (droplets removed) / DAQ lick [0.5 s before, "
+DEF = ((f"{NAME} = no-lick rest: restdock05 rest minus every cam4 / cam1-only (droplets and far-from-mouth labels removed) / DAQ lick [0.5 s before, "
         "2.0 s after], engagement-gated, ") if C1 else
        "RESTnl = no-lick rest: restdock05 rest minus every cam4 / DAQ lick [0.5 s before, 2.0 s after], engagement-gated, "
        ) + _WDEF

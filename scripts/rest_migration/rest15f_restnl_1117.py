@@ -73,7 +73,7 @@ def _mode():
         from wfield_local import restnl_licks as _rl
         return (f"{_rl.CACHE_TAG}wk", "rest15f_restnlc1all_20261117",
                 "RESTnlc1 rest (restdock05: docked, not running; minus every DAQ lick, every cam4 LP lick and every "
-                "cam1-only LP lick of the whole trial windows (droplets removed), -0.5 s / +2.0 s) between two camera "
+                "cam1-only LP lick of the whole trial windows (droplets and far-from-mouth labels removed), -0.5 s / +2.0 s) between two camera "
                 "working trials at the same position")
     if lp_set() == "cam4cam1":
         return ("restnlc1wk", "rest15f_restnl_20261117",

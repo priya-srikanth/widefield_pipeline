@@ -121,7 +121,7 @@ def drift_figure(store, align, variant, reference, out_dir, arm):
         # RESTnlc1 (11-17): RESTnl with the cam1-only LP events also removed from the rest mask
         reftxt = "RESTnlc1 reference (lick-free rest, flat; rest licks: DAQ contact + cam4 LP + cam1-only LP)"
         extra = (" RESTnlc1 = restdock05 rest minus every DAQ contact lick, every cam4 LP video lick and every cam1-only "
-                 "LP lick event (droplets removed) [0.5 s before, 2.0 s after], engagement-gated, flat equal-weight "
+                 "LP lick event (droplets and far-from-mouth labels removed) [0.5 s before, 2.0 s after], engagement-gated, flat equal-weight "
                  "mean of per-position medians (>= 50 frames, >= 4 of 6); one baseline map per session. June sessions "
                  "use their own baselines. PS93_0813 (no cam4 licks) has no RESTnlc1 column.")
     gate = {"contact": "trial gate DAQ contact", "lp": "trial gate LP video licks",

@@ -326,7 +326,7 @@ _REF_TEXT = {
     "restnlc1": dict(
         short="one vs RESTnlc1 (lick-free rest, flat; rest licks DAQ contact + cam4 LP + cam1-only LP)",
         title="Position maps referenced to RESTnlc1 (lick-free rest, flat; rest licks excluded: DAQ contact + cam4 LP "
-              "+ cam1-only LP events, droplets removed)",
+              "+ cam1-only LP events, droplets and far-from-mouth labels removed)",
         cbar="activity minus RESTnlc1\n(lick-free rest, flat)",
         note=("RESTnlc1 = RESTnl with the cam1 licks also removed (Priya 11-17). REST FRAMES: the restdock05 rest mask "
               "(docked, not running) minus EVERY DAQ spout-contact lick, EVERY cam4 Lightning-Pose video lick "
