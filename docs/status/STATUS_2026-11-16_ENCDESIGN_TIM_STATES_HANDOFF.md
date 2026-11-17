@@ -137,6 +137,18 @@ Run code from a worktree with `PYTHONPATH=$(pwd -W)` (Windows form). AR-HMM mode
   state 1 = Priya's "failed attempt / jaw only" read; the trial-class jaw call stays the jaw-only measure. Flag:
   ~40 % of jaw-only onsets fall in walking states (run-onset jaw movement, FR factor fr_run_onset_jaw?), pre and post.
 
+- **Post-stroke round 2 (Priya OK items 1, 2, 3, 6; dropped 4 = LP lick direction per spout already does it, 5 =
+  per-lick kinematics already do it; `poststroke_states2.py`; outputs + scripts copied to share
+  `LP_analysis/<run>/arhmm/v1/poststroke_s1/`).** Engaged = GLM-HMM K5 argmax in {0,1,2}; trial cycle = prev stop ..
+  stop. (1) engaged cycles: quiet +.11 acute (4/4, Holm) -> not only disengagement; contra lick -.021 acute; ipsi
+  +.027 acute, +.020 chronic; push +.017 chronic (4/4, Holm). (2) contra share of LICK frames .44 pre: -.12 acute,
+  -.07 subacute, -.07 chronic (4/4 each, Holm) -- chronic deficit persists; CROSS-CHECK against LP per-lick direction
+  before using. (3) Fig 1 cue-aligned groups (engaged): acute contra / central lick peaks lower, ipsi peak higher,
+  quiet stays up after the cue, slow-nose stays up (failed attempts); PRE-CUE jaw chewing 0.25 -> 0.05 acute (above
+  pre chronically); cue-locked push peak 0.19 pre -> 0.42 chronic. (6) transitions (exploratory, ~140 tests, Holm
+  floor .036): entropy -0.20 bits acute (4/4); chronic push -> contra lick -.11, quiet -> contra -.06, walk -> central
+  -.17, walk -> ipsi +.16; fewer lick -> chew.
+
 ## 3. Running / state at 11-17 ~14:00 (background in session 37fdbabf; scratchpad
 `C:/Users/SABATI~1/AppData/Local/Temp/claude/179e1046909c5be2/37fdbabf-285a-455b-bbb7-d5927a5affe6/scratchpad`)
 
