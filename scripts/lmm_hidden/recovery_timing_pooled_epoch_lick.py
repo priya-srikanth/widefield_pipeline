@@ -28,7 +28,7 @@ from scripts.lmm_hidden import _paths, render
 ROOT = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding")
 NAME = "recovery_timing_pooled_epoch_lick"
 EP = ["pre", "acute", "subacute", "chronic"]
-MEAS = {"beh": "behaviour: far-contra hit rate", "neu": "cortex: far-contra code on hits", "gap": "gap: cortex - behaviour"}
+MEAS = {"beh": "behavior: far-contra hit rate", "neu": "cortex: far-contra code on hits", "gap": "gap: cortex - behavior"}
 
 
 def build(root: Path) -> pd.DataFrame:
@@ -73,7 +73,7 @@ def main(argv=None) -> int:
     S.to_csv(src, index=False)
     T = render.render(src, NAME, out, title="Fig 0.6: far-contra hit rate vs frozen code on hits by epoch (lick window)",
                       ylabel="change vs own pre (fraction of pre)", cells=list(MEAS),
-                      labels={"beh": "hit rate", "neu": "code on hits", "gap": "cortex -\nbehaviour"}, panel_by="panel")
+                      labels={"beh": "hit rate", "neu": "code on hits", "gap": "cortex -\nbehavior"}, panel_by="panel")
     print(T.to_string(index=False))
     return 0
 

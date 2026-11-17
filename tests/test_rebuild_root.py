@@ -337,6 +337,21 @@ LITERAL = {
     "scripts/drift_check/drift_cutoff_check.py",
     "scripts/imaging_page/s_per_animal.py",
     "scripts/locanmf_refit_test/refit_vs_projection.py",
+    # scripts/lmm_hidden/ (branch lmm-hidden-20261103): the 11-03 v36 tree is the literal READ default of each
+    # extractor (--root / LMM_HIDDEN_* env override it, _paths.py); every write goes through render.render ->
+    # writeguard.assert_writable (fenced under a rebuild root; a8 11-17 re-render)
+    "scripts/lmm_hidden/decoder_retention_pooled.py",
+    "scripts/lmm_hidden/fig9i3_cls_pooled.py",
+    "scripts/lmm_hidden/key_figure_BC.py",
+    "scripts/lmm_hidden/lick_cued_first_lick.py",
+    "scripts/lmm_hidden/lick_cued_ramp_perspout.py",
+    "scripts/lmm_hidden/lick_lateral_ratio_auc_docked.py",
+    "scripts/lmm_hidden/lick_order_iti_cued_slope_docked.py",
+    "scripts/lmm_hidden/rec_kn_epoch.py",
+    "scripts/lmm_hidden/rec_wlc_primary.py",
+    "scripts/lmm_hidden/recovery_timing_pooled_epoch_lick.py",
+    "scripts/lmm_hidden/render.py",
+    "scripts/lmm_hidden/spec_groups.py",
     # scripts/rebuild_figs/fig_behaviour_hits.py left the scan 11-05 ((f) 2): it reads the run's camera attempts table
     # through run_mode.attempts_dir(); its writes go through _common.default_out (run-tagged under a rebuild root)
     "scripts/rebuild_figs/fig_enl_move.py",
