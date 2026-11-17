@@ -189,3 +189,15 @@ Dashed = landing grid points where only 3 animals have a curve (kernel weight â‰
 - `scripts/likeforlike.py`: new `smooth_curves`, `curve_coverage` and `dash_notes`.
 - `wfield_local/trial_set_text.py`: new `footer_bottom`, moved from `scripts/rebuild_figs/fig_state_position_sessions._footer_bottom`,
   which now calls it.
+
+## Addendum: slide 147 footer fix (same pass)
+
+- `scripts/frozen_claims.py`: the trend figure (Fig 0.11, slide 147) reserves the footer margin
+  (`trial_set_text.footer_bottom`). New flags, defaults unchanged:
+  - `--trend-only` runs section C and the trend figure only, moved into `trend_data`.
+  - `--plot-only` redraws from `<out>/figdata/frozen_claims_trend.pkl`, which every run now saves.
+- Re-render: `I/../<tag>/frozen_fr_compare_footerfix_20261117/figures/frozen_claims_trend.png` (env of `z_frozen_claims_g`;
+  `dockfig_scripts/s147_footerfix.sh`). `claims_trend_{halfday,levels}.csv` are byte-identical to production.
+- Deck crop: `presentations/_source_PI_overview_2026-11-17/swap_inputs/s147_frozen_claims_trend_footerfix.png`
+  (`dockfig_scripts/crop_s147.py`; 3 panels + legend, white-padded to the old 1680 x 401). Spec:
+  `specs/s147_footerfix.json` (picture swap only, box unchanged).
