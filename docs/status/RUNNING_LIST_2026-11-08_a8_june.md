@@ -602,3 +602,13 @@ PI deck (backup Overview_2026-11-06.bak_pre_a8_renumber_20261116.pptx): FR page 
 - 11-17: docked 200 + 203 applied (specs/docked_batch4.json; backup .bak_pre_a8_docked_20261117.pptx). 203 docked ITI balance up acutely
   in every area (0-1 s: ALM +.50, tjM1 +.88, SSp-m +.88), chronically only ALM; tjM1 spout x epoch LR fit degenerate (-inf, p 1, printed in
   the panel title); render lacks the old green DOCKED banner (notes + Data: say docked).
+- 11-17: docked 105 / 122 / 125 / 128 / 130 / 131 / 133 applied (specs/docked_batch3.json). 130: docked ITI lateral r no significant
+  recovery (was "partial"); ITI offset 3/4 subacute (was 4/4 every epoch). 125 weaker subacutely.
+- 11-17 Priya decisions applied: 22 kept as PRE-REBUILD RECORD (notes line; Data: lines may describe the rebuild step), 157 rewrite
+  ("weaker code at every epoch, pre-stroke included"), 12 wording (degenerate cell, see bootstrap); per-session-pre LMM version of 12
+  queued (5r sidecars have 8/7/8/8 pre sessions). Backup .bak_pre_a8_priya1117_20261117.pptx; script deck_swap_20261117/priya_1117_edits.py.
+  145: hit gate stays MIN_HITS = 20 (A11, 11-07); the 10-trial rule is D7 = refit floor, a different rule. Proposal to Priya: show
+  low-hit acute cells as hollow / labeled, untested.
+  203: docked ITI tjM1 0-1 s spout x epoch LR = -inf: full mixed model failed to converge (MLE on boundary); pre tjM1 docked balance
+  very heterogeneous across animals (PS93 / PS94 to -1.8 / -2.0 at close spouts, PS92 / PS95 ~0) with few docked licks per cell;
+  0-0.5 s fits (p .016). A fit failure, not a result.
