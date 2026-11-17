@@ -86,20 +86,12 @@ def marker(S: pd.DataFrame, dn: str) -> pd.Series:
     return pd.Series(g[0] - g[1], index=S.index)
 
 
-def compute() -> dict:
+def fit_panels(T: pd.DataFrame) -> tuple:
+    """Models of every panel of a session table T (columns panel, label, animal, epoch, day, y, marker, n_licks):
+    per-animal r, mixed models (concurrent log(day) / per-animal spline / predictive next-session change),
+    cross-validation (lrm.models) and the lick-count checks. Returns (M, CV, ANr, LC). Shared with
+    lick_iti_matched_markers (rule 9)."""
     import statsmodels.formula.api as smf
-    S = pd.read_csv(il.in_path(f"balsub_sessions{SFX}.csv"))
-    # cued angle axis (new columns; the balance table itself is reused, not recomputed)
-    S = S.merge(lrm.cued_angle_axis(full=os.environ.get("WFIELD_BAL_FULL", "") == "1",
-                                    labels=sorted(S[S.set == lrm.C1SET].label.unique())), on="label", how="left")
-    rows = []
-    for st, dn, yv, _yl in [*PANELS, *PANELS_EXTRA]:
-        t = S[S.set == st].copy()
-        rows.append(pd.DataFrame({"panel": f"{st} -> {yv}", "set": st, "def": dn, "yname": yv, "label": t.label,
-                                  "animal": t.animal, "epoch": t.epoch, "day": t.day, "y": t[yv],
-                                  "marker": marker(t, dn), "n_licks": t.get("n_licks", np.nan)}))
-    T = pd.concat(rows, ignore_index=True)
-    T.to_csv(il.OUT_W / f"recprim_sessions{SFX}.csv", index=False)
     M, CV, ANr, LC = [], [], [], []
     for pn, G in T.groupby("panel", sort=False):
         post = G[(G.epoch != "pre") & (G.day > 0)].dropna(subset=["y", "marker"]).sort_values(["animal", "day"]).copy()
@@ -157,6 +149,23 @@ def compute() -> dict:
                        "loao_count_weighted": 1 - np.sum((y - pred) ** 2) / np.sum((y - y.mean()) ** 2)})
     M, CV, ANr = pd.DataFrame(M), pd.concat(CV, ignore_index=True), pd.DataFrame(ANr)
     LC = pd.DataFrame(LC)
+    return M, CV, ANr, LC
+
+
+def compute() -> dict:
+    S =pd.read_csv(il.in_path(f"balsub_sessions{SFX}.csv"))
+    # cued angle axis (new columns; the balance table itself is reused, not recomputed)
+    S = S.merge(lrm.cued_angle_axis(full=os.environ.get("WFIELD_BAL_FULL", "") == "1",
+                                    labels=sorted(S[S.set == lrm.C1SET].label.unique())), on="label", how="left")
+    rows = []
+    for st, dn, yv, _yl in [*PANELS, *PANELS_EXTRA]:
+        t = S[S.set == st].copy()
+        rows.append(pd.DataFrame({"panel": f"{st} -> {yv}", "set": st, "def": dn, "yname": yv, "label": t.label,
+                                  "animal": t.animal, "epoch": t.epoch, "day": t.day, "y": t[yv],
+                                  "marker": marker(t, dn), "n_licks": t.get("n_licks", np.nan)}))
+    T = pd.concat(rows, ignore_index=True)
+    T.to_csv(il.OUT_W / f"recprim_sessions{SFX}.csv", index=False)
+    M, CV, ANr, LC = fit_panels(T)
     LC.to_csv(il.OUT_W / f"recprim_lickcount{SFX}.csv", index=False)
     print("== lick count per session (counts cancel in the gain; checks)\n" + LC.round(3).to_string(index=False))
     M.to_csv(il.OUT_W / f"recprim_models{SFX}.csv", index=False)
