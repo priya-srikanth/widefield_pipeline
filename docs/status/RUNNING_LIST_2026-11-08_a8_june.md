@@ -547,3 +547,11 @@ PI deck (backup Overview_2026-11-06.bak_pre_a8_renumber_20261116.pptx): FR page 
   Per animal chronic: PS92 -.01, PS93 -.10, PS94 -.20, PS95 -.06 (4/4 negative, PS92 ~0). Chronic is borderline either way
   (Holm .057 absolute vs .046 relative); not a normalization artifact. Old slide's "all **" (-.41/-.19/-.09) came from the
   pre-rebuild inputs, not the scale.
+
+### 11-17 — deck swap pass started (Priya: 1. swap A+B + rewrite text/notes, 2. run C renders, 3. replace held slides with updated versions)
+- Deck backup Overview_2026-11-06.bak_pre_a8_swap_20261117.pptx; plan + per-slide spec schema docs/status/deck_swap_20261117/README.md;
+  6 helpers: A+B specs in 4 batches; C renders (lmm_hidden companions on branch lmm-hidden-20261103; others on main). 162/163 = cohort2 QC, skip.
+- Slide 21 old vs new decomposed (same script on the pre-rebuild epoch/data): old pre had 11 sessions / animal (incl. June 06-06..08),
+  rebuild 8 (August from 08-01). Pre levels .850/.744/.923/.915 -> .829/.681/.922/.908 (PS93 -.06); acute .451/.288/.466/.607 ->
+  .499/.309/.515/.629 (all higher). Both shrink the drop (-.405 -> -.347; chronic -.093 ** -> -.077 n.s.). Not decomposed by factor:
+  the gate is not isolated (Priya: camera gate adds non-contact-lick trials, expected to LOWER accuracy; post went UP).
