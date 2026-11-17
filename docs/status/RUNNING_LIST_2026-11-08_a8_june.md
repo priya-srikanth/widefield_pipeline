@@ -585,3 +585,8 @@ PI deck (backup Overview_2026-11-06.bak_pre_a8_renumber_20261116.pptx): FR page 
   live-deck paths; told Priya.
 - Stale-code check (3c 11-17): `python scripts/...` from a worktree imports the main checkout's wfield_local (663 behind). My slide 21
   runs did; the modules used differ only by ADDED functions in analysis_kit, so the numbers stand. Helpers told to set PYTHONPATH.
+- 11-17: group C LMM companions applied (15 slides: 5, 12, 17, 19, 106, 107, 114, 121, 127, 136, 137, 142, 145, 150, 151) from
+  specs/groupC_lmm.json (renders .../grant_figures/<tag>/lmm_hidden_20261117/, branch lmm-hidden-20261103 pushed, e3f6e02c; 20-hit
+  gate now applied to 121/142/145). Main-point changes: 12 (acute far contra LMM degenerate, not tested; 4/4 animals still drop),
+  145 (acute code + gap not tested under the 20-hit gate; chronic gap -.29 *), 151 (acute orofacial-ipsi lick residual now *).
+  Backup .bak_pre_a8_groupC_lmm_20261117.pptx. Waiting: 108/109/123/129/134/138/201 (docked ITI arm), 111/116 (no rebuild input).
