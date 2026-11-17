@@ -125,3 +125,35 @@ RAM: 27-36 GB free at launch; each step waits for >= 12 GB free; a watchdog writ
 First measurement (PS92_0814, DAQ gate): 1,314 cam1-only non-droplet events_all onsets; 0 of them inside the cam4 RESTnl
 mask, median 0.11 s from the nearest cam4 lick (they are inside cam4 lick bouts), so cam1 removes 2 rest samples and no
 frame. The per animal x epoch table is in section 4 (after a1).
+
+## 4. Frames removed by cam1 (events_all, cam1-only, droplets out) vs cam4 only, per animal x epoch
+
+Map-baseline masks (`restnl_mask`, DAQ engagement gate; June + August pre, as built for every curated session), from the
+two caches `session_cache_restnl/` (cam4) and `session_cache_restnlc1v2/` (cam4 + cam1); per-session table
+`<G>/restnl_cam1_compare_20261117/frames_by_session_daqgate.csv`. Frames = lick-free rest frames that enter the level
+(engaged, position-labelled). 120 sessions built in 15.0 min (a1); PS93_0813 excluded (no licks_all); every session has a
+cam1 events_all file; rule wr fails nowhere in either version.
+
+| animal | epoch | sessions | cam1-only onsets | frames cam4 | frames cam4+cam1 | removed by cam1 | median / max session | baseline change (rel RMS, median) |
+|---|---|---|---|---|---|---|---|---|
+| PS92 | pre (June+Aug) | 11 | 9,369 | 42,128 | 41,101 | 2.4 % | 0.8 / 4.7 % | 0.009 |
+| PS92 | acute | 5 | 2,369 | 28,266 | 27,775 | 1.7 % | 1.8 / 4.1 % | 0.011 |
+| PS92 | subacute | 2 | 1,243 | 3,540 | 3,324 | 6.1 % | 6.0 / 6.3 % | 0.186 |
+| PS92 | chronic | 12 | 11,464 | 34,367 | 29,020 | 15.6 % | 11.5 / 49.0 % | 0.113 |
+| PS93 | pre | 10 | 9,156 | 58,584 | 50,917 | 13.1 % | 15.1 / 28.0 % | 0.078 |
+| PS93 | acute | 4 | 2,683 | 28,053 | 25,773 | 8.1 % | 7.2 / 17.4 % | 0.068 |
+| PS93 | subacute | 3 | 1,917 | 16,817 | 13,487 | 19.8 % | 21.2 / 29.2 % | 0.137 |
+| PS93 | chronic | 12 | 11,669 | 54,969 | 42,596 | 22.5 % | 21.9 / 28.1 % | 0.096 |
+| PS94 | pre | 11 | 7,059 | 61,027 | 57,072 | 6.5 % | 7.2 / 11.8 % | 0.026 |
+| PS94 | acute | 6 | 3,643 | 61,723 | 57,004 | 7.6 % | 6.3 / 21.5 % | 0.018 |
+| PS94 | subacute | 5 | 4,670 | 23,011 | 20,044 | 12.9 % | 9.2 / 28.7 % | 0.037 |
+| PS94 | chronic | 8 | 6,858 | 38,526 | 36,969 | 4.0 % | 4.1 / 6.7 % | 0.026 |
+| PS95 | pre | 11 | 5,652 | 186,444 | 179,675 | 3.6 % | 3.5 / 10.4 % | 0.009 |
+| PS95 | acute | 1 | 416 | 19,842 | 19,640 | 1.0 % | 1.0 / 1.0 % | 0.007 |
+| PS95 | subacute | 7 | 4,295 | 89,101 | 84,436 | 5.2 % | 1.1 / 15.3 % | 0.013 |
+| PS95 | chronic | 11 | 22,374 | 105,748 | 94,491 | 10.6 % | 9.8 / 18.3 % | 0.042 |
+
+Reading: cam1 adds most where the tongue is out without a cam4 lick -- PS93 (the orofacial-deficit animal) loses 13 % of
+its pre and 20-23 % of its subacute / chronic lick-free rest, PS92 chronic 16 %; PS95 and PS94 pre / chronic lose 4-11 %.
+The removal is EPOCH-DEPENDENT (PS92 pre 2.4 % -> chronic 15.6 %; PS93 13 % -> 23 %), so a change in any RESTnl-referenced
+pre-vs-post number is possible; the session baseline itself moves by a median 1-19 % (relative RMS of b over components).
