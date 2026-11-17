@@ -67,6 +67,16 @@ FIGS = set(sys.argv[sys.argv.index("--figs") + 1].split(",")) if "--figs" in sys
 # FIRST licks only (ITI order 0 = bout start, cued order 0 = first post-cue lick) -> lick_matched<TAG>_curves_first.png
 # and matched<TAG>_first_bin_tests.csv; same per-lick table, sigma and reference. Off by default (outputs unchanged).
 FIRST_CURVES = "--first-curves" in sys.argv
+# --sem-band (11-17, Priya "a version with the SEM as faded bar, like the like-for-like graphs"): the BINNED curves
+# (--ref place / loclin) draw mean line + markers with the SEM as a faded band, as the Gaussian-smoothed curves do,
+# instead of error bars. Same numbers; off by default (outputs unchanged).
+SEM_BAND = "--sem-band" in sys.argv
+# --inside-curves (11-17, Priya "pick loclin with gaussian kernel, and the two versions would be with and without
+# like-for-like matching to pre-stroke licks"; needs --ref loclin): ALSO save, in the figure data, Gaussian-smoothed
+# curves (likeforlike.smooth_curves, the reference's own sigma) of ALL licks (As) and of post licks INSIDE the pre landing
+# range only (Ains), with bin tests of the inside set (BTin; first-lick twins As1 / Ains1 / BT1in with --first-curves).
+# Drawn by lick_matched_panels.py. Off by default (outputs unchanged).
+INSIDE_CURVES = "--inside-curves" in sys.argv
 SIGMAS = (0.05, 0.1, 0.15, 0.2, 0.3, 0.4)   # Gaussian widths tried (mm); chosen by held-out pre-session prediction
 PLACE_REFS = ("place", "gauss", "loclin")      # references on the absolute landing place (not deviation from the spout)
 INSIDE = "all spouts, inside pre range"
@@ -242,6 +252,27 @@ def bin_tests(P: pd.DataFrame) -> pd.DataFrame:
     return T
 
 
+def inside_curves(P: pd.DataFrame) -> dict:
+    """--inside-curves: smoothed curves of all licks / of post licks inside the pre landing range (pre licks kept whole:
+    they define the range) + bin tests of the inside set; first-lick twins with --first-curves (module flag block)."""
+    assert REF == "loclin", "--inside-curves needs --ref loclin (beyond = distance outside the pre range)"
+    sg = P.attrs["sigma"]
+
+    def sm(Q):
+        return lfl.smooth_curves(Q, "act", "dec", sg, CURVE_GRID, CURVE_MIN_W).assign(smooth=True, sigma=sg)
+
+    def sub(Q):
+        R = Q[(Q.beyond == 0) | (Q.epoch == "pre")].copy()
+        R.attrs.update(P.attrs)
+        return R
+    out = {"As": sm(P), "Ains": sm(sub(P)), "BTin": bin_tests(sub(P))}
+    if FIRST_CURVES:
+        P1 = P[P.cls == "first"].copy()
+        P1.attrs.update(P.attrs)
+        out.update(As1=sm(P1), Ains1=sm(sub(P1)), BT1in=bin_tests(sub(P1)))
+    return out
+
+
 def _dots(ax, g: pd.DataFrame, k: int, c) -> None:
     """One small dot per SESSION (jittered), one outlined marker per ANIMAL (mean of its sessions), bar = mean of the
     animals (the animal-weighted point the paired nested bootstrap tests)."""
@@ -283,6 +314,63 @@ CURVE_SETLAB = {"all": {"iti": "ITI licks", "trial": "cued licks"},
                 "first": {"iti": "ITI FIRST lick (bout start)", "trial": "cued FIRST lick"}}
 
 
+def curve_panel(ax, A: pd.DataFrame, BT: pd.DataFrame | None, st: str, head: str, notes=(), epl=None,
+                place: bool | None = None, sem_band: bool | None = None, fs: float = 9, sub: bool = True,
+                notes_y: float = 0.94, lw: float = 2.0, alpha: float = 1.0) -> None:
+    """ONE like-for-like curve panel (decoded vs landing, one line per epoch, BH significance strip on top) of set ``st``
+    ("iti" / "trial") from curve table A and bin tests BT. Used by _curves_figure and by lick_matched_panels.py (11-17
+    multi-panel figure). ``place`` / ``sem_band`` default to this run's REF / --sem-band; A with a "smooth" column = the
+    Gaussian-smoothed curves (solid where 4 animals, dashed where 3), else the binned curves. ``sub`` = False drops the
+    method line under the title (a multi-panel figure states it once); ``notes_y`` = top of the dashed-line notes;
+    ``lw`` / ``alpha`` = smoothed-curve width / opacity (dashed = 0.45 x lw; Priya 11-17 "thinner, more transparent")."""
+    from matplotlib.lines import Line2D
+
+    from wfield_local.orofacial_cohort import EPOCH_LINE
+    col = {"pre": "k", **EPOCH_LINE}
+    place = REF in PLACE_REFS if place is None else place
+    sem_band = SEM_BAND if sem_band is None else sem_band
+    epl = epl or [Line2D([], [], color=col[e], lw=2, marker="o", label=e) for e in EPS]
+    smooth = "smooth" in A.columns
+    for ep in EPS:
+        q = A[(A.set == st) & (A.epoch == ep)].groupby("mid").y
+        mu, se, nn = q.mean(), q.sem(), q.count()
+        if smooth:   # Gaussian-smoothed: solid + SEM band where all 4 animals contribute; thin dashed where 3
+            # (an animal entering / leaving the mean makes a step, so the 3-animal stretches are marked as such)
+            m4 = mu.where(nn >= 4)
+            ax.plot(mu.index.to_numpy(float), mu.where(nn >= 3), color=col[ep], lw=0.45 * lw, ls="--", alpha=alpha, zorder=3)
+            ax.plot(m4.index.to_numpy(float), m4, color=col[ep], lw=lw, alpha=alpha, zorder=4)
+            ax.fill_between(m4.index.to_numpy(float), m4 - se, m4 + se, color=col[ep], alpha=0.08, lw=0, zorder=2)
+        elif sem_band:
+            xb = mu.index.to_numpy(float)
+            ax.plot(xb, mu, "o-", color=col[ep], ms=3, lw=1.6, zorder=4)
+            ax.fill_between(xb, mu - se, mu + se, color=col[ep], alpha=0.15, lw=0, zorder=2)
+        else:
+            ax.errorbar(mu.index.astype(float), mu, yerr=se, fmt="o-", color=col[ep], ms=4, capsize=2, lw=1.3,
+                        zorder=3)
+    ax.axhline(0, color="0.7", lw=0.6, ls=":")
+    ax.axvline(0, color="0.7", lw=0.6, ls=":")
+    # significance strip: one row per post epoch, translucent bar over bins whose change vs pre survives BH
+    for r_i, ep in enumerate(EP):
+        bt = BT[(BT.set == st) & (BT.epoch == ep) & BT.sig] if BT is not None and len(BT) else []
+        for m_ in (bt.mid if len(bt) else []):
+            ax.axvspan(m_ - 0.125, m_ + 0.125, ymin=0.975 - 0.018 * r_i, ymax=0.987 - 0.018 * r_i, color=col[ep],
+                       alpha=0.35, lw=0, zorder=0)                  # thin, BEHIND the data and SEM bars
+    ax.set_xlabel("landing, lateral (mm, + = contralesional)" if place else
+                  "landing deviation from the animal's pre mean at the spout (mm, + = contralesional)", fontsize=8)
+    ax.set_ylabel(("decoded lateral" if place else "read-out deviation (decoded") + " (mm, + = contralesional)",
+                  fontsize=8)
+    ax.set_title(head + (("\n" +
+                 (f"(Gaussian-smoothed, sigma {A['sigma'].iloc[0]:g} mm; mean +/- SEM of 4 animals;\n"
+                  "dashed = only 3 animals there)" if smooth else
+                  f"(bins with >= {MIN_BIN} licks per animal; mean +/- SEM over animals)")) if sub else ""), fontsize=fs)
+    ax.legend(handles=epl, fontsize=8, frameon=False, loc="lower right")
+    if notes:       # which animal is missing where a line is mostly dashed (upper left = empty quadrant)
+        ax.text(0.01, notes_y, "\n".join(notes), transform=ax.transAxes, ha="left", va="top", fontsize=7,
+                color="0.25")
+    for s_ in ("top", "right"):
+        ax.spines[s_].set_visible(False)
+
+
 def _curves_figure(A: pd.DataFrame, BT: pd.DataFrame | None, name: str, cls: str = "all",
                    S: pd.DataFrame | None = None) -> None:
     """Decoded vs landing, one line per epoch, ITI and cued panels (Fig 12.2). ``cls`` = "all" (every lick, the default
@@ -310,40 +398,8 @@ def _curves_figure(A: pd.DataFrame, BT: pd.DataFrame | None, name: str, cls: str
         notes = lfl.dash_notes(A, st, EPS, CURVE_MIN_W, nlick=nl) if smooth else []
         for n_ in notes:
             print(f"   [{name} {st}] {n_}", flush=True)
-        for ep in EPS:
-            q = A[(A.set == st) & (A.epoch == ep)].groupby("mid").y
-            mu, se, nn = q.mean(), q.sem(), q.count()
-            if smooth:   # Gaussian-smoothed: solid + SEM band where all 4 animals contribute; thin dashed where 3
-                # (an animal entering / leaving the mean makes a step, so the 3-animal stretches are marked as such)
-                m4 = mu.where(nn >= 4)
-                ax.plot(mu.index.to_numpy(float), mu.where(nn >= 3), color=col[ep], lw=0.9, ls="--", zorder=3)
-                ax.plot(m4.index.to_numpy(float), m4, color=col[ep], lw=2.0, zorder=4)
-                ax.fill_between(m4.index.to_numpy(float), m4 - se, m4 + se, color=col[ep], alpha=0.08, lw=0, zorder=2)
-            else:
-                ax.errorbar(mu.index.astype(float), mu, yerr=se, fmt="o-", color=col[ep], ms=4, capsize=2, lw=1.3,
-                            zorder=3)
-        ax.axhline(0, color="0.7", lw=0.6, ls=":")
-        ax.axvline(0, color="0.7", lw=0.6, ls=":")
-        # significance strip: one row per post epoch, translucent bar over bins whose change vs pre survives BH
-        for r_i, ep in enumerate(EP):
-            bt = BT[(BT.set == st) & (BT.epoch == ep) & BT.sig] if BT is not None and len(BT) else []
-            for m_ in (bt.mid if len(bt) else []):
-                ax.axvspan(m_ - 0.125, m_ + 0.125, ymin=0.975 - 0.018 * r_i, ymax=0.987 - 0.018 * r_i, color=col[ep],
-                           alpha=0.35, lw=0, zorder=0)                  # thin, BEHIND the data and SEM bars
-        ax.set_xlabel("landing, lateral (mm, + = contralesional)" if REF in PLACE_REFS else
-                      "landing deviation from the animal's pre mean at the spout (mm, + = contralesional)", fontsize=8)
-        ax.set_ylabel(("decoded lateral" if REF in PLACE_REFS else "read-out deviation (decoded")
-                      + " (mm, + = contralesional)", fontsize=8)
-        ax.set_title(f"{CURVE_SETLAB[cls][st]}: read-out vs landing{' place' if REF in PLACE_REFS else ' deviation'}\n" +
-                     (f"(Gaussian-smoothed, sigma {A['sigma'].iloc[0]:g} mm; mean +/- SEM of 4 animals;\n"
-                      "dashed = only 3 animals there)" if smooth else
-                      f"(bins with >= {MIN_BIN} licks per animal; mean +/- SEM over animals)"), fontsize=9)
-        ax.legend(handles=epl, fontsize=8, frameon=False, loc="lower right")
-        if notes:       # which animal is missing where a line is mostly dashed (upper left = empty quadrant)
-            ax.text(0.01, 0.94, "\n".join(notes), transform=ax.transAxes, ha="left", va="top", fontsize=7,
-                    color="0.25")
-        for s_ in ("top", "right"):
-            ax.spines[s_].set_visible(False)
+        curve_panel(ax, A, BT, st, f"{CURVE_SETLAB[cls][st]}: read-out vs landing"
+                    f"{' place' if REF in PLACE_REFS else ' deviation'}", notes=notes, epl=epl)
     fig.suptitle("LIKE-FOR-LIKE: decoded position for a given landing, before and after the stroke (frozen "
                  + ("NON-LINEAR (RBF kernel ridge)" if lo.SOURCE == "nonlinear" else "KEY-row") + " "
                  "lateral decoder)" + ("; FIRST licks only (curves and bin tests; reference and sigma from all licks)"
@@ -542,7 +598,12 @@ def main() -> int:
         P1.attrs.update(P.attrs)
         A1, BT1 = curves(P1), bin_tests(P1)
         BT1.to_csv(il.OUT_W / f"matched{TAG}_first_bin_tests.csv", index=False)
-    save_fd(f"lick_matched{TAG}", dict(A=A, S=S, T=T, BT=BT, **({"A1": A1, "BT1": BT1} if FIRST_CURVES else {})))
+    extra = inside_curves(P) if INSIDE_CURVES else {}
+    for k, v in extra.items():
+        if k.startswith("BT"):
+            v.to_csv(il.OUT_W / f"matched{TAG}_{k}_bin_tests.csv", index=False)
+    save_fd(f"lick_matched{TAG}", dict(A=A, S=S, T=T, BT=BT, **({"A1": A1, "BT1": BT1} if FIRST_CURVES else {}),
+                                       **extra))
     plot(A, S, T, BT, A1, BT1)
     if "animal" in FIGS:
         plot_animal(S, T)

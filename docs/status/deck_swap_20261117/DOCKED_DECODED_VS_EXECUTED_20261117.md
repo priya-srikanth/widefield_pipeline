@@ -201,3 +201,28 @@ Dashed = landing grid points where only 3 animals have a curve (kernel weight â‰
 - Deck crop: `presentations/_source_PI_overview_2026-11-17/swap_inputs/s147_frozen_claims_trend_footerfix.png`
   (`dockfig_scripts/crop_s147.py`; 3 panels + legend, white-padded to the old 1680 x 401). Spec:
   `specs/s147_footerfix.json` (picture swap only, box unchanged).
+
+## Combined like-for-like panel figure (Priya 11-17 evening)
+
+- **Figure:** `I/panels_loclin_first_20261117/<tag>/figures/lick_matched_panels.png`. Columns: cued all licks, cued first
+  lick, ITI all licks, ITI first lick (bout start), ITI docked licks, so the cued panel is no longer repeated across
+  figures.
+  - Row 1: all post-stroke licks, with the local-linear edge line carried beyond the pre range.
+  - Row 2: only post-stroke licks inside each animal's pre landing range (strict like-for-like).
+- **Curves:** Gaussian-smoothed per animal with the loclin sigma (0.1 mm), shown as mean +/- SEM of the 4 animals and
+  dashed where only 3 animals contribute. Lines are thinner and translucent (width 1.2, opacity 0.75) so overlapping
+  epochs stay visible.
+- **Bars:** BH-surviving 0.25-mm bins, tested on each row's own lick set.
+- **Why loclin only:** Priya's decision was loclin with a Gaussian kernel. A draft with a Gaussian-reference row and a
+  loclin row came out almost identical, because the reference changes only the bars and the read-outs, never the
+  curves.
+- **Inputs:** `lick_matched_readout.py --ref loclin --inside-curves` (all-ITI with `--first-curves`; dock run in
+  `panels_loclin_dock_20261117`). The recompute matches the production loclin tests exactly (432/432).
+- **Binned loclin with SEM band** (`--sem-band`, plot only): `I/semband_{allITI,dock,gap2dock}_20261117/<tag>/figures/
+  lick_matched_loclin_curves.png`. The script is `dockfig_scripts/semband.sh`.
+- **Code:** both options are default-off.
+  - `lick_matched_readout`: new `curve_panel` helper (the panel drawing, now shared), `--sem-band`, `--inside-curves`
+    (`inside_curves`).
+  - New `scripts/lick_matched_panels.py`.
+  - A plot-only redraw with default options was byte-identical before and after the refactor (gauss curves, loclin
+    sem-band).
