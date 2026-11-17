@@ -702,3 +702,8 @@ PI deck (backup Overview_2026-11-06.bak_pre_a8_renumber_20261116.pptx): FR page 
 - 11-17 lick-source wording fixes (3c audit section 5) prepared: deck_swap_20261117/licksrc_apply.py, dry-run on a scratch copy
   places all 6 WRONG + 27 VAGUE edits (slide 102 needed the "pre-cue(ENL)" spelling). NOT applied to the live deck yet: 3c relayed
   Priya's OK, waiting for Priya's own confirmation in this window. RESTnl map wording waits for the RESTnlc1 figures.
+- 11-17 Priya: "ok to fix lick sources on slides" -> 33 edits applied (licksrc_apply.py; apply_log_licksrc.csv; backup
+  .bak_pre_a8_licksrc_20261117.pptx). "you can delete stale backups" -> 17 a8 deck backups deleted (list
+  deck_swap_20261117/DELETED_DECK_BACKUPS_20261117.txt); kept .bak_pre_a8_swap_20261117 (before today) and
+  .bak_pre_a8_licksrc_20261117 (before the last edit); .bak_pre_rebuild_20261116 not ours, untouched.
+  Pooled cued response 0-1 s vs own pre (fold - 1): tjM1 contra +.51* / +.40* / +.41*; tjM1 ipsi acute +.37 n.s.
