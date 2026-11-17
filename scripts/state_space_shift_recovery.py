@@ -30,15 +30,15 @@ import state_space_step_vs_gradual as SV  # noqa: E402
 from wfield_local.figure_layout import save_png_svg  # noqa: E402
 from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE  # noqa: E402
 
-OUT = S.ROOT / f"shift_recovery{S.tag()}"
-FIGS = S.ROOT / "page_figs"
+OUT = S.ROOT / f"shift_recovery{S.tag()}{S.RSFX}"
+FIGS = S.ROOT / f"page_figs{S.RSFX}"
 READS = ["orofacial contra | before the lick", "orofacial contra | early (0..0.3 s)", "orofacial contra | late (0.3..0.7 s)",
          "orofacial ipsi | before the lick", "orofacial ipsi | early (0..0.3 s)", "orofacial ipsi | late (0.3..0.7 s)",
          "posterior-medial contra | early (0..0.3 s)", "posterior-medial ipsi | early (0..0.3 s)"]
 
 
 def main():
-    d = pd.read_csv(S.ROOT / f"shift_behavior{S.tag()}" / "sessions.csv")
+    d = pd.read_csv(S.ROOT / f"shift_behavior{S.tag()}{S.RSFX}" / "sessions.csv")
     aim = pd.read_csv(SV.AIM)[["label", "farcontra_first"]].rename(columns={"farcontra_first": "aim"})
     d = d.merge(aim, on="label", how="left")
     names = {}

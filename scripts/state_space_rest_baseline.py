@@ -30,7 +30,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import o2_state_space_lnmf as L  # noqa: E402
 import state_space_sim as S  # noqa: E402
 
-OUT = S.ROOT / "rest_baseline_svd"
+OUT = S.ROOT / f"rest_baseline_svd{S.RSFX}"
 BUNDLE = S.BUNDLE
 
 

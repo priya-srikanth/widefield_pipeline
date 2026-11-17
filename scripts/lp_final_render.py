@@ -161,8 +161,8 @@ def maps_out() -> Path:
     return lp_licks.output_dir(root() / "epoch")
 
 
-def step_maps(aligns, plot_only=False):
-    setup(source="lp")
+def step_maps(aligns, plot_only=False, refs=ALL_REFS):
+    setup(source="lp", refs=refs)
     import pandas as pd
 
     from wfield_local import epoch_figures as ef
@@ -319,6 +319,8 @@ def main(argv=None) -> int:
     ap.add_argument("--trained", choices=("daq", "lp"), default=None, help="default: lp for --source lp, else daq")
     ap.add_argument("--jobs", type=int, default=4)
     ap.add_argument("--plot-only", action="store_true")
+    ap.add_argument("--refs", default=ALL_REFS, help="maps: WIDEFIELD_MAP_REFS for the render (default: all six; "
+                    "'restnlc1' = only the cam4 + cam1 RESTnl reference, 11-17, into its own refs-restnlc1 folder)")
     a = ap.parse_args(argv)
     if a.trained is None:
         a.trained = "lp" if a.source == "lp" else "daq"
@@ -328,7 +330,7 @@ def main(argv=None) -> int:
     if a.step == "restnl":
         step_restnl(min(a.jobs, 4))
     elif a.step == "maps":
-        step_maps(a.aligns, a.plot_only)
+        step_maps(a.aligns, a.plot_only, a.refs)
     elif a.step == "decoders":
         step_decoders(a.window, a.source, a.trained, a.plot_only)
     else:

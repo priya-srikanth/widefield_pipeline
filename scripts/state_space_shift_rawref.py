@@ -45,8 +45,8 @@ from wfield_local.figure_layout import save_png_svg  # noqa: E402
 from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE  # noqa: E402
 
 EPS = SB.EPS
-OUT = S.ROOT / f"shift_rawref{S.tag()}"
-FIGS = S.ROOT / "page_figs"
+OUT = S.ROOT / f"shift_rawref{S.tag()}{S.RSFX}"
+FIGS = S.ROOT / f"page_figs{S.RSFX}"
 WINS = {"pre-lick": (-1.0, -0.1), "post-lick": (0.0, 0.7)}
 RAW = ["RESTnl", "pre-cue", "pre-lick", "post-lick"]
 REL = ["pre-cue", "pre-lick", "post-lick"]
