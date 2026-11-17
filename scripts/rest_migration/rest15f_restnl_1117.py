@@ -3,10 +3,11 @@ rest bracketed by two camera WORKING trials (Priya 11-17).
 
 WHAT CHANGES against the page's 15f (`rest_frozen_decoder`, restdock05, DAQ contacts only, in-memory refits):
   REST SET   restdock05 (docked, not running) MINUS every DAQ lick (the behaviour DAQ detector, `restnl_mask.
-             daq_lick_onsets`) AND every LP video lick = cam4 `licks_all.csv` + cam1-only events (`lp_licks.lp_lick_times`,
-             the imaging LP lick set), each widened [0.5 s before, 2.0 s after] (`restnl_mask.BUF_S`), the min_rest_s floor
-             re-applied after each step. NB the map-baseline RESTnl (`restnl_mask.lickfree_mask`) removes cam4 only; this
-             run adds the cam1-only events (counted per session in the counts table).
+             daq_lick_onsets`) AND every LP video lick, each widened [0.5 s before, 2.0 s after] (`restnl_mask.BUF_S`), the
+             min_rest_s floor re-applied after each step. `--lp cam4` (PRIMARY, Priya 11-17) = cam4 `licks_all.csv` only,
+             exactly the rebuild's RESTnl (`rest_frozen_decoder_nl.lickfree_rest` = `restnl_mask.lickfree_mask`);
+             `--lp cam4cam1` (stricter SENSITIVITY, the 11-17 first run) adds the cam1-only events
+             (`lp_licks.lp_lick_times`). Each set has its own cache folder, frozen align token and output folder.
   BRACKETS   a period is kept only when the cue before it and the next trial are the SAME position (the 15f rule), both
              inside the camera working period (`rest_engagement.engaged_by_cue`, as 12.1b) AND both camera WORKING
              trials (`trial_classes.in_sel(cue_classes_for(...), "working")` = contact | incomplete in the working
@@ -49,15 +50,38 @@ from wfield_local import config as _config  # noqa: E402
 from wfield_local import run_mode as _run_mode  # noqa: E402
 from wfield_local.figure_layout import save_png_svg  # noqa: E402
 
-MASK = "restnlc1wk"
+#: WHICH LP LICKS LEAVE THE REST MASK (Priya 11-17): "cam4" = cam4 licks_all only, the rebuild's `restnl_mask` definition
+#: (PRIMARY); "cam4cam1" = + cam1-only events (`lp_licks.lp_lick_times`), the stricter SENSITIVITY run. Read from the
+#: env so spawned workers see the caller's choice (`main` sets it from --lp before any fan-out).
+LP_ENV = "R15F_LP_SET"
+LP_SETS = ("cam4", "cam4cam1")
+
+
+def lp_set() -> str:
+    v = os.environ.get(LP_ENV, "cam4").strip() or "cam4"
+    if v not in LP_SETS:
+        raise SystemExit(f"{LP_ENV}={v!r}; expected one of {LP_SETS}")
+    return v
+
+
+def _mode():
+    """(mask name = cache folder + frozen align token, output folder name, mask text) of the active LP set."""
+    if lp_set() == "cam4cam1":
+        return ("restnlc1wk", "rest15f_restnl_20261117",
+                "RESTnl rest (restdock05: docked, not running; minus every DAQ lick and every cam4 + cam1 LP lick, "
+                "-0.5 s / +2.0 s) between two camera working trials at the same position")
+    return ("restnlwk", "rest15f_restnl_cam4_20261117",
+            "RESTnl rest (restdock05: docked, not running; minus every DAQ lick and every cam4 LP lick, "
+            "-0.5 s / +2.0 s) between two camera working trials at the same position")
+
+
 CODES = nl.CODES
 EPOCHS = nl.EPOCHS
 CACHE_ROOT = Path(_config.resolver().root("figures_working")) / "rest_decoder_nl_cache"
-#: the primary run tag's epoch folder (where the rebuild's 15f lives), a NEW subfolder
-OUT_ROOT = (_run_mode.primary_output_dir(Path(_config.resolver().root("cohort_out")) / "grant_figures" / "epoch")
-            / "rest15f_restnl_20261117")
-MASK_TEXT = ("RESTnl rest (restdock05: docked, not running; minus every DAQ lick and every cam4 + cam1 LP lick, "
-             "-0.5 s / +2.0 s) between two camera working trials at the same position")
+#: the primary run tag's epoch folder (where the rebuild's 15f lives), a NEW subfolder per LP set
+EPOCH_DIR = _run_mode.primary_output_dir(Path(_config.resolver().root("cohort_out")) / "grant_figures" / "epoch")
+MASK, _OUT_NAME, MASK_TEXT = _mode()
+OUT_ROOT = EPOCH_DIR / _OUT_NAME
 PRE_TEXT = nl.PRE_TEXT
 POS_SHORT = {"close_L": "close ipsi", "close_center": "close mid", "close_R": "close contra",
              "far_L": "far ipsi", "far_center": "far mid", "far_R": "far contra"}
@@ -84,7 +108,9 @@ def lickfree_rest_lp(session, rest, rate):
 def _code_key():
     from wfield_local import lp_licks
     from wfield_local import restnl_mask as rn
-    src = (inspect.getsource(rf._collect) + inspect.getsource(rf._frame_samples) + inspect.getsource(lickfree_rest_lp)
+    # the cam4cam1 key is the 11-17 first run's, unchanged (its cache stays valid); cam4 swaps in the cam4-only mask
+    mask_fn = lickfree_rest_lp if lp_set() == "cam4cam1" else nl.lickfree_rest
+    src = (inspect.getsource(rf._collect) + inspect.getsource(rf._frame_samples) + inspect.getsource(mask_fn)
            + inspect.getsource(_working_flags) + repr(rn.BUF_S))
     tag = _run_mode.cache_tag()
     return hashlib.sha1(f"{src}|{nl.BINS}|gate|{tag}|{lp_licks.cache_tag()}".encode()).hexdigest()[:12]
@@ -115,7 +141,7 @@ def _collect_job(label):
     s = next(x for x in SESSIONS if x["label"] == label)
     t0 = time.perf_counter()
     basis = nl._basis(label.split("_")[0])
-    got, why = rf._collect(s, basis, nl.BINS, gate=True, rest_mask=lickfree_rest_lp, period_frames=True,
+    got, why = rf._collect(s, basis, nl.BINS, gate=True, rest_mask=lickfree_rest_lp if lp_set() == "cam4cam1" else nl.lickfree_rest, period_frames=True,
                            period_cues=True)
     n_cam1 = -1
     try:
@@ -398,7 +424,8 @@ def plot_confusion(out, pre):
     labels = ef.anatomical_labels([_pname(CODES[i]) for i in idx], short=True)
     return ef.confusion_row(cnt, out, name=f"{stem(pre)}_confusion",
                             title=f"Frozen pre-stroke rest decoder confusion, pooled across animals -- RESTnl "
-                                  f"(DAQ + cam4/cam1 LP licks removed), working brackets; baseline {PRE_TEXT[pre]}",
+                                  f"(DAQ + {'cam4 + cam1' if lp_set() == 'cam4cam1' else 'cam4'} LP licks removed), working brackets; "
+                                  f"baseline {PRE_TEXT[pre]}",
                             delta=True, chance=rf.CHANCE, labels=labels)
 
 
@@ -410,8 +437,16 @@ def main(argv=None) -> int:
     ap.add_argument("--plot-only", action="store_true")
     ap.add_argument("--animals", nargs="*", default=None)
     ap.add_argument("--jobs", type=int, default=4)
-    ap.add_argument("--out", type=Path, default=OUT_ROOT)
+    ap.add_argument("--lp", choices=LP_SETS, default="cam4",
+                    help="LP licks removed from rest: cam4 (primary, = restnl_mask) or cam4cam1 (stricter sensitivity)")
+    ap.add_argument("--out", type=Path, default=None)
     a = ap.parse_args(argv)
+    global MASK, MASK_TEXT, OUT_ROOT, _OUT_NAME
+    os.environ[LP_ENV] = a.lp                      # before any fan-out: spawned workers read it at import
+    MASK, _OUT_NAME, MASK_TEXT = _mode()
+    OUT_ROOT = EPOCH_DIR / _OUT_NAME
+    a.out = a.out or OUT_ROOT
+    print(f"LP set: {a.lp} -> mask {MASK}", flush=True)
     import wfield_local
     print(f"wfield_local: {wfield_local.__file__}\nout: {a.out}\ncache: {CACHE_ROOT / MASK} key {_code_key()}",
           flush=True)
