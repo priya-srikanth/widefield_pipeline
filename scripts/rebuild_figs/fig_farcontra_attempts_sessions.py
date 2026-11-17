@@ -56,7 +56,7 @@ INC = Path(config.resolver().root("dlc")) / "session_poses" / "cam1_licks" / "in
 ANIMALS = ("PS92", "PS93", "PS94", "PS95")
 MARK = {"PS92": "o", "PS93": "s", "PS94": "^", "PS95": "D"}
 EPOCHS = ("pre", "acute", "subacute", "chronic")
-PANELS = (("attempt_rate", "Attempt rate\n(engaged trials)"),
+PANELS = (("attempt_rate", "Attempt rate\n(working-period trials)"),   # the run's canonical = camera working period
           ("completion", "Completion\n(attempt reaches spout)"),
           ("licks_no_contact", "Licks without contact\n(share of licks)"),
           ("jaw_no_lick", "Jaw moves, no lick\n(share of trials)"))
@@ -101,25 +101,35 @@ def load(att: Path, inc: Path) -> pd.DataFrame:
     return S.sort_values(["animal", "day"]).reset_index(drop=True)
 
 
-def trial_set_sentence() -> str:
-    """The four panels' sets (trials for the attempt panels, LICKS for licks-without-contact, all trials for jaw)."""
+def trial_set_sentence(working: bool = False) -> str:
+    """The four panels' sets (trials for the attempt panels, LICKS for licks-without-contact, trials for jaw).
+    ``working``: the cam1 table is a `cam1_incomplete_licks.py --working` run (licks / jaw on working-period trials)."""
     from wfield_local import trial_set_text as tst
     att = _common.working_period_trials(
         what="attempt rate / completion: far-contra trials of the camera working period",
         extra=["attempt = contact + incomplete, completion = contact / attempt"])
-    lk = tst.events("licks without contact: every v36 cam4 lick and cam1-only lick event at far_R (all trials; no "
-                    "engagement, working-period or class gate); no contact = cam4 no-contact licks + cam1-only "
-                    "no-contact events", unit="licks")
-    jaw = tst.events("jaw moves, no lick: every far_R trial (trial-level camera class jaw-only over all trials; no "
-                     "working-period cut)", unit="trials")
+    if working:
+        lk = tst.events("licks without contact: every v36 cam4 lick and cam1-only lick event at far_R in working-period "
+                        "trials (cue to the session's last camera lick; stopped runs out); no contact = cam4 no-contact "
+                        "licks + cam1-only no-contact events", unit="licks")
+        jaw = tst.events("jaw moves, no lick: far_R working-period trials of the run's camera class jaw-only / every "
+                         "far_R working-period trial", unit="trials")
+    else:
+        lk = tst.events("licks without contact: every v36 cam4 lick and cam1-only lick event at far_R (all trials; no "
+                        "engagement, working-period or class gate); no contact = cam4 no-contact licks + cam1-only "
+                        "no-contact events", unit="licks")
+        jaw = tst.events("jaw moves, no lick: every far_R trial (trial-level camera class jaw-only over all trials; no "
+                         "working-period cut)", unit="trials")
     return tst.union(att, lk, jaw, unit="trials / licks")
 
 
 def main(argv=None) -> int:
     ap = _common.parser(__doc__)
     ap.add_argument("--incomplete", type=Path, default=INC, help="cam1 incomplete-licks sessions table")
+    ap.add_argument("--incomplete-working", action="store_true",
+                    help="the --incomplete table is a cam1_incomplete_licks.py --working run (caption trial set)")
     a = ap.parse_args(argv)
-    _common.declare(trial_set_sentence())          # THE TRIAL SET of every figure (Priya 11-09)
+    _common.declare(trial_set_sentence(a.incomplete_working))          # THE TRIAL SET of every figure (Priya 11-09)
     OUT = a.out
     S = _common.load_figdata(OUT, NAME) if a.plot_only else load(attempts_sessions(), a.incomplete)
     if not a.plot_only:
@@ -159,7 +169,7 @@ def main(argv=None) -> int:
                  label=e.capitalize()) for e in EPOCHS]
     fig.legend(handles=h, loc="upper center", ncol=len(h), frameon=False, fontsize=11, bbox_to_anchor=(0.5, 1.0),
                handletextpad=0.3, columnspacing=1.1)
-    fig.tight_layout(rect=(0, 0, 1, 0.88), w_pad=1.5)
+    fig.tight_layout(rect=(0, 0.1, 1, 0.88), w_pad=1.5)          # bottom band: the trial-set stamp clears the tick labels
     save_png_svg(fig, OUT / "farcontra_attempts_sessions.png", dpi=200)
     pd.set_option("display.width", 200)
     print(S.groupby(["animal", "epoch"], observed=True).size().unstack("epoch").to_string())

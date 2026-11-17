@@ -375,9 +375,11 @@ def figure(df, out):
         ax.set_xlabel("days from stroke")
     hs = [plt.Line2D([], [], marker=ANIMAL_MARKER[a], ls="", mfc="none", mec="k", label=a) for a in sorted(ANIMAL_MARKER)]
     hs += [plt.Line2D([], [], marker="o", ls="", mfc="none", mec=EPOCH_LINE[e], label=e) for e in EPOCHS]
-    fig.legend(handles=hs, loc="upper center", ncol=8, frameon=False)
-    fig.suptitle("EXPLORATORY: single-trial state space vs pre, session vs session (gray = pre 95 % range)", y=0.995)
-    fig.tight_layout(rect=(0, 0, 1, 0.95))
+    # one figure-level legend BELOW the panels, the title alone in the top band (11-16: the legend sat in the title band
+    # and overlapped the suptitle / panel titles)
+    fig.suptitle("EXPLORATORY: single-trial state space vs pre, session vs session (gray = pre 95 % range)")
+    fig.tight_layout(rect=(0, 0.045, 1, 0.97))
+    fig.legend(handles=hs, loc="lower center", ncol=8, frameon=False, bbox_to_anchor=(0.5, 0.0))
     save_png_svg(fig, out / "state_space_trials_over_days.png", dpi=130)
     plt.close(fig)
 
@@ -386,7 +388,17 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--out", default=str(OUT))
     ap.add_argument("--condition", default="target", choices=["target", "on_target", "landing", "contact", "incomplete"])
+    ap.add_argument("--plot-only", default=None, help="redraw the over-days figure from SRC/state_space_trials_sessions.csv "
+                    "into --out (no run; --out must be a new folder, never SRC)")
     a = ap.parse_args()
+    if a.plot_only:
+        src, out = Path(a.plot_only), Path(a.out)
+        if out.resolve() == src.resolve():
+            sys.exit("--plot-only: --out must differ from the source folder")
+        out.mkdir(parents=True, exist_ok=True)
+        figure(pd.read_csv(src / "state_space_trials_sessions.csv"), out)
+        print(f"wrote {out} (plot-only from {src})")
+        return
     out = Path(a.out) if a.condition == "target" else Path(a.out).with_name(f"trials_{a.condition}{S.tag()}")
     out.mkdir(parents=True, exist_ok=True)
     df, pairs = run(mode=a.condition)
