@@ -1,3 +1,18 @@
+## 2026-11-17 -- Like-for-like curves: local-linear reference with a Gaussian kernel; strict = each animal's own pre curve (Priya; a8 window)
+
+- **Curves** (decoded vs landing per epoch) are Gaussian-smoothed per animal x epoch (sigma 0.1 mm, held-out pre choice;
+  drawn where the weight is >= 10 licks), mean +/- SEM over animals, dashed where only 3 animals. No binned dots: the bin
+  means are the same data, and the binned display could rest an edge bin on one or two animals.
+- **Reference** for the offset, the bar tests and the read-outs = the Gaussian-weighted LOCAL LINE (loclin). Priya:
+  "pick loclin with gaussian kernel". A Gaussian-mean-reference row and a loclin row looked identical (the reference
+  never changes the curves).
+- **Two versions**: all post licks (edge line carried beyond the pre range) and STRICT like-for-like = post licks only
+  where the SAME animal's pre curve of the SAME lick set exists, curves cut to that range. NOT the loclin `beyond` flag
+  (0.5-99.5 % of all pre licks): it reaches past where a pre curve exists. Code: lick_matched_readout.py --inside-curves
+  (inside_curves), scripts/lick_matched_panels.py. Bars stay on 0.25-mm bins (a test needs cells).
+- One combined figure (cued all / cued first / ITI all / ITI first / ITI docked) replaces the separate curve figures that
+  repeated the cued panel (goal page Fig 12.2 v317; deck slide 125).
+
 ## 2026-11-17 -- Lick source of the lick-free rest (RESTnl) and of the LP lick trains; every caption names its train (Priya)
 - Priya 11-17: "ensure all figure captions / slide notes are clear about what data they used -- I don't know if we
   specify everywhere cam4 vs cam4 + cam1 LP licks". Audit and fixes: docs/status/LICK_SOURCE_AUDIT_20261117.md; the

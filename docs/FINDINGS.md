@@ -318,6 +318,19 @@ No laterality support for Priya's reduced-thalamocortical-drive hypothesis after
    n.s.; later +0.15 n.s. / -0.16 / -0.33 (4/4). The first lick lands further ipsilesional than later licks (-1.08 vs
    -0.71 acute). So the target-ward read-out is a property of the aimed launch, and the chronic ipsilesional read-out of
    far-contra licks (4d0b) is carried by the later, corrective licks.
+4d0k. **Like-for-like curves on the rebuild, one figure for every lick set, all licks vs STRICT matching (11-17, a8;
+   Priya: "pick loclin with gaussian kernel, and the two versions would be with and without like-for-like matching";
+   goal page Fig 12.2 v317 #f-lick_matched_panels; deck slide 125). PROVISIONAL.** Columns cued all / cued first /
+   ITI all / ITI first lick of a bout / ITI docked; Gaussian-smoothed curves (sigma 0.1 mm), local-linear reference.
+   STRICT row = post licks only where the SAME animal's pre curve of the SAME lick set exists (curves cut to it): 3 %
+   of post curve points drop for all licks, 12-19 % for first licks; no point moves > 0.09 mm and the significant bins
+   are IDENTICAL in every panel and epoch -- the result does not depend on licks beyond the pre landing range.
+   ITI read contralesional of same-place pre licks in every epoch on EVERY ITI set (session means: all +0.35 / +0.24 /
+   +0.27; first +0.38 / +0.26 / +0.27; docked +0.29 / +0.22 / +0.28 mm; 4/4 except subacute all / docked 3/4; bins
+   acute 10/10, 8/8, 7/8); cued +0.19 acute -> n.s. (first lick +0.36 / +0.22 / +0.16, 4/4), furthest contralesional
+   cued landings below pre chronically (compression at the edge). STANDS: 4d0j's claim on the rebuild. Gauss vs loclin
+   change only the bars / read-outs, never the curves (a two-reference draft looked identical). Record:
+   docs/status/deck_swap_20261117/DOCKED_DECODED_VS_EXECUTED_20261117.md (combined panel section).
 4d0j. **SAME-PLACE like-for-like read-out (PRIMARY, DECISIONS 10-27 late; page v130 figs 3.15 / 3.16, stable ids
    #f-lick_matched_place_readout / _curves). PROVISIONAL.** Each lick vs the animal's pre licks (any spout) that landed
    at the same lateral place. ITI, all spouts +0.31 / +0.21 / +0.24 mm (4/4 each epoch); far ipsi +0.43 / +0.38 / +0.38.

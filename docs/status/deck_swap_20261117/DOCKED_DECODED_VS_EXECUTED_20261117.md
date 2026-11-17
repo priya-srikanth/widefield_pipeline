@@ -208,7 +208,14 @@ Dashed = landing grid points where only 3 animals have a curve (kernel weight â‰
   lick, ITI all licks, ITI first lick (bout start), ITI docked licks, so the cued panel is no longer repeated across
   figures.
   - Row 1: all post-stroke licks, with the local-linear edge line carried beyond the pre range.
-  - Row 2: only post-stroke licks inside each animal's pre landing range (strict like-for-like).
+  - Row 2: only post-stroke licks that landed where the SAME animal's pre curve of the SAME lick set exists (first licks
+    for the first-lick panels), each post curve cut to that range (strict like-for-like; Priya 11-17 asked why post
+    landings outside the pre zone still showed). The first version used the loclin `beyond` flag, i.e. the 0.5-99.5 %
+    range of ALL the animal's pre licks of the set, which reaches past where a pre curve can be drawn and, for first
+    licks, past where pre FIRST licks landed. Strict row: 3 % of post curve points drop for all licks, 12-19 % for first
+    licks; no point moves > 0.09 mm; the significant bins are identical to row 1 in every panel and epoch.
+  - Deck slide 125 (title 'Decoded vs landed: ITI shifted every epoch, cued acutely'; spec specs/s125_panels.json,
+    log apply_log_s125_panels.csv; backup Overview_2026-11-06.bak_pre_a8_panels_20261117.pptx). Goal page v317.
 - **Curves:** Gaussian-smoothed per animal with the loclin sigma (0.1 mm), shown as mean +/- SEM of the 4 animals and
   dashed where only 3 animals contribute. Lines are thinner and translucent (width 1.2, opacity 0.75) so overlapping
   epochs stay visible.

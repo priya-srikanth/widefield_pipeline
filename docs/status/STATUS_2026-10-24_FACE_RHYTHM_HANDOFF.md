@@ -56,6 +56,21 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
 
 ## 2. Next, in order
 
+00-A8-1117c. **11-17 LATE (a8) -- START HERE; 00-A8-1117b below is the evening state (still valid for everything else).**
+   Like-for-like curves rebuilt as ONE figure (Priya 11-17): columns cued all / cued first / ITI all / ITI bout-start first
+   lick / ITI docked; rows all post licks vs STRICT (post licks only where the animal's own pre curve of the same lick set
+   exists). Gaussian-smoothed curves, local-linear reference (DECISIONS 2026-11-17 'Like-for-like curves'); FINDINGS 4d0k.
+   **Published:** goal page v317 (3c owns the page; a8 edited section 12 + the brief card only, 3c told): Fig 12.2 =
+   lick_matched_panels.png (#f-lick_matched_panels; old id kept), non-linear curves -> Fig 12.2 S2, 3 old curve PNGs
+   removed (page at 509 / 511 files). **Deck:** slide 125 replaced + retitled 'Decoded vs landed: ITI shifted every
+   epoch, cued acutely' (backup .bak_pre_a8_panels_20261117; specs/s125_panels.json). **Outputs:** iti_licks/
+   panels_loclin_first_20261117 (all-ITI, figure + figdata) and panels_loclin_dock_20261117; semband_{allITI,dock,gap2dock}
+   _20261117 (binned loclin curves with SEM band, superseded for display). **Code (default-off):** lick_matched_readout
+   curve_panel / --sem-band / --inside-curves; scripts/lick_matched_panels.py. Record: DOCKED_DECODED_VS_EXECUTED_20261117.md
+   (combined panel section). **Open (offered, not asked):** within-spout like-for-like version (each spout's own pre licks;
+   ~20 min per set); per-session lick counts kept under the strict rule; Fig 12.1 read-out still on the Gaussian-mean
+   reference (loclin agrees within 0.03 mm) -- switch only if Priya wants it. Nothing of a8's is running.
+
 00-A8-1117b. **11-17 EVENING (a8) -- START HERE; item 00-A8-1117 below is the day's earlier state (its "Running" list is DONE).**
    Day log: docs/status/RUNNING_LIST_2026-11-08_a8_june.md (11-17 entries). Nothing of a8's is running.
    **Deck (Overview_2026-11-06.pptx) done today, on top of 00-A8-1117:** groups C (LMM incl. docked + per-session slide 12 +
