@@ -101,6 +101,21 @@ Run code from a worktree with `PYTHONPATH=$(pwd -W)` (Windows form). AR-HMM mode
   .091, side within contacts .170 / .362. AR-HMM better on every label (one seed; engines differ: EM vs Gibbs; GHMM
   on instantaneous features, not per-bin summaries). Keep the AR-HMM.
 
+## 3a. 11-17 ~18:00: held-out pre baseline + pre seed stability
+
+- **Pre-model seed stability** (`arhmm_seed_match_noQ.py`, ref pre_s1): pre_s2 frame agreement .823 / ARI .847; pre_s3
+  .642 / .555. The quiet face is ONE pre state (45 % of time; cosine .97-1.00, frames .98 / .70), so no 5-19-8-style
+  split. Weak: s2 18, 22; s3 8, 16, 9. Use **pre_s1** as the frozen reference, s2 / s3 as robustness.
+- **Held-out pre folds (Priya OK 11-17):** scoring pre days with the in-sample pre model would make the baseline fit
+  look better than any post day. `arhmm_model fit --holdout-fold k` drops each animal's k-th August-pre day (8 folds
+  cover all 31; PS93 has 7 so sits out fold 8); tag `pre_s1_f<k>`, model stores `held_out`. Post days are scored by the
+  full pre_s1. Smoke-tested the exact command locally (fit 2 iters -> save -> load in locanmf -> decode a held-out day).
+  Bundle **`arhmm_20261117`** (code f1822fc4; features + epochs byte-identical to 20261116b), `foldfit.sbatch`
+  (array 1-8, 16 cores, 96 GB, ~2 h each). Then: decode each fold's held-out days locally, per-frame log-likelihood
+  score vs own held-out pre.
+- **Merges deferred** (Priya 11-17: "we can merge later"); 5-19-8 still the only proposed merge.
+- GLM-HMM K 6-8 select-k still running (PID 30040, serial, writes only at the end; expected ~19:30-20:30).
+
 ## 3. Running / state at 11-17 ~14:00 (background in session 37fdbabf; scratchpad
 `C:/Users/SABATI~1/AppData/Local/Temp/claude/179e1046909c5be2/37fdbabf-285a-455b-bbb7-d5927a5affe6/scratchpad`)
 
