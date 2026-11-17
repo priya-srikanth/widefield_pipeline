@@ -53,6 +53,15 @@ Run code from a worktree with `PYTHONPATH=$(pwd -W)` (Windows form). AR-HMM mode
 - AR-HMM CHECK FIT: PS92_20260811 + PS92_20260822, kappa 1e8, 40 iters, tag `check_k1e8` -> `scratchpad/arhmm_check/`
   (log run.log). NOTE: started before the pickle fix; its model loads through `arhmm_model.load_model`.
 
+**UPDATE 11-16 evening:** check fit done (states sensible: quiet / running / lick contra + ipsi with matching FR side
+factors / pre-lick jaw; problems: median syllable 0.28 s at kappa 1e8, state 1 a running + face catch-all, 9 lick states;
+figure `scratchpad/arhmm_check/example_syllables.png`). Found + fixed: cam4 jaw gaps (tongue hides the jaw) cut licks out
+of the model -> features v3 fill them from the 3-D jaw (R2 0.90-0.995), min segment 2 s: median 99.8 % of each session
+modelled (PS92_0812 70 % = its crash gap; PS94_0817 92 % untriangulated tongue; PS95_0903 / 0907 92 / 90 % jaw).
+First bundle `arhmm_20261116` (scan) CANCELLED; current bundle `arhmm_20261116b` (code 9c15dcd1, features
+`scratchpad/arhmm_feat_v3`); Priya created the O2 env `arhmm`. Pilot GLM-HMM per animal over all epochs
+(`glm_hmm --select-k --per-animal`) running locally -> `scratchpad/glmhmm_v1/select_k_per_animal.csv`.
+
 ## 4. To do (in order)
 
 1. Check fit sanity: `python -m wfield_local.arhmm_states profile --out <scratch>/arhmm_check --feat <scratch>/arhmm_feat
