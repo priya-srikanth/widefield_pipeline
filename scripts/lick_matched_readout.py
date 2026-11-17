@@ -23,6 +23,7 @@ figures/lick_matched<TAG>_animal_change.png (per-animal change vs pre with sessi
 figdata/lick_matched<TAG>.pkl (--plot-only redraws every figure from it). Writes go to iti_licks.OUT_W (= OUT unless
 WFIELD_ITI_OUT_W redirects them); --animals PS94[,PS95] restricts a test run.
 Usage: python scripts/lick_matched_readout.py [--ref place|spout|pooled|gauss|loclin] [--plot-only] [--animals A,B]
+       [--figs curves,readout,perspout,animal] [--first-curves]
        (default place; see REF)
 """
 from __future__ import annotations
@@ -40,6 +41,7 @@ import iti_lick_order as lo  # noqa: E402
 import likeforlike as lfl  # noqa: E402
 
 from wfield_local import analysis_kit as ak  # noqa: E402
+from wfield_local import trial_set_text as tst  # noqa: E402
 
 EP = ["acute", "subacute", "chronic"]
 EPS = ["pre", *EP]
@@ -61,6 +63,10 @@ ANIMALS = sys.argv[sys.argv.index("--animals") + 1].split(",") if "--animals" in
 # per-animal figure need not re-render the other page figures
 FIGS = set(sys.argv[sys.argv.index("--figs") + 1].split(",")) if "--figs" in sys.argv else \
     {"curves", "readout", "perspout", "animal"}
+# --first-curves (11-17, Priya "cued first lick and ITI lick after quiet as well as all licks"): ALSO draw the curves of
+# FIRST licks only (ITI order 0 = bout start, cued order 0 = first post-cue lick) -> lick_matched<TAG>_curves_first.png
+# and matched<TAG>_first_bin_tests.csv; same per-lick table, sigma and reference. Off by default (outputs unchanged).
+FIRST_CURVES = "--first-curves" in sys.argv
 SIGMAS = (0.05, 0.1, 0.15, 0.2, 0.3, 0.4)   # Gaussian widths tried (mm); chosen by held-out pre-session prediction
 PLACE_REFS = ("place", "gauss", "loclin")      # references on the absolute landing place (not deviation from the spout)
 INSIDE = "all spouts, inside pre range"
@@ -168,16 +174,8 @@ def curves(P: pd.DataFrame) -> pd.DataFrame:
     REF gauss (Priya 10-28 "there aren't discrete bins anymore right?"): Gaussian-SMOOTHED curves with the offset's own
     sigma on CURVE_GRID (column smooth=True), no display bins; the significance strip keeps 0.25-mm bins."""
     if REF == "gauss" and "sigma" in P.attrs:
-        sg, rows = P.attrs["sigma"], []
-        for (st, ep, a), g in P.groupby(["set", "epoch", "animal"]):
-            x_, y_ = g.act.to_numpy(float), g.dec.to_numpy(float)
-            ok = np.isfinite(x_) & np.isfinite(y_)
-            w = np.exp(-0.5 * ((CURVE_GRID[:, None] - x_[None, ok]) / sg) ** 2)
-            sw = w.sum(1)
-            yy = np.where(sw >= CURVE_MIN_W, (w @ y_[ok]) / np.maximum(sw, 1e-12), np.nan)
-            rows += [dict(set=st, epoch=ep, animal=a, mid=m, y=v, n=s, smooth=True, sigma=sg)
-                     for m, v, s in zip(CURVE_GRID, yy, sw) if np.isfinite(v)]
-        return pd.DataFrame(rows)
+        sg = P.attrs["sigma"]                          # smoothing: likeforlike.smooth_curves (one definition, 11-17)
+        return lfl.smooth_curves(P, "act", "dec", sg, CURVE_GRID, CURVE_MIN_W).assign(smooth=True, sigma=sg)
     x, y, b = ("act", "dec", "bin_a") if REF in PLACE_REFS else ("dLand", "dDec", "bin")
     A = P.groupby(["set", "epoch", b, "animal"], observed=True).agg(y=(y, "mean"), n=(y, "size"))
     A = A[A.n >= MIN_BIN].reset_index()
@@ -267,7 +265,28 @@ def _stars(ax, x, r, col):
             clip_on=False)
 
 
-def plot(A: pd.DataFrame, S: pd.DataFrame, T: pd.DataFrame, BT: pd.DataFrame | None = None) -> None:
+def plot(A: pd.DataFrame, S: pd.DataFrame, T: pd.DataFrame, BT: pd.DataFrame | None = None,
+         A1: pd.DataFrame | None = None, BT1: pd.DataFrame | None = None) -> None:
+    """Draw the page figures; A1 / BT1 (--first-curves) = the first-lick curves -> lick_matched<TAG>_curves_first.png."""
+    from wfield_local.orofacial_cohort import EPOCH_LINE
+    col = {"pre": "k", **EPOCH_LINE}
+    # 1. curves
+    if "curves" in FIGS:
+        _curves_figure(A, BT, f"lick_matched{TAG}_curves.png", S=S)
+    if A1 is not None:
+        _curves_figure(A1, BT1, f"lick_matched{TAG}_curves_first.png", cls="first", S=S)
+    _readout_perspout(S, T, col)
+
+
+CURVE_SETLAB = {"all": {"iti": "ITI licks", "trial": "cued licks"},
+                "first": {"iti": "ITI FIRST lick (bout start)", "trial": "cued FIRST lick"}}
+
+
+def _curves_figure(A: pd.DataFrame, BT: pd.DataFrame | None, name: str, cls: str = "all",
+                   S: pd.DataFrame | None = None) -> None:
+    """Decoded vs landing, one line per epoch, ITI and cued panels (Fig 12.2). ``cls`` = "all" (every lick, the default
+    figure) or "first" (--first-curves, 11-17: ITI order 0 = bout start, cued order 0 = first post-cue lick; same sigma
+    and reference as the all-lick curves)."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -276,11 +295,20 @@ def plot(A: pd.DataFrame, S: pd.DataFrame, T: pd.DataFrame, BT: pd.DataFrame | N
     from wfield_local.orofacial_cohort import EPOCH_LINE
     col = {"pre": "k", **EPOCH_LINE}
     epl = [Line2D([], [], color=col[e], lw=2, marker="o", label=e) for e in EPS]
-    # 1. curves
     fig, axs = plt.subplots(1, 2, figsize=(13, 5.4), squeeze=False)
+    smooth = "smooth" in A.columns
+    if smooth:      # coverage table in the log (why a line is dashed; Priya 11-17)
+        cov = lfl.curve_coverage(A)
+        print(f"== curve coverage ({name}): landing range of each animal's smoothed curve (mm; weight >= {CURVE_MIN_W:g})")
+        print(cov.assign(lo=cov.lo.round(2), hi=cov.hi.round(2)).to_string(index=False), flush=True)
     for j, st in enumerate(SETS):
         ax = axs[0, j]
-        smooth = "smooth" in A.columns
+        nl = ({(r.epoch, r.animal): (r.n_s, r.n_l) for r in S[(S.scope == "all spouts") & (S.cls == cls) & (S.set == st)]
+              .groupby(["epoch", "animal"]).n.agg(n_s="size", n_l="sum").reset_index().itertuples()}
+              if S is not None else None)
+        notes = lfl.dash_notes(A, st, EPS, CURVE_MIN_W, nlick=nl) if smooth else []
+        for n_ in notes:
+            print(f"   [{name} {st}] {n_}", flush=True)
         for ep in EPS:
             q = A[(A.set == st) & (A.epoch == ep)].groupby("mid").y
             mu, se, nn = q.mean(), q.sem(), q.count()
@@ -305,21 +333,30 @@ def plot(A: pd.DataFrame, S: pd.DataFrame, T: pd.DataFrame, BT: pd.DataFrame | N
                       "landing deviation from the animal's pre mean at the spout (mm, + = contralesional)", fontsize=8)
         ax.set_ylabel(("decoded lateral" if REF in PLACE_REFS else "read-out deviation (decoded")
                       + " (mm, + = contralesional)", fontsize=8)
-        ax.set_title(f"{SETS[st]} licks: read-out vs landing{' place' if REF in PLACE_REFS else ' deviation'}\n" +
+        ax.set_title(f"{CURVE_SETLAB[cls][st]}: read-out vs landing{' place' if REF in PLACE_REFS else ' deviation'}\n" +
                      (f"(Gaussian-smoothed, sigma {A['sigma'].iloc[0]:g} mm; mean +/- SEM of 4 animals;\n"
                       "dashed = only 3 animals there)" if smooth else
                       f"(bins with >= {MIN_BIN} licks per animal; mean +/- SEM over animals)"), fontsize=9)
         ax.legend(handles=epl, fontsize=8, frameon=False, loc="lower right")
+        if notes:       # which animal is missing where a line is mostly dashed (upper left = empty quadrant)
+            ax.text(0.01, 0.94, "\n".join(notes), transform=ax.transAxes, ha="left", va="top", fontsize=7,
+                    color="0.25")
         for s_ in ("top", "right"):
             ax.spines[s_].set_visible(False)
     fig.suptitle("LIKE-FOR-LIKE: decoded position for a given landing, before and after the stroke (frozen "
                  + ("NON-LINEAR (RBF kernel ridge)" if lo.SOURCE == "nonlinear" else "KEY-row") + " "
-                 "lateral decoder).\nA curve shifted UP = read more contralesional than " + REFLAB + ".\nBars at the top = bins whose change vs pre survives BH (paired nested bootstrap; rows acute / subacute / chronic). PROVISIONAL",
+                 "lateral decoder)" + ("; FIRST licks only (curves and bin tests; reference and sigma from all licks)"
+                                      if cls == "first" else "") + ".\nA curve shifted UP = read more contralesional than " + REFLAB + ".\nBars at the top = bins whose change vs pre survives BH (paired nested bootstrap; rows acute / subacute / chronic). PROVISIONAL",
                  fontsize=9.5)
-    fig.tight_layout(rect=(0, 0, 1, 0.85))
-    if "curves" in FIGS:
-        save_png_svg(fig, il.OUT_W / "figures" / f"lick_matched{TAG}_curves.png", dpi=100)
+    fig.tight_layout(rect=(0, tst.footer_bottom(fig), 1, 0.85))     # bottom: the trial-set footer (Priya 11-17)
+    save_png_svg(fig, il.OUT_W / "figures" / name, dpi=100)
     plt.close(fig)
+
+
+def _readout_perspout(S: pd.DataFrame, T: pd.DataFrame, col: dict) -> None:
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
     # 2. pooled read-out: all spouts, first / later, far contra first / later
     panels = [("all spouts", "all", "all spouts, all licks"), ("all spouts", "first", "all spouts, FIRST lick"),
               ("all spouts", "later", "all spouts, later licks"), ("far_contra", "all", "far contra, all licks"),
@@ -349,7 +386,7 @@ def plot(A: pd.DataFrame, S: pd.DataFrame, T: pd.DataFrame, BT: pd.DataFrame | N
                  ".\nsmall filled = SESSIONS, open = animal means, shape = animal (circle PS92, square PS93, triangle PS94, diamond PS95), bar = mean of animals; "
                  "text = change vs pre, 95% paired nested bootstrap, * = CI excludes 0 (bold), k/n animals. "
                  "PROVISIONAL", fontsize=9.5)
-    fig.tight_layout(rect=(0, 0, 1, 0.9))
+    fig.tight_layout(rect=(0, tst.footer_bottom(fig), 1, 0.9))      # bottom: the trial-set footer (Priya 11-17)
     if "readout" in FIGS:
         save_png_svg(fig, il.OUT_W / "figures" / f"lick_matched{TAG}_readout.png", dpi=100)
     plt.close(fig)
@@ -382,7 +419,7 @@ def plot(A: pd.DataFrame, S: pd.DataFrame, T: pd.DataFrame, BT: pd.DataFrame | N
                  "Reference = " + REFLAB + ".\nsmall filled = SESSIONS, open = animal means, shape = animal (circle PS92, square PS93, triangle PS94, diamond PS95), bar = "
                  "mean; change vs pre, 95% paired nested bootstrap, * = CI excludes 0 (bold), k/n animals. PROVISIONAL",
                  fontsize=9.5)
-    fig.tight_layout(rect=(0, 0, 1, 0.9))
+    fig.tight_layout(rect=(0, tst.footer_bottom(fig), 1, 0.9))      # bottom: the trial-set footer (Priya 11-17)
     if "perspout" in FIGS:
         save_png_svg(fig, il.OUT_W / "figures" / f"lick_matched{TAG}_perspout.png", dpi=100)
     plt.close(fig)
@@ -451,7 +488,7 @@ def plot_animal(S: pd.DataFrame, T: pd.DataFrame) -> None:
                  "SESSIONS minus the animal's pre mean, open marker = the animal's change (text: value, n sessions), gray "
                  "bar = +/- 1 SD of the animal's PRE sessions (noise level);\nright column / bottom right = POOLED: mean of animals, 95% paired "
                  "nested bootstrap CI, * = excludes 0, k/n animals. PROVISIONAL", fontsize=9.5)
-    lo._layout(fig, bottom=0.01)
+    lo._layout(fig, bottom=max(0.01, tst.footer_bottom(fig)))      # trial-set footer (Priya 11-17)
     save_png_svg(fig, il.OUT_W / "figures" / f"lick_matched{TAG}_animal_change.png", dpi=100)
     plt.close(fig)
 
@@ -469,8 +506,9 @@ def main() -> int:
     from wfield_local import trial_set_text as tst
     tst.declare(text=trial_set_sentence())
     if plot_only():                                    # figdata convention (10-28): redraw from the saved figure data
+        (il.OUT_W / "figures").mkdir(parents=True, exist_ok=True)   # a seeded redraw folder has figdata only
         D = load_fd(f"lick_matched{TAG}")
-        plot(D["A"], D["S"], D["T"], D["BT"])
+        plot(D["A"], D["S"], D["T"], D["BT"], *((D.get("A1"), D.get("BT1")) if FIRST_CURVES else ()))
         if "animal" in FIGS:
             plot_animal(D["S"], D["T"])
         return 0
@@ -498,8 +536,14 @@ def main() -> int:
         RB.to_csv(il.OUT_W / f"matched{TAG}_refboot.csv", index=False)
         print("== epoch effect with the reference refit on resampled pre sessions (2.5-97.5 %):")
         print(RB.round(3).to_string(index=False))
-    save_fd(f"lick_matched{TAG}", dict(A=A, S=S, T=T, BT=BT))
-    plot(A, S, T, BT)
+    A1 = BT1 = None
+    if FIRST_CURVES:                                   # first-lick curves: same per-lick table, sigma and reference
+        P1 = P[P.cls == "first"].copy()
+        P1.attrs.update(P.attrs)
+        A1, BT1 = curves(P1), bin_tests(P1)
+        BT1.to_csv(il.OUT_W / f"matched{TAG}_first_bin_tests.csv", index=False)
+    save_fd(f"lick_matched{TAG}", dict(A=A, S=S, T=T, BT=BT, **({"A1": A1, "BT1": BT1} if FIRST_CURVES else {})))
+    plot(A, S, T, BT, A1, BT1)
     if "animal" in FIGS:
         plot_animal(S, T)
     return 0

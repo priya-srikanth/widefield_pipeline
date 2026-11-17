@@ -39,6 +39,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
+from wfield_local import trial_set_text as tst  # noqa: E402
 import iti_recovery_measure as rm  # noqa: E402
 import likeforlike as lfl  # noqa: E402
 from figdata import load_fd, save_fd  # noqa: E402
@@ -134,11 +135,20 @@ def trial_set_sentence(beh: str = "hit", z: bool = False, src: Path | None = Non
 def main(argv=None) -> int:
     from wfield_local import trial_set_text as tst
     ap = argparse.ArgumentParser()
-    ap.add_argument("--src", default=str(il.OUT))
+    # SUBSET ITI filter (WFIELD_ITI_FILTER=dock / gap2dock / ..., 11-17): default --src = il.OUT_W, the folder of the
+    # filtered where caches (iti_dock_where_preds.py); reading / writing OUT under a subset filter is refused below.
+    ap.add_argument("--src", default=str(il.OUT_W if il.ITI_SUBSET else il.OUT))
     ap.add_argument("--beh", choices=("hit", "angle", "lateral", "aim"), default="hit")
     ap.add_argument("--z", action="store_true", help="decoder on within-session Z-SCORED features")
     ap.add_argument("--plot-only", action="store_true", help="redraw the three figures from the figure data alone")
     args = ap.parse_args(argv)
+    if il.ITI_SUBSET and not args.plot_only:
+        import iti_where_decoder as wd
+        fp, fd = _files(Path(args.src), args.z)
+        if wd.subset_in(fp) != il.ITI_SUBSET or not fd.exists():
+            raise SystemExit(f"ITI subset {il.ITI_SUBSET}: --src must hold the filtered where caches ({fp.name}, "
+                             f"{fd.name}) under {il.OUT_W} (iti_dock_where_preds.py; --z only, it writes no unscaled r "
+                             "table)")
     tst.declare(text=trial_set_sentence(args.beh, args.z, Path(args.src)))
     il.split_only("iti_recovery_link")
     beh_tag = ("aim" if rm.AIM == "first" else "aimall") if args.beh == "aim" else args.beh
@@ -284,7 +294,7 @@ def plot_session_scatter(D: dict) -> None:
                  "lines = per-animal fit over post sessions.\nThe within-animal test with the shared time trend "
                  "removed is in the per-animal recovery-link figure (this pooled r mixes animals and includes the time "
                  "trend). PROVISIONAL", fontsize=9.5)
-    fig.tight_layout(rect=(0, 0, 1, 0.86))
+    fig.tight_layout(rect=(0, tst.footer_bottom(fig), 1, 0.86))    # bottom: trial-set footer (11-17)
     save_png_svg(fig, src / "figures" / f"lick_recovery_link_sessions_{tag}.png", dpi=100)
     plt.close(fig)
 
@@ -392,9 +402,10 @@ def plot_pooled(D: dict) -> None:
                  "cued licks. Behavior is the same in both rows ("
                  + ("cued licks" if tag.startswith("aim") else "cued far-contra licks") + ").", fontsize=9.5)
     reserve_headroom(fig)
+    fb = tst.footer_bottom(fig)                          # legend row ABOVE the trial-set footer (11-17)
     fig.legend(handles=cp.legend_handles(AN, eps, sessions_label="{a}", epoch_label="{e}: mean +- SEM over animals"),
-               loc="lower center", ncol=8, fontsize=8, frameon=False)
-    fig.tight_layout(rect=(0, 0.05, 1, 0.92))
+               loc="lower center", ncol=8, fontsize=8, frameon=False, bbox_to_anchor=(0.5, fb))
+    fig.tight_layout(rect=(0, fb + 0.05, 1, 0.92))
     save_png_svg(fig, src / "figures" / f"lick_recovery_link_pooled_{tag}.png", dpi=100)
     plt.close(fig)
 
@@ -451,7 +462,7 @@ def plot_course(D: dict) -> None:
                  f" p {rr.loc[('iti', 'detrended'), 'p_perm']:.4f}); cued {rr.loc[('trial', 'raw'), 'mean_r']:+.2f} "
                  f"({rr.loc[('trial', 'detrended'), 'mean_r']:+.2f}, p {rr.loc[('trial', 'detrended'), 'p_perm']:.4f}); "
                  "p = within-animal permutation of behavior.", fontsize=9.5)
-    fig.tight_layout(rect=(0, 0, 0.88, 0.84))
+    fig.tight_layout(rect=(0, tst.footer_bottom(fig), 0.88, 0.84))  # bottom: trial-set footer (11-17)
     save_png_svg(fig, src / "figures" / f"lick_recovery_link_{tag}.png", dpi=100)
     plt.close(fig)
 
