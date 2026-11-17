@@ -134,8 +134,12 @@ def fit(data, kappa, num_iters, seed=0, num_states=NUM_STATES):
     from jax_moseq.models import arhmm
     tr, ar = hypparams(int(data["x"].shape[-1]), num_states, kappa)
     model = arhmm.init_model(data=data, trans_hypparams=tr, ar_hypparams=ar, seed=jr.PRNGKey(seed))
-    for _ in range(num_iters):
+    import time
+    t0 = time.time()
+    for i in range(num_iters):
         model = arhmm.resample_model(data, **model)
+        if (i + 1) % 10 == 0 or i == 0:
+            print(f"  kappa {kappa:.0e}: iter {i + 1}/{num_iters} ({time.time() - t0:.0f} s)", flush=True)
     return model
 
 
@@ -193,13 +197,30 @@ def fit_labels(feats: dict, frame: str, epochs: dict, seed: int = 0, per_cell: i
     return sorted(pick)
 
 
+#: segments are cut into CHUNK_BINS-long pieces overlapping by NLAGS (keypoint-MoSeq's batching), because `make_data`
+#: pads every sequence to the longest: whole-session segments (up to 182k bins) padded 772 segments to 27x the real
+#: frames (pooled_all fit: 141 M padded vs 5.2 M real; measured 11-17). 1500 bins (60 s) -> 1.16x. Each chunk's states
+#: cover [start + NLAGS, stop), so the overlapping chunks tile the segment exactly; the only cost is one forced state
+#: re-draw per 60 s.
+CHUNK_BINS = 1500
+
+
+def chunks(a: int, b: int, size: int = CHUNK_BINS) -> list[tuple[int, int]]:
+    if b - a <= size:
+        return [(a, b)]
+    step = size - NLAGS
+    k = int(np.ceil((b - a - NLAGS) / step))
+    return [(a + i * step, min(a + i * step + size, b)) for i in range(k)]
+
+
 def seqs_of(feats, labels, design):
     seqs, owner = [], []
     for lab in labels:
         X = feats[lab]["X"]
-        for a, b in segments(X, int(MIN_SEG_S * FS_HZ)):
-            seqs.append(design.transform(X[a:b]))
-            owner.append((lab, a, b))
+        for a0, b0 in segments(X, int(MIN_SEG_S * FS_HZ)):
+            for a, b in chunks(a0, b0):
+                seqs.append(design.transform(X[a:b]))
+                owner.append((lab, a, b))
     return seqs, owner
 
 
