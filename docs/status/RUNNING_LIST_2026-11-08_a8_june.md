@@ -538,3 +538,12 @@ PI deck (backup Overview_2026-11-06.bak_pre_a8_renumber_20261116.pptx): FR page 
   STALE IMAGES: 109 slides (DECK_STALE_FIGURES_2026-11-16.csv): A 21 swap + recheck numbers, B 53 numbers / text change,
   C 35 no rebuilt version. NO image swapped; per-slide approval asked from Priya. 3c: not editing the PI deck; holds
   slide 13 picture, balance 135-140 / 203 (C6), state-space SVD / LocaNMF slides (pre-glue inputs).
+
+### 11-17 — slide 21 (frozen position decoder) normalization check (Priya: "per-animal normalization or raw?")
+- Rebuild test (g7_fig_state_position_r.log, 480accea) = boot_delta PAIRED vs each animal's own pre, on the
+  chance-normalized scale retained = (bal_acc - chance)/(1 - chance); an absolute difference, not divided by own pre.
+- Relative to own pre (post / own-pre mean - 1, then boot_delta + Holm over 6; `provenance_sweep_20261116/slide21_relative_check.py`):
+  position -.42 / -.17 / -.09, chronic p .023, Holm .046 (*); on raw balanced accuracy -.34 / -.13 / -.07, Holm .045.
+  Per animal chronic: PS92 -.01, PS93 -.10, PS94 -.20, PS95 -.06 (4/4 negative, PS92 ~0). Chronic is borderline either way
+  (Holm .057 absolute vs .046 relative); not a normalization artifact. Old slide's "all **" (-.41/-.19/-.09) came from the
+  pre-rebuild inputs, not the scale.
