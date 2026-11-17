@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import pickle
 import sys
 from pathlib import Path
@@ -43,7 +44,9 @@ def _worker(label):
     meta = json.loads((BUNDLE / "bundle.json").read_text())
     src = Path(meta["lnmf_scratch"]) / "inputs" / f"{label}.pkl"
     if not src.exists():
-        src = Path(meta["enc_scratch"]) / "inputs" / f"{label}.pkl"
+        # enc_scratch (enc_rebuild_20261104b) was moved aside in the 11-09 glue fix; WF_SS_ENC_INPUTS points at the
+        # glue-free replacement (enc_rebuild_20261110g/inputs), whose imaging (V, ft) is byte-identical (checked 11-17).
+        src = Path(os.environ.get("WF_SS_ENC_INPUTS") or Path(meta["enc_scratch"]) / "inputs") / f"{label}.pkl"
     x = pickle.loads(src.read_bytes())
     V, ft = np.asarray(x["imaging"][0], np.float64), np.asarray(x["imaging"][1], float)
     del x

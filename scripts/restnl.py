@@ -73,6 +73,10 @@ def cache(name: str) -> str:
 def variant() -> str:
     """`--rest-variant restw|restnl` from argv (default restw)."""
     v = sys.argv[sys.argv.index("--rest-variant") + 1] if "--rest-variant" in sys.argv else "restw"
+    if v == "restnlc1":              # interhemispheric argv (11-17): RESTnl under the cam4cam1 lick set
+        if not C1:
+            raise SystemExit("--rest-variant restnlc1 needs WIDEFIELD_RESTNL_LICKS=cam4cam1 set before import")
+        return "restnl"
     if v not in ("restw", "restnl"):
         raise SystemExit(f"--rest-variant must be restw or restnl, not {v!r}")
     return v
