@@ -1,0 +1,207 @@
+[
+ {
+  "slide": 141,
+  "title_now": "Far-contra code on hits: partial return",
+  "status": "ready",
+  "skip_reason": "",
+  "pictures": [
+   {
+    "shape_name": "fig:decoder_retention_pooled",
+    "new_image": "M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-17/swap_inputs/s141_decoder_retention_pooled_lowhit.png",
+    "source_render": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/attempt_coding/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/redraw_lowhit_20261117/figures/decoder_retention_pooled.png",
+    "crop_done": "suptitle removed (render rows 128..600), as the current deck image; same 2040 x 472 px"
+   }
+  ],
+  "slide_text": [],
+  "notes_body": [
+   "Frozen pre-stroke decoder (LP-trained), far-contra code retained = (far-contra score on the class - chance) / (pre-stroke hits - chance), per session with >= 5 trials; a hit cell needs >= 20 hits per animal x epoch (summed over its sessions); below it the session values are shown, not tested: acute PS92 (2 sessions, 10 hits) and PS94 (1 session, 8 hits; 7 in the pre-cue window) are gray hollow diamonds, outside the mean, SEM and CI; PS95 has no acute session with >= 5 hits (0); pre-cue (lick-free ENL), cue and lick windows. Chronic hits: lick -0.29 [-0.43, -0.13], cue -0.27 [-0.40, -0.14], pre-cue -0.27 [-0.45, -0.09] (CIs exclude 0). Failed attempts: change vs pre-stroke hits -0.79 to -0.98 acutely and -0.79 to -0.88 subacutely in every window (retained 0.02-0.21; every CI reaches 0 retained). Recovery timing on hits (exponential fits per animal): cortex half-recovery unresolved in all four (PS92 / PS94 / PS95 below 20 acute hits; PS93 never gets half-way back to pre); behavior half-recovery 6.7 / 5.7 / 8.3 days (PS92-94; PS95 at the fit bound). Neither predicts the other session to session (lagged model, 60 pairs: behavior[t] ~ cortex[t-1] +0.04 [-0.21, +0.35]; cortex[t] ~ behavior[t-1] +0.12 [-0.23, +0.43]). On behavior-matched trials cortex still responds differently and session-specific weights fit better -> a remapped, not restored, mapping (encoding page Figs 2.3 [#f-matched_residual], 4.1 [#f-selffit_cue]; not re-measured in this pass). Encoding page Figs 8.5 [#f-decoder_retention_pooled], 0.5 [#f-recovery_timing_lick]. Script scripts/decoder_retention_sessions.py.",
+   "FIGURE SOURCE: M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/attempt_coding/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/redraw_lowhit_20261117/figures/decoder_retention_pooled.png (scripts/decoder_retention_sessions.py --show-low-hits, env of render step d_decoder_retention_r2; statistics = the 11-07 run's decoder_retention_pooled.csv, byte-identical) · deck image: presentations/_source_PI_overview_2026-11-17/swap_inputs/s141_decoder_retention_pooled_lowhit.png (suptitle removed)",
+   "LICK SOURCE: LP cam4 + cam1 video licks + camera contact class."
+  ],
+  "data_block": {
+   "Window": "frozen pre-stroke decoder (LP-trained): pre-cue = lick-free ENL 1.0 s, cue window 2.0 s from cue, lick window 2.0 s from the first LP video lick",
+   "Licks": "LP video licks (cam4 + cam1, WIDEFIELD_LICK_SOURCE=lp); hit = camera contact class (trial_attempts.csv)",
+   "Trial period": "camera working period: first cue -> the session's last camera lick, stopped runs (A2 both + excise) out (WIDEFIELD_TRIAL_GATE=camera, WORKING_TRIALS=in_working, TRIAL_WINDOW=cue_stop, TRIAL_END=lick)",
+   "Trial types": "far-contra trials: hits (contact) vs failed attempts (attempt_coding cls2); < 20-hit animal x epoch cells (acute PS92 10, PS94 8 hits; PS95 0) drawn gray, not tested",
+   "Gate": "camera gate; cortex: sessions with >= 5 trials (hits) and an animal x epoch needs >= 20 hits",
+   "Baseline": "each animal's own August pre-stroke sessions (WIDEFIELD_PRE_FROM=0801; cohort baseline from 0806; June excluded); each readout relative to the animal's own pre",
+   "Correction": "nested bootstrap animals -> sessions, 95 % CI, no multiple-comparison correction [traced: render log d_decoder_retention_r2.log]"
+  },
+  "changes": [
+   {
+    "what": "acute hit cells below 20 hits",
+    "old": "not drawn; 'n.a. (<20 hits) PS92/PS94'",
+    "new": "drawn gray (PS92 2 sessions / 10 hits, PS94 1 session / 8 hits, 7 pre-cue); label '<20 hits: PS92 10, PS94 8, PS95 0'",
+    "source": "redraw logs: M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/attempt_coding/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/redraw_lowhit_20261117/decoder_retention_lowhit.log (env of d_decoder_retention_r2.log, --show-low-hits --out; every output table byte-identical to the 11-07 run's); hit counts = decoder_retention_sessions.csv n (acute, cls2 hit)"
+   },
+   {
+    "what": "statistics",
+    "old": "decoder_retention_pooled.csv (11-07)",
+    "new": "unchanged (byte-identical)",
+    "source": "SHA-256 compare of decoder_retention_pooled.csv and decoder_retention_sessions.csv"
+   }
+  ],
+  "conclusion_changed": false,
+  "conclusion_note": ""
+ },
+ {
+  "slide": 143,
+  "title_now": "Per animal: behavior full, code on hits not",
+  "status": "ready",
+  "skip_reason": "",
+  "pictures": [
+   {
+    "shape_name": "fig:recovery_timing_lick",
+    "new_image": "M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-17/swap_inputs/s143_recovery_timing_2x2_lowhit.png",
+    "source_render": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/attempt_coding/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/redraw_lowhit_20261117/figures/recovery_timing_lick.png",
+    "crop_done": "re-tiled 2 x 2 exactly as the current deck image (hit-rate panel over cortex panel per animal; PS94 quadrant takes column 1's y labels; seam at x 576), empty aim row + suptitle cut; the legend gained the '< 20 hits' entry and is split into two lines, so the image is 1043 x 1371 (was 1043 x 1338): fit by height (picture box ~2.4 % taller or ~2.4 % narrower)"
+   }
+  ],
+  "slide_text": [],
+  "notes_body": [
+   "Per session, lick window: behavior = far-contra hit rate (contact / camera-working-period trials) / the animal's pre-stroke level; cortex = the FROZEN pre-stroke decoder's far-contra code on far-contra HITS only (sessions with >= 5 hits; an animal x epoch needs >= 20 hits), / pre level. Gray band = pre-stroke days. Half-recovery relative to pre from exponential fits per animal, 95 % CI by resampling sessions: behavior PS92 6.7 d [5.0, 8.7], PS93 5.7 d [4.3, 7.3], PS94 8.3 d [5.4, 12.1], PS95 at the fit bound (1.5 d); completeness 102 / 102 / 98 / 101 %. Cortex unresolved in all four: PS92 (10 acute hits), PS94 (8) and PS95 (0) are below 20 hits (the acute PS92 and PS94 sessions are drawn as gray hollow diamonds: shown, not in any fit or epoch value; PS95 has no acute session with >= 5 hits); PS93 (31 acute hits) recovers 38 % of its acute deficit and never gets half-way. Chronic code on hits / pre: PS92 0.76, PS93 0.60, PS94 0.55, PS95 0.94. Session to session neither predicts the other beyond its own past (behavior[t] ~ cortex[t-1] +0.04 [-0.21, +0.35]; cortex[t] ~ behavior[t-1] +0.12 [-0.23, +0.43]; 60 pairs, animal fixed effects). The render's aim row was empty (aim table not found under this run) and is cut, so the 'cortex - aim' entries in the cortex subtitles are unresolved by construction. Re-tiled from encoding page Fig 0.5 [#f-recovery_timing_lick]; script scripts/recovery_timing.py --window lick.",
+   "FIGURE SOURCE: M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/attempt_coding/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/redraw_lowhit_20261117/figures/recovery_timing_lick.png (scripts/recovery_timing.py --window lick --show-low-hits, env of render step d_recovery_timing_r2; every output table byte-identical to the 11-07 run's) · deck image: presentations/_source_PI_overview_2026-11-17/swap_inputs/s143_recovery_timing_2x2_lowhit.png (hit-rate + cortex rows, re-tiled 2 x 2 by animal)",
+   "LICK SOURCE: LP cam4 + cam1 video licks + camera contact class."
+  ],
+  "data_block": {
+   "Window": "frozen pre-stroke decoder (LP-trained): pre-cue = lick-free ENL 1.0 s, cue window 2.0 s from cue, lick window 2.0 s from the first LP video lick",
+   "Licks": "LP video licks (cam4 + cam1, WIDEFIELD_LICK_SOURCE=lp); hit = camera contact class (trial_attempts.csv)",
+   "Trial period": "camera working period: first cue -> the session's last camera lick, stopped runs (A2 both + excise) out (WIDEFIELD_TRIAL_GATE=camera, WORKING_TRIALS=in_working, TRIAL_WINDOW=cue_stop, TRIAL_END=lick)",
+   "Trial types": "far-contra trials; behavior = contact share of camera-working-period trials; cortex = far-contra hits only; < 20-hit animal x epoch cells (acute PS92 10, PS94 8 hits; PS95 0) drawn gray, not tested",
+   "Gate": "camera gate; cortex: sessions with >= 5 trials (hits) and an animal x epoch needs >= 20 hits",
+   "Baseline": "each animal's own August pre-stroke sessions (WIDEFIELD_PRE_FROM=0801; cohort baseline from 0806; June excluded); each readout relative to the animal's own pre",
+   "Correction": "nested bootstrap animals -> sessions, 95 % CI, no multiple-comparison correction [traced: render log d_recovery_timing_r2.log]"
+  },
+  "changes": [
+   {
+    "what": "acute code-on-hits sessions of PS92 / PS94",
+    "old": "drawn in the acute color, joined by a line",
+    "new": "gray hollow diamonds, no line ('< 20 hits: shown, not tested')",
+    "source": "redraw logs: M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/attempt_coding/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/redraw_lowhit_20261117/recovery_timing_lick_lowhit.log (env of d_recovery_timing_r2.log, --show-low-hits --out; every output table byte-identical to the 11-07 run's)"
+   },
+   {
+    "what": "statistics",
+    "old": "halftimes / lagged / series / pooled CSVs (11-07)",
+    "new": "unchanged (byte-identical)",
+    "source": "SHA-256 compare of the five recovery_timing_*_lick.csv tables"
+   }
+  ],
+  "conclusion_changed": false,
+  "conclusion_note": ""
+ },
+ {
+  "slide": 144,
+  "title_now": "Hit rate ~100 %, code on hits ~70 %",
+  "status": "ready",
+  "skip_reason": "",
+  "pictures": [
+   {
+    "shape_name": "fig:recovery_timing_pooled_epoch",
+    "new_image": "M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-17/swap_inputs/s144_recovery_timing_epoch_body_lowhit.png",
+    "source_render": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/attempt_coding/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/redraw_lowhit_20261117/figures/recovery_timing_pooled_epoch_lick.png",
+    "crop_done": "suptitle removed (render rows 140..552), as the current deck image; same 1800 x 412 px. The gap panel's y range grew to keep PS94's acute gap (+0.56)"
+   }
+  ],
+  "slide_text": [
+   {
+    "shape_name": "TextBox 5",
+    "old": "One open marker per session (shape = animal, color = epoch), relative to the animal's pre-stroke level; filled = mean of animals ± SEM; numbers = change vs pre, 95 % nested CI (bold = excludes 0); cortex: >= 5 hits per session and >= 20 per animal x epoch (acute n.a. for PS92 / PS94)",
+    "new": "One open marker per session (shape = animal, color = epoch), relative to the animal's pre-stroke level; filled = mean of animals ± SEM; numbers = change vs pre, 95 % nested CI (bold = excludes 0); cortex: >= 5 hits per session and >= 20 per animal x epoch (acute PS92 10 and PS94 8 hits: gray diamonds, shown, not tested)"
+   }
+  ],
+  "notes_body": [
+   "Encoding page Fig 0.6 [#f-recovery_timing_pooled_epoch_lick]: the same as Fig 0.12 BY EPOCH, one marker per session, with the per-session GAP (cortex - behavior). Behavior = far-contra hit rate (contact / camera-working-period trials) / the animal's pre; cortex = FROZEN pre-stroke decoder's far-contra code on far-contra HITS (lick window), / pre. Change vs pre, nested bootstrap (animals -> sessions). Behavior: acute -0.94 [-0.99, -0.89], subacute -0.23 [-0.35, -0.13], chronic +0.01 [-0.03, +0.03] (fully back). Cortex on hits: acute not estimated (< 20 hits per animal x epoch in PS92 / PS94; their acute sessions, PS92 2 sessions / 10 hits and PS94 1 session / 8 hits, are drawn as gray hollow diamonds in the cortex and gap panels, outside the mean, SEM and CI; PS95 has no acute session with >= 5 hits), subacute -0.31 [-0.49, -0.15], chronic -0.29 [-0.43, -0.13]. Gap: subacute -0.09 [-0.26, +0.07], chronic -0.29 [-0.43, -0.14]: behavior recovers fully, the cortical far-contra code on successful trials does not; PS95 is the closest to full cortical recovery (chronic code 0.94 of pre). Licks: hit = camera contact class inside the camera working period (trial_attempts.csv); decoder lick window aligned to the first LP video lick. Script scripts/recovery_timing.py --window lick. Kept as one row of 3 panels: a 2-row tiling would make each panel smaller on this slide.",
+   "FIGURE SOURCE: M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/attempt_coding/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/redraw_lowhit_20261117/figures/recovery_timing_pooled_epoch_lick.png (scripts/recovery_timing.py --window lick --show-low-hits, env of render step d_recovery_timing_r2; recovery_timing_pooled_epoch_lick.csv byte-identical to the 11-07 run's) · deck image: presentations/_source_PI_overview_2026-11-17/swap_inputs/s144_recovery_timing_epoch_body_lowhit.png (suptitle removed)",
+   "LICK SOURCE: LP cam4 + cam1 video licks + camera contact class."
+  ],
+  "data_block": {
+   "Window": "frozen pre-stroke decoder (LP-trained): pre-cue = lick-free ENL 1.0 s, cue window 2.0 s from cue, lick window 2.0 s from the first LP video lick",
+   "Licks": "LP video licks (cam4 + cam1, WIDEFIELD_LICK_SOURCE=lp); hit = camera contact class (trial_attempts.csv)",
+   "Trial period": "camera working period: first cue -> the session's last camera lick, stopped runs (A2 both + excise) out (WIDEFIELD_TRIAL_GATE=camera, WORKING_TRIALS=in_working, TRIAL_WINDOW=cue_stop, TRIAL_END=lick)",
+   "Trial types": "far-contra trials; behavior = contact share of camera-working-period trials; cortex = far-contra hits only; < 20-hit animal x epoch cells (acute PS92 10, PS94 8 hits; PS95 0) drawn gray, not tested",
+   "Gate": "camera gate; cortex: sessions with >= 5 trials (hits) and an animal x epoch needs >= 20 hits",
+   "Baseline": "each animal's own August pre-stroke sessions (WIDEFIELD_PRE_FROM=0801; cohort baseline from 0806; June excluded); each readout relative to the animal's own pre",
+   "Correction": "nested bootstrap animals -> sessions, 95 % CI, no multiple-comparison correction [traced: render log d_recovery_timing_r2.log]"
+  },
+  "changes": [
+   {
+    "what": "acute cortex + gap, PS92 / PS94",
+    "old": "not drawn; 'n.a. (<20 hits): PS92/PS94'",
+    "new": "gray diamonds (cortex PS92 0.04 / 0.37, PS94 0.70; gap PS92 -0.03 / +0.30, PS94 +0.56); label '<20 hits: PS92 10, PS94 8, PS95 0'",
+    "source": "redraw logs: M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/attempt_coding/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/redraw_lowhit_20261117/recovery_timing_lick_lowhit.log (env of d_recovery_timing_r2.log, --show-low-hits --out; every output table byte-identical to the 11-07 run's); values = recovery_timing_series_lick.csv (neu, neu - beh)"
+   },
+   {
+    "what": "statistics",
+    "old": "recovery_timing_pooled_epoch_lick.csv (11-07)",
+    "new": "unchanged (byte-identical)",
+    "source": "SHA-256 compare"
+   }
+  ],
+  "conclusion_changed": false,
+  "conclusion_note": ""
+ },
+ {
+  "slide": 146,
+  "title_now": "By day: aim and code stop short",
+  "status": "ready",
+  "skip_reason": "",
+  "pictures": [
+   {
+    "shape_name": "fig:recovery_timing_pooled_day_aim",
+    "new_image": "M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-17/swap_inputs/s146_recovery_timing_day_aim_body_lowhit.png",
+    "source_render": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/attempt_coding/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/redraw_lowhit_20261117/figures/recovery_timing_pooled_day_lick_aim.png",
+    "crop_done": "suptitle and per-animal text footer removed (render rows 161..1104), as the current deck image; same 1380 x 943 px"
+   }
+  ],
+  "slide_text": [
+   {
+    "shape_name": "TextBox 5",
+    "old": "Sessions binned by day; open = sessions (shape = animal, color = epoch), line = mean of animals, band = 95 % CI (animals → sessions); A aim change vs own pre (+ = contralesional); B hit rate and C code on hits, relative to the animal's pre",
+    "new": "Sessions binned by day; open = sessions (shape = animal, color = epoch), line = mean of animals, band = 95 % CI (animals → sessions); A aim change vs own pre (+ = contralesional); B hit rate and C code on hits, relative to the animal's pre; gray = acute code-on-hits sessions below 20 hits per animal x epoch (PS92 10, PS94 8), inside the day-bin mean (not hit-gated)"
+   }
+  ],
+  "notes_body": [
+   "Encoding page Fig 0.12 [#f-recovery_timing_pooled_day_lick] (image recovery_timing_pooled_day_lick_aim.png, all three panels). A (PRIMARY): far-contra AIM (first post-cue lick, 3-D angle minus the animal's pre mean at that spout, + = contralesional; all trials with a first lick, so acute aim is mostly failed attempts): -32 deg day 1, -15 days 6-7, -9 days 8-9, then about -5 to -6 deg from day 25 on, CI below 0 in every late bin; half-recovery relative to pre 8.8 / 6.8 / 13.5 / 4.5 days (PS92-95). Fraction of the acute aim deficit recovered by chronic: PS92 .84, PS93 .76, PS94 .55, PS95 .90 (hit rate 0.98-1.02 in all); the chronic residual is mostly PS94 (-13 to -21 deg in the chronic bins), the animal with the least code recovery too (chronic code 0.55 of pre; descriptive, n = 4). B: far-contra hit rate / pre: 0.03 day 1, 0.83 days 8-9, 0.94-1.03 from day 10 on. C: far-contra frozen code on hits / pre: 0.71 days 8-9, 0.61-0.80 from day 10 on (days 1-5 rest on 1-3 animals). Gray hollow diamonds in C = the acute code-on-hits sessions of PS92 (days 2 and 5, 10 hits) and PS94 (day 7, 8 hits), below the 20-hit minimum of the epoch tests; the day-bin means are not hit-gated, so they sit inside bins 2 (0.34), 5 (0.61) and 6-7 (0.68); PS95 has no acute session with >= 5 hits. The gap opens chronically, not acutely. Script scripts/recovery_timing.py --aim.",
+   "FIGURE SOURCE: M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/attempt_coding/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/redraw_lowhit_20261117/figures/recovery_timing_pooled_day_lick_aim.png (scripts/recovery_timing.py --aim --plot-only --show-low-hits from the 11-11 figdata, env of render step a_recov_timing_aim_g; hit counts from recovery_timing_series_lick.csv; day bins in recovery_timing_pooled_day_lick_aim.csv, unchanged) · deck image: presentations/_source_PI_overview_2026-11-17/swap_inputs/s146_recovery_timing_day_aim_body_lowhit.png",
+   "LICK SOURCE: LP cam4 + cam1 video licks + camera contact class; aim = 3-D LP first lick."
+  ],
+  "data_block": {
+   "Window": "frozen pre-stroke decoder (LP-trained): pre-cue = lick-free ENL 1.0 s, cue window 2.0 s from cue, lick window 2.0 s from the first LP video lick",
+   "Licks": "LP video licks (cam4 + cam1, WIDEFIELD_LICK_SOURCE=lp); hit = camera contact class (trial_attempts.csv)",
+   "Trial period": "camera working period: first cue -> the session's last camera lick, stopped runs (A2 both + excise) out (WIDEFIELD_TRIAL_GATE=camera, WORKING_TRIALS=in_working, TRIAL_WINDOW=cue_stop, TRIAL_END=lick)",
+   "Trial types": "far-contra trials; aim = every trial with a first post-cue lick; hit rate = contact share; code = far-contra hits; acute code-on-hits sessions of animal x epoch cells < 20 hits (PS92 10, PS94 8) drawn gray; the day-bin means are not hit-gated and include them",
+   "Gate": "camera gate; cortex: sessions with >= 5 trials (hits) and an animal x epoch needs >= 20 hits",
+   "Baseline": "each animal's own August pre-stroke sessions (WIDEFIELD_PRE_FROM=0801; cohort baseline from 0806; June excluded); each readout relative to the animal's own pre",
+   "Correction": "nested bootstrap animals -> sessions, 95 % CI, no multiple-comparison correction [traced: render log a_recov_timing_aim_g.log]"
+  },
+  "changes": [
+   {
+    "what": "acute code-on-hits sessions of PS92 / PS94 (panel C)",
+    "old": "drawn in the acute color",
+    "new": "gray hollow diamonds, legend '< 20 hits per animal x epoch (in the day-bin mean)'",
+    "source": "redraw logs: M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/attempt_coding/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/redraw_lowhit_20261117/recovery_timing_aim_plotonly_lowhit.log (env of a_recov_timing_aim_g.log, --show-low-hits --out; every output table byte-identical to the 11-07 run's)"
+   },
+   {
+    "what": "statistics",
+    "old": "day-bin means / CIs (figdata 11-11)",
+    "new": "unchanged (plot-only redraw)",
+    "source": "recovery_timing_pooled_day_lick_aim.csv bins 2..2 (0.339), 5..5 (0.606), 6..7 (0.684)"
+   }
+  ],
+  "conclusion_changed": false,
+  "conclusion_note": "Not a change, a flag: Fig 0.12's day-bin means for code on hits were never hit-gated, so the acute bins 2, 5 and 6-7 include sessions from cells below 20 hits (PS92 0.04 / 0.37, PS94 0.70). Kept as is (statistics unchanged); Priya may want those bins gated for consistency with the epoch tests."
+ },
+ {
+  "slide": 147,
+  "title_now": "Encoder spout coding vs behavior, by session",
+  "status": "skip",
+  "skip_reason": "not hit-gated: scripts/frozen_claims.py (frozen-encoder spout-unique R2, attempted gate) never applies analysis_kit.MIN_HITS, so there are no low-hit cells to show; slide unchanged",
+  "pictures": [],
+  "slide_text": [],
+  "notes_body": [],
+  "data_block": {},
+  "changes": [],
+  "conclusion_changed": false,
+  "conclusion_note": ""
+ }
+]
