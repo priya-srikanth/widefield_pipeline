@@ -2,7 +2,7 @@
 
 > **New here? Start with [`docs/START_HERE.md`](docs/START_HERE.md)**: findings first, then one section per ANALYSIS BRANCH (behavior, pose / 3-D,
 > kinematics, trial gates, FaceRhythm, position coding, encoding, quiet events, state space, states / TIM / AR-HMM,
-> anatomy, cohort 2, code: question, results page, findings, handoff, code),
+> anatomy, cohort 2, code, grant figures: question, results page, findings, handoff, code),
 > where to change each analysis, and which computer uses which env and drive letters.
 
 > **NEW COHORT, 2026-10-29: cohort2 = PS118, PS120, PS121, PS122 (PS118/120 Thy1-GCaMP6s, PS121/122 RiboL1-jGCaMP8s).**

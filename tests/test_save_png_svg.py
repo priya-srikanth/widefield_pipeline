@@ -32,7 +32,7 @@ from wfield_local import figure_layout as fl  # noqa: E402
 @pytest.fixture(autouse=True)
 def _default_svg_fonttype():
     """These tests check that save_png_svg SCOPES svg.fonttype; start from matplotlib's default, because a module
-    imported earlier in a full-suite run may set it globally (e.g. scripts/grant_figures_k08_2026.py at import)."""
+    imported earlier in a full-suite run may set it globally (e.g. grants/k08_2026/grant_figures_k08_2026.py at import)."""
     with matplotlib.rc_context({"svg.fonttype": "path"}):
         yield
 
