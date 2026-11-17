@@ -29,3 +29,13 @@ Store: M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/frozen_models/
 Deleted 2026-11-17 10:14 (rm of the 8 files, rmdir of the 4 directories); verified gone afterwards. The four 11-05
 DAQ-arm siblings remain (epoch_decoder_lick_joint76d884_0b48db98230e, _joint0141bb_f9ef082366ff, _jointa5e70d_d5211f7a2aa7,
 _jointa91701_017f6aacb806).
+
+## Refit check (11-17, render from wf_adeck1117 = origin/main 36cabf95 + this branch, PYTHONPATH set)
+
+The 15r LP-lick render from this branch refitted all four (log: "frozen-new", 10:25-10:41). Each refit has the SAME
+spec_id, the SAME train_fp (8d7ef9d0dcab2b32 / 1c2f4b0283ade320 / 8e9396339f7fd278 / 140fd93fc2f5f081), the same
+n_engaged_pre (2863 / 3668 / 4162 / 4748) and the same model.joblib size as the deleted files. The training rows were
+therefore identical: the deleted models were reproducible by the current code (the 11-16 main-checkout code and the
+current code select the same pre-stroke training trials for this kind). The gate description in the log ("camera gate:
+LP-attempted trials: every camera-seen lick") is the same in both; the wf_rebuild run of 11-16 printed "DAQ lick-arm
+trials" while hitting the same ids, i.e. only its label text differs.
