@@ -155,8 +155,13 @@ def _draw_shown(fig, S, shown, cells, panels) -> None:
                     continue
                 x = xi + (k - 1) * 0.27 - 0.06
                 rng = np.random.default_rng(7)
-                ax.scatter(x + rng.uniform(-0.03, 0.03, len(g)), g.value.to_numpy() - pre[g.animal].to_numpy(),
-                           marker="D", s=22, facecolors="none", edgecolors="0.55", lw=0.9, zorder=2)
+                y = g.value.to_numpy() - pre[g.animal].to_numpy()
+                ax.scatter(x + rng.uniform(-0.03, 0.03, len(g)), y, marker="D", s=40, facecolors="none",
+                           edgecolors="0.55", lw=1.2, zorder=2)         # decoder_retention_sessions' hollow diamond size
+                lo, hi = ax.get_ylim()
+                pad = 0.05 * (hi - lo)
+                if np.nanmin(y) < lo + pad or np.nanmax(y) > hi:
+                    ax.set_ylim(min(lo, np.nanmin(y) - pad), max(hi, np.nanmax(y) + pad))
 
 
 def _draw(S, T_draw, cells, out: Path, *, spec: dict, panels=None, ncols=0, figsize=None, footnote=None,
@@ -190,7 +195,7 @@ def _draw(S, T_draw, cells, out: Path, *, spec: dict, panels=None, ncols=0, figs
     if shown is not None and len(shown):
         from matplotlib.lines import Line2D
         L.legend_handles = lambda S_: orig_lh(S_) + [Line2D([], [], ls="none", marker="D", mfc="none", mec="0.55",
-                                                            ms=5, label=LOWHIT_LABEL)]
+                                                            ms=7, mew=1.2, label=LOWHIT_LABEL)]
     try:
         L.draw(S, T_draw, cells, out, title=spec.get("title") or out.stem, ylabel=spec.get("ylabel", "change vs own pre"),
                labels=spec.get("labels") or {}, panels=panels, ncols=ncols, figsize=figsize)
