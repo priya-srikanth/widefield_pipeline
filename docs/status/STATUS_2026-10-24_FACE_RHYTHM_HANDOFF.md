@@ -56,6 +56,37 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
 
 ## 2. Next, in order
 
+00-A8-1117b. **11-17 EVENING (a8) -- START HERE; item 00-A8-1117 below is the day's earlier state (its "Running" list is DONE).**
+   Day log: docs/status/RUNNING_LIST_2026-11-08_a8_june.md (11-17 entries). Nothing of a8's is running.
+   **Deck (Overview_2026-11-06.pptx) done today, on top of 00-A8-1117:** groups C (LMM incl. docked + per-session slide 12 +
+   111 / 116; other incl. 22 record, 157 rewrite, 139 full set), docked-ITI slides, low-hit (<20) cells shown (120, 121, 141-146),
+   ITI response window 0..0.5 s (DECISIONS 2026-11-17; ITI_WINDOW_AUDIT_20261117.md), cued per-spout window 0..1.0 s (113 / 114),
+   slide 139 retitled "Cued ipsi-contra balance places an unseen animal on recovery" (4-column figure, cued left / ITI right),
+   slide 21 both scales + decomposition result in notes, slide 20 / 147 layout fixes (overlap_check.py), 33 lick-source wording
+   fixes (3c audit). Backups kept: .bak_pre_a8_swap_20261117 (before today), .bak_pre_a8_licksrc_20261117; 17 others deleted
+   (Priya OK; DELETED_DECK_BACKUPS_20261117.txt). Applier + specs + logs: docs/status/deck_swap_20261117/ (README = spec schema).
+   **Results documented today:** SLIDE21_DECOMPOSITION.md (trial gate drives the slide 21 change: old gate on the rebuild -.397 /
+   -.191 / -.112; ~-.02 from old fitted-vs-projected joint time courses; pre set / scaling / lick detector none);
+   ITI_NEG_AUC_DIAGNOSTIC.md; ITI_MATCHED_ANGLE_MARKERS.md (sections 1-5b: cued -> cued angle .68; all-ITI balance holds vs
+   matched / docked angles, DOCKED balance loses the recovery link; far-contra within-spout raw balance; bounded indices dec_idx /
+   resp_idx: dec's negative ITI shifts vanish, cued far-contra shift survives; gap >= 2 s check); DOCKED_DECODED_VS_EXECUTED_20261117.md
+   (docked ITI offset +0.30 / +0.21 / +0.27 mm holds; raw offset-aim link gone on docked, survives detrended). FINDINGS recovery-
+   marker block has the 11-17 entries; FINDINGS / ENCODING_FINDINGS ITI lines updated to 0..0.5 s.
+   **FR page:** v55 published (12 lick-source captions: FR lick windows = LP video cam4 only, licks_all.csv).
+   **Code added (all flags default-off, outputs byte-identical without them):** iti_licks CUED_RESP_WIN / ITI_RESP_WIN;
+   lick_balance_angle_lmm --idx / --gap2 + bounded_index (tests/test_bounded_index.py); lick_iti_matched_markers.py;
+   lick_matched_readout --first-curves; lick_matched_angle_reach --curves; likeforlike smooth_curves / curve_coverage;
+   trial_set_text.footer_bottom; frozen_claims --trend-only / --plot-only; decoder_retention_sessions / recovery_timing /
+   key_figure --show-low-hits; learned_compensation refactor (t3_cells); lmm-hidden-20261103 branch (wf_lmm_main) pushed.
+   **Open:** (1) Priya: where the GRANT figure "Lick-response magnitude" code lives on MICROSCOPE (its panel stars acute ipsi
+   tjM1; our test, pre- and post-rebuild, gives +.36 / +.37 n.s. -- PS92 0.78x, PS95 one session); not found in local repos,
+   labcams/grant_figures, page sources, Priya/Github, Claude outputs. (2) 3c: goal-page swaps of the ITI 0..0.5 s figures, Fig
+   14.7, the idx supplement (PAGE_SUPPLEMENT_IDX_20261117.md) -- 3c owns the page. (3) After the RESTnl-cam1 rerun (3c helper):
+   rest-map slides 24-26, 187, 188, 204-206 wording + figures, after Priya sees old vs new numbers. (4) Optional: per-session /
+   docked-only figures not rendered: docked _far1 / _gap2far1 / _nonlinear / _plain curve variants; F_lnmf decomposition arm.
+   Rules learned: export slides only from a scratch COPY; helpers must set PYTHONPATH=<worktree> (main checkout was stale);
+   brief helpers to reuse repo constants / loaders (memory efficient-no-redo).
+
 00-A8-1117. **11-17 (a8) -- START HERE (supersedes 00-A8-1116b as the entry point).** Day log:
    docs/status/RUNNING_LIST_2026-11-08_a8_june.md (11-17 entries). The day was the PI-deck rebuild swap pass, not FR.
    **Done (deck Overview_2026-11-06.pptx; every step backed up as .bak_pre_a8_<step>_20261117.pptx; specs + applier +
