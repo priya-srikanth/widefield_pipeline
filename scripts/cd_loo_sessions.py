@@ -39,7 +39,11 @@ def _rows(res, align, loo):
     from wfield_local.plot_lick_aligned_averages import POSITION_NAMES
     meas, lo, hi = CD_WINDOWS[align]
     t = np.arange(-res["pre_n"], res["post_n"]) / float(res["fs"])
-    m = (t >= lo) & (t < hi)
+    # the pre-cue window's start is None in CD_WINDOWS = the dump's own window (-win_s), exactly as `fam_cd` reads it
+    # (this line compared against None and failed every animal on 11-17, the first run since CD_WINDOWS changed)
+    w = float(res.get("win_s", 2.0))
+    m = (t >= (-w if lo is None else lo)) & (t < hi)
+    meas = meas.replace("-W", f"-{w:g}")
     out = []
     for (lab, _ep, cd_p, tr_p), d in (res.get("session_traces") or {}).items():
         if cd_p != tr_p:

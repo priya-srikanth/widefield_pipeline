@@ -16,6 +16,7 @@ from __future__ import annotations
 from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
+import re
 from pathlib import Path
 
 import numpy as np
@@ -23,6 +24,18 @@ import pandas as pd
 
 POS = ("close_L", "close_center", "close_R", "far_L", "far_center", "far_R")
 EP_COL = {"pre": "k", "acute": "#d01c8b", "subacute": "#b8860b", "chronic": "#01665e"}
+def window_bounds(C: pd.DataFrame, align: str) -> tuple[float, float]:
+    """The shaded window of ``align``: `CD_WINDOWS`, with a None pre-cue start (= the dump's -win_s) read back from the
+    measure string the sessions table stores ("pre-cue [-2,0) s"), as `cd_loo_sessions._rows` wrote it (11-17)."""
+    from scripts.epoch_sessions_long import CD_WINDOWS
+    _, lo, hi = CD_WINDOWS[align]
+    if lo is None:
+        meas = C.loc[C["align"] == align, "measure"].astype(str)
+        m = re.search(r"\[(-?[0-9.]+),", meas.iloc[0]) if len(meas) else None
+        lo = float(m.group(1)) if m else -2.0
+    return float(lo), float(hi)
+
+
 ALIGN_LABEL = {"precue": "pre-cue (s from cue)", "cue": "s from cue", "lick": "s from first lick"}
 
 
@@ -68,14 +81,13 @@ def fig_traj(Z, C: pd.DataFrame, align: str, path: Path) -> None:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    from scripts.epoch_sessions_long import CD_WINDOWS
     if f"trace_{align}" not in Z:
         return
     t, X = Z[f"t_{align}"], Z[f"trace_{align}"].astype(float)
     lab, ep, pos = Z[f"label_{align}"].astype(str), Z[f"epoch_{align}"].astype(str), Z[f"position_{align}"].astype(str)
     an = np.array([x[:4] for x in lab])
     animals = sorted(set(an))
-    _, lo, hi = CD_WINDOWS[align]
+    lo, hi = window_bounds(C, align)
     fig, axes = plt.subplots(len(animals), len(POS), figsize=(2.6 * len(POS), 2.1 * len(animals)), squeeze=False,
                              sharex=True)
     for i, a in enumerate(animals):

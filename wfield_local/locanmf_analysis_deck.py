@@ -64,20 +64,21 @@ from pathlib import Path
 from pptx.util import Inches, Pt
 
 from wfield_local import config, deck_layout, deck_values
+from wfield_local.deck_keyfigs import KEY_FIGURES_PAGES, KEY_FIGURES_REBUILD_ALT
 from wfield_local import epochs as _epochs
 
 # The figure REGISTRIES live in `deck_registry` (see its docstring): what the deck knows
 # about, as data. This module decides which of it EXISTS on disk, and where it goes.
 from wfield_local.deck_registry import (   # noqa: F401  (re-exported: the coverage
                                             #  script and tests import EPOCH_FIGURES from here)
-    ALIGNS, BASES, CD_FIGURES, EPOCH_FIGURES, GRANT_FIGURES, KEY_FIGURES, LP_GATED_FIGURES, NOLICK_BASES, _CCF_LEGEND, _CI_LEGEND, _REF_LEGEND, _ROT_LEGEND,
+    ALIGNS, BASES, CD_FIGURES, EPOCH_FIGURES, GRANT_FIGURES, KEY_FIGURES, LP_GATED_FIGURES, LP_GATED_REBUILD, EPOCH_FIGURES_REBUILD_LEGEND, NOLICK_BASES, _CCF_LEGEND, _CI_LEGEND, _REF_LEGEND, _ROT_LEGEND,
 )
 # The deck's PROSE lives in `deck_text` (see its docstring). Imported by name rather than
 # `import *` so what the builder uses stays greppable and ruff can still see an unused one.
 from wfield_local.deck_text import (   # noqa: F401  (re-exported: the audit
                                         #  scripts and tests read these off this module)
     M_CODING_DIR, M_COMMON, M_DECODE, M_ENCODE, M_EVOKED, M_FIXEDSCALE, M_FROZEN, M_FROZEN_ENC, M_GATE, M_HEMI,
-    M_HEMIDYN, M_JOINT, M_LICKFREE, M_MISS_STOPPED, M_NOLICK, M_POSTSTROKE, M_PRECUE_CAVEAT, M_RECODING, M_RSA,
+    M_HEMIDYN, M_JOINT, M_LICKFREE, M_MISS_STOPPED, M_NOLICK, M_POSTSTROKE, M_POSTSTROKE_REBUILD, M_PRECUE_CAVEAT, M_RECODING, M_RSA,
     M_SPATIAL, M_VESSEL, S_DEC_CUE, S_DEC_LICK, S_DEC_PRECUE, S_DEC_ROLL, S_DRIFT, S_ENC_FEVE, S_ENC_MATRIX,
     S_ENC_POS, S_FROZEN_ALL, S_FROZEN_ENC, S_FROZEN_SESS, S_G0, S_G1, S_G1B, S_G2, S_G2B, S_G2C, S_G3, S_G4,
     S_G4B, S_G5, S_G6, S_G7, S_G7B, S_G7C, S_G7D, S_G8, S_G8B, S_G8C, S_G8D, S_G8E, S_G8F, S_G9, S_G9B, S_G9C,
@@ -534,6 +535,8 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     # from its OWN figures. Under the rebuild root every default below already resolves inside it; outside one, the
     # defaults are the untagged pre-rebuild figures, so a tagged build without an explicit grant_dir REFUSES.
     from wfield_local import rebuild_root, run_mode
+    # the post-stroke methods note: the rebuild's (written from its outputs, Priya 11-17) in a tagged build
+    _M_POST = M_POSTSTROKE_REBUILD if run_mode.tag() else M_POSTSTROKE
     if grant_dir is None and run_mode.tag() and not rebuild_root.active():
         raise RuntimeError(f"analysis deck in run mode {run_mode.tag()!r} without a rebuild root: its default inputs are "
                            "the untagged figures -- apply the render profile (rebuild_root) or pass grant_dir / --src")
@@ -698,25 +701,49 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         except Exception:                                              # noqa: BLE001
             _key_skipped.append(f"{_lab} ({_krel.rsplit('/', 1)[-1]})")
             continue
+        _kalt = None
+        if not _kf.exists() and run_mode.tag() and _lab in KEY_FIGURES_REBUILD_ALT and rebuild_root.root():
+            # Priya 11-17: no same-filename re-render; the rebuild render of the SAME analysis (matched by script +
+            # content, deck_keyfigs) is placed instead, with its own caption
+            _krel_alt, _kalt = KEY_FIGURES_REBUILD_ALT[_lab]
+            _kf = Path(rebuild_root.root()) / _krel_alt.format(T=run_mode.tag())
         if _kf.exists():
-            _key_found.append((_page, _url, _lab, _kf, _kttl, _klicks, _kcap, _kdate, _krel))
+            _key_found.append((_page, _url, _lab, _kf, _kttl, _klicks, _kcap if _kalt is None else _kalt, _kdate,
+                               _krel if _kalt is None else None))
         else:
             _key_skipped.append(f"{_lab} ({_krel.rsplit('/', 1)[-1]})")
+    # THE OTHER PAGES' KEY FIGURES (Priya 11-17), after the goal page's, grouped by page: tagged (rebuild) builds only;
+    # each path resolves under the rebuild root (or, for a page image with no rebuild render, the share above it)
+    _key_pages = []
+    if _key_on_share and run_mode.tag() and rebuild_root.root():
+        for _page, _url, _lab, _kbase, _kp, _kttl, _klicks, _kcap, _kwhat in KEY_FIGURES_PAGES:
+            _kroot_p = Path(rebuild_root.root()) if _kbase == "rebuild" else Path(rebuild_root.root()).parent
+            _kf = _kroot_p / _kp.format(T=run_mode.tag())
+            if _kf.exists():
+                _key_pages.append((_page, _url, _lab, _kf, _kttl, _klicks, _kcap, _kwhat))
+            else:
+                _key_skipped.append(f"{_page} {_lab} ({_kf.name})")
     if _key_skipped:
         print(f"[analysis_deck] key figures with no file in this run (not placed): {', '.join(_key_skipped)}",
               flush=True)
-    if _key_found:
+    if _key_found or _key_pages:
         divider("KEY FIGURES — the key-figure cards of each results page",
-                "Only the Attempt Encoding Figures page marks key figures; the Cortical Spout Coding, State-Space "
-                "Recovery and Licking Kinematics pages have none yet. In this rebuild deck each is THIS run's re-render "
-                "of the page figure; the page itself still shows the earlier render.")
+                "The Attempt Encoding Figures (goal) page's key figures first, then the key figures Priya chose from "
+                "the Cortical Spout Coding, State-Space Recovery and Licking Kinematics pages (11-17), grouped by page. "
+                "Each is THIS run's rebuild render of the page figure where one exists (matched by script and content); "
+                "the notes say which file it is and whether the page shows the same file.")
         for _page, _url, _lab, _kf, _kttl, _klicks, _kcap, _kdate, _krel in _key_found:
             s = slide()
             _no_window_line.add(id(s._element))     # windows are stated by the page caption, not guessable from a name
             title(s, _kttl, f"{_page} page, {_lab} · {_klicks}")
             _kscript = re.search(r"Script:?\s+(\S+)", _kcap)
             _kscript = _kscript.group(1).rstrip(".,;") if _kscript else "see the page caption"
-            if run_mode.tag():
+            if run_mode.tag() and _krel is None:      # the rebuild render of the same analysis, with its own caption
+                _kmt = datetime.fromtimestamp(_kf.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
+                note(s, f"{_page} page ({_url}), {_lab}; slide title = the page's figure title. CAPTION: {_kcap}\n\n"
+                        f"SOURCE: {_kf} (rebuild render, written {_kmt}; not the same file name as the page image, "
+                        f"which is the earlier render of {_kdate}).")
+            elif run_mode.tag():
                 _kmt = datetime.fromtimestamp(_kf.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
                 note(s, f"{_page} page ({_url}), {_lab}; slide title = the page's figure title. SOURCE: {_kf} (this "
                         f"run's re-render, written {_kmt}; script {_kscript}; {_klicks}). The page shows the earlier "
@@ -727,6 +754,13 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                 note(s, f"{_page} page ({_url}), {_lab}. PAGE CAPTION: {_kcap}\n\nSOURCE: {_kf} (rendered {_kdate}; "
                         "the page's published image).")
             # the title box grows with the main point (24 pt, ~80 characters a line); the figure starts below it
+            big(s, _kf, top=min(3.0, 0.75 + 0.42 * (len(_kttl) // 80 + 1) + 0.35), width=12.5)
+        for _page, _url, _lab, _kf, _kttl, _klicks, _kcap, _kwhat in _key_pages:
+            s = slide()
+            _no_window_line.add(id(s._element))     # the caption states the window
+            title(s, _kttl, f"{_page} page, {_lab} · {_klicks}")
+            _kmt = datetime.fromtimestamp(_kf.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
+            note(s, f"{_page} page ({_url}), {_lab}. CAPTION: {_kcap}\n\nSOURCE: {_kf} ({_kwhat}, written {_kmt}).")
             big(s, _kf, top=min(3.0, 0.75 + 0.42 * (len(_kttl) // 80 + 1) + 0.35), width=12.5)
 
     # SECTIONS A-C (per-session WITHIN-DAY decode / encode / pre-cue lick-free control) are placed only when
@@ -1152,7 +1186,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         s = slide()
         title(s, "G0. What is compared to what \u2014 and what cannot be compared",
               "Read this before the numbers. Four of these constraints changed a conclusion already.")
-        note(s, M_POSTSTROKE, specific=S_G0)
+        note(s, _M_POST, specific=S_G0)
         bullets(s, [
             ("PRE-STROKE reference is FROZEN: 11 curated dates ending 8/14, 44 sessions, every one "
             "resolving to phase=='pre'."),
@@ -1186,7 +1220,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   "Every per-position behavioral metric over that animal's sessions. DASHED RED = "
                   "the lesion; gray shading = a session excluded from both phases. This is the "
                   "figure the nightly behavior pipeline already produces, not a bespoke plot.")
-            note(s, M_POSTSTROKE, specific=S_G1)
+            note(s, _M_POST, specific=S_G1)
             big(s, beh, top=1.5, width=12.9)
         # ONE counts slide: trial counts are trial counts, so this figure does not depend on the
         # arm. Rendering it per arm produced two byte-identical files under two titles (Priya,
@@ -1209,7 +1243,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   "cue, and UNDETECTED = no LP lick in that window; no camera-class, working-period or "
                   "quit-tail cut. Camera (LP) lick run. A position with ZERO engaged trials cannot have "
                   "a lick-only decoding number. Counts, no test.")
-            note(s, M_POSTSTROKE, specific=S_G1B)
+            note(s, _M_POST, specific=S_G1B)
             big(s, _cf, top=1.6, width=12.5)
 
         # --- G2. position-matched decoding -- CUT 2026-09-13 (Priya).
@@ -1239,7 +1273,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                      if _arm == "all" else
                      "Each session on ITS OWN preserved positions, so the chance line differs "
                      "between panels and the accuracies are NOT comparable across them."))
-            note(s, M_POSTSTROKE, specific=S_G2)
+            note(s, _M_POST, specific=S_G2)
             big(s, _mf, top=1.7, width=12.3)
         # G2b now comes from the unified runner: per_position_table derives it from the confusion
         # DIAGONALS in section_g.json, which are the per-position recall table by construction. The
@@ -1260,7 +1294,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   "2.0 s from the cue, post-lick 2.0 s from the first LP lick, pre-cue 1.0 s ending at the "
                   "cue; no per-trial baseline. Camera (LP) lick run. Dotted = 1/6; 'n/a' = not attempted (not zero recall); RED HATCHED = fewer than "
                   "10 trials. Descriptive, no test.")
-            note(s, M_POSTSTROKE, specific=S_G2B)
+            note(s, _M_POST, specific=S_G2B)
             big(s, _lp_sg / "section_g_G2b_per_position.png", top=1.75, width=12.3)
 
         # --- G2c. recoding vs loss: the test that reframes G2
@@ -1411,7 +1445,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                               "no per-trial baseline. '(pred)' under each column = how often the "
                               "decoder picks that position (the recall expected under a label "
                               "permutation); '(prec)' = precision. Read the OFF-diagonal.")
-                        note(s, M_POSTSTROKE, specific=S_G3)
+                        note(s, _M_POST, specific=S_G3)
                         grid(s, _chunk, cols=2, top=1.95)
 
         # --- G4 PRIMARY (coordinator 11-04): the camera-class discriminator; the DAQ slides below are robustness
@@ -1427,7 +1461,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   "The no-response readout is estimable only in sessions of 2 animals (PS94, PS95); every "
                   "other session has too few no-response trials, so the cohort-level reading is not "
                   "supported (2 / 4 animals). Camera (LP) lick run; the DAQ sensor version is the next slide.")
-            note(s, M_POSTSTROKE, specific=S_G4)
+            note(s, _M_POST, specific=S_G4)
             big(s, _g4p, top=1.7, width=11.5)
 
         # --- G4. identity, with its control read first (DAQ discriminator: ROBUSTNESS since 11-04)
@@ -1440,7 +1474,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   "cannot simply answer 'far'. READ THE CONTROL FIRST: post-stroke ENGAGED trials "
                   "must sit above post-stroke no-lick, or the boundary is tracking 'post-stroke' "
                   "rather than licking and the answer means nothing.")
-            note(s, M_POSTSTROKE, specific=S_G4)
+            note(s, _M_POST, specific=S_G4)
             big(s, src / "poststroke_G4_identity.png", top=1.7, width=11.5)
 
         # --- G4b. does the post-stroke session fit the PRE-stroke ENGAGED distribution?
@@ -1462,7 +1496,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   "spread of the dots IS the confidence interval \u2014 and it is the right one, "
                   "because sessions differ from one another far more than trials within a session. "
                   "Makes NO assumption that the two post-stroke classes should differ.")
-            note(s, M_POSTSTROKE, specific=S_G4B)
+            note(s, _M_POST, specific=S_G4B)
             big(s, _ff, top=1.85, width=11.0)
 
         # --- G5. same code weaker, or a different code?
@@ -1476,7 +1510,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   "patterns, one series per post-stroke session. Decoding accuracy alone cannot "
                   "separate a weakened code from a reorganized one; this can. G8f asks the same "
                   "question of the whole 6x6 geometry, and adds the midline test.")
-            note(s, M_POSTSTROKE, specific=S_G5)
+            note(s, _M_POST, specific=S_G5)
             big(s, _sf5, top=1.7, width=11.8)
 
         # --- G6. was a plan formed on the no-lick trials?
@@ -1494,7 +1528,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   "permutation null; p values printed RAW (no multiple-comparison correction). Camera (LP) "
                   "lick run. Above the null at IMPAIRED spouts = position "
                   "represented, movement did not happen; UNDECIDABLE = too few no-lick trials.")
-            note(s, M_POSTSTROKE, specific=S_G6)
+            note(s, _M_POST, specific=S_G6)
             big(s, _lp_sg / "poststroke_G6_nolick_readout.png", top=1.75, width=11.0)
 
         # --- G6b. the miss/stopped contrast, per position and per session.
@@ -1528,7 +1562,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   f"{', '.join(_excluded)}: lesioned 8/16, no behavioral deficit, re-lesioned AFTER "
                   f"this session. Same day, same anesthesia, same handling, same frozen decoder. If "
                   f"these two also dropped, the G2\u2013G6 effects would be the DAY, not the lesion.")
-            note(s, M_POSTSTROKE, specific=S_G7)
+            note(s, _M_POST, specific=S_G7)
             big(s, src / "section_g_smalllesion_matched_all.png", top=1.75, width=12.3)
             if (src / "section_g_smalllesion_counts.png").exists():
                 s = slide()
@@ -1536,7 +1570,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                       "Against G1b, where PS94 has ZERO engaged trials at far_center and far_R. The "
                       "behavioral collapse is specific to the animals whose lesion took, which is "
                       "what makes the decoding comparison interpretable at all.")
-                note(s, M_POSTSTROKE, specific=S_G7B)
+                note(s, _M_POST, specific=S_G7B)
                 big(s, src / "section_g_smalllesion_counts.png", top=1.6, width=12.5)
 
         # G7c: the same all-trials matrix as G3b, for the control animals. At 8 spaces, NOT 12 --
@@ -1562,7 +1596,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                           "position. That is what makes PS94's far_R over-prediction (0.35 of all "
                           "its post-stroke trials) a lesion effect rather than a property of the "
                           "frozen decoder or of 8/17.")
-                    note(s, M_POSTSTROKE, specific=S_G7C)
+                    note(s, _M_POST, specific=S_G7C)
                     big(s, _cf, top=1.85, width=9.6)
 
         # G7d: the same fits-engaged test on the SMALL-LESION animals. ONE slide, both alignments
@@ -1596,7 +1630,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   "SESSIONS are all there will ever be, but the figure is REGENERATED with the "
                   "rest of section G rather than frozen: it is scored on ENGAGED trials, so it "
                   "moves when the engagement gate does.")
-            note(s, M_POSTSTROKE, specific=S_G7D)
+            note(s, _M_POST, specific=S_G7D)
             grid(s, _g7d, cols=2, top=1.9)
 
         # --- G9. PER-POSITION CODING DIRECTIONS (Priya, 2026-08-20/21)
@@ -2119,7 +2153,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         s = slide()
         title(s, "G9. Excluded sessions and retired analyses",
               "A section that does not say what it left out reads as though it covered everything.")
-        note(s, M_POSTSTROKE, specific=S_GEXCL)
+        note(s, _M_POST, specific=S_GEXCL)
         bullets(s, [
             (f"EXCLUDED from every POOLED slide: {', '.join(_excluded)}. Their 8/16 attempt produced "
              "no deficit; the effective lesion (3.75 / 5.5 mW) followed the 8/17 session, so 8/17 is "
@@ -2251,6 +2285,8 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         # completeness check cannot report: it reports figures it EXPECTS and is silent about ones
         # it was never told about.
         for _n, (_pat, _ttl, _legend) in enumerate(EPOCH_FIGURES, 1):
+            if run_mode.tag() and _pat in EPOCH_FIGURES_REBUILD_LEGEND:   # Priya 11-17: written from the rebuild run
+                _legend = EPOCH_FIGURES_REBUILD_LEGEND[_pat]
             if _pat.startswith("../../chronic_stability/june_august_drift/"):
                 # its own block's folder (PRE_FROM unset), one definition with the script (review 7B B1)
                 _hits = [run_mode.june_august_drift_dir(_grant_root.parent) / Path(_pat).name]
@@ -2357,6 +2393,21 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         _base = _roots[_root]
         if _base is None:
             continue
+        _kover = LP_GATED_REBUILD.get(Path(_rel).name) if run_mode.tag() else None
+        if _kover is not None and _on_share and rebuild_root.root():
+            # Priya 11-17: the rebuild render of this slot and a caption written from ITS data (deck_registry
+            # LP_GATED_REBUILD); a slot with no rebuild path keeps the tagged path below and takes only the caption
+            _krel_o, _kcap_o = _kover
+            if _krel_o:
+                _hits = sorted(Path(rebuild_root.root()).glob(_krel_o.format(T=run_mode.tag())))
+                if _hits:
+                    _k_found.append((_n, _ttl, ("REBUILD", _kcap_o), _hits[-1]))
+                    continue
+            else:
+                _tagged_one = _tagged_k(_root, _rel, _grant_root)
+                if _tagged_one is not None and _tagged_one.exists():
+                    _k_found.append((_n, _ttl, ("REBUILD", _kcap_o), _tagged_one))
+                    continue
         _one = (_base / _rel) if _root in ("labcams", "cohort_out") else Path(PathResolver().derived(_root, _rel))
         _tagged_one = _tagged_k(_root, _rel, _grant_root) if run_mode.tag() else None
         if _tagged_one is not None:                       # review 7B N3: THIS run's tagged block output
@@ -2379,7 +2430,9 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             if "LP_licks" in str(_f):
                 _lp_slides.add(id(_sl._element))
             _leg = _legend or _CI_LEGEND
-            if run_mode.tag():
+            if isinstance(_leg, tuple):                     # ("REBUILD", caption): written from this render's data
+                _leg = _leg[1]
+            elif run_mode.tag():
                 # A TAGGED (rebuild) RUN places its own renders, so the registry's PRE-REBUILD prose must not travel with
                 # them (Priya 11-16: remove outdated text; captions replaced, not annotated): the WHAT IT SHOWS numbers
                 # come from the 10-21 / 10-24 renders (REBUILD-TODO in deck_registry) and the baseline line names the
