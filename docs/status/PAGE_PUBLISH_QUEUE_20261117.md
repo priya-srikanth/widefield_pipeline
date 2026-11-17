@@ -57,6 +57,15 @@ same URL, then re-start the artifact watch. Tick each item here and commit.
 
 - Nothing pending. Re-start their watches after the switch.
 
+## 3b. Decision pending a check (Priya 11-17)
+
+- Switch the LP pre-cue (ENL) and ITI lick-free windows (and pre-cue / ITI lick kernels) from cam4 only to cam4 + cam1
+  (cam1 `events_all`, cam1-only, droplets removed) — Priya: YES, pending the check that the extra cam1 events outside
+  post-cue are real licks, not droplets (helper running; record `docs/status/CAM1_EXTRA_LICKS_CHECK_20261117.md` on
+  branch analysis/restnl-cam1-1117; blind review sheet for Priya). If it passes: change `lp_licks` so the window licks
+  read events_all, re-run every pre-cue / ITI figure (Fig 2.5 / 2.6 frozen decoders, encoder enl kernels, ENL-window
+  maps, ITI families), old vs new to Priya before pages.
+
 ## 4. To do after the re-runs (Priya 11-17): clean up stale iterations
 
 Discuss with Priya before deleting anything; deleted-derived list as in DELETED_DERIVED_20261117.md; never original data.
