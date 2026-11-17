@@ -43,12 +43,15 @@ same URL, then re-start the artifact watch. Tick each item here and commit.
   orofacial +.04 p .16 (was orofacial +.15 p .010). **14.29** chronic = orofacial + contralesional SSp-ll / -tr / -ul
   (not orofacial only; chronic starred areas all-ITI 4 -> 10, docked 11). Every caption: ITI response window 0-0.5 s,
   cued stays 0-1.0 s. All ITI increases shrink ~1/3-1/2, none reverses. 14.18 / 14.20 / head-to-head unaffected.
+- [ ] **Fig 14.7 cued per-spout window -> 0..1.0 s** (Priya 11-17 via a8, "update 113 and 114 to match"): `iti_licks/cued_ramp_cued01_20261117/<tag>/figures/lick_cued_ramp_perspout.png` (+ cue-aligned twin and `*_perspout_windows`, 0..1.0 s row first). Caption: acute far contra now below pre (n.s.); acute far mid loses its star; chronic far contra +.48*. Table: a8's ITI_WINDOW_AUDIT_20261117.md section 7.
 - [ ] **idx supplement next to Fig 14.13** (Priya 11-17 via a8: collapsible, collapsed by default, clear captions). 4 figures
   (far contra all-ITI + cued, far contra docked, all-spout dec_idx / resp_idx); captions + paths in
   `docs/status/deck_swap_20261117/PAGE_SUPPLEMENT_IDX_20261117.md`. WAIT for a8's ping: the gap >= 2 s ITI dec_idx variant
   updates the caveat line first.
 - [ ] Optional, only if Priya asks: a8's lick-angle controls for the marker (after 14.18), figures under
   `iti_licks/{bal_full_cuedang,iti_matched_itimatch,bal_dock_itimatch,balangle_all_itimatch,balangle_dock_itimatch}_20261117/`.
+
+- [ ] Lick-source caption edits (audit 11-17, branch fix/lick-source-wording-1117): `scratchpad/pages/{img,goal,ss,kin,fr}/lick_source_edits_1117.json` (42 / 110 / 142 / 27 / 12); regenerate against LIVE html with `scratchpad/licksrc/make_edits.py` (PYTHONPATH=wf_licksrc1117) before applying; re-run after the RESTnl-cam1 outputs are placed. Also fix the goal caption "(was Fig 14.20)" (annotation). FaceRhythm page is not this window's — send its list to the FR window.
 
 ## 3. State-space (9sGELLFEwADEt9k64fXTxe, v41) and kinematics (DKcKRJKbhBoratxxRc6qZv, v31)
 
