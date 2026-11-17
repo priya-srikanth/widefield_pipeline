@@ -15,6 +15,11 @@ The parent table is given explicitly (--src); nothing is defaulted to a tree.
               by fig_behaviour_hits.compute; the parent's dots are these rows)
   d_acc       --src <grant_figures/<tag>/epoch/data/epoch_acc_by_position_cue_working_sessions.csv>  (epoch, position
               nI..fC, animal, value [, session]; pre = one cross-validated value per animal, as the parent)
+  d_acc_persession  --src <grant_figures/<tag>/epoch/data/epoch_5r_refit_by_position_cue_working_sessions.csv>  (Priya 11-17:
+              slide 12 on PER-SESSION pre values. frozen accuracy per session x spout = 5r refit - 5rgap (refit - frozen),
+              same sessions / rows; the 5rgap sidecar is read from the same folder. Post-stroke values equal the
+              epoch_acc_by_position sidecar exactly (3e-16, checked 11-17); pre = 8 / 7 / 8 / 8 sessions per animal
+              instead of the acc sidecar's one pooled value per animal, which makes the acute far-contra fit singular)
   refitgap    --src <grant_figures/<tag>/epoch/data/epoch_5rmgap_frozen_vs_refit_cue_working_sessions.csv>  (the
               matched gap family's per-session refit - frozen accuracy WITH pre rows; the parent figure
               epoch_5rmgapdelta_* plots exactly these values minus the animal's own pre mean -- checked to 8e-17 on the
@@ -22,7 +27,7 @@ The parent table is given explicitly (--src); nothing is defaulted to a tree.
   frozen      --src <rebuild_figs/<tag>/data/frozen_refit_pooled_figdata.pkl>  (key "w": epoch, animal, session_idx,
               frozen, refit, gap; gap = refit - frozen on the same trials)
 
-    python -m scripts.lmm_hidden.e3_parents {behaviour,d_acc,refitgap,frozen} --src PATH [--outdir DIR]
+    python -m scripts.lmm_hidden.e3_parents {behaviour,d_acc,d_acc_persession,refitgap,frozen} --src PATH [--outdir DIR]
 """
 from __future__ import annotations
 
@@ -41,6 +46,8 @@ SPEC = {
                       title="Hit rate per spout, camera working period (contact / all trials in the period)"),
     "d_acc": dict(name="d_acc_cue_lmm", ylabel="decoder accuracy - own pre",
                   title="Frozen decoder accuracy by spout, cue window, working trials (imaging 2.3)"),
+    "d_acc_persession": dict(name="d_acc_cue_lmm_persession", ylabel="decoder accuracy - own pre",
+                             title="Frozen decoder accuracy by spout, cue window, working trials, PER-SESSION pre"),
     "refitgap": dict(name="d_refitgap_lmm", ylabel="refit - frozen gap - own pre",
                      title="Refit - frozen gap by spout (training-set matched), cue window, working trials"),
     "frozen": dict(name="frozen_refit_pooled_lmm", ylabel="accuracy - own pre", figsize=(9.0, 4.5),
@@ -54,6 +61,13 @@ def build(kind: str, src: Path) -> pd.DataFrame:
         rows = [pd.DataFrame({"position": p, "epoch": M.epoch, "animal": M.animal, "label": M.key,
                               "value": M[f"hit__{c}"].astype(float)}) for p, c in DAQ_POS.items()]
         S = pd.concat(rows, ignore_index=True)
+    elif kind == "d_acc_persession":
+        R = pd.read_csv(src)
+        G = pd.read_csv(Path(src).with_name(Path(src).name.replace("epoch_5r_refit_by_position", "epoch_5rgap_frozen_vs_refit")))
+        k = ["epoch", "position", "animal", "session"]
+        if not (R[k].values == G[k].values).all():
+            raise SystemExit("5r and 5rgap sidecars are not row-aligned")
+        S = R[k].rename(columns={"session": "label"}).assign(value=R.value.to_numpy() - G.value.to_numpy())
     elif kind in ("d_acc", "refitgap"):
         S = pd.read_csv(src)
         S = S.rename(columns={"session": "label"}) if "session" in S else S
