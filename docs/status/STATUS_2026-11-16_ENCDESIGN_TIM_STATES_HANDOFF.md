@@ -149,6 +149,11 @@ Run code from a worktree with `PYTHONPATH=$(pwd -W)` (Windows form). AR-HMM mode
   floor .036): entropy -0.20 bits acute (4/4); chronic push -> contra lick -.11, quiet -> contra -.06, walk -> central
   -.17, walk -> ipsi +.16; fewer lick -> chew.
 
+- **LP direction cross-check (Priya OK 11-17; another window is working on the LP direction analyses, so NOT run
+  here):** is the AR-HMM chronic contra lick-share drop (-.07, 4/4) (a) aim -- tongue lateral per lick WITHIN spout
+  shifted -- or (b) distribution -- fewer licks per trial at contra spouts? Compare with that window's per-spout
+  results when they land. Fig 1 restyled: repo EPOCH_LINE colors, +-SEM band across animals (alpha .07, edges .25).
+
 ## 3. Running / state at 11-17 ~14:00 (background in session 37fdbabf; scratchpad
 `C:/Users/SABATI~1/AppData/Local/Temp/claude/179e1046909c5be2/37fdbabf-285a-455b-bbb7-d5927a5affe6/scratchpad`)
 
