@@ -270,6 +270,7 @@ def plot(A: pd.DataFrame, S: pd.DataFrame, T: pd.DataFrame, BT: pd.DataFrame | N
     """Draw the page figures; A1 / BT1 (--first-curves) = the first-lick curves -> lick_matched<TAG>_curves_first.png."""
     from wfield_local.orofacial_cohort import EPOCH_LINE
     col = {"pre": "k", **EPOCH_LINE}
+    (il.OUT_W / "figures").mkdir(parents=True, exist_ok=True)   # a seeded --plot-only folder has figdata only
     # 1. curves
     if "curves" in FIGS:
         _curves_figure(A, BT, f"lick_matched{TAG}_curves.png", S=S)
@@ -506,7 +507,6 @@ def main() -> int:
     from wfield_local import trial_set_text as tst
     tst.declare(text=trial_set_sentence())
     if plot_only():                                    # figdata convention (10-28): redraw from the saved figure data
-        (il.OUT_W / "figures").mkdir(parents=True, exist_ok=True)   # a seeded redraw folder has figdata only
         D = load_fd(f"lick_matched{TAG}")
         plot(D["A"], D["S"], D["T"], D["BT"], *((D.get("A1"), D.get("BT1")) if FIRST_CURVES else ()))
         if "animal" in FIGS:

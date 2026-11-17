@@ -34,6 +34,8 @@ session contributes one point per spout and the lick angle varies across spouts 
               dec -> dec_idx removes the pre-lick level and the overall gain; dec_idx vs resp_idx = the window / lick set
               (0..0.2 s from the peak, KEY licks) vs the response window (onset-aligned first licks); resp vs resp_idx =
               log ratio vs bounded index. Later licks: dec_idx's baseline may hold the previous lick (descriptive only).
+              --gap2 (11-17): ITI bout starts with gap >= il.GAP_MAIN (2 s, resp's rule) only, instead of >= BOUT_GAP
+              (1 s), so the baseline starts >= 1 s after the previous lick (gap_keep).
 MODELS (statsmodels MixedLM, random intercept per animal, ML; centered angle):
   y ~ angle * post          post = any post-stroke epoch: (1) slope of balance on angle pre-stroke; (2) angle x post =
                             does the slope change; (3) post = the shift at the SAME angle (the landing-matched balance
@@ -80,6 +82,22 @@ ZC = [f"zc_{a}" for a in lbr.PAIRS] + [f"zi_{a}" for a in lbr.PAIRS]
 def idx_on() -> bool:
     """--idx on the command line (this script or lick_iti_matched_markers balance-angle) adds dec_idx / resp_idx."""
     return "--idx" in sys.argv
+
+
+def gap_keep(P: pd.DataFrame) -> np.ndarray:
+    """--gap2 (Priya 11-17): keep only ITI bout starts (set 'iti', order 0) with gap >= il.GAP_MAIN (2 s, resp's rule)
+    instead of >= il.BOUT_GAP (1 s), so the -1.0..-0.5 s baseline starts >= 1 s after the previous lick. Gap = time since
+    the previous lick onset, from <OUT>/iti_dock_audit.csv (key label x k, as il.iti_subset_keep). Later licks and cued
+    rows are untouched. All True without the flag. Needs P['k'] = the prediction-cache index."""
+    if "--gap2" not in sys.argv:
+        return np.ones(len(P), bool)
+    A = pd.read_csv(il.OUT / "iti_dock_audit.csv", usecols=["label", "k", "gap"]).set_index(["label", "k"]).gap
+    g = A.reindex(pd.MultiIndex.from_arrays([P.label, P.k])).to_numpy(float)
+    first = ((P.set == "iti") & (P.order == 0)).to_numpy()
+    keep = ~first | (g >= il.GAP_MAIN)
+    print(f"--gap2: ITI bout starts kept {int((first & keep).sum())} of {int(first.sum())} (gap >= {il.GAP_MAIN:g} s; "
+          f"gap missing for {int((first & ~np.isfinite(g)).sum())})", flush=True)
+    return keep
 
 
 def meas_list() -> tuple:
@@ -167,6 +185,7 @@ def points() -> pd.DataFrame:
     from wfield_local import analysis_kit as ak
     P = pd.read_csv(lo.preds_path()).reset_index(drop=True)
     P["k"] = P.groupby(["set", "label"]).cumcount()
+    P = P[gap_keep(P)].reset_index(drop=True)          # --gap2 only (k = cache index kept)
     C = pd.read_csv(il.in_path(f"covref_covariates{lo.SRC_TAG}.csv.gz"),
                     usecols=["set", "label", "k", "reach_mm", "side_k"])
     P = P.merge(C, on=["set", "label", "k"], how="left", validate="one_to_one")

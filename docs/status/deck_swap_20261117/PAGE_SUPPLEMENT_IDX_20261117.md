@@ -51,3 +51,10 @@ variance across cells, so the far-contra versions (S-a, S-b) are the cleaner tes
 resp and resp_idx agree in sign and significance everywhere (log ratio vs bounded index does not matter); the window
 (0..0.2 s vs the response window) and the lick set do. For ITI bout starts with a 1-2 s gap, dec_idx's baseline window
 can contain the previous lick's response.
+
+Caption caveat line (add to S-a / S-b / S-c-d; ITI_MATCHED_ANGLE_MARKERS.md section 5b): "dec / dec_idx ITI bout starts
+are split at >= 1 s gaps, so for 1-2 s gaps the -1.0..-0.5 s baseline can include the previous lick. Restricted to gaps
+>= 2 s (resp's rule; 65 % of bout starts kept), the conclusions are unchanged. Docked far-contra dec -2.02 (p < .001)
+vs dec_idx +.030 (n.s.); far-contra all-ITI dec_idx +.036 (p .02). Docked all-spout dec_idx becomes +.036 (p .002), in
+line with resp_idx."
+Gap >= 2 s figures: `balangle_{all,dock}_decidx_gap2_20261117/<tag>/figures/` (same file names).

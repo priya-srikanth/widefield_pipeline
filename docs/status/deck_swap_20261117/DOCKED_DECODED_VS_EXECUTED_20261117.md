@@ -166,7 +166,7 @@ Dashed = landing grid points where only 3 animals have a curve (kernel weight â‰
   - The smoothing calls `likeforlike.smooth_curves`. It is exactly equal to the old inline loop (checked).
   - The coverage table and dash notes come from `likeforlike`.
   - The footer margin comes from `trial_set_text.footer_bottom`.
-  - `--plot-only` now creates `figures/`.
+  - `plot()` creates `figures/`, so `--plot-only` works in a seeded folder that holds figdata only.
 - `scripts/lick_matched_angle_reach.py`:
   - Writes go to `il.OUT_W`, which equals OUT by default.
   - Under a subset filter it reads only the filtered where caches; the 3-axis table has none, so it is skipped.

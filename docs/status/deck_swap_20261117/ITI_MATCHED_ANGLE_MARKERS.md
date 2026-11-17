@@ -265,5 +265,53 @@ resp_idx, dec_idx) and `lick_balance_angle_{dec_idx,resp_idx}.png`.
    On docked all-spouts, resp_idx keeps the +.048 shift (p .002) and dec_idx does not (+.020, p .19).
 4. **Across spouts, balance still predicts angle in every measure.** Both indices have negative pre slopes in every
    all-spout set (p < 1e-4), and the slopes change little post-stroke. Within the far-contra spout, with its narrow
-   pre range, the index pre slopes are ~0 for cued licks, as resp's is. PROVISIONAL (n = 4; cells as
+   pre range, the index pre slopes are ~0 for cued licks, as resp's is.
+
+### 5b. Baseline check: ITI bout starts with gap >= 2 s (Priya 11-17)
+
+dec / dec_idx ITI bout starts come from bouts split at gaps >= `il.BOUT_GAP` (1 s). For a 1-2 s gap, the -1.0..-0.5 s
+baseline therefore falls 0-1 s after the previous lick. Variant: `--gap2` (`lick_balance_angle_lmm.gap_keep`) keeps only
+bout starts with gap >= `il.GAP_MAIN` (2 s), which is resp's rule. The gap is the time since the previous lick onset,
+taken from `iti_dock_audit.csv`. Cued rows and later licks are unchanged; the cued rows are identical to the main run.
+
+Bout starts kept: all ITI 21,969 of 33,877 (65 %), docked 8,382 of 12,988 (65 %). 366 and 2 bout starts without an
+audit gap were dropped.
+Folders: `iti_licks/balangle_{all,dock}_decidx_gap2_20261117/<tag>/` (logs, README). The figures have the same names as
+in the main folders.
+
+Orofacial pool; same models as above. n = session x spout cells (n post = post cells); bold = p < .05.
+
+| set | measure | gap | n (post) | pre slope /deg (p) | shift at same angle (p) | shift inside pre range (p) [n post] |
+|---|---|---|---|---|---|---|
+| ITI all, all spouts | dec | >= 1 s | 612 (437) | **-.314 (<1e-4)** | **-1.79 (<1e-4)** | **-1.92 (<1e-4)** [328] |
+| | dec | >= 2 s | 603 (434) | **-.299 (<1e-4)** | **-1.85 (<1e-4)** | **-1.95 (<1e-4)** [309] |
+| | dec_idx | >= 1 s | 612 (437) | **-.0075 (<1e-4)** | +.003 (.59) | -.000 (.95) [328] |
+| | dec_idx | >= 2 s | 603 (434) | **-.0083 (<1e-4)** | +.004 (.59) | -.000 (.96) [309] |
+| ITI all, far contra | dec | >= 1 s | 103 (74) | **-.292 (<1e-4)** | **-1.08 (.023)** | -.63 (.22) [23] |
+| | dec | >= 2 s | 103 (74) | **-.286 (3e-4)** | -1.09 (.061) | -.90 (.14) [20] |
+| | dec_idx | >= 1 s | 103 (74) | -.0035 (.07) | **+.039 (.008)** | **+.037 (.017)** [23] |
+| | dec_idx | >= 2 s | 103 (74) | **-.0050 (.012)** | **+.036 (.018)** | +.031 (.056) [20] |
+| ITI docked, all spouts | dec | >= 1 s | 542 (391) | **-.221 (<1e-4)** | **-1.35 (<1e-4)** | **-1.46 (<1e-4)** [295] |
+| | dec | >= 2 s | 503 (356) | **-.212 (<1e-4)** | **-1.19 (<1e-4)** | **-1.27 (<1e-4)** [257] |
+| | dec_idx | >= 1 s | 542 (391) | **-.0047 (<1e-4)** | +.020 (.19) | +.020 (.21) [295] |
+| | dec_idx | >= 2 s | 503 (356) | **-.0063 (<1e-4)** | **+.036 (.002)** | **+.033 (.008)** [257] |
+| ITI docked, far contra | dec | >= 1 s | 97 (71) | **-.268 (<1e-4)** | **-1.82 (9e-4)** | **-1.43 (.013)** [19] |
+| | dec | >= 2 s | 94 (68) | **-.286 (<1e-4)** | **-2.02 (8e-4)** | **-1.71 (.012)** [16] |
+| | dec_idx | >= 1 s | 97 (71) | -.0046 (.08) | +.031 (.17) | +.028 (.30) [19] |
+| | dec_idx | >= 2 s | 94 (68) | **-.0070 (.005)** | +.030 (.20) | +.033 (.28) [16] |
+
+For reference, resp_idx in the same cells (only the cell membership and angles change): all spouts +.007 -> +.004; far
+contra +.026 -> +.025; docked all spouts +.048 -> +.045 (p .004); docked far contra +.036 -> +.030 (ns).
+Per animal at gap >= 2 s, raw post - pre dec_idx shift at far contra: all ITI +.13 / +.07 / +.16 / +.04; docked +.13 /
++.10 / +.20 / +.01 (PS92 / PS93 / PS94 / PS95).
+
+**Reading 5b.**
+- The baseline overlap does not explain the results. The docked far-contra dec shift stays negative and gets larger at
+  gap >= 2 s (-2.02, p 8e-4). dec_idx stays positive and ns (+.030, p .20). The section 5 conclusion holds: the dec
+  shift comes from level / gain, not from a pre-lick baseline that holds the previous lick.
+- The one change: docked all spouts dec_idx becomes significant (+.036, p .002; +.033 inside the pre range), matching
+  resp_idx (+.045). So the dec_idx vs resp_idx difference on docked all-spout licks came from the 1-2 s gap bout
+  starts, not from the window.
+- ITI far contra (all), dec_idx +.036 (p .018) is unchanged in size; inside the pre range it is +.031 (p .056).
+ PROVISIONAL (n = 4; cells as
    observations).

@@ -31,14 +31,15 @@ FAR-CONTRA WITHIN SPOUT (`balance-angle`): lick_balance_angle_lmm's session x sp
 hook applied BEFORE the per-lick join; the full balance-angle LMMs (lick_balance_angle_lmm.compute) on that table; then
 far-contra cells only (cued: target far contra; ITI: previous spout far contra): per-animal r, y ~ angle * post.
 With --idx (Priya 11-17) both add the bounded indices dec_idx / resp_idx (lick_balance_angle_lmm.bounded_index; see
-that docstring) as two more measures; without it the outputs are unchanged.
+that docstring) as two more measures; without it the outputs are unchanged. --gap2: ITI bout starts with gap >=
+il.GAP_MAIN (2 s) only (lick_balance_angle_lmm.gap_keep).
 
 Usage (env of the matching rebuild step + WFIELD_ITI_OUT_W=<new folder>; PYTHONPATH=<worktree>;<worktree>/scripts):
   python scripts/lick_iti_matched_markers.py docked-balance      (+ WFIELD_ITI_FILTER=dock WFIELD_BAL_FULL=1)
   python scripts/lick_iti_matched_markers.py docked-primary      (same env; lick_recovery_primary on the docked table)
   python scripts/lick_iti_matched_markers.py axes
   python scripts/lick_iti_matched_markers.py models --bal-all <balsub_sessions_full.csv> --bal-dock <...csv>
-  python scripts/lick_iti_matched_markers.py balance-angle --ratio <lateral_ratio_sessions.csv> [--idx]  [+ WFIELD_ITI_FILTER=dock]
+  python scripts/lick_iti_matched_markers.py balance-angle --ratio <lateral_ratio_sessions.csv> [--idx] [--gap2]  [+ WFIELD_ITI_FILTER=dock]
   python scripts/lick_iti_matched_markers.py plot                 (figures from the saved CSVs)
 """
 from __future__ import annotations
@@ -245,6 +246,7 @@ def bal_angle_points() -> pd.DataFrame:
     P = pd.read_csv(lo.preds_path()).reset_index(drop=True)
     P["k"] = P.groupby(["set", "label"]).cumcount()
     P = P[il.iti_subset_keep(P)].reset_index(drop=True)
+    P = P[lba.gap_keep(P)].reset_index(drop=True)      # --gap2 (11-17): bout starts with gap >= il.GAP_MAIN only
     print(f"ITI subset {il.ITI_SUBSET or 'none'}: {int((P.set == 'iti').sum())} ITI licks", flush=True)
     C = pd.read_csv(il.in_path(f"covref_covariates{lo.SRC_TAG}.csv.gz"), usecols=["set", "label", "k", "reach_mm", "side_k"])
     P = P.merge(C, on=["set", "label", "k"], how="left", validate="one_to_one")
