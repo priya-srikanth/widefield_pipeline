@@ -69,8 +69,9 @@ def lp_set() -> str:
 
 def _mode():
     """(mask name = cache folder + frozen align token, output folder name, mask text) of the active LP set."""
-    if lp_set() == "c1all":
-        return ("restnlc1v2wk", "rest15f_restnlc1all_20261117",
+    if lp_set() == "c1all":                    # mask name follows the RESTnlc1 cache tag (v2 -> v3 11-17)
+        from wfield_local import restnl_licks as _rl
+        return (f"{_rl.CACHE_TAG}wk", "rest15f_restnlc1all_20261117",
                 "RESTnlc1 rest (restdock05: docked, not running; minus every DAQ lick, every cam4 LP lick and every "
                 "cam1-only LP lick of the whole trial windows (droplets removed), -0.5 s / +2.0 s) between two camera "
                 "working trials at the same position")

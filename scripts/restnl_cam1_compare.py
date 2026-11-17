@@ -33,9 +33,10 @@ def _latest(files):
 def _cache_rows(d4: Path, d1: Path) -> pd.DataFrame:
     """One row per session: cam4 vs cam4cam1 baseline cache (same run tag), frames / samples / cam1 onsets."""
     from wfield_local import epochs
+    from wfield_local import restnl_licks as _rl
     rows = []
-    for f1 in sorted(d1.glob("*__restnlc1v2-*__*.npz")):
-        lab, rest = f1.name.split("__restnlc1v2-", 1)
+    for f1 in sorted(d1.glob(f"*__{_rl.CACHE_TAG}-*__*.npz")):
+        lab, rest = f1.name.split(f"__{_rl.CACHE_TAG}-", 1)
         tag = rest.rsplit("__", 1)[0]
         f4 = _latest(list(d4.glob(f"{lab}__restnl-{tag}__*.npz")))
         z1 = np.load(f1)
@@ -57,16 +58,17 @@ def _cache_rows(d4: Path, d1: Path) -> pd.DataFrame:
 
 
 def frames(gate: str, out: Path) -> pd.DataFrame:
+    from wfield_local import restnl_licks as _rl
     from wfield_local import session_cache
     c = Path(session_cache.CACHE_DIR)
     if gate == "daq":
-        d4, d1 = c.with_name(c.name + "_restnl"), c.with_name(c.name + "_restnlc1v2")
+        d4, d1 = c.with_name(c.name + "_restnl"), c.with_name(c.name + "_" + _rl.CACHE_TAG)
     else:
         from wfield_local import gate_source
         import os
         os.environ["WIDEFIELD_GATE_SOURCE"] = "lp"
         t = gate_source.cache_tag()
-        d4, d1 = c.with_name(c.name + "_restnl_" + t), c.with_name(c.name + "_restnlc1v2_" + t)
+        d4, d1 = c.with_name(c.name + "_restnl_" + t), c.with_name(c.name + "_" + _rl.CACHE_TAG + "_" + t)
     S = _cache_rows(d4, d1)
     S["removed_by_cam1_pct"] = 100 * (1 - S.frames_c1 / S.frames_cam4)
     S["samples_removed_by_cam1_pct"] = 100 * (1 - S.samples_c1 / S.samples_cam4)

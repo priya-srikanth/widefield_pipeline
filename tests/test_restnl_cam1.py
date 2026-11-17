@@ -101,7 +101,7 @@ def test_cache_names_default_unchanged(monkeypatch):
     assert d4.name.endswith("_restnl") and s4 == "PS92_0810__restnl"
     with rl.active("cam4cam1"):
         d1, s1 = rnm.cache_dir(), rnm._stem("PS92_0810")
-    assert d1.name.endswith("_restnlc1v2") and s1 == "PS92_0810__restnlc1v2" and d1 != d4
+    assert d1.name.endswith("_" + rl.CACHE_TAG) and s1 == f"PS92_0810__{rl.CACHE_TAG}" and d1 != d4
 
 
 def test_bad_lick_set_refused(monkeypatch):
