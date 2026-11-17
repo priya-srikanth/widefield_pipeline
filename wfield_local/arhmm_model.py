@@ -203,6 +203,7 @@ def fit_labels(feats: dict, frame: str, epochs: dict, seed: int = 0, per_cell: i
 #: cover [start + NLAGS, stop), so the overlapping chunks tile the segment exactly; the only cost is one forced state
 #: re-draw per 60 s.
 CHUNK_BINS = 1500
+DITHER = 0.1          # 11-17 test (6 sessions): side-within-contact NMI .08 -> .36, median 0.12 -> 0.44 s
 
 
 def chunks(a: int, b: int, size: int = CHUNK_BINS) -> list[tuple[int, int]]:
@@ -213,15 +214,33 @@ def chunks(a: int, b: int, size: int = CHUNK_BINS) -> list[tuple[int, int]]:
     return [(a + i * step, min(a + i * step + size, b)) for i in range(k)]
 
 
-def seqs_of(feats, labels, design):
+def seqs_of(feats, labels, design, dither: float = 0.0):
+    """PCA sequences (chunked). ``dither`` = SD of a FIXED Gaussian added in PC space (seeded by session + chunk start,
+    so a fit and its decode see the same values): a floor on each state's AR noise. Without it the smooth 25 Hz PCs
+    (median frame-to-frame change 0.01-0.04 vs PC SD 0.27-1.06) let states predict frames to ~0.007, so any change in
+    dynamics out-bids the stickiness and kappa had to reach ~1e13 for 0.5 s syllables (11-17 scan)."""
+    import zlib
     seqs, owner = [], []
     for lab in labels:
         X = feats[lab]["X"]
         for a0, b0 in segments(X, int(MIN_SEG_S * FS_HZ)):
             for a, b in chunks(a0, b0):
-                seqs.append(design.transform(X[a:b]))
+                Y = design.transform(X[a:b])
+                if dither > 0:
+                    rng = np.random.default_rng(zlib.crc32(f"{lab}:{a}".encode()))
+                    Y = (Y + dither * rng.standard_normal(Y.shape)).astype(np.float32)
+                seqs.append(Y)
                 owner.append((lab, a, b))
     return seqs, owner
+
+
+def per_session(z, owner, feats) -> dict:
+    """Chunk states (N, T - NLAGS) -> {label: per-bin state, -1 = not modelled}; chunks tile each segment."""
+    out = {}
+    for (lab, s0, s1), zi in zip(owner, np.asarray(z)):
+        full = out.setdefault(lab, np.full(len(feats[lab]["X"]), -1, np.int16))
+        full[s0 + NLAGS:s1] = zi[: s1 - s0 - NLAGS]
+    return out
 
 
 # -------------------------------------------------------------------------------------------------------------- cli ----
@@ -241,6 +260,8 @@ def main(argv=None) -> int:
     ap.add_argument("--tag", default=None, help="model name (default <frame>_s<seed>)")
     ap.add_argument("--label", default=None, help="decode: one session only (an O2 array task)")
     ap.add_argument("--scan-sessions", type=int, default=4)
+    ap.add_argument("--save-states", action="store_true", help="scan: save each kappa's states per session")
+    ap.add_argument("--dither", type=float, default=DITHER, help="PC-space noise floor SD (see seqs_of)")
     ap.add_argument("--fit-labels", default=None, help="comma list: fit on exactly these sessions (sanity checks)")
     a = ap.parse_args(argv)
     out = Path(a.out)
@@ -260,14 +281,11 @@ def main(argv=None) -> int:
             f = sd / f"{lab}.npz"
             if f.exists():
                 continue
-            seqs, owner = seqs_of(feats, [lab], M["design"])
+            seqs, owner = seqs_of(feats, [lab], M["design"], M.get("dither", 0.0))
             if not seqs:
                 continue
             z = decode(make_data(seqs), {"params": params, "hypparams": hyp})
-            full = np.full(len(feats[lab]["X"]), -1, np.int16)
-            for (_l, s0, s1), zi in zip(owner, z):
-                full[s0 + NLAGS:s1] = zi[: s1 - s0 - NLAGS]
-            np.savez_compressed(f, z=full)
+            np.savez_compressed(f, z=per_session(z, owner, feats)[lab])
             print("decoded", lab, flush=True)
         return 0
     labs = (a.fit_labels.split(",") if a.fit_labels
@@ -279,18 +297,23 @@ def main(argv=None) -> int:
         # spread over the (sorted, animal-contiguous) fit set so every animal is in the scan, not only the first
         step = max(1, len(labs) // a.scan_sessions)
         scan_labs = labs[::step][: a.scan_sessions]
-        seqs, _o = seqs_of(feats, scan_labs, design)
+        seqs, own = seqs_of(feats, scan_labs, design, a.dither)
         data = make_data(seqs)
         for k in (float(x) for x in a.kappas.split(",")):
             m = fit(data, k, a.iters, seed=a.seed)
+            if a.save_states:       # the last sample's states per session, for scoring against independent labels
+                sd = out / f"scan_states_k{k:.0e}_d{a.dither:g}"
+                sd.mkdir(exist_ok=True)
+                for lab, zz in per_session(np.asarray(m["states"]["z"]), own, feats).items():
+                    np.savez_compressed(sd / f"{lab}.npz", z=zz)
             d = durations_s(m["states"]["z"], data["mask"])
-            row = {"kappa": k, "median_s": float(np.median(d)), "mean_s": float(np.mean(d)),
+            row = {"kappa": k, "dither": a.dither, "median_s": float(np.median(d)), "mean_s": float(np.mean(d)),
                    "n_used": int(len(np.unique(np.asarray(m["states"]["z"])))), "iters": a.iters,
                    "sessions": scan_labs}
-            (out / f"scan_{a.frame}_k{k:.0e}.json").write_text(json.dumps(row, indent=1))
+            (out / f"scan_{a.frame}_k{k:.0e}_d{a.dither:g}.json").write_text(json.dumps(row, indent=1))
             print(row, flush=True)
         return 0
-    seqs, _owner = seqs_of(feats, labs, design)
+    seqs, _owner = seqs_of(feats, labs, design, a.dither)
     data = make_data(seqs)
     m = fit(data, a.kappa, a.iters, seed=a.seed)
     d = durations_s(m["states"]["z"], data["mask"])
@@ -300,7 +323,8 @@ def main(argv=None) -> int:
         pickle.dump({"params": _jax().tree_util.tree_map(tonp, m["params"]),
                      "hypparams": _jax().tree_util.tree_map(tonp, m["hypparams"]),
                      "design": design, "fit_labels": labs, "kappa": a.kappa, "iters": a.iters, "seed": a.seed,
-                     "run_floor": a.run_floor, "per_cell": a.per_cell, "median_dur_s": float(np.median(d))}, fh)
+                     "run_floor": a.run_floor, "per_cell": a.per_cell, "dither": a.dither,
+                     "median_dur_s": float(np.median(d))}, fh)
     print(f"fit {tag} done: median syllable {np.median(d):.2f} s", flush=True)
     return 0
 
