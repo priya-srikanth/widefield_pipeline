@@ -39,6 +39,22 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 3. Then tell **sabatinilab-e3** (PI deck) the decoder figures are final: per figure the share PNG path, page Fig N.k,
    script + args, headline numbers, methods text (they asked 10-26 ~22:30; reply sent: not final yet).
 
+### 00-COMPACT-43 (11-17 late morning) -- additions to 42 (42 still the state record)
+
+- PUSHED 11-17: fix/page-figs-1116, fix/deck-section-g-1116 (+ test_enl_window_source pin for the source-aware deck window call),
+  analysis/ss-gluefree-1117 (compare script only).
+- SS SVD / LocaNMF Figs 6.3 / 6.4: glue-free re-run (rebuild_20261103/state_space_recovery/svd_lnmf_gluefree_20261117/)
+  reproduced the 11-08 tables and figures byte for byte; HOLD lifted (Priya; a8 told: no PI slide uses them). SS page v41 adds
+  one per-basis sentence to each caption (LocaNMF axis within-epoch p .054; SVD position .049; step wins 1/24, 3/24).
+- Image page v56: the 1.0 s LP lick-free pre-cue window is PRIMARY (Fig 2.5); 1.5 s = Fig 2.6, window-length check;
+  Pending item rewritten (only the stored-frozen-default question stays open).
+- MAIN CHECKOUT fast-forwarded 11-17 (was 663 behind; the editable install points there). Rule in CLAUDE.md Reference:
+  PYTHONPATH=<worktree> for every `python scripts/...` run from a worktree.
+- RUNNING: analysis-deck helper (branch fix/deck-figs-1117, worktree wf_adeck1117): deletes the 4 wrong frozen decoders
+  (list -> docs/status/DELETED_DERIVED_20261117.md; Priya OK), matches Key fig 2 / 12.2 / 14.18 rebuild renders, places
+  IMG 2.4 / 8.1-8.2, 15r skip-no-camera fix + render, CD leave-one-out re-run on the rebuild (old vs new to Priya before the
+  image page), M_POSTSTROKE + section K captions rewritten, and 18 page key figures (Priya OK'd the list; IMG 2.5 not 2.6).
+
 ### 00-COMPACT-42 (11-16 evening) -- READ FIRST; supersedes 41 for STATE (41's naming / two-measure / sign-frame notes and 38 section 1 RULES still apply)
 Session f082ee0c; scratchpad `C:/Users/SABATI~1/AppData/Local/Temp/claude/179e1046909c5be2/f082ee0c-b33c-49a8-a537-dcee3bb7c84c/scratchpad`. Detail: RUNNING_LIST_2026-11-06.md entry "11-16 (evening)".
 
