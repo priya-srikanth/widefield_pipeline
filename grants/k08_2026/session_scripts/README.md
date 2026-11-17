@@ -18,12 +18,14 @@ and kept here so the submitted figures are reproducible. Times are local (EST), 
 | `capio.py`, `update.py` | 10 Nov 01:20-01:21 | read the legends out of `..._v18.docx` and write the `*_legend.svg` variants of Figures 3, 4 and 5 |
 | `rast.py` | 9 Nov 12:22 | headless-Chromium rasteriser for SVG panels |
 | `overlay.py` | 9 Nov 19:37 | thalamus overlay sheets (`*_thalamus_zoom{,_noGFAP}.png`), the review step behind `thalamus_overlay_options.py` |
-| `export_paths3d_front_sig.py` | written 17 Nov | re-export of `paths3d_front_sig.csv`; the original export was never saved |
+| `export_paths3d_front_sig.py` | written 17 Nov | re-export of `paths3d_front_sig.csv`; the original export was never saved. **Verified against the staged file: 1476 / 1476 rows agree, 960 significant bins in each.** Needs `curves.csv.gz` only, not the pose3d kinematics snapshot |
 
 `recov_README.txt` is the provenance note that was staged alongside `recov/balance_aim_*.csv`.
 
 ## Still without code anywhere
 
-- `paths3d_front_sig.csv` -- recomputable with `export_paths3d_front_sig.py`; verify it against the staged copy.
+- `paths3d_front_sig.csv` -- RESOLVED 17 Nov. `export_paths3d_front_sig.py` reproduces the staged file exactly
+  (1476 / 1476 rows, 960 significant bins, identical grid), from `curves.csv.gz` alone. The front view keeps `side`
+  and `down` of the three coordinates tested, with the pipeline's ALPHA / 3 correction unchanged.
 - `data/ss_plane_sessions.csv` -- no script in `scripts/` on `origin/main` writes that name.
 - `recov/balance_aim_{sessions,models}.csv` -- derived from `lick_recovery_primary` figdata; see `recov_README.txt`.

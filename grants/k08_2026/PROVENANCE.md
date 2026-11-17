@@ -42,8 +42,10 @@ Traced 17 Nov (supersedes the earlier "not traced" note here):
   ("(C) Videofluoroscopy frames ... (D-I) Swallowing ... (J) Six-position task ... (O) 3-D paths").
   The "C ... E-J" legend was the pre-shift draft.
 - `paths3d_front_sig.csv` was a one-off export of `kinematics_pooled_figs._paths3d_sig`, which the pipeline computes
-  for the figure but never writes to CSV. The original export was not saved;
-  `session_scripts/export_paths3d_front_sig.py` reproduces it.
+  for the figure but never writes to CSV. The original export was not saved, but
+  `session_scripts/export_paths3d_front_sig.py` reproduces it exactly (verified 17 Nov against the staged file:
+  1476 / 1476 rows, 960 significant bins), from `curves.csv.gz` alone. `aug` is derived from the curves table
+  itself through `config.early_pre` (31 August-pre sessions), so no pose3d kinematics snapshot is needed.
 
 ## Figure 4: FaceRhythm  (`make_fig2.py` → `Figure4_facerhythm_DRAFT4.svg` → `Figure4_facerhythm_Dsplit_light.ai`)
 
