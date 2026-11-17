@@ -1078,6 +1078,18 @@ M_POSTSTROKE = (
 #: Counts: rebuild epoch sidecars (epoch_acc_by_position_*_meta.csv: pre 31 / acute 16 / subacute 17 / chronic 43);
 #: behavior: rebuild_figs/<tag>/behaviour_hits_by_spout.csv and session_poses_derived/<tag>/
 #: jaw_only_incomplete_figs_redraw_20261116/figures/trial_class_share_raw.csv; design: trial_classes.design_note().
+#: Section G divider subtitle in a TAGGED (rebuild) build (11-17, Priya: the untagged "Lesion 0816; post-stroke pool = <every
+#: post label>" line is the August single-cutoff wording; the rebuild has per-animal lesion dates and epochs, as
+#: M_POSTSTROKE_REBUILD). Kept short: the divider is a title slide, the full design is the G0 note.
+G_DIVIDER_REBUILD = (
+    "Lesions: PS94 / PS95 8/16 (3 mW); PS92 / PS93 redone 8/17 after that day's session (their 8/17 belongs to neither "
+    "phase). Epochs per animal from its own lesion day: acute PS92 days 1-5, PS93 1-4, PS94 1-7, PS95 1; chronic from "
+    "day 11 / 11 / 25 / 15; subacute between. Sessions: August pre 31 (8 / 7 / 8 / 8; PS93_0813 has no video), acute 16 "
+    "(5 / 4 / 6 / 1), subacute 17 (2 / 3 / 5 / 7), chronic 43 (12 / 12 / 8 / 11). Behavior first: far-contra hit rate "
+    "pre -> acute .97 -> .04, .97 -> .13, .94 -> .04, .95 -> .01 (4 / 4); what the animal still attempts bounds what "
+    "any decoding number can mean.")
+
+
 M_POSTSTROKE_REBUILD = (
     _M_LICK_UNIT +
     "POST-STROKE COMPARISON, COHORT-1 REBUILD (render profile cohort1_rebuild_20261103: hemo variant "

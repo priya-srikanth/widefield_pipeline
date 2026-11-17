@@ -1302,8 +1302,11 @@ fiber-hit vessel). The position-vs-state ratio (claim 2) does not depend on it, 
 be read with it, and the "rules out generic explanations" argument holds for 3 / 4 animals cleanly.
 
 1. **A frozen pre-stroke decoder loses the far-contralesional spout acutely, graded by eccentricity.** Far contra
-   .896 -> .321 acute (-.575, Bonferroni [-.738, -.394]); 5 / 6 positions significant acutely; far contra and near
-   middle still below pre chronically (-.171, -.163). **STANDS** (PRELIM §2 / H1).
+   .879 -> .240 [.137, .375] acute (-.618 [-.695, -.531], Bonferroni [-.722, -.488]; rebuild render 11-09, cue 0-2 s,
+   camera working trials, DAQ licks + LP camera classes, August pre 31 sessions; per animal .86 -> .19, .78 -> .15,
+   .92 -> .30, .93 -> .32, 4 / 4); all 6 positions fall acutely (5 after Bonferroni, near middle uncorrected), graded
+   near -> far; far contra (-.154) and far ipsi (-.071) still below pre chronically after Bonferroni, near middle
+   (-.145) uncorrected. **STANDS** (PRELIM §2 / H1; imaging page Fig 2.3, v57).
    **CORRECTED 11-03 (bal_em spout decoder, production; Priya "I would adopt B everywhere"; DECISIONS 2026-11-03):** the
    old engaged-trial z-score under-stated the far-contra loss and over-stated the near ones. Cue/working change vs pre,
    acute (boot_delta): far contra -.536 -> **-.644** (4/4 larger), far mid -.385 -> -.484, near positions -.19 / -.25 /
@@ -1316,7 +1319,12 @@ be read with it, and the "rules out generic explanations" argument holds for 3 /
    sessions and scored with the label-free EM equal-weight center (no test labels; DECISIONS 2026-11-03 "bal_em adopted").
    Position loses 50 / 19 / 12 % of its above-chance performance (.863 -> .428 / .696 / .761; acute / subacute / chronic).
    State now loses 4.6 / 2.3 / 5.1 % (retained .972 -> .927 / .950 / .922; session_z was .967 -> .903 / .865 / .872, losing
-   7 / 11 / 10 %). So position falls ~11x / 8x / 2.3x further, and the ratio claim now holds at every epoch, not only acutely.
+   7 / 11 / 10 %). Per session on the rebuild (imaging page Fig 3.4, re-rendered 11-17 from the post-glue sidecars;
+   camera working trials, August pre; boot_delta animals -> sessions, Holm over 6): position retained .835 -> .488 /
+   .696 / .758, change -.347 [-.412, -.287] (Holm .0015) / -.139 (Holm .0015) / -.077 (Holm .057, n.s.); state .972 ->
+   .949 / .944 / .917, change -.023 [-.044, -.006] (Holm .012) / -.028 (n.s.) / -.056 (Holm .006); position falls in
+   4 / 4 animals acutely. So position falls ~15x further acutely and ~5x subacutely; chronically the two losses are of
+   similar size (position no longer significant), so the ratio is an acute / subacute claim.
    PS94 running recall is .99 -> .97 / .96 / .92 (session_z .98 -> .84 / .54 / .49).
    Per animal, chronic balanced accuracy is .93 / .98 / .90 / .98. The costs: PS92 acute .91 (quiet recall .80) and PS94
    chronic quiet .89. State still falls slightly (`boot_delta`, balanced accuracy -.022 [-.047, -.003] / -.018 [-.041, .001] /
@@ -1375,8 +1383,12 @@ be read with it, and the "rules out generic explanations" argument holds for 3 /
    (cosine .09 / .16). **STANDS** (REST_ENGAGEMENT_AUDIT §3; ungated predecessors 1.622 / 1.443 **CORRECTED**). "Rest shows
    the same acute dip" **WITHDRAWN** (DECISIONS 09-15).
 10. **Pre-cue (ENL) position code: no consistent acute loss** (up PS92 / PS95, down PS93 / PS94; the slow band accounts
-    for PS93's drop). Coding-direction leave-one-out: held-out far-contra pre-cue projection drops acutely 3 / 4 (not
-    PS94), **PROVISIONAL**. Mixed model re-run 10-25 on the rebuilt attempts table: step at the stroke -.53 (z -3.0,
+    for PS93's drop). Coding-direction leave-one-out (rebuild re-run 11-17: DAQ lick-gated trials, August pre 32
+    sessions incl. PS93_0813, paired animals -> sessions bootstrap, * = 95 % CI excludes 0 uncorrected, 10 of 54 cells
+    starred): held-out far-contra pre-cue projection drops acutely in 4 / 4, -.687 [-1.26, -.10]* (per animal -1.14 /
+    -.27 / -.16 / -1.18); subacute -.192 [-.44, .17] (3 / 4, n.s.); chronic -.214 [-.40, -.01]* 4 / 4. Cue window: far
+    contra acute -.282 [-.57, .03] (3 / 4), far middle acute -.404 [-.72, -.05]* (3 / 4), far contra subacute -.189
+    [-.31, -.07]* 4 / 4. **PROVISIONAL**. Mixed model re-run 10-25 on the rebuilt attempts table: step at the stroke -.53 (z -3.0,
     q .019), but it NO LONGER tracks the time-to-contact deficit (q .25; was .023 on the old table; contact deficit
     q .050, borderline).
 11. **Hemodynamics: CLOSED** (the data cannot answer it; no evidence of changed 415 / 470 coupling).
@@ -1399,7 +1411,8 @@ be read with it, and the "rules out generic explanations" argument holds for 3 /
     reference epoch, sig bins of 2022 (nested bootstrap, maxstat). Far contra: drift .95 (7 bins) vs acute .49 (1178
     bins) -> the acute far-contra loss (claim 5) is far beyond drift, **STANDS**. Far MIDDLE is the exception: drift .77
     (244 bins) is as large as its acute change .71 (151 bins), so the far-middle acute loss is **not separable from
-    drift**, and the pooled CD leave-one-out far_center chronic -.51 (4 / 4; scored against August pre only) needs the
+    drift**, and the pooled CD leave-one-out far_center chronic -.669 [-1.03, -.40] (pre-cue, rebuild 11-17, 4 / 4;
+    scored against August pre only) needs the
     same caveat. Far ipsi drift .76 (294 bins) vs acute 1.06 (6 bins). Near positions: drift .82-.94; stroke changes
     are increases (near ipsi acute 1.51, chronic 1.43), the opposite sign. June includes learning -> drift is an upper
     bound. LICK window, REST, LP-lick gate (the headline lick map, imaging page §7.3): far contra drift 1.04 (15 bins) vs

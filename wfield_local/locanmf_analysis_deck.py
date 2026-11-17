@@ -78,7 +78,7 @@ from wfield_local.deck_registry import (   # noqa: F401  (re-exported: the cover
 from wfield_local.deck_text import (   # noqa: F401  (re-exported: the audit
                                         #  scripts and tests read these off this module)
     M_CODING_DIR, M_COMMON, M_DECODE, M_ENCODE, M_EVOKED, M_FIXEDSCALE, M_FROZEN, M_FROZEN_ENC, M_GATE, M_HEMI,
-    M_HEMIDYN, M_JOINT, M_LICKFREE, M_MISS_STOPPED, M_NOLICK, M_POSTSTROKE, M_POSTSTROKE_REBUILD, M_PRECUE_CAVEAT, M_RECODING, M_RSA,
+    M_HEMIDYN, M_JOINT, M_LICKFREE, M_MISS_STOPPED, M_NOLICK, M_POSTSTROKE, M_POSTSTROKE_REBUILD, G_DIVIDER_REBUILD, M_PRECUE_CAVEAT, M_RECODING, M_RSA,
     M_SPATIAL, M_VESSEL, S_DEC_CUE, S_DEC_LICK, S_DEC_PRECUE, S_DEC_ROLL, S_DRIFT, S_ENC_FEVE, S_ENC_MATRIX,
     S_ENC_POS, S_FROZEN_ALL, S_FROZEN_ENC, S_FROZEN_SESS, S_G0, S_G1, S_G1B, S_G2, S_G2B, S_G2C, S_G3, S_G4,
     S_G4B, S_G5, S_G6, S_G7, S_G7B, S_G7C, S_G7D, S_G8, S_G8B, S_G8C, S_G8D, S_G8E, S_G8F, S_G9, S_G9B, S_G9C,
@@ -1178,9 +1178,11 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     _lp_sg = _lp_section_g_dir(src)
     if _post_labels and (src / "section_g_matched_all.png").exists():
         divider("G. POST-STROKE \u2014 the frozen pre-stroke model applied after the lesion",
-                f"Lesion {config.stroke_cutoff()}; post-stroke pool = {', '.join(_post_labels)}. "
-                f"Behavior first: what the animal still attempts bounds what any decoding number "
-                f"can mean.")
+                # tagged (rebuild) build: per-animal lesion dates / epochs (deck_text.G_DIVIDER_REBUILD, 11-17)
+                G_DIVIDER_REBUILD if run_mode.tag() else
+                (f"Lesion {config.stroke_cutoff()}; post-stroke pool = {', '.join(_post_labels)}. "
+                 f"Behavior first: what the animal still attempts bounds what any decoding number "
+                 f"can mean."))
 
         # --- G0. the design, before any number
         s = slide()
