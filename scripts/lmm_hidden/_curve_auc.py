@@ -6,7 +6,8 @@ The definition is `lick_cued_ramp_perspout.table` (constants BASE, WIN, MIN_SPOU
 it, not re-stated); that function is hard-wired to the cued set and four ROIs, so its loop is generalised here
 (set key = 'lick' (first cued lick) or 'iti' (ITI bout starts), any ROI list, an optional per-trial keep mask):
   per trial minus the mean over BASE (-1.0..-0.5 s); session curve = mean over that spout's trials (>= MIN_SPOUT);
-  AUC = trapezoid over WIN (0..0.5 s); value = AUC / the animal's mean PRE-session AUC at that spout and ROI.
+  AUC = trapezoid over the set's window (`win(key)`: cued lcp.WIN = iti_licks.CUED_RESP_WIN 0..1.0 s, ITI lcp.WIN_ITI =
+  ITI_RESP_WIN 0..0.5 s; Priya 11-17 -- both were 0..0.5 s); value = AUC / the animal's mean PRE AUC at that spout / ROI.
 For 'iti' the spout is the PREVIOUS trial's spout (lick_cued_ramp.bout_prev_pos, cache <iti_licks>/bout_prev_pos.csv)
 and only bout starts with gap >= 2.0 s (iti_licks.GAP_MAIN) are kept, as lick_cued_ramp._sessions; `subset` = a column
 of <iti_licks>/iti_dock_audit.csv (e.g. 'dock') applies iti_licks.bout_subset_keep (match within 3 ms).
@@ -22,6 +23,11 @@ import pandas as pd
 from scripts.lmm_hidden import lick_cued_ramp_perspout as lcp
 
 GAP_MAIN = 2.0          # iti_licks.GAP_MAIN
+
+
+def win(key: str) -> tuple:
+    """Per-spout AUC window of a set (11-17): 'iti' -> lcp.WIN_ITI, else lcp.WIN."""
+    return lcp.WIN_ITI if key == "iti" else lcp.WIN
 BOUT_TOL_S = 0.003      # iti_licks.BOUT_TOL_S
 EP = lcp.EP
 ROIS7 = ["ALM_right", "ALM_left", "tjM1_right", "tjM1_left", "SSp-m_right", "SSp-m_left", "cortex"]   # il.KEY_ROIS
@@ -84,7 +90,7 @@ def table(root: Path, key: str = "lick", rois=tuple(lcp.ROIS), subset: str = "")
             for roi in rois:
                 if roi in cols:
                     rows.append({"label": x, "animal": an, "epoch": ep, "roi": roi, "spout": p, "n": len(P),
-                                 "auc": lcp._auc(mu[:, cols.index(roi)], lags, *lcp.WIN)})
+                                 "auc": lcp._auc(mu[:, cols.index(roi)], lags, *win(key))})
     A = pd.DataFrame(rows)
     pre = A[A.epoch == "pre"].groupby(["roi", "spout", "animal"]).auc.mean()
     A["value"] = A.auc / np.array([pre.get((r, s, a), np.nan) for r, s, a in zip(A.roi, A.spout, A.animal)])
@@ -105,9 +111,10 @@ def check_cued(root: Path, D: pd.DataFrame) -> bool:
 
 
 def published(root: Path, set_: str) -> pd.DataFrame:
-    """perspout_auc_tests.csv rows of one set (lick / iti), window 0-0.5 (all-ITI run; 4 ROIs)."""
+    """perspout_auc_tests.csv rows of one set (lick / iti), on that set's window (all-ITI run; 4 ROIs)."""
     T = pd.read_csv(root / "perspout_auc_tests.csv")
-    T = T[(T.set == set_) & (T.window == f"{lcp.WIN[0]:g}-{lcp.WIN[1]:g}")].copy()
+    w = win("iti" if set_ == "iti" else "lick")
+    T = T[(T.set == set_) & (T.window == f"{w[0]:g}-{w[1]:g}")].copy()
     T["position"] = T.roi + ":" + T.spout
     return T[["position", "epoch", "delta", "sig"]]
 
