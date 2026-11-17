@@ -224,6 +224,18 @@ CHUNK_BINS = 1500
 DITHER = 0.1          # 11-17 test (6 sessions): side-within-contact NMI .08 -> .36, median 0.12 -> 0.44 s
 
 
+def holdout_fold(labs: list[str], fold: int) -> tuple[list[str], list[str]]:
+    """Fold ``fold`` (1-based) holds out each animal's ``fold``-th fit session (date order); an animal with fewer
+    sessions sits that fold out. Used on the ``pre`` frame so every pre-stroke day is scored by a model that never saw
+    it (8 folds cover 31 sessions; the in-sample pre model would make the baseline fit look better than any post day).
+    Returns (train, held_out)."""
+    by = {}
+    for lab in sorted(labs):
+        by.setdefault(lab.split("_")[0], []).append(lab)
+    held = sorted(v[fold - 1] for v in by.values() if len(v) >= fold)
+    return [lab for lab in labs if lab not in held], held
+
+
 def chunks(a: int, b: int, size: int = CHUNK_BINS) -> list[tuple[int, int]]:
     if b - a <= size:
         return [(a, b)]
@@ -280,11 +292,13 @@ def main(argv=None) -> int:
     ap.add_argument("--scan-sessions", type=int, default=4)
     ap.add_argument("--save-states", action="store_true", help="scan: save each kappa's states per session")
     ap.add_argument("--dither", type=float, default=DITHER, help="PC-space noise floor SD (see seqs_of)")
+    ap.add_argument("--holdout-fold", type=int, default=0,
+                    help="fit: 1-based; drop each animal's k-th fit session (held-out pre baseline); tag gets _f<k>")
     ap.add_argument("--fit-labels", default=None, help="comma list: fit on exactly these sessions (sanity checks)")
     a = ap.parse_args(argv)
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
-    tag = a.tag or f"{a.frame}_s{a.seed}"
+    tag = a.tag or f"{a.frame}_s{a.seed}" + (f"_f{a.holdout_fold}" if a.holdout_fold else "")
     feats = load_features(a.feat, a.run_floor)
     epochs = json.loads(Path(a.epochs).read_text())
     if a.cmd == "decode":
@@ -308,6 +322,10 @@ def main(argv=None) -> int:
         return 0
     labs = (a.fit_labels.split(",") if a.fit_labels
             else fit_labels(feats, a.frame, epochs, seed=a.seed, per_cell=a.per_cell))
+    held = []
+    if a.holdout_fold:
+        labs, held = holdout_fold(labs, a.holdout_fold)
+        print(f"fold {a.holdout_fold}: holding out {held}", flush=True)
     design = Design(feats[labs[0]]["columns"], [feats[lab]["X"] for lab in labs])
     print(f"{a.frame}: {len(labs)} fit sessions; PCA {len(design.var_ratio)} dims ({design.var_ratio.sum():.2f})",
           flush=True)
@@ -341,7 +359,7 @@ def main(argv=None) -> int:
     tonp = lambda x: np.asarray(x) if hasattr(x, "shape") else x                           # noqa: E731
     blob = pickle.dumps({"params": _jax().tree_util.tree_map(tonp, m["params"]),
                          "hypparams": _jax().tree_util.tree_map(tonp, m["hypparams"]),
-                         "design": design.to_dict(), "fit_labels": labs, "kappa": a.kappa, "iters": a.iters,
+                         "design": design.to_dict(), "fit_labels": labs, "held_out": held, "kappa": a.kappa, "iters": a.iters,
                          "seed": a.seed, "run_floor": a.run_floor, "per_cell": a.per_cell, "dither": a.dither,
                          "median_dur_s": float(np.median(d))})
     tmp = out / f"model_{tag}.pkl.tmp"

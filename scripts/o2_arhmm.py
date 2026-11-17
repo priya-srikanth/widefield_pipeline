@@ -100,6 +100,14 @@ python -u -m wfield_local.arhmm_model scan $COMMON --frame pooled_all --kappas $
 {head}python -u -m wfield_local.arhmm_model fit $COMMON --frame $FRAME --kappa $KAPPA --iters ${{ITERS:-100}} \\
     --per-cell ${{PER_CELL:-2}} --seed $SLURM_ARRAY_TASK_ID
 """,
+        "foldfit.sbatch": f"""#SBATCH -J arhmm_fold_{a.name}
+#SBATCH -p medium
+#SBATCH -c 16
+#SBATCH --mem=96G
+#SBATCH -t 2-00:00:00
+{head}python -u -m wfield_local.arhmm_model fit $COMMON --frame pre --kappa $KAPPA --iters ${{ITERS:-100}} \\
+    --seed 1 --holdout-fold $SLURM_ARRAY_TASK_ID
+""",
         "decode.sbatch": f"""#SBATCH -J arhmm_dec_{a.name}
 #SBATCH -p short
 #SBATCH -c 4
@@ -147,6 +155,12 @@ Pick the kappa whose median syllable is ~0.5 s (tell the desktop window; it reco
 sbatch --array=1-3 --export=ALL,FRAME=pooled_all,KAPPA=<kappa>,PER_CELL=2 {o}/fit.sbatch
 sbatch --array=1-3 --export=ALL,FRAME=pre,KAPPA=<kappa> {o}/fit.sbatch
 ```
+
+## 3b. Login node: held-out pre baseline (8 folds; fold k drops each animal's k-th pre day; seed 1)
+```bash
+sbatch --array=1-8 --export=ALL,KAPPA=5e7 {o}/foldfit.sbatch
+```
+Outputs `out/model_pre_s1_f<k>.pkl`; the desktop decodes + scores each fold's held-out days locally.
 
 ## 4. Login node: decode every session with each fitted model (TAG = <frame>_s<seed>)
 ```bash
