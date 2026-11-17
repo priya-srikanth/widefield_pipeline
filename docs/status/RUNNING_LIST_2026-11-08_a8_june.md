@@ -638,3 +638,7 @@ PI deck (backup Overview_2026-11-06.bak_pre_a8_renumber_20261116.pptx): FR page 
   balance = contra - ipsi (+ = contralesional hemisphere larger = looks like an IPSILESIONAL lick in the pre code); slope +13.4 deg per
   log2 unit vs aim (- = ipsilesional): sessions whose activity looks more ipsilesional land LESS ipsilesionally (angle-matched
   reference = executed angle, so a target-like signal reads as the landing error).
+- 11-17 Priya: spout-matched + docked ITI angle markers. Spout-matched ITI angle already existed in learned_compensation.py (T2 same
+  previous spout + phase; T3 docked D_off) but behavior-only, never on the rebuild, and NOT the recovery-marker axis (iti_ang =
+  unmatched session mean of all ITI licks). Helper adds iti_ang_matched / iti_ang_dock / iti_ang_dock_matched (+ docked ITI
+  balance) and far-contra within-spout raw balance vs angle (cued; docked ITI by previous spout) -> ITI_MATCHED_ANGLE_MARKERS.md.
