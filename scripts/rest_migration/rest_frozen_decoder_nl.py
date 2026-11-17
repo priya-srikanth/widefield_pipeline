@@ -129,8 +129,8 @@ def lickfree_rest(session, rest, rate):
 
 
 def lickfree_rest_c1(session, rest, rate):
-    """`lickfree_rest` with the LP set = cam4 licks_all UNION `lp_licks.lp_lick_times` (cam1-only events, droplets
-    removed; `restnl_licks.extend`) -- RESTnlc1 (Priya 11-17). A session without cam1 events gets cam4 only (logged)."""
+    """`lickfree_rest` with the video set = cam4 licks_all UNION the cam1-only, non-droplet events of cam1 events_all.csv
+    (`restnl_licks.extend`) -- RESTnlc1 (Priya 11-17). A session without cam1 events_all gets cam4 only (logged)."""
     import pandas as pd
 
     from wfield_local import config, restnl_licks

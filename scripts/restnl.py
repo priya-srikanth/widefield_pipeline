@@ -38,7 +38,7 @@ import iti_licks as il  # noqa: E402
 # cam4 RESTnl file is read as, or overwritten by, a cam4cam1 one. Scripts keep `--rest-variant restnl`.
 from wfield_local import restnl_licks as _rl  # noqa: E402
 C1 = _rl.is_c1()
-CHECK = "restw_check_c1" if C1 else "restw_check"
+CHECK = _rl.CHECK_DIR if C1 else "restw_check"
 SRC = il.OUT / CHECK / "sessions"
 SRC_VERSION = 3                 # restw_strict_check.VERSION the levels were built with
 MIN_FR = 50

@@ -202,7 +202,7 @@ def cache_dir() -> Path:
     from wfield_local import gate_source as _gs  # [gate-source hook] LP-inclusive rest gate (11-02, lp-final)
     from wfield_local import restnl_licks as _rl  # [gate-source hook] [restnl-licks hook] cam4cam1 = its own dir
     if _rl.is_c1():  # [gate-source hook]
-        return c.with_name(c.name + "_" + _rl.TAG + ("_" + _gs.cache_tag() if _gs.is_lp() else ""))  # [gate-source hook]
+        return c.with_name(c.name + "_" + _rl.CACHE_TAG + ("_" + _gs.cache_tag() if _gs.is_lp() else ""))  # [gate-source hook]
     if _gs.is_lp():  # [gate-source hook] its own baselines, so a gate-LP build never prunes / reads the default ones
         return c.with_name(c.name + "_restnl_" + _gs.cache_tag())  # [gate-source hook]
     return c.with_name(c.name + "_restnl")
@@ -249,7 +249,7 @@ def _stem(label: str) -> str:
     t = run_mode.cache_tag()
     from wfield_local import restnl_licks as _rl  # [gate-source hook] [restnl-licks hook]
     if _rl.is_c1():  # [gate-source hook]
-        return f"{label}__{_rl.TAG}" + (f"-{t}" if t else "")  # [gate-source hook]
+        return f"{label}__{_rl.CACHE_TAG}" + (f"-{t}" if t else "")  # [gate-source hook]
     return f"{label}__restnl" + (f"-{t}" if t else "")
 
 
@@ -477,7 +477,7 @@ def validate(rows) -> dict:
     # restw_strict_check writes <iti_licks.OUT>/restw_check = run_mode.subdir(<imaging_encoding>/iti_licks) (11-04)
     src = run_mode.subdir(oo.encoding_root(oc.RUN, PathResolver()) / "iti_licks") / "restw_check" / "sessions"
     from wfield_local import restnl_licks as _rl  # [gate-source hook] [restnl-licks hook] cam4cam1 -> its restw_check_c1
-    src = src.parent.parent / "restw_check_c1" / "sessions" if _rl.is_c1() else src  # [gate-source hook]
+    src = src.parent.parent / _rl.CHECK_DIR / "sessions" if _rl.is_c1() else src  # [gate-source hook]
     eq, ne, absent = [], [], []
     for r in rows:
         if "nfr_pos" not in r:

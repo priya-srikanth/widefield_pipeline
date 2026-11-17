@@ -5,12 +5,17 @@ the same lick train as the within-trial lick-free windows. Before 11-17 RESTnl r
 licks only. Both versions stay available:
 
   cam4       (DEFAULT, the RESTnl of every output up to 11-17) -- DAQ lick onsets + cam4 `licks_all.csv` (`daq_on_s`).
-  cam4cam1   ("RESTnlc1") -- DAQ + cam4 + the cam1-only events: the LP lick train `lp_licks.lp_lick_times` (cam4
-             licks_all every context + cam1 events that are NOT cam4-matched and NOT water droplets, inside the camera
-             trial windows). Its union with the cam4 table read by the mask, so the cam1 version removes a SUPERSET of
-             the cam4 version's rest frames (both are floored by the same min_rest_s rule, which is monotone).
-             A session without cam1 events (or without the LP trial table) gets cam4 only, and is LOGGED by name
-             (`missing_cam1()`); a session without licks_all.csv has no RESTnl at all (unchanged, e.g. PS93_0813).
+  cam4cam1   ("RESTnlc1") -- DAQ + cam4 + the cam1-only events of the WHOLE trial windows: cam1
+             `cam1_licks/<a>_<date>_events_all.csv` (every context: pre-cue, post-cue, ITI; ~98-99 % of the video, the
+             same windows as cam4 licks_all), rows NOT cam4-matched and NOT water droplets (`droplet` column =
+             `cam1_licks.droplet_flags`; recomputed from it if the column is absent), `daq_on_s`. UNION with the cam4
+             table read by the mask, so the cam1 version removes a SUPERSET of the cam4 version's rest frames (both are
+             floored by the same min_rest_s rule, which is monotone). NOT `lp_licks.lp_lick_times`: its cam1 file
+             (`<a>_<date>_events.csv`) holds POST-CUE events only (cue .. trial stop), so it misses the cam1 licks
+             that sit in rest (coordinator 11-17, docs/status/LICK_SOURCE_AUDIT_20261117.md; the first version of this
+             module used it and added ~nothing -- PS92_0814: 415 cam1-only onsets, 9 rest samples).
+             A session without an events_all file gets cam4 only, and is LOGGED by name (`missing_cam1()`); a session
+             without licks_all.csv has no RESTnl at all (unchanged, e.g. PS93_0813).
 
 Selected by env `WIDEFIELD_RESTNL_LICKS` (so spawned workers inherit it) or `active("cam4cam1")` (sets the env for the
 block). Consumers: `restnl_mask` (marked hook lines -- the default digest / cache names are unchanged), the derived map
@@ -35,10 +40,14 @@ DEFAULT = "cam4"
 #: name / tag of the cam4cam1 version (cache dirs, file stems, reference names, output suffixes)
 TAG = "restnlc1"
 NAME = "RESTnlc1"
+#: cache / intermediate-folder token of THIS definition (v2 = cam1 events_all). The v1 (post-cue events.csv) files of
+#: the first 14:31 timing run stay where they are (session_cache_restnlc1/, restw_check_c1/) and are never read.
+CACHE_TAG = "restnlc1v2"
+CHECK_DIR = "restw_check_c1v2"
 TEXT = {"cam4": "DAQ spout-contact licks + cam4 LP video licks",
         "cam4cam1": "DAQ spout-contact licks + cam4 LP video licks + cam1-only LP events (water droplets removed)"}
 SHORT = {"cam4": "DAQ + cam4", "cam4cam1": "DAQ + cam4 + cam1"}
-VERSION = 1
+VERSION = 2
 
 _MISSING: dict = {}
 
@@ -75,14 +84,30 @@ def text() -> str:
 
 
 def cam1_events_path(label: str):
-    from wfield_local import lp_licks
+    """cam1 `events_all.csv` of a session (whole trial windows; may not exist)."""
+    from pathlib import Path
+
+    from wfield_local import config
     from wfield_local.paths import PathResolver
-    return lp_licks._inputs(label, PathResolver())[2]
+    an, d = label.split("_")
+    return Path(PathResolver().root("dlc")) / "session_poses" / "cam1_licks" / f"{an}_{config.date8(d)}_events_all.csv"
+
+
+def cam1_only_onsets(E) -> np.ndarray:
+    """DAQ onsets (s) of the cam1-only, non-droplet events of an events_all table (finite only, sorted)."""
+    import pandas as pd
+    m4 = E["cam4_matched"].astype(str).str.lower().eq("true").to_numpy()
+    if "droplet" in E:
+        dr = E["droplet"].astype(str).str.lower().eq("true").to_numpy()
+    else:
+        from wfield_local.cam1_licks import droplet_flags
+        dr = droplet_flags(E, ~m4)
+    t = pd.to_numeric(E["daq_on_s"], errors="coerce").to_numpy(float)[~m4 & ~dr]
+    return np.sort(t[np.isfinite(t)])
 
 
 def union_onsets(cam4_s, lp_s) -> tuple[np.ndarray, int]:
-    """``(sorted unique union of the two trains in s, number of onsets the LP train adds)``. The LP train already
-    holds the cam4 table, so the added count is the cam1-only events (cam4-matched cam1 events are not in it)."""
+    """``(sorted unique union of the two trains in s, number of onsets the second train adds)``."""
     c4 = np.asarray(cam4_s, float)
     c4 = c4[np.isfinite(c4)]
     lp = np.asarray(lp_s, float)
@@ -93,20 +118,17 @@ def union_onsets(cam4_s, lp_s) -> tuple[np.ndarray, int]:
 
 def extend(label: str, cam4_s) -> tuple[np.ndarray, int]:
     """``(onsets in DAQ s, n cam1-only onsets added)`` -- the cam4cam1 train for one session: cam4 `licks_all.csv` UNION
-    `lp_licks.lp_lick_times` (cam4 + cam1-only, droplets removed). Without cam1 events (no events file, or no LP trial
-    table) the cam4 train is returned unchanged and the session is recorded in `missing_cam1()` (n added = -1)."""
-    from wfield_local import lp_licks
-    if not cam1_events_path(label).exists():
-        _MISSING[label] = "no cam1 events file"
-        print(f"[restnlc1] {label}: no cam1 events -> cam4 only", flush=True)
+    the cam1-only, non-droplet events of cam1 `events_all.csv`. Without that file the cam4 train is returned unchanged
+    and the session is recorded in `missing_cam1()` (n added = -1)."""
+    import pandas as pd
+    f = cam1_events_path(label)
+    if not f.exists():
+        _MISSING[label] = "no cam1 events_all file"
+        print(f"[restnlc1] {label}: no cam1 events_all -> cam4 only", flush=True)
         return np.asarray(cam4_s, float), -1
-    try:
-        lp_s, _cue = lp_licks.lp_lick_times(label)
-    except lp_licks.LPUnavailable as ex:
-        _MISSING[label] = f"LP tables unavailable: {str(ex)[:80]}"
-        print(f"[restnlc1] {label}: LP lick tables unavailable -> cam4 only ({ex})", flush=True)
-        return np.asarray(cam4_s, float), -1
-    return union_onsets(cam4_s, lp_s)
+    E = pd.read_csv(f, usecols=lambda c: c in ("daq_on_s", "cam4_matched", "droplet", "spread_px", "range_px",
+                                                "med_out_px"))
+    return union_onsets(cam4_s, cam1_only_onsets(E))
 
 
 def missing_cam1() -> dict:
@@ -115,13 +137,11 @@ def missing_cam1() -> dict:
 
 
 def code_digest() -> str:
-    """This module + the LP train's definition (`lp_licks._read_times`, LP_VERSION): enters every cam4cam1 cache key."""
-    from wfield_local import lp_licks
-    src = inspect.getsource(sys.modules[__name__]) + inspect.getsource(lp_licks._read_times) + repr(lp_licks.LP_VERSION)
-    return hashlib.sha1(src.encode()).hexdigest()[:12]
+    """This module's source: enters every cam4cam1 cache key."""
+    return hashlib.sha1(inspect.getsource(sys.modules[__name__]).encode()).hexdigest()[:12]
 
 
 def key_part(label: str) -> str:
-    """Per-session cache-key part of the cam4cam1 version: code + the cam1 events file identity."""
+    """Per-session cache-key part of the cam4cam1 version: code + the cam1 events_all file identity."""
     from wfield_local import map_collect
     return f"c1v{VERSION}:{code_digest()}:{map_collect.stat_sig(cam1_events_path(label))}"

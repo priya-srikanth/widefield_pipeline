@@ -47,7 +47,7 @@ SRC = il.OUT                                    # read-only inputs
 # (= RESTnl) also removes the cam1-only LP events (droplets removed; `lp_licks.lp_lick_times`), and everything is
 # written to its OWN folder restw_check_c1/ (read by `restnl.py` under the same switch); the cam4 folder is untouched.
 from wfield_local import restnl_licks as _rl  # noqa: E402
-OUTD = il.OUT / ("restw_check_c1" if _rl.is_c1() else "restw_check")   # the ONLY write root
+OUTD = il.OUT / (_rl.CHECK_DIR if _rl.is_c1() else "restw_check")   # the ONLY write root
 SESS = OUTD / "sessions"
 FIGS = OUTD / "figures"
 FDR = OUTD / "figdata"

@@ -15,45 +15,35 @@ FS = 1000.0
 N = 60_000                     # 60 s of DAQ samples
 
 
-def _cue_table():
-    return pd.DataFrame({"trial_id": [1, 2, 3], "position": ["far_R"] * 3,
-                         "cue_daq": [10.0, 30.0, 50.0]}).set_index("trial_id")
+def _events_all(path):
+    """cam1 events_all: a cam1-only lick at 12.0 s (ITI context), a cam4-matched one at 30.5 s (the same time as a cam4
+    lick) and a cam1-only water droplet at 54.0 s."""
+    pd.DataFrame({"daq_on_s": [12.0, 30.5, 54.0], "cam4_matched": [False, True, False],
+                  "droplet": [False, False, True], "spread_px": [9.0, 9.0, 1.0], "range_px": [40.0, 40.0, 2.0],
+                  "med_out_px": [30.0, 30.0, 60.0]}).to_csv(path, index=False)
+    return path
 
 
-def _events(tmp_path):
-    """cam1 events: a cam1-only lick (trial 1, +2.0 s -> 12.0 s), a cam4-matched one (trial 2, +0.5 s -> 30.5 s, the same
-    time as a cam4 lick) and a water droplet (trial 3, +4.0 s -> 54.0 s)."""
-    E = pd.DataFrame({"trial_id": [1, 2, 3], "on_ms": [2000.0, 500.0, 4000.0],
-                      "cam4_matched": [False, True, False], "droplet": [False, False, True]})
-    f1 = tmp_path / "PS99_20260801_events.csv"
-    E.to_csv(f1, index=False)
-    return f1
-
-
-def test_read_times_drops_droplets_and_matched(tmp_path, monkeypatch):
-    from wfield_local import lp_licks
-    from wfield_local import orofacial_cohort as oc
-    f4 = tmp_path / "licks_all.csv"
-    pd.DataFrame({"daq_on_s": [5.0, 30.5, 40.0]}).to_csv(f4, index=False)
-    f1 = _events(tmp_path)
-    monkeypatch.setattr(oc, "_cue_table", lambda sd: _cue_table().reset_index())
-    t, _cue = lp_licks._read_times("PS99_0801", tmp_path, f4, f1)
-    assert 12.0 in t                                   # the cam1-only lick is in the LP train
-    assert not np.any(np.isclose(t, 54.0))             # the droplet is not a lick
-    assert np.sum(np.isclose(t, 30.5)) == 1            # the cam4-matched cam1 event is not added a second time
+def test_cam1_only_onsets_drop_droplets_and_matched(tmp_path):
+    from wfield_local import restnl_licks as rl
+    E = pd.read_csv(_events_all(tmp_path / "e.csv"))
+    assert rl.cam1_only_onsets(E).tolist() == [12.0]    # droplet and cam4-matched events are not cam1-only licks
+    E2 = E.drop(columns="droplet")                       # no droplet column -> cam1_licks.droplet_flags decides
+    from wfield_local.cam1_licks import droplet_flags
+    exp = np.sort(E2.daq_on_s.to_numpy()[~E2.cam4_matched.to_numpy() & ~droplet_flags(E2, ~E2.cam4_matched.to_numpy())])
+    assert rl.cam1_only_onsets(E2).tolist() == exp.tolist()
 
 
 def test_union_counts_cam1_only_once():
     from wfield_local import restnl_licks as rl
     cam4 = np.array([5.0, 30.5, 40.0])
-    lp = np.array([5.0, 12.0, 30.5, 40.0])             # = what lp_lick_times returns (cam4 + cam1-only)
-    u, n = rl.union_onsets(cam4, lp)
+    c1 = np.array([12.0, 30.5])                        # a cam1 onset at a cam4 time is not a second lick
+    u, n = rl.union_onsets(cam4, c1)
     assert n == 1 and u.tolist() == [5.0, 12.0, 30.5, 40.0]
 
 
-def _stub_session(monkeypatch, tmp_path, lp_train, cam1_exists=True):
+def _stub_session(monkeypatch, tmp_path, cam1_exists=True):
     from wfield_local import analysis_kit as ak
-    from wfield_local import lp_licks
     from wfield_local import rest_by_position as rbp
     from wfield_local import restnl_licks as rl
     from wfield_local import restnl_mask as rnm
@@ -65,10 +55,9 @@ def _stub_session(monkeypatch, tmp_path, lp_train, cam1_exists=True):
     monkeypatch.setattr(ak, "daq_rate", lambda s: FS)
     monkeypatch.setattr(rnm, "daq_lick_onsets", lambda s, fs: np.array([20_000], np.int64))
     monkeypatch.setattr(rnm, "licks_all_path", lambda label: f4)
-    monkeypatch.setattr(lp_licks, "lp_lick_times", lambda label, rv=None: (np.asarray(lp_train, float), None))
-    c1 = tmp_path / "PS99_20260801_events.csv"
+    c1 = tmp_path / "PS99_20260801_events_all.csv"
     if cam1_exists:
-        c1.write_text("x\n")
+        _events_all(c1)
     monkeypatch.setattr(rl, "cam1_events_path", lambda label: c1)
     return {"label": "PS99_0801"}
 
@@ -76,8 +65,7 @@ def _stub_session(monkeypatch, tmp_path, lp_train, cam1_exists=True):
 def test_cam1_mask_is_superset_and_droplet_stays_rest(tmp_path, monkeypatch):
     from wfield_local import restnl_licks as rl
     from wfield_local import restnl_mask as rnm
-    # the LP train as lp_lick_times builds it from _events(): cam4 + the cam1-only 12.0 s (droplet 54.0 s already out)
-    s = _stub_session(monkeypatch, tmp_path, [5.0, 12.0, 30.5, 40.0])
+    s = _stub_session(monkeypatch, tmp_path)
     with rl.active("cam4"):
         m4, _p, i4 = rnm.lickfree_mask(s)
     with rl.active("cam4cam1"):
@@ -93,7 +81,7 @@ def test_cam1_mask_is_superset_and_droplet_stays_rest(tmp_path, monkeypatch):
 def test_no_cam1_events_falls_back_to_cam4(tmp_path, monkeypatch):
     from wfield_local import restnl_licks as rl
     from wfield_local import restnl_mask as rnm
-    s = _stub_session(monkeypatch, tmp_path, [5.0, 12.0, 30.5, 40.0], cam1_exists=False)
+    s = _stub_session(monkeypatch, tmp_path, cam1_exists=False)
     with rl.active("cam4"):
         m4, _p, _i = rnm.lickfree_mask(s)
     with rl.active("cam4cam1"):
@@ -113,7 +101,7 @@ def test_cache_names_default_unchanged(monkeypatch):
     assert d4.name.endswith("_restnl") and s4 == "PS92_0810__restnl"
     with rl.active("cam4cam1"):
         d1, s1 = rnm.cache_dir(), rnm._stem("PS92_0810")
-    assert d1.name.endswith("_restnlc1") and s1 == "PS92_0810__restnlc1" and d1 != d4
+    assert d1.name.endswith("_restnlc1v2") and s1 == "PS92_0810__restnlc1v2" and d1 != d4
 
 
 def test_bad_lick_set_refused(monkeypatch):
