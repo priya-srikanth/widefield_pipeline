@@ -42,12 +42,16 @@ TAG = "restnlc1"
 NAME = "RESTnlc1"
 #: cache / intermediate-folder token of THIS definition (v2 = cam1 events_all). The v1 (post-cue events.csv) files of
 #: the first 14:31 timing run stay where they are (session_cache_restnlc1/, restw_check_c1/) and are never read.
-CACHE_TAG = "restnlc1v2"
-CHECK_DIR = "restw_check_c1v2"
+CACHE_TAG = "restnlc1v3"
+CHECK_DIR = "restw_check_c1v3"
 TEXT = {"cam4": "DAQ spout-contact licks + cam4 LP video licks",
-        "cam4cam1": "DAQ spout-contact licks + cam4 LP video licks + cam1-only LP events (water droplets removed)"}
+        "cam4cam1": "DAQ spout-contact licks + cam4 LP video licks + cam1-only LP events (water droplets and far-from-mouth labels removed)"}
 SHORT = {"cam4": "DAQ + cam4", "cam4cam1": "DAQ + cam4 + cam1"}
-VERSION = 2
+VERSION = 3
+#: cam1-only events whose median label position is this far BEHIND the mouth line (px, med_out_px) are static
+#: tracking artifacts, not licks: Priya's blind review 11-17 scored 7 / 8 no-tongue test events below it and 0 / 30
+#: tongue events (docs/status/CAM1_EXTRA_LICKS_CHECK_20261117.md). v3 = this guard; v2 outputs are superseded.
+FAR_FROM_MOUTH_PX = -120.0
 
 _MISSING: dict = {}
 
@@ -94,7 +98,7 @@ def cam1_events_path(label: str):
 
 
 def cam1_only_onsets(E) -> np.ndarray:
-    """DAQ onsets (s) of the cam1-only, non-droplet events of an events_all table (finite only, sorted)."""
+    """DAQ onsets (s) of the cam1-only, non-droplet, not-far-from-mouth (med_out_px >= FAR_FROM_MOUTH_PX) events of an events_all table (finite only, sorted)."""
     import pandas as pd
     m4 = E["cam4_matched"].astype(str).str.lower().eq("true").to_numpy()
     if "droplet" in E:
@@ -102,7 +106,10 @@ def cam1_only_onsets(E) -> np.ndarray:
     else:
         from wfield_local.cam1_licks import droplet_flags
         dr = droplet_flags(E, ~m4)
-    t = pd.to_numeric(E["daq_on_s"], errors="coerce").to_numpy(float)[~m4 & ~dr]
+    far = np.zeros(len(E), bool)
+    if "med_out_px" in E:
+        far = (pd.to_numeric(E["med_out_px"], errors="coerce") < FAR_FROM_MOUTH_PX).to_numpy()
+    t = pd.to_numeric(E["daq_on_s"], errors="coerce").to_numpy(float)[~m4 & ~dr & ~far]
     return np.sort(t[np.isfinite(t)])
 
 
