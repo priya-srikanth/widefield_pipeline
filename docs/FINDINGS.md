@@ -1377,6 +1377,12 @@ be read with it, and the "rules out generic explanations" argument holds for 3 /
    (.917 -> .812, .982 -> .918, .902) are **CORRECTED** to these. **Per animal (10-25, CORRECTED reading):** the cohort
    state drop is PS94 alone (above chance .978 -> .747 / .577 / .447); PS92 / PS93 / PS95 lose only .01-.09 (chronic
    .873 / .951 / .960), so state is nearly intact in 3 / 4 and the specificity claim is stronger there.
+   **Rebuild (11-17, PI deck slide 21; docs/status/deck_swap_20261117/SLIDE21_DECOMPOSITION.md):** position .835 -> .488 /
+   .696 / .758 (mean of animals), change -.347 / -.139 / -.077 (chronic Holm .057, borderline; -.09 relative to own pre,
+   Holm .046-.054 by seed); state -.023 / -.028 / -.056 (chronic **, mostly PS94). The smaller acute drop than the
+   pre-rebuild -.41 is the TRIAL GATE: the camera gate scores / trains on attempts only (contact or incomplete lick); with
+   the old DAQ quit-tail gate the rebuild gives -.397 / -.191 / -.112. Pre set, spout scaling and lick detector: no effect.
+   Ratio claim stands acutely (~15x); by chronic the two losses are similar. PROVISIONAL.
 3. **The frozen decoder is NOT back at recovery, but that gap is within two months of no-stroke drift.** Deficit at
    behavioral recovery F(0) +.083, only PS92 recovered; refit-over-frozen G > 0 in 4 / 4 but a healthy mouse already
    shows G +.05-.10 (DECISIONS 09-12, 10-23). June -> August no-stroke drift group (5b, 10-24,
