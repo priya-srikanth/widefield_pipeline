@@ -114,7 +114,15 @@ Run code from a worktree with `PYTHONPATH=$(pwd -W)` (Windows form). AR-HMM mode
 - **AR-HMM merge-QC reels (11-17)**: `wfield_local/arhmm_reels.py` -> share
   `LP_analysis/lp_r4_heatmap_20261013__clean_v36/arhmm/v1/reels_pooled_all_s1/` (REVIEW.md, state_XX.avi, contact
   sheet; 8 syllables per state, all four animals; split-day PS92 0812 via `camera_sync.templates_for`). WAITING on
-  Priya's video decisions (candidates 5-19-8, 1, 0-13, 10-23; state 22 = lick rhythm without tongue?). O2 models
+  Priya's video decisions (candidates 5-19-8, 1, 0-13, 10-23; state 22 = lick rhythm without tongue?). Priya 11-17:
+  state 0 = LEFT-LICK BOUT INITIATION (kept apart from 13; `state_labels.csv` in the reels folder). SEED STABILITY
+  (`scratchpad/arhmm_seed_match.py`, every 3rd session, states matched by mean feature profile): frame agreement with
+  seed 1 = .66 (seed 2) / .49 (seed 3); with the quiet / face cluster 5-19-8 merged .82 / .80 (ARI .85 / .80) -- the
+  quiet cluster (~half the frames) splits differently in every seed (seed 2 merges 5 + 8), so MERGE 5-19-8 is
+  proposed (cosine 5 / 5 + seed-unstable). Stable in both seeds (frames agree >= .7): 13 push, 7 ipsi lick, 12 central
+  lick, 20 contra lick, 6 running, 22 lick rhythm without tongue, 18 ipsi lick, (1 face .77 / .68). Provisional:
+  21 pre-lick jaw (.25 / .42), lick states 2 / 9 / 15 / 23 and slow running 4 (one seed only), 0 (seed 2 .88, seed 3
+  no partner). O2 models
   copied back so far: pooled_all s1-s3, pre s2 (pre s1 / s3 pending); decode them LOCALLY (~6 min for 107 sessions),
   not on O2.
 - **Local hedge fit**: pooled_all seed 1 (same sessions as O2 task 1) -> `scratchpad/arhmm_local_fit/` (~31 s / iter,
