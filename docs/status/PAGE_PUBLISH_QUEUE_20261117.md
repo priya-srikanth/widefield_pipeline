@@ -20,7 +20,7 @@ same URL, then re-start the artifact watch. Tick each item here and commit.
   time-to-contact deficit (primary since 11-05): pre-cue tracks it (-.20, q .019); cue vs contact deficit loses its star
   (q .48); linear deficit as a one-line sensitivity (pre-cue q .054). Update takeaway, status row, closed list, and the
   section 9 "due a re-run" sentence.
-- [ ] **Fig 12.1 rest frozen decoder** (cam4-only run done 11-17: `.../epoch/rest15f_restnl_cam4_20261117/`; cam4+cam1: `.../epoch/rest15f_restnl_20261117/`; proposed: place cam4+cam1 after the overnight RESTnl-cam1 check, cam4 as sensitivity; also re-point the deck 15f slot) — WAITING for Priya's choices (lick definition; PS92). Run:
+- [ ] **Fig 12.1 rest frozen decoder** (cam4-only run done 11-17: `.../epoch/rest15f_restnl_cam4_20261117/`; cam4+cam1: `.../epoch/rest15f_restnl_20261117/`; Priya OK 11-17: place cam4+cam1 after the overnight RESTnl-cam1 check, cam4 as sensitivity, wording: drops acutely, somewhat below pre chronically, subacute n.s., ~half the old size, status provisional; update the FINDINGS rest line the same way; re-point the deck 15f slot) — decisions made 11-17 (PS92 kept with caveat). Run:
   `.../epoch/rest15f_restnl_20261117/{allpre,augpre}/`, record `docs/status/REST15F_RESTNL_REBUILD_20261117.md`
   (branch analysis/rest15f-rebuild-1117, 308468b5, unpushed). Status would go stands -> provisional.
 
