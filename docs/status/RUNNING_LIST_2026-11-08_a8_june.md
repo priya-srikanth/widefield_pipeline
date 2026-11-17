@@ -590,3 +590,12 @@ PI deck (backup Overview_2026-11-06.bak_pre_a8_renumber_20261116.pptx): FR page 
   gate now applied to 121/142/145). Main-point changes: 12 (acute far contra LMM degenerate, not tested; 4/4 animals still drop),
   145 (acute code + gap not tested under the 20-hit gate; chronic gap -.29 *), 151 (acute orofacial-ipsi lick residual now *).
   Backup .bak_pre_a8_groupC_lmm_20261117.pptx. Waiting: 108/109/123/129/134/138/201 (docked ITI arm), 111/116 (no rebuild input).
+- 11-17: group C other applied (10 slides: 104, 110, 115, 119, 139 full set, 154, 155, 198, 199, 202) from specs/groupC_other.json
+  (139 text edits re-targeted to the batch-4 text; caption now "full set"). Backup .bak_pre_a8_groupC_other_20261117.pptx.
+  Need Priya: 22 (no session_z frozen model on the rebuild; options keep / swap to epoch_13 state figs / fit new frozen models),
+  157 (event-linked weaker pre-cue code now present PRE-stroke too: pre strict -.020 p .001; "after the stroke" claim fails).
+  Docked arm landed (matched_gauss_dock, lateral_ratio_dock, lick_order_dock, itidock_main _20261117); specs being redone:
+  docked_batch3.json (105/122/125/128/130/131/133), docked_batch4.json (200/203), groupC_lmm_docked.json (108/109/111/116/123/129/134/138/201).
+  Deleted 3 superseded helper tries (stale-package / LP-default first tries), 125 files listed in deck_swap_20261117/DELETED_SUPERSEDED_20261117.txt.
+  Slide 12 LMM: acute far contra SE NaN = singular animal x epoch variance (4 animals -.61..-.67, one pre value per animal);
+  wording/refit decision with Priya. Slide 145: PS92 (10) / PS94 (8) acute hits < 20, PS95 none -> only PS93 acutely.
