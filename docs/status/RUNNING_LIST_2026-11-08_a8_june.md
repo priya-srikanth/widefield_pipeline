@@ -559,3 +559,17 @@ PI deck (backup Overview_2026-11-06.bak_pre_a8_renumber_20261116.pptx): FR page 
   fig_state_position_sessions.py): .../rebuild_figs/<tag>/rel_own_pre_20261117/state_position_sessions_rel_own_pre.png.
   With the figure script's seed (20261102) chronic position Holm .054 (n.s.); the quick check (seed 0) gave .046 -> chronic sits
   ON the .05 line, seed-dependent; report it as borderline, not as a star either way.
+
+### 11-17 — deck swap pass: A+B applied (63 slides)
+- Applied to Overview_2026-11-06.pptx (backup .bak_pre_a8_swap_20261117.pptx) by docs/status/deck_swap_20261117/apply_specs.py
+  from specs/batch1-4.json; logs apply_log_batch1_2.csv, apply_log_batch4_s61.csv, apply_log_batch3.csv. Slide 21 applied with
+  Priya's OK ("ok to replace slide 21, with our ongoing investigation"): absolute scale, chronic "borderline", relative numbers +
+  decomposition pointer in notes. Slide 61 re-drawn on current code (contra-left flip) from rebuild figdata. 147 widened (box override).
+- Main-point changes applied: 20 (chronic Bonferroni cells now far ipsi + far contra), 21, 101 (chronic position-free = medial loss),
+  117 (far spouts still down chronically, new title), 197 (per-trial; pre separation weak in all 4).
+- NOT applied: 17 (LMM companion, queued to the lmm_hidden render helper), 157 (quiet task events, queued C render);
+  105 top / 122 / 125 / 128 / 130 / 131 / 133 / 200 / 203 = docked-spout ITI set never rendered on the rebuild -> docked arm
+  (iti_dock_page_figures + lick_matched_readout gauss + lick_lateral_ratio, WFIELD_ITI_FILTER=dock) queued as group C.
+- Helper flags to follow up: l_offset_terms_g log labels a flat session mean "mean of animals" (scripts/lick_offset_terms_recovery.py
+  ~L85); e_first_lick_g froze NEW iti_first_lick decoders (SPEC-CHANGED, pre set changed); slide 112 figure stars are LMM;
+  purple trial-set stamp whited out of several crops where it overprinted figure text; 139 = capped set until WFIELD_BAL_FULL render.
