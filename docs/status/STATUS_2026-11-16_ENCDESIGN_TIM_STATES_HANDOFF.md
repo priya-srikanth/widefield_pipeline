@@ -53,6 +53,18 @@ Run code from a worktree with `PYTHONPATH=$(pwd -W)` (Windows form). AR-HMM mode
   for PS94 / PS95 (state 2 occupancy acute .36 / .39). NB PS95 is the LEAST severe animal, so that acute rise is not a
   severity ordering. Quit tails are short (acute median 19 / 21.5 / 27 / 2 trials PS92-95). -> pooled all-epoch fit
   (`glm_hmm --pooled-all --select-k`: shared emissions, per-animal bias inputs) running 11-17.
+- **GLM-HMM POOLED, all animals, all August-onward epochs (11-17, `scratchpad/glmhmm_v1/*pooled_all*`; report script
+  `scratchpad/glmhmm_pooled_report.py`)**: held-out pseudo-R2 total K1-5 .281 / .381 / .427 / .443 / .459; outcome
+  .484 / .540 / .599 / .605 / .619 (saturates at K = 3; K >= 4 mostly running). K = 3: 82 % of trials assigned. ONE
+  state is shared by profile across all four animals: state 2 "disengaged" (attempt .16-.42, no response .31-.47,
+  almost no ITI licking, running .20-.44, mean session position .76). Its occupancy pre / acute / subacute / chronic:
+  PS92 .02 / .23 / .05 / .00, PS93 .03 / .12 / .08 / .02, PS94 .09 / .32 / .18 / .09, PS95 .08 / .05 / .24 / .06.
+  States 0 / 1 (both engaged) still differ by animal (e.g. ITI licking in state 0: PS95 .05 vs PS93 .87). Quit tail:
+  only 30-60 % in state 2, the rest in state 0 (still, not licking, not running); most sessions have NO tail (median
+  tail 0 / 0 / 9 / 3 trials PS92-95). K = 4 states are NOT consistent across animals -> K = 3. Two design causes,
+  to test next: (1) the animal bias columns are STATE-SPECIFIC weights, so states can absorb animal identity -- make
+  the animal offsets shared across states; (2) previous-outcome inputs let a no-response streak be explained inside
+  an engaged state -- fit without them so disengagement must be carried by the state.
 
 - **AR-HMM kappa / noise floor (11-17)**: O2 scan (chunked, no dither) gave median 0.08-0.32 s for kappa 1e5-1e11 --
   states predicted the smooth 25 Hz PCs to ~0.007 (min log|Q| -109), so every change out-bid the stickiness (FR is 5 Hz
