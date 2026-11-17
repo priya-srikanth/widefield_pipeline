@@ -5,11 +5,13 @@ Per post-stroke session: y = mean position on the acute-departure axis (`state_s
 pre -> chronic / acute-departure frame `state_space_recovery_trials.frames`), the PRIMARY recovery marker of FINDINGS 0b
 (cued first lick, angle-matched gain ratio ALM + tjM1 + SSp-m + SSp-n + SSs, 0.1..0.5 s; `lick_recovery_primary`
 recprim_sessions.csv, panel "cued first lick -> aim") and the far-contra first-lick aim (deg vs own pre,
-aim_deficit_sessions.csv). CAVEAT: recprim_sessions.csv exists only for the PRE-REBUILD run (original hemo variant, all
-trials gate) -- the rebuild never re-rendered it; the session labels are the same.
+aim_deficit_sessions.csv). Balance and aim both come from the rebuild's run tables (`S.RECPRIM`, `S.ITI_W`; 11-16 path
+fix: until then RECPRIM was built under `ROOT.parent`, which the 11-12 reroute turned into the rebuild root, where no
+such file exists; the 11-08 numbers used the PRE-REBUILD copy, original hemo variant, all-trials gate).
 Within animal (rule 8 table first), post-stroke sessions: r(y, aim), r(balance, aim), r(y, balance); partial r of each
 predictor with aim given the other (both residualized on the other within animal, pooled within-animal slope / r), with a
-within-animal shuffle of the tested predictor's residual (2000 draws); share of y's within-animal variance explained by
+within-animal circular shift of the tested predictor's residual over the animal's day-sorted sessions (2000 draws;
+a free shuffle until 11-16); share of y's within-animal variance explained by
 balance. Output <state_space_recovery>/detour_vs_balance{tag}/. EXPLORATORY.
 """
 from __future__ import annotations
@@ -22,19 +24,28 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).parent))
 import state_space_sim as S  # noqa: E402
+
+from wfield_local import analysis_kit as kit  # noqa: E402
 import state_space_step_vs_gradual as SG  # noqa: E402
 
-RECPRIM = (S.ROOT.parent / "LP_analysis" / "lp_r4_heatmap_20261013__clean_v36" / "imaging_encoding" / "iti_licks"
-           / "recprim_sessions.csv")      # PRE-REBUILD run (see docstring)
+RECPRIM = S.RECPRIM                       # the rebuild's primary balance marker (see docstring)
 OUT = S.ROOT / f"detour_vs_balance{S.tag()}"
 N_SHUF = 2000
 
 
 def load():
-    y = pd.read_csv(S.ROOT / f"trajectories{S.tag()}" / "days_sessions.csv")[["label", "animal", "epoch", "day", "x", "y"]]
-    b = pd.read_csv(RECPRIM).query("panel == 'cued first lick -> aim'")[["label", "marker"]].rename(columns={"marker": "bal"})
-    a = pd.read_csv(SG.AIM)[["label", "farcontra_first"]].rename(columns={"farcontra_first": "aim"})
-    return y.merge(b, on="label", how="left").merge(a, on="label", how="left")
+    y = pd.read_csv(S.require(S.ROOT / f"trajectories{S.tag()}" / "days_sessions.csv", "trajectories table"))[
+        ["label", "animal", "epoch", "day", "x", "y"]]
+    b = pd.read_csv(S.require(RECPRIM, "primary balance marker (lick_recovery_primary)")).query(
+        "panel == 'cued first lick -> aim'")[["label", "marker"]].rename(columns={"marker": "bal"})
+    a = pd.read_csv(S.require(SG.AIM, "far-contra aim table"))[["label", "farcontra_first"]].rename(
+        columns={"farcontra_first": "aim"})
+    d = y.merge(b, on="label", how="left").merge(a, on="label", how="left")
+    post = d[d.epoch != "pre"]
+    for c in ("bal", "aim"):
+        if post[c].isna().all():
+            raise ValueError(f"no post-stroke session matched a '{c}' value: label mismatch between the inputs?")
+    return d
 
 
 def demean(d, cols):
@@ -51,18 +62,13 @@ def resid(d, v, on):
 
 
 def partial(d, pred, ctrl, target, rng):
-    """Pooled within-animal partial r of pred with target given ctrl, + within-animal shuffle p (pred residual permuted)."""
+    """Pooled within-animal partial r of pred with target given ctrl, + within-animal circular-shift p (pred residual
+    rotated over days)."""
     rp, rt = resid(d, pred, ctrl), resid(d, target, ctrl)
     r0 = float(np.corrcoef(rp, rt)[0, 1])
-    null = np.empty(N_SHUF)
-    an = d.animal.to_numpy()
-    for i in range(N_SHUF):
-        sh = rp.copy()
-        for a in np.unique(an):
-            m = an == a
-            sh[m] = rng.permutation(sh[m].to_numpy())
-        null[i] = np.corrcoef(sh, rt)[0, 1]
-    return r0, float((np.abs(null) >= abs(r0)).mean())
+    _, p = kit.within_shuffle_p(lambda a: np.corrcoef(a, rt)[0, 1], rp.to_numpy(), d.animal.to_numpy(), rng, N_SHUF,
+                                order=d.day.to_numpy(), mode="circular")      # rotated over days (Priya 11-16)
+    return r0, p
 
 
 def main():

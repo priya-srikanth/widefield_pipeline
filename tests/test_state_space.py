@@ -23,6 +23,8 @@ def mods():
     sys.path.insert(0, str(SCRIPTS))
     import state_space_recovery_trials as R
     import state_space_sim as S
+    # tests never depend on whether this box's share still holds the pre-11-12 tree (check_root)
+    S.LEGACY_ROOT = S.LEGACY_ROOT.parent / "_no_legacy_state_space_recovery_in_tests"
     yield S, R
     for m in set(sys.modules) - before:
         f = getattr(sys.modules.get(m), "__file__", None) or ""
@@ -236,3 +238,101 @@ def test_lnmf_brain_mask_drops_occluded(mods, monkeypatch):
         S._mask_cols(np.zeros((1, 1, 2)), ["a", "b"], "PS92")
     monkeypatch.setattr(S, "LNMF_MASK", "none")
     assert S.tag().endswith("_lnmf") and S._mask_cols(xb, cols, "PS92")[1] == cols
+
+
+def test_outputs_are_routed_under_the_rebuild_root(mods):
+    """ROOT = <rebuild root>/state_space_recovery (11-12), so the rebuild fence allows the writes under the profile (it
+    refused the old share-root location, which also let the glue-in and glue-out runs overwrite one folder)."""
+    import subprocess
+    S, _ = mods
+    assert S.ROOT == S.REBUILD / "state_space_recovery" and S.LEGACY_ROOT != S.ROOT
+    code = ("import os\n"
+            "from wfield_local import render_profile as rp\n"
+            "env = dict(os.environ); rp.apply('%s', environ=env); os.environ.clear(); os.environ.update(env)\n"
+            "from wfield_local import rebuild_root as rr\n"
+            "print(repr(rr.write_refusal(r'%s')), '|', repr(rr.write_refusal(r'%s')))\n") % (
+        S.PROFILE, (S.ROOT / "x" / "t.csv").as_posix(), (S.LEGACY_ROOT / "x" / "t.csv").as_posix())
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True).stdout
+    new, old = out.strip().splitlines()[-1].split(" | ")
+    assert new == "None" and old != "None"
+
+
+def test_check_root_refuses_an_unmoved_tree(mods, monkeypatch, tmp_path):
+    import pytest
+    S, _ = mods
+    (tmp_path / "legacy").mkdir()
+    monkeypatch.setattr(S, "LEGACY_ROOT", tmp_path / "legacy")
+    monkeypatch.setattr(S, "ROOT", tmp_path / "new")
+    with pytest.raises(FileNotFoundError, match="move the old tree"):
+        S.check_root()
+    (tmp_path / "new").mkdir()
+    S.check_root()
+
+
+def test_spout_blocks_and_block_split(mods, monkeypatch):
+    """11-16: split halves keep each spout BLOCK whole (`block_split`), blocks = `block_ids` runs (long runs split)."""
+    S, _ = mods
+    from wfield_local import block_ids as B
+    monkeypatch.setattr(B, "block_size_max_for", lambda s, default=8: 4)
+    pos = np.array(["far_contra"] * 6 + ["close_ipsi"] * 3 + ["far_contra"] * 2 + ["mystery"] + ["close_ipsi"] * 4)
+    b = S.spout_blocks("PSxx_0000", pos)
+    # 6 far_contra -> 3 + 3 (even split at max 4); then 3 close_ipsi; 2 far_contra; unknown = own block; 4 close_ipsi
+    assert b.tolist() == [0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 5, 4, 4, 4, 4]
+    rng = np.random.default_rng(0)
+    for _ in range(50):
+        part = S.block_split(b, pos, 2, rng)
+        for k in np.unique(b):
+            assert len(set(part[b == k])) == 1                       # a block never straddles parts
+        assert part[pos == "mystery"].tolist() == [-1]
+        for p in ("far_contra", "close_ipsi"):                      # >= 2 blocks -> both parts get some
+            assert set(part[pos == p]) == {0, 1}
+
+
+def test_balance_only_on_real_responses():
+    """Priya 11-16: no hemispheric balance under the gsr / spout transforms (sizes can be <= 0; log ratio undefined)."""
+    import importlib
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+    R = importlib.import_module("state_space_recovery_trials")
+    assert R.balance_defined("") and R.balance_defined("z")
+    assert not R.balance_defined("gsr") and not R.balance_defined("spout")
+
+
+def test_cross_arm_inputs_resolve_by_owner_and_fail_loudly(mods, monkeypatch, tmp_path):
+    """11-16 path bug: within_session_behavior.WSD and detour_vs_balance.RECPRIM were built as `ROOT.parent / ...`. After
+    the 11-12 reroute ROOT.parent is the REBUILD root, where neither file exists, so the within-session join was silently
+    skipped and the detour would fail. Both are now named in state_space_sim by owner, and a missing one raises."""
+    import pandas as pd
+    S, _ = mods
+    import state_space_detour_vs_balance as DV
+    import state_space_within_session_behavior as WB
+    assert S.RECPRIM == S.ITI_W / "recprim_sessions.csv" and DV.RECPRIM == S.RECPRIM     # beside the aim table
+    assert S.WSD_SLOPES == S.SHARE / "within_session_decline" / "tables" / "session_slopes.csv"
+    assert WB.WSD == S.WSD_SLOPES and S.REBUILD not in S.WSD_SLOPES.parents
+    with pytest.raises(FileNotFoundError, match="state-space input missing: x"):
+        S.require(tmp_path / "nope.csv", "x")
+    assert S.require(tmp_path, "x") == tmp_path
+    # within_session_behavior: the join raises instead of being skipped
+    monkeypatch.setattr(WB, "WSD", tmp_path / "missing.csv")
+    monkeypatch.setattr(WB, "OUT", tmp_path)
+    out = pd.DataFrame({"animal": ["PS92"], "label": ["PS92_0901"], "epoch": ["acute"], "day": [2], "s_x": [0.], "s_y": [0.]})
+    with pytest.raises(FileNotFoundError, match="within-session-decline"):
+        WB.join(out)
+    # detour_vs_balance: a missing balance table raises
+    monkeypatch.setattr(S, "ROOT", tmp_path)
+    (tmp_path / f"trajectories{S.tag()}").mkdir()
+    out.assign(x=0., y=0.)[["label", "animal", "epoch", "day", "x", "y"]].to_csv(
+        tmp_path / f"trajectories{S.tag()}" / "days_sessions.csv", index=False)
+    monkeypatch.setattr(DV, "RECPRIM", tmp_path / "no_recprim.csv")
+    with pytest.raises(FileNotFoundError, match="primary balance marker"):
+        DV.load()
+
+
+def test_cross_arm_inputs_exist_on_the_share(mods):
+    """Where the share is mounted, both inputs are where state_space_sim says they are."""
+    S, _ = mods
+    if not S.SHARE.exists():
+        pytest.skip("share not mounted")
+    assert S.RECPRIM.exists(), S.RECPRIM
+    assert S.WSD_SLOPES.exists(), S.WSD_SLOPES

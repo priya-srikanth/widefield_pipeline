@@ -1,13 +1,13 @@
 """Figures for the state-space recovery results page (Priya 11-07, "draft a results page").
 
-Reads only the tables the analysis scripts wrote under Widefield/state_space_recovery/ (no imaging reload):
+Reads only the tables the analysis scripts wrote under <rebuild root>/state_space_recovery/ (no imaging reload):
   sim/sim_detection_n{0,15}.csv                       state_space_sim.py
   trials{,_on_target,_landing}/state_space_trials_*.csv  state_space_recovery_trials.py [--condition]
   landing/balance_cells*.csv                          state_space_balance_cells.py
   path_tests/{drift_direction,repertoire_before_mean,trial_alpha}.csv   state_space_path_tests.py [--trial-alpha]
 Page conventions: sessions = open markers (shape = animal, color = epoch), pooled = filled marker + 95 % CI in the epoch
 color, no lines across epochs, stars in the top band, no top spine, no figure numbers inside images.
-Writes PNGs to Widefield/state_space_recovery/page_figs/.
+Writes PNGs to <rebuild root>/state_space_recovery/page_figs/.
 """
 from __future__ import annotations
 
@@ -39,10 +39,8 @@ TAG = "" if ALIGN == "cue" else f"_{ALIGN}"
 # <dir><align><basis>, figures named <name><align><basis>, the basis written top left. Allen = no suffix (unchanged).
 BTAG = S.btag()
 ALIGN_LABEL = S.ALIGN_LABEL
-POST = ["acute", "subacute", "chronic"]
-EPOCHS = ["pre"] + POST
-POS = S.POS                               # canonical spout order
-POS_LABEL = {p: p.replace("_", " ") for p in POS}
+POST, EPOCHS = S.POST, S.EPOCHS
+POS, POS_LABEL = S.POS, S.POS_LABEL       # canonical spout order and its figure text
 COND = [("target", "trials", "by target (all trials)", "k"),
         ("on_target", "trials_on_target", "on-target trials only", "#2166ac"),
         ("landing", "trials_landing", "grouped by landing", "#e08214")]
@@ -67,16 +65,9 @@ def deltas(df, col, key=("animal",)):
 
 
 def change(df, col, rng):
-    """animal-weighted boot_delta per post epoch: {epoch: (point, lo, hi, n_up, n_animals)}."""
-    pre = {a: g[g.epoch == "pre"][col].dropna().tolist() for a, g in df.groupby("animal")}
-    out = {}
-    for ep in POST:
-        post = {a: g[g.epoch == ep][col].dropna().tolist() for a, g in df.groupby("animal")}
-        post = {a: v for a, v in post.items() if v and pre.get(a)}
-        iv = kit.boot_delta(post, pre, rng) if post else None
-        up = sum(np.mean(post[a]) > np.mean(pre[a]) for a in post)
-        out[ep] = (iv.point, iv.lo, iv.hi, up, len(post)) if iv is not None else (np.nan,) * 3 + (0, 0)
-    return out
+    """animal-weighted boot_delta per post epoch: {epoch: (point, lo, hi, n_up, n_animals)} (`analysis_kit.epoch_change`,
+    the one definition; this keeps the tuple shape the figure code indexes)."""
+    return {ep: c[:5] for ep, c in kit.epoch_change(df, col, rng, POST).items()}
 
 
 # STARS (Priya 11-07: "LMM can be back up, not primary"): PRIMARY "*" = the animal-weighted nested bootstrap 95 % CI of
@@ -138,6 +129,24 @@ def epoch_panel(ax, df, col, title, rng, unit=""):
     ax.set_xlim(-0.5, 3.6)
     ax.set_title(title)
     ax.set_ylabel(f"change vs own pre{unit}")
+
+
+def level_panel(ax, df, col, title, rng):
+    """x = epoch (pre included); session dots = the value ITSELF (no pre subtraction); filled = pooled LEVEL with its
+    95 % CI (`analysis_kit.boot_ci`, flat-pool mean, nested animals -> sessions: the level estimator, not boot_delta).
+    No stars: a level is not a test of change (the change rows above carry those)."""
+    d = df.assign(d=df[col]).dropna(subset=["d"])
+    ax.axhline(0, color="0.6", lw=0.8, zorder=0)
+    for i, ep in enumerate(EPOCHS):
+        g = d[d.epoch == ep]
+        scatter_sessions(ax, g, i)
+        iv = kit.boot_ci({a: v.d.tolist() for a, v in g.groupby("animal")}, rng) if len(g) else None
+        if iv is not None:
+            ax.errorbar(i + 0.3, iv.point, yerr=[[iv.point - iv.lo], [iv.hi - iv.point]], fmt="o",
+                        color=EPOCH_LINE[ep], ms=6, lw=2, capsize=0, zorder=4)
+    ax.set_xticks(range(len(EPOCHS)), EPOCHS)
+    ax.set_xlim(-0.5, 3.6)
+    ax.set_title(title)
 
 
 def legend_animals_epochs(fig, y=0.995):
@@ -235,7 +244,7 @@ COND_XFORM = [("raw", "trials", "raw areas (primary)", "k"),
 # BASIS COMPARISON (Priya 11-08 "figures?" of "one cohort SVD basis reads like the Allen areas"): the same readouts in
 # the three spaces; each basis gets its own per-animal top-8 pre space. LocaNMF = per-animal joint components with the
 # glue / bulb components dropped (_lnmfbm); SVD = one cohort basis on the glue-free brain mask (_svd).
-COND_BASIS = [("allen", "trials", "Allen areas (62; primary)", "k"),
+COND_BASIS = [("allen", "trials", f"Allen areas ({S.allen_n_areas() or '?'}; primary)", "k"),
               ("lnmf", "trials{TAG}_lnmfbm", "LocaNMF components (per animal, glue dropped)", "#1b9e77"),
               ("svd", "trials{TAG}_svd", "cohort SVD (100 components, glue-free mask)", "#7570b3")]
 _TITLES = dict(MAIN + COLS_CONTACT)
@@ -286,7 +295,8 @@ def fig_like(out, rng, cond=None, cols=None, name="ss_like_for_like",
 # areas). Tables from state_space_balance_{cells,angle}.py [--motor].
 LAND = ROOT / ("landing" if ALIGN == "cue" else f"landing_{ALIGN}")   # balance tables per alignment
 BAL_WIN = {"cue": "0-1 s after the cue", "lick": "0.1-0.5 s after the first lick"}.get(ALIGN, ALIGN_LABEL[ALIGN])
-BAL_AREAS = {"": ("Orofacial", "orofacial", "SSp-m, SSp-n, SSs"), "_motor": ("Motor", "motor", "ALM, tjM1")}
+BAL_AREAS = {"": (S.AREA_SET_NAME["OROFACIAL"].capitalize(), S.AREA_SET_NAME["OROFACIAL"], ", ".join(S.OROFACIAL)),
+             "_motor": (S.AREA_SET_NAME["MOTOR"].capitalize(), S.AREA_SET_NAME["MOTOR"], ", ".join(S.MOTOR))}
 
 
 def fig_balance(out, rng, sfx=""):
@@ -294,10 +304,13 @@ def fig_balance(out, rng, sfx=""):
     tgt = pd.read_csv(LAND / f"balance_cells_target{sfx}.csv")
     cel = pd.read_csv(LAND / f"balance_cells_sessions{sfx}.csv")
     on = cel[cel.target == cel.land]
-    ang = pd.read_csv(LAND / f"balance_angle_sessions{sfx}.csv").rename(columns={"bal_matched": "bal"})
-    fig, axs = plt.subplots(3, 6, figsize=(16, 9.6), sharey="row")
+    ang0 = pd.read_csv(LAND / f"balance_angle_sessions{sfx}.csv")
+    ang = ang0.rename(columns={"bal_matched": "bal"})                               # every trial (beyond the pre range:
+    ang_in = ang0.drop(columns="bal_matched").rename(columns={"bal_matched_inrange": "bal"})   # extrapolated) / in range only
+    fig, axs = plt.subplots(5, 6, figsize=(16, 16), sharey="row")
     rows = ((tgt, "all trials, by target"), (on, "landed on target only"),
-            (ang, "matched for target + landing"))
+            (ang, "matched target + landing,\nall trials (incl. extrapolated)"),
+            (ang_in, "matched target + landing,\nin pre landing range only"))
     for row, (df, lab) in enumerate(rows):
         for j, p in enumerate(POS):
             ax = axs[row, j]
@@ -308,6 +321,11 @@ def fig_balance(out, rng, sfx=""):
             else:
                 ax.set_ylabel("balance change vs own pre\nlog2 contra / ipsi")
             ax.tick_params(axis="x", labelsize=7)
+    for j, p in enumerate(POS):                 # bottom row (Priya 11-16): the balance itself, NOT pre-normalized
+        ax = axs[4, j]
+        level_panel(ax, tgt[tgt.target == p], "bal", f"{POS_LABEL[p]}\nall trials, by target: level", rng)
+        ax.set_ylabel("" if j else "balance (level, not vs pre)\nlog2 contra / ipsi")
+        ax.tick_params(axis="x", labelsize=7)
     legend_animals_epochs(fig, y=1.02)
     fig.suptitle(f"{title} hemispheric balance ({areas}; {BAL_WIN}), per spout: by target, "
                  "landed on target vs matched for lateral landing", y=1.05)
@@ -470,6 +488,7 @@ def fig_drift(out):
 
 
 def main():
+    S.check_root()
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--out", default=str(ROOT / "page_figs"))
     ap.add_argument("--only", nargs="*")

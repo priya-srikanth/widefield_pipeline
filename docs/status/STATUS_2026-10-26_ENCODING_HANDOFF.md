@@ -39,7 +39,1380 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 3. Then tell **sabatinilab-e3** (PI deck) the decoder figures are final: per figure the share PNG path, page Fig N.k,
    script + args, headline numbers, methods text (they asked 10-26 ~22:30; reply sent: not final yet).
 
-### 00-COMPACT-20 (11-03 ~midday; UPDATED 11-03 afternoon, see the block below the "Next" line) -- READ FIRST, then docs/status/COHORT1_SWAPMASK_RERUN_20261102.md + RUNNING_LIST_2026-11-01.md
+### 00-COMPACT-42 (11-16 evening) -- READ FIRST; supersedes 41 for STATE (41's naming / two-measure / sign-frame notes and 38 section 1 RULES still apply)
+Session f082ee0c; scratchpad `C:/Users/SABATI~1/AppData/Local/Temp/claude/179e1046909c5be2/f082ee0c-b33c-49a8-a537-dcee3bb7c84c/scratchpad`. Detail: RUNNING_LIST_2026-11-06.md entry "11-16 (evening)".
+
+**ON MAIN (pushed 11-16 evening, Priya "ok to push"):** feat/ss-balance-level-row-1116 (619c95a3), feat/balance-angle-sharedy-1116
+(c6416ed3), analysis/attempt-coding MERGED into main (704f71f1; one conflict s1_refit_basis_table.py -> main's 1.0 s LP ENL + the
+branch's --suffix / camlickpl arms), fix/ss-nulls-1116 (affe7d3e: circular shift + whole-spout-block splits), fix/kin-gated-pooled-1116
+(cc8ce9d0: doc KIN_PAGE_GATE_ITEMS_2026-11-16.md). Earlier: FINDINGS decoder-offset wording (fa9a4907). attempt-coding is no longer
+a separate line of history: branch new work from origin/main.
+
+**RESULTS (11-16 evening, scratch `prelick_test/` + `prelick_test/head_to_head/`):**
+- RESTnl session levels (107 sessions, checkpointed `rest_sessions/`): orofacial REST_R - REST_L change vs own pre acute -0.73 / -1.98 /
+  -2.82 / -2.55 (every pair 4/4), chronic +0.80 / -2.13 / -0.46 / -0.82 (session-mean reference: partly the mirror of the task-period
+  contralesional rise). dec_rest - pre_rest == decbc to 1.6e-14.
+- Head-to-head vs far-contra aim (post n = 75, circular shift 10k, ln(day)-detrended): 14.18 marker +.78 / +.54 cued, +.70 / +.59 ITI
+  (p <= .0001); RESTnl level +.49 / +.34 (4/4); raw evoked ratio resp02 n.s. / +.29 (2/4); gain, dec, pre-lick variants lose it after
+  detrending; r(rest, marker) ~ +.3 n.s. Raw ratio rises acutely while the angle-matched marker falls (acute licks land ipsilesionally;
+  the pre line at that angle predicts an even larger contralesional share).
+- Null fix: no star changes (SS 6.3 / 6.4 / 10.25); section 10 p values move; Priya: KEEP Fig 10.23 framing (time and recovery are linked).
+- Kinematics gate: Priya "new figures look good"; jaw opening far contra acute -2.42 -> -1.85 mm, 4 small jaw stars lost.
+
+**RUNNING (delegated helpers, this session):**
+1. Page update (3 pages): KINEMATICS (gate figures + captions; PI-slide-35 far-contra outcome figure becomes Fig 6.1, rest renumbered),
+   SS (circular-shift wording + p values; figures copied to a page_figs_nullfix_20261116 folder), ENCODING / goal page (new rest-level
+   figure after the section 14 balance figures; 14.18 trend-safe sentence; old ITI "-0.15 r, -23 %" -> Fig 10.3's -0.130 / -0.122 / -0.130).
+2. Analysis deck (branch fix/deck-section-g-1116, worktree wf_adeck1116): G2b / G3 / G6 / counts -> LP video licks; outdated text out;
+   small-lesion slides dropped; NEW key-figures section from the four pages; of the missing families outside the queue render only
+   those cited on a page or in FINDINGS (report before any > 30 min render). Push the branch when it finishes.
+
+**DECISIONS (Priya 11-16):** 14.18 pool = current five areas; rest-level result on the ENCODING page with a title / caption that says it
+has no lick in it; 14.18 caption gets the trend-safe sentence; whole-number figure numbering, no letters; deck as in RUNNING item 2.
+
+**TO DO / OPEN:**
+- Relay page links + deck report to Priya; push fix/deck-section-g-1116 after the rebuild.
+- Production path bugs (from the null-fix helper): within_session_behavior.WSD and detour_vs_balance.RECPRIM resolve under
+  rebuild_20261103 where the files do not exist (join silently skipped; detour would fail); block_size_max_for finds no behavior dir
+  on this box (every session uses 8).
+- Fig 14.13 shared-y version onto the goal page (Priya not yet asked to decide); block-permutation p for the per-lick fits (open).
+- Fig 9.10 re-run (bundle moved: o2/enc_rebuild_20261104b/env.json); SS section 7 detour + Fig 3.9 / 6.12 sources; CUT_FIGURES rows for
+  the IMG cuts; re-render deck sections A-C after the code cleanup.
+- Kinematics: section 6 per-animal jaw-only table, section 7 no-contact table and Fig 7.6 not re-gated (outside the class shares).
+
+### 00-COMPACT-41 (11-16) -- READ FIRST; supersedes 40 for STATE (38 section 1 RULES still apply)
+State after the glue-free re-run (v20, done 11-12) and the 11-16 page / deck pass. Detail: RUNNING_LIST_2026-11-06.md,
+entries "11-13" and "11-16"; per-artifact reports in the session scratchpad pages/<goal|img|ss|adeck|pideck>/REPORT.md.
+- PUBLISHED 11-16: GOAL page v313 (D1-D5), IMG page v53/54 (D6 + session-mean twins, Q9 cuts), SS page v38 (45 areas,
+  61 number edits, 5-row balance figures, hemi-gain wording, naming). PI deck Overview_2026-11-06.pptx rewritten 13:03
+  (backup .bak_pre_rebuild_20261116); FR window then edited slides 90 and 163 (its own backups).
+- CODE ON MAIN (11-13, cfb83124): state-space consolidation (docs/STATE_SPACE_CODE.md); state_space_recovery output root
+  moved to rebuild_20261103/state_space_recovery. UNPUSHED BRANCHES: feat/ss-balance-level-row-1116 (5-row balance
+  figures, AREA_SET_NAME naming, balance_defined: no balance under gsr / spout), feat/balance-angle-sharedy-1116 (Fig
+  14.13 one y scale per column), fix/deck-section-g-1116 (deck text; A-C + small-lesion removal in progress).
+- NAMING (Priya 11-16): "orofacial" alone = SENSORIMOTOR; say "orofacial sensory" (SSp-m, SSp-n, SSs) / "orofacial motor"
+  (ALM, tjM1) for the subsets. The pooled sets differ by figure (14.13 = ALM + tjM1 + SSp-m + SSp-n; SS section 10 =
+  tjM1 + SSp-m + SSp-n; 14.18 primary marker = those four + SSs): state the areas in each caption.
+- TWO BALANCE MEASURES (keep apart; they disagree on ITI licks):
+  * RESPONSE RATIO (resp; 14.9 / 14.13 image 1): log2(contra / ipsi AUC 0..1.0 s after the lick, each hemisphere minus
+    its own -1.0..-0.5 s baseline). Needs lick-free windows on both sides, so it exists only for the FIRST cued lick and
+    the ITI bout start after >= 2 s without licks (6-7 Hz licking puts ~6 other lick responses inside a later lick's
+    1 s window). A ratio: invariant to a bilateral gain.
+  * DECODER-WINDOW BALANCE (dec; 12.17 / 14.13 image 2): X_right - X_left averaged over 0..0.2 s after the lick peak,
+    x1e3 dF/F, NO baseline -- X = the per-lick Allen-area traces (iti_X / tr_X) that are the INPUT FEATURES of the
+    per-lick lateral WHERE-decoder (iti_lick_order / iti_where_decoder: ridge on Allen areas with the ALM / tjM1 split,
+    lags 0..0.2 s, features z-scored within session, trained on August pre licks per set, pre sessions leave-one-out;
+    predicts the lick's lateral landing in mm). Defined for EVERY lick, but carries the pre-lick level (tonic offsets,
+    earlier licks' responses) and, as a difference, scales with response size. The where-decoder's lateral weights are
+    largely ipsi-minus-contra (11.13), so this balance is roughly a one-number summary of what that decoder reads: it
+    behaves like the decoder (ITI similar to cued, smaller) where the response ratio does not (partly circular; see
+    lick_balance_reference.py docstring). NOT the frozen spout-position decoder of section G / IMG 2.x.
+  * 11-16 scratch (scratchpad bal_angle4/): decoder-window balance for first cued / all cued / ITI bout start (>= 1 s
+    gap) / all ITI licks: all-lick rows are tighter and steeper; ITI licks track angle in every area incl. ALM / tjM1
+    (about half the cued slope); post-stroke ITI shows an ipsilesional shift at the same angle (orofacial -3.3 / -1.7 /
+    -1.6) that the response ratio does not. Exact ">= 2 s quiet" ITI-first version pending (needs the per-lick table).
+- TWO MEASURE FAMILIES -- say which one every number belongs to (Priya 11-16: "hard to keep straight"):
+  * DECODER-FEATURE family: raw lick-time activity 0..0.2 s, NO per-lick baseline, zero = each area's SESSION MEAN
+    (drift removal incl. the constant), divided by the frame-level SD -- no per-lick re-centering. Hemispheres combine as
+    a DIFFERENCE X_right - X_left (or the where-decoder's weighted sum). Picks up evoked lateralization + TONIC level
+    relative to the session mean + overall GAIN. Members: frozen where-decoder output and its like-for-like offset
+    (12.x, 14.22, FINDINGS 10-29 hypothesis), "hemispheric difference" figures (14.13 image 2, 12.17 decomposition,
+    lick_balance_{order,offset_lmm,regions,recovery,maps,reference}), pre-lick test rows 1-3. A whole-session constant
+    shift does NOT reach it; a change of lick-time activity RELATIVE to the session mean does.
+  * RESPONSE (AUC) family: evoked response = window minus that hemisphere's own pre-lick baseline; hemispheres combine as
+    a RATIO log2(contra / ipsi) = THE BALANCE. Evoked lateralization only (gain and pre-lick level removed). Members:
+    response ratio (14.9, 14.13 image 1), primary recovery marker (14.16 / 14.18, angle-matched gain ratio), state-space
+    balance + hemisphere gain (SS section 5).
+  * Labels: "balance" = ratio only; X_right - X_left = "hemispheric difference" (branch feat/balance-angle-sharedy-1116,
+    2d2107c5). SIGN FRAMES: hemisphere frame (which side larger; - = ipsilesional larger) vs read-out frame (decoder: + =
+    lick read more contralesional) are OPPOSITE: an ipsilesional-hemisphere shift reads as a contralesional lick.
+  * Why "contra gains relative to ipsi" (ratio) and "difference shifts ipsilesional" coexist: pre-stroke ipsi > contra at a
+    typical lick (e.g. 4 vs 5); both grow, contra relatively more (6.4 vs 7.5): ratio .80 -> .85 (contralesional), difference
+    -1.0 -> -1.1 (ipsilesional).
+- PER-LICK pre-lick test (11-16; scratch prelick_test/per_trial.py, OLS with session-clustered SEs -- MixedLM stalled at 0 on
+  one fit): ITI first >= 2 s, orofacial, a/s/c: raw difference -4.1 / -1.8 / -2.1, pre-lick level -1.7 / -1.4 / -1.4, evoked
+  difference -2.5 / -0.5 / -0.6; angle slope raw -.31 = evoked -.30, pre-lick -.01 (session-level fits agree). The
+  difference is session-mean referenced (NOT RESTnl); a RESTnl version is being built (helper; two-references rule).
+- DIRECT DECODER CHECK running (Priya OK 11-16; scratch decoder_check/): re-score the frozen where-decoder with (A) the
+  pre-lick level removed, (B) session response size divided out, (A+B); how much of the contralesional ITI offset
+  (+0.39 / +0.29) survives. If little: the FINDINGS 10-29 hypothesis wording ("code shifts contralesional") changes ->
+  Priya BEFORE any text.
+- RUNNING (helpers, 11-16): analysis-deck rebuild without A-C + small-lesion slides; kinematics gate items (section 6
+  accepted; incomplete-lick text + legacy-gate sensitivity row; gated pooled re-run on fix/kin-gated-pooled-1116).
+- OPEN WITH PRIYA: 14.18 marker with / without SSs (table check offered); ">= 2 s" ITI version of the 4-set figure; goal
+  page old ITI numbers vs new Fig 10.3; SS section 7 detour + Fig 3.9 / 6.12 sources not re-run glue-free; Fig 9.10 re-run
+  blocked (state_space_why_cleaner reads o2/enc_rebuild_20261104b/env.json, bundle moved 11-11); A-C re-render after the
+  code cleanup (agreed: yes, later); C6 balance numbers + HELD list (PAGE_DRAFT_REBUILD_2026-11-10.md) unchanged.
+
+### 00-COMPACT-40 (11-09 ~07:50) -- READ FIRST; supersedes 39 for STATE (38 section 1 RULES still apply)
+
+**Where things are:** running list `docs/status/RUNNING_LIST_2026-11-06.md` (11-09 entries at the end);
+`docs/status/HEADLINE_TABLE_2026-11-09_CORRECTED.md` (8 conclusion changes; Priya approved 1-6 + 8 for pages / decks, #7
+resolved below); `docs/status/AMPLITUDE_TWO_REFS_AUDIT_2026-11-09.md` (two-reference gaps). Render folder
+`scratchpad/render_daqlk` (session f082ee0c), queues 9zw..14, `logs/CHAIN.log`; chain scripts `scratchpad/chain_v1*.sh`.
+
+#### 1. Decisions since block 39 (Priya 11-09)
+- G4 = camera working vs no_response (as G1-G3); re-run ONLY G4 (`poststroke_section_g --only g4`, backup first).
+- June camera trial tables = SIDE table + `WIDEFIELD_ATTEMPTS_SUPPLEMENT` for the LP drift step only (registered table
+  untouched; its mtime/size keys every LP cache).
+- Two LP lick epoch decoder sets (float-noise inputs) ACCEPTED for now (set 1 epoch arm lick figs; set 2 grant lick units).
+- contactOnly section G arm DEFERRED; when run it supersedes the mistaken r4 run, whose outputs may then be deleted.
+- Interhemi / cross-area / coupling: PRIMARY lick - RESTnl rest; SUPPLEMENT "raw" = lick-set metrics, no rest reference.
+  restdock05 is NOT raw (its _r5 chain marked NOT RUN). Session-wide event set dropped.
+- AMPLITUDE outputs need TWO references: RESTnl + session mean (memory amplitude-two-references). D0: map "raw" accepted
+  (caption: zero = slow inter-trial trend). Per-trial-baseline families: add absolute-level twins + state-space response-
+  size twins at the page update. Hemisphere-difference balances: no RESTnl if lick-peak fluorescence not normalized
+  within trial (verify). CD projections: HOLD.
+- Working period start = FIRST camera lick (settled). RESTnl boundary rule kept (rest periods need both bracketing
+  trials in the period).
+- #7 (acute cue far-contra map, RESTW per animal): wording "falls in 3/4; PS95's single acute session has only 40
+  far-contra working trials (1 hit + 39 incomplete; of 120 cues 53 jaw-only, 16 no response, 11 stopped) and shows no
+  drop on the trials it attempted" (old "halving" averaged non-attempts). EVERY figure must state EXACTLY which trials
+  were included / excluded (memory figure-provenance-in-captions). Map trial sets = option (c): primary working trials
+  (contact + incomplete), SUPPLEMENT = all trials in the working period (+ jaw-only + no response; stopped runs, quit
+  tail, unknown excluded), PLUS a jaw-only panel POOLED per animal x epoch (floor 20; pre-stroke jaw-only = PS95 only).
+- Grant: re-render ONCE after the caption wiring + grant memos (the 06:51 re-render was stopped).
+- test_cohorts: test-side fix of 2 stale expectations (cohort2 per-animal reference dates) OK.
+
+#### 2. On main since block 39
+d8f4e900 memo keeps csig; b83f376d G1-G3; 2944eca4 te-basis hardening; 3f1c5e90 June supplement; 90a5e25f G4 +
+--only g4; 10cdb08a share writers classified; f992cb8f redraw-pass fixes (lick-source label, grant stamp band + tick
+thinning, matched-pre --lick-dir); dff97e56 interhemi RESTnl + raw. PUSHING: feat/trial-set-captions-jaw-panel-1109
+(0899267d, via chain_v14), fix/test-cohorts-stale-refs-1109 then perf/grant-loader-memos-1109 (helper).
+NOT yet: feat/trial-set-wiring-1109 (helper wiring the trial-set sentence into grant, section G, other epoch families,
+cd chain, ITI / lick, encoding, interhemi + stale deck wording).
+
+**UPDATED 11-10 ~21:00 -- READ FIRST (state; 16:00 entry below still holds the layout).** Combined model enc_rebuild_20261110g: ALL 15 TAGs collected; O2_COLLECT_g.done touched; SECTIONS=O2 lane (v20-O2) running since 20:52. Partial refits: frA + ls collected from O2 (PS92_0806 == desktop ~3e-15), .done written; te desktop check passed, submitted on O2 ~21:00 -> when 107 back: compare PS92_0806 vs scratchpad o2partial_check_te/desktop, `o2_partial.py collect --step t_partial_te_g --name partial_rebuild_20261109` (wf_o2partial, PYTHONPATH Windows form), touch logs/t_partial_te_g.done. o2_partial fix 0b6999fa (same_design tolerance: column sums vs sum|x|) is on O2 and M:. Glue checks: 14m far_L / 14z far_center clusters and the ITI in-trial relative decoder change = the glue mask (traced; running list 17:30). Re-run 131+ done, no failures today.
+
+**UPDATED 11-10 ~16:00 -- READ FIRST (supersedes 06:20 for state; pre-compaction).**
+RE-RUN v20 (main 8aed3a7b, detached wf_render_v20; logs scratchpad C--Users-SabatiniLab/f082ee0c-.../render_daqlk): 114 _g done, no real failures. Lanes: v20 (CD + MAPS sections finished; ENC x3, ITI, ITI+DOWN x3, DOWN x2, FIG) + side queues, all same step names: 20b (ITI extract first), 20c (firstlick after split_order, done), 20d (8 steps with corrected deps; c_fr_pix* wait O2_COLLECT_g), 20e (66 steps that were READY but never claimed -- lanes are strictly file-ordered: run the ready-but-unclaimed listing regularly), 20f (3 relabel steps RE-RUN: their 13:23 runs reused glue-in joint_fits.pkl + sessions/; moved aside, manifest move_aside_relabel_20261110_134738.csv), 20g (b_residual_roi_frA_g after b_specificity_g), 20h (b_fr_compare_g + a_relabel_noFR_g; e_mae / e_perspout / e_rmse_unsc + e_scatter_g). Stale audits: #1 resume audit (22:55, 10 items moved), #2 mechanical (all 102 finished clean; 2 more fixed, manifest move_aside_audit2_*), deps audit (2 gaps -> 20h). Monitor regex must be \[v20[a-z]?-. RAM: brief 0 GB dips (10:11, 15:12) with many lanes; nothing failed.
+O2 COMBINED = enc_rebuild_20261110g (inputs 28 GB; env identical to 11-04 production; check passed; every copied session gate attempted / exec polar / licks combined). 11 TAGs complete (main, main_nolicksall, shufpos, nodir, drop, trmodels, musall_shuf, fr_A/B/S/D) -- COLLECT RUNNING (scratchpad 179e1046.../o2_collect_1110.log; ~20 min / TAG; env o2_env_combined.sh). Resubmitted by Priya (running/pending): bins_w1 8-10, bins_w05 77, bins_w2 69, droppos 4,5,7,8,27,30-34 @64G (droppos OOM'd at 48G). When those land: collect bins_w1 / bins_w05 / bins_w2 / droppos, then touch render_daqlk/logs/O2_COLLECT_g.done and launch SECTIONS=O2 (queue_daqlk20.sh; the v20d c_fr_pix* lanes also wait on it). enc_rebuild_20261109g (WRONG settings) out/ must be moved aside, never collected.
+O2 PARTIAL REFITS (new code, branch feat/o2-partial-refit-1109 in wf_o2partial; bundle M:/.../rebuild_20261103/o2/partial_rebuild_20261109: imaging 15 GB + per step inputs 19 / 19 / 17 GB): b_partial_frA_g + a_partial_ls_g bundled + checked bit-exact (ls: 9875 values, 0.0) -- NOT YET SUBMITTED as of 15:50 (Priya transferring now; commands given). t_partial_te_g bundling (88/107 at 15:48, ETA ~16:45), then `o2_partial.py check --step t_partial_te_g --name partial_rebuild_20261109 --out <scratch> PS92_0806` with PYTHONPATH in WINDOWS form (C:/.../wf_o2partial;C:/.../scripts), then give Priya the rsync + 2 sbatch lines. The 3 steps are HELD by claim dirs (render_daqlk/logs/PARTIALS_HELD_FOR_O2.txt); after O2 + rsync back: `python scripts/o2_partial.py collect --step <step> --name partial_rebuild_20261109` (wf_o2partial), then write render_daqlk/logs/<step>.done.
+OPEN with Priya: push a docs-only branch (this window's records + DECISIONS.md D1-D9; they live only on unpushed analysis/attempt-coding); caption draft questions (docs/caption-pass-draft-1110); PS95 CD overlap no longer significant (GLUE_BEFORE_AFTER_2026-11-10.md); push of feat/o2-partial-refit-1109. After the re-run: re-run scripts/glue_before_after.py, per-animal before/after to Priya BEFORE page / deck text; caption pass; LP lick decoder thread check; contactOnly arm.**
+
+**UPDATED 11-10 ~06:20 -- READ FIRST (supersedes 00:05 for state).** Glue re-run v20: 63 _g steps done, no failures; CD (DAQ + LP) and MAPS sections COMPLETE (3 c_fr_pix* wait for O2_COLLECT_g by design). O2 COMBINED: the 11-10 00:00 submission (enc_rebuild_20261109g) had WRONG settings (bundle built without OROFACIAL_GATE=attempted / COMBINED_ENCODING_EXEC=polar / LICKS=combined / TONGUE=3d / EXEC3D / TARGET3D / BINS_CALIB) -> cancelled; its copied out/ (main 1, bins_w1 45) must be moved aside, never collected. CORRECT bundle enc_rebuild_20261110g: env.json identical to the 11-04 production bundle (21/21 keys, 4/4 tables sha1), check passed (PS94_0809), all copied sessions verified gate attempted / exec polar / licks combined (bins_w1 97, bins_w05 48 at 06:14; trials + alphas == production; ALM / tjM1 / MOp / SSp-m R2 unchanged, SSs / VIS moved, glue-only areas gone). Env for check / collect: session scratchpad o2_env_combined.sh. Collect each TAG when 107: `o2_encoding.py --profile cohort1_rebuild_20261103 collect --name enc_rebuild_20261110g --tag <TAG>` (from wf_render_v20 with that env), then touch render_daqlk/logs/O2_COLLECT_g.done + launch SECTIONS=O2. O2 PARTIAL REFITS: bundle partial_rebuild_20261109 (b_partial_frA_g; env 25/25 = queue step env; check bit-exact) -- commands given to Priya, no outputs yet; collect from wf_o2partial (`o2_partial.py collect --step b_partial_frA_g --name partial_rebuild_20261109`), then write render_daqlk/logs/b_partial_frA_g.done; add a_partial_ls_g / t_partial_te_g to the bundle when f_frA_ls_g / t_frame_te_g are done (te: check first). Side work done: GLUE_BEFORE_AFTER_2026-11-10.md (conclusion changes: CD overlap PS95 no longer significant; LP lick map clusters; VIS encoder stars -- sent to Priya), D2 copy-back (494 entries verified), caption draft (branch docs/caption-pass-draft-1110, 14 questions to Priya). OPEN with Priya: push a docs-only branch with this window's decision records + DECISIONS.md entries (they exist only on unpushed analysis/attempt-coding); caption questions; PS95 CD overlap. LESSON added: diff a new O2 bundle's env.json against the last production bundle before giving commands.**
+
+**UPDATED 11-10 ~00:05 -- READ FIRST (supersedes 11-09 ~20:00 for state).** Glue re-run (queue v20, main 8aed3a7b, detached wf_render_v20) running clean: 26 _g steps done (CD DAQ + LP chains, epoch DAQ + LP-ENL, ITI split / z / main / hemo / audits, encoder frames f_noFR / f_frA / f_frAsplit / f_frA_pos / *_basis, b_wsd_lick). Side queues (same step names, corrected deps): queue_daqlk20b (ITI extract first), 20c (e_firstlick_extract_g after e_split_order_all_g), 20d (8 steps that read moved-aside files: c_fr_pix* wait for O2_COLLECT_g; spout patterns / where decoders wait for l_basis_extract_g; e_filter_cmp_g waits for the split-order + gauss steps). RESUME AUDIT 22:55: finished steps clean; 10 stale resume-by-existence outputs moved aside (manifests _superseded_glue_20261109/move_aside_partial_refit_* and move_aside_resume_audit*_*.csv). O2: (1) COMBINED model bundle enc_rebuild_20261109g (existing o2_encoding.py; _daqlk tag; mask_sig 5f9eb36f36b2) -- Priya SUBMITTED all 16 jobs 11-10 00:00; local check PS94_0809 running (needs env COMBINED_ENCODING_ENL_SOURCE=lp LICKS_ALL=split RUN=lp_r4_heatmap_20261013__clean_v36); when O2 finishes: rsync back, collect each TAG, touch render_daqlk/logs/O2_COLLECT_g.done, launch SECTIONS=O2. (2) PARTIAL REFITS on O2 (NEW code, Priya OK): branch feat/o2-partial-refit-1109 (wf_o2partial, scripts/o2_partial.py), validated bit-exact vs desktop; bundle rebuild_20261103/o2/partial_rebuild_20261109 packing 107 sessions; b_partial_frA_g / a_partial_ls_g / t_partial_te_g HELD by claim dirs (render_daqlk/logs/PARTIALS_HELD_FOR_O2.txt) -- after O2 collect, the coordinator creates their .done markers (or rmdir the claims to run on the desktop). C: cleanup: 93 GB stale imaging cache deleted (Priya OK; list in session scratchpad deleted_stale_imaging_cache_20261109.csv). LESSONS: producer check must include folder-listing readers; after clearing a failed step also clear its dependency-skip cascade; move-aside must cover resume-by-existence outputs, not only mask-dependent ones; monitors must match v20b/c/d lanes.**
+
+**UPDATED 11-09 ~20:00 -- READ FIRST: GLUE RE-RUN RUNNING (queue v20).** Main = 8aed3a7b (integration of glue fix, mask-keyed caches, frozen spout D, trial-set wiring, grant memos, style leak / softmax / gate, precue ENL + stamp, test-isolation fixes; 6297 tests). Glue-in outputs MOVED (not deleted) to <root>/_superseded_glue_20261109/ (manifest scratchpad/glue_rerun/move_aside_manifest_20261109_171046.csv). Lanes run from DETACHED wf_render_v20 @ 8aed3a7b: scratchpad/render_daqlk/queue_daqlk20.sh (376 steps; plan glue_rerun/PLAN.md; ETA Wed 11-11 evening). Settings check passed (union 40,663 / stat 129,770 / PS92 exclusion 50,885; csig 3d7bbe921e). Lanes: CD (done), MAPS (g5_epoch_g), ENC x3, ITI, ITI+DOWN x3 (L7, L11, L12), DOWN x2, FIG. Incidents handled: (1) e_iti_split_sd_g listed sessions from the moved-aside folder -> one-step queue_daqlk20b.sh extracted 107 first, then split/z-score ran; (2) the failure cascaded 31 dependency-skips (claims held) -> cleared by literal-path glue_rerun/clear_cascade.sh, two fresh ITI+DOWN lanes. RAM guard scratchpad/ramguard_v20.ps1 (stops only the frAsplit encoder step if < 3 GB twice). Monitor must include 'SKIPPED (dependency'. MANUAL LATER: O2 re-bundle (new name) after the ITI inputs, then touch logs/O2_COLLECT_g.done + SECTIONS=O2 lane; state-space window re-runs state_space_sim after e_iti_main_g. After the re-run: per-animal before/after tables (balance etc.) to Priya BEFORE page / deck text; then the caption / page pass.**
+
+**UPDATED 11-09 ~13:40 -- GLUE RE-RUN PREPARED, waiting on pushes.** Push queue chain_v20 (sequential): glue fix (+0d3c6f4d star-band fix for the state-space window's B40-B42 scripts, which failed main's star test), mask keys (fix/mask-keyed-caches-1109), frozen spout D, wiring (+2355e68c test fixes), grant memos, style leak / softmax / gate, precue ENL (+ mask stamp follow-up). Then: python scratchpad/glue_rerun/move_aside.py --do (HALT must be set; 96 items, 196 GB -> <root>/_superseded_glue_20261109/, never delete), detached worktree at the new main, put its SHA in queue_daqlk20.sh EXPECT_SHA, remove HALT, launch lanes (CD + MAPS + ITI + 3 ENC lanes together; PLAN.md lane layout). 2.5-3 days. Manual later: O2 re-bundle (new name) after the ITI inputs; FOR THE STATE-SPACE WINDOW: its caches are now mask-keyed (old ones moved aside); re-run state_space_sim after e_iti_main_g. Frozen spout: D = the single LP decoder (A/B deleted, kept list docs/status/DELETED_FROZEN_SPOUT_AB_2026-11-09.md); LP joint_xsession done (loads D). Balance primary stays the log2 gain ratio (per-lick baseline in the caption).**
+
+**UPDATED 11-09 ~11:40 -- READ: REBUILD GLUE MASK MISSING (A9) -- Priya: fix shared code + audit, HOLD re-renders. Under the rebuild profile the painted glue mask is silently empty (stat mask 166,974 vs 129,770 px): SSs ~50 % glue, VIS / AUD / TEa / RSPagl_L affected; ALM / tjM1 / MO / SSp-m/n/un clean; LocaNMF decoders clean. Fix + cache-key + audit helper on fix/rebuild-glue-mask-1109 (wf_gluefix). HELD until merged: grant + epoch caption re-renders (approved), xa restnl re-run (fix e4b04637 on fix/xa-restnl-areas-1109), any map / area-extract / encoder re-render; v14a maps = preview only. Other helpers: precue lick-free ENL (feat/precue-enl-window-1109), style leak + 3 bugs + encoder-fig gate (fix/style-leak-misc-1109). Pushes queued in chain_v15 (stamp fix -> wiring -> memos). Open with Priya: balance primary A (raw c - i, no per-lick baseline) vs B (keep ratio); frozen spout decoder recs (D = the LP decoder, LP joint_xsession ~35 min, delete A/B copies). Details: RUNNING_LIST 10:25-11:40.**
+
+**UPDATED 11-09 ~10:25: still no failures. The v14a map steps went silent after 108/108 ref-maps (09:30): MEASURED as CPU starvation (main thread 'Ready'; 3 random-split jobs x 47 threads on 24 cores) during the serial RESTnl baseline attach (restnl_mask.base_maps, 3-9 s per session even on a cache hit). Not restarted; split PIDs 2184/37244/26396 set BelowNormal (map CPU 0.03 -> 0.26 core). Caption push retrying (10:19 attempt in tests). Stamp fix ready: fix/test-stamp-order-1109 6bb2a103 -> push after captions, then memos (wf_grantmemo). Trial-set wiring helper still running (wf_tswire).**
+
+**UPDATED 11-09 ~09:30: no new failures since 06:25 (all earlier ones fixed: offset_primary _r3, ENL-v table _r3 / balance + curves _r4, v12 relaunched). Map re-renders RUNNING from a DETACHED worktree wf_render_v14a at the reviewed caption commit 0899267d (queue_daqlk14a.sh: g5_restnl_maps_lp_ts + g5_lpfinal_maps_ts; reference maps 107/108 after 20 min -- warm caches; new period / jaw-only sets next). Caption-branch push (chain_v14) passed its tests but lost a push race, retrying; its lanes will skip the v14a steps (claims). Grant memos blocked only by the ORDER-DEPENDENT test test_grant_stamp_fit (helper fixing on fix/test-stamp-order-1109). Caption wiring for the remaining families: helper on feat/trial-set-wiring-1109. Random splits 3 lanes in parallel; interhemi RESTnl rest extract done 08:11. test_cohorts fix ON MAIN 98e6a353.**
+
+#### 3. Render state (~07:50)
+DONE overnight (all on fixed code): section G LP (3 h 14) + G4-only (34 min) + G4 figure; LP epoch arms; LP cd chain (Fig
+9.1); matched-pre lick half + LP table; ITI chain; gain-bio; rest family; balance / ENL-slide / ENLv chain (4 missing
+producers added: ITI spout patterns, balance _inside, ENL-v regress, notdock dock steps); June LP drift; grant LP 96/96
+(old layout); encoding bar re-summaries (stars / order). 12 parked old lanes stopped (exact PIDs) + claims cleaned.
+RUNNING: v11 (44 previously stuck steps; B5 random splits now in 3 parallel lanes, ETA ~09:30; L5R lick family),
+v12 IH (interhemi RESTnl + raw), v14 MP + LF (LP restnl maps + LPfinal maps with option (c) + jaw panel, ~4-5 h each).
+NEXT: grant re-render (~2-3 h with memos) after wiring; caption replots for figdata families; then the PAGE / DECK
+UPDATE (headline table approved: 1-6, 8, #7 wording) -- ETA renders ~13:00-14:00, pages / decks this evening.
+
+**Lessons (11-09):** (1) before launching a chain, check every input FILE has a producer (4 missing-producer failures);
+(2) rename re-runs (_r2.._r5) when old lanes wait on the original names, and stop parked old lanes once audited;
+(3) a code edit in a digested module moves cache keys -- verify csig / map digests after every such edit; (4) parallelize
+independent per-animal steps with extra lanes on the same section (claims prevent duplicates).
+
+### 00-COMPACT-39 (11-09 ~01:30) -- READ FIRST; supersedes 38 for STATE (38 section 1 RULES still apply verbatim)
+
+**Where things are:** running list `docs/status/RUNNING_LIST_2026-11-06.md` (sections 11-08 ~13:20 onward, newest at the
+end); scratchpad (session f082ee0c): `rerun_settings_check.md` (per-step settings audit of the re-run), `epoch_trim.md`
+(page figure -> family / arm / lick dependence; page repointing list), `june_camera_tables.md`, render folder
+`render_daqlk` (queues `queue_daqlk9zw|9zx|9zy|9zz|9zz2|9zz3|10.sh`, `logs/CHAIN.log`). Rules: block 38 section 1
+(read the decision docs first; 9-item SETTINGS CHECK on every step's live log; no redundancy; never let a known-stale
+step take the heavy lock) -- all followed in this pass.
+
+#### 1. Decisions taken 11-08 / 11-09 (Priya)
+- Lick class = every camera lick, LP source, LP onset, ENL 1.0 s, LP-trained frozen decoders; successful lick = DAQ
+  contact, supplemental only. LP lanes use LICK_SOURCE=lp + GATE_SOURCE=lp + store frozen_models_lpfinal (as LPfinal).
+- Trimmed re-run plan approved (memo push; full section G with memo; cue arm included; page-feeding lick decoders first).
+- G1-G3 AND G4 (11-09): train camera WORKING (contact + incomplete) vs raw NO_RESPONSE; unknown never trained; scored
+  no-lick set = working-period no_response rows; stopped / quit tail / jaw_only / unknown scored as their own groups.
+  DAQ-grouping supplement NOT run. undetected_state_split now mostly UNDECIDABLE (by design; by_class answers it).
+- June-vs-August drift (Figs 7.4/7.4b, 7.11/7.11b, 7.15, 7.20/7.20b, 7.24): build June camera trial tables as a SIDE
+  table + opt-in supplement (registered trial_attempts table untouched; its mtime/size key every LP cache).
+- G4 change: "only rerun what needs to be rerun" -> `poststroke_section_g --only g4` (replaces 3 G4 keys, backup first).
+
+#### 2. On main (this pass)
+9bc33b9b (D7 floor 10 only, no display floors, D6 matched-pre), 21a005ca (stars top band, POS_ORDER, G1-G3 camera),
+597cbed9 + d8f4e900 (section G DAQ-cue memo, 6x, identical; memo kept OUT of the class digest: csig stays 3d7bbe921e),
+b83f376d (G1-G3 no_response), 2944eca4 (te-basis path hardening), 3f1c5e90 (June supplement: trial_attempts --labels,
+lp_licks WIDEFIELD_ATTEMPTS_SUPPLEMENT), G4 branch fix/g4-noresp-1109 (70d976f0 + 2b87c996 --only g4) being pushed by
+`scratchpad/chain_v10.sh` (log chain_v10.log), which then launches queue v10.
+
+**UPDATED 11-09 ~05:10: RE-RUN PASS COMPLETE -- every group done on fixed main (G4-only 34 min; June LP drift 33 min; grant LP 96/96 in 5 h 24 min; balance / ENL chain via v9zz2-v9zz5 incl. 4 added missing producers). LP lick class VERIFIED correct (trace: scratchpad/lp_epoch_decoder_trace.md; the "DAQ lick-arm trials" log text is a stale hard-coded label). Two near-identical LP lick epoch decoder sets (float-noise inputs) -> Priya decision A; grant memos measured 2.2x / later alignments 130 s, identical -> Priya decision B. Next: stop parked old lanes, redraw pass, then the replacement pass (headline table -> Priya). See running list section "11-09 ~05:10".**
+
+#### 3. Render state (~01:30)
+DONE on fixed code (live-log settings checked): section G on LP (3 h 14 min, was 13.1 h), LP epoch arms ENL / lick /
+cue (5r 14m / acc 14m / scal mat), LP cd chain (Fig 9.1 -> LP epoch folder), matched-pre lick half (LP, 799 pairs),
+ITI chain incl. 2 never-run producers (e_spout_patterns, e_spout_pat_stats), gain-bio, restnl masks (rebuild IDENTICAL
+to disk -> 2 re-runs marked redundant), LP restnl maps, rest frozen (+nl), attempt maps restnl, recovery_cue, l_* restw
+chain through restw_check, balance chain head + the _inside producers (v9zz3).
+RUNNING: g6_grant_lp (LP; slow: 6/96 at 00:46 -- cold LP collection; measure, profile only if it stays slow),
+v9zx-RS (chronic_stability_r, l_* restnl variants), v9zz2-BAL (59-step balance / ENL-slide chain, all names _r2, own
+marker ENL_SLIDE_FIX_r2 so old lanes stay parked), v10 G4 (--only g4 -> G4 figure redraw) + JD (June LP drift).
+OLD lanes still parked on pre-fix code (v8b / v9zd / v9zr / v9zc / v8-L4.. waiting on original names): harmless; stop by
+exact PID once the _r2 chain is through.
+
+#### 4. Next
+1. When grant + BAL + RS finish: figdata redraws (stars / order), the matched-pre figure with the LP lick half, G4 deck
+   slide, gb_fig_r redraw; later lick decoders on LP (pcd / nolick / precue states / joint xsession).
+2. Replacement pass: headline table re-read on corrected outputs -> conclusion changes to Priya BEFORE any page / deck
+   text -> repoint page figures (epoch_trim.md + rerun_settings_check.md lists: LPfinal / LP folders, successful-lick
+   supplement labels, drops 2.2 / 7.1 / 7.5).
+3. Priya's earlier asks: C3 / C4 careful look on corrected outputs + per-analysis spontaneous-lick grouping table;
+   frozen spout decoder 3 versions (only if it changes a number); D2 local cache copy-back (delete needs Priya OK).
+
+**Lessons (11-08 / 11-09):** (1) a speed-only edit to class code moved the cache digest -> keep memos out of
+digested modules (hook mark / separate module) and verify csig after any trial_classes edit; (2) "missing producer"
+failures (ITI spout patterns, balance _inside) -> when a step fails on a missing input, grep the queues for its
+producer before re-running; (3) rename re-runs (_r2) when old lanes wait on the original names; (4) check that a
+"stale" input really is stale (restnl masks were already post-fix) before re-running its readers.
+
+### 00-COMPACT-38 (11-08 ~13:20) -- READ FIRST; supersedes 37 for state
+
+**Where things are written:** running list `docs/status/RUNNING_LIST_2026-11-06.md`, section "11-08 ~13:20 --
+CONSOLIDATED" (questions for Priya / findings / progress); audits in `S2/lick_source_audit.md`,
+`S2/settings_audit_decisions.md`, `S2/settings_audit_actual.md`; headline table `docs/status/HEADLINE_TABLE_2026-11-08.md`
+(PRE-correction: its lick-window rows are SUCCESSFUL-LICK numbers). Render: `S2/render_daqlk` (queues, `logs/CHAIN.log`).
+
+#### 1. Rules Priya restated today (apply before ANY step, question or re-run)
+- **Read the docs before asking Priya.** Several questions on 11-08 were already answered: ENL 1.0 s (10-21
+  enl_lp_census), LP-trained frozen decoders (10-24, ENCODING_FINDINGS 3.3), LP onset not peak + 50 ms close-spout DAQ
+  fallback (11-04 LP_MISSED_CONTACT), LP arm spec (docs/status/LP_FINAL_ARM_20261102.md), working / stopped / camera
+  classes (11-03 TRIAL_GATES handoff), A9 / B section G decisions (running list 11-07). Grep DECISIONS.md, docs/status,
+  wf_attempt docs/status and ENCODING_FINDINGS first.
+- **SETTINGS CHECK for every render step (do it, never assume):** read the step's `# env` / `# cmd` / code-sha header and
+  confirm (1) lick source: lick class = LP (`WIDEFIELD_LICK_SOURCE=lp`), successful-lick supplement = DAQ; (2) working =
+  camera in_working (contact + incomplete), end at last camera lick, stop rule A2; (3) ENL 1.0 s lick-free on LP licks;
+  (4) pre0801 (6 agreed exceptions); (5) hemo / lnmfproj / Wt / max_rt 3500 + 70 ms; (6) the code sha contains every
+  number-changing fix (ba5b63bf rest engagement, D7 floors, D9 paths, a49795b3 / ee21ac5d / f069b949 / 825a4e0f camera
+  fixes); (7) snapshot inputs were regenerated after any decision that changes them (cf. A20); (8) frozen store = the
+  rebuild one (LPfinal: frozen_models_lpfinal); (9) cohort 1 only. A decision reaching the CODE is not enough: check it
+  reached the DATA the render reads.
+- **EFFICIENCY / NO REDUNDANCY (Priya 11-06 + 11-08; memory efficient-no-redo):** before re-running, list what already
+  exists and is valid and re-run only what changed (LPfinal = pre-cue acc + 15r maps for precue / cue / lick; A20 identical; encoder / ITI / kinematics /
+  LP-goal unaffected); re-run only the affected cells of a big step (section G: lick window, lick-only arm, G1-G3);
+  profile the hot path for repeated loading (partial_refit rebuilt inputs 13x per session = 91 %, fixed 2.0x
+  exact-equal; section G re-pools the animal per session unit -- profile running); reuse cached session features
+  (LPfinal LP cache); never let a known-stale step take the heavy lock (stop its lane by exact PID, re-queue on fixed code).
+- Standing: write only under M:/MICROSCOPE/Priya + repos; push only with Priya's DIRECT OK; merge origin/main, never
+  rebase / force; lanes only from DETACHED worktrees; stop only exact PIDs I started (identify by start time or command
+  line, never by parent); rmdir the empty claim dirs of stopped lanes (LITERAL paths: the rm safety check refuses
+  variable paths); park dependents of parked steps; never edit a running queue file; measure before restart; captions
+  state window / lick source / trial period / trial types / gate / baseline / correction; stars in the top band; ipsi on
+  image left; canonical spout order; American spelling in new text.
+
+#### 2. The lick-class error and the two classes
+Main renders ran with the DAQ lick source (the profile never set WIDEFIELD_LICK_SOURCE;
+`trial_classes.camera_select("lick")` = DAQ-engaged rows). Documented rule: **lick = every camera-seen lick (contact +
+incomplete), LP source, aligned to the LP lick ONSET** (first visible cam4 frame; close-spout DAQ fallback if the LP onset
+is > contact + 50 ms), ENL 1.0 s lick-free on LP licks, LP-trained frozen decoders; **successful lick = DAQ contact,
+supplemental only** (Priya 11-08; 11-07 "never gate on successful licks"). So the DAQ-source "lick" outputs are the
+successful-lick class (relabel, keep, never headline); `LPfinal` (scripts/lp_final_render.py) is the lick class for
+acc / accdelta for the PRE-CUE window only (lp_final_render.py:260) + 15r / 15rpa maps for precue / cue / lick (corrected 11-08 ~13:50). cam1 is complete for all 4 animals (125 event files).
+
+#### 3. State at ~13:20
+- ON MAIN: 99f0d464 (D9 paths), 65cf7ead (rim overlay), e0e6d0ad (partial_refit input reuse).
+- PUSHING (Priya OK): `fix/refit-floor-10-no-display-floor` (wf_mixmatch; b27a7acd + b29d834f on top of
+  feature/refit-mixmatch-control = D6 matched-pre control, renamed refit_matched_pre): D7 refit floor 10 only, display
+  floors removed; 915 tests passed; the first push lost a race with another window, re-push running (`S2/push7.sh`,
+  WTS=wf_mixmatch). Check its output and note the sha.
+- Helper running: `fix/stars-spoutorder-g13-1108` (wf_fixes1108 @ 68e53e33): stars to the top band, canonical spout
+  order, section G G1-G3 per (f)1 + camera classes, DECISIONS.md correction + 11-08 entry. Review its commits and tests;
+  Priya said "ok to push" for today's fixes -- confirm the scope covers this branch before pushing.
+- Lanes: v9zv-PF holds the heavy lock (b_partial_frA, 96/107 at 13:10, ~13:25), then runs AB's 19 remaining steps
+  (a76352f3 + reuse fix: CHECK each against the audits before it runs; the b_* encoder residual steps should be
+  unaffected). Waiting for the lock, allowed (rest fix present): g5_epoch_15r_r (v9s), gb_sessions_r (v9r),
+  l_stopped_restw_r + the rest of v9zs-BH (99f0d464), l_block_compare (v8, no rest dependence). t_frame_te_basis = v9zu-TB
+  outside the lock, gate >= 20 GB free. Monitor re-armed every 30 min.
+- Stopped today (all mine, exact PIDs): v9y 36768, [T] 34776, AB 8516 (+ b_partial_frA 4740 + workers), g6_grant_r4 34848
+  (+ workers), v8-XL2L3 34044, v8s2-L2L3 3560. Their unfinished steps must be re-queued: the restnl chain
+  (l_precue_restnl, l_precue_restnl_traces, l_c2l_extract_restnl, l_c2l_restnl, l_c2l_precue_restnl) and the l_bal_*
+  balance chain -> l_recov_markers -> e_recov_meas / l_balmatch / e_dock_* / l_enl_offset -> ENL_SLIDE_FIX -> x_enlv_*.
+
+#### 4. Re-run plan (measured step times from this render's logs; NOT started; Priya OK: two heavy slots)
+| group | why | steps (measured) |
+|---|---|---|
+| section G -> figs -> grant | lick cells on LP; G1-G3 (f)1 | r4 13.1 h (-j 4); figs 15 min; grant ~1.8 h (Sept) -- **scope pending the profile** |
+| epoch render, DAQ source | rest fix, D7, display floors; lick arm relabeled successful-lick | g5_epoch 8.9 h + 1b 1.7 h -- re-run only the families each fix touches |
+| epoch families on LP not in LPfinal | lick class | TRIMMED 11-08 ~13:50 (running list): 3 single-arm LP renders on current main -- ENL `--only 5r 14m`, lick `--only acc 14m`, cue `--only scal mat` (pre reference); ~1.75-2.5 h wall at 3 at once; cuelick / ENLlick + other families not needed; g5_epoch_15r_r redundant |
+| cd chain | lick-aligned + rest fix | 0.5 + 2.5 + 0.6 h |
+| lick-aligned decoders / states | lick class | pcd 3.3, nolick 2.4, precue states 0.5, joint xsession 0.6, matched-pre lick 0.7 h -- mark page-feeding vs supporting (FIGURE_PROVENANCE: only cd_traj feeds a page fig, Fig 9.1) |
+| rest family | ba5b63bf missing | restw_check 0.9, precue_restw 0.4, revup 0.4, c2l 0.4, rest_frozen(_nl) 1.9, RESTnl masks 0.4, attempt_maps_restnl 1.3, chronic_stability 1.0 h + the stopped v8 restnl / l_bal chains |
+| gain-bio | stale | gb_sessions_r (queued, has the fix) + summarise + stats |
+| redraws | stars, session-level figs | minutes, from figdata |
+
+**UPDATED 11-08 ~17:45: Priya approved the trimmed plan; re-runs LAUNCHED on fixed main from detached worktrees (queues v9zw EP+IT, v9zx CD+RS+MP, v9zy IT2 done, v9zz SG = section G + grant on LP). State, lanes, what is still to queue and the one open question: running list section "11-08 ~17:45 -- state". Settings check per step: scratchpad/rerun_settings_check.md; epoch trim: scratchpad/epoch_trim.md.**
+**UPDATED 11-08 ~15:00: measurements DONE -- the trimmed plan + 6 decisions for Priya are in the running list section "11-08 ~15:00 -- TRIMMED RE-RUN PLAN" (section G memo 6x, identical; epoch = 3 single-arm LP renders; v9s-P stopped; both fix branches ON MAIN 9bc33b9b + 21a005ca).** Original order: finish the two measurements (section G one-unit profile `S2/prof_g/prof_PS94_5.txt`; one LP epoch family) ->
+trim the list (reuse / partial / full) -> show Priya -> queue from ONE detached worktree at the new main (after both fix
+branches land) -> settings check on the first step of each group.
+
+#### 5. Other open items
+- Priya asked to look carefully at C4 (refit-minus-frozen gap, z 4.5 -> 1.75) and C3 (orofacial-specific chronic
+  residual, +1.33 -> +0.97) AFTER the lick fix, including how the spontaneous-lick terms are grouped in each analysis
+  (grouped with licks vs left out): build a per-analysis table for her.
+- Frozen spout decoder stored 3x (11-05, 11-07 x2; different pre input sets): trace the cue / lick differences.
+- 392 section G r4 entries exist only in the LOCAL session cache (C:/Users/SabatiniLab/wfield_cache/
+  session_cache_rebuild_20261103): D2 copy-back to M:, verify, then delete the local copy only with a kept list +
+  Priya's OK.
+- Robustness rows (DAQ quit-tail, drift1500, stop-rule arms, contact-only section G) not yet rendered.
+- D6 result (working half, valid): acute far -0.22 / -0.15 / -0.26 (Holm .0045); figure refit_matched_pre.png.
+- Then the replacement pass: headline table re-read on corrected outputs -> conclusion changes to Priya -> pages / decks.
+
+**Lessons (11-08):** (1) read the decision docs before asking; (2) verify each decision reached the data a render
+reads; (3) queue audits must check lick source, gate source, code-sha fixes and snapshot dates, not only dependencies;
+(4) never commit before reading the test output; (5) when the heavy lock is about to free, check which steps will take it.
+
+### 00-COMPACT-37 (11-08 ~08:20, Priya awake) -- READ FIRST; supersedes 36 for state
+Running list = `docs/status/RUNNING_LIST_2026-11-06.md` OVERNIGHT section (D1-D9 + log, newest last). Queue audit report =
+`docs/status/QUEUE_AUDIT_2026-11-08.md`. Render dir `S2/render_daqlk`, log `logs/CHAIN.log`.
+- **ON MAIN since 36**: cd6da055 (D4 lp_final_render frozen store in the rebuild root), 480accea (D5 Fig 3.4 post-stroke frozen
+  recall from the frozen-mode sidecar + optional `session` column in _position_bars sidecars), 236dae4e (D8 lpfinal pre-session
+  count), c3e01ed8 (ROI feature cache, 80090a57 + c3a8b049). **Pushing**: fix/d9-input-paths (76da97e5 stopped_trial_traces
+  jaw_onsets / restnl_rescue precue_restnl_wr / simple_key_figures lick_correction; 143cee02 section_g_figures --suffix on
+  every name; ae867505 run_mode.deficit_qc_dir(name) routes contact to the tagged encoding qc + imaging_lmm trend from there).
+- **Section G r4** (v9zh, ROI cache): 65/88 at 07:51, ~7.8 min/unit -> ~11:00-11:30 (extrapolated); then g7_section_g_figs_r4,
+  g6_grant_r4 (runs -j 4 WITHOUT the heavy lock: watch RAM). Then section C contact-only by hand (`after:g5_section_g_r4`), its
+  figures with --suffix (needs the d9 branch on main). Then D2 (b): copy new local session_cache entries back to M:, verify,
+  delete the local copy.
+- **Fixed + re-run tonight**: g7_fig_state_position (v9zn), g7_fig_s_per_animal (v9zk: epoch_sessions_long was never queued),
+  g5_lpfinal_dec (v9zl), g7_cd_geometry (v9zj: cd_trajectories --orth on + lick; NO ceiling -- cd_overlap_null never queued),
+  l_reembed_r + m_reembed_plot_r (v9zi, D1), e_iti_hemo + e_iti_hemo_sum (after e_iti_area_maps), e_checkfigs_r,
+  b_specificity_plain + b_residual_roi_r (v9zr).
+- **Decisions (Priya 11-08)**: refit share floor 1/18 was an earlier window's choice, never discussed -> D7: ALL refit analyses
+  move to a 10-trial floor only, with the D6 mix-matched control beside them (5r/5rm/5ro/5rmo + s1_refit_locanmf_table +
+  june_august_drift re-run, single-arm timing first). 5rm (size-matched) is the refit-vs-frozen comparison. No class-balanced
+  refit. D6 control: per post session, every August pre session of the same animal; BOTH subsampled to the post session's mix at
+  the largest common size (symmetric; the one-sided first version was biased, 453/800 pairs skipped); refit within session; no
+  floor. Lane v9zo (wf_render_v9zo @ 76e7d604, --inputs cache) running cue/working then cue/lick -> per-animal table first.
+- **Lanes I made (all from DETACHED worktrees)**: v9zo (D6), v9zq (ITI svdbasis chain on 2f5799a9, replaces v9zg; waits for
+  t_frame_te_basis, which another window re-runs with calibration), v9zr (batch A on main: e_mm_r / e_lmm_*_r / e_fpa_*_r wait
+  for e_recov_meas / e_pat_extract). Batch B retries to queue after the d9 push. Batch C (producers to trace first):
+  l_offset_where_r (svd / locanmf contrib terms), e_roi_foci_r2 / e_roi_cand_r2 (iti_spout_pattern_stats), e_rim_overlay_r
+  (sessions_roi2), the ENLv chain (lick_enlv_extract --regress, enlv code family), l_key_figure_r2 (lick_same_target_place),
+  l_bal_offset_primary (WFIELD_BAL_INSIDE), l_arrival_restnl (arrival_to_cue without --rest-variant), b_encoding_key_figures.
+- **Parked RESERVED_HOLD** (logged in CHAIN): the audit's 12 + l_session_levels + dependents l_face_offset_partial,
+  l_disengage_add (a lane waits FOREVER on a parked dep -- park dependents too).
+- **Bottleneck**: the heavy lock is serial; b_partial_frA holds it since 06:26 (a_partial_ls took 8 h); behind it
+  t_frame_te_basis, l_precue_restnl, g5_epoch_15r_r, gb_sessions_r, l_block_compare, l_stopped_restw (old code, will fail).
+- **Lessons**: never edit a worktree a lane runs from (spawned workers re-import code); stopping a lane leaves EMPTY claim dirs
+  that other lanes treat as taken -> rmdir them; check the full producer chain before queueing a consumer.
+
+### 00-COMPACT-36 (11-08 ~00:05, Priya asleep) -- READ FIRST; supersedes 35 for state
+Running list = `docs/status/RUNNING_LIST_2026-11-06.md`, section **OVERNIGHT 11-07 -> 11-08** (decisions first). Render dir
+`S2/render_daqlk`, event log `logs/CHAIN.log`.
+- **Section G = restart #4**, queue `v9zh`, worktree `wf_render_v9zh` @ **c3a8b049** (perf/roi-feature-cache), env token
+  `WIDEFIELD_SESSION_CACHE=C:/Users/SabatiniLab/wfield_cache/session_cache_rebuild_20261103` (local robocopy of M: session_cache,
+  7945 files 77.4 GB). Phase 1 done 23:52; phase 2 (88 units) from 23:52. Then g7_section_g_figs_r4, g6_grant_r4. NO further
+  restarts (Priya). Restarts #2 (12/88) and #3 (4/88) were stopped: #3's local-cache premise was wrong -- the real cost was
+  **Allen-ROI features never cached** (`trial_features_cached` refused non-LocaNMF sources). Fixed 80090a57: ROI kind keyed on
+  (path, mtime, size) of U_atlas / atlas / mask / SVTcorr (`roi_signal_key`); measured PS92_0812 read 0.26-0.91 s vs 6-14 s,
+  byte-identical. Old tests that asserted "roi uncached" now pin `svt` (c3a8b049). **Push pending**: waiter re-pushes
+  `wf_roicache` after a_partial_ls ends (first try stopped by me for LOW RAM 4 GB, second failed on those two tests).
+- **D2 (Priya: option b)**: after section G r4 + figs + grant finish -> robocopy new local entries back to M: session_cache
+  (no overwrite), verify one ROI read from M: hits, THEN delete the local copy (guarded rm, keep list).
+- **ON MAIN tonight**: 2f5799a9 (ITI TE-basis path never _spont + extraction exits 1 on failed items + iti_attempt_parallel
+  fixture fix), fa0e4d87 (D1: June ref epoch None -> '' ; loader tolerates it), cc6d11df (D3: --fit-from copies spatial_*.pkl).
+- **Retry lanes waiting**: `v9zg` (wf_render_v9zg @ 2f5799a9) waits for **t_frame_te_basis** (heavy slot) -> l_basis_extract_r
+  (svdbasis half only), l_basis_frame_sd_r, e_basis_r, l_offset_where_r, l_session_levels_z_r, l_levels_compare_r,
+  e_pat_stats_maps_r, e_roi_check_r2, e_roi_foci_r2 (parked RESERVED_HOLD: l_session_levels_z, l_levels_compare; the v9u copy
+  of e_pat_stats_maps will fail harmlessly). `v9zi` (wf_render_v9zi @ 64d54bc3 = D1 commit) -> l_reembed_r, m_reembed_plot_r
+  behind the heavy lock.
+- Pixel-map fixes 11-07: spatial basis hand-copied (cmp) into frAsplit_basis_spont, basis_pixmusall, frA_basis_pixmusall_union;
+  all V/PX steps done.
+- A12b (pre-cue by camera class) reported: jaw-only above own-pre working at far contra acutely 4/4 (pooled 3.30), but also far
+  ipsi and pre-stroke (PS95) -> trial-state effect; supplementary panel proposed, awaiting Priya. Files `S2/a12b_classes/`.
+- Lesson recorded in memory (`measure-before-restart`): profile + time a fix before proposing to stop a long step.
+
+### 00-COMPACT-35 (11-07 ~15:15) -- READ FIRST; supersedes 34 for state (34 / 33 hold the A7 machinery + remaining-work list)
+
+**Live lists:** docs/status/RUNNING_LIST_2026-11-06.md (A9-A13 = today's decisions; C = progress + "code changed after run" table).
+American spelling in all new text (Priya, relayed by a8 11-07).
+
+**On main (all Priya-approved pushes today):** d12dfc56 + eeb36d48 contact-only selection + section G preserved positions counted on
+camera WORKING rows (never on successful/DAQ licks) -- 4353fbd2 retained above-chance figure (section_g_retained) -- 32968a57 LOSO
+figure skips no-video session -- 25a049d7 recovery fit flags (half-recovery RELATIVE TO PRE + completeness; flag ok/bound/unstable/
+not_reached; MIN_HITS = 20 for hit-gated values; AIM primary, hit rate secondary; epoch-colour figures) -- 63229f3a Fig 10.2 text
+(both axes lost on cued licks acutely; later cued sagittal loss = short licks missing the spout) + DECISIONS: UNSCALED where-decoder
+primary, z-scored supplementary only -- becc486b csig fix (the contact-only branch in trial_classes.sel_classes hook-marked; class-code
+digest back to 0fa0c1a2b432 = the render's, so camera-gated caches hit again) -- figures/epoch-convention (A13: shared cat_points
+helpers day_dots / epoch_mean_sem / MODEL_COLORS; ~20 producers to open session markers, shape = animal, colour = epoch, no
+cross-epoch lines, mean +- SEM epoch-coloured dot; model-comparison figures KEEP model-coloured lines in a palette distinct from
+epochs; Priya OK'd 4 layout changes) -- push in flight at 15:13 (scratchpad/push15.out).
+
+**Render state 15:13:** main HEAVY = v_frAsplit_spont_new (since 14:19), HEAVY3 = l_basis_extract (since 10:38, ~2.3 GB, slow multi-
+pass). SECTION G restart #2 = g5_section_g_r2 in lane v9zd3 (queue_daqlk9zd3.sh = copy with poststroke_section_g removed from
+HEAVY_RE for that lane only; runs as a 4th job; worktree wf_render_v9zd @ becc486b); phase 1 at 9/12 pools; phase 2 cache reuse
+not yet measured. Then g7_section_g_figs_r2 + g6_grant_r2 (same lane); section C (contact-only supplement) launch LAST by hand:
+SECTIONS="C" bash queue_daqlk9zd.sh. g6_grant / g7_section_g_figs (v7) stay RESERVED_HOLD (replaced by _r2). Lane R (v9zd): recovery
+re-run d_decoder_retention_r2 / d_recovery_timing_r2 / a_recov_timing_aim_r2 DONE; l_key_figure_r2 waits on e_recov_meas
+(l_key_figure parked RESERVED_HOLD). v9za: g5_joint_xsession_r DONE (all 6 jsons). v9zb: unscaled recovery-link angle / lateral done,
+aim in progress (Fig 16.3-16.5). Stopped today (exact PIDs, logged in CHAIN): g5_section_g 11:26 (DAQ-lick positions), g5_section_g_r
+14:19 (cold, csig). Failures: g5_map_drift_lp_r (June not in LP classes, deferred with A4).
+
+**Open with Priya:** A10 done (text on main). A11: 4c wording after checks (aim-based; PS95 hit fast / aim ~4 d; PS94 aim plateau
+-16 deg, completeness 0.55); A12: main fig = working trials; NEW supplementary pre-cue split by class (contact / incomplete /
+JAW-ONLY / NO RESPONSE / stopped separately; Priya: "interesting if pre-cue increased on jaw-only") -- RUNNING (subagent,
+scratchpad/a12b_classes); A13 branch pushing. Queued after the render: cued-sagittal attribution test (old vs new inputs one change
+at a time: hemo / swapmask / lnmfproj / pre0801).
+
+**Next:** watch section G phase 2 (cache hits, rate) -> estimate; push15 result -> plot-only re-render of the converted page figures
+from rebuild outputs; A12b result to Priya; replacement pass (provenance check of every page/deck output's code SHA vs the
+code-changed table first).
+
+### 00-COMPACT-34 (11-07 ~10:15) -- READ FIRST; supersedes 33 for state (33 holds the remaining-work estimate + Priya's A1-A7)
+
+**Live lists:** docs/status/RUNNING_LIST_2026-11-06.md. All decisions A1-A8 ANSWERED and acted on; nothing open with Priya.
+
+**On main now (newest last):** ec0ff642 (seven 11-06 branches) · 8d6da32d kin cache routed · ba5b63bf rest boundary · 0e2154f0 jaw
+xcheck routed · 4ecf72ed 15r empty-session · 72729126 LP no-video skip (A5) · 96f77156 pooled 3-D gate (A3) · 7388c713
+stopped-trial traces on camera classes (A6/A8: success / incomplete / jaw_only / no_response inside the working period + stopped
+as a 5th trace; DAQ path unchanged).
+
+**Render machinery since the A7 restart (09:23-09:30):** lanes run from scratchpad/render_daqlk/queue_daqlk{7b,8,8b,8c,8d,8f,9r,9s,
+9u,9w}_a7.sh with A7MIN=35 (a7_try: main HEAVY.lock, or HEAVY3.lock while the main holder is in LOWRAM_HOLDERS="g5_section_g" and
+>= 35 GB available; XL.lock so partial refits never overlap; a_partial_ls / b_partial_frA now --jobs 4); slot-2 lanes from the
+ORIGINAL queue_daqlk8_s2.sh with S2MIN=35. Original queue files untouched; pre-restart lane list lanes_before_A7.txt. Extra queues:
+v9w (LP restnl / lpfinal / map drift, main 72729126), v9x (k_pooled_r DONE 10:01, main 96f77156), v9y (l_stopped_restw ->
+l_stopped_restnl, A7 rules, main 7388c713, waiting for a slot), v9u (decoder-pattern stats + 4 ROI steps, waits t_frame_te_basis).
+To relaunch a lane: A7MIN=35 SECTIONS="..." nohup bash queue_daqlk<q>_a7.sh > logs/queue_<q>_<S>_A7.out 2>&1 &.
+
+**State 10:15:** main slot = g5_section_g (session 51 / 88, ~5 / h -> ~17:00). HEAVY3 / HEAVY2 free: available RAM 29-31 GB
+< 35 while the 17 GB g5_restnl_maps_lp_r (v9w) runs beside section G; when it ends, HEAVY3 admits the next BIG step (partial
+refit at 4 workers, t_frame_te_basis, g5_epoch_15r_r, gb_sessions_r, l_enl_angle ...).
+
+**C: disk (Priya OK 11-07):** deleted wfield_cache/imaging + behaviour (49 GB, cohort-1 non-rebuild input caches, unused by the
+render) and 6 old scratch folders (11 GB); list docs/status/rebuild_20261103/DELETED_LOCAL_20261107.txt (ae33e838). a8 cleared ~9 GB
+of its own + 7 old merged worktrees (kept wf_trendfix, wf_attempt). C: 98 GB free. input_cache_rebuild_20261104 (299 GB) is LIVE
+until the render + catch-up + replacement pass (~Mon). Survey of the rest of C: running (bg task b0j2irdi5) -> bring Priya a
+candidate list with sizes and owners BEFORE deleting anything. After the render: remove my merged worktrees (wf_p1106_*, wf_deffix,
+wf_svg, wf_kincache, wf_reststart, wf_15rfix, wf_lpnovideo, wf_pooledkin, wf_stoppedcam, wf_render_v9*).
+
+**Next actions:** watch HEAVY3 admission once v9w's map step ends (first time two big steps run together -- check RAM log, the
+step logs' "min available RAM" lines); re-arm the monitor every 30 min; update the running list as steps land; when section G
+ends, the main slot takes the next big step and HEAVY3 stops admitting (main holder no longer low-RAM) unless >= 35 GB with
+the XL rule; then the final catch-up + replacement pass (00-COMPACT-33 list).
+
+### 00-COMPACT-33 (11-07 ~09:00) -- READ FIRST; supersedes 32 for state (32 / 31 / 30 hold for mechanics + tables)
+
+**Live lists:** docs/status/RUNNING_LIST_2026-11-06.md (A decisions / B findings / C running; newest at the end of each section).
+Update blocks below this one (11-06 15:35 .. 11-07 02:10) hold the detail of each fix.
+
+**Priya's answers 11-07 ~09:00:** A1 section-6 changes -- she asked WHAT they are (answered: per-trial classes contact /
+incomplete / jaw-only / no response, shares per spout x epoch; no trial changed class, only WHICH trials count -- working period
+vs the old DAQ engaged cut). A2 -- the close-spout incomplete rise = post-cue licks in trials after the old DAQ quit that miss the
+spout; under the working definition they ARE working trials and are now correctly included (wording: late-session misses, not
+an aiming deficit). A3 YES (pooled 3-D table gate gap). A4 OK (e_drift_june deferred to after the render). A5 YES (push LP
+no-video fix). A6 (a) wire stopped_trial_traces to trial_classes. A7 YES (second slot may take BIG steps beside a low-RAM main
+holder at >= 30 GB available; coordinated restart).
+
+**Code on main (all 11-06 / 11-07 fixes):** ec0ff642 seven 11-06 branches; 8d6da32d kinematics cache routed; ba5b63bf camera-gate
+REST boundary (8 sessions); 0e2154f0 jaw cross-check routed; 4ecf72ed 15r empty-session tuple; LP no-video skip 72729126 (push
+running 09:00, task bh9lq0u7y). In flight (helpers, branches, NOT pushed): fix/pooled-kin-gate-20261107 (A3, worktree
+wf_pooledkin), fix/stopped-traces-camera-20261107 (A6, worktree wf_stoppedcam).
+
+**Render state 09:00:** main slot = g5_section_g since 11-06 20:49 (session 46 / 88 of its main pass, ~5 / h -> ~17:00); slot 2
+idle (everything ready is claimed by slot-1-only lanes). Done since 11-06 15:00: all A20 / A27 / A30 kinematics (v9k, v9k2, v9r-K),
+rest attempt maps re-run (v9r-R), contact + ENL-1s restnl maps + map drift (v9s), decoder retention + recovery timing + rlink
+(v9t), aim + recovery --aim (v9v), split-order chain, e_angle_reach, e_where_z, e_first_lick, l_cued_ramp_extract, b_wsd_lick,
+b_within_spout_mixed, l_c2l_restw, l_restw_check, l_revup_restnl.
+Waiting on the MAIN slot: l_enl_angle (lick-angle decoder), t_frame_te_basis (-> v9u e_pat_stats_maps + 4 ROI steps),
+g5_epoch_15r_r (v9s), gb_sessions_r (v9r-B, slide 102), a_partial_ls, b_partial_frA, t_frame_frlag, b_pix_union_frA,
+b_svf_frA_roi, g5_epoch_1b_v8, v_frAsplit_spont_new. Parked (HOLD): 10 mixed-model / goal-summary steps (catch-up),
+g5_lpfinal_maps (-> A5 fix), l_stopped_restw/_restnl (-> A6), e_rlink_hit (superseded by _r).
+
+**Remaining work (estimate 09:00):** ~9 BIG steps serial ~40 h + section G ~8 h; with A7 (two big at once) ~25-30 h. ~30 medium
+(slot 2, ~10-15 h, parallel) and ~150 light figure / table steps (minutes each, gated by the heavy ones). Then the final catch-up
+(10 HOLD steps, A25 LP epoch arm ~6-9 h heavy, LP map re-runs after A5, A3 / A6 re-runs) -> render + catch-up done ~Sun 11-08
+evening with A7 (~Mon without). Then the replacement pass: provenance merge (CONFIRMED rows, data_block7), 69 caption conflicts,
+OROFACIAL_FINDINGS A27 numbers, kinematics section 6 text, recovery-timing text, REST-column numbers (8 sessions back), slide 102,
+decks (a8) -- about a day.
+
+**Update 09:35:** A5 on main 72729126 (v9w), A3 on main 96f77156 (v9x k_pooled_r), A7 RESTART DONE 09:23-09:30: lanes now run
+from scratchpad/render_daqlk/queue_daqlk{7b,8,8b,8c,8d,8f,9r,9s,9u,9w}_a7.sh (A7 block: a7_try -> HEAVY.lock, or HEAVY3.lock when
+the main holder is in LOWRAM_HOLDERS="g5_section_g" and >= A7MIN GB; XL.lock for XL_STEPS partial refits; heavy_release frees
+both) with A7MIN=35; slot-2 lanes from queue_daqlk8_s2.sh with S2MIN=35. Pre-restart lane list: lanes_before_A7.txt. The
+original queue files are untouched. A6 fix ready (e79afbf9) -- push + meaning-change question to Priya (running list A8).
+**Next actions (in order):** (1) A5 push lands -> queue: g5_restnl_maps_lp, g5_lpfinal_maps, g5_map_drift_lp re-run on the new
+main; (2) A7 coordinated restart (HALT -> waiting lanes return claims -> relaunch from copies with BIG allowed in slot 2 when the
+main holder is low-RAM and >= 30 GB available); (3) A3 / A6 helpers report -> review, ask Priya to push, queue their re-runs;
+(4) keep the running list + this block current; re-arm the monitor every 30 min.
+
+### 00-COMPACT-32 (11-06 ~15:15) -- READ FIRST; supersedes 31 for state (31 / 30 hold for mechanics + tables)
+
+**Organisation check (Priya again 15:10: "not layering changes onto in-flight analyses").** State:
+1. **Running lanes are pinned** (table in 31): v7b a76352f3, v8/v8b/v8c/v8e 5db29b07, v8d d2d26e84, v8e2 6033cbbb,
+   v8f/v8g 110c4efd. Nothing merges into those worktrees while lanes run.
+2. **Parked (RESERVED_HOLD, 10 steps):** b_imaging_lmm, b_remap_lmm, b_remap_checks, e_mm, e_lmm_response, e_lmm_all
+   (deficit-path fix), d_fig_goal_summary + _f1/_f2/_f3 (computed titles). The three exec_vs steps were RELEASED (A23 not a bug).
+3. **Six branches going to main** (Priya "yes"; scratchpad push6.sh, sequential, merge origin/main first; at 15:02 the first,
+   priya1106-small, was in pre-push tests): small, frdrift, gainbio, gates-captions, deficit-qc-dir, svg. They do NOT touch
+   the running lanes (pinned). Gate-dependent outputs (kinematics / cam4) route to gate-named folders, so new and old cannot
+   mix on the share.
+4. **In flight, NOT yet anywhere:** fix/priya1106-cam4-style (helper; A27 whole cam4 cohort -> camera working period,
+   A28 read-only calibration comparison, A29 aim producer step, A30 style). Needs Priya's OK to push.
+5. **ONE final catch-up queue** (build after 3 + 4 land; code = that main): the 10 parked steps, kinematics section K,
+   cam4 cohort re-run + its figures, aim producer, recovery_timing / decoder_retention / fig_goal_summary (gates D lines),
+   A25 LP epoch arm (`--block epoch_maps`, same g5 family list; heavy 6-9 h). SVG code included.
+6. **Redraw-67 for SVGs (Priya via a8): DO IT SAFELY** -- main's drawing code differs from the render code for some
+   figures (computed titles, max-statistic captions, kinematics gate, gainbio). Redraw into SCRATCH first, compare each PNG's
+   sha256 with the share's; copy back ONLY byte-identical PNGs (+ their SVG). Any figure whose PNG differs is NOT copied
+   (its drawing changed) -> it is redrawn in the catch-up queue with matching data; list it for a8 with its deck slides.
+7. **Rule still in force:** new code -> branch; park affected not-started steps BEFORE they run; one catch-up queue on one
+   final code version; never edit a running queue file or render worktree.
+
+**Update ~15:35:** cam4-style helper DONE: branch fix/priya1106-cam4-style 2196c27f + main merged e34349d7 (wf_p1106_cam4),
+tests pass, not pushed. A28 calibration identical (no decision). Step-line draft (K cohort + A29 aim):
+scratchpad/a27_a29_cam4_steps_draft.sh -- in the catch-up queue give b_imaging_lmm + l_disengage* a dep on k_cohort; kinematics
+page Figs 1.1-1.3 / 2.x source paths move to cohort/<tag>/prepost_working after the re-run. Asked Priya for push OK.
+push6 at 15:23: branch 1 (small) in full-suite pre-push (configs/ changed). Render: all lanes wait on heavy lock held by v6
+t_partial_te (105/107) + x_enl_move (last chronic sessions).
+
+**Update ~15:45:** push6 FAILED at branch 1 (full suite 28 min: 4 failed / 5163 passed; nothing pushed). Three were already
+failing on main (frozen_encoder --roi-targets unsorted fan_out res; pin_blas test reading names moved to parallel._BLAS_VARS;
+hooks test rejecting this box's absolute core.hooksPath), one from A5 (test_map_cache_key: precue_engagement_states section
+unclassified -> OUTSIDE_MAPS, map builders only import engagement_gate). Fixed on the small branch 9d740bf2 (32 tests pass).
+Priya said YES to cam4-style -> scratchpad push7.sh = the six + wf_p1106_cam4, sequential, merge-only (bg task bn32updgj;
+per-branch push logs scratchpad/push7.<wt>.log). Each push re-runs the full suite (~28 min) when configs/ is in the diff.
+
+**Update 11-07 ~02:10 (overnight; live lists in RUNNING_LIST_2026-11-06.md).** Extra queues run on main 4ecf72ed (worktree
+wf_render_v9s): v9t (decoder retention + recovery_timing lick + e_rlink_* re-runs) DONE; v9v (A29 aim + recovery_timing --aim)
+DONE; v9u (iti_decoder_pattern_stats -- was in NO queue -- then e_roi_check/foci/cand/rim_overlay re-runs) waits on
+t_frame_te_basis. LP no-video fix ready on fix/lp-novideo-skip-20261106 (72729126, NOT pushed, needs Priya): blocks
+g5_restnl_maps_lp (failed), g5_lpfinal_maps (HOLD), g5_map_drift_lp (skipped) and the A25 LP epoch arm. e_drift_june fails (June
+object arrays; superseded sensitivity; asked Priya to defer). LESSON: an ONLY= lane bypasses FILE ORDER, which hides undeclared
+producer deps (l_restnl_rescue ran before l_precue_restnl -> failed fast; markers moved *_early_0206 so its own lane re-runs it in
+order). Only put steps in ONLY= lanes whose producers are already DONE, not just their declared deps. restnl_maps.py uses ~17 GB
+(single process) -- treat as heavy.
+
+**Update 20:45 -- Priya: "parallelize as much as safe, proceed through all pending tasks, keep a running list" ->
+docs/status/RUNNING_LIST_2026-11-06.md (A decisions / B findings / C running).** 15r fix on main 4ecf72ed; queue v9s
+(wf_render_v9s @ 4ecf72ed): lane P = g5_epoch_15r_r (heavy, waits main lock) ; lane P (ONLY) = the 7 ex-HOLD light map steps.
+Unblocking lanes added: v8 SECTIONS=E (took e_basis, waits l_basis_extract -- harmless), v8 SECTIONS=E ONLY=e_split_order_* (->
+v7b lane E -> e_angle_reach -> lick-angle chain), v8_s2 ONLY=l_cued_ramp_extract (slot 2, running 20:39 -> l_enl_angle).
+v9k2 + v9r K lanes DONE: all A20 / A27 / A30 kinematics outputs present. Helper comparing new 3-D kinematics vs the page ->
+scratchpad/kin3d_compare.md.
+
+**Update ~20:45 -- 15r TypeError diagnosed (separate from the rest bug).** position_reference_maps.session_raw_maps:482 returns
+a legacy 6-tuple for a session with no trials in the arm; the session cache stores it; maps_by_epoch (line ~801) reads it as a
+dict -> TypeError kills the ENL + cue arms of 15r (g5_epoch caught it, exit 0; only lick/lick written). Only session hit:
+PS93_0813 (no behaviour video -> zero camera working trials) in prm-cue-working + prm-precue-working. Main 0e2154f0 still has it.
+Fix: branch fix/15r-typeerror-20261106 (worktree wf_15rfix, 4ecf72ed, from 0e2154f0): _as_parts() normalises the empty tuple
+(raises on non-empty), called in maps_by_epoch + reference_maps; session_raw_maps untouched so the prm cache key is unchanged
+(2950853f103b); tests/test_prm_empty_session.py (7) + map_cache_key + reference_registry: 41 pass. NOT pushed (Priya OK).
+Without it the parked restnl_maps / lp_final_render maps / map_drift_prepre steps would exit non-zero. After push: re-run
+g5_epoch --only 15r (warm prm cache) + the 7 parked steps, on code with ba5b63bf + 4ecf72ed.
+
+**Update 20:20 -- Priya "yes": both fixes on main 0e2154f0 (rest boundary ba5b63bf + jaw-xcheck routing). Queue v9r RUNNING**
+(scratchpad/render_daqlk/queue_daqlk9r.sh, worktree wf_render_v9r @ 0e2154f0, lanes R / B / K): R = move the 12 rest-variant
+attempt_maps npz aside (done, MOVED.txt) -> d_attempt_maps_rest_r -> d_attempt_maps_plot_r; B = move the 8 gain_bio session npz
+aside (done) -> gb_sessions_r -> gb_summarise_r -> gb_stats_r -> gb_fig_r (slide 102); K = k_jaw_xcheck (v9k2 failure moved to
+*_v9k2_fence) + k_pose_validation. Helper move script scratchpad/render_daqlk/move_aside_restbug.py. STILL PARKED until the 15r
+TypeError is understood (helper diagnosing; fix branch would be fix/15r-typeerror-20261106): the g5_epoch REST column re-run
+(15r / 15rpa families), g5_restnl_maps_*, g5_lpfinal_maps, g5_map_drift_*; then d_fig_goal_summary_f3 in the final catch-up.
+
+**Update ~20:00 -- rest-bug impact (audit: rebuild_20261103/ENGAGED_MASK_IMPACT_20261106.md).** The 8 sessions were DROPPED from
+REST-referenced outputs ("no engaged rest frames"), not given a short baseline; gain_bio kept them with empty R5 / R5far / TASK.
+17 steps: DONE affected = g5_epoch (REST column only; 15r also hit an UNRELATED TypeError in the ENL + cue arms -> only
+lick/lick RESTref written), d_attempt_maps_rest, d_attempt_maps_plot, gb_sessions, gb_summarise; failed gb_stats; skipped gb_fig.
+PARKED on RESERVED_HOLD (were RESERVED_v7, live G lane): g5_restnl_maps_{contact,lp,enl1s} (only the REST rows of the amplitude
+CSV), g5_lpfinal_maps, g5_map_drift_{contact,lp,enl1s}. Held downstream already: d_fig_goal_summary_f3 (+ aggregate).
+NOT affected: restw / RESTW / MEAN / PRECUE / RESTnl columns, cd_traj (contrast ref), restnl masks, chronic_stability (PRECUE).
+RE-RUN NEEDS cache moves: attempt_maps skips existing rest-variant maps_<align>_<animal>.npz (move all 12 aside); gain_bio
+returns cached sessions/<label>.npz (VERSION 2) -> move the 8 aside; map_collect recomputes itself. Waiting on Priya: push OK for
+fix/camera-rest-start + fix/jaw-xcheck-routed, and re-run plan (catch-up queue on the fixed main).
+
+**Update ~19:40 -- CAMERA-GATE REST BUG (conclusion-level; Priya told, nothing on pages changed).** v8g gb_stats EXIT 1
+(assert oro - post == oro_post) because 8 / 107 sessions have NaN R5 gain: rest_engagement.engaged_frame_mask put the quit
+boundary at the FIRST non-engaged cue; under the camera gate the working period is a span (first .. last camera lick), so a
+session whose first cue is not a camera lick got quit = cue 0 -> only its pre-first-cue frames (~190-800) were "engaged rest".
+Sessions: PS92_0813 (pre), PS92_0822, PS93_0818, PS94_0817, PS94_0820, PS95_0818 (acute), PS93_0822, PS93_0824 (subacute).
+engaged_by_cue / rest_by_position / restw NOT affected. Also reaches: position_reference_maps time-local rest (_RESTref_),
+cd_trajectories rest baseline, restnl_mask measure, gain_bio R5. Fix: branch fix/camera-rest-start-20261106 (worktree
+wf_reststart, ba5b63bf, from main 8d6da32d): frame_gate_bounds -> quit after LAST engaged cue, camera start at the span's
+first cue; unaffected sessions identical (PS92_0812 verified; PS92_0813 now 287,423 / 288,213 engaged). 99 tests pass. NOT
+pushed. Impact audit helper running -> scratchpad/engaged_mask_impact.md (affected steps by status). gb_fig skipped.
+
+**Update ~19:10:** v9k2 k_jaw_xcheck EXIT 1 = RebuildFenceError (pose3d_jaw_crosscheck wrote session_poses/pose3d/crosscheck
+directly; its cam4 side is the gate-named A27 jaw table, so the output is gate-dependent). Fix on branch
+fix/jaw-xcheck-routed-20261106 (wf_kincache, 18875631, on top of 8d6da32d): writer + fig_pose_validation reader via
+kin_out_dir(..., "crosscheck", script="pose3d_jaw_crosscheck"); 310 tests pass. NOT pushed (needs Priya OK). k_pose_validation
+-> RESERVED_HOLD (would read the old jaw_agreement). Checked: the 11-04 pose3d edits (bddf02e7 pnp / session_3d, ae2bcd86 source
+switch) do NOT touch lick_events / kinematics, and every *_frames.csv.gz is dated 10-20..10-23, so the recomputed kinematics
+cache equals the 10-23 snapshot tables (no mixed provenance). Every other v9k2 script already writes via kin_out_dir / --out.
+After the push: re-run k_jaw_xcheck + k_pose_validation (small queue on the new main).
+
+**Update 18:55 -- Priya "ok": kinematics cache fix on main 8d6da32d; queue v9k2 RUNNING** (scratchpad/render_daqlk/queue_daqlk9k2.sh,
+worktree wf_render_v9k2 @ 8d6da32d, lanes K + C): k_spout_error + k_phase (v9k markers/logs moved to *_v9k_fence) and the 7
+ex-HOLD steps (RESERVED_v9k2). Priya's "ok" also read as YES to updating OROFACIAL_FINDINGS with the A27 working-period numbers
+in the replacement pass (responded-trials row relabel + far-spout range, far-contra first contact +978 ms, pre-cue -0.41 Hz).
+
+**Update ~18:25 -- v9k 3-D steps blocked by a stale, unrouted kinematics cache.** k_spout_error EXIT 1 (and k_phase failing the
+same way): pose3d_kinematics.session_result cached in session_poses/pose3d/_cache/kinematics_<mode> (built 10-26); pose3d.py
+changed 11-04 (bddf02e7, ae2bcd86) -> code_version miss -> recompute -> write to the unrouted folder refused by the rebuild
+fence. Fix on branch fix/kin-cache-routed-20261106 (worktree wf_kincache, 7df3fd21, from main ec0ff642): cache via
+trial_classes.kin_cache_dir (+ tests/test_kin_cache_routed.py; 22 pass). NOT pushed (a8 freeze + needs Priya OK). Parked on
+RESERVED_HOLD: k_phase_contra k_summary_fig k_vs_cam4 k_pose_validation k_pooled k_lmm_curves k_jaw_xcheck. After the push:
+v9k2 queue on the new main = k_spout_error, k_phase (+ those 7). The first run recomputes all 119 sessions' kinematics (cost
+unmeasured). Also unrouted: scripts/jaw_onsets.py cache (imaging_encoding/qc/_cache/jaw_onsets) -- hit today, would fail if stale.
+A27 cam4 result (k_cohort, 18:15): no headline change; 13 borderline cells; findings-number updates await Priya (overnight page).
+
+**PUSH FREEZE LIFTED ~18:40 (a8: decks branch landed, main = 3e543de5; decks now under presentations/pipeline/<kind>, PathResolver.deck_dir). Was:** no pushes to widefield main until a8 reports feat/decks-to-presentations-20261106 landed (~2 h full suite). Message a8 first if a push is urgent.
+
+**Update 16:57 (real clock; the ~16:10 / ~16:40 labels above were ~30-40 min early) -- ALL SEVEN 11-06 BRANCHES ON MAIN
+(ec0ff642): small 25832aad, frdrift 53cd46e5, gainbio ee140449, gates cd37f143, deffix 1bac0341, svg 6d44e774, cam4 ec0ff642.**
+Fixes needed on the way: 4 main-suite failures (9d740bf2: map-cache-key classification, frozen_encoder sorted fan_out, pin_blas
+test, hooksPath test) + K08 grant renderer exempted from the sidecar test (25832aad); merge conflicts resolved: DECISIONS.md
+(both entries), svg x gates (fig_goal_summary computed reading + save_png_svg; exec_vs_neural_match import), fr_pixel_significance
+drift-control -> save_png_svg, pose3d_phase _save -> no_top_spine + save_png_svg (test updated ec0ff642).
+**Second heavy slot LAUNCHED 15:48 (Priya yes):** lanes v8s2-{L0L1L8L10, L4L5L6L7L9, L2L3}; first step l_precue_restw 20 min,
+min available 27 GB beside b_roiexact_frA. **Queue v9k RUNNING since 16:55** on worktree wf_render_v9k @ ec0ff642 (lanes K, C).
+a8 told (SVG on main; redraw-67 plan stands). Final catch-up queue code = main ec0ff642 (or later if fixes land).
+
+**Update ~16:40 -- second heavy slot INVESTIGATED (Priya "look into it"), NOT launched, awaiting her go.** Box 63 GB / 24 cores,
+~44 GB available with only x_enl_move heavy. ~55 heavy steps remain one at a time: ~12 BIG (partial_refit a_partial_ls /
+b_partial_frA [t_partial_te took 855 min], frozen_encoder t_frame_*/b_pix_union/b_roiexact/v_*, svf b_svf_frA_roi, epoch 1b,
+section_g, gain_bio/quiet_spikes) + ~40 MEDIUM (v8 L family + b_wsd_lick; no duration / RAM measured yet). Ready, not run:
+scratchpad/render_daqlk/queue_daqlk8_s2.sh = copy of queue_daqlk8.sh (running file untouched; same worktree / claims) with lock
+HEAVY2.lock admitted only at >= S2MIN (25) GB available, never claims BIG_RE steps, logs min available RAM per step. Launch =
+3 lanes: SECTIONS="L0 L1 L8 L10" / "L4 L5 L6 L7 L9" / "L2 L3" nohup bash queue_daqlk8_s2.sh > logs/queue_v8s2_<S>.out.
+Undo = TaskStop those lanes (their running step finishes; claims of waiting steps: release by hand).
+
+**Update ~16:10 -- EARLY video/pose catch-up = queue v9k (Priya "yes if it won't cause problems"; "plenty of CPU and memory").**
+scratchpad/render_daqlk/queue_daqlk9k.sh (v8g machinery: shared lock, RAM pause, HALT brake; claims fresh / RESERVED_v9k).
+22 steps: section K = A20 3-D kinematics (gates helper K lines: jaw_only figs, trial-class share, pose3d_cue_traces cue/lick,
+spout_error, phase (+contra), summary_fig, vs_cam4, pose_validation); section C = A27 cam4 cohort + jaw-lateral (+_allpre),
+robustness, cover_sens, deck, pooled_angle, jaw_xcheck, k_pooled, k_lmm_curves. pose3d_* NOT in HEAVY_RE (2 workers).
+EXCLUDED (read render outputs -> FINAL catch-up queue): k_imaging_lmm, aim producer / decoder_retention / recovery_timing,
+the 10 HOLD steps, A25 LP epoch arm. g7_fig_pose_validation (v7b, old code) -> RESERVED_HOLD (k_pose_validation replaces it).
+launch_v9k.sh (bg) waits for push7 ALL DONE, checks cam4 is on main, makes detached worktree wf_render_v9k at that SHA, sets
+EXPECT_SHA, starts lanes K and C. Old v7 lane E (queue_daqlk7, obeys legacy STOP) exited at 15:38 -- harmless: e_iti_area_maps is
+RESERVED_v8, v7b lane E is alive. t_partial_te DONE 15:35; heavy lock now waits only on x_enl_move.
+
+**Priya OK'd cam4-style push (15:3x).** (was: waiting on Priya: OK to push fix/priya1106-cam4-style when the helper reports (A27 changes cam4 numbers -> report
+changed conclusions BEFORE any page text).
+
+### 00-COMPACT-31 (11-06 ~14:30; times written as 16:00-16:20 below were estimates, real ~14:10-14:30) -- READ FIRST; supersedes 30 for state (30 holds for queue mechanics)
+
+**Priya 11-06 16:00: "make sure we're not layering changes onto in-flight analyses."** Rule from now on:
+1. **No more mid-render code changes into running queues.** Any new code goes on a branch; the not-started steps it
+   affects are parked with `RESERVED_HOLD` (no queue takes it) BEFORE they can run on old code; parked steps run ONCE, in a
+   single final catch-up queue, on one final code version.
+2. Each queue's code is pinned by its worktree; never merge / checkout in a render worktree while its lanes run.
+3. A step already DONE on code that has since been fixed is listed below for re-run in the catch-up queue (not silently
+   left).
+
+**Code versions in the render (same run tag _daqlk; outputs share folders):**
+
+| code (worktree @ sha) | queues | contents |
+|---|---|---|
+| wf_render_daqlk @ a76352f3 | v7b (+ v6 leftovers t_partial_te, x_enl_move) | 11-05 merged main, pinned |
+| wf_render_v8 @ 5db29b07 | v8, v8b, v8c, v8e | + decisions, ALM/tjM1 maps, speed-ups |
+| wf_render_v8d @ d2d26e84 | v8d | + exact ROI frozen run (435160e2) |
+| wf_trendfix @ 6033cbbb | v8e2 | 5db29b07 + trend-recovery *_trials.npz fix |
+| wf_render_v8f @ 110c4efd | v8f, v8g | main 604c09d3 + priya1106-small / -frdrift / -gainbio |
+
+Each change was additive for the steps that use it (tests pin Allen / old outputs unchanged), but a FIGURE FAMILY can mix
+code versions; the provenance table records each step's code sha (log header).
+
+**Branches NOT in the render (in flight):**
+- `fix/priya1106-gates-captions` (wf_p1106_gates, helper running): A20 kinematics + 3-D post-cue-lick scripts -> camera
+  working period; A21 recovery_timing denominator; A22 fig_goal_summary computed titles; A23 exec_vs_neural_match tag.
+  Render overlap: kinematics / 3-D / recovery_timing / epoch_behaviour scripts are in NO render queue (page owners render
+  them) -> no overlap. Overlap PARKED (RESERVED_HOLD, 16:00): b_exec_vs_decoder, b_exec_vs_far_contra, b_exec_vs_far_mid,
+  d_fig_goal_summary(_f1/_f2/_f3). RE-RUN after the fix: d_exec_vs_encoder (ran on the stale relabel tag).
+- `feat/svg-page-figures-20261106` (wf_svg, helper running): adds SVG beside every page-figure PNG; PNG byte-identical.
+  Not in the render; SVGs come from the redraw pass (REDRAW_INVENTORY_2026-11-06.md, helper running) after it is on main.
+- `feat/priya1106-small / -frdrift / -gainbio`: in the render (v8f / v8g) but NOT on main (push hold for a8).
+
+**Push hold on main (a8, since 13:20)** still on. When it lifts: merge origin/main into each branch, push one at a time
+(priya1106-small, -frdrift, -gainbio, gates-captions, svg) with Priya's OK per branch.
+
+- `fix/deficit-qc-dir-20261106` (wf_deffix, fa391f25, 14:20): imaging_lmm / remap_lmm / remap_checks / iti_lmm_figures read the
+  deficit table from <E>/qc (missing in a tagged run) -> run_mode.deficit_qc_dir(); static test. b_imaging_lmm FAILED on it
+  (13:28). PARKED (RESERVED_HOLD): b_imaging_lmm, b_remap_lmm, b_remap_checks, e_mm, e_lmm_response, e_lmm_all.
+  (b_within_spout_mixed + encoding_mixed already use deficit_qc_dir.)
+- a8 asks: provenance rows for current deck slides 31, 111, 153, 154 (cohort2 490 vs 470: labcams/cohort2/490_vs_470/
+  cohort2_490_vs_470{_dprime,}.png, led_490_vs_470{_dprime,}.py), 164 -> add in the post-render merge.
+
+- a8 also asks (post-render merge): make producing_script explicit for ~50 deck rows without one (current slides 5, 7, 12,
+  14, 16, 19, 33, 38, 45-57, 97-136, 141, 142, 181-192; mostly LMM / stars slides) so it can tell which read the deficit table
+  (held) and which do not. a8 already flagged slides 8, 17, 20, 121, 122, 139 as waiting for the catch-up queue.
+
+**14:55 Priya A25-A31 + catch-up queue contents (build after push6 + the cam4/style helper):** code = origin/main (after the six
+branches land) + fix/priya1106-cam4-style (helper running: A27 whole cam4 orofacial_cohort -> camera working period,
+A28 read-only calibration comparison, A29 lick_cued_aim_by_spout step, A30 style). Steps: the RESERVED_HOLD set (6 LMM +
+d_fig_goal_summary f1/f2/f3) + kinematics section K (gates helper's lines; HEAVY_RE += pose3d_cue_traces|pose3d_phase|
+pose3d_spout_error) + cam4 cohort re-run + aim producer + recovery_timing / decoder_retention (gates helper's D lines)
++ **A25 LP epoch arm**: `step g5_epoch_lp cont g2b_restnl_mask_lp "--block epoch_maps" "base" "$PY" -m
+wfield_local.epoch_grant_figures --parallel-arms 2 --only <g5_epoch family list>` (block_env = WIDEFIELD_LICK_SOURCE=lp; outputs
+route to LP_licks_<tag>; heavy ~6-9 h). SVG code included (A31: final queue only). A26: SVG scope = page + deck only.
+
+**Redraw-67 (Priya via a8, ~15:05):** after feat/svg-page-figures is on main (push6 order: small, frdrift, gainbio, gates,
+deficit-qc, svg), redraw ONLY the ~67 redraw-only figures with stored inputs today (REDRAW_INVENTORY_2026-11-06.csv) from a
+fresh worktree at that main, <= 2 workers, >= 6 GB free; record PNG sha256 before / after; send a8 the list redrawn /
+failed / PNGs that differ + their deck slides (a8 re-crops). No partials, no epoch_grant_figures.
+
+**Final catch-up queue (to build once gates-captions is merged):** the 7 parked steps + d_exec_vs_encoder re-run (+ the
+A25 LP epoch arm if Priya says yes; + any figure redraws for SVG per the inventory).
+
+**Open for Priya:** A25 (LP arm of the imaging epoch figures, LP licks + ENL 1 s, ~9 h heavy; only the DAQ arm ran).
+
+**Provenance table (complete merge):** `wf_attempt docs/status/rebuild_20261103/FIGURE_PROVENANCE_20261106.{csv,md}`
+(297cedc9): 832 rows, 45 CONFIRMED / 635 INFERRED / 152 UNKNOWN, 69 caption conflicts, Data: template, canonical
+definitions, findings (incl. corrections stated without multiple-comparison correction; far-contra decoder LP-trained).
+Scratch tools: scratchpad `prov/` (parse_steps.py, merge.py, build_md.py) -- re-run after the render for CONFIRMED.
+
+**Deck-note format (Priya via a8, 16:20):** fixed 7-line Data: block at the TOP of each PI-deck note (Window / Licks / Trial period
+/ Trial types / Gate / Baseline / Correction). a8 writes notes only from CONFIRMED rows. TODO in the post-render merge (prov/merge.py):
+add a `correction` column and a `data_block7` column (the 7 lines), then message a8. A23 deck = old slides 107 + 180 (page Fig 6.9).
+
+**Helpers running at 16:00:** gates-captions (A20-A23), SVG writers, redraw inventory (for a8). Their reports arrive as
+agent messages; nothing pushes.
+
+### 00-COMPACT-30 (11-06 ~13:00) -- READ FIRST; supersedes 29 for state (29 / 28 hold for rules and history)
+
+**Running list for Priya:** `docs/status/OVERNIGHT_2026-11-05_FOR_PRIYA.md` (sections A-D + timestamped updates through
+11-06 ~12:50). Keep appending there; commit each time.
+
+**Render `_daqlk` = SEVEN queue files, one shared logs/ dir, all in the scratchpad `render_daqlk/`:**
+- Scratchpad = `C:\Users\SABATI~1\AppData\Local\Temp\claude\C--Users-SabatiniLab\f082ee0c-b33c-49a8-a537-dcee3bb7c84c\scratchpad\render_daqlk`.
+  `logs/CHAIN.log` = the event log; `<step>.done / .failed / .skipped / .claim/`.
+- **Claims / reservations**: `logs/<step>.claim/RESERVED_<q>` says which queue may run a step; a lane takes it with
+  `mkdir <claim>/<q>`. Swap a not-started step to another queue SAFELY: `mkdir <claim>/<old>` (mutex) -> touch
+  RESERVED_<new> -> rm RESERVED_<old> -> rmdir <old> (use `rm -- "${c:?}/${r:?}"`; the safety hook blocks bare `rm $c/$r`).
+  Never edit a queue file a lane is reading (bash reads scripts incrementally) -> make a new file / queue.
+- Shared heavy lock `HEAVY.lock` (one pixel-encoder / refit / epoch-render step at a time across ALL queues) +
+  `HEAVY_EXTERNAL.txt` (t_partial_te 23728, x_enl_move 36140: still-running v6 steps, ~until Fri late evening).
+- v7b+ lanes PAUSE (wait for available RAM >= 10 GB before each step), never halt on low RAM; the legacy STOP file is
+  ignored; manual brake = `HALT`. A low-RAM line in CHAIN is only a log.
+
+| queue | code (worktree @ sha) | what | lanes |
+|---|---|---|---|
+| v7b | wf_render_daqlk @ a76352f3 (pinned) | the original 196-step plan minus what moved | G T AB FZ E (X, D ended) |
+| v8 | wf_render_v8 @ 5db29b07 | rebuild_order_B steps 3-14 (L0-L10), decisions steps, ALM sect. M, F1-F9 fixes, 13 moved re-runs | GBMD, L0L1EL8L10, XL2L3, L4L5L6L7L9 |
+| v8b | wf_render_v8 @ 5db29b07 | 18 dep-fixed steps (V7B_DEP_AUDIT.md) + 4 producers (iti_area_maps --split/--split --cued, frozen_residual_trend frA x2) | N, R |
+| v8c | wf_render_v8 @ 5db29b07 | F8: e_plain_* TRUE plain Allen (WFIELD_AREA_BASIS=plain) + e_split_where / e_split_loclin_all + notdock dock arm | P, S |
+| v8d | wf_render_v8d @ d2d26e84 | exact ROI frozen run b_roiexact_frA (heavy) -> b_svf_frA_roi_maps, b_remap_checks_roi (--roi-frozen exact) | M |
+| v8e | wf_render_v8 @ 5db29b07 | mixed-model steps + z_frozen_claims waiting on m_trend_recovery | T8 |
+| v8e2 | wf_trendfix @ 6033cbbb | m_trend_recovery (position_coding_trend_recovery; *_trials.npz glob fix) + z_frozen_claims + b_imaging_lmm | T9 |
+
+- Notes for the queues: `V8_NOTES.md`, `V7B_DEP_AUDIT.md`, `v8_missing_steps_draft.sh` (all in the scratchpad).
+  `RENDER_QUEUE_DAQLK_20261105.md` (wf_attempt docs) is the v1-v6 plan.
+- **State at 12:55:** 65 steps done. Failures that remain: a_decomp_noFR_cue and a_relabel_noFR (old, superseded) and
+  e_iti_hemo (undeclared dep; a waiter task re-runs e_iti_hemo + e_iti_hemo_sum after e_iti_area_maps.done).
+  Reserved and not started: 110 v7, 18 v8, 15 v8b, 3 v8c, 2 v8d, 5 v8e, 2 v8e2. Available RAM 22 GB; C: 110 GB free.
+- **Critical path:** t_partial_te (heavy; ~39/107 at 07:30, many h left) -> then one at a time: g5_section_g,
+  t_frame_te_basis, a_partial_ls, b_partial_frA, t_frame_frlag, b_pix_union_frA, b_svf_frA_roi, b_roiexact_frA, the
+  v8 heavy L steps. Forecast: render done ~Sun night / Mon; then the replacement pass (pages, analysis deck, PI deck).
+- **Watch for:** steps failing on inputs nobody produces / undeclared deps (pattern today: fix by holding the step,
+  adding the producer in a new small queue). Re-arm the CHAIN monitor every 30 min (filter: EXIT [1-9], queue end,
+  heavy lock taken, SKIPPED, ABORT, HALT; available RAM < 3 GB for 3 checks).
+
+**Main (all pushed with Priya's direct OK here):** 5db29b07 (decisions f1/f2/ENL + follow-up, ALM/tjM1 maps, speed-ups),
+05dcab8d (exact ROI run 435160e2), 604c09d3 (trend-recovery fix). Log-deficit branch on main since 08:30 (e5f53dbd).
+Branches done: fix/decisions-*, fix/log-deficit-primary-20261105, feat/alm-tjm1-slides-94-139-20261106,
+perf/attempt-perm-iti-lags-20261106, fix/trend-recovery-trials-npz. Render worktrees above: do NOT check out / merge
+in them while lanes run (I merged main into wf_trendfix once by mistake and reset it to 6033cbbb within a minute).
+
+**Priya's decisions 11-06 (recorded on the overnight page):**
+1. merge ALM + speed-up -> done. 2. F8 e_plain_* true plain Allen -> v8c. 3. slide 94 = *_split maps REPLACE Allen
+   (deck must point at `peth_trial_maps_<w>[_alone]_split.png`). 4. slide 139 without no_lickspout: OK. 5. slide 139 exact
+   frozen ROI side -> v8d. 6. slide 92 wording -> a8 applied ("tracks position-carrying movement more strongly (not
+   explained by more variable movement; provisional)"); page Fig 2.11 caption in the replacement pass.
+   7. C: cache deleted (58 GB; list rebuild_20261103/DELETED_LOCAL_CACHE_20261106.txt).
+- Earlier today: lock + pause queues OK; render shortcut (attempt_coding_pp reuses trials files) OK; future-run
+  speed-ups OK; ALM/tjM1 on slides 94 + 139 + every area map (audit: Fig 4.8 and reembed added; 18.6 / 18.9 split panels
+  to swap in on the page; specificity Layer 2 ROI via a_allsession_frA_roi); posinfo unique-R2 per-trial re-run = LOW
+  priority, after the render + deck / page update.
+
+**Still open for Priya** (explained in plain words in the chat 11-06 ~11:30): 8 speed-up follow-ups A10 (memoise
+paths.cohorts, rec yes now), A11 (index frozen-model store, after render), A12 (fan_out restores parent BLAS threads,
+after render); 9 slide 102 five choices (A1); 10 FR pixel drift panel + "Bonferroni" captions (A2); 11 optional no_spont
+(A3); 12 bare-run default (A4, warning only for now); 13 PS93 no discriminator (A5); 14 chronic-stability row camera vs
+DAQ (A6).
+
+**Held for routing fixes (not queued):** fr_enl_decode (writes <dlc>/face_rhythm, outside the rebuild root),
+revup_behaviour (untagged iti_licks folder). Cut: lick_acad_midline_control.
+
+**a8 (PI deck window):** deck = `presentations/Overview_2026-11-06.pptx`. Waiting on me: slide 94 re-tile when the
+`*_split` maps land (b_peth_trial_maps_split / _alone_split after b_pix_union_frA); its item 5 (fail-loud DAQ contacts)
+holds until the render is done. a8 ran the posinfo variance check (posinfo_checks_v7g3_t3d_spont_frAsplit/).
+
+**Helpers this session (finished):** speed-ups, ALM/tjM1 (+ exact ROI), v8 / v8b / v8c assembly, area-map audit.
+
+**13:10 Priya answered 8-14** (overnight page): A10 memo now (A11/A12 after render); slide 102 = copy FR cache, 1 s
+quiet events, camera working period, 415 comparison like-for-like (corrected), rest masks rebuild (SCOPE first); FR
+captions fix + supplemental drift-control panel; no_spont on pixmusall twins / frAsplit_basis; bare-run WARNING; PS93
+relaxed late window (PS93 only); chronic-stability row = camera (no change). **Three helpers RUNNING** (no pushes; each
+reports code + tests + draft queue steps): worktrees wf_p1106_small (branch feat/priya1106-small: A10, A4 warning, A5 PS93),
+wf_p1106_gainbio (feat/priya1106-gainbio: merges port/gain-bio-20261105 + choices 2-4 + rest-mask scope + slide-102 queue
+steps), wf_p1106_frdrift (feat/priya1106-frdrift: Bonferroni->max-statistic captions, drift-control supplement, no_spont
+steps). Next: review, push to main with Priya's OK, queue their steps as a new small queue (v8f) with reservations.
+
+**13:20 PUSH HOLD on main for a8** (~2 h, until a8 messages): its 21-commit cleanup push (merged to 604c09d3, 1933 passed)
+lost the race and is re-running the full suite; a8 helper also testing feat/decks-to-presentations-20261106 (decks ->
+presentations/pipeline/). Do NOT push to main until a8 says go; then merge origin/main into each branch before pushing.
+
+**Background tasks of this session (re-arm / check after compaction):**
+- render CHAIN monitor (30-min Monitor; re-arm on expiry; filter in the bullet above);
+- waiter re-running e_iti_hemo + e_iti_hemo_sum after e_iti_area_maps.done (v7b, from wf_render_daqlk);
+- disk watcher (diskwatch.sh, writes STOP if C: < 20 GB -- note v7b+ lanes IGNORE STOP; only v6 leftovers obey it);
+- three helpers (wf_p1106_small / _gainbio / _frdrift) -- their reports arrive as agent messages.
+- Lanes: v7b G T AB FZ E; v8 GBMD, L0L1EL8L10, XL2L3, L4L5L6L7L9; v8b N R; v8c P S; v8d M; v8e T8; v8e2 T9; v6 leftovers
+  t_partial_te (TE2) and x_enl_move (X) until they finish.
+
+### 00-COMPACT-29 (11-05 ~22:45) -- READ FIRST; supersedes 28 for state (28 / 27 hold for rules and history)
+
+Priya is ASLEEP: work overnight on everything possible. Her page = `docs/status/OVERNIGHT_2026-11-05_FOR_PRIYA.md`
+(decisions / questions first, findings, status, then "D. Overnight updates" -- append there + commit each time).
+Detailed log = RUNNING_LIST_2026-11-01.md (11-05 entries, newest at the end).
+
+**Code on main.** origin/main has the merge (136807cf, 16:18) + my fixes 5bd7faa2 (frozen_relabel routed),
+2dc96a9e / 76066e01 (encoding_mixed 3-D BINNED panels u_tgtbin, --plot-only + saved long table), 5a6b7986 (ttc_log),
+5993d70e (--bin block size), e53f1cd2 (fig10 title), a6edab62 (misdirected bundle_dir), 411c8385; a8's cleanup
+(d39ee11c library moves, item 3 response window pushing).
+**Unpushed branches (mine):**
+- `fix/decisions-f1-f2-enl-20261105` (worktree wf_decisions, tip 9fd25043 incl. origin/main merge): (f)1 precue
+  engagement discriminator camera classes, (f)2 Fig 0.2 camera period, ENL slide (wfield_local/enl_window.py), behaviour
+  camera period (disengagement camera quit, revup attempts path). Priya OK to push. First push REJECTED by pre-push
+  (14 failed / 574; test_rebuild_root require_default... / r3_rebuild_figs..., test_spout_behavior curated_mmdds...; both
+  files pass alone, 87). RETRY running (task bzqykfs5k; full log scratchpad/push_decisions_2.log). If it fails again:
+  read the log, fix, don't bypass.
+- `fix/log-deficit-primary-20261105` (worktree wf_merge_main, off main d882558d): b185ad70 log deficit PRIMARY (DEFICIT =
+  ttc_log, Deficit carries transform, plot_fits draws original axis + curve), ef663dc7 no top spine, 905f3ca0 plot_fits open
+  markers shape = animal / colour = epoch (Priya 11-05). Priya approved both changes -> push after the decisions push lands
+  (merge origin/main first).
+- `port/gain-bio-20261105` (worktree wf_gainbio, 1b9eb446): slide 102 chain ported (scripts/gain_bio/). NOT to render
+  until Priya answers the 5 choices (overnight page A1).
+- `fix/decisions-followup-20261105` (worktree wf_decisions2; HELPER running): 1b hit rate -> camera period; iti_lick_rate +
+  within_lick_correction cut to the working period; trial_attempts rebuilt under daqlk into scratchpad/attempts_daqlk + diff
+  vs the 11-04 table; precue discriminator floor 20 -> 15 trials (late window kept). Review its report; push only with
+  approval-covered items (all four were approved by Priya 11-05).
+
+**Render `_daqlk`** (scratchpad `render_daqlk/`; worktree wf_render_daqlk @ a76352f3 = 136807cf + 2 fixes; EXPECT_SHA
+accepts 136807cf 9aaa4cc6 a76352f3). Queue versions -- NEVER edit a queue file a running lane reads (bash reads as it
+goes); make a new version: v2 = lane 2 (A B D E F Z, no claims); v3 = claims (mkdir logs/<step>.claim); v4 = E ITI order;
+v5 = section X; v6 = + no_spont lsland/frlag, svf no_spont/no_other, Fig 11.2 = LP 1 s (WIDEFIELD_LICK_SOURCE=lp). Lanes
+now: G (queue_daqlk.sh, g5_epoch since 17:03), 2 (v2, a_relabel_noFR 90/107 at 22:34), T (v6, relaunched 22:30, waits on
+the te re-run lane = v5 ONLY te steps, t_frame_te 68/107), D (v3), E (v6, e_iti_key), X (v6, x_enl_move LP), SVF (v6 ONLY
+a_svf_ls / b_svf_frA, 47/107). Only 11 / ~227 steps done at 22:34; per-step times 2-4x estimates (network-bound ~92 MB/s).
+- Low-RAM STOP: the queue writes `render_daqlk/STOP` when free < 6 GB twice (nothing killed); lanes halt at the next step
+  boundary. Clear it (move to logs/) only when RAM is back, then relaunch halted lanes (log it in CHAIN.log).
+- Monitor: re-arm the CHAIN.log poll monitor every 30 min (EXIT [1-9] / HALTED / SKIPPED / queue end / STOP / LOW + free
+  RAM < 6 GB).
+- Held: lane-X ENLv chain waits for `logs/ENL_SLIDE_FIX.done` -- create it only when the decisions branch is merged AND in
+  the code lane X imports (worktree HEAD at step start).
+- After the decisions + log-deficit branches land: bring them into the render code (new worktree / commit + EXPECT_SHA in a
+  NEW queue version) and add steps: precue_engagement_states (--align precue, cue), fig_behaviour_hits, lick_enl_angle_decode
+  --extract -> lick_enl_offset_explore --history --offset -> lick_enl_target_test -> re-run e_pat_summarise, revup_neural,
+  fr_enl_decode, disengagement_tests, revup_behaviour; re-run the behaviour-model LMM steps (imaging_lmm, remap_lmm,
+  remap_checks, within_spout_mixed, iti_lmm_figures) for log deficit + new markers; then ENL_SLIDE_FIX.done.
+- Fixed tonight (logged): te frame needed exec_bins_calib in the input cache (copied, sha 732b0d12 = bundle); lsland run
+  without no_spont stopped + moved aside; iti order (split_sd -> zscore_pre -> main; zscore_pre marked done after its SD
+  tables, full e_zscore later).
+
+**Helpers running:** decisions follow-up (above); render IO / local-cache measurement (report ->
+rebuild_20261103/RENDER_IO_LOCAL_CACHE_20261105.md): decide start-now vs after only if safe + clearly worthwhile
+(Priya approved the local cache for the next render; mid-render needs a new worktree / queue version), else put it on her
+list.
+
+**Results tonight (EARLY, no page text changed):** encoding_mixed binned + LOG deficit (primary): cue -- spout identity
+tracks recovery (-8.1 q .015), landing -3.15 q .004; lick -- landing -6.8 q < .001, spout identity n.s. (-4.5 q .55) but
+above pre (+10.5 q .042). Log beats linear (dAIC -8..-20; qc/encoding_mixed_lin_vs_log.csv). FR pixel calibration fine
+(4.6-4.9 %); pre-stroke DRIFT is real (FR_PIXEL_CALIBRATION_20261105.md) -> Priya's call. Decision audit
+(DECISION_AUDIT_20261105.md) + spont co-variation audit (SPONT_COVARIATION_AUDIT_20261105.md): conventions to fix at the
+replacement pass (sig_marks.sig_star stars on data -> star_top; spout order in 3 scripts; "Bonferroni" -> max-statistic
+captions; stale uninstructed / lick labels; fig10 done).
+
+**Pitfalls learned today:** PYTHONPATH in Git Bash must use `$(pwd -W)` (Windows paths) -- `/c/...` is ignored and Python
+imports the shared widefield_pipeline checkout; pre-push hook tests can use 13 GB (watch RAM; the render STOP fires);
+queue "EXIT 0" can hide per-session failures (te: "!! stats" on every session) -> check outputs, not just exit codes;
+`--help` dry runs miss runtime path bugs (relabel routing, decompose absolute --folder, ITI table order).
+
+**Added ~23:05:** PI deck fluoroscopy update (Priya's request: new all_graphs A-J with G bolus density / H barium amount,
+density_method hidden after 159) is being done by a8 (deck owner, sole writer) -- don't touch the deck; log a8's done
+message on the overnight page. a8's bare-run pre-cut question is on Priya's overnight page (A4) with my rec. Render monitor
+= task re-armed every 30 min (last bmn0d58bm). Decisions push retry = task bzqykfs5k.
+
+**Added ~23:30:** decisions push REJECTED twice by the same 14 tests (test_camera_gate_fail_closed x2, encoder_licks_all,
+lick_detector_daq cache_versions, lp_gate_option x2, merge_review_b1, priya_decisions_1103 coverage_note, rebuild_root x5,
+spout_behavior curated_mmdds); they pass alone -> test-order pollution, suspect the new tests' imports of scripts modules
+(sys.modules caching under a no-profile env). Bisect running (task bkc510ddf: each new test file + rebuild_root +
+lp_gate_option). Fix the tests, re-push; never --no-verify. Follow-up branch fix/decisions-followup-20261105 (wf_decisions2:
+ee21ac5d floor 15, f069b949 1b camera / iti_lick_rate / within_lick_correction / trial_attempts --out) -> push after.
+Trial table under daqlk = identical. IO report: local cache < 10 % gain, don't switch mid-render; DISK watcher
+render_daqlk/diskwatch.sh (task b5mvbzfir) writes STOP if C: < 20 GB (cache grows 6-10 GB/h; 85 GB free 23:30).
+
+**Peers:** a8 (cleanup; told: no rebase, number-changing items held for Priya; bare-run pre default -> my rec in the
+overnight page A4); e0 (kinematics; waiting for my lick_aim_deficit / iti_lick_rate renders). Priya's pending answers are
+in the overnight page section A.
+
+### 00-COMPACT-28 (11-05 ~13:00) -- READ FIRST; supersedes 27 for state (27 / 26 hold for rules and history)
+
+Day log with every step: docs/status/RUNNING_LIST_2026-11-01.md, sections "11-05 overnight" onward.
+
+**Code.**
+- rebuild/cohort1-20261103 = **31ec5c1a**. Not pushed by itself; it reaches origin through the merge below.
+  - 90b7ddd5: DAQ behaviour lick detector, run-tag part `daqlk` (log 8.53).
+  - e05ece18: O2 bundles recorded without `daqlk` are accepted (`o2_bundle.NON_INPUT_TAG_PARTS`, log 8.54).
+  - 31ec5c1a: `collect --move` (log 8.55).
+- **rebuild -> main MERGE.**
+  - Branch merge/rebuild-into-main-20261105, worktree C:/Users/SabatiniLab/Github/wf_merge_main.
+  - 2730033a: the merge of 31ec5c1a. Then test fixes, and 3284cc25 (non-profile nightly_figs defaults cohort 1 to
+    August-only pre; Priya OK).
+  - 1ba23601 and the next merge: origin/main through a99a612a merged in.
+  - Report: docs/status/MERGE_REBUILD_INTO_MAIN_20261105.md (on that branch).
+  - **Push to main started ~12:55 with Priya's direct OK.** Fast-forward. The pre-push hook runs the full suite
+    (~80 min shard). Check: `git -C wf_merge_main fetch origin; git log -1 origin/main`.
+  - When it lands, send a8 the SHA. a8 holds ALL main pushes until then; it then does decision 9 (ITI stats -> ak) and
+    its post-merge items.
+  - After the push, new rebuild work goes on main (or a branch off it), not on rebuild/cohort1-20261103.
+- The frozen lanes run from worktree wf_rebuild_render_spont @ 90b7ddd5. Don't touch it until they finish.
+
+**Data (all under the `_daqlk` run tag** `.../imaging_encoding/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/`**).**
+- **O2 bundle b (enc_rebuild_20261104b): ALL 15 TAGs collected.**
+  - Every TAG has 107 sessions.
+  - main and main_nolicksall were copied, sha256-verified, and the bundle copies deleted.
+  - The other 13 were moved with `collect --move`.
+  - droppos needed a 96G resubmit of 14 OOM tasks (48G limit).
+  - Re-copies from Priya's whole-out/ rsyncs were sha256-matched and deleted, with markers in each TAG folder.
+  - Nothing is left to copy from O2. Bundle b's run.json and markers are kept.
+  - Folder names: see RUNNING_LIST 11-05 ~10:20 / ~11:40.
+- **Frozen v7g3_t3d_spont (primary) frames done:** noFR, frA, *_basis, *_pixmusall, frAsplit_basis, and v7g3_t3d (the
+  no-spont robustness frame).
+- **Running at 12:05 (watcher bz3az9kf1):**
+  - frA_ls: 43/107 at 12:05. lane 3 then runs frA_ls_basis.
+  - frA_nospont: 33/107 at 12:05.
+  - ETA ~17:00 for both. Logs: scratchpad/frozen_v7g3_spont/logs/.
+
+**Results so far (EARLY, no page text changed; conclusions go to Priya first).**
+- Frozen contact-only R2 (trials.npz, cortex, cue): animal mean pre / acute / subacute / chronic = .507 / .415 / .440 /
+  .340 (spont) and .492 / .413 / .433 / .347 (no-spont).
+  - boot_delta excludes 0 in every epoch; epoch LMM (df 3) p .059 / .089 / .068, so no star (a8,
+    FROZEN_B12_CIS_2026-11-05.md in widefield_pipeline docs/status/reanalysis_20261105/).
+  - Caveats: PS92 is a steady trend from its first pre session; PS95 late chronic is partly kernel over-prediction;
+    the comparison controls the class mix only.
+- B12 unique pos_enl: the spont kernels change it by < .005 in every epoch (all CIs include 0).
+  - The chronic rise is +19 [+5, +41] x1e-3, LMM p .086, and is carried by PS92.
+- Recommendation given to Priya: spont kernels primary, no-spont as a robustness row (PS95 late chronic shown).
+
+**Helpers.**
+- Section C render (O2-dependent encoder figures; ENCODER_RENDER_COMMANDS.md section C) is RUNNING.
+  - Report goes to wf_attempt docs/status/rebuild_20261103/SECTION_C_RENDER_20261105.md.
+  - It was told droppos is now available.
+- a8 (another session): its 11-05 decision relays are recorded in widefield_pipeline DECISIONS_PENDING_MERGE (f) 1-9.
+  Mine for the replacement pass:
+  - A14: per-class encoder figure on the MAIN encoding page;
+  - slide 95 numbers (tell a8 if they change);
+  - A17: the lick-detector methods line.
+
+**Next, in order.**
+1. Push lands -> SHA to a8 -> RUNNING_LIST entry.
+2. Section C report: review it.
+3. After the frozen lanes: build the render queue for `_daqlk` on the MERGED code (queue2.sh is stale), in a new
+   detached worktree at the pushed main SHA. Run G0-G8, then the encoder family A/B/D/E/F
+   (rebuild_20261103/ENCODER_RENDER_COMMANDS.md). Overnight; keep >= 6 GB free and <= 8 workers.
+4. Verifiers, then the replacement pass (pages + decks), including A14 / A17 / slide 95.
+5. Small items:
+   - delete the superseded old-tag frozen partial folders (27: `frozen_encoder_gate-attempted_v7g3_t3d{,_frA,_frAsplit}`
+     under `...stopA2jexrt3500c70/`), with a kept list;
+   - give the cleanup window the trial_attempts per-row YAML caching (byte-identical check sha256 bef06b0a).
+
+### 00-COMPACT-27 (11-05 ~00:40) -- READ FIRST; updates 26 (26 holds unless changed here)
+
+**DECISION (Priya 11-05 ~00:15): imaging switches to the DAQ BEHAVIOUR lick detector now, before the render.**
+- Measurements: widefield_pipeline docs/status/LICK_DETECTOR_COMPARE_2026-11-04.md (main a69fb9c3; relayed by a8).
+  - Change: from `_load_daq_events(h5,"lick_analog",2.5,1.0,(0.001,0.020),0.10)` to the yaml `lick_detection` profile
+    (2.5 / 0.5 V, 40 ms min ILI, no 0.10 s refractory).
+  - Effect: 0.58 % of licks restored (PS95 1.4 %); 0 hit changes; 10 / 6,520 RTs change.
+- Consequence: everything on tag `...stopA2jexrt3500c70` is SUPERSEDED once the new tag exists. The new tag gets a
+  detector token.
+
+**State at 00:40.**
+- **Code tip.** rebuild/cohort1-20261103 = **34425934**. It is c149decf plus the merge of rebuild/frozen-licks (910c408b +
+  efc4d517, log 8.51): frozen design **v7g3_t3d_spont** (`FROZEN_LICKS_ALL=split`, the profile default; robustness arm
+  `frozenNoSpont` = v7g3_t3d). With the switch off it is byte-identical to v7g3_t3d.
+  - The full suite on 34425934 is NOT done. I stopped it at 40 % because one pytest process reached 14 GB. Re-run in 4
+    shards, one at a time.
+- **Helper 1 (frozen-trials):** branch rebuild/frozen-trials in worktree wf_rebuild_frozenlicks, off 34425934.
+  - Adds frozen `<label>_trials.npz`: per-trial SSE / SST, cue- and lick-binned, in the encoder layout (one reader), with
+    cls (hit / incomplete), held-out flag, areas + frA frames.
+  - Must also score existing fits post hoc (so v7g3_t3d can get it without a refit). Log 8.52.
+  - Purpose: test whether the frozen post-stroke R2 drop survives within contact trials (class-composition confound).
+- **Helper 2 (daq-lick-detector):** branch rebuild/daq-lick-detector in worktree wf_rebuild_lickdet, off 34425934.
+  - One yaml accessor for all imaging lick call sites (~40); min_ili fallback fixed to 40 ms; cache / LP version bumps;
+    new run-tag token; onset counts pinned before / after (incl. PS95); trial_attempts diff preview. Log 8.53.
+- **Frozen v7g3_t3d render: STOPPED** at 00:15. STOP file in scratchpad/frozen_v7g3/; exact PIDs stopped.
+  - Partial folders (superseded, delete with a kept list later):
+    `frozen_encoder_gate-attempted_v7g3_t3d{,_frA,_frAsplit}` under the rebuild root `.../hv-...stopA2jexrt3500c70/`.
+  - Lane scripts for reuse: scratchpad/frozen_v7g3/ (lane1_noFR, lane2_frA, lane3_variants; lane_lib waits for 14 GB
+    free). Spont copies: scratchpad/frozen_v7g3_spont/ (te removed, no_spont added).
+  - Measured speed: ~0.4 sessions/min per lane with 2 lanes running, not 0.8. A 107-session frame takes ~4.5 h incl.
+    templates.
+- **O2 bundle b (enc_rebuild_20261104b):**
+  - Priya cancelled 13 arrays. Kept: 58602842 `main` and 58602843 `main_nolicksall`, as an EARLY look at B12 only.
+  - Copied so far: bins_w1 / w05 / w2 (183 sessions, all checked: run.json env right, fitted = attempted exactly, no NaN,
+    cortex R2 median ~.52). These are superseded.
+  - Expected by design, not bugs:
+    - 'unknown'-class cues (no imaging / camera, e.g. PS92_0908 68 cues past imaging end) have no trials.npz row;
+    - shuf:* models are NaN for scored-only trials (flagged not scorable).
+  - When main + main_nolicksall are copied back: collect with LICKS_ALL=split + ENL_SOURCE=lp exported. Report B12
+    early: drop:pos_enl split vs nolicksall, per animal x epoch, LP enl + fixed2s.
+  - Bundle b is then deleted (M: + scratch; kept list in RENDER_LOG) when the new bundle is built. Priya does not need
+    to re-stage until then.
+- **Stray process:** PID 30404 (11-03 encdrift chain) was stopped with Priya's OK. Its chain then started a drift900
+  re-run (PID 3384), which I stopped within ~1 min. No outputs were touched (checked).
+  - Lesson: check a process's parent chain loop before stopping it.
+
+**Next, in order.**
+1. Helpers land, then merge frozen-trials + daq-lick-detector into rebuild/cohort1-20261103 and run the full suite in
+   4 shards.
+2. Rebuild trial_attempts under the new tag and diff it against the stopA2jexrt3500c70 table (class / RT /
+   timing_source changes).
+3. Build O2 bundle c. First set the conda module to 26.9.4-1 in the code (scripts/o2_encoding.py:336 and the other
+   sites listed in 26); bundle b was only patched by hand. Run the local checks, then give Priya the stage + submit +
+   delete-b commands.
+4. Frozen frames, both designs with trials output, from one merged commit, in a new detached render worktree (not
+   wf_rebuild_render, which is at c149decf). Primary v7g3_t3d_spont first, then v7g3_t3d (robustness), then lane-3
+   variants. Keep >= 6 GB free.
+5. G0-G8 render queue for the new tag (queue2.sh is stale), the encoder family, and the open items from 26
+   (render / verifiers / replacement pass).
+6. a8 has been told the change goes in now; add one line to the per-slide old -> new list when it lands. DECISIONS
+   entry held in widefield_pipeline docs/status/DECISIONS_PENDING_MERGE_2026-11-04.md.
+
+### 00-COMPACT-26 (11-05 ~00:10) -- READ FIRST; updates 25 (25 holds for code / data / queue)
+
+**O2 (per-session encoder, bundle enc_rebuild_20261104b).**
+- The first test job, 58601937, FAILED in 3 s: O2 retired conda/miniforge3/24.11.3-0; the current module is 26.9.4-1.
+  - Fixed: run_enc.sbatch patched on M: and on scratch (Priya ran the sed). Priya cancelled the 15 early arrays.
+- Test job 58602462 is RUNNING (good start line, empty .err). Priya checks for "full cvR2" + _trials.npz, then submits
+  the 15 arrays.
+- Commands given to Priya (with A=ATTEMPTS=tables/trial_attempts.csv):
+  - progress: squeue / per-TAG json counts / sacct failures;
+  - OOM resubmit: --mem=64G, same --export;
+  - transfer-node rsync of out/.
+- When main + main_nolicksall are copied back, collect (export COMBINED_ENCODING_LICKS_ALL=split + ENL_SOURCE=lp), then
+  report B12 FIRST:
+  - drop:pos_enl split vs nolicksall per animal x epoch, LP enl + fixed2s, n, CIs;
+  - with it, the frozen target columns before / after.
+- TODO (code): replace the hard-coded conda module everywhere and tell e0 / a8. Sites:
+  - configs/defaults.yaml :947 / :1335;
+  - scripts/o2_encoding.py :336;
+  - o2_face_rhythm.py :763 / :780 / :1116;
+  - o2_lp_train_bundle.py :108;
+  - runbooks/o2_pose_inference.md.
+- Swap-mask check: the interpolated swap pairs are a median 0.07 % / max 0.37 % of frames, so they are kept in the fit
+  (not dropped). Harmless.
+
+**Frozen encoder on this box (Priya: start every job when able, parallelized).**
+- v7g3_t3d (robustness, no spontaneous lick terms): runner told GO at ~23:55.
+  - Code c149decf, new tag; output folders must carry the design name; RAM-sized parallelism, <= 6-8 workers.
+  - Progress is in RENDER_LOG.md.
+- v7g3_t3d_spont (PRIMARY: licks / licks_pre / licks_iti, pre + ITI uninstructed): branch rebuild/frozen-licks, worktree
+  wf_rebuild_frozenlicks, first commit 910c408b. Smokes + suite still to finish.
+  - Then: merge into rebuild/cohort1-20261103, run the suite, update the render worktree, launch its frames.
+  - Expected ~03:00-05:00.
+
+**Next after that.** Rebuild the render queue for the new tag (the old queue2.sh is stale): G0-G8, the encoder family,
+rebuild_figs, drift1500, plus the new figures (B11 panel, G4, slide-95 raw + z). Then the queued code items in 25, the
+two verifiers, and the replacement pass.
+
+### 00-COMPACT-25 (11-04 ~22:50) -- READ FIRST; updates 24 (24/23 still hold for rules)
+Every decision and finding of 11-04 is in the running list (RUNNING_LIST_2026-11-01.md, block "11-03 EVENING", newest at
+the end). Read it in full before acting.
+
+**Code.** rebuild/cohort1-20261103, tip c149decf, NOT pushed. Full suite: 4,923 passed / 0 failed. It merges four
+branches (log sections 8.43-8.50):
+- encoder-classes:
+  - per-trial outputs <label>_trials.npz + wfield_local/encoder_trials.py;
+  - LICKS_ALL=split in production (licks instructed; licks_pre / licks_iti uninstructed), robustness TAG main_nolicksall;
+  - enl window = lick-free sliding, LP 1.0 s (old window = enl_fixed2s);
+  - ATTEMPTS re-derivation on O2; refresh-code; the --profile keeps-caller-vars fix; 48G.
+- cue70:
+  - cue + 70 ms by peak; response window to max_rt 3.5 s;
+  - stop rule A2 "both sides" (arms A0 / A3 / strict / tail-event);
+  - stopped_licking excise; stop_kind_for (run / tail);
+  - LP timing fallback: close spouts DAQ > 50 ms, far spouts grooming flag;
+  - tag ...stopA2jexrt3500c70.
+- enl-window: one ENL window (lp_licks.enl_post_s, enl_window.precue_window_start), sliding lick-free for every ENL
+  predictor; quiet events MIN_CLEAN_ENL = 0.5 x window.
+- bcdg-port:
+  - a8's B / C / D / G (D scored on working rows, G by camera class, G4 camera-class discriminator primary, G9 camera
+    classes with guards);
+  - centre Wt FINAL (decoder + projections; eax z on contact rows); projection frame ON;
+  - sc-* tag parts and arms centreN / centreCto; the contact-vs-incomplete panel.
+- The render worktree wf_rebuild_render is at c149decf.
+
+**Data.** trial_attempts under ...stopA2jexrt3500c70 (19:16): working 49,087, stopped 5,347, stopped_licking 276.
+
+**O2.** Bundle enc_rebuild_20261104b is READY: 107 sessions / 30 GB; checks passed (5e-8); commanded TARGET3D; split;
+ENL lp.
+- Priya was given the rsync + 1-task test + 15 sbatch lines (48G) at ~22:45. She is to confirm _trials.npz in the
+  test output.
+- The old bundle enc_rebuild_20261104 is DELETED (M: + O2; list in RENDER_LOG).
+- Collect needs COMBINED_ENCODING_LICKS_ALL=split + ENL_SOURCE=lp exported.
+- **When O2 lands, report FIRST:** B12 = drop:pos_enl split vs nolicksall per animal x epoch (LP enl + fixed2s, n,
+  CIs), plus the frozen target columns before / after. Claim list: rebuild_20261103/B12_PRECUE_POSITION_CLAIMS_20261104.md.
+
+**Running.** The frozen encoder is getting spontaneous lick terms on branch rebuild/frozen-licks (worktree
+wf_rebuild_frozenlicks): new design / ids, v7g3_t3d kept as robustness. Merge it before the frozen frames render.
+
+**Queued.**
+1. Lick / FR ENL families (lick_enl_*, prelaunch / revup pre-cue, fr_enl_decode) switch to the sliding window
+   (Priya); guard: start >= strobe + 0.3 s.
+2. Lick-direction frame check re-run on the rebuild lick sets (a8 / Priya; per animal first).
+3. G9 figure switch, ~2.5-3 days, after the render.
+4. Port main's prep_3d_inputs (commanded table) at the next main merge.
+5. Align far-spout no-LP timing between encoder and lp_licks (moot: 0 trials).
+6. The render itself: queue2.sh is OUTDATED (old tag). Rebuild the render queue on c149decf: G0-G8, the encoder family
+   (ENCODER_RENDER_COMMANDS: update env blocks for the frozen-licks design), scripts/rebuild_figs, drift1500, plus the
+   new figures (B11 panel, G4, slide-95 raw + z pair).
+7. Two verifiers, then the replacement pass. Page edits: widefield_pipeline PAGE_EDITS_PENDING_2026-11-04.md, plus my
+   additions A13-A16 / B12-B16 (sent to a8).
+
+**Open for Priya:** none pending from me.
+
+**Watch list:**
+- B12 (pre-cue position credit).
+- Slide 95: raw vs session-z, wording is Priya's. Hidden slides 100 / 101 are in the deck; the gain is brain-wide and
+  biological (GAIN_BIO).
+
+### 00-COMPACT-24 (11-04 ~09:50) -- READ FIRST; updates 23 (23 still holds for the code rules / decisions)
+**Code tip:** rebuild/cohort1-20261103 at 571b3955 (log 8.41 / 8.42), NOT pushed.
+- c3cb3c0c: jaw_only counts toward the 6 in a stop run (tag ...stopRun6j). Full suite 4,735 / 0 failed.
+- fb3b6304: imaging input-cache key.
+- a6a29dd7: split area basis, wfield_local/area_basis.py (v8 roi_masks; iti_licks delegates). Encoder region table + Ra on
+  split + plain; "cortex" = v8, "cortex_stat" = old mask.
+- a7aec872: o2_encoding rebuild-aware. Bundle in <root>/o2/<name>; full profile env in env.json, re-applied on O2; identity
+  refusal; check < 1e-4; collect to the tagged out_dir; 14 TAGs, fr_A_tr dropped.
+
+**O2 bundle `enc_rebuild_20261104`:** building since 09:27, helper a0dc6e4f1c77fb99f, --jobs 6, ~1.8 sessions / min.
+- ETA: inputs ~10:25; then `check` on PS93_0814 (pre) + PS93_0818 (acute), done ~10:45.
+- Then send Priya the share path + COMMANDS.md: transfer-node rsync, login-node test task, 14 sbatch arrays on `short`
+  (4 c / 32G / 6 h, %60), rsync back, collect.
+- Smoke on PS92_0806: v8 cortex R2 .6152 vs cortex_stat .6160.
+
+**Render: HELD** (runner a0db502ebea3b948d handed back; resume it by SendMessage or a new runner).
+- Done under stopRun6j: init (6 seeds), trial_attempts, coverage tables.
+- Queue: scratchpad `queue2.sh`. To launch: remove HOLD_j_g2a / HOLD_j_g2b, then `nohup bash queue2.sh &`, after the bundle is
+  written.
+- Then: the encoder family (ENCODER_RENDER_COMMANDS.md A, B, D-F), scripts/rebuild_figs, the drift1500 arm, the O2 collect +
+  section C readers.
+- RENDER_LOG.md in the root lists all SUPERSEDED old-rule caches / models (none deleted).
+
+**Decisions since 23 (all in the running list):**
+- jaw_only counts toward the 6 (done).
+- Split area basis everywhere: v8 masks; orofacial = ALM, tjM1, SSp-m, SSp-n; MOs-vs-MOp contrasts become ALM vs tjM1;
+  residual_roi pixel test primary + area tests corrected over the split family; cortex rows kept (v8); LocaNMF-label analyses
+  left. Done in the encoder path; the FULL SWITCH comes after the bundle (helper; inventory
+  docs/status/rebuild_20261103/SPLIT_BASIS_INVENTORY_20261104.md).
+- Priya via a8: B / D / G. D scores working trials (engaged = robustness); G groups by camera class. Port a8's main commits;
+  C is still open.
+- Rest start = first camera lick (settled). The PS93_0813 DAQ fallback is NOT used (failed check).
+- O2 encoder runs: rebuild them (Priya runs O2).
+- Slide 94 caveat added (a8).
+- Priya waits for the rebuild: no interim swaps.
+
+**Finding (stop rule):** stop runs 177 -> 283, stopped trials 3,267 -> 5,944; working trials unchanged.
+
+**Open for Priya:** the pattern-family pre reference (lick vs working); the FR validation window (keep -2..+4 s recommended).
+
+### 00-COMPACT-23 (11-04 ~08:05) -- updated by 24
+Session f082ee0c. The running list (`docs/status/RUNNING_LIST_2026-11-01.md`, block "11-03 EVENING", newest at the end) holds
+every decision and finding in order. Commit docs on wf_attempt BY EXPLICIT PATH ONLY.
+
+**Code: rebuild/cohort1-20261103 (worktree wf_rebuild, NOT pushed), tip c3cb3c0c.** Last full suite 4,723 / 0 failed
+(7b5d3334); after c3cb3c0c only the related tests have run (144 passed).
+- Log: `wf_rebuild/docs/status/REBUILD_CODE_20261103.md` sections 8.10-8.40.
+- Profile: `cohort1_rebuild_20261103`. Run tag: `hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopRun6j`.
+- Rebuild root: `M:/MICROSCOPE/Priya/Widefield/rebuild_20261103`, fenced.
+- The profile also sets `code_root`. Render commands need PYTHONPATH = the render worktree: the editable install is MAIN's code.
+- Rules now in force:
+  - camera gate;
+  - working = contact + incomplete, cut at the last camera lick; jaw_only is its own class;
+  - stopped = >= 6 consecutive no_response OR jaw_only, starting >= 5 min after the first cue (Priya 11-04); earlier runs = early_run;
+  - rest = docked lick-free stretches from the first to the last camera lick;
+  - August-only pre for everything except june_august_drift / 12.1b / map_drift_prepre / restnl_mask (their blocks unset it);
+  - lick counts = cue + 70 ms -> trial stop on one detector;
+  - bal_em centre on working rows (>= 20), with PS93_0813 excluded from working selections (no video);
+  - every pre-stroke model is stored (FREEZE_VERSION 2), keyed by label;
+  - all 47 former require_default scripts are routed to <default dir>/<tag>;
+  - the scratch-only page figure scripts are in scripts/rebuild_figs;
+  - the attempts table comes from the run's camera classes (qc/<selection tag>/);
+  - section 5b is on the working path.
+
+**Render:**
+- Runner agent a0db502ebea3b948d. Worktree `C:/Users/SabatiniLab/Github/wf_rebuild_render` at c3cb3c0c.
+- Log: `<root>/RENDER_LOG.md`.
+- Running now: trial_attempts under stopRun6j (started ~08:05, about 63 min serial), the coverage tables, the RESTnl DAQ gate,
+  then the RESTnl LP gate.
+- HELD until the O2 bundle is written: the epoch decoders, then grant_figures, section G, the encoder frames (see
+  `docs/status/rebuild_20261103/ENCODER_RENDER_COMMANDS.md`), the ITI / lick chain and the page figures.
+- Earlier attempts were superseded: the old-rule tag (stopRun6) got no figures, and its stored PS92-94 models are listed as
+  superseded, not deleted.
+
+**O2 encoder bundle (Priya wants it ASAP):**
+- Code helper a0dc6e4f1c77fb99f is making scripts/o2_encoding.py rebuild-aware:
+  - bundle inside the root;
+  - the full profile env in env.json, applied on O2;
+  - tag refusal;
+  - a bundle-vs-local check.
+- Then it builds `enc_rebuild_20261104` (production env = S1 run_bundle_full.sh; `--fr master_pre_v1`) and writes COMMANDS.md
+  (transfer-node rsync, login-node test task, 15 TAG arrays on `short`: 4 c / 32G / 6 h, %60, then rsync back and collect).
+- The bundle needs the stopRun6j attempts table.
+- OPEN: does combined_encoding use Allen areas? If so, the new split-basis decision has to land in the encoder path first.
+
+**New decisions pending implementation:**
+- Split area basis for ALL Allen-ROI analyses (Priya via a8): one shared function with iti_licks, new spec ids. A read-only
+  inventory agent (aea1c6b2f2540339c) is running; send its result to a8.
+- B / D / G (Priya via a8): D scores working trials (engaged = robustness); G groups by camera class; B state discriminators in
+  the spout frame. a8's helper builds these on MAIN; the rebuild PORTS those commits. C (projections) is still being re-checked.
+
+**Open questions for Priya** (running list):
+- the pattern-family pre reference (lick vs working);
+- the FR validation window (-2..+4 s vs -2 s -> trial stop; I recommend keeping it).
+
+The PS93_0813 DAQ fallback failed its check and is not used. Deleted with Priya's OK: the 4 mistaken qc tables.
+
+**Owed:**
+- a8: a per-slide old-vs-new list at the replacement pass (PI slides 9-13, 19, 89, everything rebuilt; imaging page sections
+  1-4, 6, 7);
+- e3: the *_sessions.csv paths.
+
+Scratchpad launchers are backed up at `M:/MICROSCOPE/Priya/Widefield/encoding_goal_page_src/scratchpad_scripts_backup_20261104/`.
+
+**Next:** O2 bundle -> Priya runs O2 -> epoch decoders and the rest of the render -> collect O2 -> encoder figures -> two
+verifiers (per animal first, then what moved) -> replacement pass (conclusion changes go to Priya first).
+
+### 00-COMPACT-22 (11-03 late night, Priya asleep) -- superseded by 23 for state
+Session f082ee0c. Running list = docs/status/RUNNING_LIST_2026-11-01.md, block "11-03 EVENING" (newest entries at the end of
+its Questions list). Docs commits on wf_attempt BY EXPLICIT PATH ONLY.
+- **Rebuild code** (branch rebuild/cohort1-20261103, worktree wf_rebuild, NOT pushed): tip 3a772a26+, full suite 4,576 / 0 failed.
+  - main merged (698c4e57).
+  - 5-min stop rule in; early_run class; warm-up gone.
+  - bal_em centre = camera-working rows; >= 20 rows; PS93_0813 = explicit contact-row fallback, recorded.
+  - LOSO keyed by label; section G refuses instead of refitting.
+  - Lick counts on one detector (imaging alignment unchanged).
+  - Per-block LP lick-source env.
+- **Reviews:** fifth review + re-verify at 3a772a26 = NO BLOCKERS (REBUILD_CODE_20261103.md 8.10-8.25).
+- **Priya 11-03 late:**
+  - (1) August-only pre PROFILE-WIDE (except june_august_drift, 12.1b).
+  - (2) PS93_0813 in DAQ-only behaviour rates via a DAQ-defined working period IF the agreement check passes (<= 2 points
+    hit / no-response, <= 20 ms latency on every Aug pre session with video); fail -> back to Priya.
+  - (3) JAW-ONLY OUT OF WORKING (via a8; main 39bb3d5e): working = contact + incomplete; jaw_only its own class. Default
+    (flagged to Priya): jaw_only bridges stop runs, not counted.
+- **11-04 state:**
+  - Rebuild tip a8791963, suite green.
+  - Aug-only pre is profile-wide.
+  - Jaw-only-out matches main 48f2cc6d.
+  - The DAQ fallback for PS93_0813 FAILED its agreement check and is not used.
+  - Dry count OK.
+- **11-04 later: RENDER RUNNING.**
+  - Render runner agent a0db502ebea3b948d, from the pinned worktree C:/Users/SabatiniLab/Github/wf_rebuild_render at 47a36184.
+  - Env: PYTHONPATH = that worktree (the editable install is MAIN's code!).
+  - Log: M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/RENDER_LOG.md.
+  - The code helper is routing the 47 require_default scripts (encoder / fr / layer2 / ...) family by family. Move the render
+    worktree to each routed commit and render that family.
+  - Next: two verifiers (per animal first, then what moved) -> replacement pass; owe a8 a per-slide old-vs-new list.
+- **(resolved) BLOCKER (helper a0dc6e4f1c77fb99f):** working imaging rows must be camera contact + INCOMPLETE (mirror main's row
+  construction); the rebuild had DAQ-contact rows only.
+  - Validation, arm (b): rebuild code on the checks' old inputs must hit .856 / .727.
+  - Arm (a) minus arm (b) = the data effect.
+  - Then a reviewer re-verify -> rebuild_root init -> render.
+- **Reviewer:** aa0138ac1e9c354a7.
+- **Next:**
+  - helper reports -> re-verify the new code (reviewer)
+  - -> `python -m wfield_local.rebuild_root init --profile cohort1_rebuild_20261103`
+  - -> render G0-G8 (plan COHORT1_SWAPMASK_RERUN_20261102.md)
+  - -> two verifiers (per animal first, then what moved)
+  - -> replacement pass. Conclusion changes go to Priya before any text is rewritten.
+
+### 00-COMPACT-21 (11-03 evening) -- superseded by 22 for state (kept for the decision history)
+Session f082ee0c. Docs commit on wf_attempt (analysis/attempt-coding) BY EXPLICIT PATH ONLY. This window = the
+COHORT 1 FULL REBUILD. Running list: docs/status/RUNNING_LIST_2026-11-01.md (every decision + finding of 11-03 is
+logged there, in order). Plan + decisions: COHORT1_SWAPMASK_RERUN_20261102.md. Pages: imaging LIVE v50 (e0 published
+section 1); goal LIVE v312. No page edits until the rebuild's page pass; e0 can publish for us.
+
+**Decided (all in the rebuild; full list in the running list, 11-03):**
+- **Data:**
+  - Variant `hemo_meegkit_hpfit_lag_refitT_swapmask` (built, 120 sessions).
+  - NO new shared drift step (DRIFT_CUTOFF_CHECK_20261103.md).
+  - LocaNMF = PROJECTION onto the stored per-session and joint footprints; refits are not reproducible (LOCANMF_REFIT_TEST_20261103.md).
+- **Decoders:**
+  - August-only pre per decoder block.
+  - LP arm LP-trained (stored); DAQ-trained is the cross-check.
+  - Frozen-model IDs carry a training-data fingerprint + selection tag + hemo variant (FREEZE_VERSION 2, fresh store).
+- **Trials:** one classifier, wfield_local.trial_classes.classify_session (cue_stop window). The rules:
+  - working = contact | incomplete | jaw_only, ending at the last camera lick;
+  - stopped = >= 6 consecutive no_response; a jaw-only trial after the last lick bridges a run but is not counted or stopped;
+  - noattempt = isolated no_response inside the working period;
+  - warm-up = no_response before the first lick, in neither class (PROVISIONAL);
+  - MIN_UNCOVERED_RUN = 5;
+  - partial video coverage: rules are applied inside the covered span (PS92_0908 kept);
+  - no-lick analysis counts to the trial stop with the same contact table;
+  - rest period ends at the last camera lick;
+  - PS93_0813 (no video) kept for contact-only analyses.
+  - Recorded in DECISIONS "2026-11-03 (night) -- Camera trial gate" on the rebuild branch.
+- **Decks:** preprocessing deck map slides regenerated; analysis decks regenerated; imaging section 15 -> pointer to goal section 23.
+- **Encoder / ITI:** keep their own 600 s drift step (check: 600 s recommended + a 20-25 min sensitivity row, Priya to confirm).
+- **LMM hidden slides:** DONE. 16 + 9 split images in grant_figures/lmm_hidden_20261103/; in the PI deck (182 slides, a8).
+  About half of the bootstrap stars drop under the LMM.
+
+**Code: branch rebuild/cohort1-20261103, worktree C:/Users/SabatiniLab/Github/wf_rebuild (NOT pushed).**
+- Code tip 3ef70b5b; full suite 4,476 passed / 0 failed.
+- Log: docs/status/REBUILD_CODE_20261103.md. Reviews: REBUILD_CODE_REVIEW_20261103.md, passes 1-4 + addendum.
+- Render profile `cohort1_rebuild_20261103` -> run tag hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_sel-camera-cue_stop-endlick-stopRun6.
+- **NOT SAFE TO RENDER YET** (fourth pass: R1 Fig 12.1b stale + default overwrite, R2 deck reads untagged figures,
+  R3 rebuild_figs read old inputs, R4 attempt_maps silently partial, R5 guards fooled by LP / ENL / stray env).
+- **IN PROGRESS (code helper):** the structural REBUILD ROOT. Under the profile, every derived output goes to
+  M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/; writeguard refuses writes outside it; readers resolve inside it; the
+  profile clears stray WIDEFIELD_* vars. Plus R1-R5, the stale T3 text / DECISIONS additions, and the test gaps. Then a
+  FIFTH review pass before any render.
+- Inventories + reconciliation + check tables: docs/status/rebuild_20261103/ (wf_attempt).
+
+**Decided late 11-03 (Priya); these replace the open items listed earlier:**
+1. **Encoder / ITI drift:** keep 600 s primary, plus a 1500 s sensitivity arm for the spout contra - ipsi cells and the ITI
+   pre-cue level readouts. The override comes from analysis/encoder-drift-cutoff 25e294d2; ENCODER_DRIFT_CUTOFF_20261103.md.
+   "82 % of the cycle band" is the slow band of PS92 subacute (drift-dominated), NOT 82 % of the position signal.
+2. **Task rule:** after the first lick the animal has 3.5 s to keep licking; with no lick, the trial ends at cue + 3.5 s
+   (trial length = first-lick latency + 3.5 s).
+   - Licks per trial = TOTAL licks from the cue to the trial stop while the spout is present.
+   - Lick RATE comes from the inter-lick intervals, NOT count / time.
+   - The helper verifies the rule on real trials.
+3. **"Stopped"** = a sustained run (>= 6 no_response) that starts >= 5 min after the session's first cue. This replaces the
+   warm-up rule; earlier runs are in neither class. The helper first reports whether any current stopped run starts in the
+   first 5 min (Priya expects none).
+4. **LMM captions:** the main slides keep their bootstrap captions. Each LMM hidden slide carries the LMM results AND its own
+   on-slide LMM caption: rec_wlc csm_share p .13 / .13 / .17; rec_kn chronic norm p .14; spec_groups acute residuals
+   p .065-.16; recovery_timing acute gap p .21. Asked of a8; confirm it is done.
+**Open for Priya:** none right now. Next decisions come with the fifth review and with the render results (per animal first).
+
+**Coordination:**
+- e3 owns trial_classes and the consolidation: A1 / A2 / A4 landed on main; A3 / A5 still to land.
+  Merge main into the rebuild branch before rendering.
+- a8 owns the PI deck. e0 publishes pages.
+- Tell e3 when the rebuild's *_sessions.csv exist (PI slides 10 / 11 / 12 / 19).
+
+**Next:**
+1. Rebuild-root fix.
+2. Fifth review.
+3. Merge main (A3 / A5).
+4. Render G0-G8 into the rebuild root, logged.
+5. Two verifier agents: per-animal first, then what moved.
+6. Replacement pass (share, decks, pages, PI deck); conclusion changes go to Priya first.
+
+**Helper rule (11-03 incident):** stop only via TaskStop on your own task, or by your own reported PIDs. Never select
+processes by parent or name.
+
+### 00-COMPACT-20 (11-03 ~midday; UPDATED 11-03 afternoon, see the block below the "Next" line) -- superseded by 21, then docs/status/COHORT1_SWAPMASK_RERUN_20261102.md + RUNNING_LIST_2026-11-01.md
 Same session f082ee0c; docs commit on wf_attempt branch analysis/attempt-coding **by explicit path only** (another session,
 sabatinilab-5b, keeps uncommitted work in this worktree; `git commit -am` swept it once 11-03, undone). This window = the
 **COHORT 1 FULL REBUILD**. Pages: imaging LIVE v46 (other sessions edit section 1 [5b] - read live before any edit); goal

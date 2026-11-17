@@ -7,10 +7,10 @@ A. DAYS PLANE, PER TRIAL: every trial's (x, y) in the per-spout frames of state_
    highest-density contours per epoch (smoothed 2-D histogram). Does the acute detour move the whole cloud or a subset?
 B. WITHIN SESSION: each trial's x and y against its order in the session (trial rank / (n - 1), quintiles); per session
    the least-squares slope of x and y on trial order. Pre sessions = the within-session drift that is not stroke.
-C. RESPONSE SIZE PER TRIAL: full-space (62 areas) response norm per trial (state_space_sim.BAL_BINS response minus
+C. RESPONSE SIZE PER TRIAL: full-space (45 glue-free areas; 62 before 11-09) response norm per trial (state_space_sim.BAL_BINS response minus
    baseline), log2 vs the animal x spout pre median; ECDFs per spout (thin = sessions, thick = epoch pool) and the
    change of the 10th / 50th / 90th percentile vs own pre (uniform shift vs a subset of large trials).
-Output: Widefield/state_space_recovery/pertrial{tag}/, page_figs/ss_pt_{plane,order,size}_<suffix>.png. Exploratory.
+Output: <rebuild root>/state_space_recovery/pertrial{tag}/, page_figs/ss_pt_{plane,order,size}_<suffix>.png. Exploratory.
 """
 from __future__ import annotations
 
@@ -36,7 +36,7 @@ from wfield_local.figure_layout import save_png_svg  # noqa: E402  (PNG + svg/ t
 ROOT = S.ROOT
 OUT = ROOT / f"pertrial{S.tag()}"
 FIGS = ROOT / "page_figs"
-SUF = S.tag().lstrip("_") or "cue"
+SUF = S.fig_suffix()
 plt.rcParams.update({"font.size": 9, "axes.titlesize": 9.5, "axes.spines.top": False, "axes.spines.right": False})
 
 
@@ -199,7 +199,7 @@ def fig_size(D):
           (("v", "w", "10th percentile"), ("o", "0.3", "median"), ("^", "w", "90th percentile"))]
     hs += [plt.Line2D([], [], color=EPOCH_LINE[e], lw=2, label=e) for e in R.EPOCHS]
     fig.legend(handles=hs, loc="upper center", ncol=7, frameon=False, bbox_to_anchor=(0.5, 1.03))
-    fig.suptitle(f"Per-trial response size in the full 62-area space, per spout ({F.ALIGN_LABEL[S.ALIGN]})", y=1.07)
+    fig.suptitle(f"Per-trial response size in {S.areas_label(full=True)}, per spout ({F.ALIGN_LABEL[S.ALIGN]})", y=1.07)
     fig.tight_layout()
     save_png_svg(fig, FIGS / f"ss_pt_size_{SUF}.png", dpi=140, bbox_inches="tight")
     plt.close(fig)

@@ -8,8 +8,8 @@ table): mean x (pre (0) -> chronic (1) line of that spout) and y (acute-departur
   (a) RECOVERY: far-contra first-cued-lick aim vs own pre (deg, aim_deficit_sessions.csv, as state_space_step_vs_gradual);
   (b) the spout's OWN executed landing: mean 3-D lateral landing (side_ml) of its first licks minus the animal's pre mean
       at that spout (mm; landing join).
-Post-stroke sessions; per-animal r (rule 8), within-animal slope with a within-animal shuffle (aim / landing permuted
-within animal, 2000 draws). Output: Widefield/state_space_recovery/per_position{tag}/, page_figs/ss_perpos_<suffix>.png.
+Post-stroke sessions; per-animal r (rule 8), within-animal slope with a within-animal circular-shift null (aim / landing
+rotated over the animal's day-sorted sessions, 2000 draws; a free shuffle until 11-16). Output: <rebuild root>/state_space_recovery/per_position{tag}/, page_figs/ss_perpos_<suffix>.png.
 Exploratory.
 """
 from __future__ import annotations
@@ -28,6 +28,8 @@ sys.path.insert(0, str(Path(__file__).parent))
 import state_space_page_figs as F  # noqa: E402
 import state_space_recovery_trials as R  # noqa: E402
 import state_space_sim as S  # noqa: E402
+
+from wfield_local import analysis_kit as kit  # noqa: E402
 import state_space_step_vs_gradual as SG  # noqa: E402
 
 from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE  # noqa: E402
@@ -35,7 +37,7 @@ from wfield_local.figure_layout import save_png_svg  # noqa: E402  (PNG + svg/ t
 
 ROOT = S.ROOT
 OUT = ROOT / f"per_position{S.tag()}"
-SUF = S.tag().lstrip("_") or "cue"
+SUF = S.fig_suffix()
 plt.rcParams.update({"font.size": 9, "axes.titlesize": 9, "axes.spines.top": False, "axes.spines.right": False})
 
 
@@ -59,12 +61,9 @@ def wslope(g, c, v, rng, n=2000):
         y = h[c] - h.groupby("animal")[c].transform("mean")
         return float((x * y).sum() / (x ** 2).sum())
     b0 = b(g)
-    null = []
-    for _ in range(n):
-        h = g.copy()
-        h[v] = h.groupby("animal")[v].transform(lambda s: rng.permutation(s.to_numpy()))
-        null.append(b(h))
-    return b0, float((np.abs(np.asarray(null)) >= abs(b0)).mean())
+    _, p = kit.within_shuffle_p(lambda a: b(g.assign(**{v: a})), g[v].to_numpy(), g.animal.to_numpy(), rng, n,
+                                order=g.day.to_numpy(), mode="circular")      # rotated over days (Priya 11-16)
+    return b0, p
 
 
 def main():
@@ -128,7 +127,7 @@ def figure(s, A):
     fig.legend(handles=hs, loc="upper center", ncol=9, frameon=False, bbox_to_anchor=(0.5, 1.02))
     fig.suptitle(f"Per spout position: the changed representation against recovery (rows 1-2) and against that spout's own "
                  f"landing (rows 3-4) ({F.ALIGN_LABEL[S.ALIGN]}); r = within-animal PS92 / 93 / 94 / 95, * = within-animal "
-                 f"shuffle p < .05", y=1.045)
+                 f"circular-shift p < .05 (aim / landing rotated over the animal's sessions)", y=1.045)
     fig.tight_layout()
     save_png_svg(fig, ROOT / "page_figs" / f"ss_perpos_{SUF}.png", dpi=130, bbox_inches="tight")
     plt.close(fig)

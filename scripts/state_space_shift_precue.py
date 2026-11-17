@@ -9,7 +9,8 @@ Per trial, cohort SVD basis, minus the session's RESTnl level, units of the anim
 and pre-lick - pre-cue (what the cue -> first-lick period adds on top of the pre-cue state). Session means, change vs
 own pre, animal-weighted nested bootstrap (`boot_delta`, 2,000); * = 95 % CI excludes 0, k/4. Plus, across post-stroke
 sessions, the within-animal correlation of the pre-cue change with the pre-lick and post-lick changes (animal-demeaned;
-per-animal r printed first, rule 8; within-animal shuffle, 2,000).
+per-animal r printed first, rule 8; within-animal circular shift over days, 2,000;
+a free shuffle until 11-16).
 Outputs: <state_space_recovery>/shift_precue{tag}/{sessions,changes,coupling}.csv, page_figs/ss_shift_precue{tag}.png.
 EXPLORATORY.
 """
@@ -30,6 +31,7 @@ import state_space_chronic_maps as C  # noqa: E402
 import state_space_recovery_trials as R  # noqa: E402
 import state_space_shift_behavior as SB  # noqa: E402
 import state_space_sim as S  # noqa: E402
+import state_space_svdmaps as SM  # noqa: E402
 import state_space_trajectories as TR  # noqa: E402
 
 from wfield_local import analysis_kit as kit  # noqa: E402
@@ -47,36 +49,19 @@ READS = ["pre-cue", "pre-lick", "post-lick", "pre-lick - pre-cue"]
 def main():
     if S.BASIS != "svd":
         sys.exit("state_space_shift_precue: needs the cohort SVD basis (WF_SS_BASIS=svd)")
-    from wfield_local import area_basis, beta_maps
-    Uc = np.load(C.BASIS_DIR / "U_cohort.npy").astype(np.float64)
-    atlas = np.load(S.SVD.parents[1] / "atlas.npy")
-    mask = np.load(C.BASIS_DIR / "mask.npy").reshape(atlas.shape)
-    flat = np.flatnonzero(mask.ravel())
-    split = area_basis.basis_masks(area_basis.roi_masks(atlas.ravel()[flat], beta_maps.stat_mask().ravel()[flat],
-                                                        dict(S._atlas_names()), flat, mask.shape))["split"]
-    W = {}
-    for reg, areas in SB.REGIONS.items():
-        for side, hemi in SB.SIDES.items():
-            px = np.logical_or.reduce([np.asarray(split[f"{a}_{hemi}"], bool) for a in areas if f"{a}_{hemi}" in split])
-            W[f"{reg} {side}"] = Uc[px].mean(0)
+    W = SM.region_weights(SB.REGIONS)                                   # K-vector per region x side
     t, _ = TR.times()
     wix = {w: np.flatnonzero((t >= a - 1e-9) & (t < b - 1e-9)) for w, (a, b) in WINS.items()}
     data, _ = S.load_sessions()
     rows = []
     for an, sess in sorted(data.items()):
         Tpre = R.template([s for s in sess if s[1] == "pre"])
-        ok = np.isfinite(Tpre).all(axis=(1, 2))
-        B0 = Tpre[ok] - S.flat(Tpre[ok]).mean(0)
-        unit = float(np.sqrt((B0 ** 2).sum() / B0.size * B0.shape[-1] / Uc.shape[0]))
+        unit = SM.pre_unit_px(Tpre)                                       # pixel RMS of the pre template
         for lab, ep, day, Y, pos in sess:
             if ep not in ("pre", *EPS):
                 continue
-            c = C._rest(lab, an) if (C.REST / f"{lab}.npz").exists() else None
-            f = C.ENL / f"{lab}.npz"
-            if c is None or not f.exists():
-                continue
-            E = np.load(f)["b"].astype(float)
-            if len(E) != len(pos):
+            c, E = C.rest_level(lab, an), C.enl_trials(lab, len(pos))
+            if c is None or E is None:
                 continue
             keep = np.isfinite(E).all(1)
             Z = (Y[keep] - c) / unit
@@ -95,13 +80,8 @@ def main():
     D.to_csv(OUT / "sessions.csv", index=False)
     rng = np.random.default_rng(0)
 
-    def change(col, ep):
-        pre = {a: g[g.epoch == "pre"][col].dropna().tolist() for a, g in D.groupby("animal")}
-        post = {a: g[g.epoch == ep][col].dropna().tolist() for a, g in D.groupby("animal")}
-        post = {a: v for a, v in post.items() if v and pre.get(a)}
-        iv = kit.boot_delta(post, pre, rng) if post else None
-        up = sum(np.mean(post[a]) > np.mean(pre[a]) for a in post)
-        return (iv.point, iv.lo, iv.hi, up, len(post)) if iv is not None else (np.nan,) * 3 + (0, 0)
+    def change(col, ep):                   # (point, lo, hi, n_up, n_animals): analysis_kit.epoch_change, one epoch
+        return kit.epoch_change(D, col, rng, [ep])[ep][:5]
 
     regs = list(W)
     fig, axs = plt.subplots(2, len(regs), figsize=(4.4 * len(regs), 8), squeeze=False)
@@ -130,11 +110,9 @@ def main():
         for rd, mk in (("pre-lick", "o"), ("post-lick", "^")):
             r_an = {an: round(float(np.corrcoef(g["pre-cue"], g[rd])[0, 1]), 2) for an, g in post.groupby("animal")}
             b = float((post["pre-cue"] * post[rd]).sum() / (post["pre-cue"] ** 2).sum())
-            null = []
-            for _ in range(2000):
-                sh = post.groupby("animal")[rd].transform(lambda v: rng.permutation(v.to_numpy()))
-                null.append(float((post["pre-cue"] * sh).sum() / (post["pre-cue"] ** 2).sum()))
-            p = float((np.abs(null) >= abs(b)).mean())
+            xc = post["pre-cue"].to_numpy()
+            _, p = kit.within_shuffle_p(lambda y, xc=xc: float((xc * y).sum() / (xc ** 2).sum()), post[rd].to_numpy(),
+                                        post.animal.to_numpy(), rng, order=post.day.to_numpy(), mode="circular")
             coup.append({"region": reg, "vs": rd, "r_by_animal": r_an, "within_slope": b, "shuffle_p": p})
             for an, g in post.groupby("animal"):
                 ax.scatter(g["pre-cue"], g[rd], marker=ANIMAL_MARKER[an] if rd == "pre-lick" else mk,
@@ -157,7 +135,7 @@ def main():
         "before the first lick, 0..+0.7 s after it, and pre-lick minus pre-cue. Top: change vs own pre (nested bootstrap "
         "animals -> sessions, 2,000; * = 95 % CI excludes 0). Bottom: post-stroke sessions, animal-demeaned, pre-cue "
         "level vs pre-lick (open, shape = animal) and post-lick (filled triangles); within-animal slope with a "
-        "within-animal shuffle (2,000)."), y=1.04, fontsize=9.5)
+        "within-animal circular shift over days (2,000)."), y=1.04, fontsize=9.5)
     sig_marks.reserve_headroom(fig)
     fig.tight_layout()
     save_png_svg(fig, FIGS / f"ss_shift_precue{S.tag()}.png", dpi=130, bbox_inches="tight")

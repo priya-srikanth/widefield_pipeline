@@ -214,9 +214,9 @@ def plot(F: dict) -> None:
         for a_ in axs[i]:
             for sp in ("top", "right"):
                 a_.spines[sp].set_visible(False)
-    fig.suptitle("Is the balance -> read-out-offset link specific to OROFACIAL cortex? Balance = X_right - X_left (decoder's "
+    fig.suptitle("Is the hemispheric difference -> read-out-offset link specific to OROFACIAL cortex? Difference = X_right - X_left (decoder's "
                  "0..0.2 s window) at the same lick angle and order, session means, post-stroke sessions;\nmixed models "
-                 "offset ~ balance (within + between animal) + log(day) + (1 | animal), sessions as observations "
+                 "offset ~ difference (within + between animal) + log(day) + (1 | animal), sessions as observations "
                  "(anti-conservative). Symbols: PS92 o, PS93 s, PS94 ^, PS95 D. PROVISIONAL", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
     save_png_svg(fig, il.OUT_W / "figures" / "lick_balance_regions.png", dpi=100)

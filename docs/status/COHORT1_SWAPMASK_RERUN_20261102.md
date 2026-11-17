@@ -73,7 +73,8 @@ Folded into the same rebuild (decided the same day):
 - **One planned cache rebuild:** drop the WIDEFIELD_PRM_LEGACY_DATE8 shim, convert `precue_engagement_states` to the
   frozen store, and narrow the map-cache code digest to the functions that build maps. Old caches are deleted afterwards
   from a kept list.
-- **Slow-drift step in the SHARED signal** (replacing the order-10 polynomial with a block-protected slow cosine basis); cutoff from DRIFT_CUTOFF_CHECK_20261103.md.
+- **No new drift step in the shared signal** (Priya 11-03, option A, after DRIFT_CUTOFF_CHECK_20261103.md: block-protected removal fails, position-protected leaks labels, replacing the polynomial is worse). Final variant = `hemo_meegkit_hpfit_lag_refitT_swapmask`. The encoder / ITI keep their own 600 s drift basis, pending a check that 10 min is not too short.
+- **LocaNMF: projection** of the corrected data onto the stored per-session and joint footprints (LOCANMF_REFIT_TEST_20261103.md: refits are not reproducible).
 - **Frozen-model IDs carry a training-data fingerprint** (hash of X / y + selection_tag + hemo variant; Priya 11-03), so a changed trial set can never load an old model.
 - **New default "working" = camera-defined** (jaw moved OR any camera-seen lick; Priya 11-03); DAQ quit-tail kept as a robustness row. One shared definition (jaw_only_incomplete_figs.classify + gate helper).
 

@@ -86,6 +86,7 @@ import pandas as pd  # noqa: E402
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import state_space_recovery_trials as R  # noqa: E402
 import state_space_sim as S  # noqa: E402
+import state_space_svdmaps as SM  # noqa: E402
 
 from wfield_local import analysis_kit as kit  # noqa: E402
 from wfield_local.atlas_overlay import region_edges  # noqa: E402
@@ -97,13 +98,13 @@ VERSIONS_ALL = dict(VERSIONS)
 # the stats run build directly off the no stats (don't re-do work!)"): every run first draws the cohort maps WITHOUT
 # tests (ss_cmap_..._nostats_...png) as soon as the responses exist, then runs the tests in the SAME process;
 # WF_SS_NOSTATS=1 stops after the quick look. The per-session responses (loaded, FR-corrected) are cached per version
-# (RESP_CACHE), so a later run of the same configuration skips the load; delete the pkl after changing how they are built.
+# (RESP_CACHE), so a later run of the same configuration skips the load; bump RESP_VERSION after changing how they are built.
 _ENV = __import__("os").environ
 if _ENV.get("WF_SS_VERSIONS"):
     VERSIONS = {k: v for k, v in VERSIONS.items() if k in _ENV["WF_SS_VERSIONS"].split(",")}
 NOSTATS = _ENV.get("WF_SS_NOSTATS") == "1"
 LABEL = {"full": "full change", "nocw": "minus the cortex-wide mode", "spout": "spout-specific part"}
-EPS = ["acute", "subacute", "chronic"]
+EPS = S.POST
 N_BOOT = 2000
 N_PERM = 1000
 BASE = __import__("os").environ.get("WF_SS_MAPBASE", "lick")
@@ -144,10 +145,10 @@ if WIN == "precue":
     BASE_LABEL = {k: v.replace("response window", "PRE-CUE lick-free (>= 1 s) ENL window") for k, v in BASE_LABEL.items()}
 OUT = S.ROOT / f"chronic_maps{S.tag()}{BSUF}"
 FIGS = S.ROOT / "page_figs"
-SUF = S.tag().lstrip("_")
+SUF = S.tag().lstrip("_")                # NOT S.fig_suffix(): empty for cue (the published map names)
 REST = S.ROOT / "rest_baseline_svd"
 ENL = S.ROOT / "enl_baseline_svd"
-BASIS_DIR = S.SVD.parent / "basis"
+BASIS_DIR = S.SVD_BASIS
 
 
 def _wrap(title, width=150):
@@ -178,9 +179,29 @@ def _rest(lab, an):
     return c
 
 
+def rest_level(lab, an):
+    """`_rest`, or None when the session has no RESTnl file (state_space_rest_baseline.py did not write one). The ONE
+    per-session RESTnl load of the map scripts (11-13 cleanup; five shift_* scripts had their own existence check)."""
+    return _rest(lab, an) if (REST / f"{lab}.npz").exists() else None
+
+
+def enl_trials(lab, n):
+    """The session's per-trial lick-free pre-cue ENL vectors (n, K), raw (no transform), or None when the file is
+    missing or its trial count is not ``n`` (the extract and the ENL file must describe the same trials)."""
+    f = ENL / f"{lab}.npz"
+    if not f.exists():
+        return None
+    E = np.load(f)["b"].astype(float)
+    return E if len(E) == n else None
+
+
 FR_WIN = (0.0, 0.5)                          # s after the first lick (response window 0.1..0.5 s + 0.1 s GCaMP lag)
 FR_CACHE = S.ROOT / "fr_cov"
-RESP_CACHE = S.ROOT / "chronic_maps_resp"     # per-session responses per configuration x version (pickle)
+# per-session responses per configuration x version (pickle), keyed by the SVD bundle they were read from and by
+# RESP_VERSION (rule 5: bump it whenever session_responses / apply_fr / the loader's transforms change; mtimes cannot see
+# a code change). Before 11-13 the pkl sat directly in chronic_maps_resp/ with no key.
+RESP_VERSION = 1
+RESP_CACHE = S.ROOT / "chronic_maps_resp" / f"{S.BUNDLE.name}_v{RESP_VERSION}"
 
 
 def fr_covariates(lab, n):
@@ -333,8 +354,8 @@ def session_spouts(lab, an, Y, pos):
     keep = np.ones(len(pos), bool)
     E = None
     if BASE == "enl" or WIN == "precue":
-        E = np.load(ENL / f"{lab}.npz")["b"].astype(float) if (ENL / f"{lab}.npz").exists() else None
-        if E is None or len(E) != len(pos):
+        E = enl_trials(lab, len(pos))
+        if E is None:
             return np.full((6, K), np.nan)
         keep = np.isfinite(E).all(1)
         E = _xf_vectors(np.where(keep[:, None], E, np.nan), pos, an)
@@ -638,21 +659,13 @@ def main():
         sys.exit("state_space_chronic_maps: pixel maps need the cohort SVD basis -- run with WF_SS_BASIS=svd")
     OUT.mkdir(parents=True, exist_ok=True)
     FIGS.mkdir(parents=True, exist_ok=True)
-    Uc = np.load(BASIS_DIR / "U_cohort.npy").astype(np.float64)                 # brain-mask px x K, orthonormal
-    mask = np.load(BASIS_DIR / "mask.npy").reshape(np.load(S.SVD.parents[1] / "atlas.npy").shape)
-    atlas = np.load(S.SVD.parents[1] / "atlas.npy")
+    B = SM.basis()                                                              # cohort SVD basis + split areas
+    Uc, atlas, mask, split = B.Uc, B.atlas, B.mask, B.split                    # Uc: brain-mask px x K, orthonormal
     edges = region_edges(atlas)                       # the FULL CCF outline (bulbs + masked glue included), as the encoder maps
     from wfield_local import beta_maps
     brain = beta_maps.allen_mask()                                             # the whole Allen brain, nothing removed
     statpx = beta_maps.stat_mask()[mask]                                       # eroded brain mask, on the basis pixels
-    from wfield_local import area_basis
-    flat = np.flatnonzero(mask.ravel())
-    split = area_basis.basis_masks(area_basis.roi_masks(atlas.ravel()[flat], beta_maps.stat_mask().ravel()[flat],
-                                                        dict(S._atlas_names()), flat, mask.shape))["split"]
-    for k in ("ALM_left", "ALM_right", "tjM1_left", "tjM1_right"):
-        f = np.zeros(mask.size, bool)
-        f[flat[split[k]]] = True
-        _ROI_OUTLINES.append(f.reshape(mask.shape))
+    _ROI_OUTLINES.extend(SM.roi_outlines())
     if "--replot" in sys.argv:                                                 # figures only, from the saved maps
         z = np.load(OUT / "maps.npz")
         ans = sorted({c.split("_", 1)[1] for c in pd.read_csv(OUT / "areas.csv").columns if c.startswith("d_")})

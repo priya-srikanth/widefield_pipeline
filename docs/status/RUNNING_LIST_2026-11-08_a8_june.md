@@ -214,3 +214,344 @@ drift_floor.py's v2 matching; DESCRIPTIVE (pooled fits). lick_right, COHORT (LOA
   is within it. Fits with the per-session result (acute / subacute beyond June, chronic not). Not yet on deck / page.
 
 - 11-09 late: Priya: June floor figures go on the FR page as a collapsible supplement only (no deck). PUBLISHED FR page v46 (supplement to Fig 7a.1, id #june-floor, both June figures + a status row). Source: session scratchpad fr_page/ (copy at M:/MICROSCOPE/Priya/Widefield/fr_page_src/fr_page/index_v46.html). FINDINGS 5 + FACE_RHYTHM_FINDINGS 6e-June updated.
+
+## 11-12: FR pooled null, all 500 permutations (frf_null500 complete, 3000 / 3000 files on the share)
+Priya's transfer-node loop copied own_epoch_cohort_null/ back (count + pre/post pairing checked locally). Scored with
+`python scripts/face_rhythm_cohort_null.py` (rule v2, defaults) -> readouts/master_pre_v1/epoch_shape_cohort_v2/
+(cohort_null_*.png + data/cohort_null.csv OVERWRITTEN; the previous outputs, acute ~500 / subacute + chronic 100, are in
+epoch_shape_cohort_v2/n100_backup_20261107/). Acute numbers unchanged (were already ~500).
+- LICK PAIR holds and tightens: lick_right Holm < .05 on all four measures at all three epochs (angle / asym / side_spec,
+  p .002-.010); lick_left passes at subacute + chronic (not acute, p .27-.39), side_spec subacute .028.
+- SPECIFICITY OF THE SHAPE CHANGE NO LONGER HOLDS for angles: of the other ten factors, angle_spatial Holm < .05 for
+  4 at subacute (lick_ongoing_7Hz, lick_fast_close, whisk_run, lick_slow_late) and 4 at chronic (prelick_nose,
+  lick_fast_close, whisk_run, lick_slow_late at Holm .050 exactly), 3 acute as before (prelick_nose, whisk_run,
+  lick_slow_late); angle_spectral whisk_run at every epoch. These had sat at the 100-perm floor (Holm .07-.10).
+- What STAYS specific: the LATERALIZED measures. asym: no other factor passes Holm in any epoch (lick_right passes all
+  three, lick_left chronic). side_spec is defined for the lick pair only.
+- Proposed reading (NOT yet in FINDINGS 5.10 / page, waiting on Priya): many factors change shape (within-animal null
+  includes time drift; see June floor 6e-June), but only the lick factors become less lateralized / less side-specific.
+- NaN rows: lick_ongoing_7Hz and lick_fast_close acute (master factor not recovered in the acute fit), as before.
+- 11-12 (Priya asked): lick_left MATCH STABILITY in the pooled null, rule v2 (spatial best; ties within .05 of the best
+  spatial cos -> best spectral; recovered at spatial >= .7, spectral >= .5; columns may repeat). Acute shuffled fits
+  (500 pre / 500 post): runner-up within .05 in 67 / 120, tie-break changed the pick in 40 / 61, lick_left shares its
+  column with another lick unit (lick_ongoing_7Hz, lick_slow_late, lick_fast_close) in 19 / 34, spatial cos < .8 in
+  25 / 36, not recovered 0 / 3. Subacute + chronic: 0 on every count (cos median .99). The REAL acute cohort fit is
+  itself near-tied (margin .026, cos .86; pre / subacute / chronic margins .19 / .18 / .34). So the wide acute null is
+  partly matching ambiguity; the chronic pooled lick_left asymmetry (-.14, MORE lateralized) is not a matching effect.
+  Pooled-vs-per-session direction disagreement for chronic lick_left remains (per session +.10, 3 / 4 own fits +.27).
+- 11-12 (Priya: gut-check the lick_left match): `scripts/face_rhythm_lick_left_match_check.py` ->
+  readouts/master_pre_v1/lick_left_match_check/ (pooled_lick_left.png, session_mean_lick_left.png,
+  sessions_lick_left_<animal>.png). POOLED: pre / subacute / chronic pick a compact ipsilesional mouth-corner blob like
+  the master (cos .94-.99, margins .07-.35); every ACUTE pooled fit (COHORT + 4 LOAO, and LOAO-PS92 subacute) picks a
+  diffuse column (cos .71-.88, margin <= .05) whose runner-up is just as diffuse -> acute pooled lick_left has no clean
+  match. Chronic pooled column is as compact as pre or more (asym -.83) -> the pooled "more lateralized" is real for
+  that fit. PER SESSION: pre fits mostly clean; post fits often flagged (margin < .05: PS94 acute 5/5, chronic 5/8,
+  PS95 subacute 4/5), the pick and runner-up are similar (mean asym -.39 vs -.42; only 4 / 41 flagged picks share a
+  column with another lick unit). Post-stroke matched columns keep the ipsilesional blob, weaker, plus a contralesional
+  cheek spot and lower lip (also in unflagged chronic sessions, e.g. PS94 0910 / 1001 / 1005). Asym change vs own pre,
+  UNFLAGGED sessions only: chronic PS92 +.09, PS93 -.04, PS94 +.22, PS95 .00 (all recovered: +.11 / -.06 / +.29 /
+  +.06); acute has 0-1 clean session per animal. So the per-session contralesional shift is real in PS94, small
+  elsewhere, and partly carried by sessions where lick_left is split over two similar diffuse columns.
+
+## 11-13: lick_left asymmetry downgraded (Priya "ok")
+- FINDINGS headline + 5.10 and FACE_RHYTHM_FINDINGS 6e: the per-session lick_left contralesional shift is now
+  PROVISIONAL (mainly PS94; clean-match chronic change +.09 / -.04 / +.22 / .00). Robust lick_left result = loss of side
+  specificity + shape change (diffuse / split after the stroke). Acute pooled lick_left has no clean match.
+- FR page: headline row, overview row, 7a.1, 7.10, 7.13 reworded; new Figs 7a.10 (session_mean_lick_left) and 7a.11
+  (PS94 session sheet). Published with the 500-permutation edits (v47).
+
+## 11-16: lick_left per-session shift by animal x epoch (correction to the 11-13 downgrade)
+Asym change vs own pre (per-session, recovered sessions): acute +.26 / +.13 / +.27 / +.25 (4 / 4), subacute
++.02 / +.20 / +.24 / +.25 (3 / 4), chronic +.11 / -.06 / +.29 / +.06 (PS92-95). Taking the RUNNER-UP column instead
+gives the same or a larger shift (acute +.15 / -.01 / +.29 / +.22; subacute +.46 / -.02 / +.40 / +.34; chronic +.27 /
++.16 / +.34 / +.49), so the near-ties do not create the shift. Clean-only sets are 0-2 sessions acute / subacute (not
+informative). The 11-13 "clear in PS94 only" was based on chronic alone and overstated. Proposed to Priya: acute +
+subacute STANDS; chronic small (PROVISIONAL). Awaiting her ok before re-editing FINDINGS / page / deck.
+
+## 11-16: flagged lick_left sessions, pick vs runner-up (Priya: "is the runner up a better match?")
+New figures flagged_lick_left_<animal>.png + data/flagged_lick_left.csv (match-check script). Flags: near-tie PS92 12,
+PS93 8, PS94 13, PS95 3; low cosine (.70-.80, still counted as recovered) ONLY in PS95 (5); not recovered PS93 11, PS95 4.
+Runner-up has a higher spatial cosine in 22 / 58 flagged sessions (frequency tie-break chose the pick); its asymmetry is
+about the same. PS95: no good column at all in most flagged sessions (pick .72-.78, runner-up .56-.76, both diffuse);
+0818 subacute: the spatially best column (cos .86) looks like the master but fails on frequency (.31). Recovery at
+spatial cos >= .8 instead of .7: PS92-94 unchanged; PS95 loses acute (1 -> 0 sessions) and subacute (5 -> 1). Asym change
+at >= .8: acute +.26 / +.13 / +.27 / - ; subacute +.02 / +.20 / +.24 / +.17 (1 session); chronic +.11 / -.06 / +.27 / .00.
+
+## 11-16: own-fit lick columns, trial-aligned expression by spout (Priya: matched vs runner-up on lick-left trials?)
+`scripts/face_rhythm_own_temporal.py` (new): each session's trial spectrograms projected on all 12 own8 columns (unit-norm
+A / B, absolute = weight x D, 12 trials per spout; cache ~/wfield_cache/fr_own_temporal/) -> own_temporal_lick.png +
+per animal + data/own_temporal_lick.csv in lick_left_match_check/. Response window (cue 0..+2 s) ipsi / contra spout
+ratio, mean of animals: lick_left MATCHED 4.7 pre -> 2.5 / 2.3 / 2.7 (ipsi trials fall a little, contra trials rise);
+RUNNER-UP 1.3 / 1.8 / 1.4 / 1.3 (not side-selective). lick_right matched contra/ipsi 5.7 pre, stays selective; its
+runner-up ~1. Post-stroke FLAGGED sessions: matched column more left-selective than the runner-up in 27 / 35 (median
+ratio 2.3 vs 1.3); PS92 10 / 10, PS93 5 / 5, PS94 8 / 13 (2.2 vs 2.3), PS95 4 / 7. PS95 subacute matched lick_left is
+strongly expressed on left-spout trials (Priya: lick_left is there behaviorally; my "not really there" was wrong -- the
+footprint changed, the factor did not vanish). PS93 0822 / 0824: matched column more left-selective (1.42 vs 1.07; 1.31
+vs .35) -> the tie-break picked the right column in both.
+
+## 11-16 (later): own-fit lick columns -- SEM bands, cohort palette, by-spout layout, stats (Priya)
+`face_rhythm_own_temporal.py` now: spout colors = `spout_behavior.position_style`; band = SEM across animals;
+own_temporal_lick[_by_position][_<animal>].png + own_temporal_lick_stats.png (response window cue 0..+2 s, log2 vs own
+pre, boot_delta, Holm over 18 per row) + data/own_temporal_lick_stats.csv. Preview from 12 trials / spout (suffix _n12);
+ALL-TRIALS cache running (~3.5 h, 50,929 trials, network-bound), then re-render without suffix.
+Preview stats (matched columns): lick_right falls on far contra trials at every epoch (-2.61** / -.86** / -.69**) and
+far mid (-1.22** / -.47** / -.54*), close contra unchanged; lick_left RISES on close contra acutely (+1.31**) and far
+contra subacutely (+.69*), falls on close ipsi chronically (-.50**) and far mid acutely (-.76**). Runner-ups: one Holm
+pass (lick_right runner-up close contra subacute -.55**).
+
+## 11-16: lick_left asymmetry wording applied (Priya "sure")
+STANDS acute (4 / 4) + subacute (3 / 4), chronic small / PROVISIONAL (mainly PS94): FINDINGS headline + 5.10,
+FACE_RHYTHM_FINDINGS 6e + change log; PI deck slide 90 (new bullet + notes line; backup
+Overview_2026-11-06.bak_pre_a8_lickleft_20261116.pptx); FR page text edited LOCALLY (headline row, overview row, 7a.1,
+7a.10, 7.13), published together with the own_temporal figures after the all-trials re-render.
+Stale, not mine to edit without asking: deck slide 163 (Big picture) status line still says "lick_left subacute + chronic
+(cohort permutation null, 100 permutations per epoch, 10-26)".
+- 11-16: deck slide 163 notes status clause updated (Priya "yes ok"; backup Overview_2026-11-06.bak_pre_a8_s163_20261116.pptx).
+- 11-16: FR page v48 published: lick_left wording (STANDS acute + subacute), new section-7a block "Does the matched factor
+  fire on its own spout's trials?" -- Figs 7a.12 own_temporal_lick (key), 7a.13 stats, 7a.14 by_position_norm (pre =
+  leave-one-out, SEM across pre sessions), supporting 7a.15-7a.27 (absolute by spout, per animal, flagged pick vs
+  runner-up, session sheets, pooled matches); status row added. Figures are the 12-trials-per-spout preview: SWAP for the
+  all-trials render (same ids / file names) and update the 7a.13 numbers + status row when bkwv2ffli finishes.
+- 11-16: BLOCK-PERMUTATION audit (window a2; Priya: block permutation everywhere it makes sense). FR arm: only
+  scripts/fr_enl_decode.py is affected (FR page Fig 6.1, PROVISIONAL): its per-session null permutes position labels
+  trial-wise against the block-CV predictions -> HOLD claims until a2's shared block helper lands, then re-run with block
+  permutation. All other FR nulls shuffle session labels within animal (unaffected); own_temporal stats = bootstrap.
+- 11-16: a2 audit done (branch analysis/tim-encdesign-1116, docs/status/BLOCK_PERMUTATION_AUDIT_2026-11-16.md, a7ec0482).
+  Class A in the FR / ENL arm (trial-wise spout-label null vs block-CV predictions -> block permutation): fr_enl_decode.py:118,
+  enl_fr_removed_decode.py:119, enl_movement_multisession.py:253, enl_video_spout_check.py:142, movement_position_angle.py:79
+  (+98). HOLD new p values on these until a2's trial-wise vs block-wise measurement + shared analysis_kit.block_permute.
+  Session-label shuffles fine. Trend caveat (two session series both trending over days): the only FR association test
+  is session_shape_tests lick_right map change vs right-lick share (Spearman, parametric p, within epoch; rho -.14 n.s.) --
+  a shared trend would inflate, not hide, an association, so the null result stands; detrend if it is ever re-tested.
+- 11-16 ~15:10: all-trials run STOPPED at 64 / 108 (window 3c: box at 2.3 GB free; my 6 workers held ~42 GB of memory-mapped
+  spectrogram pages). Fix in session_curves: plain per-trial file reads (verified byte-identical to the memmap); measured
+  0.42 GB working set per worker (was 8-10 GB). Resumed with --jobs 4 (completed sessions kept in the cache).
+
+### 11-16 ~16:50 -- all-trials lick timing done; FR page v49
+All-trials cache (108 sessions, 0 errors) + render (`face_rhythm_own_temporal.py --per-pos 0`). Numbers move little vs the
+12-trial preview; three marks changed: lick_left far contra subacute +.78 (* -> **), lick_left close ipsi subacute -.32
+(none -> *), lick_right runner-up far contra acute (* -> none). Matched lick_right far contra -2.54** / -.84** / -.58**;
+lick_left close contra acute +1.36**. Left / right spout response ratio (both spouts per side, sessions pooled per epoch):
+matched lick_left 5.0 pre, 2.6 / 2.3 / 3.1 post; runner-up 1.2-1.7 (the 12-trial "4.7, 2.3-2.7" came from the first
+preview version). Flagged post sessions where the matched column is more left-selective: 25 / 35 (was 27 / 35; PS92 10/10,
+PS93 4/5, PS94 7/13, PS95 4/7). Conclusion unchanged. Page v49 (1794866489-396c): figures 7a.12-7a.20 swapped to all
+trials, captions / take line / status row rewritten (no 12-trial wording left). FINDINGS + FACE_RHYTHM_FINDINGS numbers
+updated.
+
+### 11-16 ~17:30 -- per-trial / per-lick readouts (Priya: "start per-trial analyses"; far-contra lick_left question)
+New `scripts/face_rhythm_per_trial.py` (frozen master `proj/`, LP v36 licks; session-level animal bootstrap, Holm over
+spouts) -> readouts/master_pre_v1/per_trial/ (data/per_trial_{trials,licks}.pkl, _sessions.csv, _stats.csv). RESULTS
+(NOT on the page; to Priya first):
+- Far-contra leftward licks are real: trials with >= 1 leftward lick pre .01-.09 -> acute .22-.67 (4/4), subacute
+  .05-.81, chronic .02-.59 (PS94 persists).
+- FROZEN master lick_left on far-contra trials DOES rise acutely: trial mean 0-2 s +.73** log2 (4/4 up), subacute
+  +1.16**, chronic +.81**. Per leftward lick no change (-.11 acute, n.s.) -> the rise = more leftward licks, not bigger.
+  So the flat acute far-contra cell in own-fit Fig 7a.13 (+.01) is a property of the per-session own-fit matched column,
+  not of the behavior or the master factor. Peak of the TRIAL AVERAGE also hides it (+.21 n.s. acute) while the median
+  PER-TRIAL peak shows it (+.72**): leftward licks on ~half the far-contra trials, late and scattered (per-trial peak
+  time +1.16 s).
+- Isolated licks: isolated leftward licks express ~30 % less lick_left than in-bout ones acutely (ratio .59-.71, 4/4;
+  pre .67-.96); acutely 15 % of far-contra leftward licks are isolated (pre 2 %). Partial contribution, not the cause.
+- Window 0-4 s vs 0-2 s: same conclusions (far_R acute +.94** vs +.73**).
+- Per-trial vs trial-average amplitude: same direction everywhere; acute losses smaller per trial (lick_right far_R
+  -1.83** vs -2.43**). CAVEAT: per-trial peak of a flat trial = max of noise (positive floor), which compresses losses;
+  per-trial timing (COM / peak time) of near-flat trials drifts to the window middle, so acute "later" lick_right
+  per-trial timing (+.47 s) is confounded by the amplitude loss. NEXT: condition on movement (trials with a lick of
+  the unit's direction): prevalence x amplitude-given-lick, timing only on those trials.
+Fig 7.3: per-epoch shading removed, pooled squares + stars centred on the epoch (Priya 11-16); page v50. Same shading
+removed in code from epoch_shape_angles (page 7.11 / 8.18) -- takes effect at their next render.
+
+### 11-16 ~18:00 -- movement-conditioned per-trial readouts; FR page renumbered (v51)
+Conditioned on movement (trials with >= 1 lick in the unit's direction; prevalence = fraction of such trials):
+- lick_right at far contra: prevalence -.87** / -.36** / -.07 (fraction); amplitude GIVEN a right lick -.83** / -.58** /
+  -.61** log2 (4/4 below every epoch) -> the chronic deficit is per-movement amplitude, not prevalence. Timing: first
+  right lick later +1.21 s acute (+.41 subacute, +.08 chronic n.s.); lick_right peak relative to the first right lick
+  unchanged (-.25 n.s. acute) -> acute "later" expression follows later licking (reaction time), not re-timing.
+  Chronic: peak +.24 s* / COM +.32 s** with first lick on time (peak - first lick +.12 n.s.) -- weak.
+- lick_left at far contra: prevalence +.38** / +.27** / +.12; amplitude given a left lick unchanged (-.06 / +.24 / +.11
+  n.s.) -> the rise is MORE trials with leftward licks, not bigger ones. On far-contra trials WITHOUT a leftward lick
+  lick_left still rises subacute / chronic (+.77** / +.60**), and at close contra (leftward licks ~absent) it rises on
+  no-left-lick trials +.65* / +.81** / +.98** -> contralesional-target licks made with the lick_left face pattern
+  (fits FINDINGS 5d "ipsilesional lick pattern used for contralesional targets").
+- Caveat: no-lick trials also fall acutely for lick_right (-.79**): less face movement overall acutely.
+FR page v51: sections renumbered in page order 7a->7, 7b->8, 7->9, 8->10, 9->11 (Priya: "7a, 7, and 7 is confusing");
+checked: 0 link mismatches, titles = data-num, no non-figure text changed. Doc pointers updated. PI deck notes on slides
+87 / 89 / 93 / 94 still cite the OLD numbers (8.10, 7.1, 7.2, 7.12 -> now 10.10, 9.1, 9.2, 9.12; #f- ids still valid):
+ASK Priya before editing the deck.
+
+### 11-16 ~18:30 -- per-trial block on the page (v52); deck notes renumbered (Priya "yes add to page" / "and update deck")
+FR page v52: section 2 gains "Per trial: how often vs how large" (Fig 2.5 = per_trial/per_trial_conditioned.png) + a
+status row. Figure fixes before publishing: factor expression floored at 1 before log2 (a near-zero session gave -20),
+and a cell is tested only with a pre baseline in >= 3 animals (lick_left given a leftward lick at close contra: 2 / 4,
+drawn as "not tested", out of Holm). Key numbers unchanged by either fix.
+PI deck (backup Overview_2026-11-06.bak_pre_a8_renumber_20261116.pptx): FR page numbers in notes of slides 87 (8.10 ->
+10.10), 89 (7.1 -> 9.1; Figs 7.11-7.15 -> 9.11-9.15), 90 (section 7a -> 7), 93 (7.2 -> 9.2; 7.15 -> 9.15), 94 (7.12 ->
+9.12, x2). Each #f- id checked: v50 number = old note number, v52 number = new. No slide text touched.
+
+### 11-16 late -- to-do pass (Priya "go ahead with the to-do's"; deck slide yes; delete superseded n12 yes; hold ok)
+- Page v53 / v54: Fig 2.6 (amplitude three ways + isolated licks), Fig 5.5 (per-trial lick_right timing; section 5 take +
+  status row rewritten: acute later expression follows later first right lick; chronic close contra peaks .50 s later
+  relative to it, *), Fig 6.2 (spout-in-mesh control; section 6 note sentence replaced), Fig 7.13 caption sentence
+  (own-fit vs frozen far-contra lick_left), Figs 9.11 / 10.18 redrawn without epoch shading (v1 tables, numbers same).
+- Deck: new slide 81 (per-trial; backup .bak_pre_a8_pertrial_slide_20261116.pptx). ALL SLIDES AFTER 80 MOVED +1 (206).
+- FINDINGS FR item 6 + FACE_RHYTHM_FINDINGS 5g: timing claim refined (per-trial split, chronic re-timing PROVISIONAL).
+- DELETED (superseded derived, Priya "ok to delete if superseded"), 118 files:
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260806_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260807_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260809_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260810_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260811_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260812_cam4_v1_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260812_cam4_v2_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260813_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260814_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260818_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260819_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260820_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260821_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260822_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260824_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260826_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260828_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260901_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260904_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260908_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260911_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260915_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260918_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260922_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260925_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20260929_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20261002_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS92_20261006_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260806_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260807_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260809_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260810_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260811_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260812_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260814_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260818_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260819_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260820_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260821_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260822_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260824_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260826_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260828_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260901_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260904_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260908_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260911_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260915_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260918_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260922_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260925_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20260929_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20261002_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS93_20261006_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260806_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260807_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260809_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260810_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260811_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260812_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260813_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260814_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260817_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260818_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260819_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260820_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260821_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260823_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260825_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260827_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260831_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260903_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260907_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260910_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260914_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260917_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260921_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260924_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20260928_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20261001_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS94_20261005_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260806_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260807_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260809_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260810_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260811_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260812_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260813_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260814_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260817_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260818_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260819_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260820_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260821_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260823_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260825_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260827_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260831_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260903_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260907_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260910_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260914_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260917_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260921_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260924_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20260928_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20261001_cam4_n12.npz
+    C:/Users/SabatiniLab/wfield_cache/fr_own_temporal/PS95_20261005_cam4_n12.npz
+    M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/master_pre_v1/lick_left_match_check/data/own_temporal_lick_n12.csv
+    M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/master_pre_v1/lick_left_match_check/data/own_temporal_lick_stats_n12.csv
+    M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/master_pre_v1/lick_left_match_check/own_temporal_lick_PS92_n12.png
+    M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/master_pre_v1/lick_left_match_check/own_temporal_lick_PS93_n12.png
+    M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/master_pre_v1/lick_left_match_check/own_temporal_lick_PS94_n12.png
+    M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/master_pre_v1/lick_left_match_check/own_temporal_lick_PS95_n12.png
+    M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/master_pre_v1/lick_left_match_check/own_temporal_lick_by_position_n12.png
+    M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/master_pre_v1/lick_left_match_check/own_temporal_lick_by_position_norm_n12.png
+    M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/master_pre_v1/lick_left_match_check/own_temporal_lick_n12.png
+    M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/master_pre_v1/lick_left_match_check/own_temporal_lick_stats_n12.png
+
+### 11-16 late -- Priya on open items; deck "Data:" pass
+- June vs August-frozen: "just for drift sub-analyses" -> DECISIONS 2026-11-16. il.OUT item = the 11-08 render-queue
+  audit, dropped from the FR list. "Data:" pass: Priya "yes go ahead" -> 21 slides written (8 CONFIRMED provenance rows +
+  13 FR slides), 32 / 206 now carry the block; INFERRED / UNKNOWN rows not written (~150 slides wait). Record
+  docs/status/DECK_DATA_BLOCK_PASS_2026-11-16.csv; slide 4 conflict (confirmed row vs notes on the trial gate) left for
+  the behavior arm.
+- 11-16 late, Priya "confirm provenance": re-ran 34's provenance scripts on today's render logs ->
+  FIGURE_PROVENANCE_20261116_rerun.csv (+ _RERUN.md): CONFIRMED 45 -> 257 (deck 8 -> 38); Data: blocks on 26 more slides
+  (deck 58 / 206). Remaining deck rows need per-figure work (no script named 48, older kept runs 47, missing fields 20,
+  steps not done ~30).
+- 11-16 late, Priya "yes do the per figure sweep" + "and update re-rendered figures": 6 read-only helpers, one per deck
+  slide group (126 picture slides without a Data: block; inputs + outputs in a8 scratchpad sweep/group*.json ->
+  out_group*.json): 7 fields + level LOG (render log) / CODE (code + output file, no log) / UNRESOLVED, plus the current
+  render path vs the deck image source (stale yes / no) and crop. Next: spot-check, write blocks (CODE labelled as such),
+  swap stale images (as-is ones directly; crops reproduced), record.
+- 11-16 night, per-figure sweep DONE (6 helpers + 1 staleness check; outputs docs/status/provenance_sweep_20261116/):
+  126 swept slides = 39 traced to a render log, 76 to code + output file, 11 unresolved. Spot-checked 3 claims against the
+  logs (slide 13 decoder .37->.14 etc., slide 21 chronic Holm .057, slide 141 chronic -.288 / -.269): all exact.
+  Data: blocks on 38 more slides (image not stale; Correction line tagged [traced: render log] or [traced: code + output
+  file, no run log]); deck 96 / 206 with the block (DECK_DATA_BLOCK_PASS3_2026-11-16.csv; backup _datablock3).
+  STALE IMAGES: 109 slides (DECK_STALE_FIGURES_2026-11-16.csv): A 21 swap + recheck numbers, B 53 numbers / text change,
+  C 35 no rebuilt version. NO image swapped; per-slide approval asked from Priya. 3c: not editing the PI deck; holds
+  slide 13 picture, balance 135-140 / 203 (C6), state-space SVD / LocaNMF slides (pre-glue inputs).
+
+### 11-17 — slide 21 (frozen position decoder) normalization check (Priya: "per-animal normalization or raw?")
+- Rebuild test (g7_fig_state_position_r.log, 480accea) = boot_delta PAIRED vs each animal's own pre, on the
+  chance-normalized scale retained = (bal_acc - chance)/(1 - chance); an absolute difference, not divided by own pre.
+- Relative to own pre (post / own-pre mean - 1, then boot_delta + Holm over 6; `provenance_sweep_20261116/slide21_relative_check.py`):
+  position -.42 / -.17 / -.09, chronic p .023, Holm .046 (*); on raw balanced accuracy -.34 / -.13 / -.07, Holm .045.
+  Per animal chronic: PS92 -.01, PS93 -.10, PS94 -.20, PS95 -.06 (4/4 negative, PS92 ~0). Chronic is borderline either way
+  (Holm .057 absolute vs .046 relative); not a normalization artifact. Old slide's "all **" (-.41/-.19/-.09) came from the
+  pre-rebuild inputs, not the scale.
+
+### 11-17 — deck swap pass started (Priya: 1. swap A+B + rewrite text/notes, 2. run C renders, 3. replace held slides with updated versions)
+- Deck backup Overview_2026-11-06.bak_pre_a8_swap_20261117.pptx; plan + per-slide spec schema docs/status/deck_swap_20261117/README.md;
+  6 helpers: A+B specs in 4 batches; C renders (lmm_hidden companions on branch lmm-hidden-20261103; others on main). 162/163 = cohort2 QC, skip.
+- Slide 21 old vs new decomposed (same script on the pre-rebuild epoch/data): old pre had 11 sessions / animal (incl. June 06-06..08),
+  rebuild 8 (August from 08-01). Pre levels .850/.744/.923/.915 -> .829/.681/.922/.908 (PS93 -.06); acute .451/.288/.466/.607 ->
+  .499/.309/.515/.629 (all higher). Both shrink the drop (-.405 -> -.347; chronic -.093 ** -> -.077 n.s.). Not decomposed by factor:
+  the gate is not isolated (Priya: camera gate adds non-contact-lick trials, expected to LOWER accuracy; post went UP).

@@ -5,7 +5,7 @@ Bins (state_space_balance_cells.py) lose acute far-contra entirely (0-3 % land o
 continuous 3-D lateral coordinate `side_ml` of the first lick (licks.csv.gz via state_space_landing.py; mm, + toward the
 contralesional side as written there). Per animal and RING (close / far), on PRE trials only:
 
-    size_h(trial) = a_h[target] + b_h * side_ml        h = contralesional / ipsilesional orofacial response size
+    size_h(trial) = a_h[target] + b_h * side_ml        h = contralesional / ipsilesional orofacial sensory response size
                                                         (SSp-m, SSp-n, SSs; 0-1 s after the cue minus -0.5-0 s)
 
 The slope is shared across the ring's three targets, so a far-contra-aimed lick that lands far-ipsi is predicted with
@@ -16,7 +16,7 @@ Also refits the same model per post epoch to compare the landing SLOPE (does the
 
 Step 1 (`--collect`, ~9 min of share I/O): per-trial table -> landing/trial_sizes.csv. Step 2 (default): the analysis
 -> landing/balance_angle_{sessions,coefs}.csv. Exploratory.
-`--motor` (Priya 11-09): the same over the motor areas ALM + tjM1 (state_space_balance_cells.MOTOR); every table carries
+`--motor` (Priya 11-09): the same over the motor areas ALM + tjM1 (state_space_sim.MOTOR); every table carries
 the suffix `_motor`.
 """
 from __future__ import annotations
@@ -32,9 +32,8 @@ import state_space_recovery_trials as R  # noqa: E402
 import state_space_sim as S  # noqa: E402
 
 OUT = S.ROOT / ("landing" if S.ALIGN == "cue" else f"landing_{S.ALIGN}")   # per alignment (WF_SS_ALIGN; cue = landing/)
-MOTOR = ("ALM", "tjM1")                                                 # = state_space_balance_cells.MOTOR
-AREAS, SFX = (MOTOR, "_motor") if "--motor" in sys.argv else (R.OROFACIAL, "")
-RINGS = {"close": ["close_ipsi", "close_mid", "close_contra"], "far": ["far_ipsi", "far_mid", "far_contra"]}
+AREAS, SFX = (S.MOTOR, "_motor") if "--motor" in sys.argv else (S.OROFACIAL, "")
+RINGS = S.RINGS
 
 
 def collect():

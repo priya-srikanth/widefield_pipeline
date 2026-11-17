@@ -5,8 +5,8 @@ Per session: the region-mean change beyond licking (`state_space_shift_behavior.
 minus RESTnl, units of the animal's pre-template pixel RMS) and the observed change ("obs | ..."), joined to the
 behavioral recovery axis of Fig 6.3: far-contra FIRST-cued-lick aim vs the animal's pre landing (deg, - = ipsilesional;
 `aim_deficit_sessions.csv` farcontra_first). Post-stroke sessions, as `state_space_step_vs_gradual`:
-  per-animal r (printed first, rule 8); within-animal slope (animal-demeaned) with a within-animal shuffle null (aim
-  permuted within animal, 2,000); MixedLM value ~ aim + (1 | animal) and value ~ aim + C(epoch) + (1 | animal) (does aim
+  per-animal r (printed first, rule 8); within-animal slope (animal-demeaned) with a within-animal circular-shift null
+  (aim rotated over the animal's day-sorted sessions, 2,000; `step_vs_gradual.shuffle_p`; a free shuffle until 11-16); MixedLM value ~ aim + (1 | animal) and value ~ aim + C(epoch) + (1 | animal) (does aim
   explain the value WITHIN epochs, or only through the epoch step?).
 Outputs: <state_space_recovery>/shift_recovery{tag}/coupling.csv, page_figs/ss_shift_recovery{tag}.png. EXPLORATORY.
 """
@@ -90,7 +90,7 @@ def main():
         "Does the shared increase follow behavioral recovery? Per session: region-mean change beyond licking (minus "
         "RESTnl, cohort SVD, first-lick-aligned; Fig 10.21's residual) against far-contra first-cued-lick aim vs own pre "
         "(Fig 6.3's recovery axis). Post-stroke sessions: lines = per-animal fits; within-animal slope with a "
-        "within-animal shuffle (2,000); 'within epoch' = MixedLM value ~ aim + C(epoch) + (1 | animal)."), y=1.06,
+        "within-animal circular shift over days (2,000); 'within epoch' = MixedLM value ~ aim + C(epoch) + (1 | animal)."), y=1.06,
         fontsize=9.5)
     fig.tight_layout()
     save_png_svg(fig, FIGS / f"ss_shift_recovery{S.tag()}.png", dpi=130, bbox_inches="tight")

@@ -44,25 +44,37 @@ def match(rt_ms, pos, k):
     return out
 
 
+def _session_rows(item):
+    """One extract file + its session's 3-D first licks -> the per-row landing table (module-level: fan_sessions)."""
+    f, k = item
+    lab = Path(f).stem
+    an = lab.split("_")[0]
+    z = np.load(f)
+    rt, pos = np.asarray(z["first_rt"], float) * 1000, np.asarray(z["first_pos"]).astype(str)
+    m = match(rt, pos, k)
+    d = pd.DataFrame({"label": lab, "animal": an, "row": np.arange(len(rt)), "pos": pos, "rt_ms": rt})
+    for c in ["trial_id", "contact", *XYZ]:
+        v = k[c].to_numpy()
+        d[c] = np.where(m >= 0, v[np.maximum(m, 0)] if len(v) else np.nan, np.nan)
+    return d
+
+
 def build():
+    """Every extract session's first-lick rows joined to the 3-D licks; the session files are read in parallel
+    (`analysis_kit.fan_sessions`, results in file order, as the serial loop before 11-13)."""
+    from wfield_local import analysis_kit as kit
     K = pd.read_csv(LICKS, usecols=["session", "trial_id", "lick_idx", "position", "contact", "t_peak_cam4", *XYZ,
                                     "epoch", "animal"])
     K = K[K.lick_idx == 0].copy()
     K["pos"] = K.position.map(SIDE)
-    rows = []
+    items = []
     for f in sorted(glob.glob(ITI + "/PS9*.npz")):
-        lab = Path(f).stem
-        an, mmdd = lab.split("_")
-        z = np.load(f)
-        rt, pos = np.asarray(z["first_rt"], float) * 1000, np.asarray(z["first_pos"]).astype(str)
-        k = K[K.session == f"{an}_2026{mmdd}"].sort_values("trial_id").reset_index(drop=True)
-        m = match(rt, pos, k)
-        d = pd.DataFrame({"label": lab, "animal": an, "row": np.arange(len(rt)), "pos": pos, "rt_ms": rt})
-        for c in ["trial_id", "contact", *XYZ]:
-            v = k[c].to_numpy()
-            d[c] = np.where(m >= 0, v[np.maximum(m, 0)] if len(v) else np.nan, np.nan)
-        rows.append(d)
-    return pd.concat(rows, ignore_index=True)
+        an, mmdd = Path(f).stem.split("_")
+        items.append((f, K[K.session == f"{an}_2026{mmdd}"].sort_values("trial_id").reset_index(drop=True)))
+    res, fail = kit.fan_sessions(items, _session_rows, key=lambda it: it[0], label="landing")
+    if fail:
+        raise RuntimeError(f"state_space_landing: {len(fail)} sessions failed: {fail[:3]}")
+    return pd.concat([d for _, d in res], ignore_index=True)
 
 
 def landing_bins(D, epoch_of):

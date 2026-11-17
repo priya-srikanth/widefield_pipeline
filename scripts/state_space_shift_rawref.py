@@ -13,7 +13,7 @@ split-basis areas, ROI v8), cohort SVD basis, units of the animal's pre-template
 and the same three task levels minus RESTnl. Change vs own pre, animal-weighted nested bootstrap (`boot_delta`, 2,000),
 * = 95 % CI excludes 0; per-animal values printed first (rule 8). Plus, across post-stroke sessions (animal-demeaned), how
 much of the vs-RESTnl tonic level is carried by the raw pre-cue level vs by the raw rest level (within-animal slopes,
-within-animal shuffle, 2,000).
+within-animal circular shift over days, 2,000; a free shuffle until 11-16).
 Caveat: the session mean itself contains the task (licking time, engagement), so a raw level is relative to a reference
 that can move too; neither reference is absolute. The test is whether the two references AGREE.
 Outputs: <state_space_recovery>/shift_rawref{tag}/{sessions,changes,coupling}.csv, page_figs/ss_shift_rawref{tag}.png.
@@ -36,6 +36,7 @@ import state_space_chronic_maps as C  # noqa: E402
 import state_space_recovery_trials as R  # noqa: E402
 import state_space_shift_behavior as SB  # noqa: E402
 import state_space_sim as S  # noqa: E402
+import state_space_svdmaps as SM  # noqa: E402
 import state_space_trajectories as TR  # noqa: E402
 
 from wfield_local import analysis_kit as kit  # noqa: E402
@@ -54,36 +55,19 @@ REL = ["pre-cue", "pre-lick", "post-lick"]
 def main():
     if S.BASIS != "svd":
         sys.exit("state_space_shift_rawref: needs the cohort SVD basis (WF_SS_BASIS=svd)")
-    from wfield_local import area_basis, beta_maps
-    Uc = np.load(C.BASIS_DIR / "U_cohort.npy").astype(np.float64)
-    atlas = np.load(S.SVD.parents[1] / "atlas.npy")
-    mask = np.load(C.BASIS_DIR / "mask.npy").reshape(atlas.shape)
-    flat = np.flatnonzero(mask.ravel())
-    split = area_basis.basis_masks(area_basis.roi_masks(atlas.ravel()[flat], beta_maps.stat_mask().ravel()[flat],
-                                                        dict(S._atlas_names()), flat, mask.shape))["split"]
-    W = {}
-    for reg, areas in SB.REGIONS.items():
-        for side, hemi in SB.SIDES.items():
-            px = np.logical_or.reduce([np.asarray(split[f"{a}_{hemi}"], bool) for a in areas if f"{a}_{hemi}" in split])
-            W[f"{reg} {side}"] = Uc[px].mean(0)
+    W = SM.region_weights(SB.REGIONS)                                   # K-vector per region x side
     t, _ = TR.times()
     wix = {w: np.flatnonzero((t >= a - 1e-9) & (t < b - 1e-9)) for w, (a, b) in WINS.items()}
     data, _ = S.load_sessions()
     rows = []
     for an, sess in sorted(data.items()):
         Tpre = R.template([s for s in sess if s[1] == "pre"])
-        ok = np.isfinite(Tpre).all(axis=(1, 2))
-        B0 = Tpre[ok] - S.flat(Tpre[ok]).mean(0)
-        unit = float(np.sqrt((B0 ** 2).sum() / B0.size * B0.shape[-1] / Uc.shape[0]))
+        unit = SM.pre_unit_px(Tpre)                                       # pixel RMS of the pre template
         for lab, ep, day, Y, pos in sess:
-            if ep not in ("pre", *EPS) or not (C.REST / f"{lab}.npz").exists():
+            if ep not in ("pre", *EPS):
                 continue
-            c = C._rest(lab, an)
-            f = C.ENL / f"{lab}.npz"
-            if c is None or not f.exists():
-                continue
-            E = np.load(f)["b"].astype(float)
-            if len(E) != len(pos):
+            c, E = C.rest_level(lab, an), C.enl_trials(lab, len(pos))
+            if c is None or E is None:
                 continue
             keep = np.isfinite(E).all(1)
             r = {"animal": an, "label": lab, "epoch": ep, "day": day}
@@ -103,13 +87,9 @@ def main():
     D.to_csv(OUT / "sessions.csv", index=False)
     rng = np.random.default_rng(0)
 
-    def change(col, ep):
-        pre = {a: g[g.epoch == "pre"][col].dropna().tolist() for a, g in D.groupby("animal")}
-        post = {a: g[g.epoch == ep][col].dropna().tolist() for a, g in D.groupby("animal")}
-        post = {a: v for a, v in post.items() if v and pre.get(a)}
-        per = {a: round(float(np.mean(post[a]) - np.mean(pre[a])), 2) for a in post}
-        iv = kit.boot_delta(post, pre, rng)
-        return iv.point, iv.lo, iv.hi, sum(v > 0 for v in per.values()), len(per), per
+    def change(col, ep):                   # + the per-animal table (rounded for the CSV): analysis_kit.epoch_change
+        c = kit.epoch_change(D, col, rng, [ep])[ep]
+        return c.point, c.lo, c.hi, c.n_up, c.n_animals, {a: round(v, 2) for a, v in c.per_animal.items()}
 
     reads = [f"raw {k}" for k in RAW] + [f"{k} - RESTnl" for k in REL]
     regs = list(W)
@@ -146,11 +126,10 @@ def main():
             xcol = f"{reg} | {src} dm"
             x_ = sgn * post[xcol]
             b = float((x_ * post[y + " dm"]).sum() / (post[y + " dm"] ** 2).sum())   # share of tonic variance: x on y
-            null = []
-            for _ in range(2000):
-                sh = post.groupby("animal")[xcol].transform(lambda v: rng.permutation(v.to_numpy()))
-                null.append(float((sgn * sh * post[y + " dm"]).sum() / (post[y + " dm"] ** 2).sum()))
-            p = float((np.abs(null) >= abs(b)).mean())
+            yd = post[y + " dm"].to_numpy()
+            _, p = kit.within_shuffle_p(lambda x, yd=yd, sgn=sgn: float((sgn * x * yd).sum() / (yd ** 2).sum()),
+                                        post[xcol].to_numpy(), post.animal.to_numpy(), rng,
+                                        order=post.day.to_numpy(), mode="circular")      # Priya 11-16
             r_an = {an: round(float(np.corrcoef(g[y + " dm"], sgn * g[xcol])[0, 1]), 2) for an, g in post.groupby("animal")}
             coup.append({"region": reg, "source": ("+" if sgn > 0 else "-") + src, "share_of_tonic": b, "shuffle_p": p,
                          "r_by_animal": r_an})
@@ -178,7 +157,7 @@ def main():
         "(filled), and the three task levels minus RESTnl (open; = raw level - raw RESTnl). Top: change vs own pre "
         "(nested bootstrap animals -> sessions, 2,000; * = 95 % CI excludes 0). Bottom: post-stroke sessions, "
         "animal-demeaned; the share of the vs-RESTnl pre-cue level carried by the raw pre-cue level and by minus the raw "
-        "rest level (the two shares sum to 1), within-animal shuffle (2,000)."), y=1.04, fontsize=9.5)
+        "rest level (the two shares sum to 1), within-animal circular shift over days (2,000)."), y=1.04, fontsize=9.5)
     sig_marks.reserve_headroom(fig)
     fig.tight_layout()
     save_png_svg(fig, FIGS / f"ss_shift_rawref{S.tag()}.png", dpi=130, bbox_inches="tight")

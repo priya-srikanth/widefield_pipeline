@@ -420,8 +420,9 @@ patch, marked when the 95 % interval excludes 0 AND 4 / 4 animals share the sign
   toward the TARGET side, i.e. directed movement, not a close_R artifact. Same in every epoch; since 5f's statistics are
   changes vs each animal's own pre, a stable offset cancels there.
 
-**5g. WHEN each factor is expressed after the cue: the contralesional lick factor is re-timed LATER (STANDS, 4 / 4,
-10-24 evening).** Priya: "should we also look at when each behavior is expressed with respect to cue and whether that
+**5g. WHEN each factor is expressed after the cue: the contralesional lick factor is expressed LATER (STANDS, 4 / 4,
+10-24 evening; per-trial split 11-16: acutely it follows a later first right lick, chronically at close contra it peaks
+.50 s later relative to that lick, PROVISIONAL; FR page Fig 5.5, FINDINGS FR item 6).** Priya: "should we also look at when each behavior is expressed with respect to cue and whether that
 changes?" `scripts/face_rhythm_peak.py` (`peak/timing_by_epoch_{com,t_half}[_side,_position].png`,
 data/timing_epoch_stats*.csv): per session the trial average's CENTER OF MASS above its pre-cue level over cue 0..+4 s
 (and the half-rise time), change vs pre in seconds by `boot_delta`; reference row = median first-lick latency of the
@@ -571,10 +572,23 @@ chronic lick_left survives (-.27, Holm .012; mostly PS93, 2/12 sessions); acute 
 lick_fast_close -.21 (p .04) do not survive -> the acute fast-lick loss is SUGGESTIVE (significant only in the pooled-fit
 null). POOLED-FIT RESULTS are now the descriptive second view: a fragility check (refit-null 95th percentile / pre-only
 fit noise) flags lick_left (7.2x) and lick_far_nose (5.8x) as pooled-test-inconclusive; a pooled fit is not the average
-of the animals (chronic lick_left pooled -.12 asymmetry vs +.27 in 3 / 4 animals' own fits). PS93 (pre-existing right
+of the animals (chronic lick_left pooled -.12 asymmetry vs +.27 in 3 / 4 animals' own fits). The pooled permutation null at
+500 permutations (11-12, FINDINGS 5.10) agrees with the per-session tests: lick pair beyond it as before, several other
+factors also change shape (spatial angle Holm < .05: whisk_run and lick_slow_late at every epoch, prelick_nose acute and
+chronic, lick_fast_close subacute and chronic, lick_ongoing_7Hz subacute), and none of the other ten changes asymmetry. PS93 (pre-existing right
 facial deficit, pre-stroke right-lick bias 46 % vs 6 % left) stays in; its lick_right is split over two components in
-many sessions, so its per-session maps flip. **STANDS** (lick pair spatial angle, side specificity, lick_left asymmetry,
-lick_right map); **PROVISIONAL** (acute fast-lick loss; other units).
+many sessions, so its per-session maps flip. LICK_LEFT MATCH CHECK (11-13, `scripts/face_rhythm_lick_left_match_check.py`
+-> readouts/master_pre_v1/lick_left_match_check/): pooled pre / subacute / chronic fits pick the master's compact
+ipsilesional mouth-corner blob (cos .94-.99), but every acute pooled fit picks a diffuse column with an equally diffuse
+runner-up. Per session, many post-stroke matches are near-ties between two similar diffuse columns (rarely another lick
+unit); the matched columns keep a weaker ipsilesional blob plus a contralesional cheek spot and lower lip. Chronic
+asymmetry change vs own pre with clean matches only: PS92 +.09, PS93 -.04, PS94 +.22, PS95 .00. Follow-up 11-16: by animal
+(all recovered sessions) acute 4 / 4 animals, subacute 3 / 4 (by animal +.26 / +.13 / +.27 / +.25 acute, +.02 / +.20 / +.24 / +.25
+subacute, +.11 / -.06 / +.29 / +.06 chronic); the runner-up column gives the same or a larger shift; the matched lick_left is
+the left-spout-selective column in its trial-aligned expression (left / right spout response 5.0 pre, 2.6 / 2.3 / 3.1 post, all
+engaged trials; runner-up 1.2-1.7), including PS95's low-cosine subacute sessions. **STANDS** (lick pair spatial angle, side specificity, lick_right map;
+lick_left asymmetry shift acute + subacute); **PROVISIONAL** (lick_left chronic asymmetry, mainly PS94; acute fast-lick
+loss; other units).
 
 Figures: session_shape_v2/session_scalars.png (normalized, with leave-one-out pre column), session_scalars_raw.png (raw
 angles >= 0 / own asymmetry and side specificity), session_loss.png, session_maps_scaled_lick.png (headline maps),
@@ -641,7 +655,7 @@ the close spouts. The band-map drift control has 13 small clusters (mean +.03 lo
 later-epoch band increases there need that caveat. Fast-lick share (licks with a neighbor < 250 ms) falls acutely only
 at far contra (-.44) / far mid (-.13), partly because licks per trial fall there (far contra 3.1 vs 8.7 pre).
 Figures: band_maps/band_maps_<unit>.png, band_maps_driftpre.png; LP_analysis/.../cohort_lick_rate_by_position.png.
-FR page section 7b (v41); PI deck slides 83-85.
+FR page section 8 (was 7b until v51); PI deck slides 84-86 (83-85 before the 11-16 slide 81 insert).
 
 ## 6d. Task vs non-task, asymmetry, severity (10-24)
 
@@ -679,6 +693,10 @@ push; (0..1 s) - (-1.5..-0.5 s), push minus random.
 
 -> No pre + post master for pushes (Priya's question answered by the check, DECISIONS 10-24): the face movement that
 accompanies a push is already in the pre-stroke repertoire; pushes stay a treadmill regressor for the encoder.
+
+## 6g. Per trial: how often vs how large (11-16)
+
+PER-TRIAL SPLIT (11-16; `scripts/face_rhythm_per_trial.py`, frozen master, engaged trials, cue 0..+4 s, LP v36 licks by direction; FR page Fig 2.5): at far contra fewer trials have a right lick (-.87 / -.36 / -.07 of trials) AND lick_right is smaller on the trials that do (-.83 / -.58 / -.61 log2, 4 / 4 every epoch) -> the lasting deficit is per movement; acutely the first right lick is 1.2 s later and the lick_right peak moves with it (peak - first lick -.25 s n.s.) -> later expression follows slower licking. lick_left at contra spouts rises through MORE leftward-lick trials (far contra +.38 / +.27 / +.12), not larger ones (-.06 / +.24 / +.11 n.s.), and on contra trials with NO leftward lick (close contra +.65 / +.81 / +.98 log2) -> contralesional targets licked with the lick_left pattern. Frozen lick_left at far contra rises acutely (+.73, 4 / 4) where the own-fit column (FR page Fig 7.13) is flat. **PROVISIONAL** (new; session-level bootstrap, Holm over 6 spouts).
 
 ## 7. Spout position from face movement in the lick-free pre-cue (ENL) window (PROVISIONAL, four animals, 10-25)
 
@@ -774,6 +792,10 @@ Done since this list was written: master rank 12 frozen, projected, named; secti
 FR run A / master FR in the encoder is summarized by the encoding window (ENCODING_FINDINGS; FINDINGS.md section 4).
 
 ## Change log
+
+* 2026-11-16: lick_left asymmetry shift STANDS acute + subacute, chronic PROVISIONAL (runner-up + trial-aligned check; Priya).
+* 2026-11-13: lick_left match check; lick_left asymmetry shift downgraded to PROVISIONAL (Priya).
+* 2026-11-12: pooled permutation null complete at 500 permutations (section 6e sentence; FINDINGS 5.10).
 
 * 2026-11-09: 6e-June added (June 2-month drift floor for the per-session and cohort shape tests; page v46 supplement).
 

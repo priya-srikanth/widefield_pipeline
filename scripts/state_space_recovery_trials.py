@@ -2,7 +2,7 @@
 P1-P3b; readouts and detection limits from scripts/state_space_sim.py).
 
 Data: per-trial area extracts (`first_cue`, first-lick trials = contact + incomplete, -0.5..2.0 s from the cue in
-0.1 s bins, 62 Allen areas incl. ALM / tjM1, `cortex` dropped). Inputs final (34, 11-07). Left = ipsilesional.
+0.1 s bins, 45 glue-free Allen areas (62 before the 11-09 glue mask) incl. ALM / tjM1, `cortex` dropped). Inputs final (34, 11-07). Left = ipsilesional.
 
 Every session is compared with EACH pre-stroke session of its animal (itself excluded), at matched trial counts per
 spout, in the pre-stroke top-k space of the pre sessions left after removing both. The values of pre sessions are the
@@ -39,7 +39,7 @@ from wfield_local import analysis_kit as kit  # noqa: E402
 from wfield_local.figure_layout import save_png_svg  # noqa: E402  (PNG + svg/ twin, Priya 11-06)
 
 OUT = S.ROOT / f"trials{S.tag()}"   # WF_SS_ALIGN suffix
-EPOCHS = ["pre", "acute", "subacute", "chronic"]
+EPOCHS = S.EPOCHS
 MIN_TRIALS = 5
 N_RESAMPLE = 3
 READ = ["r", "amp", "rot_gain", "out_var", "hemi_gain", "shift_snr", "spread_norm", "spread_raw",
@@ -47,16 +47,34 @@ READ = ["r", "amp", "rot_gain", "out_var", "hemi_gain", "shift_snr", "spread_nor
         "alpha", "chronic_like", "aligned", "dist_pre", "step"]
 
 
-OROFACIAL = ("SSp-m", "SSp-n", "SSs")
+OROFACIAL = S.OROFACIAL                 # the hemispheric-balance areas (FINDINGS 0b)
 BASE_BINS, RESP_BINS = S.BAL_BINS[S.ALIGN]          # cue: -0.5..0 s and 0..1 s; lick / splice: see state_space_sim
+
+
+def balance_sides(M, cols, sel):
+    """{"contra", "ipsi": response size (`S.evoked`) of one spout's mean (bins x areas) per hemisphere over the areas
+    ``sel``; "bal": log2 (contralesional / ipsilesional), NaN if either <= 0} -- the ONE hemispheric-balance definition
+    (FINDINGS 0b), also behind state_space_balance_cells."""
+    out = {h: float(v) for h, v in S.hemi(S.evoked(M), cols, sel).items()}
+    out["bal"] = float(np.log2(out["contra"] / out["ipsi"])) if out["contra"] > 0 and out["ipsi"] > 0 else np.nan
+    return out
+
+
+def balance_defined(xform):
+    """Is the hemispheric balance (log2 contra / ipsi response SIZE) a meaningful readout under this per-trial transform?
+
+    Only on real responses: raw ("") and z (each area / its pre SD; the scale cancels in change vs own pre, values match
+    raw: lick bal_oro +.11 / +.19 / +.21 vs +.13 / +.19 / +.20). NOT under "gsr" (cortex-wide mode projected out) or
+    "spout" (cross-spout mean subtracted): sizes become differences from a shared pattern, can be <= 0, and the log ratio
+    is undefined or explodes (11-16: spout 30-83 % of sessions valid, far-ring values -5.5; gsr pre spread +-.9 vs +-.3).
+    Not needed either: a log RATIO is invariant to a bilateral gain by construction, and within animal the session balance
+    does not follow the cortex-wide amplitude (11-16 check, docs/STATE_SPACE_CODE.md section 4). Priya 11-16: drop them."""
+    return xform in ("", "z")
 
 
 def balance(M, cols, sel):
     """log2 (contralesional / ipsilesional) response size of one spout's mean (bins x areas); NaN if either <= 0."""
-    side = S.hemi(S.evoked(M), cols, sel)
-    if not (side["contra"] > 0 and side["ipsi"] > 0):
-        return np.nan
-    return float(np.log2(side["contra"] / side["ipsi"]))
+    return balance_sides(M, cols, sel)["bal"]
 
 
 def matched(Ya, pa, Yb, pb, rng):
@@ -266,7 +284,7 @@ def run(seed=0, mode="target"):
             row.update({f"gain_t_{c}": float(v) for c, v in zip(cols, g)})
             # hemispheric BALANCE as in FINDINGS 0b: response SIZE (0-1 s minus -0.5-0 s), log2 contra / ipsi,
             # within spout, for the orofacial areas and for all areas (the slope above is NOT a size measure)
-            for nm, sel in (("oro", OROFACIAL), ("all", None)):
+            for nm, sel in (("oro", OROFACIAL), ("all", None)) if balance_defined(S.XFORM) else ():
                 for ring, sp in (("", range(6)), ("_far", range(3, 6))):
                     v = [balance(A[s_], cols, sel) for s_ in sp if ok[s_]]
                     row[f"bal_{nm}{ring}"] = float(np.nanmean(v)) if v else np.nan
@@ -317,14 +335,9 @@ def summarize(df):
     rng = np.random.default_rng(0)
     out = []
     for m in read:
-        pre = {a: g[g.epoch == "pre"][m].dropna().tolist() for a, g in df.groupby("animal")}
-        for ep in EPOCHS[1:]:
-            post = {a: g[g.epoch == ep][m].dropna().tolist() for a, g in df.groupby("animal")}
-            post = {a: v for a, v in post.items() if v}
-            iv = kit.boot_delta(post, pre, rng)
-            sign = sum(np.mean(post[a]) > np.mean(pre[a]) for a in post if pre.get(a))
-            out.append({"readout": m, "epoch": ep, "delta": getattr(iv, "point", np.nan), "lo": getattr(iv, "lo", np.nan),
-                        "hi": getattr(iv, "hi", np.nan), "n_animals": len(post), "n_up": sign})
+        for ep, iv in kit.epoch_change(df, m, rng, EPOCHS[1:]).items():
+            out.append({"readout": m, "epoch": ep, "delta": iv.point, "lo": iv.lo, "hi": iv.hi,
+                        "n_animals": iv.n_animals, "n_up": iv.n_up})
     res = pd.DataFrame(out)
     with pd.option_context("display.width", 200, "display.precision", 3):
         print("\n=== change vs pre: animal-weighted boot_delta (95 %), n_up = animals above their pre mean ===")

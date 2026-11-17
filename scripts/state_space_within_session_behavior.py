@@ -15,8 +15,8 @@ then within-animal r of s_x with each behavior slope across post-stroke sessions
 same neural slopes (+ s_y, the acute-departure axis) joined session by session to THAT arm's behavior slopes
 (`Widefield/within_session_decline/tables/session_slopes.csv`, per normalized session "_ord" = the same unit as s_x:
 far-contra / all-far landing, latency, licks per trial), within-animal r per animal (rule 8) and pooled within-animal r
-with a within-animal shuffle, pre and post-stroke separately.
-Output: Widefield/state_space_recovery/pertrial{tag}/within_session_behavior_slopes.csv, within_session_join.csv.
+with a within-animal circular shift over days (a free shuffle until 11-16), pre and post-stroke separately.
+Output: <rebuild root>/state_space_recovery/pertrial{tag}/within_session_behavior_slopes.csv, within_session_join.csv.
 Exploratory.
 """
 from __future__ import annotations
@@ -31,9 +31,12 @@ sys.path.insert(0, str(Path(__file__).parent))
 import state_space_recovery_trials as R  # noqa: E402
 import state_space_sim as S  # noqa: E402
 
+from wfield_local import analysis_kit as kit  # noqa: E402
+
 ROOT = S.ROOT
 DIR = ROOT / f"pertrial{S.tag()}"               # run with WF_SS_ALIGN=lick for the page numbers (Fig 6.12)
-WSD = ROOT.parent / "within_session_decline" / "tables" / "session_slopes.csv"
+OUT = DIR                                       # output folder (a verification run may point it elsewhere)
+WSD = S.WSD_SLOPES      # the decline arm's table on the share root (was ROOT.parent: the rebuild root since 11-12)
 JOIN = ["fc_dside_ord", "far_dside_ord", "lat_ord", "nlick_ord", "contact_ord"]
 
 
@@ -59,19 +62,22 @@ def main():
                      "s_fc_dside": float(np.polyfit(fc.order, fc.dside, 1)[0]) if len(fc) >= 8 else np.nan,
                      "contact": g.contact.mean()})
     out = pd.DataFrame(rows)
-    out.to_csv(DIR / "within_session_behavior_slopes.csv", index=False)
+    OUT.mkdir(parents=True, exist_ok=True)
+    out.to_csv(OUT / "within_session_behavior_slopes.csv", index=False)
     with pd.option_context("display.width", 220, "display.precision", 3):
         print(out.groupby(["animal", "epoch"])[["s_x", "s_contact", "s_dside", "s_fc_dside", "s_rt"]].mean())
         for an, g in out[out.epoch != "pre"].groupby("animal"):
             print(an, {c: round(float(g[["s_x", c]].dropna().corr().iloc[0, 1]), 2)
                        for c in ("s_contact", "s_dside", "s_fc_dside", "s_rt")})
-    if WSD.exists():
-        join(out)
+    join(out)          # a missing decline-arm table raises (11-16: it was silently skipped since the 11-12 reroute)
 
 
 def join(out, n_shuf=2000):
     rng = np.random.default_rng(0)
-    J = out[["animal", "label", "epoch", "s_x", "s_y"]].merge(pd.read_csv(WSD)[["label", *JOIN]], on="label")
+    W = pd.read_csv(S.require(WSD, "within-session-decline session slopes (scripts/within_session_decline.py analyze)"))
+    J = out[["animal", "label", "epoch", "day", "s_x", "s_y"]].merge(W[["label", *JOIN]], on="label")
+    if J.empty:
+        raise ValueError(f"no session label of {DIR} matched {WSD}")
     rows = []
     for grp, G in (("pre", J[J.epoch == "pre"]), ("post", J[J.epoch != "pre"])):
         for nv in ("s_x", "s_y"):
@@ -81,18 +87,13 @@ def join(out, n_shuf=2000):
                 a = g[nv] - g.groupby("animal")[nv].transform("mean")
                 b = (g[bv] - g.groupby("animal")[bv].transform("mean")).to_numpy()
                 r0 = float(np.corrcoef(a, b)[0, 1])
-                null = []
-                for _ in range(n_shuf):
-                    sh = a.copy()
-                    for an in g.animal.unique():
-                        m = (g.animal == an).to_numpy()
-                        sh[m] = rng.permutation(sh[m].to_numpy())
-                    null.append(np.corrcoef(sh, b)[0, 1])
+                _, p = kit.within_shuffle_p(lambda x, b=b: np.corrcoef(x, b)[0, 1], a.to_numpy(), g.animal.to_numpy(),
+                                            rng, n_shuf, order=g.day.to_numpy(), mode="circular")   # Priya 11-16
                 rows.append({"sessions": grp, "neural": nv, "behavior": bv, "n": len(g), "r_within": r0,
-                             "shuffle_p": float((np.abs(null) >= abs(r0)).mean()),
+                             "shuffle_p": p,
                              **{f"r_{an}": round(v, 2) for an, v in per.items()}})
     R_ = pd.DataFrame(rows)
-    R_.to_csv(DIR / "within_session_join.csv", index=False)
+    R_.to_csv(OUT / "within_session_join.csv", index=False)
     with pd.option_context("display.width", 220, "display.precision", 3, "display.max_rows", 100):
         print()
         print("== neural within-session slope vs the decline arm's behavior slopes (within animal) ==")
