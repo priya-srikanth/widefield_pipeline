@@ -54,7 +54,9 @@ from wfield_local import config  # noqa: E402
 LICK_SOURCE = os.environ.get("QS_LICK_SOURCE", "daq")
 if LICK_SOURCE not in ("daq", "daq+lp"):
     raise ValueError(f"QS_LICK_SOURCE must be daq or daq+lp, not {LICK_SOURCE!r}")
-V2 = OUT / ("v2_quiet" if LICK_SOURCE == "daq" else "v2_quiet_lp")
+# env QS_V2_DIRNAME (optional) renames this output folder, e.g. v2_quiet_lp_20261117 for a re-render that must not touch
+# the existing folder (deck pass 11-17); the _fr / _examples / eta_fr scripts import V2, so they follow it.
+V2 = OUT / os.environ.get("QS_V2_DIRNAME", "v2_quiet" if LICK_SOURCE == "daq" else "v2_quiet_lp")
 BUF_S, BASE_S, MERGE_S, BAD_S = 1.5, (1.0, 0.2), 0.3, 0.5
 AMPS, N_INJ, INJ_GAP_S, HIT_S = (1.0, 2.0, 3.0, 4.0, 6.0), 40, 3.0, 0.25
 INJ_COLS = ["orofacial_left", "orofacial_right", "limb_left", "limb_right"]

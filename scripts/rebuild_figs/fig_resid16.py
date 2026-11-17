@@ -31,12 +31,16 @@ EP = ["acute", "subacute", "chronic"]
 SP = ["close_ipsi", "close_mid", "close_contra", "far_ipsi", "far_mid", "far_contra"]
 
 
-def load_maps(O: Path, F: int, spouts) -> dict:
-    """{"R": significance table, "outline": area outline, "npz": {(spout, window, epoch): (mean, sig, H, W)}}."""
+def load_maps(O: Path, F: int, spouts, maps_dir: Path | None = None) -> dict:
+    """{"R": significance table, "outline": area outline, "npz": {(spout, window, epoch): (mean, sig, H, W)}}.
+    maps_dir: where residual_sig_<F>px.csv + resid<F>_*.npz live (default the encoder run O; 11-17: the folder
+    `frozen_residual_significance.py --bin F --out-dir` wrote)."""
     from frozen_area_maps import area_image, outline
     lab = sorted((O / "joint" / "sessions").glob("PS92_*.json"))[0].stem
-    out = {"R": pd.read_csv(O / f"residual_sig_{F}px.csv"), "outline": outline(area_image(lab)[0]), "npz": {}, "F": F,
-           "src": str(O)}
+    M = maps_dir or O
+    out = {"R": pd.read_csv(M / f"residual_sig_{F}px.csv"), "outline": outline(area_image(lab)[0]), "npz": {}, "F": F,
+           "src": str(M), "spouts": list(spouts)}
+    O = M
     for sp in spouts:
         for al in ("lick", "cue"):
             for ep in EP:
@@ -73,8 +77,8 @@ def draw(fd: dict, OUT: Path) -> None:
             axs[i, j].set_title(f"{al} window, {ep} minus pre\n{r.sig}/{r.n_bins} bins ({r.up} up, {r.down} down)",
                                 fontsize=9)
     fig.suptitle(f"NEURAL: frozen-encoder RESIDUAL, ALL 6 SPOUTS POOLED, epoch minus all-LOSO-pre, pre-normalized, mean of 4 "
-                 f"animals.\nBlack = significant {F} px bins (nested bootstrap animals -> sessions, Bonferroni). Image left = "
-                 f"ipsilesional.", fontsize=9)
+                 f"animals.\nBlack = significant {F} px bins (nested bootstrap animals -> sessions, max-statistic over bins). "
+                 f"Image left = ipsilesional.", fontsize=9)
     fig.subplots_adjust(left=0.02, right=0.88, bottom=0.02, top=0.86, wspace=0.05, hspace=0.32)
     for i in range(2):
         fig.colorbar(axs[i, 0].images[0], ax=list(axs[i]), fraction=0.025, pad=0.02,
@@ -82,6 +86,8 @@ def draw(fd: dict, OUT: Path) -> None:
     save_png_svg(fig, OUT / f"fig7c_residual_allspouts_{F}px.png", dpi=125)
     plt.close(fig)
     # per spout
+    if not set(SP) <= set(fd.get("spouts", SP)):
+        return
     for al in ("lick", "cue"):
         fig, axs = plt.subplots(3, 6, figsize=(17, 10))
         lim = max(np.nanpercentile(np.abs(fd["npz"][(s, al, e)][0]), 98) for s in SP for e in EP)
@@ -107,12 +113,15 @@ def main(argv=None) -> int:
     ap = _common.parser(__doc__)
     ap.add_argument("--bin", type=int, default=16, help="F: the significance bin size, px")
     ap.add_argument("--encoder-tag", default=_design_tag("gate-attempted_v7g3_t3d_basis"), help="frozen_encoder_<tag> run of this run")
+    ap.add_argument("--maps-dir", type=Path, default=None, help="folder with residual_sig_<F>px.csv + resid<F>_*.npz "
+                    "(default: the encoder run)")
+    ap.add_argument("--spouts", nargs="+", default=["all", *SP], help="'all' alone draws only fig 7c")
     a = ap.parse_args(argv)
     _common.declare(trial_set_sentence())          # THE TRIAL SET of every figure (Priya 11-09)
     a.out.mkdir(parents=True, exist_ok=True)
     name = f"resid{a.bin}"
     fd = (_common.load_figdata(a.out, name) if a.plot_only
-          else load_maps(encoder_run(a.encoder_tag), a.bin, ["all", *SP]))
+          else load_maps(encoder_run(a.encoder_tag), a.bin, a.spouts, a.maps_dir))
     if not a.plot_only:
         _common.save_figdata(a.out, name, fd)
     draw(fd, a.out)

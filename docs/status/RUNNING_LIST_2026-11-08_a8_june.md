@@ -573,3 +573,15 @@ PI deck (backup Overview_2026-11-06.bak_pre_a8_renumber_20261116.pptx): FR page 
 - Helper flags to follow up: l_offset_terms_g log labels a flat session mean "mean of animals" (scripts/lick_offset_terms_recovery.py
   ~L85); e_first_lick_g froze NEW iti_first_lick decoders (SPEC-CHANGED, pre set changed); slide 112 figure stars are LMM;
   purple trial-set stamp whited out of several crops where it overprinted figure text; 139 = capped set until WFIELD_BAL_FULL render.
+- 11-17: 3c (Priya OK) lifted the hold on state-space SVD / LocaNMF-basis slides (11-08 tables were already glue-free; re-run byte
+  identical; M:/.../state_space_recovery/svd_lnmf_gluefree_20261117/logs/RUN_LOG.md). Checked the PI deck: no slide uses SS Fig 6.3 /
+  6.4 (text + notes search), so nothing to change here.
+- 11-17: slide 21 now carries BOTH figures (Priya: "add the per-animal pre-normalized versions"): absolute on top, each session /
+  its animal's own pre mean below (legend rows cut; swap_inputs/s021b_state_position_rel_own_pre.png); caption rewritten;
+  backup .bak_pre_a8_s21rel_20261117.pptx; script deck_swap_20261117/slide21_add_relative.py.
+- 11-17 INCIDENT: a PowerPoint GUI process (PID 43556, started 11-16 16:20) has Overview_2026-11-06.pptx open (no lock file). My COM
+  export of the LIVE path attached to it, showed the 11-16 in-memory version, and its Close() may have closed that window.
+  Saving from that window would overwrite today's deck edits (and 11-16 Data: blocks after 16:20). export_slides.ps1 now refuses
+  live-deck paths; told Priya.
+- Stale-code check (3c 11-17): `python scripts/...` from a worktree imports the main checkout's wfield_local (663 behind). My slide 21
+  runs did; the modules used differ only by ADDED functions in analysis_kit, so the numbers stand. Helpers told to set PYTHONPATH.

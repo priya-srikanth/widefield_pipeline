@@ -122,13 +122,18 @@ def main(argv=None) -> int:
     ap.add_argument("--drift", action="store_true", help="also test late vs early pre (off by default)")
     ap.add_argument("--bin", type=int, default=8, help="block size in px for the nested / per-animal bin tests (default 8; "
                     "Priya 11-05). Outputs of a non-default size carry _<bin>px; the cluster test is full resolution")
+    ap.add_argument("--out-dir", default="", help="write figures / tables here instead of the encoder run folder (a re-render "
+                    "into a new folder; inputs still read from the run). Also writes the per-panel maps the goal-page figure "
+                    "scripts/rebuild_figs/fig_resid16.py draws: resid<bin>_<spout>_<align>_<epoch>.npz + residual_sig_<bin>px.csv")
     a = ap.parse_args(argv)
     from wfield_local import trial_set_text as tst
     tst.declare(text=tst.union(*(trial_set_sentence(a.tag, a.spout, al) for al in a.aligns), unit="trials"))
     bx = "" if a.bin == 8 else f"_{a.bin}px"           # default 8 px keeps the original file names
     from wfield_local import frozen_encoder as _fe   # the encoder's (tagged) run root, coordinator 11-04
     out = _fe.out_root() / f"frozen_encoder_{a.tag}"
-    fd = out / "figures"
+    W_ = Path(a.out_dir) if a.out_dir else out           # write root (default = the run folder, unchanged)
+    fd = W_ / "figures"
+    maprows = []
     assert_writable(fd)
     fd.mkdir(parents=True, exist_ok=True)
     sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -180,6 +185,20 @@ def main(argv=None) -> int:
             sc = bm.pre_scale(pb)
             d = [np.nanmean(bm.scale_maps(qb, sc)[an], 0) - np.nanmean(bm.scale_maps(pb, sc)[an], 0) for an in qb]
             mm = np.nanmean(d, 0)
+            if a.out_dir and name in (f"{e} vs pre" for e in EPOCHS):     # per-panel maps for fig_resid16 (11-17)
+                F_ = a.bin
+                hb, wb = mm.shape[0] // F_, mm.shape[1] // F_
+                mk = r["nested"]["mask"]
+                full = np.zeros(mm.shape, bool) if mk is None else np.asarray(mk, bool)
+                sigb = full[:hb * F_, :wb * F_].reshape(hb, F_, wb, F_).any(axis=(1, 3))
+                with np.errstate(all="ignore"):
+                    mb = np.nanmean(mm[:hb * F_, :wb * F_].reshape(hb, F_, wb, F_), axis=(1, 3))
+                np.savez(W_ / f"resid{F_}_{a.spout}_{al}_{name.split()[0]}.npz", mean=mm, sig=sigb, H=mm.shape[0],
+                         W=mm.shape[1])
+                maprows.append({"spout": a.spout, "window": al, "epoch": name.split()[0], "sig": int(sigb.sum()),
+                                "n_bins": r["nested"]["n_bins"], "up": int((sigb & (mb > 0)).sum()),
+                                "down": int((sigb & (mb < 0)).sum()), "nested_sig_bins": r["nested"]["sig_bins"],
+                                "label": r["nested"]["label"]})
             lim = np.nanpercentile(np.abs(mm), 98) or 1.0
             ax = axs[0][j]
             im = ax.imshow(mm, cmap="RdBu_r", vmin=-lim, vmax=lim, interpolation="nearest")
@@ -201,8 +220,14 @@ def main(argv=None) -> int:
         with tst.active(None, text=trial_set_sentence(a.tag, a.spout, al)):     # this figure's alignment
             fig.savefig(fd / f"residual_significance_{a.variant}_{a.spout}_{al}{bx}.png", dpi=130)
         plt.close(fig)
-    pd.DataFrame(rows).to_csv(out / f"residual_significance{'_per_animal' if a.per_animal else ''}{bx}.csv", index=False)
-    print(f"-> {fd} (residual_significance_*.png), {out / 'residual_significance.csv'}")
+    pd.DataFrame(rows).to_csv(W_ / f"residual_significance{'_per_animal' if a.per_animal else ''}{bx}.csv", index=False)
+    if maprows:
+        fn = W_ / f"residual_sig_{a.bin}px.csv"
+        M_ = pd.DataFrame(maprows)
+        if fn.exists():                                      # one call per spout: append the other spouts' rows
+            M_ = pd.concat([pd.read_csv(fn)[lambda x: x.spout != a.spout], M_], ignore_index=True)
+        M_.to_csv(fn, index=False)
+    print(f"-> {fd} (residual_significance_*.png), {W_ / 'residual_significance.csv'}")
     return 0
 
 

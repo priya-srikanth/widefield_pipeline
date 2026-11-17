@@ -71,7 +71,7 @@ def licks() -> pd.DataFrame:
     from wfield_local import analysis_kit as ak
     P = pd.read_csv(lo.preds_path()).reset_index(drop=True)
     P["k"] = P.groupby(["set", "label"]).cumcount()
-    C = pd.read_csv(il.OUT_W / f"covref_covariates{lo.SRC_TAG}.csv.gz", usecols=["set", "label", "k", "reach_mm", "side_k"])
+    C = pd.read_csv(il.in_path(f"covref_covariates{lo.SRC_TAG}.csv.gz"), usecols=["set", "label", "k", "reach_mm", "side_k"])
     P = P.merge(C, on=["set", "label", "k"], how="left", validate="one_to_one")
     res, fail = ak.fan_sessions(sorted(P.label.unique()), _session)
     if fail:
@@ -108,7 +108,7 @@ def compute() -> dict:
     P, SL = licks()
     S = P.groupby(["set", "label", "animal", "epoch"]).agg(offset=("lfl", "mean"),
                                                            **{f"r_{g}": (f"res_{g}", "mean") for g in ALLG}).reset_index()
-    day = pd.read_csv(il.OUT_W / "aim_deficit_sessions.csv", usecols=["label", "day"]).drop_duplicates("label")
+    day = pd.read_csv(il.in_path("aim_deficit_sessions.csv"), usecols=["label", "day"]).drop_duplicates("label")
     S = S.merge(day, on="label", how="left")
     S["set"] = S.set.map({"trial": "cued", "iti": "ITI"})
     S.to_csv(il.OUT_W / "balreg_sessions.csv", index=False)

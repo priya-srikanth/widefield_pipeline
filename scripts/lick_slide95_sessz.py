@@ -21,6 +21,11 @@ Also writes LMM input tables (<name>_sessions.csv in the lmm_hidden format) for 
 branch lmm-hidden-20261103.
 
     python scripts/lick_slide95_sessz.py [--plot-only]
+
+Re-render on another run (deck pass 11-17): env WFIELD_SESSZ_ITI_ROOT = that run's iti_licks folder (= iti_licks.OUT under
+the run's env, asserted) and WFIELD_SESSZ_OUT = a new output folder (tagged by the run mode like WFIELD_ITI_OUT_W).
+Defaults = the pre-rebuild v36 root and slide95_sessz_20261104 (unchanged). The ITI-row verification against
+itidock_main and the lickresp cross-check are skipped when those published inputs do not exist for the run.
 """
 from __future__ import annotations
 
@@ -32,15 +37,17 @@ import numpy as np
 import pandas as pd
 
 os.environ["WFIELD_ITI_FILTER"] = "dock"            # the slide's ITI row; the cued rows are unaffected by it
-_E = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks")
-OUTD = _E / "slide95_sessz_20261104"
+_E = Path(os.environ.get("WFIELD_SESSZ_ITI_ROOT",
+                        "M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks"))
+OUTD = Path(os.environ.get("WFIELD_SESSZ_OUT", str(_E / "slide95_sessz_20261104")))
 os.environ["WFIELD_ITI_OUT_W"] = str(OUTD)          # every write of the imported scripts (figdata included) lands here
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
 import lick_cued_ramp as lcr  # noqa: E402
 from figdata import load_fd, plot_only, save_fd  # noqa: E402
 
-assert il.OUT == _E and il.OUT_W == OUTD
+assert il.OUT == _E, (il.OUT, _E)
+OUTD = il.OUT_W                                     # = OUTD by default; <OUTD>/<run tag> under a run mode
 LAG = lcr.LAGS_W
 ROIS = lcr.ROIS
 FD = "lick_slide95_sessz"
@@ -115,6 +122,9 @@ def verify(TC: pd.DataFrame, TI: pd.DataFrame, raw_iti: dict, SC: dict, SI: dict
     mm = mine.merge(pt, on=["roi", "epoch"], suffixes=("", "_pub"))
     out["cued tests rows"] = f"{len(mm)} / {len(pt)}"
     out["cued tests delta/lo/hi"] = max(_maxdiff(mm[c], mm[c + "_pub"]) for c in ("delta", "lo", "hi"))
+    if not (il.OUT / "itidock_main").exists():       # no published docked ITI ramp for this run (rebuild 11-17)
+        out["iti checks"] = "skipped: no itidock_main for this run"
+        return out
     pi = pd.read_csv(il.OUT / "itidock_main" / "iti_ramp_auc_sessions_wide.csv")
     m = TI.merge(pi, on=["label", "roi"], suffixes=("", "_pub"))
     out["iti sessions rows"] = f"{len(m)} / {len(TI)} / {len(pi)}"
@@ -150,7 +160,7 @@ def compute() -> dict:
     V = verify(TC, TI, iti["raw"], cued["resp_auc_n"], itis["resp_auc_n"])
     # cross-check vs lickresp (variant c), if present
     c4 = Path("M:/MICROSCOPE/Priya/Widefield/labcams/decoder_mix_checks/sd_rise_1104/tables/C4_lick_sessions.csv")
-    if c4.exists():
+    if c4.exists() and "WFIELD_SESSZ_ITI_ROOT" not in os.environ:      # lickresp table = pre-rebuild data
         C = pd.read_csv(c4)
         for st, T in (("cued", TC), ("iti_dock", TI)):
             m = T.merge(C[C.set == st][["label", "roi", "v_c_n", "sd_win"]], on=["label", "roi"], suffixes=("", "_c4"))

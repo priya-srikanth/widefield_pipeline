@@ -128,6 +128,16 @@ if ITI_SUBSET and not os.environ.get("WFIELD_ITI_OUT_W"):
 _DOCK_AUDIT = None
 
 
+def in_path(rel: str | Path) -> Path:
+    """READ path of an upstream table / folder that writers put under OUT_W: OUT_W/rel when it exists there, else the
+    default write root's copy (OUT, or OUT/itifilter_<f> under an ITI subset). Default runs (OUT_W == default) are
+    unchanged; a WFIELD_ITI_OUT_W re-render (deck pass 11-17) reads the production inputs and writes only to its folder."""
+    p = OUT_W / rel
+    if p.exists() or not os.environ.get("WFIELD_ITI_OUT_W"):
+        return p
+    return (OUT / f"itifilter_{ITI_SUBSET}" if ITI_SUBSET else OUT) / rel
+
+
 def iti_subset_keep(df: pd.DataFrame) -> np.ndarray:
     """Boolean per row of a per-lick table for ITI_SUBSET: rows of set 'iti' are kept only if flagged in
     <OUT>/iti_dock_audit.csv (key label x k, k = the row's index within (set, label) of the frozen prediction cache);
