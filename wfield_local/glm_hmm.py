@@ -51,24 +51,29 @@ N_RESTARTS = 5
 MAX_ITER = 200
 TOL = 1e-5
 STATE_P = 0.8
+#: number of leading X columns whose weights are SHARED across states (design v2: the animal offsets); 0 = v1 (every
+#: column state-specific). Set by `apply_design`.
+N_SHARED = 0
 
 
 # ------------------------------------------------------------------------------------------------------------ model ----
-def _log_emission_one(Wj, X, y):
-    """[T, K] log P(y_t | x_t, z = k) of ONE categorical output; Wj [K, C-1, D]; y = -1 -> 0 (no observation)."""
+def _log_emission_one(Wj, X, y, Bj=None, ns: int = 0):
+    """[T, K] log P(y_t | x_t, z = k) of ONE categorical output; Wj [K, C-1, D - ns] on the state-specific columns
+    X[:, ns:]; Bj [C-1, ns] = weights SHARED by all states on X[:, :ns]; y = -1 -> 0 (no observation)."""
     K, T = Wj.shape[0], X.shape[0]
     out = np.zeros((T, K))
     obs = np.flatnonzero(y >= 0)
+    off = X[:, :ns] @ Bj.T if ns else 0.0
     for k in range(K):
-        eta = np.concatenate([np.zeros((T, 1)), X @ Wj[k].T], axis=1)
+        eta = np.concatenate([np.zeros((T, 1)), X[:, ns:] @ Wj[k].T + off], axis=1)
         lp = eta - logsumexp(eta, axis=1, keepdims=True)
         out[obs, k] = lp[obs, y[obs]]
     return out
 
 
-def _log_emission(W, X, Y):
-    """Sum over the (conditionally independent given the state) outputs: W = list of [K, C_j-1, D], Y [T, J]."""
-    return sum(_log_emission_one(Wj, X, Y[:, j]) for j, Wj in enumerate(W))
+def _log_emission(W, X, Y, B=None, ns: int = 0):
+    """Sum over the (conditionally independent given the state) outputs: W = list of [K, C_j-1, D-ns], Y [T, J]."""
+    return sum(_log_emission_one(Wj, X, Y[:, j], B[j] if ns else None, ns) for j, Wj in enumerate(W))
 
 
 def _forward_backward(logpi, logA, logB):
@@ -101,16 +106,18 @@ def _forward_backward(logpi, logA, logB):
     return gamma, xi_sum, float(np.log(c).sum() + mx.sum())
 
 
-def _fit_emission(W0, X, y, w, n_cls):
-    """Weighted multinomial logistic regression (reference class 0) with an L2 prior; W [C-1, D]."""
+def _fit_emission(W0, X, y, w, n_cls, offset=None):
+    """Weighted multinomial logistic regression (reference class 0) with an L2 prior; W [C-1, D]; ``offset`` [T, C-1]
+    = a fixed linear term (the shared-weight part in design v2)."""
     obs = y >= 0
     X, y, w = X[obs], y[obs], w[obs]
+    off = 0.0 if offset is None else offset[obs]
     D = X.shape[1]
     Y = np.eye(n_cls)[y]
 
     def f(v):
         Wk = v.reshape(n_cls - 1, D)
-        eta = np.concatenate([np.zeros((len(X), 1)), X @ Wk.T], axis=1)
+        eta = np.concatenate([np.zeros((len(X), 1)), X @ Wk.T + off], axis=1)
         lse = logsumexp(eta, axis=1)
         nll = -(w * ((Y * eta).sum(1) - lse)).sum() + 0.5 * (v ** 2).sum() / L2_PRIOR
         P = np.exp(eta - lse[:, None])
@@ -123,12 +130,16 @@ def _fit_emission(W0, X, y, w, n_cls):
 class GLMHMM:
     """K-state input-output HMM: every output j is a state-specific multinomial logistic function of the inputs."""
 
-    def __init__(self, K: int, n_cls=None, seed: int = 0):
+    def __init__(self, K: int, n_cls=None, seed: int = 0, n_shared: int | None = None):
         self.K, self.C, self.rng = K, list(n_cls if n_cls is not None else n_classes()), np.random.default_rng(seed)
+        self.ns = N_SHARED if n_shared is None else n_shared
         self.W = self.pi = self.A = None
+        self.B = None
 
     def _init(self, W1):
-        self.W = [np.stack([w + self.rng.normal(0, 0.5, w.shape) for _ in range(self.K)]) for w in W1]
+        ns = self.ns
+        self.B = [w[:, :ns].copy() for w in W1] if ns else None
+        self.W = [np.stack([w[:, ns:] + self.rng.normal(0, 0.5, w[:, ns:].shape) for _ in range(self.K)]) for w in W1]
         self.pi = np.full(self.K, 1.0 / self.K)
         A = np.full((self.K, self.K), 0.05 / max(self.K - 1, 1))
         np.fill_diagonal(A, 0.95 if self.K > 1 else 1.0)
@@ -138,7 +149,7 @@ class GLMHMM:
         out, ll = [], 0.0
         logpi, logA = np.log(self.pi + 1e-300), np.log(self.A + 1e-300)
         for X, Y in seqs:
-            g, xs, l_ = _forward_backward(logpi, logA, _log_emission(self.W, X, Y))
+            g, xs, l_ = _forward_backward(logpi, logA, _log_emission(self.W, X, Y, self.B, self.ns))
             out.append((g, xs))
             ll += l_
         return out, ll
@@ -152,8 +163,21 @@ class GLMHMM:
         X = np.vstack([s[0] for s in seqs])
         Y = np.vstack([s[1] for s in seqs])
         G = np.vstack([g for g, _ in post])
-        self.W = [np.stack([_fit_emission(Wj[k], X, Y[:, j], G[:, k], self.C[j]) for k in range(K)])
-                  for j, Wj in enumerate(self.W)]
+        ns = self.ns
+        if not ns:
+            self.W = [np.stack([_fit_emission(Wj[k], X, Y[:, j], G[:, k], self.C[j]) for k in range(K)])
+                      for j, Wj in enumerate(self.W)]
+            return
+        # design v2: coordinate step -- state weights given the shared offsets, then the shared offsets given the
+        # state weights (one weighted regression over the K-fold stacked trials, each copy weighted by its posterior)
+        Xa, Xs = X[:, :ns], X[:, ns:]
+        for j in range(len(self.W)):
+            off = Xa @ self.B[j].T
+            self.W[j] = np.stack([_fit_emission(self.W[j][k], Xs, Y[:, j], G[:, k], self.C[j], off)
+                                  for k in range(K)])
+            off_k = np.vstack([Xs @ self.W[j][k].T for k in range(K)])
+            self.B[j] = _fit_emission(self.B[j], np.tile(Xa, (K, 1)), np.tile(Y[:, j], K), G.T.ravel(), self.C[j],
+                                      off_k)
 
     def fit(self, seqs, init: "GLMHMM | None" = None, n_restarts: int = N_RESTARTS):
         D = seqs[0][0].shape[1]
@@ -164,6 +188,7 @@ class GLMHMM:
         for r in range(1 if init is not None else n_restarts):
             if init is not None:
                 self.W, self.pi, self.A = [w.copy() for w in init.W], init.pi.copy(), init.A.copy()
+                self.B = [b.copy() for b in init.B] if init.B is not None else None
             else:
                 self.rng = np.random.default_rng(1000 + r)
                 self._init(W1)
@@ -176,8 +201,9 @@ class GLMHMM:
                 prev = ll
             _post, ll = self.e_step(seqs)
             if best is None or ll > best[0]:
-                best = (ll, [w.copy() for w in self.W], self.pi.copy(), self.A.copy())
-        self.ll, self.W, self.pi, self.A = best
+                best = (ll, [w.copy() for w in self.W], self.pi.copy(), self.A.copy(),
+                        [b.copy() for b in self.B] if self.B is not None else None)
+        self.ll, self.W, self.pi, self.A, self.B = best
         return self
 
     def loglik(self, seqs) -> float:
@@ -189,7 +215,7 @@ class GLMHMM:
         out = np.zeros(len(self.C))
         for (X, Y), (g, _) in zip(seqs, post):
             for j, Wj in enumerate(self.W):
-                out[j] += (g * _log_emission_one(Wj, X, Y[:, j])).sum()
+                out[j] += (g * _log_emission_one(Wj, X, Y[:, j], self.B[j] if self.ns else None, self.ns)).sum()
         return out
 
     def posteriors(self, seqs):
@@ -199,7 +225,7 @@ class GLMHMM:
         """State indices sorted by P(class 0 of output 0 = attempt / contact) at the average input."""
         pc = []
         for k in range(self.K):
-            eta = np.r_[0.0, self.W[0][k] @ X_mean]
+            eta = np.r_[0.0, self.W[0][k] @ X_mean[self.ns:] + (self.B[0] @ X_mean[:self.ns] if self.ns else 0.0)]
             pc.append(np.exp(eta[0] - logsumexp(eta)))
         return np.argsort(pc)[::-1]
 
@@ -422,6 +448,48 @@ def run_refit(data: dict, K: int) -> pd.DataFrame:
     return pd.concat(out, ignore_index=True)
 
 
+#: DESIGN (Priya 11-17: "fix the design issues"). v1 = X [animal one-hot, spout dummies, previous-outcome dummies,
+#: moved], every weight state-specific -- the pooled fit let states absorb animal style (state-specific animal bias)
+#: and explained no-response STREAKS inside engaged states (previous outcome predicts outcome), so only 30-60 % of
+#: quit-tail trials landed in the disengaged state. v2 (DEFAULT) = X [animal offsets (all but the first animal) SHARED
+#: across states, then a state intercept, spout dummies, moved]: no previous-outcome input, so a streak of
+#: non-responses has to be carried by the state.
+DESIGNS = ("v1", "v2")
+
+
+def apply_design(data: dict, design: str, n_animals: int) -> dict:
+    """Rebuild X of every session for ``design`` from the v1 columns (no reload); sets N_SHARED."""
+    global N_SHARED
+    if design == "v1":
+        N_SHARED = 0
+        return data
+    if design != "v2":
+        raise ValueError(design)
+    npos, nprev = len(POSITIONS) - 1, n_classes()[0] - 1
+    out = {}
+    for lab, (X, Y, T) in data.items():
+        A = X[:, :n_animals]
+        P = X[:, n_animals:n_animals + npos]
+        moved = X[:, n_animals + npos + nprev:]
+        out[lab] = (np.hstack([A[:, 1:], np.ones((len(X), 1)), P, moved]), Y, T)
+    N_SHARED = n_animals - 1
+    return out
+
+
+def load_cached(labels, animals, od: Path) -> dict:
+    """`load_all` with a pickle in the output dir keyed by the label set + outcome mode (reloading 120 sessions costs
+    minutes and does not change between design / K runs)."""
+    import hashlib
+    import pickle
+    key = hashlib.sha1(("|".join(labels) + outcome_mode()).encode()).hexdigest()[:10]
+    f = od / f"sequences_v1_{key}.pkl"
+    if f.exists():
+        return pickle.loads(f.read_bytes())
+    data = load_all(labels, animals)
+    f.write_bytes(pickle.dumps(data))
+    return data
+
+
 def august_on(data: dict) -> list[str]:
     return sorted(lab for lab in data if lab[-4:] >= "0801")
 
@@ -448,22 +516,26 @@ def main(argv=None) -> int:
     ap.add_argument("--pooled-all", action="store_true",
                     help="ONE model over all animals, all August-onward epochs (shared states, per-animal bias "
                          "inputs); with --select-k: folds interleaved by session within animal")
+    ap.add_argument("--design", default="v2", choices=DESIGNS, help="see DESIGNS (v2 = shared animal offsets, no "
+                    "previous-outcome input)")
     a = ap.parse_args(argv)
     labels = sorted(ak.curated_ids())
     animals = sorted({lab.split("_")[0] for lab in labels})
-    data = load_all(labels, animals)
     od = out_dir()
     od.mkdir(parents=True, exist_ok=True)
+    data = apply_design(load_cached(labels, animals, od), a.design, len(animals))
+    sfx = "" if a.design == "v1" else f"_{a.design}"
+    print(f"design {a.design}: X width {next(iter(data.values()))[0].shape[1]}, shared columns {N_SHARED}", flush=True)
     print(f"{len(data)} sessions, {sum(len(v[1]) for v in data.values())} trials; out {od}")
     if a.pooled_all:
         if a.select_k:
             R = select_k(data, labels=august_on(data))
-            R.to_csv(od / "select_k_pooled_all.csv", index=False)
+            R.to_csv(od / f"select_k_pooled_all{sfx}.csv", index=False)
             print(R.groupby("K")[["bits_per_cycle_vs_K1", "pR2_total", *[f"pR2_{o}" for o in OUTPUTS]]].mean().round(4),
                   flush=True)
         for K in ([a.k] if a.k else [3, 4]):
-            run_pooled(data, K).to_csv(od / f"states_pooled_all_K{K}.csv.gz", index=False)
-            print("written", od / f"states_pooled_all_K{K}.csv.gz", flush=True)
+            run_pooled(data, K).to_csv(od / f"states_pooled_all_K{K}{sfx}.csv.gz", index=False)
+            print("written", od / f"states_pooled_all_K{K}{sfx}.csv.gz", flush=True)
         return 0
     if a.select_k and a.per_animal:
         out = []

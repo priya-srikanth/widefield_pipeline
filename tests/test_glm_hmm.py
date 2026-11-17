@@ -45,3 +45,35 @@ def test_more_states_never_lose_training_likelihood_much():
     l1 = gh.GLMHMM(1, n_cls=n_cls).fit(seqs, n_restarts=1).ll
     l2 = gh.GLMHMM(2, n_cls=n_cls).fit(seqs, n_restarts=3).ll
     assert l2 > l1
+
+
+def test_shared_offsets_keep_states_common_across_animals():
+    """Design v2: two animals with very different baseline rates (a SHARED offset column) and the same two states.
+    With the offset shared across states, the states must be the common engaged / disengaged pair, not the animals."""
+    rng = np.random.default_rng(3)
+    n_cls, T = [3, 2], 300
+    Wst = [np.array([[[-2.0, 0.0, 0.0]], [[2.0, 0.0, 0.0]]]).repeat(2, axis=1), np.array([[[-1.0, 0.5, 0.0]],
+                                                                                        [[1.0, 0.5, 0.0]]])]
+    off = [np.array([[1.5], [1.5]]), np.array([[2.0]])]           # animal-2 shift per output (C-1 rows)
+    A = np.array([[0.97, 0.03], [0.05, 0.95]])
+    seqs, zs = [], []
+    for s in range(12):
+        animal = s % 2
+        Xs = np.c_[np.ones(T), rng.integers(0, 2, (T, 2))].astype(float)
+        X = np.c_[np.full(T, float(animal)), Xs]                     # column 0 = shared animal offset
+        z = np.zeros(T, int)
+        for t in range(1, T):
+            z[t] = rng.choice(2, p=A[z[t - 1]])
+        Y = np.zeros((T, 2), int)
+        for j in range(2):
+            for t in range(T):
+                p = softmax(np.r_[0.0, Wst[j][z[t]] @ Xs[t] + off[j][:, 0] * animal])
+                Y[t, j] = rng.choice(len(p), p=p)
+        seqs.append((X, Y))
+        zs.append(z)
+    m = gh.GLMHMM(2, n_cls=n_cls, n_shared=1).fit(seqs, n_restarts=3)
+    g = np.vstack(m.posteriors(seqs)).argmax(1)
+    z = np.concatenate(zs)
+    acc = max((g == z).mean(), (g == 1 - z).mean())
+    assert acc > 0.85, acc
+    assert m.B is not None and m.B[1][0, 0] > 1.0, m.B                 # the animal shift is learned as the shared term
