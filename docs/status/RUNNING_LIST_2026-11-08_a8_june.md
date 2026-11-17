@@ -699,3 +699,6 @@ PI deck (backup Overview_2026-11-06.bak_pre_a8_renumber_20261116.pptx): FR page 
   .bak_pre_a8_cued01_20261117.pptx). 113: acute far contra now -.12 n.s. (tjM1), far mid loses * acutely; title holds. 114 (hidden
   LMM): 31 -> 22 / 72 starred, no acute star left. Slide 147 footer-fixed image applied (445902eb). Goal Fig 14.7 path for 3c.
   Waiting on Priya: lick-source wording fixes (3c audit LICK_SOURCE_AUDIT_20261117.md).
+- 11-17 lick-source wording fixes (3c audit section 5) prepared: deck_swap_20261117/licksrc_apply.py, dry-run on a scratch copy
+  places all 6 WRONG + 27 VAGUE edits (slide 102 needed the "pre-cue(ENL)" spelling). NOT applied to the live deck yet: 3c relayed
+  Priya's OK, waiting for Priya's own confirmation in this window. RESTnl map wording waits for the RESTnlc1 figures.
