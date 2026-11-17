@@ -612,3 +612,9 @@ PI deck (backup Overview_2026-11-06.bak_pre_a8_renumber_20261116.pptx): FR page 
   203: docked ITI tjM1 0-1 s spout x epoch LR = -inf: full mixed model failed to converge (MLE on boundary); pre tjM1 docked balance
   very heterogeneous across animals (PS93 / PS94 to -1.8 / -2.0 at close spouts, PS92 / PS95 ~0) with few docked licks per cell;
   0-0.5 s fits (p .016). A fit failure, not a result.
+- 11-17: LMM round 2 applied (15: 12 per-session pre [acute far contra ** p .0002], 108, 109, 111, 116, 123, 129, 134, 136, 137, 138, 201
+  docked; 121 / 142 / 145 with <20-hit cells shown, not tested). specs/groupC_lmm_docked.json; branch lmm-hidden-20261103 d44d8e25;
+  backup .bak_pre_a8_lmm_round2_20261117.pptx. Helper rule slip (rewrote 3 input csvs in its own render folder, identical content; fixed a551070e).
+- 11-17: neg-AUC diagnostic first output: tjM1 ITI trace figures in .../iti_licks/neg_auc_diag_20261117/. Undefined rows = small short
+  lick transient (peak ~8-10 vs ~20) then a dip below baseline at 0.5-1.0 s (to ~-8..-14); defined rows stay up after 0.5 s
+  (following licks / next trial). Clearest PS94 pre, also PS93. Tests of alternatives still running.
