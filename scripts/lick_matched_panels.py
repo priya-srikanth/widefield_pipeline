@@ -41,7 +41,12 @@ def main() -> int:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
+
+    from wfield_local.orofacial_cohort import EPOCH_LINE
     D = sources()
+    col = {"pre": "k", **EPOCH_LINE}       # legend = short lines, same width / opacity as the curves (Priya 11-17)
+    epl = [Line2D([], [], color=col[e], lw=LW, alpha=ALPHA, label=e) for e in lmr.EPS]
     tst.declare(text="cued licks (3-D lick table, post-cue, inside a trial's response window) and ITI licks (after a "
                      "trial's response window, before the next spout arrival); ITI docked = onset while the spout is "
                      "docked (WFIELD_ITI_FILTER=dock, frozen all-ITI decoders); first lick = cued order 0 / ITI bout "
@@ -52,7 +57,7 @@ def main() -> int:
             A = D[lset][ak.format(f=f)]
             notes = lfl.dash_notes(A, st, lmr.EPS, lmr.CURVE_MIN_W)               # why a line is dashed
             lmr.curve_panel(axs[i, j], A, D[lset][bk.format(f=f)], st, head, notes=notes, place=True, fs=9.5,
-                            sub=False, notes_y=0.90, lw=LW, alpha=ALPHA)
+                            sub=False, notes_y=0.90, lw=LW, alpha=ALPHA, epl=epl)
             if j:
                 axs[i, j].set_ylabel("")
             if i < len(ROWS) - 1:
