@@ -77,7 +77,12 @@ Run code from a worktree with `PYTHONPATH=$(pwd -W)` (Windows form). AR-HMM mode
   PS95 acute 50 % unassigned) is ALSO consistent across animals: adds a PARTIALLY ENGAGED state (attempt .39-.56, no
   response .18-.23, session position .72) that rises acutely in PS94 (.17) and PS95 (.18) vs <= .04 pre; quit tail
   89-98 % in the disengaged state. Decision rule: K = 5 only if its held-out gain over K = 4 exceeds the fold spread,
-  else K = 4 with the partial-engagement state as a sensitivity result.
+  else K = 4 with the partial-engagement state as a sensitivity result. HELD-OUT K SELECTION v2 DONE (`select_k_pooled_all_v2.csv`,
+  4 interleaved session folds): total pseudo-R2 K1-5 .108 / .340 / .396 / .444 / .470; outcome .029 / .604 / .617 /
+  .617 / .630 (engagement captured by K = 2-3). K3 -> 4 gains in EVERY fold (+.046-.051, almost all running); K4 -> 5
+  only in two of four folds (+.042 / .041 vs +.013 / .008). RECOMMENDED K = 4 (proposed to Priya 11-17); K = 5 partial
+  engagement = sensitivity. Disengaged occupancy is the same at K = 3 and 4, so the engagement readout does not
+  depend on the choice.
 
 - **AR-HMM kappa / noise floor (11-17)**: O2 scan (chunked, no dither) gave median 0.08-0.32 s for kappa 1e5-1e11 --
   states predicted the smooth 25 Hz PCs to ~0.007 (min log|Q| -109), so every change out-bid the stickiness (FR is 5 Hz
@@ -102,6 +107,12 @@ Run code from a worktree with `PYTHONPATH=$(pwd -W)` (Windows form). AR-HMM mode
   (`Design.to_dict` / `from_dict`), atomic write; verified by a local end-to-end smoke test with the exact command
   form (fit -> save -> decode -> load in the analysis env; `scratchpad/arhmm_e2e`). When done: Priya pastes the `done`
   lines + `ls out/`; then decode (`decode.sbatch`, TAG = pooled_all_s1 and pre_s1; COMMANDS.md step 4), then copy back.
+- **AR-HMM merge-QC reels (11-17)**: `wfield_local/arhmm_reels.py` -> share
+  `LP_analysis/lp_r4_heatmap_20261013__clean_v36/arhmm/v1/reels_pooled_all_s1/` (REVIEW.md, state_XX.avi, contact
+  sheet; 8 syllables per state, all four animals; split-day PS92 0812 via `camera_sync.templates_for`). WAITING on
+  Priya's video decisions (candidates 5-19-8, 1, 0-13, 10-23; state 22 = lick rhythm without tongue?). O2 models
+  copied back so far: pooled_all s1-s3, pre s2 (pre s1 / s3 pending); decode them LOCALLY (~6 min for 107 sessions),
+  not on O2.
 - **Local hedge fit**: pooled_all seed 1 (same sessions as O2 task 1) -> `scratchpad/arhmm_local_fit/` (~31 s / iter,
   ~52 min); start state QC on whichever copy finishes first.
 - **GLM-HMM design v2**: held-out K selection K = 1-5 (`glm_hmm --pooled-all --select-k --design v2 --k 3`) ->
