@@ -27,5 +27,12 @@ and kept here so the submitted figures are reproducible. Times are local (EST), 
 - `paths3d_front_sig.csv` -- RESOLVED 17 Nov. `export_paths3d_front_sig.py` reproduces the staged file exactly
   (1476 / 1476 rows, 960 significant bins, identical grid), from `curves.csv.gz` alone. The front view keeps `side`
   and `down` of the three coordinates tested, with the pipeline's ALPHA / 3 correction unchanged.
-- `data/ss_plane_sessions.csv` -- no script in `scripts/` on `origin/main` writes that name.
-- `recov/balance_aim_{sessions,models}.csv` -- derived from `lick_recovery_primary` figdata; see `recov_README.txt`.
+- `data/ss_plane_sessions.csv` -- RESOLVED 17 Nov. It is a renamed copy of
+  `state_space_recovery/per_position_lick_svd/per_position_sessions.csv`, written by
+  `scripts/state_space_per_position.py`, byte for byte identical. Nothing was missing; the filename had been changed
+  on copy, as several staged inputs were.
+- `recov/balance_aim_{sessions,models}.csv` -- still open, and the only one. These are derived, not copied: nothing
+  on the share matches either file. The extraction from `figdata/lick_recovery_primary.pkl` (`T`, `M`) and
+  `balimg_primary_link.csv` ran inline in the figure session and was not saved. `recov_README.txt` has the columns,
+  the window and the model numbers to reproduce; `scripts/lick_recovery_primary.py` is the pipeline step behind
+  the pkl.

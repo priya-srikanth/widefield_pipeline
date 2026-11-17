@@ -70,8 +70,8 @@ Rows A–B, D–E and F–H are each rendered as one canvas by `render_fig4_rows
 | D | Lick-response AUC, fold of own pre | `render_fig4_rows.py` `row_DE()` | `data/cued_ramp_w01_{sessions,verify}.csv` | `lmm_hidden/cued_ramp_summary_row2_lmm_w0-1_{sessions,verify}.csv`. Stars: `boot_star` (see `FIGURE_SOURCES.md`, "Correction, 9 Nov"). Final "cued D" version: `Fig5D_cued.svg` (10 Nov 01:15), placed in Illustrator |
 | E | Contra : ipsi balance, far contra | `render_fig4_rows.py` `row_DE()` | `data/lick_lateral_ratio_auc_docked_{sessions,lmm}.csv` | `lmm_hidden/lick_lateral_ratio_auc_docked_*`. Stars: `star` |
 | F | Balance (SSp-m) vs far-contra aim, per session | `render_fig4_rows.py` `row_FGH()` | `recov/balance_aim_sessions.csv`, `recov/balance_aim_models.csv`, `data/lick_lateral_ratio_auc_docked_sessions.csv` | Within-animal slope, mixed model adjusted for log time from stroke (`recov/` staged 9 Nov 14:34) |
-| G | Position on pre → chronic axis vs days | `render_fig4_rows.py` `row_FGH()` | `ssdata/days_sessions.csv` | `state_space_recovery/` (state-space page data) |
-| H | Sessions in the axis × acute-departure plane | `render_fig4_rows.py` `row_FGH()` | `data/ss_plane_sessions.csv` | `state_space_recovery/` |
+| G | Position on pre → chronic axis vs days | `render_fig4_rows.py` `row_FGH()` | `ssdata/days_sessions.csv` | **`scripts/state_space_trajectories.py`** -> `state_space_recovery/trajectories_lick_svd/days_sessions.csv`, copied unchanged. Byte-identical, checked 17 Nov |
+| H | Sessions in the axis × acute-departure plane | `render_fig4_rows.py` `row_FGH()` | `data/ss_plane_sessions.csv` | **`scripts/state_space_per_position.py`** -> `state_space_recovery/per_position_lick_svd/per_position_sessions.csv`, renamed on copy. Byte-identical, checked 17 Nov |
 | I | Reference areas (Allen key) | `make_fig3.py`, raster from PDF | `airaster/panel_areakey_nolab.png` | `Widefield_CAMS_fig.ai`, panel H (v7 Figure 5H), crop x 232–322, y 316–396 pt |
 | J | Regional change along the recovery axis, `frKBs` control, full and cortex-wide mode removed | `make_ss_panel.py` → `ss_full_nocw_frKBs.svg` | `ss/ss_cmap_{full,nocw}_rest_frKBs_lick_svd_w.png` | `state_space_recovery/page_figs/ss_cmap_{full,nocw}_rest_frKBs_lick_svd.png`; columns "mean over spouts" and "far contra" |
 
@@ -84,9 +84,18 @@ Rows A–B, D–E and F–H are each rendered as one canvas by `render_fig4_rows
 - The relettering, the Fig 4D split and the Fig 5D cued swap were done BY SCRIPT, not by hand: see
   `session_scripts/` (recovered 17 Nov). Illustrator was used only to open those SVGs and save the `.ai`
   (and, for Fig 4, to re-save a more compact SVG). Fig 5C is `make_fig3.py`, a deck raster with redrawn axes.
-- Still without code anywhere: `data/ss_plane_sessions.csv` (no script on `origin/main` writes that name; its
-  columns are a join of `state_space_trajectories` days_sessions with landing and aim tables) and
-  `recov/balance_aim_{sessions,models}.csv` (derived from `lick_recovery_primary` figdata; see
-  `session_scripts/recov_README.txt`).
+- **Staged inputs were often renamed on copy, so a filename that no script writes is not necessarily a file with
+  no code.** Checked byte for byte on 17 Nov: `data/ss_plane_sessions.csv` is
+  `per_position_lick_svd/per_position_sessions.csv` (`scripts/state_space_per_position.py`),
+  `ssdata/days_sessions.csv` is `trajectories_lick_svd/days_sessions.csv`
+  (`scripts/state_space_trajectories.py`), and `frbasis/{sessions,stats}.csv` are
+  `frozen_refit_basis/{sessions,stats}.csv` (`scripts/frozen_refit_basis_compare.py`), all identical to their server
+  originals. `data/cued_ramp_w01_*` is the documented rename of `lmm_hidden/cued_ramp_summary_row2_lmm_w0-1_*`.
+- **The one file still without code:** `recov/balance_aim_{sessions,models}.csv`. Derived, not copied: no file on the
+  share matches either one, and the extraction that made them from
+  `iti_licks/<daqlk tag>/figdata/lick_recovery_primary.pkl` (`T` and `M`, `set == 'cued first lick'`) plus
+  `balimg_primary_link.csv` ran inline in the figure session and was never written to a file. To rebuild it, see
+  `session_scripts/recov_README.txt` for the columns and the model numbers it must reproduce, and
+  `scripts/lick_recovery_primary.py` for the pipeline step behind the pkl.
 - Where this file and `FIGURE_SOURCES.md` disagree, this file is newer for the submitted figures (Fig 5A is the known
   case).
