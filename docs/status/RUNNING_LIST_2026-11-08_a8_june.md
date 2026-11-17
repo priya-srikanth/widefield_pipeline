@@ -652,3 +652,8 @@ PI deck (backup Overview_2026-11-06.bak_pre_a8_renumber_20261116.pptx): FR page 
   0..1 s resp): ITI dec pre slope strong in every pair (ALM -.20, tjM1 -.26, SSp-m -.28, SSp-n -.51 per deg, p < 1e-4; mildly
   flatter post); ITI resp weak (ALM n.s., tjM1 -.010 p .02, SSp-m -.024). Cued: strong in every pair (~30 % flatter post). Docked
   version of this LMM never run -> added to the matched-ITI helper (ITI resp at 0..0.5 s).
+- 11-17 matched / docked ITI markers done (1fc7145b; ITI_MATCHED_ANGLE_MARKERS.md): ALL-ITI balance predicts every behavioral ITI axis
+  incl. docked + spout-matched angle (lick-weighted cvR2 .53 vs days .04; matched .51 vs .19). DOCKED balance: cvR2 <= .05 vs days
+  .15-.22 (per-animal r .49/.35/.78/-.26 to ITI angle: 3/4 same sign, PS95 reverses; docked = ~35 % of ITI licks -> noisier).
+  Cued far contra (target fixed): raw resp balance shift at the same angle +.24 log2 (+.23 inside pre range) survives.
+  Balance predicts raw angle across spouts pre and post (dec + resp, docked too).
