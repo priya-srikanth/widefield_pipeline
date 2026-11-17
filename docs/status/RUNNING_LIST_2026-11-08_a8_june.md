@@ -642,3 +642,9 @@ PI deck (backup Overview_2026-11-06.bak_pre_a8_renumber_20261116.pptx): FR page 
   previous spout + phase; T3 docked D_off) but behavior-only, never on the rebuild, and NOT the recovery-marker axis (iti_ang =
   unmatched session mean of all ITI licks). Helper adds iti_ang_matched / iti_ang_dock / iti_ang_dock_matched (+ docked ITI
   balance) and far-contra within-spout raw balance vs angle (cued; docked ITI by previous spout) -> ITI_MATCHED_ANGLE_MARKERS.md.
+- 11-17 slide 139 decisions (Priya): keep the caveat bullet + add the cued-angle result as its own bullet; layout 3a (bullets on top,
+  4-panel figure full width); title waits for the matched / docked ITI results ("lick direction IS recovery, so that's ok").
+  Apply once the ITI-marker panels are final (panel set may change).
+- Docked ITI marker was ALREADY run pre-rebuild (itifilter_dock/recprim_*.csv; FINDINGS ~L852): docked ITI balance LOST recovery
+  tracking (LOAO -0.11 vs days .15; all-ITI .42) and the ITI balance shift itself (acute -0.11 ns vs -0.34). Helper told to reproduce
+  on the rebuild via the same ITI_SUBSET hook and report side by side.
