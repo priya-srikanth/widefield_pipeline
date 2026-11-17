@@ -660,3 +660,11 @@ PI deck (backup Overview_2026-11-06.bak_pre_a8_renumber_20261116.pptx): FR page 
 - 11-17 documented (Priya "document the figures and findings of the far-contra versions"): FINDINGS.md recovery-marker block gains
   "Recovery-marker checks 11-17" + "Far contra only, target / previous spout fixed" entries (figures + numbers); detailed record
   docs/status/deck_swap_20261117/ITI_MATCHED_ANGLE_MARKERS.md section 3.
+- 11-17 ITI 0..0.5 s done (9c245793; lmm 77af6d25; audit ITI_WINDOW_AUDIT_20261117.md; specs/iti05.json = 105, 108, 110, 111, 135,
+  136-138, 203, NOT applied: conclusion changes go to Priya first). ITI increases shrink ~1/3-1/2, none reverses; several cells gain *.
+  Changes: 135 caveat flips (14.13 matched-angle ITI balance: ALM +.06 p .005, orofacial +.04 ns; was orofacial +.15 p .010); hidden
+  108 (0 -> 5/21 *), 110 (share kept ~2/3 -> ~1/2, * every epoch), 111 (0 -> 2/21), 138 (13 -> 14); docked tjM1 LR fits (p .016),
+  ALM loses (.084); page 14.29 "chronic orofacial only" fails (chronic adds SSp-ll/-tr/-ul). 113/114 = cued only (no ITI). Page list
+  sent to 3c (hold page edits until Priya OKs).
+- 11-17 docked rebuild of decoded-vs-executed figures queued (matched curves incl. gap2dock + cued first lick, angle versions,
+  recovery link 16.3-16.5, where scatter / delta, per-lick error) -> DOCKED_DECODED_VS_EXECUTED_20261117.md.
