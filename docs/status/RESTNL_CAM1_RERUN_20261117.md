@@ -105,3 +105,23 @@ be kept apart without re-computing the trial caches).
 
 ## 2. Old outputs (cam4) used for comparison
 Rebuild (tag T = `hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk`), queue `render_daqlk` logs (scratch `C--Users-SabatiniLab/.../render_daqlk/logs/<step>.log`).
+
+## 3. Measure first: timings and estimates (written 14:45, before the full runs)
+
+One-session timings (this box, 11-17 ~14:35, other windows' jobs running, 27-36 GB free):
+restnl_mask baseline 26 s (PS92_0814; 23 s of it the mask / DAQ read); restw_strict_check ~1 min; interhemi rest
+extract ~1 min. Everything else: the wall times of the identical cam4 steps on the rebuild (queue `render_daqlk` logs,
+same env and code paths; the c1 runs differ only in the lick set): see the inventory tables in section 1.
+
+| lane (workers) | steps | estimate |
+|---|---|---|
+| AC (4) | a1 baselines DAQ gate 26 min, a2 LP gate 26, a3 lp_final maps (restnlc1 only; the 6-reference run took 81) ~40, a4 drift LP 27, a5 attempt maps 42, a6 / a7 12.1b aug / all 25 + 25, a8 / a9 Fig 12.1 c1all ~18 + ~5 (15f helper: collect 13.6 min, fit 3-4 min per pre set), then C (state space, 15 steps, no timing on record; ~1 h guessed) | ~5.5 h -> ~20:00 |
+| B (3) | b01 restw_check 49, b02-b12 area scripts 7+5+11+4+21+3+33+17+4+58+5, b13-b19 interhemi 17+51+1+44+1+35+1 | ~6.1 h -> ~20:45 |
+| D (1) | d1 restnl_levels (11-16 run: 93 min at 1 worker) + h2h + figure | ~1.7 h -> ~16:30 |
+
+RAM: 27-36 GB free at launch; each step waits for >= 12 GB free; a watchdog writes rc1/STOP if free RAM < 6 GB twice
+(nothing killed). Max 8 workers of mine.
+
+First measurement (PS92_0814, DAQ gate): 1,314 cam1-only non-droplet events_all onsets; 0 of them inside the cam4 RESTnl
+mask, median 0.11 s from the nearest cam4 lick (they are inside cam4 lick bouts), so cam1 removes 2 rest samples and no
+frame. The per animal x epoch table is in section 4 (after a1).
