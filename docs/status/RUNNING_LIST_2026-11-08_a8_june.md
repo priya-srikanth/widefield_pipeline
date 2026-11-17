@@ -712,3 +712,5 @@ PI deck (backup Overview_2026-11-06.bak_pre_a8_renumber_20261116.pptx): FR page 
   Priya OK -> slide 21 notes line replaced with the result.
 - 11-17 Priya OK -> FR page v55 published: 12 lick-source caption fixes (3c list; FR lick windows = LP video cam4 only,
   licks_all.csv; Fig 6.1 ENL window cam4 + DAQ). Backup scratchpad fr_page/index_v54_pre_licksrc.html.
+- 11-17 late: grant panel check resolved (grants/k08_2026 render_fig4_rows.row_DE; boot_star source has no acute ipsi tjM1 star;
+  matches the rebuild). Handoff 00-A8-1117b updated for compaction. Nothing of a8's running; worktree clean.

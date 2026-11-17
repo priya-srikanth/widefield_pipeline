@@ -78,9 +78,10 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
    lick_matched_readout --first-curves; lick_matched_angle_reach --curves; likeforlike smooth_curves / curve_coverage;
    trial_set_text.footer_bottom; frozen_claims --trend-only / --plot-only; decoder_retention_sessions / recovery_timing /
    key_figure --show-low-hits; learned_compensation refactor (t3_cells); lmm-hidden-20261103 branch (wf_lmm_main) pushed.
-   **Open:** (1) Priya: where the GRANT figure "Lick-response magnitude" code lives on MICROSCOPE (its panel stars acute ipsi
-   tjM1; our test, pre- and post-rebuild, gives +.36 / +.37 n.s. -- PS92 0.78x, PS95 one session); not found in local repos,
-   labcams/grant_figures, page sources, Priya/Github, Claude outputs. (2) 3c: goal-page swaps of the ITI 0..0.5 s figures, Fig
+   **Grant figure check RESOLVED:** K08 code is now in the repo (grants/k08_2026/, render_fig4_rows.py row_DE); panel D stars
+   = boot_star of lmm_hidden_20261103/cued_ramp_summary_row2_lmm_w0-1_verify.csv; it does NOT star acute ipsi tjM1 (+.36 n.s.),
+   same as the rebuild (+.37 n.s.); contra tjM1 up every epoch (+.51* / +.40* / +.41*). No grant change needed.
+   **Open:** (2) 3c: goal-page swaps of the ITI 0..0.5 s figures, Fig
    14.7, the idx supplement (PAGE_SUPPLEMENT_IDX_20261117.md) -- 3c owns the page. (3) After the RESTnl-cam1 rerun (3c helper):
    rest-map slides 24-26, 187, 188, 204-206 wording + figures, after Priya sees old vs new numbers. (4) Optional: per-session /
    docked-only figures not rendered: docked _far1 / _gap2far1 / _nonlinear / _plain curve variants; F_lnmf decomposition arm.
