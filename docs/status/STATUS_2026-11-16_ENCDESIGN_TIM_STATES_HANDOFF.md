@@ -116,6 +116,14 @@ Run code from a worktree with `PYTHONPATH=$(pwd -W)` (Windows form). AR-HMM mode
 - **Merges deferred** (Priya 11-17: "we can merge later"); 5-19-8 still the only proposed merge.
 - GLM-HMM K 6-8 select-k still running (PID 30040, serial, writes only at the end; expected ~19:30-20:30).
 
+- **Priya's reel review 11-17 (state_labels.csv in reels_pooled_all_s1):** groups quiet 5-8-19 (merge OK); nose_slow 1;
+  lick ipsi 0-7-9-23 (0 = bout start); lick central 10-12-18; lick contra 2-15-20; jaw without tongue 21-22 (check cam1);
+  push 13 (+ rare 11); walk 6; 4 open (walk or push). Data check (`scratchpad/arhmm_state_check.py`, every 2nd session):
+  4 = forward wheel 4.7 mm/s, no backward, onsets not cue-locked (5.6 % in 0-1 s) -> slow walking; 13 = backward wheel
+  but NOT cue-locked (9.9 %, median 7.2 s after cue); the cue-locked push is **11** (65 % of onsets 0-1 s after cue,
+  0.48 % usage, below the reel cut); 0, 7, 9, 20 onsets cue-locked (42-58 %); 1 not (2.9 %). Offered: reels with a
+  wheel trace (4, 6, 11, 13) + cam1 clips for 21 / 22.
+
 ## 3. Running / state at 11-17 ~14:00 (background in session 37fdbabf; scratchpad
 `C:/Users/SABATI~1/AppData/Local/Temp/claude/179e1046909c5be2/37fdbabf-285a-455b-bbb7-d5927a5affe6/scratchpad`)
 
