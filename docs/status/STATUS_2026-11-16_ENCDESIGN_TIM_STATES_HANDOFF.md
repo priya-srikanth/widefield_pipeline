@@ -104,3 +104,7 @@ First bundle `arhmm_20261116` (scan) CANCELLED; current bundle `arhmm_20261116b`
 - GLM-HMM forward-backward with per-step logsumexp was the slow path's suspect but the real cost was pytest/conftest +
   CPU contention: measure before optimizing (the scaled recursion is kept; exact to the log-space one).
 - Pooled pre-stroke state models encode ANIMAL identity when behaviour barely varies within animals.
+- (11-17) `make_data` padded every segment to the LONGEST (a whole session, up to 182k bins): 21-27x the real frames,
+  found only after the first O2 scan sat at ~1 h with no output. The 14-min 2-session check fit was the warning sign
+  and was extrapolated instead of profiled. Fix: `CHUNK_BINS` 1500 (60 s, overlap NLAGS) -> 1.16x; per-iteration 5.4 ->
+  1.25 s on one session. Before ANY O2 submission: print the padded data shape vs real frames and time a few iterations.
