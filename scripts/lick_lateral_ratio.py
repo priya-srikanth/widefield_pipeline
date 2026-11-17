@@ -9,8 +9,10 @@ s), the same trials cue-aligned (baseline -1.0..-0.5 s before the cue), ITI bout
   TRACES: per animal x epoch x spout, the session-mean contra curve / the session-mean ipsi curve, shown only where the
           ipsi curve is >= RATIO_MIN of its 0..1.5 s peak (near-zero denominators blow up); mean over the animals defined at
           each lag (>= MIN_TRACE_ANIMALS; dotted where fewer than all). Descriptive.
-  AUC RATIO: per session x spout (>= MIN_SPOUT licks), log2(contra AUC / ipsi AUC) over 0..0.5 s (and 0..1.0 s); NaN if
-          either AUC <= 0 (counted). 0 = equal, +1 = contra twice ipsi.
+  AUC RATIO: per session x spout (>= MIN_SPOUT licks), log2(contra AUC / ipsi AUC) over 0..0.5 s and 0..1.0 s; NaN if
+          either AUC <= 0 (counted). 0 = equal, +1 = contra twice ipsi. PRIMARY window per set (Priya 11-17, SET_WIN):
+          cued / cue 0..1.0 s, ITI 0..0.5 s (iti_licks.CUED_RESP_WIN / ITI_RESP_WIN); lick_lateral_ratio_auc.png (and the
+          side / ring figures) draw each row on its set's primary window, the _0-1 / _0-0.5 twins one window throughout.
   (1) spout effect: pre sessions, mixed model logr ~ C(spout) + (1|animal) vs logr ~ 1 + (1|animal), likelihood ratio
       (ML fits); per-animal pre table first (rule 8).
   (2) post-stroke change: per spout and epoch, `analysis_kit.boot_delta` (paired animals > sessions) of logr vs pre at that
@@ -39,11 +41,42 @@ SIDES = ["side_ipsi", "side_mid", "side_contra"]       # close + far of one side
 SETS = {"cued": ("lick", cr.BASE_SPOUT, "time from first cued lick (s)", "first cued lick, by TARGET spout"),
         "cue": ("cue", cr.BASE_C, "time from cue (s)", "cue-aligned, by target spout"),
         "iti": ("iti", cr.BASE_SPOUT, "time from ITI bout-start lick (s)", "ITI bout start, by PREVIOUS trial's spout")}
-WINDOWS = ((0.0, 1.0), (0.0, 0.5))      # first = primary figures (0..1.0 s default since 10-28 evening)
+WINDOWS = ((0.0, 1.0), (0.0, 0.5))      # both computed for every set (tests, models); figure twins _0-1 / _0-0.5
+# PRIMARY window per set (Priya 11-17, DECISIONS 2026-11-17): cued / cue 0..1.0 s (10-28 evening), ITI 0..0.5 s (the ITI
+# transient; at 0..1.0 s its post-transient dip makes the ratio undefined in 2.8 % of rows and the docked tjM1 model fail)
+SET_WIN = {"cued": il.CUED_RESP_WIN, "cue": il.CUED_RESP_WIN, "iti": il.ITI_RESP_WIN}
+PRIMARY = "primary"     # pseudo-window of the figure loops: each row on its set's SET_WIN
 RATIO_MIN = 0.2
 MIN_TRACE_ANIMALS = 2    # traces: mean over the animals defined at a lag (dotted where fewer than all)
 EP = ["acute", "subacute", "chronic"]
 L = cr.LAGS_W
+
+
+def _win(st: str, w) -> tuple:
+    """The (w0, w1) of figure window `w` for set `st` (PRIMARY = the set's SET_WIN)."""
+    return SET_WIN[st] if w == PRIMARY else w
+
+
+def _col(st: str, w) -> str:
+    """Column / test-table window name for set `st` under figure window `w` (e.g. 'logr_0-0.5')."""
+    return f"logr_{il.win_tag(_win(st, w))}"
+
+
+def _fname(stem: str, w) -> str:
+    """lick_lateral_ratio_auc.png for PRIMARY (each set on its own window), lick_lateral_ratio_auc_0-1.png / _0-0.5.png
+    for one window throughout (11-17: the old unsuffixed figure was 0..1.0 s throughout; now the _0-1 twin)."""
+    return f"{stem}.png" if w == PRIMARY else f"{stem}_{il.win_tag(w)}.png"
+
+
+def _wtxt(w) -> str:
+    """Window phrase of a figure title."""
+    if w == PRIMARY:
+        return (f"{il.win_label(il.CUED_RESP_WIN)} (cued / cue rows) and {il.win_label(il.ITI_RESP_WIN)} (ITI row; "
+                "Priya 11-17)")
+    return il.win_label(w)
+
+
+FIG_WINDOWS = (PRIMARY, *WINDOWS)
 
 
 def _session_curves(D: dict) -> pd.DataFrame:
@@ -144,7 +177,7 @@ def compute() -> dict:
     for (st, a), g in S.groupby(["set", "pair"]):
         for w0, w1 in WINDOWS:
             v = f"logr_{w0:g}-{w1:g}"
-            if (w0, w1) == WINDOWS[0]:
+            if v == _col(st, PRIMARY):
                 print(f"-- per animal (rule 8) PRE log2(contra/ipsi) {st} {a} {v}\n"
                       + g[g.epoch == "pre"].pivot_table(index="animal", columns="spout", values=v)
                       .reindex(columns=list(lo.POS)).round(2).to_string())
@@ -202,11 +235,12 @@ def compute() -> dict:
     T.to_csv(il.OUT_W / "lateral_ratio_tests.csv", index=False)
     M.to_csv(il.OUT_W / "lateral_ratio_models.csv", index=False)
     print("== mixed models (LR tests)\n" + M.round(4).to_string(index=False))
-    t = T[(T.window == "logr_0-0.5") & (T.epoch != "pre")].copy()
-    t["c"] = [f"{d:+.2f}{'*' if s else ''}" for d, s in zip(t.delta, t.sig)]
-    print("== change vs pre of log2(contra/ipsi), 0..0.5 s\n"
-          + t.pivot_table(index=["set", "pair", "spout"], columns="epoch", values="c", aggfunc="first")
-          .reindex(columns=EP).to_string())
+    for w in WINDOWS:
+        t = T[(T.window == f"logr_{il.win_tag(w)}") & (T.epoch != "pre")].copy()
+        t["c"] = [f"{d:+.2f}{'*' if s else ''}" for d, s in zip(t.delta, t.sig)]
+        print(f"== change vs pre of log2(contra/ipsi), {il.win_label(w)}\n"
+              + t.pivot_table(index=["set", "pair", "spout"], columns="epoch", values="c", aggfunc="first")
+              .reindex(columns=EP).to_string())
     return {"T": T, "M": M, "tr": _traces(C), "pos": list(lo.POS)}
 
 
@@ -290,10 +324,10 @@ def plot(F: dict) -> None:
     from wfield_local import cat_points as cp
     from wfield_local.sig_marks import reserve_headroom, star_top
     S = _sessions_table(F)
-    for w0, w1 in WINDOWS:
-        v, wl = f"logr_{w0:g}-{w1:g}", f"{w0:g}..{w1:g} s"
+    for w in FIG_WINDOWS:
         fig, axs = plt.subplots(len(SETS), len(PAIRS), figsize=(26, 12.5), squeeze=False)
         for r, st in enumerate(SETS):
+            v, wl = _col(st, w), il.win_label(_win(st, w))
             for c, a in enumerate(PAIRS):
                 ax = axs[r, c]
                 t = T[(T.set == st) & (T.pair == a) & (T.window == v)]
@@ -324,14 +358,14 @@ def plot(F: dict) -> None:
                                              epoch_label="{e}: mean +- SEM over animals"), loc="lower center",
                    ncol=8, fontsize=9.5, frameon=False)
         reserve_headroom(fig)
-        fig.suptitle(f"NEURAL: contralesional / ipsilesional response ratio per spout and epoch: log2 of the AUC ratio {wl} "
+        fig.suptitle(f"NEURAL: contralesional / ipsilesional response ratio per spout and epoch: log2 of the AUC ratio {_wtxt(w)} "
                      "(per session, spouts with >= 5 licks), mean +- SEM over animals; 'all' = each session's mean over spouts; "
                      "open = sessions (shape = animal, colour = epoch).\n"
                      "* (top, one row per post epoch) = change vs pre at that spout, 95% paired nested bootstrap CI excludes 0. Titles: mixed models (random "
                      "intercept per animal, ML, likelihood ratio): (1) spout effect in PRE sessions; (2) spout x epoch "
                      "interaction; epoch main effect. PROVISIONAL", fontsize=9.5)
         fig.tight_layout(rect=(0, 0.04, 1, 0.93))
-        save_png_svg(fig, out / ("lick_lateral_ratio_auc.png" if (w0, w1) == WINDOWS[0] else f"lick_lateral_ratio_auc_{w0:g}-{w1:g}.png"), dpi=100)
+        save_png_svg(fig, out / _fname("lick_lateral_ratio_auc", w), dpi=100)
         plt.close(fig)
 
 
@@ -381,10 +415,10 @@ def plot_sides(F: dict) -> None:
         with _trial_set_for(out / f"lick_lateral_ratio_side_traces_{st}.png"):
             save_png_svg(fig, out / f"lick_lateral_ratio_side_traces_{st}.png", dpi=100)
         plt.close(fig)
-    for w0, w1 in WINDOWS:
-        v = f"logr_{w0:g}-{w1:g}"
+    for w in FIG_WINDOWS:
         fig, axs = plt.subplots(len(SETS), len(PAIRS), figsize=(22, 11.5), sharey="row", squeeze=False)
         for r, st in enumerate(SETS):
+            v, wl = _col(st, w), il.win_label(_win(st, w))
             for c, a in enumerate(PAIRS):
                 ax = axs[r, c]
                 t = T[(T.set == st) & (T.pair == a) & (T.window == v)]
@@ -405,16 +439,15 @@ def plot_sides(F: dict) -> None:
                 ps, pi = m.p.get("pre: side effect", np.nan), m.p.get("side x epoch", np.nan)
                 ax.set_title(f"{a}, {st}\npre side effect p = {ps:.2g}; side x epoch p = {pi:.2g}", fontsize=8.5)
                 if c == 0:
-                    ax.set_ylabel(f"{SETS[st][3]}\nlog2(contra / ipsi AUC), {w0:g}..{w1:g} s", fontsize=8)
+                    ax.set_ylabel(f"{SETS[st][3]}\nlog2(contra / ipsi AUC), {wl}", fontsize=8)
         fig.legend(handles=[Line2D([], [], color=col[e], marker="o", lw=0, label=e) for e in il.EP4],
                    loc="lower center", ncol=4, fontsize=9.5, frameon=False)
         fig.suptitle(f"NEURAL: contralesional / ipsilesional response ratio, spouts POOLED BY SIDE (close + far): log2 of the "
-                     f"per-session AUC ratio {w0:g}..{w1:g} s, mean +- SEM over animals; * = change vs pre, 95% paired nested "
+                     f"per-session AUC ratio {_wtxt(w)}, mean +- SEM over animals; * = change vs pre, 95% paired nested "
                      "bootstrap CI excludes 0.\nTitles: mixed models with sessions as observations (anti-conservative at "
                      "n = 4 animals): side effect in PRE sessions; side x epoch interaction. PROVISIONAL", fontsize=9.5)
         fig.tight_layout(rect=(0, 0.04, 1, 0.92))
-        save_png_svg(fig, out / ("lick_lateral_ratio_side_auc.png" if (w0, w1) == WINDOWS[0]
-                           else f"lick_lateral_ratio_side_auc_{w0:g}-{w1:g}.png"), dpi=100)
+        save_png_svg(fig, out / _fname("lick_lateral_ratio_side_auc", w), dpi=100)
         plt.close(fig)
 
 
@@ -431,10 +464,10 @@ def plot_rings(F: dict) -> None:
     T, M = F["T"], F["M"]
     S = _sessions_table(F)
     pos = F["pos"]
-    for w0, w1 in WINDOWS:
-        v = f"logr_{w0:g}-{w1:g}"
+    for w in FIG_WINDOWS:
         fig, axs = plt.subplots(len(SETS), len(PAIRS), figsize=(21, 11), sharey="row", squeeze=False)
         for r, st in enumerate(SETS):
+            v, wl = _col(st, w), il.win_label(_win(st, w))
             for c, a in enumerate(PAIRS):
                 ax = axs[r, c]
                 t = T[(T.set == st) & (T.pair == a) & (T.window == v)]
@@ -476,7 +509,7 @@ def plot_rings(F: dict) -> None:
                 ax.set_title(f"{a}, {st}: " + (rf"$\mathbf{{{ttl.replace(' ', '~')}}}$" if pd_ < 0.05 else ttl),
                              fontsize=9)
                 if c == 0:
-                    ax.set_ylabel(f"{SETS[st][3]}\nchange in log2(contra / ipsi), {w0:g}..{w1:g} s", fontsize=8)
+                    ax.set_ylabel(f"{SETS[st][3]}\nchange in log2(contra / ipsi), {wl}", fontsize=8)
             # ONCE per shared-y row (it was per axes, which compounded the headroom five times): top band = text + stars
             lo_, hi_ = axs[r, 0].get_ylim()
             axs[r, 0].set_ylim(lo_, hi_ + 0.30 * (hi_ - lo_))
@@ -485,13 +518,12 @@ def plot_rings(F: dict) -> None:
                    + [Line2D([], [], color=col[e], marker="o", lw=0, label=e) for e in EP]
                    + [Line2D([], [], color="0.4", marker="o", mfc="white", lw=0, label="hollow = CI includes 0")],
                    loc="lower center", ncol=8, fontsize=9.5, frameon=False)
-        fig.suptitle(f"Contra / ipsi ratio, CLOSE vs FAR ring: change vs pre of log2(contra / ipsi AUC {w0:g}..{w1:g} s), "
+        fig.suptitle(f"Contra / ipsi ratio, CLOSE vs FAR ring: change vs pre of log2(contra / ipsi AUC {_wtxt(w)}), "
                      "each session's mean over the ring's three spouts (ipsi, mid, contra); mean of animals, 95% paired "
                      "nested bootstrap CI.\nTitles: mixed model on per-spout rows, y ~ spout + epoch * far vs y ~ spout + "
                      "epoch (sessions as observations; anti-conservative). PROVISIONAL", fontsize=9.5)
         fig.tight_layout(rect=(0, 0.05, 1, 0.92))
-        save_png_svg(fig, il.OUT_W / "figures" / ("lick_lateral_ratio_rings.png" if (w0, w1) == WINDOWS[0]
-                                            else f"lick_lateral_ratio_rings_{w0:g}-{w1:g}.png"), dpi=100)
+        save_png_svg(fig, il.OUT_W / "figures" / _fname("lick_lateral_ratio_rings", w), dpi=100)
         plt.close(fig)
 
 

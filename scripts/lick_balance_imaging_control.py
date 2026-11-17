@@ -11,7 +11,7 @@ Alternative: a ONE-SIDED imaging change on the lesioned side --
 
 SAME LICKS, WINDOWS AND ESTIMATOR AS lick_lateral_ratio: cued = first cued lick (times = <OUT_W>/cued_first_lick_times.csv,
 the rows of cued_wide/<label>.npz, with its spout), ITI = bout starts with gap >= GAP_MAIN (2 s); LAGS_W, baseline
--1.0..-0.5 s per lick (nanmean), session-mean curve, trapezoid AUC 0..1.0 s (and 0..0.5 s); orofacial = mean of the four
+-1.0..-0.5 s per lick (nanmean), session-mean curve, trapezoid AUC 0..1.0 s and 0..0.5 s (balance on cued 0..1.0 s, ITI 0..0.5 s since 11-17); orofacial = mean of the four
 areas' curves per hemisphere; MIN_N licks per cell. Signals: adopted (the SELECTED hemo variant's SVTcorr, `config.hemo_variant()`; must REPRODUCE
 lateral_ratio_sessions.csv -- checked), raw470 (uncorrected functional half of raw SVT), raw415 (415 half), each projected
 on the ROI means of U_atlas, slow drift (>= 600 s cosines) removed, x1e3 -- exactly iti_hemo_check / wide_session.
@@ -194,7 +194,18 @@ def extract(jobs: int) -> None:
 
 
 # ------------------------------------------------------------------------------------------------------------ SUMMARY
-W = "0-1"
+# window per set (Priya 11-17): cued 0..1.0 s, ITI 0..0.5 s (iti_licks.CUED_RESP_WIN / ITI_RESP_WIN); both windows stay
+# in balimg_sessions.csv. W = the per-row column suffix after `_per_set` ("win").
+WSET = {"cued": il.win_tag(il.CUED_RESP_WIN), "iti": il.win_tag(il.ITI_RESP_WIN)}
+W = "win"
+
+
+def _per_set(D: pd.DataFrame) -> pd.DataFrame:
+    """Add c_win / i_win = each row's AUCs on its set's window (WSET; sets other than iti use the cued window)."""
+    it = (D.set == "iti").to_numpy()
+    for h in ("c", "i"):
+        D[f"{h}_win"] = np.where(it, D[f"{h}_{WSET['iti']}"], D[f"{h}_{WSET['cued']}"])
+    return D
 CELLS = (("cued", "side_contra"), ("cued", "pooled"), ("iti", "pooled"))
 MEAS = {"neural": "neural balance log2(c/i), adopted", "clean": "neural balance, clean pixels (interior, non-vessel)",
         "raw470": "uncorrected 470 balance log2(c/i)", "dF": "dF balance = neural + F0 log ratio (undo F0 scaling)",
@@ -209,10 +220,10 @@ def _lr(c, i):
 
 
 def measures() -> pd.DataFrame:
-    S = pd.read_csv(SESS)
+    S = _per_set(pd.read_csv(SESS))
     F = pd.read_csv(F0F)
     # reproduction of lateral_ratio_sessions.csv (adopted, full masks)
-    LR = pd.read_csv(il.OUT_W / "lateral_ratio_sessions.csv")
+    LR = _per_set(pd.read_csv(il.in_path("lateral_ratio_sessions.csv")))
     a = S[(S.signal == "adopted") & (S["mask"] == "full")].merge(LR, on=["label", "set", "spout", "pair"], suffixes=("", "_lr"))
     print(f"== reproduction vs lateral_ratio_sessions.csv: {len(a)} rows; max |c - c_lr| {np.abs(a[f'c_{W}'] - a[f'c_{W}_lr']).max():.4f}, "
           f"max |i - i_lr| {np.abs(a[f'i_{W}'] - a[f'i_{W}_lr']).max():.4f} (AUC scale ~{a[f'c_{W}'].abs().median():.1f})")
@@ -265,7 +276,7 @@ def summarise() -> None:
     for st, sp in CELLS:
         for a in ("tjM1", "orofacial"):
             g = D[(D.set == st) & (D.spout == sp) & (D.pair == a)]
-            print(f"\n-- per animal x epoch means, {st} {sp} {a} (window 0..1.0 s)")
+            print(f"\n-- per animal x epoch means, {st} {sp} {a} (window {WSET.get(st, WSET['cued'])} s)")
             print(g.groupby(["animal", "epoch"])[list(MEAS)].mean().unstack("epoch")
                   .reorder_levels([1, 0], axis=1).reindex(columns=EP, level=0).T.round(3).to_string())
     # ---- change vs pre (boot_delta)
@@ -385,7 +396,7 @@ def figure(D: pd.DataFrame, C: pd.DataFrame) -> None:
             ax.set_ylabel("d neural balance log2(c/i)")
     axs[2, 0].legend(fontsize=7, frameon=False)
     fig.suptitle(f"Is the post-stroke hemispheric balance shift an imaging artifact? ({st} first licks, {sp} targets, "
-                 f"AUC 0..1.0 s, baseline -1.0..-0.5 s; right = contralesional)\nF0 = mean raw fluorescence per ROI; 415 = "
+                 f"AUC cued {il.win_label(il.CUED_RESP_WIN)} / ITI {il.win_label(il.ITI_RESP_WIN)}, baseline -1.0..-0.5 s; right = contralesional)\nF0 = mean raw fluorescence per ROI; 415 = "
                  "isosbestic lick response on the same licks; clean = interior non-vessel pixels; boot_delta animals>sessions",
                  fontsize=11)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
