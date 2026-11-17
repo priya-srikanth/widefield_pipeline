@@ -648,3 +648,7 @@ PI deck (backup Overview_2026-11-06.bak_pre_a8_renumber_20261116.pptx): FR page 
 - Docked ITI marker was ALREADY run pre-rebuild (itifilter_dock/recprim_*.csv; FINDINGS ~L852): docked ITI balance LOST recovery
   tracking (LOAO -0.11 vs days .15; all-ITI .42) and the ITI balance shift itself (acute -0.11 ns vs -0.34). Helper told to reproduce
   on the rebuild via the same ITI_SUBSET hook and report side by side.
+- 11-17 Priya Q "does balance still predict overall lick angle?": rebuild l_bal_angle_lmm_r2 (all-ITI, session x previous spout,
+  0..1 s resp): ITI dec pre slope strong in every pair (ALM -.20, tjM1 -.26, SSp-m -.28, SSp-n -.51 per deg, p < 1e-4; mildly
+  flatter post); ITI resp weak (ALM n.s., tjM1 -.010 p .02, SSp-m -.024). Cued: strong in every pair (~30 % flatter post). Docked
+  version of this LMM never run -> added to the matched-ITI helper (ITI resp at 0..0.5 s).
