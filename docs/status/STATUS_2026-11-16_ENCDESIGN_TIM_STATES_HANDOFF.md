@@ -124,6 +124,19 @@ Run code from a worktree with `PYTHONPATH=$(pwd -W)` (Windows form). AR-HMM mode
   0.48 % usage, below the reel cut); 0, 7, 9, 20 onsets cue-locked (42-58 %); 1 not (2.9 %). Offered: reels with a
   wheel trace (4, 6, 11, 13) + cam1 clips for 21 / 22.
 
+- **First post-stroke state readouts (11-17, `scratchpad/poststroke_states.py`, delta vs own August pre, boot_delta):**
+  GLM-HMM K5: disengaged (state 4, no-response .60) +.17 acute (3/4) / +.10 subacute (4/4, Holm); partial (state 3)
+  +.11 acute (4/4, Holm); chronic back to pre. AR-HMM whole-session group share: quiet +.13 acute (4/4); contra lick
+  -.033 acute / -.013 subacute (4/4); central -.011 acute; "jaw no tongue" (21 + 22) -.07 acute; chronic ipsi lick
+  +.019 and push +.016 (4/4). Caveats: whole session (disengagement inflates quiet), lick groups mix amount and
+  direction -> next: engaged trials only + lick group as share of lick frames.
+- **Jaw-only trials vs states 21 / 22 (Priya surprised 21 + 22 FALL; `jaw_only_states.py`, `jaw_onset_states.py`):**
+  21 / 22 are peri-lick chewing (69 % of 21 frames within 0.5 s of a camera lick; 22 40-67 %), so they fall with
+  licking. Jaw-only trials (531 pre -> 1387 acute) get NO syllable of their own: at the jaw onset (+-0.15 s) the states
+  are 1 (slow nose, .25-.32), 5 (quiet), 4 / 6 (walking, ~.40 together), 21 only .04-.05, the same pre and post. So
+  state 1 = Priya's "failed attempt / jaw only" read; the trial-class jaw call stays the jaw-only measure. Flag:
+  ~40 % of jaw-only onsets fall in walking states (run-onset jaw movement, FR factor fr_run_onset_jaw?), pre and post.
+
 ## 3. Running / state at 11-17 ~14:00 (background in session 37fdbabf; scratchpad
 `C:/Users/SABATI~1/AppData/Local/Temp/claude/179e1046909c5be2/37fdbabf-285a-455b-bbb7-d5927a5affe6/scratchpad`)
 
