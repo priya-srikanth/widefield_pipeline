@@ -95,7 +95,7 @@ python -u -m wfield_local.arhmm_model scan $COMMON --frame pooled_all --kappas $
         "fit.sbatch": f"""#SBATCH -J arhmm_fit_{a.name}
 #SBATCH -p medium
 #SBATCH -c 16
-#SBATCH --mem=96G
+#SBATCH --mem=16G
 #SBATCH -t 2-00:00:00
 {head}python -u -m wfield_local.arhmm_model fit $COMMON --frame $FRAME --kappa $KAPPA --iters ${{ITERS:-100}} \\
     --per-cell ${{PER_CELL:-2}} --seed $SLURM_ARRAY_TASK_ID
@@ -103,7 +103,7 @@ python -u -m wfield_local.arhmm_model scan $COMMON --frame pooled_all --kappas $
         "foldfit.sbatch": f"""#SBATCH -J arhmm_fold_{a.name}
 #SBATCH -p medium
 #SBATCH -c 16
-#SBATCH --mem=96G
+#SBATCH --mem=16G
 #SBATCH -t 2-00:00:00
 {head}python -u -m wfield_local.arhmm_model fit $COMMON --frame pre --kappa $KAPPA --iters ${{ITERS:-100}} \\
     --seed 1 --holdout-fold $SLURM_ARRAY_TASK_ID
