@@ -555,3 +555,7 @@ PI deck (backup Overview_2026-11-06.bak_pre_a8_renumber_20261116.pptx): FR page 
   rebuild 8 (August from 08-01). Pre levels .850/.744/.923/.915 -> .829/.681/.922/.908 (PS93 -.06); acute .451/.288/.466/.607 ->
   .499/.309/.515/.629 (all higher). Both shrink the drop (-.405 -> -.347; chronic -.093 ** -> -.077 n.s.). Not decomposed by factor:
   the gate is not isolated (Priya: camera gate adds non-contact-lick trials, expected to LOWER accuracy; post went UP).
+- 11-17: slide 21 normalized-to-own-pre FIGURE (provenance_sweep_20261116/slide21_relative_figure.py, same data + drawing as
+  fig_state_position_sessions.py): .../rebuild_figs/<tag>/rel_own_pre_20261117/state_position_sessions_rel_own_pre.png.
+  With the figure script's seed (20261102) chronic position Holm .054 (n.s.); the quick check (seed 0) gave .046 -> chronic sits
+  ON the .05 line, seed-dependent; report it as borderline, not as a star either way.

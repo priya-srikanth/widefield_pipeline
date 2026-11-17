@@ -451,3 +451,15 @@ def test_the_guard_runs_before_the_save_not_after(tmp_path):
         "the unresolved guard must run BEFORE the deck is written, or it guards nothing")
     assert src.index("canvas.flush_notes()") < src.index("_refuse_unresolved_overwrite("), (
         "notes must be resolved before the guard reads the miss list")
+
+
+def test_within_day_sections_can_be_left_out(tmp_path):
+    """Priya 11-16: the rebuild deck leaves out sections A-C (per-session within-day decode / encode / pre-cue
+    control) until they are re-rendered; `within_day=False` (CLI --no-within-day) drops them, the code path stays."""
+    kw = dict(dates=["0606", "0807"], animals=["PS92"], grant_dir=tmp_path / "grant")
+    full = ad.build_analysis_deck(tmp_path / "figs", tmp_path / "a.pptx", **kw)
+    cut = ad.build_analysis_deck(tmp_path / "figs", tmp_path / "b.pptx", within_day=False, **kw)
+    assert cut["slides"] < full["slides"]
+    assert not any("locanmf_position_session_" in str(m) or "decoder_rolling_by_animal" in str(m)
+                   or "encoder_ev_by_position_animal" in str(m) for m in cut["missing_figures"])
+    assert any("locanmf_position_session_" in str(m) for m in full["missing_figures"])

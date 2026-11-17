@@ -58,7 +58,7 @@ import argparse
 import re
 import shutil
 import time
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 from pptx.util import Inches, Pt
@@ -70,7 +70,7 @@ from wfield_local import epochs as _epochs
 # about, as data. This module decides which of it EXISTS on disk, and where it goes.
 from wfield_local.deck_registry import (   # noqa: F401  (re-exported: the coverage
                                             #  script and tests import EPOCH_FIGURES from here)
-    ALIGNS, BASES, CD_FIGURES, EPOCH_FIGURES, GRANT_FIGURES, LP_GATED_FIGURES, NOLICK_BASES, _CCF_LEGEND, _CI_LEGEND, _REF_LEGEND, _ROT_LEGEND,
+    ALIGNS, BASES, CD_FIGURES, EPOCH_FIGURES, GRANT_FIGURES, KEY_FIGURES, LP_GATED_FIGURES, NOLICK_BASES, _CCF_LEGEND, _CI_LEGEND, _REF_LEGEND, _ROT_LEGEND,
 )
 # The deck's PROSE lives in `deck_text` (see its docstring). Imported by name rather than
 # `import *` so what the builder uses stays greppable and ruff can still see an unused one.
@@ -262,7 +262,7 @@ _ALIGN_PROSE = {
 }
 
 
-def window_provenance(fig_names) -> str:
+def window_provenance(fig_names, lick_source: str | None = None) -> str:
     """One line stating the window and binning behind the figures on a slide.
 
     WHY EVERY SLIDE CARRIES THIS. On 2026-08-21 decode.max_rt_s moved from 2.0 s to 3.5 s and
@@ -284,14 +284,19 @@ def window_provenance(fig_names) -> str:
     if align is None:
         return ""
     from wfield_local import lp_licks
-    post = lp_licks.post_s_for(align)        # the pre-cue window follows the lick source (Priya 11-04)
+    # the pre-cue window follows the lick source (Priya 11-04); ``lick_source`` = the source the FIGURE was drawn
+    # under (an LP section G slide in a deck built under the default DAQ env), else the environment's
+    post = lp_licks.post_s_for(align, source=lick_source)
     nb = int((d.get("bins") or {}).get(align, 1) or 1)
     binning = (f"{nb} sub-bins of {post / nb:.2f} s (the decoder sees a time course, not one mean)"
                if nb > 1 else "1 bin (the window mean)")
     bits = [f"- window: {_ALIGN_PROSE[align]}, {post:.1f} s (+1.0 s before it)",
             f"- binning: {binning}",
             (f"- engaged: first lick within {float(d['max_rt_s']):.1f} s of the cue "
-            f"(decode.max_rt_s)")]
+             f"(decode.max_rt_s)"
+             # stated only when the caller names the source: other slides' figures can come from either run
+             + ("; licks = camera (LP video) licks, contact or incomplete (cam4 + cam1)"
+                if lick_source == "lp" else ""))]
     if "base-none" in names:
         bits.append("- baseline: none")
     if "cv-block" in names:
@@ -476,6 +481,19 @@ def keep_previous(out_path) -> Path | None:
 
 
 
+def _lp_section_g_dir(src):
+    """The LP camera-lick section G folder beside ``src`` (``src / <LP output tag>``, where section_g_figures --json
+    <LP json> draws), or None when it is absent. Priya 11-11: section G slides show the LP figures."""
+    try:
+        from wfield_local import lp_licks, run_mode
+        with run_mode.with_env(WIDEFIELD_LICK_SOURCE="lp", WIDEFIELD_GATE_SOURCE="lp"):
+            tag = lp_licks.output_tag()
+    except Exception:                                                    # noqa: BLE001
+        return None
+    d = Path(src) / tag if tag else None
+    return d if d is not None and d.is_dir() else None
+
+
 def _tagged_k(root, rel, grant_root):
     """Section K's registered path in THIS tagged run (review 7B N3), or None to keep the registered one: the LP /
     DAQ-ENL1s epoch families live under the LP / ENL block's own tag (``grant_figures/<block tag>/epoch``), the LP
@@ -498,7 +516,7 @@ def _tagged_k(root, rel, grant_root):
 def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag=None, allow_missing=0,
                         allow_unresolved=0,
                         failed_steps=(), allow_failed_steps=False, run_start=None,
-                        grant_dir=None, sidecar_dir=None) -> dict:
+                        grant_dir=None, sidecar_dir=None, within_day=True) -> dict:
     """Build the refined analysis deck at ``out_path`` from figures in ``src``. Returns a summary dict.
 
     ``sidecar_dir`` is where the ``.manifest.json`` goes (default: beside the deck). The default deck lives in
@@ -566,6 +584,12 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     slide_order = canvas.slide_order
     figs_by_slide = canvas.figs_by_slide
     values = canvas.values
+    #: Slides whose figures come from the LP camera-lick section G run (Priya 11-16): their provenance line is resolved
+    #: under the LP lick source (pre-cue window 1.0 s, LP licks), not the deck's default DAQ settings.
+    _lp_slides = set()
+    #: Slides whose notes already carry the figure's own window (the key-figure slides: the page caption); no
+    #: filename-derived window line is added to them.
+    _no_window_line = set()
 
     # A SESSION THAT DOES NOT EXIST IS NOT A MISSING FIGURE.
     # The per-session slides iterate animals x dates, which assumes every animal ran every night.
@@ -651,115 +675,173 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         r.font.color.rgb = NAVY if line.startswith(("WHAT", "THE FIX", "MEASURED", "SIGN", "NOT")) else GREY
     note(s, M_PRECUE_CAVEAT, specific=S_DRIFT)
 
-    # ---------------- A. per-animal WITHIN-DAY decoding ----------------
-    divider("A. Per-animal WITHIN-DAY decoding across sessions",
-            "Post-cue 2 s (predicts no-lick trials too = no lick generalization) and pre-cue 2 s "
-            "(pre-cue position information) confusion + recall; then the rolling decoder across sessions. "
-            "Cross-day (frozen) decoding is Section D.")
-    for a in animals:
-        s = slide()
-        title(s, f"{a} — post-cue 2 s decoder (engaged, no-lick generalization)",
-              "Per session: confusion matrix + per-position recall (engaged vs held-out no-lick trials).",
-              trials=TRIALS_LICK)
-        note(s, M_DECODE, specific=S_DEC_CUE)
-        grid(s, [sess(f"{a}_{d}", "cue") for d, _ in date_labels if have(a, d)],
-             cols=3)
-        s = slide()
-        title(s, f"{a} — pre-cue 2 s decoder (pre-cue position information)",
-              "Position decodable in the pre-cue ENL window, before movement. NB the accuracies shown "
-              "are corrected (meegkit_hpfit); see slide 2 for the drift-removal decision.",
-              trials=TRIALS_LICK)
-        note(s, M_DECODE + M_PRECUE_CAVEAT, specific=S_DEC_PRECUE)
-        grid(s, [sess(f"{a}_{d}", "precue") for d, _ in date_labels if have(a, d)],
-             cols=3)
-        # LICK-ALIGNED, added 2026-08-26. `nightly_figs` has been running --align lick per day all
-        # along, so these figures were written every night and shown nowhere -- computed-and-hidden,
-        # the mirror of the frozen lick arm that was shown-nowhere-because-never-computed.
-        s = slide()
-        title(s, f"{a} — post-LICK 2 s decoder (aligned to the movement)",
-              "Per session, registered on the FIRST LICK rather than the cue. Read against the "
-              "post-cue slide above: cue-aligned mixes trials with different reaction times, so a "
-              "movement-locked signal is smeared by RT jitter there and sharp here.",
-              trials=TRIALS_LICK)
-        note(s, M_DECODE, specific=S_DEC_LICK)
-        grid(s, [sess(f"{a}_{d}", "lick") for d, _ in date_labels if have(a, d)],
-             cols=3)
-        s = slide()
-        title(s, f"{a} — rolling decoder across sessions (pre-cue ENL → post-cue)",
-              "Sliding 0.5 s window, block-CV, one line per session. Above-chance in the ENL = position information present before the cue. "
-              "(Per-animal accuracy across sessions is in the cross-session summary, Section E.)",
-              trials=TRIALS_LICK)
-        note(s, M_DECODE, specific=S_DEC_ROLL)
-        big(s, src / f"locanmf_decoder_rolling_by_animal_{a}.png", top=1.5, width=11.2)
-
-    # ---------------- B. per-animal encoder ----------------
-    divider("B. Per-animal WITHIN-DAY encoder — expected activity, predicted maps & explained variance",
-            "Position → expected cortical activity (SSp / MO), footprint-reconstructed predicted maps, and "
-            "encoding explained variance per position (raw + relative to the noise ceiling) across sessions.")
-    for a in animals:
-        # CUT 2026-08-19 (Priya): the expected-SSp/MO time-courses and the footprint-reconstructed
-        # predicted maps. They were a gut check that the encoder is not degenerate, and in three
-        # months never changed a conclusion -- the noise ceiling on the next slide does that job
-        # quantitatively. Recover from git history if a reviewer ever asks to see them.
-        s = slide()
-        title(s, f"{a} — encoder explained variance per position across sessions (raw & vs ceiling)",
-              "One graph per animal; sessions distinguished by colour/marker. Left: raw held-out R²; "
-              "right: relative to the per-position noise ceiling.",
-              trials=TRIALS_LICK)
-        note(s, M_ENCODE, specific=S_ENC_POS)
-        grid(s, [src / f"locanmf_encoder_ev_by_position_animal_{a}.png",
-                 src / f"locanmf_encoder_ev_ceiling_by_position_animal_{a}.png"], cols=2, top=1.5)
-        # CUT 2026-08-19 (Priya): per-SESSION encoder r2 by region. The region axis is rebuilt per
-        # session, so a cell in one panel is not the same region-set as the cell beside it and the
-        # panels cannot be read against each other.
-    # CUT 2026-09-13 (Priya, "it's the pooled FEVE i wanted to get rid of, slide 25"): the POOLED
-    # FEVE-by-region slide, `locanmf_encoder_feve_by_region_pooled.png`.
-    #
-    # THE PER-ANIMAL ENCODER EV SLIDES ABOVE STAY -- they are the four this was easy to confuse with,
-    # and the confusion was real: the edit list named "FEVE pooled" against slide 23, which is PS94's
-    # encoder EV, while the pooled FEVE is slide 25. Deleting on the number alone would have removed
-    # ONE animal's EV panel and left the other three, which is not a coherent deck state and would
-    # have looked deliberate.
-    #
-    # WHY IT GOES, now that the 2026-08-19 note above no longer holds it up: that note kept the
-    # pooled slide as "the comparable form" of the per-session r2 it was cutting. The comparison it
-    # served has since moved to the encoder-CEILING family, which reports the same fraction-of-
-    # explainable-variance question per POSITION and per EPOCH with bootstrap intervals, rather than
-    # per Allen region pooled over a phase. The figure is still written nightly; only the slide goes.
-    # CUT 2026-08-19 (Priya): the per-SESSION FEVE heatmap. Same objection as the per-session
-    # per-region r2 above -- the region axis is not fixed across sessions, so "stability" cannot be
-    # read off it.
-
-    if (src / "locanmf_encoder_ev_matrix.png").exists():
-        s = slide()
-        title(s, "Encoder — encoded variance per POSITION x SESSION, all animals on one scale",
-              "The summary the per-animal bar charts could not give (Priya, 2026-08-19): a position "
-              "that degrades across days is a COLUMN that changes color, and the lesion is a rule "
-              "rather than something the reader has to hold in mind. Ridge from a one-hot position "
-              "design, scored per position with the same block GroupKFold the decoders use. ONE "
-              "color scale across animals, so the panels are comparable.",
-              trials=TRIALS_LICK)
-        note(s, M_ENCODE, specific=S_ENC_MATRIX)
-        big(s, src / "locanmf_encoder_ev_matrix.png", top=1.6, width=12.6)
-
-    # ---------------- C. pre-cue without licking ----------------
-    divider("C. Pre-cue code without licking — the motor-confound control",
-            "Decode AND encode on a SEARCHED 2 s window: 2 consecutive lick-free seconds between the "
-            "spout-position strobe and the cue, taken as late as possible.")
-    for src_name in ("roi", "locanmf"):
-        for a in animals:
-            p = src / f"precue_lickfree_{a}_{src_name}.png"
-            if not p.exists():
-                continue
+    # ---------------- KEY FIGURES (Priya 11-16): each results page's key-figure cards, first ----------------
+    # Main point on the slide (the page's figure title); provenance in the notes. Optional like section K: an absent
+    # file is skipped, and nothing is placed when `src` is not the share's figure root (a test deck on a tmp dir must not
+    # pick up real figures from MICROSCOPE).
+    # IN A TAGGED (REBUILD) RUN the figure is THIS run's re-render (``iti_licks/<run tag>/<same sub-path>``): the rebuild
+    # fence refuses the pre-rebuild file the page shows, by design. Its caption's numbers describe that earlier render,
+    # so they are NOT copied onto the re-render; the notes give the page, both files and the producing script. A key
+    # figure with no re-render of the same name is skipped (reported by the build, not placed).
+    try:
+        _key_on_share = Path(src).resolve() == Path(PathResolver().root("figures_working")).resolve()
+    except Exception:                                                  # noqa: BLE001
+        _key_on_share = False
+    _key_found, _key_skipped = [], []
+    for _page, _url, _lab, _kroot, _krel, _kttl, _klicks, _kcap, _kdate in (KEY_FIGURES if _key_on_share else ()):
+        try:
+            if run_mode.tag():
+                _kbase, _ktail = _krel.split("/iti_licks/", 1)
+                _kf = Path(PathResolver().derived(_kroot, _kbase + "/iti_licks")) / run_mode.tag() / _ktail
+            else:
+                _kf = Path(PathResolver().root(_kroot)) / _krel
+        except Exception:                                              # noqa: BLE001
+            _key_skipped.append(f"{_lab} ({_krel.rsplit('/', 1)[-1]})")
+            continue
+        if _kf.exists():
+            _key_found.append((_page, _url, _lab, _kf, _kttl, _klicks, _kcap, _kdate, _krel))
+        else:
+            _key_skipped.append(f"{_lab} ({_krel.rsplit('/', 1)[-1]})")
+    if _key_skipped:
+        print(f"[analysis_deck] key figures with no file in this run (not placed): {', '.join(_key_skipped)}",
+              flush=True)
+    if _key_found:
+        divider("KEY FIGURES — the key-figure cards of each results page",
+                "Only the Attempt Encoding Figures page marks key figures; the Cortical Spout Coding, State-Space "
+                "Recovery and Licking Kinematics pages have none yet. In this rebuild deck each is THIS run's re-render "
+                "of the page figure; the page itself still shows the earlier render.")
+        for _page, _url, _lab, _kf, _kttl, _klicks, _kcap, _kdate, _krel in _key_found:
             s = slide()
-            title(s, f"{a} — pre-cue position code with NO licking in the window ({src_name})"
-                     "",
-                  "Exposure, decode (lick-free vs all vs with-licks), lick-free confusion matrix, and "
-                  "per-region encoding EV. The lick control itself is VALID — it just sits on top of "
-                  "corrected pre-cue values (meegkit_hpfit); see slide 2.",
-                  trials=TRIALS_NOLICK)
-            note(s, M_LICKFREE + M_PRECUE_CAVEAT, specific=S_LICKFREE)
-            big(s, p, top=1.5, width=12.9)
+            _no_window_line.add(id(s._element))     # windows are stated by the page caption, not guessable from a name
+            title(s, _kttl, f"{_page} page, {_lab} · {_klicks}")
+            _kscript = re.search(r"Script:?\s+(\S+)", _kcap)
+            _kscript = _kscript.group(1).rstrip(".,;") if _kscript else "see the page caption"
+            if run_mode.tag():
+                _kmt = datetime.fromtimestamp(_kf.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
+                note(s, f"{_page} page ({_url}), {_lab}; slide title = the page's figure title. SOURCE: {_kf} (this "
+                        f"run's re-render, written {_kmt}; script {_kscript}; {_klicks}). The page shows the earlier "
+                        f"render ({_kroot} root, {_krel}, {_kdate}, LP run v36 before the 11-09 glue-mask fix); its "
+                        "caption's numbers describe that render and are not repeated here. Windows, trials, gate, "
+                        "baseline and statistics are as in the page caption for the same script.")
+            else:
+                note(s, f"{_page} page ({_url}), {_lab}. PAGE CAPTION: {_kcap}\n\nSOURCE: {_kf} (rendered {_kdate}; "
+                        "the page's published image).")
+            # the title box grows with the main point (24 pt, ~80 characters a line); the figure starts below it
+            big(s, _kf, top=min(3.0, 0.75 + 0.42 * (len(_kttl) // 80 + 1) + 0.35), width=12.5)
+
+    # SECTIONS A-C (per-session WITHIN-DAY decode / encode / pre-cue lick-free control) are placed only when
+    # `within_day` is set (default). Priya 11-16: the rebuild deck leaves them out until they are re-rendered with
+    # the updated pipeline (`--no-within-day`); the code path stays.
+    if within_day:
+        # ---------------- A. per-animal WITHIN-DAY decoding ----------------
+        divider("A. Per-animal WITHIN-DAY decoding across sessions",
+                "Post-cue 2 s (predicts no-lick trials too = no lick generalization) and pre-cue 2 s "
+                "(pre-cue position information) confusion + recall; then the rolling decoder across sessions. "
+                "Cross-day (frozen) decoding is Section D.")
+        for a in animals:
+            s = slide()
+            title(s, f"{a} — post-cue 2 s decoder (engaged, no-lick generalization)",
+                  "Per session: confusion matrix + per-position recall (engaged vs held-out no-lick trials).",
+                  trials=TRIALS_LICK)
+            note(s, M_DECODE, specific=S_DEC_CUE)
+            grid(s, [sess(f"{a}_{d}", "cue") for d, _ in date_labels if have(a, d)],
+                 cols=3)
+            s = slide()
+            title(s, f"{a} — pre-cue 2 s decoder (pre-cue position information)",
+                  "Position decodable in the pre-cue ENL window, before movement. NB the accuracies shown "
+                  "are corrected (meegkit_hpfit); see slide 2 for the drift-removal decision.",
+                  trials=TRIALS_LICK)
+            note(s, M_DECODE + M_PRECUE_CAVEAT, specific=S_DEC_PRECUE)
+            grid(s, [sess(f"{a}_{d}", "precue") for d, _ in date_labels if have(a, d)],
+                 cols=3)
+            # LICK-ALIGNED, added 2026-08-26. `nightly_figs` has been running --align lick per day all
+            # along, so these figures were written every night and shown nowhere -- computed-and-hidden,
+            # the mirror of the frozen lick arm that was shown-nowhere-because-never-computed.
+            s = slide()
+            title(s, f"{a} — post-LICK 2 s decoder (aligned to the movement)",
+                  "Per session, registered on the FIRST LICK rather than the cue. Read against the "
+                  "post-cue slide above: cue-aligned mixes trials with different reaction times, so a "
+                  "movement-locked signal is smeared by RT jitter there and sharp here.",
+                  trials=TRIALS_LICK)
+            note(s, M_DECODE, specific=S_DEC_LICK)
+            grid(s, [sess(f"{a}_{d}", "lick") for d, _ in date_labels if have(a, d)],
+                 cols=3)
+            s = slide()
+            title(s, f"{a} — rolling decoder across sessions (pre-cue ENL → post-cue)",
+                  "Sliding 0.5 s window, block-CV, one line per session. Above-chance in the ENL = position information present before the cue. "
+                  "(Per-animal accuracy across sessions is in the cross-session summary, Section E.)",
+                  trials=TRIALS_LICK)
+            note(s, M_DECODE, specific=S_DEC_ROLL)
+            big(s, src / f"locanmf_decoder_rolling_by_animal_{a}.png", top=1.5, width=11.2)
+
+        # ---------------- B. per-animal encoder ----------------
+        divider("B. Per-animal WITHIN-DAY encoder — expected activity, predicted maps & explained variance",
+                "Position → expected cortical activity (SSp / MO), footprint-reconstructed predicted maps, and "
+                "encoding explained variance per position (raw + relative to the noise ceiling) across sessions.")
+        for a in animals:
+            # CUT 2026-08-19 (Priya): the expected-SSp/MO time-courses and the footprint-reconstructed
+            # predicted maps. They were a gut check that the encoder is not degenerate, and in three
+            # months never changed a conclusion -- the noise ceiling on the next slide does that job
+            # quantitatively. Recover from git history if a reviewer ever asks to see them.
+            s = slide()
+            title(s, f"{a} — encoder explained variance per position across sessions (raw & vs ceiling)",
+                  "One graph per animal; sessions distinguished by colour/marker. Left: raw held-out R²; "
+                  "right: relative to the per-position noise ceiling.",
+                  trials=TRIALS_LICK)
+            note(s, M_ENCODE, specific=S_ENC_POS)
+            grid(s, [src / f"locanmf_encoder_ev_by_position_animal_{a}.png",
+                     src / f"locanmf_encoder_ev_ceiling_by_position_animal_{a}.png"], cols=2, top=1.5)
+            # CUT 2026-08-19 (Priya): per-SESSION encoder r2 by region. The region axis is rebuilt per
+            # session, so a cell in one panel is not the same region-set as the cell beside it and the
+            # panels cannot be read against each other.
+        # CUT 2026-09-13 (Priya, "it's the pooled FEVE i wanted to get rid of, slide 25"): the POOLED
+        # FEVE-by-region slide, `locanmf_encoder_feve_by_region_pooled.png`.
+        #
+        # THE PER-ANIMAL ENCODER EV SLIDES ABOVE STAY -- they are the four this was easy to confuse with,
+        # and the confusion was real: the edit list named "FEVE pooled" against slide 23, which is PS94's
+        # encoder EV, while the pooled FEVE is slide 25. Deleting on the number alone would have removed
+        # ONE animal's EV panel and left the other three, which is not a coherent deck state and would
+        # have looked deliberate.
+        #
+        # WHY IT GOES, now that the 2026-08-19 note above no longer holds it up: that note kept the
+        # pooled slide as "the comparable form" of the per-session r2 it was cutting. The comparison it
+        # served has since moved to the encoder-CEILING family, which reports the same fraction-of-
+        # explainable-variance question per POSITION and per EPOCH with bootstrap intervals, rather than
+        # per Allen region pooled over a phase. The figure is still written nightly; only the slide goes.
+        # CUT 2026-08-19 (Priya): the per-SESSION FEVE heatmap. Same objection as the per-session
+        # per-region r2 above -- the region axis is not fixed across sessions, so "stability" cannot be
+        # read off it.
+
+        if (src / "locanmf_encoder_ev_matrix.png").exists():
+            s = slide()
+            title(s, "Encoder — encoded variance per POSITION x SESSION, all animals on one scale",
+                  "The summary the per-animal bar charts could not give (Priya, 2026-08-19): a position "
+                  "that degrades across days is a COLUMN that changes color, and the lesion is a rule "
+                  "rather than something the reader has to hold in mind. Ridge from a one-hot position "
+                  "design, scored per position with the same block GroupKFold the decoders use. ONE "
+                  "color scale across animals, so the panels are comparable.",
+                  trials=TRIALS_LICK)
+            note(s, M_ENCODE, specific=S_ENC_MATRIX)
+            big(s, src / "locanmf_encoder_ev_matrix.png", top=1.6, width=12.6)
+
+        # ---------------- C. pre-cue without licking ----------------
+        divider("C. Pre-cue code without licking — the motor-confound control",
+                "Decode AND encode on a SEARCHED 2 s window: 2 consecutive lick-free seconds between the "
+                "spout-position strobe and the cue, taken as late as possible.")
+        for src_name in ("roi", "locanmf"):
+            for a in animals:
+                p = src / f"precue_lickfree_{a}_{src_name}.png"
+                if not p.exists():
+                    continue
+                s = slide()
+                title(s, f"{a} — pre-cue position code with NO licking in the window ({src_name})"
+                         "",
+                      "Exposure, decode (lick-free vs all vs with-licks), lick-free confusion matrix, and "
+                      "per-region encoding EV. The lick control itself is VALID — it just sits on top of "
+                      "corrected pre-cue values (meegkit_hpfit); see slide 2.",
+                      trials=TRIALS_NOLICK)
+                note(s, M_LICKFREE + M_PRECUE_CAVEAT, specific=S_LICKFREE)
+                big(s, p, top=1.5, width=12.9)
 
     # ---------------- D. cross-session (frozen) decoders & encoders, BOTH bases ----------------
     # Was interleaved into each animal's Section A, which mixed "does the code exist today" with "does
@@ -1057,6 +1139,9 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     #: and as G7c in the per-session appendix: the deck ASSERTS the control rather than showing it.
     #: Every figure is still written nightly by `section_g_figures`; flip this to True to restore.
     _SHOW_SMALL_LESION = False
+    #: The LP camera-lick section G run (Priya 11-11 / 11-16): G1b, G2b, G2c, G3, G4 and G6 place its figures; the DAQ
+    #: sensor run in `src` stays only where a slide says ROBUSTNESS. None when that run's folder is absent.
+    _lp_sg = _lp_section_g_dir(src)
     if _post_labels and (src / "section_g_matched_all.png").exists():
         divider("G. POST-STROKE \u2014 the frozen pre-stroke model applied after the lesion",
                 f"Lesion {config.stroke_cutoff()}; post-stroke pool = {', '.join(_post_labels)}. "
@@ -1079,8 +1164,10 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             ("There is NO post-stroke 'disengaged' label. Engagement filtering post-stroke is RETIRED: "
             "a local dip in response rate cannot be distinguished from a run of motor failures, and "
             "in a severe stroke no spared reference position exists to anchor one."),
-            ("'No lick detected' is NOT 'no tongue protrusion' \u2014 the spout needs contact. PS93 "
-            "already shows this pre-stroke at far_L. Every no-lick conclusion is provisional on DLC."),
+            ("LICK SOURCE: G1b, G2b, G2c, G3, G4 and G6 use camera (LP video) licks \u2014 a contact or "
+             "incomplete lick seen on cam4 + cam1 within 3.5 s of the cue; a no-lick trial has none. "
+             "The other section G slides, and those marked ROBUSTNESS, use the DAQ lick-sensor run (the "
+             "sensor needs spout contact)."),
             f"POST-STROKE POOL: {', '.join(_post_labels)}. Every slide is per SESSION, never pooled across days — PS94's two nights differ more from each other than pre differs from post, so averaging them would destroy the effect.",
             "The day-1 plan/execution dissociation now REPLICATES in all four animals (G2c), so it is no longer a description of two animals. What remains n=1 is each animal's TRAJECTORY: one session per animal per day.",
         ])
@@ -1108,16 +1195,20 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         # this is a glob and not a filename: with 14 post-stroke sessions the single figure was
         # 12.50 x 1.10 in on the slide and unreadable (Priya, 2026-08-22). Sorted so _2 follows the
         # unsuffixed original.
-        _counts = sorted(src.glob("section_g_counts*.png"),
+        # LP camera licks since 11-16 (Priya: "update to LP video licks"); the DAQ-sensor counts are not placed.
+        _counts = sorted(_lp_sg.glob("section_g_counts*.png") if _lp_sg is not None else (),
                          key=lambda q: (len(q.stem), q.stem))
         for _i, _cf in enumerate(_counts):
             s = slide()
+            _lp_slides.add(id(s._element))
             _part = f" ({_i + 1} of {len(_counts)})" if len(_counts) > 1 else ""
             title(s, f"G1b. Which positions still have trials at all{_part}",
-                  "Per-position engaged and no-lick counts, ONE PANEL PER POST-STROKE SESSION "
-                  "against the pre-stroke per-session mean. A position with ZERO engaged trials "
-                  "cannot have a lick-only decoding number at all; PS94 has two, and reading "
-                  "that as a neural deficit is how the first pass went wrong.")
+                  "Per-spout trial counts, ONE PANEL PAIR PER POST-STROKE SESSION (red) against the "
+                  "pre-stroke per-session mean (blue; pre-stroke sessions from 8/1). Every cued trial of the session, split into "
+                  "ENGAGED = an LP video lick (contact or incomplete, cam4 + cam1) within 3.5 s of the "
+                  "cue, and UNDETECTED = no LP lick in that window; no camera-class, working-period or "
+                  "quit-tail cut. Camera (LP) lick run. A position with ZERO engaged trials cannot have "
+                  "a lick-only decoding number. Counts, no test.")
             note(s, M_POSTSTROKE, specific=S_G1B)
             big(s, _cf, top=1.6, width=12.5)
 
@@ -1125,7 +1216,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         #
         # SUPERSEDED, NOT WITHDRAWN. G2 was the per-session form of the frozen-decoder result; H5c
         # and section I now carry it with bootstrap intervals and an epoch break G2 could not express, and
-        # G2c below states the conclusion G2 was read for ("the PLAN survives, EXECUTION does not")
+        # G2c below states the conclusion G2 was read for (plan vs execution, per animal)
         # over all four animals in one panel. `section_g_matched_{all,lickonly}.png` is still
         # written every night, so restoring this block costs nothing but the indentation.
         for _arm, _armn in ():
@@ -1155,18 +1246,22 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         # superseded version was built from per_position_pre_vs_post_0817.json -- day 1 only, so
         # only the two animals whose lesion took on 8/17, and frozen at its 8/18 content because no
         # step rewrote it (Priya, 2026-08-20).
-        if (src / "section_g_G2b_per_position.png").exists():
+        # LP camera licks since 11-16 (Priya); the DAQ-sensor G2b is not placed.
+        if _lp_sg is not None and (_lp_sg / "section_g_G2b_per_position.png").exists():
             s = slide()
+            _lp_slides.add(id(s._element))
             title(s, "G2b. Per-position recall in all four conditions \u2014 all four animals, every "
                      "post-stroke day",
-                  "post-cue, post-lick, pre-cue WITH lick, pre-cue NO lick \u2014 the pre-stroke bar "
-                  "then ONE BAR PER POST-STROKE DAY at every position. 'With/without lick' is the "
-                  "RESPONSE lick, i.e. engaged vs no-lick trials; the no-lick condition pairs "
-                  "PRE-stroke no-lick against POST-stroke no-lick, so it differs in phase alone. "
-                  "'n/a' means the position was never attempted, which is not zero recall; RED "
-                  "HATCHED means fewer than 10 trials.")
+                  "Frozen pre-stroke decoder (trained on pre-stroke camera WORKING trials, sessions from "
+                  "8/1); blue = pre-stroke leave-one-session-out, then ONE BAR PER POST-STROKE DAY. Rows: "
+                  "post-cue and pre-cue WITH lick = camera working trials (contact + incomplete LP licks, "
+                  "working period, stopped runs and quit tail removed); post-lick = LP lick trials; "
+                  "pre-cue NO lick = no LP lick within 3.5 s of the cue (pre vs post). Windows: post-cue "
+                  "2.0 s from the cue, post-lick 2.0 s from the first LP lick, pre-cue 1.0 s ending at the "
+                  "cue; no per-trial baseline. Camera (LP) lick run. Dotted = 1/6; 'n/a' = not attempted (not zero recall); RED HATCHED = fewer than "
+                  "10 trials. Descriptive, no test.")
             note(s, M_POSTSTROKE, specific=S_G2B)
-            big(s, src / "section_g_G2b_per_position.png", top=1.75, width=12.3)
+            big(s, _lp_sg / "section_g_G2b_per_position.png", top=1.75, width=12.3)
 
         # --- G2c. recoding vs loss: the test that reframes G2
         # Reads the WITHCONTROL grid (post + excluded rendered TOGETHER). section_g_grid_all.png
@@ -1175,44 +1270,46 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         # 2026-08-20 this read poststroke_grid.png, a scratchpad-era file that no step rewrote after
         # the section-G consolidation -- so the headline four-animal slide silently kept its
         # 8/19 10:17 content and never showed 8/19 itself (Priya, 2026-08-20).
-        _rf = src / "section_g_grid_withcontrol_all.png"
-        if _rf.exists():
+        # G2c (Priya 11-11 / 11-12): the LP camera-lick run is PRIMARY, the DAQ sensor run is ROBUSTNESS. The LP section G
+        # figures live in the LP run's own folder (src / <LP output tag>, drawn by section_g_figures --json <LP json>).
+        # Each figure's heading now states ITS counts (plot_poststroke.grid_counts); the old 'the PLAN survives,
+        # EXECUTION does not, in all four animals, every post-stroke day' headline and the 8/17 gray-square control
+        # reading are replaced -- the per-animal table (docs/status/g2c_1111) did not support 'every day', and 8/17 is
+        # skipped. Numbers below are from the rebuild JSONs (11-12) and must change if the JSONs do.
+        _lp_sg = _lp_section_g_dir(src)
+        _g2c = (
+            (_lp_sg, "lickonly",
+             "G2c. Day 1: the pre-cue (plan) code stays inside each animal's pre-stroke range while execution "
+             "decoding falls; through the acute weeks execution falls further than the plan in every animal",
+             "Camera (LP) lick trials, each session's preserved spouts. Day 1 pre-cue inside the range in 4/4; "
+             "post-lick below in 3/4 (PS95 inside). Acute mean change vs own pre: pre-cue +.03 / -.11 / -.11 / +.02, "
+             "post-lick -.12 / -.16 / -.17 / -.04 (PS92-95). The plan is not untouched: pre-cue falls below the range in "
+             "some acute sessions of PS93 / PS94 and some subacute sessions of all four. Chronic: execution back on "
+             "average in every animal. Descriptive counts, no test; the heading lists sessions below range per epoch."),
+            (_lp_sg, "all",
+             "G2c (ALL trials, camera licks). Same reading with every trial at six positions",
+             "Day 1 pre-cue inside the range in 3/4 (PS94 z -1.8, just below); post-cue below in 3/4. Acute: the plan "
+             "falls less than execution in 4/4. Unlike the lick-only arm, PS94 and PS95 post-cue stay below the range in "
+             "3-5 chronic sessions. All trials include no-lick trials, so execution here mixes missing movements with "
+             "coding (the lick-only arm removes that)."),
+            (src, "all",
+             "G2c (ROBUSTNESS, DAQ lick sensor, all trials). The same grid on the sensor run",
+             "DAQ sensor run (run tag _daqlk). Day 1 pre-cue inside 4/4, post-cue below 4/4; acute plan falls less than "
+             "execution in 4/4; PS94 / PS95 post-cue below in 4-5 chronic sessions."),
+            (src, "lickonly",
+             "G2c (ROBUSTNESS, DAQ lick sensor, lick-only). Scored only on trials with a sensor lick",
+             "Day 1 pre-cue inside 4/4; post-lick below in 2/4 (post-cue 1/4). Acute plan falls less than execution in "
+             "4/4. On the sensor some spouts drop out of the post-lick column (too few sensor-lick trials), so chance "
+             "moves with them; with camera licks no spout drops out acutely."),
+        )
+        for _d, _arm, _t, _sub in _g2c:
+            _rf = _d / f"section_g_grid_withcontrol_{_arm}.png" if _d is not None else None
+            if _rf is None or not _rf.exists():
+                continue
             s = slide()
-            title(s, "G2c. After an effective lesion: the PLAN survives, EXECUTION does not "
-                     "\u2014 in all four animals, every post-stroke day",
-                  "Pre-cue and post-cue are two windows on the SAME trials, so every session-level "
-                  "confound acts on both equally and cannot produce a difference between them. GRAY "
-                  "SQUARES = PS92/PS93 on 8/17 after the laser that did NOT take: nothing outside the "
-                  "band, then the dissociation appears one day later after the effective lesion \u2014 "
-                  "a within-animal before/after control. PURPLE = outside the band but ABOVE it.")
+            title(s, _t, _sub)
             note(s, M_RECODING, specific=S_G2C)
             big(s, _rf, top=1.85, width=11.4)
-
-        # THE LICK-ONLY ARM OF THE SAME GRID. Written every night since the section-G consolidation
-        # and never placed, while the all-trials arm above carried the headline alone.
-        #
-        # It is not decoration: the standing objection to G2c is that the post-stroke ALL-trials arm
-        # includes trials with no lick, so a reader can say the dissociation is about MISSING
-        # MOVEMENTS rather than about coding. This arm scores only trials the animal licked on, which
-        # removes that confound -- at the cost of the abandoned positions, which have no lick trials
-        # to score. The two arms are therefore complementary and neither is complete: all-trials
-        # keeps every position and admits the confound, lick-only removes the confound and loses
-        # positions. Showing one without the other lets a reader assume the choice was neutral.
-        _rf2 = src / "section_g_grid_withcontrol_lickonly.png"
-        if _rf2.exists():
-            s = slide()
-            title(s, "G2c (LICK-ONLY arm). The same grid, scored only on trials the animal "
-                     "actually licked on",
-                  "THE CONTROL FOR THE OBVIOUS OBJECTION to the slide before this one: that the "
-                  "all-trials dissociation is about missing MOVEMENTS rather than about coding. "
-                  "Here every scored trial has a lick, so it cannot be. THE COST is positions: an "
-                  "abandoned position has no lick trials, so it drops out entirely and the chance "
-                  "level moves with it (4-way rather than 6-way for PS94 and PS95 on day 1). Read "
-                  "the two arms TOGETHER \u2014 all-trials keeps every position and admits the "
-                  "confound, lick-only removes the confound and loses positions. Neither is the "
-                  "complete figure, and choosing one silently would be choosing a result.")
-            note(s, M_RECODING, specific=S_G2C)
-            big(s, _rf2, top=1.85, width=11.4)
 
         # --- G2d. THE SMALL-LESION FAMILY, in full.
         #
@@ -1288,7 +1385,9 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                 # PS93_0818 two slides with identical headings (Priya, 2026-08-20: "what is the
                 # difference between slide 136 and 138"). Grouping by animal makes that
                 # unrepresentable rather than merely fixed.
-                _files = sorted(src.glob(f"section_g_confusion_{_al}_{_arm}_*.png"))
+                # LP camera licks since 11-16 (Priya); the DAQ-sensor confusions are not placed.
+                _files = sorted(_lp_sg.glob(f"section_g_confusion_{_al}_{_arm}_*.png")
+                                if _lp_sg is not None else ())
                 _by_an: dict[str, list] = {}
                 for _f in _files:
                     _by_an.setdefault(_f.stem.split("_")[-2], []).append(_f)
@@ -1297,35 +1396,46 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                         _chunk = _fs[_i:_i + 4]
                         _days = ", ".join(p.stem.split("_")[-1] for p in _chunk)
                         s = slide()
+                        _lp_slides.add(id(s._element))
                         title(s, f"G3. {_nice} crossed confusion — {_an} ({_armn} arm): {_days}",
-                              "Rows = TRUE position. PANEL 2 OF EACH FIGURE IS THE MATCHED CONTROL: "
-                              "pre-stroke NO-LICK trials, scored by a decoder trained on the OTHER "
-                              "pre-stroke sessions' engaged trials, so it differs from the post "
-                              "panel in PHASE alone rather than in phase and the absence of a "
-                              "movement together (Priya, 2026-08-19). On the ALL arm the abandoned "
-                              "positions are filled by no-lick trials, the only evidence that "
-                              "exists there. '(pred)' under each column is how often the decoder "
-                              "picks that position at all, which IS the recall expected under a "
-                              "label permutation; '(prec)' is precision. Read the OFF-diagonal.")
+                              "Rows = TRUE position. Panel 1: pre-stroke camera WORKING trials "
+                              "(contact + incomplete LP licks, working period, stopped runs and quit "
+                              "tail removed), leave-one-session-out. PANEL 2 IS THE MATCHED CONTROL: "
+                              "pre-stroke NO-LICK trials (no LP lick within 3.5 s of the cue) scored "
+                              "by the frozen decoder, so it differs from the post panel in PHASE alone. "
+                              + ("Post: EVERY cued trial at all six spouts (lick + no-lick). "
+                                 if _arm == "all" else
+                                 "Post: that session's camera WORKING trials only (same definition as "
+                                 "panel 1). ")
+                              + "Camera (LP) lick run; frozen decoder from pre-stroke sessions from 8/1; "
+                              "no per-trial baseline. '(pred)' under each column = how often the "
+                              "decoder picks that position (the recall expected under a label "
+                              "permutation); '(prec)' = precision. Read the OFF-diagonal.")
                         note(s, M_POSTSTROKE, specific=S_G3)
                         grid(s, _chunk, cols=2, top=1.95)
 
         # --- G4 PRIMARY (coordinator 11-04): the camera-class discriminator; the DAQ slides below are robustness
-        if (src / "section_g_g4_camclass.png").exists():
+        _g4p = next((d / "section_g_g4_camclass.png" for d in (_lp_section_g_dir(src), src)
+                     if d is not None and (d / "section_g_g4_camclass.png").exists()), None)
+        if _g4p is not None:
             s = slide()
-            title(s, "G4. Post-stroke trials by CAMERA CLASS, read by a pre-stroke working-vs-no-response boundary",
-                  "Pre-stroke WORKING (contact + incomplete) vs NO-RESPONSE (raw camera class, working period; "
-                  "unknown never trained), position-balanced; each group's post "
-                  "rows scored separately (spout-balanced, cells < 10 rows left out), against the same group "
-                  "pre-stroke (dotted = pre working where the group is absent pre). Right: the DAQ "
-                  "lick-vs-no-lick discriminator, ROBUSTNESS.")
+            title(s, "G4. Do post-stroke NO-RESPONSE trials look like pre-stroke WORKING trials?",
+                  "Discriminator trained on pre-stroke camera WORKING (contact + incomplete) vs NO-RESPONSE "
+                  "trials (raw camera class, working period), position-balanced; unknown never trained. Each "
+                  "camera class's post rows are scored separately (spout-balanced, cells < 10 rows left out) "
+                  "against the same class pre-stroke (dotted = pre working where the class is absent pre). "
+                  "The no-response readout is estimable only in sessions of 2 animals (PS94, PS95); every "
+                  "other session has too few no-response trials, so the cohort-level reading is not "
+                  "supported (2 / 4 animals). Camera (LP) lick run; the DAQ sensor version is the next slide.")
             note(s, M_POSTSTROKE, specific=S_G4)
-            big(s, src / "section_g_g4_camclass.png", top=1.7, width=11.5)
+            big(s, _g4p, top=1.7, width=11.5)
 
         # --- G4. identity, with its control read first (DAQ discriminator: ROBUSTNESS since 11-04)
         if (src / "poststroke_G4_identity.png").exists():
             s = slide()
-            title(s, "G4. Do post-stroke NO-LICK trials look like pre-stroke LICKING trials?",
+            title(s, "G4 (ROBUSTNESS, DAQ lick sensor). Do post-stroke NO-LICK trials look like "
+                     "pre-stroke LICKING trials?",
+                  "The DAQ-sensor version of the camera-class G4 above, not the primary readout. "
                   "Discriminator trained on pre-stroke engaged-vs-no-lick, POSITION-BALANCED so it "
                   "cannot simply answer 'far'. READ THE CONTROL FIRST: post-stroke ENGAGED trials "
                   "must sit above post-stroke no-lick, or the boundary is tracking 'post-stroke' "
@@ -1370,16 +1480,22 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             big(s, _sf5, top=1.7, width=11.8)
 
         # --- G6. was a plan formed on the no-lick trials?
-        if (src / "poststroke_G6_nolick_readout.png").exists():
+        # LP camera licks since 11-16 (Priya); the DAQ-sensor G6 is not placed.
+        if _lp_sg is not None and (_lp_sg / "poststroke_G6_nolick_readout.png").exists():
             s = slide()
+            _lp_slides.add(id(s._element))
             title(s, "G6. Was a plan formed on the trials with no lick? Impaired vs preserved "
                      "positions",
-                  "REPLACES the working-vs-disengaged split, retired 2026-08-18 because 'disengaged' "
-                  "has no valid post-stroke construction. This splits on the TRUE spout position, "
-                  "which is measured rather than inferred. Above the black null at IMPAIRED "
-                  "positions = position represented, movement did not happen.")
+                  "Each post-stroke session's NO-LICK trials (no LP video lick within 3.5 s of the cue), "
+                  "split by TRUE spout into that session's preserved spouts and impaired spouts (the "
+                  "rest); lick trials excluded. 6-way balanced accuracy of the frozen pre-stroke decoder "
+                  "(pre-stroke sessions from 8/1), pre-cue (1.0 s ending at the cue) and post-cue "
+                  "(2.0 s from the cue) windows, no per-trial baseline; BLACK RULE = that arm's own "
+                  "permutation null; p values printed RAW (no multiple-comparison correction). Camera (LP) "
+                  "lick run. Above the null at IMPAIRED spouts = position "
+                  "represented, movement did not happen; UNDECIDABLE = too few no-lick trials.")
             note(s, M_POSTSTROKE, specific=S_G6)
-            big(s, src / "poststroke_G6_nolick_readout.png", top=1.75, width=11.0)
+            big(s, _lp_sg / "poststroke_G6_nolick_readout.png", top=1.75, width=11.0)
 
         # --- G6b. the miss/stopped contrast, per position and per session.
         if (src / "poststroke_miss_vs_stopped.png").exists():
@@ -1430,7 +1546,10 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         # the single stacked file this used to read is a scratchpad-era orphan nothing rewrites.
         # The LICK alignment exists on the lick-only arm alone (a no-lick trial has no lick to
         # align to), so the all-trials glob simply finds nothing for it.
-        for _al, _nice in (("precue", "PRE-cue"), ("cue", "POST-cue"), ("lick", "POST-lick")):
+        # Priya 11-16: G7c now goes with the other small-lesion slides (behind `_SHOW_SMALL_LESION`): 8/17 is not in
+        # the rebuild, whose 'excluded' phase holds the June 6-8 pre sessions instead.
+        for _al, _nice in ((("precue", "PRE-cue"), ("cue", "POST-cue"), ("lick", "POST-lick"))
+                           if _SHOW_SMALL_LESION else ()):
             for _arm, _armn in (("all", "ALL trials"), ("lickonly", "LICK-ONLY")):
                 for _cf in sorted(src.glob(f"section_g_smalllesion_confusion_{_al}_{_arm}_*.png")):
                     _lab = "_".join(_cf.stem.split("_")[-2:])
@@ -1998,33 +2117,23 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
 
         # --- G9. what is NOT here, and why
         s = slide()
-        title(s, "G9. Excluded sessions and deferred analyses",
+        title(s, "G9. Excluded sessions and retired analyses",
               "A section that does not say what it left out reads as though it covered everything.")
         note(s, M_POSTSTROKE, specific=S_GEXCL)
         bullets(s, [
             (f"EXCLUDED from every POOLED slide: {', '.join(_excluded)}. Their 8/16 attempt produced "
              "no deficit; the effective lesion (3.75 / 5.5 mW) followed the 8/17 session, so 8/17 is "
              "neither a clean baseline nor post-stroke and belongs to neither phase. They "
-             "are NOT unanalysed \u2014 they are the SMALL-LESION COMPARISON, shown per session at G7c and as the two gray squares in G2c's grid, and more "
-             "importantly, the WITHIN-ANIMAL BEFORE/AFTER CONTROL in G2c: these same animals' 8/18 "
-             "sessions ARE post-stroke and carry the dissociation, while their 8/17 sessions show "
-             "nothing outside the band at any alignment. Same animal, same rig, one day apart. That "
-             "control exists only because these sessions were kept analysable instead of discarded. "
-             "They also remain registered, are projected onto the joint bases, and appear "
-             "per-session in sections A\u2013D.")
+             "are not drawn or counted on any section G slide. "
+             "They remain registered and on disk.")
             if _excluded else
             "No sessions are currently in the 'excluded' phase.",
             ("RETIRED, not merely omitted: the working-vs-disengaged identity split. Its comparison "
             "class was never validated, so its result (PS94 \u22120.060) is uninterpretable rather "
             "than negative. G6 asks the same question without an engagement label."),
-            ("DEFERRED to the second post-stroke session: joint-LocaNMF replication of G2b\u2013G6, "
-            "and the independently-trained-decoder similarity analysis. Both need n > 1."),
-            ("BLOCKED on DLC/facial tracking: splitting 'no lick detected' into attempted-and-missed "
-            "vs never-attempted. Until then every no-lick claim above carries that ambiguity."),
             ("PS92/PS93 HAVE re-entered as post-stroke: their effective lesion followed the 8/17 "
             "session, so 8/18 is their post-stroke day 1 and appears in every pooled slide. 0817 "
-            "stays in their exclude list, which is what makes the before/after control above "
-            "possible."),
+            "stays in their exclude list (neither phase)."),
         ])
 
     # ---------------- H. GRANT FIGURES ----------------
@@ -2267,8 +2376,21 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                 "unaffected. All PROVISIONAL (first renders 10-22 / 10-24).")
         for _n, _ttl, _legend, _f in _k_found:
             _sl = slide()
+            if "LP_licks" in str(_f):
+                _lp_slides.add(id(_sl._element))
+            _leg = _legend or _CI_LEGEND
+            if run_mode.tag():
+                # A TAGGED (rebuild) RUN places its own renders, so the registry's PRE-REBUILD prose must not travel with
+                # them (Priya 11-16: remove outdated text; captions replaced, not annotated): the WHAT IT SHOWS numbers
+                # come from the 10-21 / 10-24 renders (REBUILD-TODO in deck_registry) and the baseline line names the
+                # June + August pre that the rebuild (pre0801) does not use.
+                _leg = _leg.split("\n\nWHAT IT SHOWS")[0]
+                _leg = _leg.replace(" Status PROVISIONAL (first LP render 10-22, re-rendered 10-24 unchanged);",
+                                    " Status PROVISIONAL;")
+                _leg = _leg.replace("Baseline June + August pre (the decoder families' default).",
+                                    "Baseline: August-only pre-stroke sessions (this run, pre0801).")
             title(_sl, f"K{_n}. {_ttl}", "")
-            note(_sl, (_legend or _CI_LEGEND) + chr(10) + chr(10) + "Source: " + _f.name)
+            note(_sl, _leg + chr(10) + chr(10) + "Source: " + str(_f))
             big(_sl, _f, top=1.40, width=12.6)
 
     out_path = Path(out_path)
@@ -2293,7 +2415,8 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     for _sl in slide_order:
         _figs = figs_by_slide.get(id(_sl._element), [])
         _cap = figure_caption(_figs, years=_years)
-        _line = window_provenance(_figs)
+        _line = ("" if id(_sl._element) in _no_window_line else
+                 window_provenance(_figs, lick_source="lp" if id(_sl._element) in _lp_slides else None))
         if not _cap and not _line:
             continue
         _tf = _sl.notes_slide.notes_text_frame
@@ -2344,6 +2467,9 @@ def main(argv=None) -> int:
     ap.add_argument("--run-start", type=float, default=None, metavar="EPOCH",
                     help="epoch seconds this run began; placed figures older than it are "
                          "reported as not-refreshed in the manifest")
+    ap.add_argument("--no-within-day", action="store_true",
+                    help="leave out sections A-C (per-session within-day decode / encode / pre-cue "
+                         "control); Priya 11-16: the rebuild deck until they are re-rendered")
     args = ap.parse_args(argv)
     rv = PathResolver(machine=args.machine)
     src = args.src or Path(rv.root("figures_working"))
@@ -2354,7 +2480,8 @@ def main(argv=None) -> int:
     # the manifest stays in cohort_out (tag-routed the same way); an explicit --out keeps it beside the deck
     side = None if args.out else run_mode.routed_output(Path(rv.root("cohort_out")), guard=False)
     summary = build_analysis_deck(src, out, allow_missing=args.allow_missing,
-                                  run_start=args.run_start, sidecar_dir=side)
+                                  run_start=args.run_start, sidecar_dir=side,
+                                  within_day=not args.no_within_day)
     print(f"[analysis_deck] wrote {summary['out']}  ({summary['slides']} slides, "
           f"{summary['figures_present']} figures placed, {summary['figures_missing']} missing)", flush=True)
     return 0

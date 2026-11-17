@@ -65,11 +65,10 @@ TRIALS_BEHAVIOUR = (
 
 S_G1B = (
     "READ THE DENOMINATOR FIRST. A position with zero engaged trials has no lick-only decoding "
-    "number at all -- not a low one. PS94 8/20 has ZERO engaged far_R and 17 far_center against ~70 "
-    "elsewhere; PS93 is at 8-10 far_R; PS92 reached 4 by 8/21. FALSIFIER: if the no-lick bars were "
-    "also near zero, the position stopped being PRESENTED and this is a task artifact. They are not "
-    "-- the spout still moves there every trial -- so this is the animal declining, which is the "
-    "phenotype the rest of section G is trying to explain.")
+    "number at all -- not a low one. Engaged = an LP video lick (contact or incomplete, cam4 + cam1) "
+    "within 3.5 s of the cue; undetected = no LP lick in that window. FALSIFIER: if the undetected "
+    "bars were also near zero, the position stopped being PRESENTED and the gap would be a task "
+    "artifact rather than behavior.")
 
 S_G2 = (
     "The BAND is the animal's own pre-stroke leave-one-session-out range, so a point inside it means "
@@ -79,14 +78,15 @@ S_G2 = (
     "number on a four-position session can be worse performance than a lower one on six.")
 
 S_G2C = (
-    "THE CENTRAL CLAIM OF THIS SECTION. Pre-cue survives, post-cue collapses without a lick. If it "
-    "reversed -- post-cue intact and pre-cue gone -- the readout would be a sensory-response deficit "
-    "rather than an execution failure, and the frozen-decoder framing would not hold.")
+    "Read plan vs execution WITHIN each animal: on day 1 the pre-cue window stays inside the animal's own pre range "
+    "while execution decoding falls, and through the acute weeks execution falls further than the plan in every "
+    "animal. If it reversed -- execution intact and pre-cue gone -- the readout would be a sensory-response deficit "
+    "rather than an execution failure.")
 
 S_G4 = (
-    "This asks whether a no-lick trial carries the pattern of the position that was PRESENTED. "
-    "CAUTION documented at DECISIONS 2026-08-17: 'no detected lick' is not 'no attempt' -- the "
-    "sensor needs contact, so a short or weak lick registers as nothing. PS93 has a pre-existing "
+    "This asks whether a no-response trial carries the pattern of the position that was PRESENTED. "
+    "The camera classes see non-contact attempts (incomplete, jaw-only), so a no-response trial "
+    "has no lick seen on video, not merely none on the sensor. PS93 has a pre-existing "
     "rightward tongue bias and reaches far_L poorly PRE-stroke, which makes PS93 far_L a "
     "within-subject instance of the phenotype owing nothing to the lesion.")
 
@@ -298,9 +298,7 @@ S_G0 = (
     "every panel and the panels ARE comparable; LICK-ONLY is 1/n for that session's attempted "
     "positions and the panels are NOT comparable with each other. The band on later slides is the "
     "animal's OWN pre-stroke leave-one-session-out range, so inside the band means 'within this "
-    "animal's ordinary day-to-day variation', not 'normal'. And PS92/PS93 are the SMALL-LESION arm "
-    "of a severity contrast -- NOT a negative control, because they were lesioned too, just mildly "
-    "enough to leave no overt deficit (Priya, 2026-08-18).")
+    "animal's ordinary day-to-day variation', not 'normal'.")
 
 S_G1 = (
     "BEHAVIOR FIRST, because most of Section G is only interpretable against it. The lesion marker "
@@ -311,17 +309,17 @@ S_G1 = (
     "Behavioral severity tracks the neural effect; dose does not (DECISIONS 2026-08-19).")
 
 S_G2B = (
-    "PER-POSITION RECALL NEEDS ITS COLUMN BASELINE, which is printed under each column. The frozen "
-    "decoder predicts far_R on ~35% of ALL PS94 post-stroke trials, so far_R 'recall' is inflated by "
-    "prediction bias before any position information is involved. Under a label permutation the "
+    "PER-POSITION RECALL NEEDS ITS COLUMN BASELINE. A frozen decoder that over-predicts one "
+    "position inflates that position's 'recall' by prediction bias before any position information "
+    "is involved. Under a label permutation the "
     "expected recall for a position is exactly its prediction rate -- that is the number a diagonal "
     "must clear. Read against 1/6 instead and this figure manufactures a result (Priya, 2026-08-18).")
 
 S_G3 = (
-    "The POST arm includes NO-LICK trials by design (Priya, 2026-08-18): PS94 has ZERO engaged "
-    "trials at far_center and far_R, the two positions worth reading, so an engaged-only matrix "
-    "leaves both rows blank. The PRE arm stays engaged-only because it is the reference for what the "
-    "code looks like when the movement succeeds. THE QUESTION: does far_center get read as far_R -- "
+    "The ALL-trials POST arm includes NO-LICK trials by design (Priya, 2026-08-18): at a spout the "
+    "animal no longer licks, a lick-only matrix leaves that row thin or blank. The PRE reference "
+    "(panel 1) uses camera WORKING trials only, because it is the reference for what the code looks "
+    "like when the movement succeeds. THE QUESTION: does far_center get read as far_R -- "
     "the animal aiming right and undershooting -- or does the row simply disperse? Off-diagonal "
     "STRUCTURE is the claim; off-diagonal magnitude means nothing without the pre-stroke matrix "
     "beside it.")
@@ -335,12 +333,12 @@ S_G4B = (
 
 S_G6 = (
     "THE SPLIT IS PER SESSION, because 'still attempts this position' is a behavioral state that "
-    "changes overnight -- PS95 far_R is 1/120 on 8/17 and 88/112 on 8/18. A trial is therefore "
+    "can change overnight. A trial is therefore "
     "labeled by what the animal was doing THAT night, not by an animal-level verdict. READ THE "
     "PRESERVED ARM AS THE CONTROL: if the decoder cannot read a position from a no-lick trial even "
     "where the animal is working that position, then 'no lick -> no code' is a property of no-lick "
-    "trials in general and says nothing about the lesion. That arm is thin per session -- PS95 8/17 "
-    "is n=38, p=0.11, which is UNDERPOWERED, not negative. G6b is the sharper form of this contrast.")
+    "trials in general and says nothing about the lesion. That arm can be thin per session, and a "
+    "thin arm is UNDERPOWERED, not negative. G6b is the sharper form of this contrast.")
 
 S_G7B = (
     "THE PREMISE OF THE WHOLE SMALL-LESION ARM: all six positions still attempted. If that fails, "
@@ -456,10 +454,8 @@ S_G8F = (
     "(PS95), against 0.88-0.96 post-cue.")
 
 S_GEXCL = (
-    "THE HONEST LEDGER, and it earns its place. PS92/PS93 8/17 were nearly dropped as failed-lesion "
-    "sessions, and keeping them analysable is the ONLY reason the within-animal before/after control "
-    "exists -- nothing outside the band on 8/17, the dissociation present one day later, same animal "
-    "and same rig. EXCLUDED IS NOT DELETED: every session listed here is on disk and re-analysable, "
+    "THE HONEST LEDGER, and it earns its place. PS92/PS93 8/17 (after the 8/16 laser that did not take) "
+    "belong to neither phase and are not drawn or counted in the G2c grid. EXCLUDED IS NOT DELETED: every session listed here is on disk and re-analysable, "
     "and the reason is recorded per session. Check this slide before concluding a session is missing "
     "from a grid.")
 
@@ -935,45 +931,39 @@ M_SPATIAL = (
     "and it never happens.")
 
 M_RECODING = (
-    "PLAN vs EXECUTION (poststroke_compare.recoding_test; figure poststroke_grid.png). Within-session "
-    "decoding -- a decoder trained on the post-stroke session ITSELF -- against that animal's own "
-    "pre-stroke range for the same measure. ALL-TRIALS arm: all six positions, chance 1/6, which is "
-    "the only arm comparable across sessions and animals."
-    "\n\nTHE RESULT, IN ALL FOUR ANIMALS. On the first session after an EFFECTIVE lesion the PRE-CUE "
-    "window sits inside the pre-stroke band while the POST-CUE window sits outside it: PS94 8/17 "
-    "pre-cue z=-0.2 vs post-cue z=-7.1; PS95 8/17 +1.6 vs -3.4; PS92 8/18 +0.2 vs -2.4; PS93 8/18 "
-    "-0.5 vs -3.6. Four animals, two lesion days, three laser powers, no exception."
-    "\n\nWHY IT RESISTS THE CONFOUNDS THAT SANK EVERYTHING ELSE. Pre-cue and post-cue are two "
-    "windows on the SAME TRIALS, so LED power, baseline F, evoked amplitude, arousal, engagement and "
-    "trial count act on both equally and cannot produce a difference between them. It is a "
-    "within-trial contrast, which is what makes it survive when session-level comparisons do not."
-    "\n\nPS92 AND PS93 SUPPLY A WITHIN-ANIMAL BEFORE/AFTER CONTROL. Their 8/17 sessions follow the "
-    "8/16 laser that did NOT take, and show NOTHING outside the band at any alignment (PS92 -0.1, "
-    "+0.2, -0.3; PS93 -1.4, -0.0, -0.5). One day later, after the effective 8/17 lesion, the "
-    "dissociation is present. Same animal, same rig, one day apart -- far stronger than a "
-    "between-animal comparison, and it exists only because the excluded sessions were kept analysable "
-    "instead of discarded."
-    "\n\nDAY 2 SEPARATES THE ANIMALS. PS94 loses the plan as well (pre-cue z=-3.4, post-cue z=-12.1) "
-    "while PS95 returns fully inside the band (+2.1, +1.3) alongside a behavioral recovery of the far "
-    "positions (far_center 10 -> 99 trials, far_R 1 -> 84). Deterioration versus recovery, tracking "
-    "the behavior in both cases."
-    "\n\nLASER POWER DOES NOT PREDICT MAGNITUDE. PS94 at the LOWEST dose (3 mW) has the largest "
-    "post-cue deficit (z=-7.1) and PS93 at the highest (5.5 mW) has -3.6. Behavioral severity tracks "
-    "the effect; dose does not. PS93 was flagged in advance as the dose test and came out negative."
-    "\n\nTHE ALL-TRIALS ARM IS THE ONE TO READ ACROSS SESSIONS. Its position set is fixed at six, so "
-    "chance is fixed at 1/6. The LICK-ONLY arm uses each session's preserved positions, which change "
-    "with behavior -- PS95 has 4 on 8/17 and 6 on 8/18 -- so its numbers carry different chance "
-    "levels and CANNOT be laid side by side. Both arms are reported because their DIFFERENCE separates "
-    "a degraded code from a code that is fine whenever the animal manages to lick."
-    "\n\nEARLIER VERSIONS OF THIS NOTE WERE WRONG and the corrections are recorded in DECISIONS.md "
-    "(2026-08-19). A claim that PS94's information was INTACT and only the code had changed came from "
-    "filtering to engaged trials; a claim that PS95 was impaired on day 1 and recovered came from a "
-    "pooled (union) position basis that scored its 8/17 session over a position with ONE engaged "
-    "trial. Both are withdrawn."
-    "\n\nCAVEATS. One session per animal per day. And PRE-CUE means pre-cue position information, "
-    "not a demonstrated motor intention: the spout arrives ~3 s before the cue, so a sustained sensory "
-    "response and a held plan are temporally coextensive and this design cannot separate them (see "
-    "DECISIONS.md). The dissociation is between two WINDOWS, which is solid; naming the earlier one a "
+    "PLAN vs EXECUTION (poststroke_compare.recoding_test; figures section_g_grid_withcontrol_{lickonly,all}.png, "
+    "the LP camera-lick run primary, the DAQ sensor run robustness). Within-session decoding -- a decoder trained on "
+    "the post-stroke session ITSELF -- against that animal's own pre-stroke range (min..max over its pre sessions) "
+    "for the same measure; below = outside the range AND z < 0 (above-pre is not below). Windows: PRE-cue (plan), "
+    "POST-cue and POST-lick (execution; the all-trials arm has no post-lick window). LICK-ONLY arm: camera lick "
+    "trials (contact or incomplete) at each session's preserved spouts; ALL-TRIALS arm: six positions, chance 1/6. "
+    "8/17 sessions after the laser that did not take (PS92, PS93) are not counted (Priya 11-11). The figure heading "
+    "states the counts for that figure, computed from section_g.json (plot_poststroke.grid_counts). Descriptive, "
+    "no test; per-animal table docs/status/g2c_1111 (analysis/attempt-coding)."
+    "\n\nDAY 1 (first post-stroke session: PS94 / PS95 8/17, PS92 / PS93 8/18), LP lick-only, z vs own pre: "
+    "pre-cue PS92 -0.7, PS93 -1.8, PS94 -0.9, PS95 +0.4 (inside the range in 4/4); post-lick -2.6, -2.4, -2.8, "
+    "-0.9 (below in 3/4); post-cue -1.2, -2.0, -1.8, -0.4 (below in 2/4). All-trials arm (LP): pre-cue inside in "
+    "3/4 (PS94 z -1.8 just below), post-cue below in 3/4 (PS94 -6.4, PS93 -2.8, PS95 -2.8; PS92 -1.9 inside). "
+    "DAQ sensor run: all trials pre-cue inside 4/4, post-cue below 4/4; lick-only pre-cue inside 4/4, post-lick "
+    "below 2/4."
+    "\n\nACUTE WEEKS (LP lick-only, mean change vs own pre band; n sessions below / n): pre-cue PS92 +.03 (0/5), "
+    "PS93 -.11 (2/4), PS94 -.11 (3/6), PS95 +.02 (0/1); post-lick -.12 (4/5), -.16 (4/4), -.17 (6/6), -.04 (0/1). "
+    "The plan falls less than execution in 4/4 animals, in all four versions (LP / DAQ x lick-only / all trials). "
+    "The plan is NOT untouched: pre-cue falls below the range in some acute sessions of PS93 and PS94, and in "
+    "subacute sessions of all four animals in the LP lick-only arm."
+    "\n\nCHRONIC. Lick-only: execution back to the pre range on average in every animal (mean change -.01..+.12), "
+    "with one chronic session below in each of PS92 / PS94 / PS95 (LP). All trials: PS94 and PS95 post-cue still below in 3-5 "
+    "chronic sessions (mean -.04 / -.06); PS94 pre-cue below in 2/8 chronic sessions (LP)."
+    "\n\nWHY THE CONTRAST RESISTS SESSION-LEVEL CONFOUNDS. Pre-cue and post-cue are two windows on the SAME TRIALS, "
+    "so LED power, baseline F, evoked amplitude, arousal, engagement and trial count act on both equally and cannot "
+    "produce a difference between them."
+    "\n\nTHE ARMS. ALL-TRIALS keeps six positions (fixed chance) and admits trials with no lick; LICK-ONLY removes "
+    "the missing-movement objection but scores each session on its own preserved spouts, so chance can differ "
+    "between sessions. With camera licks no spout drops out acutely (acute far-contra lick trials exist in every "
+    "animal); on the DAQ sensor some do."
+    "\n\nCAVEAT. PRE-CUE means pre-cue position information, not a demonstrated motor intention: the spout arrives "
+    "~3 s before the cue, so a sustained sensory response and a held plan are temporally coextensive and this "
+    "design cannot separate them (DECISIONS.md). The dissociation is between two WINDOWS; naming the earlier one a "
     "plan is an interpretation.")
 
 M_CODING_DIR = (
