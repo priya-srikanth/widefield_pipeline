@@ -8,13 +8,13 @@ same URL, then re-start the artifact watch. Tick each item here and commit.
 
 ## 1. Image page — https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV (live v57)
 
-- [ ] **Fig 2.3 layout fix** (Priya OK 11-17). Prepared from v57:
+- [x] **Fig 2.3 layout fix** (published v58, version id 1794948981-2aab, 11-17) (Priya OK 11-17). Prepared from v57:
   `scratchpad/pages/img/img_v58.html` + new published file `scratchpad/pages/img/d_acc_cue_fb1117.png`
   (scratchpad = `C:/Users/SABATI~1/AppData/Local/Temp/claude/179e1046909c5be2/f082ee0c-b33c-49a8-a537-dcee3bb7c84c/scratchpad`).
   Source render: `rebuild_20261103/labcams/grant_figures/<T>/epoch_footerfix_20261117/` (plot-only redraw, numbers
   byte-identical to 11-09). Three edits, all in Fig 2.3: image, provenance clause, source path. If live != v57, re-apply
   those three edits to live.
-- [ ] **Section 13 (CD leave-one-out mixed models) on the rebuild** — Priya OK 11-17 (rewrite as proposed).
+- [x] **Section 13 (CD leave-one-out mixed models) on the rebuild** (published v58, 1794948981-2aab: table rows / input / takeaway lead with the log deficit, linear + contact as sensitivity; status row, closed-list line and section 9 sentence updated; numbers checked against the CSV) — Priya OK 11-17 (rewrite as proposed).
   Table: `rebuild_20261103/.../imaging_encoding/qc/imaging_lmm_cdloo_rebuild_20261117.csv`
   (script `scripts/cd_loo_lmm.py`, record `docs/status/DECK_IMG_FOLLOWUPS_20261117.md`). Proposed: lead with the log
   time-to-contact deficit (primary since 11-05): pre-cue tracks it (-.20, q .019); cue vs contact deficit loses its star
@@ -51,7 +51,7 @@ same URL, then re-start the artifact watch. Tick each item here and commit.
 - [ ] Optional, only if Priya asks: a8's lick-angle controls for the marker (after 14.18), figures under
   `iti_licks/{bal_full_cuedang,iti_matched_itimatch,bal_dock_itimatch,balangle_all_itimatch,balangle_dock_itimatch}_20261117/`.
 
-- [ ] Lick-source caption edits (audit 11-17, branch fix/lick-source-wording-1117): `scratchpad/pages/{img,goal,ss,kin,fr}/lick_source_edits_1117.json` (42 / 110 / 142 / 27 / 12); regenerate against LIVE html with `scratchpad/licksrc/make_edits.py` (PYTHONPATH=wf_licksrc1117) before applying; re-run after the RESTnl-cam1 outputs are placed. Also fix the goal caption "(was Fig 14.20)" (annotation). FaceRhythm page is not this window's — send its list to the FR window.
+- [ ] Lick-source caption edits (audit 11-17, branch fix/lick-source-wording-1117): `scratchpad/pages/{img,goal,ss,kin,fr}/lick_source_edits_1117.json`. **Image page DONE** (v58, 1794948981-2aab): all 42 pairs matched once on live v57 + Fig 2.3; also set the remaining pre-cue lick-free-window mentions to cam4 only (section 1 input + table header, section 2 LP-arm input, status row, Figs 2.5 / 2.6 window + tag, Figs 7.3b / 7.3c window). Goal / ss / kin / fr still open (42 / 110 / 142 / 27 / 12); regenerate against LIVE html with `scratchpad/licksrc/make_edits.py` (PYTHONPATH=wf_licksrc1117) before applying; re-run after the RESTnl-cam1 outputs are placed. Also fix the goal caption "(was Fig 14.20)" (annotation). FaceRhythm page is not this window's — send its list to the FR window.
 
 ## 3. State-space (9sGELLFEwADEt9k64fXTxe, v41) and kinematics (DKcKRJKbhBoratxxRc6qZv, v31)
 
