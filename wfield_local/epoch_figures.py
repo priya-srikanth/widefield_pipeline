@@ -66,8 +66,83 @@ def _save_png_svg(fig, q, *, dpi=200):
     # THE TRIAL SET (Priya 11-09): after the wrap, prepended to the run stamp (`trial_set_text.stamp`)
     from wfield_local import trial_set_text
     trial_set_text.stamp(fig)
+    # FIT THE FOOTER (Priya 11-17, image page Fig 2.3): wrap EVERY line of the stamp (the coverage note made it
+    # multi-line, so the one-line wrap above skipped it and its long line ran off the left edge) and grow the canvas
+    # under the figure when the stamp would sit on the content (it covered the Near / Far group labels). A figure the
+    # stamp does not touch is unchanged.
+    try:
+        _fit_stamp(fig)
+    except Exception as ex:                                            # noqa: BLE001 - a footer never costs the figure
+        print(f"  [stamp] {q.name}: footer not fitted ({type(ex).__name__}: {ex})", flush=True)
     # PNG as before + SVG twin through the shared helper (2026-11-06: text kept as text, a failed SVG warns).
     save_png_svg(fig, q, dpi=dpi)
+
+
+#: colour of the run / trial-set stamp (`lp_licks.stamp`, `trial_set_text.RUN_STAMP_COLOR`)
+_STAMP_COLOR = "#8a2be2"
+
+
+def _fit_stamp(fig, *, pad_in: float = 0.06) -> float:
+    """Keep the bottom-right run / trial-set stamp inside the canvas and off the content (11-17).
+
+    1. Every line of the stamp is wrapped to the canvas width (measured: re-wrapped narrower while its left edge is
+       still off the canvas).
+    2. The lowest edge of the content (every axes' tight box -- tick labels, the Near / Far rule, legends -- and every
+       other figure text) is measured; when the stamp's top is above it, the canvas grows by the overlap (+ ``pad_in``)
+       at the BOTTOM and every axes / figure text keeps its absolute position from the top. Axes sizes in inches are
+       unchanged, so the plotted data are identical.
+
+    Returns the inches added (0.0 = the figure was left exactly as it was)."""
+    import textwrap
+    stamps = [t for t in fig.texts if str(t.get_color()).lower() == _STAMP_COLOR and t.get_text()]
+    if not stamps:
+        return 0.0
+    st = stamps[-1]
+    fig.canvas.draw()
+    rend = fig.canvas.get_renderer()
+    W_px = fig.get_size_inches()[0] * fig.dpi
+    width = max(40, int(fig.get_size_inches()[0] * 72 / 3.3))
+    for _ in range(6):
+        lines = st.get_text().split("\n")
+        if all(len(ln) <= width for ln in lines):
+            bb = st.get_window_extent(rend)
+            if bb.x0 >= 0 and bb.x1 <= W_px + 1:
+                break
+            width = max(30, int(width * 0.92))
+        st.set_text("\n".join(w for ln in lines
+                              for w in (textwrap.wrap(ln, width, break_on_hyphens=False) or [""])))
+        fig.canvas.draw()
+    stamp_top = st.get_window_extent(rend).y1
+    bottoms = []
+    for ax in fig.axes:
+        if not ax.get_visible():
+            continue
+        try:
+            bottoms.append(ax.get_tightbbox(rend).y0)
+        except Exception:                                              # noqa: BLE001
+            continue
+    for t in fig.texts:
+        if t is st or not t.get_visible() or not str(t.get_text()).strip():
+            continue
+        bottoms.append(t.get_window_extent(rend).y0)
+    if not bottoms:
+        return 0.0
+    over_px = stamp_top + pad_in * fig.dpi - min(bottoms)
+    if over_px <= 0:
+        return 0.0
+    d = over_px / fig.dpi
+    w_in, h_in = fig.get_size_inches()
+    h_new = h_in + d
+    for ax in fig.axes:
+        p = ax.get_position(original=True)
+        ax.set_position([p.x0, (p.y0 * h_in + d) / h_new, p.width, p.height * h_in / h_new])
+    for t in fig.texts:
+        if t is st or t.get_transform() is not fig.transFigure:
+            continue
+        x, y = t.get_position()
+        t.set_position((x, (y * h_in + d) / h_new))
+    fig.set_size_inches(w_in, h_new, forward=True)
+    return d
 
 def write_values(values, q, *, points=None, marks=None, sessions=None):
     """Write the numbers a bar figure PLOTS, beside it as ``<name>.csv``. (An LP_licks folder needs the LP switch:
@@ -3255,5 +3330,29 @@ def replot_figdata(pkl, out=None, **overrides):
         except Exception as ex:                                        # noqa: BLE001 - keep the recorded title
             print(f"  !! replot {pkl.stem}: title kept ({type(ex).__name__}: {ex})", flush=True)
     _txt = d.get("trial_set") or _tst.current_sentence() or _tst.safe_sentence(_var)
-    with _tst.active(None, text=_txt):
-        return fn(kw.pop("values") if d["renderer"] == "bar_row" else kw.pop("rows"), out, **kw)
+    # THE bal_em FALLBACK SESSIONS (11-17): the render fills `spout_scaling.FALLBACK_USED` while it scores, and the run
+    # stamp + meta name them; a replot scores nothing, so it read an empty set and dropped "contact-row fallback for
+    # PS93_0813" from the lick figures. Restored from the source figure's meta sidecar for the redraw.
+    from wfield_local import spout_scaling as _ss
+    _fb_saved = set(_ss.FALLBACK_USED)
+    _ss.FALLBACK_USED.update(_meta_fallback_sessions(pkl))
+    try:
+        with _tst.active(None, text=_txt):
+            return fn(kw.pop("values") if d["renderer"] == "bar_row" else kw.pop("rows"), out, **kw)
+    finally:
+        _ss.FALLBACK_USED.clear()
+        _ss.FALLBACK_USED.update(_fb_saved)
+
+
+def _meta_fallback_sessions(pkl) -> set:
+    """bal_em centre-fallback sessions recorded in the ``<name>_meta.csv`` beside a ``_figdata.pkl`` (empty if none)."""
+    import csv as _csv
+    p = pathlib.Path(pkl)
+    meta = p.with_name(p.name.replace("_figdata.pkl", "_meta.csv"))
+    if not meta.exists():
+        return set()
+    with open(meta, newline="", encoding="utf-8") as fh:
+        for row in _csv.reader(fh):
+            if len(row) >= 3 and row[0] == "bal_em" and row[1] == "centre_fallback_sessions":
+                return {s for s in row[2].split(";") if s}
+    return set()
