@@ -400,8 +400,11 @@ def select_k(data: dict, ks=(1, 2, 3, 4, 5), n_folds: int = 4, seed: int = 0, la
             r["pR2_total"] = 1.0 - sum(m.loglik_by_output(te)) / nll.sum()
             rows.append(r)
     R = pd.DataFrame(rows)
-    base = R[R.K == 1].set_index("fold").ll
-    R["bits_per_cycle_vs_K1"] = (R.ll - R.fold.map(base)) / R.n_cycles / np.log(2)
+    if (R.K == 1).any():
+        base = R[R.K == 1].set_index("fold").ll
+        R["bits_per_cycle_vs_K1"] = (R.ll - R.fold.map(base)) / R.n_cycles / np.log(2)
+    else:                               # a run of higher K only: compare through the pseudo-R2 (same folds, same null)
+        R["bits_per_cycle_vs_K1"] = np.nan
     return R
 
 
@@ -516,6 +519,7 @@ def main(argv=None) -> int:
     ap.add_argument("--pooled-all", action="store_true",
                     help="ONE model over all animals, all August-onward epochs (shared states, per-animal bias "
                          "inputs); with --select-k: folds interleaved by session within animal")
+    ap.add_argument("--ks", default="1,2,3,4,5", help="--select-k: the K values (folds are fixed, so runs add up)")
     ap.add_argument("--design", default="v2", choices=DESIGNS, help="see DESIGNS (v2 = shared animal offsets, no "
                     "previous-outcome input)")
     a = ap.parse_args(argv)
@@ -529,11 +533,13 @@ def main(argv=None) -> int:
     print(f"{len(data)} sessions, {sum(len(v[1]) for v in data.values())} trials; out {od}")
     if a.pooled_all:
         if a.select_k:
-            R = select_k(data, labels=august_on(data))
-            R.to_csv(od / f"select_k_pooled_all{sfx}.csv", index=False)
+            ks = tuple(int(k) for k in a.ks.split(","))
+            R = select_k(data, ks=ks, labels=august_on(data))
+            kt = "" if ks == (1, 2, 3, 4, 5) else "_K" + "-".join(map(str, ks))
+            R.to_csv(od / f"select_k_pooled_all{sfx}{kt}.csv", index=False)
             print(R.groupby("K")[["bits_per_cycle_vs_K1", "pR2_total", *[f"pR2_{o}" for o in OUTPUTS]]].mean().round(4),
                   flush=True)
-        for K in ([a.k] if a.k else [3, 4]):
+        for K in ([a.k] if a.k else ([] if a.select_k else [3, 4])):
             run_pooled(data, K).to_csv(od / f"states_pooled_all_K{K}{sfx}.csv.gz", index=False)
             print("written", od / f"states_pooled_all_K{K}{sfx}.csv.gz", flush=True)
         return 0

@@ -82,7 +82,11 @@ Run code from a worktree with `PYTHONPATH=$(pwd -W)` (Windows form). AR-HMM mode
   .617 / .630 (engagement captured by K = 2-3). K3 -> 4 gains in EVERY fold (+.046-.051, almost all running); K4 -> 5
   only in two of four folds (+.042 / .041 vs +.013 / .008). RECOMMENDED K = 4 (proposed to Priya 11-17); K = 5 partial
   engagement = sensitivity. Disengaged occupancy is the same at K = 3 and 4, so the engagement readout does not
-  depend on the choice.
+  depend on the choice. **DECIDED (Priya 11-17): K = 5** ("we can always combine states post-hoc"); tables
+  K3 / K4 / K5 (design v2) + `select_k_pooled_all_v2.csv` copied to the share `LP_analysis/<run>/glm_hmm/v1/`. Priya
+  also asked where the gains plateau: K = 6-8 on the same folds running (`--ks 6,7,8` ->
+  `select_k_pooled_all_v2_K6-7-8.csv`); read per output (outcome flat from K = 3) + cross-animal consistency of any
+  new state, not total pseudo-R2 alone.
 
 - **AR-HMM kappa / noise floor (11-17)**: O2 scan (chunked, no dither) gave median 0.08-0.32 s for kappa 1e5-1e11 --
   states predicted the smooth 25 Hz PCs to ~0.007 (min log|Q| -109), so every change out-bid the stickiness (FR is 5 Hz
