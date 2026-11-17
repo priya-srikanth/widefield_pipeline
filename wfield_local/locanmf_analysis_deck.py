@@ -271,12 +271,14 @@ _VIDEO_RUN_MARKERS = ("/LP_analysis/", "/imaging_encoding/", "/session_poses/", 
 
 def figure_lick_source(fig_paths=(), lick_source: str | None = None) -> str | None:
     """The lick source a slide's figures were drawn under: ``lick_source`` when the caller knows it; "lp" when a figure
-    sits in an ``LP_licks`` output folder (`lp_licks.output_tag`); None when it sits in a video / encoder output folder
+    sits in an ``LP_licks`` output folder (`lp_licks.output_tag`) or in `attempt_maps`; None when it sits in a video / encoder output folder
     (`_VIDEO_RUN_MARKERS`: not resolvable from the path); else the build environment's WIDEFIELD_LICK_SOURCE."""
     if lick_source:
         return lick_source
     paths = [str(q).replace(chr(92), "/") for q in (fig_paths or ())]
     if any("/LP_licks" in q for q in paths):
+        return "lp"
+    if any("/attempt_maps/" in q for q in paths):      # attempt_maps refuses to run off the LP source (video classes)
         return "lp"
     if any(m in q for q in paths for m in _VIDEO_RUN_MARKERS):
         return None

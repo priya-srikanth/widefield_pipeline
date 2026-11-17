@@ -184,3 +184,9 @@ def test_camera_classes_are_claimed_only_for_this_runs_figures(monkeypatch):
     old = window_provenance(["a_cue_working.png"], fig_paths=["M:/labcams/grant_figures/epoch/a_cue_working.png"])
     assert "camera trial classes" in new
     assert "camera trial classes" not in old and "DAQ quit-tail rule" in old
+
+
+def test_attempt_map_figures_are_lp():
+    line = window_provenance(["attempt_maps_farcontra_lick.png"],
+                             fig_paths=["M:/LP_analysis/v36/imaging_encoding/attempt_maps/figures/attempt_maps_farcontra_lick.png"])
+    assert "licks: LP video, cam4 + cam1" in line
