@@ -8,26 +8,37 @@ from origin/main abb1623b). Not pushed. Pages, FINDINGS and decks are NOT edited
 ## 0. The new mask version
 
 `wfield_local/restnl_licks.py` (new): switch `WIDEFIELD_RESTNL_LICKS=cam4|cam4cam1` (default cam4 = every output up to
-11-17). cam4cam1 ("RESTnlc1") = DAQ lick onsets + cam4 `licks_all.csv` UNION `lp_licks.lp_lick_times` (cam4 licks_all +
-cam1 events that are not cam4-matched and not droplets, inside the camera trial windows), widened [0.5 s before, 2.0 s
-after], min_rest_s floor re-applied after the DAQ step and after the video step (as before). Union => the c1 mask removes
-a superset of the cam4 mask's frames (floor is monotone). A session without a cam1 events file / LP trial table gets
+11-17). cam4cam1 ("RESTnlc1", v2) = DAQ lick onsets + cam4 `licks_all.csv` UNION the cam1 events of
+`cam1_licks/<a>_<date>_events_all.csv` (whole trial windows: pre-cue, post-cue, ITI, ~98-99 % of the video) that are
+NOT cam4-matched and NOT water droplets (`droplet` column = `cam1_licks.droplet_flags`), `daq_on_s`; widened [0.5 s
+before, 2.0 s after], min_rest_s floor re-applied after the DAQ step and after the video step (as before). Union => the
+c1 mask removes a superset of the cam4 mask's frames (floor is monotone). A session without an events_all file gets
 cam4 only and is logged by name; PS93_0813 (no licks_all.csv) has no RESTnl in either version.
 
-Same train as the 15f helper's `--lp cam4cam1` (`rest15f_restnl_1117.lickfree_rest_lp`): identical droplet filter and
-cam4-matching rule (both are `lp_licks.lp_lick_times`), identical widening and floor order. One difference: when a
-session has licks_all.csv but no LP trial table (`LPUnavailable`), 15f raises (session dropped), RESTnlc1 falls back to
-cam4 (logged). Whether any curated session hits this is counted in section 3.
+**Correction (14:3x, coordinator / LICK_SOURCE_AUDIT_20261117):** v1 of this module (commit 1c72de37) took the cam1
+events from `lp_licks.lp_lick_times`, whose cam1 file `<a>_<date>_events.csv` holds POST-CUE events only (cue .. trial
+stop). Measured on PS92_0814: 415 cam1-only onsets added, rest samples 235,883 -> 235,874 (9 samples), frames per
+position unchanged -- post-cue events barely touch rest. v2 (aac676a8) reads events_all. The v1 timing-run files stay
+where they were written (`session_cache_restnlc1/PS92_0814__...npz`, `iti_licks/<T>/restw_check_c1/sessions/
+PS92_0814.npz`) and are never read (v2 uses `session_cache_restnlc1v2/`, `restw_check_c1v2/`). Delete list for Priya:
+section 7.
+
+**Fig 12.1 consequence:** the 15f helper's "cam4 + cam1" run (`rest15f_restnl_20261117/`, `--lp cam4cam1`) used
+`lp_lick_times` too, so it added post-cue cam1 events only and is NOT the cam4 + cam1 rest version. Re-run here with
+`rest15f_restnl_1117.py --lp c1all` (new LP set in that script, merged from f30eb700): same spec otherwise (working
+brackets, duration + gap matching with the gap to the nearest DAQ / cam4 / cam1 lick, June + August pre primary,
+August-only sensitivity, PS92 kept with a caveat, 200 block permutations), new frozen align `rest-restnlc1v2wk-...`,
+output `<G>/<T>/epoch/rest15f_restnlc1all_20261117/{allpre,augpre}/`.
 
 Where the switch enters (new names everywhere; no cam4 file is overwritten or read as c1):
 
 | family | code | cam4 (unchanged) | cam4cam1 |
 |---|---|---|---|
-| map baseline | `restnl_mask` (hook lines marked `# [gate-source hook]`, so the default digest d7591e88ae51 and cache names are unchanged) | `<session_cache>_restnl[_glp..]/<label>__restnl-<tag>__<key>.npz` | `<session_cache>_restnlc1[_glp..]/<label>__restnlc1-<tag>__<key>.npz` (key + cam1 events + LP-train code) |
+| map baseline | `restnl_mask` (hook lines marked `# [gate-source hook]`, so the default digest d7591e88ae51 and cache names are unchanged) | `<session_cache>_restnl[_glp..]/<label>__restnl-<tag>__<key>.npz` | `<session_cache>_restnlc1v2[_glp..]/<label>__restnlc1v2-<tag>__<key>.npz` (key + cam1 events + LP-train code) |
 | map reference | `position_reference_maps` derived ref, `epoch_maps._REF_TEXT`, `map_drift_prepre` | `restnl` / `_RESTNLref_` | `restnlc1` / `_RESTNLC1ref_`; WIDEFIELD_MAP_REFS=restnlc1 -> run-tag part `refs-restnlc1` (new folder) |
 | attempt maps | `attempt_maps --rest-variant` | `attempt_maps_restnl/` | `attempt_maps_restnlc1/` |
 | rest decoder 12.1b | `rest_frozen_decoder_nl --mask` | `restnl` (cache `restnl/`, frozen align `rest-restnl-b4-...`) | `restnlc1` (cache `restnlc1/`, frozen align `rest-restnlc1-b4-...`, out `restnlc1_<pre>pre/`) |
-| area level (goal page) | `restw_strict_check`, `restnl.py` (+ `lick_precue_restw` reader, ENL cache, `disengagement_tests`) | `restw_check/`, suffix `_restnl`, caches `<name>_wr` | `restw_check_c1/`, suffix `_restnlc1`, caches `<name>_wr_c1`, `precue_enl_<src><W>s_c1`, `disengagement_restnlc1/` |
+| area level (goal page) | `restw_strict_check`, `restnl.py` (+ `lick_precue_restw` reader, ENL cache, `disengagement_tests`) | `restw_check/`, suffix `_restnl`, caches `<name>_wr` | `restw_check_c1v2/`, suffix `_restnlc1`, caches `<name>_wr_c1`, `precue_enl_<src><W>s_c1`, `disengagement_restnlc1/` |
 | interhemi rest set | `lick_interhemispheric` / `interhemi_crossarea` / `coupling_vigour_sm --rest-variant` | `restnl` (`interhemi_rest_w1_restnl/`, `_restnl`) | `restnlc1` (`interhemi_rest_w1_restnlc1/`, `_restnlc1`) |
 | state space | `state_space_rest_baseline` + readers | `rest_baseline_svd/` | see section 1 E (status there) |
 
@@ -51,7 +62,7 @@ live ~v315), state space 11-17 copy (`pages/ss/ss_page_1117.html`). Kinematics, 
 | IMG 7.3c / 7.10c / 7.18c / 7.19c (session-mean twins) | RAW reference | same step | NOT affected (no rest subtraction) |
 | IMG 7.4b, 7.11b, 7.20b (drift, LP) | page cites the PRE-rebuild 11-02 run (`labcams/grant_figures/map_drift_prepre_restnl/LP_licks/`); rebuild run exists (g5_map_drift_lp_g, 27 min) | `map_drift_prepre.py --arm lp --refs ... restnl` | `--refs restnlc1 --out <G>/map_drift_prepre_restnlc1_20261117` |
 | IMG 8.1b, 8.2b (attempt maps) | page cites the PRE-rebuild run (`LP_analysis/.../attempt_maps_restnl/`); rebuild run exists (d_attempt_maps_restnl_r, 42 min) | `attempt_maps --rest-variant restnl` (LP licks + LP gate) | `--rest-variant restnlc1` |
-| IMG 12.1 (rest decoder, working brackets = the 15f re-run) | `<G>/<T>/epoch/rest15f_restnl_20261117/{allpre,augpre}/` | 15f helper, branch analysis/rest15f-rebuild-1117 (308468b5, f30eb700), `--lp cam4cam1` | **REUSED, not re-run** (coordinator 11-17): same train (section 0); the cam4 primary is `rest15f_restnl_cam4_20261117/` |
+| IMG 12.1 (rest decoder, working brackets = the 15f re-run) | old: `<G>/<T>/epoch/rest15f_restnl_cam4_20261117/` (cam4, Priya's interim primary) | 15f helper `rest15f_restnl_1117.py --lp cam4` | `--lp c1all --pre all` (+ `--pre aug`) -> `rest15f_restnlc1all_20261117/` (the helper's `--lp cam4cam1` run is post-cue cam1 only, section 0) |
 | 12.1b (rest decoder on RESTnl, engaged brackets; HEADLINE_TABLE 11-09; not on the v58 page) | `<G>/rest_frozen_decoder_restnl/<T'>/restnl_augpre/` | `rest_frozen_decoder_nl.py --mask restnl --pre aug` (g5_rest_frozen_nl_r, 25 min) | `--mask restnlc1 --pre aug`; `--pre all` if the fairness gate refuses an animal |
 | goal 14.18 S10 / S17 / S18 (interhemispheric rest set; xa / cv-sm) | `iti_licks/<T>/interhemi_*_restnl*`, `cross_area_restnl/`, `coupling_vigour_restnl/` | l_interhemi_rest_restnl_g 17 min, l_interhemi_restnl_g 51 min, l_xa_restnl_g 44 min, l_cv_sm_restnl_g 35 min (+ plots) | `--rest-variant restnlc1` (new folders / suffix) |
 | goal 14.20 (rest LEVEL vs aim, h2h) | scratch `prelick_test/restnl_levels.py` -> `head_to_head/` (`restnl_levels_sessions.csv`, `h2h_*`) | scratch scripts (restnl_mask.lickfree_mask) | copy run under the switch into scratch `rc1/restnl_levels_c1/` |
@@ -62,7 +73,7 @@ live ~v315), state space 11-17 copy (`pages/ss/ss_page_1117.html`). Kinematics, 
 
 | page fig | producer (old rebuild step, wall) | cam4cam1 run (env `WIDEFIELD_RESTNL_LICKS=cam4cam1`, outputs `_restnlc1`) |
 |---|---|---|
-| (input) `iti_licks/<T>/restw_check/sessions/` | `restw_strict_check.py --jobs 3` (l_restw_check_g, 49 min) | -> `restw_check_c1/` |
+| (input) `iti_licks/<T>/restw_check/sessions/` | `restw_strict_check.py --jobs 3` (l_restw_check_g, 49 min) | -> `restw_check_c1v2/` |
 | goal 14.22 + S1 (pre-cue level maps vs RESTnl, fixed window) | `lick_precue_restw.py --precue-window fixed --rest-variant restnl` (l_precue_restnl_g, 7 min) | same |
 | goal 14.22 S2 (pre-cue traces) | `lick_precue_restw_traces.py --precue-window fixed --rest-variant restnl` (5 min) | same |
 | goal 14.22 ENL-window twins (LP licks) | `lick_precue_restw.py --rest-variant restnl` + traces, WIDEFIELD_LICK_SOURCE=lp (11 + 4 min) | same |
