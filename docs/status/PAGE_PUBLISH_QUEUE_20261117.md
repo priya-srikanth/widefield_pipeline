@@ -20,7 +20,7 @@ same URL, then re-start the artifact watch. Tick each item here and commit.
   time-to-contact deficit (primary since 11-05): pre-cue tracks it (-.20, q .019); cue vs contact deficit loses its star
   (q .48); linear deficit as a one-line sensitivity (pre-cue q .054). Update takeaway, status row, closed list, and the
   section 9 "due a re-run" sentence.
-- [ ] **Fig 12.1 rest frozen decoder** — WAITING for Priya's choices (lick definition; PS92). Run:
+- [ ] **Fig 12.1 rest frozen decoder** (cam4-only run done 11-17: `.../epoch/rest15f_restnl_cam4_20261117/`; cam4+cam1: `.../epoch/rest15f_restnl_20261117/`; proposed: place cam4+cam1 after the overnight RESTnl-cam1 check, cam4 as sensitivity; also re-point the deck 15f slot) — WAITING for Priya's choices (lick definition; PS92). Run:
   `.../epoch/rest15f_restnl_20261117/{allpre,augpre}/`, record `docs/status/REST15F_RESTNL_REBUILD_20261117.md`
   (branch analysis/rest15f-rebuild-1117, 308468b5, unpushed). Status would go stands -> provisional.
 
@@ -43,6 +43,10 @@ same URL, then re-start the artifact watch. Tick each item here and commit.
   orofacial +.04 p .16 (was orofacial +.15 p .010). **14.29** chronic = orofacial + contralesional SSp-ll / -tr / -ul
   (not orofacial only; chronic starred areas all-ITI 4 -> 10, docked 11). Every caption: ITI response window 0-0.5 s,
   cued stays 0-1.0 s. All ITI increases shrink ~1/3-1/2, none reverses. 14.18 / 14.20 / head-to-head unaffected.
+- [ ] **idx supplement next to Fig 14.13** (Priya 11-17 via a8: collapsible, collapsed by default, clear captions). 4 figures
+  (far contra all-ITI + cued, far contra docked, all-spout dec_idx / resp_idx); captions + paths in
+  `docs/status/deck_swap_20261117/PAGE_SUPPLEMENT_IDX_20261117.md`. WAIT for a8's ping: the gap >= 2 s ITI dec_idx variant
+  updates the caveat line first.
 - [ ] Optional, only if Priya asks: a8's lick-angle controls for the marker (after 14.18), figures under
   `iti_licks/{bal_full_cuedang,iti_matched_itimatch,bal_dock_itimatch,balangle_all_itimatch,balangle_dock_itimatch}_20261117/`.
 
