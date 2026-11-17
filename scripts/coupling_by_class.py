@@ -23,6 +23,7 @@ Usage: python scripts/coupling_by_class.py
 from __future__ import annotations
 from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
+import os
 import sys
 from pathlib import Path
 
@@ -39,6 +40,8 @@ from wfield_local import run_mode as _rmode  # noqa: E402
 
 # attempt_coding --out attempt_coding_pp is routed as an LP family; read and write there (coordinator 11-04)
 D = _rmode.routed_output(E / "attempt_coding_pp", make=False, guard=False, lp_family=True)
+# WRITE ROOT: env WFIELD_COUPLING_OUT redirects tables + figures to a new folder (deck re-render 11-17); reads stay in D
+DW = Path(os.environ["WFIELD_COUPLING_OUT"]) if os.environ.get("WFIELD_COUPLING_OUT") else D
 AN = ["PS92", "PS93", "PS94", "PS95"]
 EP = ["pre", "acute", "subacute", "chronic"]
 CLS = [("hit", "hits (contact)", "#2c3e50"), ("failed", "failed attempts (no contact)", "#c0392b")]  # colours unused (A13)
@@ -156,9 +159,9 @@ def main() -> int:
                 ses.append({"exec": kind, "animal": an, "epoch": ep, "class": c, "label": lab, "day": int(g.day.iloc[0]),
                             "r": r_of(g.exec_d_c.to_numpy(), g.neural_d_c.to_numpy()), "n": len(g)})
     L, Tt, S = pd.DataFrame(lev), pd.DataFrame(tst), pd.DataFrame(ses)
-    L.to_csv(D / "coupling_cls_levels.csv", index=False)
-    Tt.to_csv(D / "coupling_cls_tests.csv", index=False)
-    S.to_csv(D / "coupling_cls_sessions.csv", index=False)
+    L.to_csv(DW / "coupling_cls_levels.csv", index=False)
+    Tt.to_csv(DW / "coupling_cls_tests.csv", index=False)
+    S.to_csv(DW / "coupling_cls_sessions.csv", index=False)
     print("== per animal (rule 8): pooled within-session r, by class (n trials)")
     print(L.pivot_table(index=["exec", "animal"], columns=["epoch", "class"], values="r")
           .reindex(columns=EP, level=0).round(2).to_string())
@@ -167,7 +170,7 @@ def main() -> int:
     print("== change vs PRE HITS (nested bootstrap animals > sessions for ALL; sessions for one animal)")
     print(Tt[["exec", "animal", "epoch", "class", "point", "lo", "hi", "p", "n"]].round(3).to_string(index=False))
 
-    out = D / "figures"
+    out = DW / "figures"
     out.mkdir(parents=True, exist_ok=True)
     xo = {"hit": -0.18, "failed": 0.18}
 
@@ -309,7 +312,7 @@ def main() -> int:
             if k == 0:
                 ax.set_ylabel(ylab)
         Pd = pd.DataFrame(prow)
-        Pd.to_csv(D / fname.replace(".png", ".csv"), index=False)
+        Pd.to_csv(DW / fname.replace(".png", ".csv"), index=False)
         print(f"== {fname}: session-level epoch - pre hits (boot_delta, animals > sessions)\n" + Pd.round(3).to_string(index=False))
         top_band(axs, vals)
         legend(fig)

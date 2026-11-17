@@ -173,7 +173,7 @@ def _session(label: str) -> pd.DataFrame:
 
 def _full_session(label: str) -> pd.DataFrame:
     """Every first post-cue lick of a session from <OUT_W>/firstlick_full (no 1500 cap), the same features as _session."""
-    f = il.OUT_W / "firstlick_full" / f"{label}.npz"
+    f = il.in_path("firstlick_full") / f"{label}.npz"
     if not f.exists():
         return pd.DataFrame()
     z = np.load(f, allow_pickle=True)
@@ -199,7 +199,7 @@ def sessions() -> pd.DataFrame:
     from wfield_local import analysis_kit as ak
     P = pd.read_csv(lo.preds_path()).reset_index(drop=True)
     P["k"] = P.groupby(["set", "label"]).cumcount()
-    C = pd.read_csv(il.OUT_W / f"covref_covariates{lo.SRC_TAG}.csv.gz", usecols=["set", "label", "k", "reach_mm", "side_k", "speed_peak", "elev_deg"])
+    C = pd.read_csv(il.in_path(f"covref_covariates{lo.SRC_TAG}.csv.gz"), usecols=["set", "label", "k", "reach_mm", "side_k", "speed_peak", "elev_deg"])
     P = P.merge(C, on=["set", "label", "k"], how="left", validate="one_to_one")
     if il.ITI_SUBSET:                                      # docked-spout etc. subset (10-29); k = cache index, kept
         P = P[il.iti_subset_keep(P)].reset_index(drop=True)
@@ -277,7 +277,7 @@ def sessions() -> pd.DataFrame:
                     rec[f"{dn}|{a}|diff"] = g[f"res_{dn}|{a}|d"].mean()
         rows.append(rec)
     S = pd.DataFrame(rows)
-    R = pd.read_csv(il.OUT_W / "recmark_sessions.csv", usecols=["label", "day", "aim", "iti_ang"]).drop_duplicates("label")
+    R = pd.read_csv(il.in_path("recmark_sessions.csv"), usecols=["label", "day", "aim", "iti_ang"]).drop_duplicates("label")
     return S.merge(R, on="label", how="left")
 
 
@@ -371,6 +371,9 @@ def main() -> int:
                        [("subsets x definitions", keys), ("WINDOW only, pool oro+SSs (ratio)", ratio_keys)]:
             C = G[kk]
             C = C.loc[:, C.notna().mean() >= 0.9]
+            if C.shape[1] == 0:                            # e.g. a definition not computed on this lick set (11-17)
+                print(f"[{st}] {fam}: no candidate with >= 90 % finite sessions; skipped", flush=True)
+                continue
             X = C.to_numpy(float)
             X = np.where(np.isfinite(X), X, np.nanmean(X, 0))
             r, chosen = bn.nested(X, list(C.columns), y, grp)
