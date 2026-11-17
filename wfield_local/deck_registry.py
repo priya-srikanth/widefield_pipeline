@@ -2433,6 +2433,112 @@ LP_GATED_FIGURES = (
 )
 
 
+#: SECTION K IN THE REBUILD DECK (Priya 11-17): basename of a LP_GATED_FIGURES slot -> (path glob under the REBUILD ROOT
+#: with ``{T}`` = run tag, or None to keep the slot's tagged path; caption written from that render's own data). Used
+#: only in a tagged build; it REPLACES the registry legend above (whose WHAT IT SHOWS numbers are pre-rebuild).
+_K_SESS = ("Sessions: pre = August-only pre-stroke sessions, 31 (PS92 8 / PS93 7 / PS94 8 / PS95 8; PS93_0813 has no "
+           "behavior video); acute 16 (5 / 4 / 6 / 1), subacute 17 (2 / 3 / 5 / 7), chronic 43 (12 / 12 / 8 / 11); n = 4 "
+           "animals (PS95 acute = one session). Epochs per animal from its own lesion day (acute = far-contra hit rate < "
+           "25% of pre: PS92 days 1-5, PS93 1-4, PS94 1-7, PS95 1; chronic from day 11 / 11 / 25 / 15; subacute between).")
+_K_LPGATE = ("Licks: LP video licks (cam4, plus cam1 where it exists) choose the trials and start the lick window; trials = "
+             "lick trials (a camera-seen first lick, contact or incomplete, within 3.5 s of the cue) inside the camera "
+             "working period (first to last camera lick; stopped runs and the quit tail excluded); engagement gate = DAQ "
+             "contact OR LP attempt (LP-inclusive, output tag gateLP); no-lick, jaw-only and no-response trials excluded.")
+_K_FROZEN = ("Decoder: FROZEN pre-stroke 6-way multinomial logistic regression (standardized, C = 0.5) on each animal's "
+             "joint-LocaNMF components in 8 x 0.25 s sub-bins of the 2 s after the first LP lick (session z-scored), "
+             "LP-trained on the animal's August pre-stroke lick trials and never refit; the pre bar is scored "
+             "leave-one-session-out. Measured: accuracy of the true spout, chance 1/6.")
+LP_GATED_REBUILD = {
+    "epoch_acc_by_position_lick_lick.png": (
+        "labcams/grant_figures/LP_licks_gateLP_{T}/epoch/epoch_acc_by_position_lick_lick.png",
+        "Image page Fig 2.4 (rebuild render, glue re-run 11-09 23:37). " + _K_FROZEN + " Window: 0-2 s from the first "
+        "LP lick. " + _K_LPGATE + " Baseline: the animal's own August pre. " + _K_SESS + " Stats: bars = trial-pooled "
+        "accuracy with 95% CI, faded open markers = sessions (shape = animal, color = epoch); nested bootstrap animals "
+        "-> sessions -> position blocks, 2,000 draws; top band: * = 95% CI of epoch - pre excludes 0, ** = after "
+        "Bonferroni over 18 tests. Far contra pooled: pre .909 [.870, .937] -> acute .193 [.102, .336] ** -> subacute "
+        ".653 [.421, .797] ** -> chronic .723 [.597, .861] **; per animal (session means) pre -> acute PS92 .93 -> .11, "
+        "PS93 .85 -> .12, PS94 .93 -> .27, PS95 .93 -> .33 (4 / 4 down), chronic .76 / .60 / .61 / .90. Acute is lower "
+        "at every far spout (far ipsi .58, far mid .51) and at the close spouts (.73-.79, all marked). Tables "
+        "data/epoch_acc_by_position_lick_lick*.csv beside the figure. Script: wfield_local/epoch_accuracy.py "
+        "(WIDEFIELD_LICK_SOURCE=lp, WIDEFIELD_GATE_SOURCE=lp)."),
+    "epoch_accdelta_by_position_lick_lick.png": (
+        "labcams/grant_figures/LP_licks_gateLP_{T}/epoch/epoch_accdelta_by_position_lick_lick.png",
+        "Change from pre of the preceding figure (image page Fig 2.4 delta; rebuild render 11-09 23:37): epoch - pre "
+        "accuracy per position, point = paired nested bootstrap (animals -> sessions -> position blocks, 2,000 draws) "
+        "with its 95% interval and the Bonferroni-corrected interval (18 tests). " + _K_FROZEN + " Window: 0-2 s from "
+        "the first LP lick. " + _K_LPGATE + " Baseline: own August pre. " + _K_SESS + " Far contra: acute -0.686 "
+        "[-0.790, -0.569] (corrected [-0.834, -0.510]), subacute -0.288 [-0.431, -0.152], chronic -0.187 [-0.294, "
+        "-0.073] (corrected [-0.337, -0.030]). Far mid acute -0.335 [-0.460, -0.211]; far ipsi acute -0.243 [-0.416, "
+        "-0.101]. Table data/epoch_accdelta_by_position_lick_lick.csv. Script: wfield_local/epoch_accuracy.py."),
+    "attempt_maps_lick_far_contra.png": (
+        "LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/attempt_maps/gateLP_{T}/figures/"
+        "attempt_maps_lick_far_contra__*csig-3d7bbe921e.png",
+        "Image page Fig 8.1 (rebuild render 11-10 06:05). Trial-class maps, far contra, lick window. No model. Measured: "
+        "trial-averaged pixel maps, rest-referenced (time-local rest baseline), through the atlas-registered basis at "
+        "half resolution. Window: 0-2 s from the first LP video lick. Licks: LP video licks (cam4 + cam1) define the "
+        "attempt classes and start the lick window; the rest baseline's not-licking frames come from DAQ spout contact. "
+        "Classes: pre-stroke hits (contact) and incomplete licks (camera lick, no contact), post-stroke hit and "
+        "incomplete; in the lick window only these exist (no-lick classes blank). Trials: camera working period "
+        "(first to last camera lick; stopped runs and quit tail excluded), engagement gate = DAQ contact OR LP attempt. "
+        "A class needs >= 5 trials in a session, then a session-weighted mean (pre incomplete and pooled incomplete "
+        "trial-weighted, no floor); bottom row = mean of animal means (>= 2 animals); per-row symmetric 99th-percentile "
+        "color scale; image left = ipsilesional. Baseline: time-local rest; reference class = the animal's own pre "
+        "hits. " + _K_SESS + " Stats: none (descriptive). Acute failed (incomplete) far-contra attempts / pre-stroke "
+        "hits, mean map value ipsi | contra hemisphere: PS92 .39 | .44, PS93 .38 | .43, PS94 .53 | .71, PS95 .95 | 1.32 "
+        "(PS95 one acute session): lower in 3 / 4. Table hemispheres_lick__*.csv beside the figures. Script: "
+        "wfield_local/attempt_maps.py."),
+    "attempt_maps_lick_far_contra_minus_pre.png": (
+        "LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/attempt_maps/gateLP_{T}/figures/"
+        "attempt_maps_lick_far_contra_minus_pre__*csig-3d7bbe921e.png",
+        "Image page Fig 8.2 (rebuild render 11-10 06:05): the far-contra attempt-class maps of the preceding slide minus "
+        "each animal's own pre-stroke hits. Window 0-2 s from the first LP lick; LP video classes and lick window, rest "
+        "baseline frames from DAQ contact; camera working period, LP-inclusive engagement gate; >= 5 trials per class "
+        "per session; mean of animal means (>= 2 animals); per-row 99th-percentile color scale; image left = "
+        "ipsilesional. " + _K_SESS + " Stats: none (descriptive); the hemisphere ratios are on the previous slide. "
+        "Script: wfield_local/attempt_maps.py."),
+    "attempt_maps_cue_far_contra.png": (
+        "LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/attempt_maps/gateLP_{T}/figures/"
+        "attempt_maps_cue_far_contra__*csig-3d7bbe921e.png",
+        "Trial-class maps, far contra, CUE window (rebuild render 11-10 06:05): as the lick-window maps, aligned to the "
+        "cue (0-2 s after the cue), so the no-lick classes (jaw-only reaction, no response, stopped) also have maps. "
+        "Classes from LP video licks (cam4 + cam1) and DAQ contact; rest baseline from DAQ contact; camera working "
+        "period, LP-inclusive engagement gate; >= 5 trials per class per session; mean of animal means; image left = "
+        "ipsilesional. " + _K_SESS + " Stats: none (descriptive). Script: wfield_local/attempt_maps.py."),
+    "epoch_15r_position_RESTref_lick_lick.png": (None, (
+        "15r REST-reference LP lick maps, pooled (image page Figs 7.18-7.19 family; rendered 11-17 from this branch, "
+        "frozen LP lick epoch decoders refitted the same day). " + "Window: 0-2 s from the first LP video lick (8 x 0.25 s bins). Licks: LP video licks (cam4, plus cam1 where it exists) "
+        "choose the lick trials and start the window; rest frames exclude DAQ licks. Trials: lick trials (a camera-seen first "
+        "lick, contact or incomplete, within 3.5 s of the cue), camera trial gate (camera working period; stopped runs and the "
+        "quit tail excluded), DAQ engagement gate (output tag LP_licks, not gateLP); >= 20 trials per position per session. "
+        "Reference: REST = the session's time-local rest baseline (restdock05: docked, not running, not licking, lick buffer "
+        "0.5 / 1.0 s; median of rest frames per time bin, interpolated, subtracted from the SVT before the trial features), "
+        "one subtrahend for all six positions (it carries some position information: rest resembles the position just "
+        "licked at). No decoder: trial averages. " + _K_SESS + " Sessions skipped for having no camera / LP lick table "
+        "(never filmed): 1 (PS93_0813; it contributes nothing, as under the contact arm). " + "Pooling: each animal's session mean on "
+        "its own pre-stroke scale, then averaged over animals present in both epochs; difference columns = epoch - own pre. "
+        "Stats: nested animals -> sessions bootstrap (2,000 draws) on 2,022 bins (8x downsampled, eroded mask, glue region "
+        "removed), studentized, family-wise by the bootstrap max |z| (black contours); a panel is suppressed when its "
+        "significant bins are > 2x concentrated in the rim. Image left = ipsilesional; rows in the canonical spout order. "
+        "Far contra amplitude / pre, acute / subacute / chronic: 0.67 (441 of 2,022 bins) / 1.00 (10 bins) / 1.03 (308 "
+        "bins). Acute amplitude / pre at the other spouts: near ipsi 1.58, near mid 1.33, near contra 1.37, far ipsi 1.35, "
+        "far mid 1.08 (larger, not smaller). Tables data/epoch_15r_position_RESTref_lick_lick_stats.csv. Script: "
+        "python -m wfield_local.epoch_grant_figures --only 15r --arm lick (profile block epoch_maps, LP licks).")),
+    "epoch_15rpa_position_RESTref_by_animal_lick_lick.png": (None, (
+        "15rpa: the same REST-reference far-contra LP lick maps PER ANIMAL (rendered 11-17 from this branch). " + "Window: 0-2 s from the first LP video lick (8 x 0.25 s bins). Licks: LP video licks (cam4, plus cam1 where it exists) "
+        "choose the lick trials and start the window; rest frames exclude DAQ licks. Trials: lick trials (a camera-seen first "
+        "lick, contact or incomplete, within 3.5 s of the cue), camera trial gate (camera working period; stopped runs and the "
+        "quit tail excluded), DAQ engagement gate (output tag LP_licks, not gateLP); >= 20 trials per position per session. "
+        "Reference: REST = the session's time-local rest baseline (restdock05: docked, not running, not licking, lick buffer "
+        "0.5 / 1.0 s; median of rest frames per time bin, interpolated, subtracted from the SVT before the trial features), "
+        "one subtrahend for all six positions (it carries some position information: rest resembles the position just "
+        "licked at). No decoder: trial averages. " + _K_SESS + " Sessions skipped for having no camera / LP lick table "
+        "(never filmed): 1 (PS93_0813; it contributes nothing, as under the contact arm). " + "Each row = one animal's epoch "
+        "mean of its session maps; no significance is drawn (no between-animal spread within a row). Far-contra map "
+        "amplitude (RMS over the map), epoch / own pre, acute / subacute / chronic: PS92 0.46 / 0.84 / 1.04, PS93 0.53 / "
+        "0.83 / 1.10, PS94 0.67 / 1.11 / 0.89, PS95 1.05 / 1.23 / 1.13 (PS95 acute = one session): lower acutely in 3 / 4. "
+        "Table data/epoch_15rpa_position_RESTref_by_animal_lick_lick.csv. Script: wfield_local/epoch_maps.py (15rpa).")),
+}
+
 #: CD LEAVE-ONE-OUT (10-21, `scripts/cd_loo_sessions.py` + `scripts/cd_loo_figures.py`), appended to
 #: section I. The per-position coding direction refitted with each pre-stroke session HELD OUT, so the
 #: pre-stroke points are out-of-sample like the post-stroke ones (the in-sample pre projection is ~1 by
@@ -2457,6 +2563,9 @@ EPOCH_FIGURES = EPOCH_FIGURES + (
     ("cd_loo/cd_loo_traj_cue.png", "CD leave-one-out, mean trajectories: cue", _CD_LOO),
     ("cd_loo/cd_loo_traj_lick.png", "CD leave-one-out, mean trajectories: lick", _CD_LOO),
 )
+
+#: Section I legends REPLACED in a tagged (rebuild) build (Priya 11-17): pattern -> legend written from the rebuild run.
+EPOCH_FIGURES_REBUILD_LEGEND: dict = {}
 
 
 #: NO-STROKE DRIFT GROUP (10-24, `scripts/june_august_drift.py`; Priya: "add in a june vs august pre comparison

@@ -1073,6 +1073,52 @@ M_POSTSTROKE = (
     "is a description of two animals, not an established dissociation. Joint-basis replication and "
     "the decoder-similarity analysis are deferred to the second post-stroke session.")
 
+#: THE POST-STROKE METHODS NOTE OF THE REBUILD DECK (Priya 11-17: rewritten from the rebuild outputs; M_POSTSTROKE above
+#: describes the August single-session state and the pre-rebuild 44-session reference, and stays for an untagged build).
+#: Counts: rebuild epoch sidecars (epoch_acc_by_position_*_meta.csv: pre 31 / acute 16 / subacute 17 / chronic 43);
+#: behavior: rebuild_figs/<tag>/behaviour_hits_by_spout.csv and session_poses_derived/<tag>/
+#: jaw_only_incomplete_figs_redraw_20261116/figures/trial_class_share_raw.csv; design: trial_classes.design_note().
+M_POSTSTROKE_REBUILD = (
+    _M_LICK_UNIT +
+    "POST-STROKE COMPARISON, COHORT-1 REBUILD (render profile cohort1_rebuild_20261103: hemo variant "
+    "meegkit_hpfit_lag_refitT_swapmask, LocaNMF projection, camera trial gate, August-only pre). "
+    "\n\nLESION DATES AND PHASES (configs/animals.yaml). PS94 / PS95: lesioned 2026-08-16 (3 mW); 8/17 is their first "
+    "post-stroke session. PS92 / PS93: the 8/16 attempt did not take and was redone on 8/17 AFTER that day's session "
+    "(3.75 and 5.5 mW), so their 8/17 belongs to neither phase (config.session_phase -> 'excluded': out of every pooled "
+    "set, frozen-model training set and epoch pool). EPOCHS per animal from its own lesion day (acute = far-contra hit "
+    "rate < 25% of pre: PS92 days 1-5, PS93 1-4, PS94 1-7, PS95 1; chronic from day 11 / 11 / 25 / 15; subacute "
+    "between). "
+    "\n\nSESSIONS. Pre = August-only pre-stroke sessions (WIDEFIELD_PRE_FROM=0801): 31 (PS92 8 / PS93 7 / PS94 8 / "
+    "PS95 8; PS93_0813 has no behavior video, so no camera classes or LP licks). Post: acute 16 (5 / 4 / 6 / 1), "
+    "subacute 17 (2 / 3 / 5 / 7), chronic 43 (12 / 12 / 8 / 11); 107 sessions, 4 animals. PS95 acute is ONE session, so "
+    "any PS95 acute value is one day, not an epoch mean. "
+    "\n\nTRIALS. Camera trial gate: working trials = camera classes contact (DAQ spout contact) + incomplete (a camera-"
+    "seen LP lick, cam4 + cam1, without contact), counted from cue + 70 ms to min(cue + 3.5 s, trial stop), inside the "
+    "session's camera working period (first to last camera lick); stopped runs (A2 rule, lick-touched stopped trials "
+    "excised) and the terminal quit tail excluded; jaw-only and no-response trials are their own classes. Which rows "
+    "each family scores: frozen decoders trained and centered on camera WORKING rows (contact + incomplete); 5b / 5c = "
+    "working rows on both sides; section D (pooled frozen) and section G = engaged / all trials; pattern families: "
+    "post = working, pre reference = lick trials (trial_classes.design_note). Section G specifically scores camera "
+    "WORKING rows for the pre panel / pre band and the engaged-only post arm, all trials for the all-trials arm, with "
+    "by-class panels per camera group; scored frame centered on the session's working rows (Wt) "
+    "(figures_working/<tag>/section_g_design__<tag>.json; PS93_0813 excluded from the working rows: no video). "
+    "\n\nREFERENCES ARE FROZEN. Every pre-stroke decoder / direction is fitted once on the animal's August pre trials "
+    "and stored (FREEZE_VERSION 2: the spec carries a fingerprint of the training arrays, the run selection and the "
+    "hemo variant; store rebuild_20261103/frozen_models), then loaded unchanged for every post-stroke session; pre "
+    "sessions are scored leave-one-session-out. A frozen-decoder drop says the PRE-STROKE READ-OUT no longer fits; "
+    "whether the information is still there is the refit / aligned-decoder question (sections 5r, state-space page "
+    "Fig 11.3), not this one. Every readout is the change from the animal's OWN pre; statistics are the paired nested "
+    "bootstrap animals -> sessions (analysis_kit.boot_delta), stars in the top band; per-animal values are given "
+    "before pooled ones. "
+    "\n\nBEHAVIOR FIRST. Far-contra engaged hit rate (DAQ contact), per animal pre -> acute: PS92 .97 -> .04, PS93 .97 "
+    "-> .13, PS94 .94 -> .04, PS95 .95 -> .01 (4 / 4), back to .92-.99 chronically. The missing contacts are mostly "
+    "movements the camera sees: acute far-contra trials (mean of animals) are .05 contact, .62 incomplete lick, .22 "
+    "jaw only, .10 no response (pre .96 / .02 / .01 / .01); PS95 replaces incomplete licks with jaw-only trials (.36 / "
+    ".49). So far-spout decoding post-stroke is partly a statement about which trials exist; the per-position figures "
+    "show every position with its own n. "
+    "\n\n'NO CONTACT' IS NOT 'NO LICK'. Since the camera classes, a lick that misses the spout is an incomplete lick, "
+    "not a no-lick trial; DAQ-only analyses (marked 'licks: DAQ spout contact') still file it as no-lick.")
+
 M_PRECUE_CAVEAT = (
     "\n\nPRE-CUE NUMBERS ON THIS SLIDE ARE CORRECTED (as of 2026-08-14). They are built on the "
     "meegkit_hpfit SVTcorr, not the pipeline default. Read this before comparing them to anything "
