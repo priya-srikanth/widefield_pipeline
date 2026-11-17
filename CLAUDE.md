@@ -767,7 +767,12 @@ reaches the deck's results path — that was checked, not assumed.
 - `runbooks/` — the per-machine nightly prompts (Priya's canonical prompts + notes).
 - Env: analysis desktop (this box) `C:/Users/SabatiniLab/miniconda3/envs/locanmf/python.exe`; analysis / behavior
   box `C:/Users/sabatini/.conda/envs/locanmf/python.exe`; imaging box `C:/ProgramData/anaconda3/envs/wfield`. Repo is
-  `pip install -e .` (no PYTHONPATH). Per-box table (drive letters, torch build): `docs/START_HERE.md` section 3.
+  `pip install -e .` (no PYTHONPATH). **The editable install points at the MAIN checkout
+  (`Github/widefield_pipeline`), so a run from a WORKTREE imports the main checkout's code unless it says otherwise**
+  (11-17: that checkout sat 663 commits behind and a 15r render wrote four wrong frozen decoders from it).
+  `python -m wfield_local.x` from the worktree ROOT is safe (cwd first on sys.path); `python scripts/x.py` is NOT
+  (sys.path[0] = scripts/), so set `PYTHONPATH=<worktree>` for every script run and check `wfield_local.__file__`.
+  Keep the main checkout fast-forwarded to origin/main when no job imports from it. Per-box table (drive letters, torch build): `docs/START_HERE.md` section 3.
 - Deck: the CURRENT analysis deck is `locanmf_analysis_deck.py` → auto-built by `nightly_figs` into
   `<decks_out>/analysis/spout_position_analysis_summary.pptx`. **Every auto-built deck (analysis, preprocessing,
   behavior, example clips, orofacial, the `history/` copies) moved 2026-11-06 (Priya) to `Widefield/presentations/
