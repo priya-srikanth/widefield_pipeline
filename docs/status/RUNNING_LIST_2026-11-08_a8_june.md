@@ -622,3 +622,9 @@ PI deck (backup Overview_2026-11-06.bak_pre_a8_renumber_20261116.pptx): FR page 
   attempt_coding/<tag>/redraw_lowhit_20261117/; tables byte-identical). 147 not hit-gated. Open for Priya: 146 day-bin means INCLUDE
   low-hit sessions (bin 2 .34, bin 5 .61, bin 6-7 .68; never hit-gated) - gate them? Slide 120 (key_figure_BC code on hits) not yet marked.
   Backup .bak_pre_a8_lowhit_main_20261117.pptx.
+- 11-17 Priya: ITI AUC + balance -> 0..0.5 s (DECISIONS 2026-11-17); helper re-rendering (*_iti05_20261117, specs/iti05.json); 3c told
+  (goal page owner). 146: keep day bins ungated ("20 hits per epoch is very different than 20 hits per session"), low-hit points noted
+  (already so). 120: low-hit marking queued (specs/lowhit_120.json).
+- 11-17: cued balance -> cued angle done (49d1f416; .../iti_licks/bal_full_cuedang_20261117/): LOAO .68 vs days .08 (cued -> aim .66 vs
+  .23); cued angle r .94 with aim -> cued balance mostly a lick-direction readout. Spec specs/s139_cuedang.json NOT applied: goes to
+  Priya first (conclusion-level; spec replaces the caveat bullet).

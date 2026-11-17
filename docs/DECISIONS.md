@@ -1,3 +1,18 @@
+## 2026-11-17 -- ITI response window 0..0.5 s; cued stays 0..1.0 s (Priya; a8 window)
+- Priya 11-17: "for ITI let's use 0-0.5 ... we should probably just change ITI AUC and balance results to the 0-0.5s".
+  Reverses the ITI half of the 10-28 (late) "one window for both" decision (0..1.0 s for ITI and cued; 0..0.5 s was the
+  secondary "it matches the ITI kinetics"). Cued / cue-aligned results keep 0..1.0 s.
+- Why: ITI bout-start responses are biphasic -- a short lick transient (peak ~0.2-0.3 s) then a dip below baseline at
+  ~0.6-1.2 s in both hemispheres (clearest PS93 pre / acute / subacute, PS94 pre). Over 0..1.0 s the two cancel, the
+  contra/ipsi AUC ratio is undefined in 2.8 % of ITI session x spout rows (docked 6.7 %; PS94 docked pre 17 / 47) --
+  dropped non-randomly -- and the docked tjM1 spout x epoch model failed to converge. 0..0.5 s holds the lateralized
+  transient: 0.3 % undefined (docked 0.8 %). Cued: 0.0 % undefined at 0..1.0 s. Diagnostic:
+  docs/status/deck_swap_20261117/ITI_NEG_AUC_DIAGNOSTIC.md; traces .../iti_licks/neg_auc_diag_20261117/.
+- Scope: every ITI response-AUC and contra/ipsi balance result (lateral ratio ITI rows, ITI AUC summaries / maps, ITI
+  ramp companions, docked ITI arm). The primary recovery marker already uses 0.1..0.5 s for ITI (unchanged).
+- Bounded index (c - i) / (|c| + |i|) considered (defined for every row; = (r - 1) / (r + 1) when both AUCs > 0) but in
+  the dip sessions it would compare undershoots; window fix preferred. Kept as a robustness option.
+
 ## 2026-11-16 -- June sessions against August-frozen references: drift sub-analyses only (Priya; a8 window)
 - Priya 11-09 asked for the frozen pre-stroke analyses on the June sessions (August-frozen reference); scope settled
   11-16: **"just for drift sub-analyses"**. June is used as a longer (~2-month) pre-stroke drift floor for a readout,
