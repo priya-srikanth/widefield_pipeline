@@ -21,7 +21,7 @@ baseline-subtracted quantities (resp window, and 0..0.2 s). Lines = mixed-model 
 (black pre, dashed post); * = post-stroke shift at the same angle, p < .05. Cued: the shift at the same angle survives
 in every baseline-corrected measure (resp +.24 log2, resp_idx +.079, dec_idx +.095; inside each animal's pre angle
 range +.23 / +.076 / +.063; 4/4 animals); dec's +1.7 does not hold inside the pre range. ITI (all ITI licks after a
-far-contra trial): dec's negative shift (-1.08) disappears in dec_idx (+.039). Licks: LP cam4 video licks (3-D); trial
+far-contra trial): dec's negative shift (-1.08) disappears in dec_idx (+.039). Licks: DAQ lick detector (daqlk) for lick times, lick angle from the 3-D pose (LP); trial
 period: camera working period; trial types: cued = first post-cue lick with target far contra, ITI = bout start (>= 2 s
 quiet) after a far-contra trial; gate: camera trial gate; baseline: August pre; statistics: MixedLM per measure, no
 multiple-comparison correction across the four measures (descriptive comparison). PROVISIONAL (n = 4; 7-8 pre far-contra

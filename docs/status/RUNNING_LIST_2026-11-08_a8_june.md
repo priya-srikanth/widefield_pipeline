@@ -689,3 +689,9 @@ PI deck (backup Overview_2026-11-06.bak_pre_a8_renumber_20261116.pptx): FR page 
   all 206 slides -> 6 flagged, checked as exported images: only slide 20 was a real problem (right figure ran off the slide,
   legend cut) -> resized to fit. 3 / 18 / 37 / 105 / 147: frames overlap whitespace only. In-image issue not caught by bbox:
   147 x-axis labels garbled where the purple footer was whited out (re-render with footer margin queued via curves helper).
+- 11-17 docked decoded-vs-executed done (59223261, 74518c9f; DOCKED_DECODED_VS_EXECUTED_20261117.md): docked ITI like-for-like
+  offset +0.30 / +0.21 / +0.27 mm (all ITI +0.36 / +0.24 / +0.27; after quiet +0.22 / +0.18 / +0.21); angle +4.3 / +2.6 / +3.4 deg;
+  raw within-animal r(ITI offset, aim) gone on docked (+0.03 vs -0.33 all ITI), survives detrended (-0.30, p .013). Dashed acute =
+  PS95 has no acute docked curve (53 licks). Footer overlap fixed (footer_bottom helper). gap >= 2 s dec_idx variant: conclusions
+  unchanged; docked all-spout dec_idx now +.036 (p .002) like resp_idx. Supplement caption licks line corrected (DAQ lick times,
+  LP 3-D angle). Helper commits landed inside another window's commit 74518c9f (shared index) - content verified on main.
