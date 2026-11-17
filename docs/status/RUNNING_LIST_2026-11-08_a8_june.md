@@ -657,3 +657,6 @@ PI deck (backup Overview_2026-11-06.bak_pre_a8_renumber_20261116.pptx): FR page 
   .15-.22 (per-animal r .49/.35/.78/-.26 to ITI angle: 3/4 same sign, PS95 reverses; docked = ~35 % of ITI licks -> noisier).
   Cued far contra (target fixed): raw resp balance shift at the same angle +.24 log2 (+.23 inside pre range) survives.
   Balance predicts raw angle across spouts pre and post (dec + resp, docked too).
+- 11-17 documented (Priya "document the figures and findings of the far-contra versions"): FINDINGS.md recovery-marker block gains
+  "Recovery-marker checks 11-17" + "Far contra only, target / previous spout fixed" entries (figures + numbers); detailed record
+  docs/status/deck_swap_20261117/ITI_MATCHED_ANGLE_MARKERS.md section 3.
