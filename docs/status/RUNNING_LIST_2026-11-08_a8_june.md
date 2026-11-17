@@ -599,3 +599,6 @@ PI deck (backup Overview_2026-11-06.bak_pre_a8_renumber_20261116.pptx): FR page 
   Deleted 3 superseded helper tries (stale-package / LP-default first tries), 125 files listed in deck_swap_20261117/DELETED_SUPERSEDED_20261117.txt.
   Slide 12 LMM: acute far contra SE NaN = singular animal x epoch variance (4 animals -.61..-.67, one pre value per animal);
   wording/refit decision with Priya. Slide 145: PS92 (10) / PS94 (8) acute hits < 20, PS95 none -> only PS93 acutely.
+- 11-17: docked 200 + 203 applied (specs/docked_batch4.json; backup .bak_pre_a8_docked_20261117.pptx). 203 docked ITI balance up acutely
+  in every area (0-1 s: ALM +.50, tjM1 +.88, SSp-m +.88), chronically only ALM; tjM1 spout x epoch LR fit degenerate (-inf, p 1, printed in
+  the panel title); render lacks the old green DOCKED banner (notes + Data: say docked).
