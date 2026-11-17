@@ -31,6 +31,9 @@ EP = ["pre", "acute", "subacute", "chronic"]
 MEAS = {"beh": "behavior: far-contra hit rate", "neu": "cortex: far-contra code on hits", "gap": "gap: cortex - behavior"}
 
 
+SHOWN: list = []      # rows below MIN_HITS: drawn as "<20 hits", not tested (Priya 11-17)
+
+
 def build(root: Path) -> pd.DataFrame:
     S = pd.read_csv(_paths.sub(root, "attempt_coding") / "recovery_timing_series_lick.csv")
     S["gap"] = S.neu - S.beh
@@ -38,7 +41,9 @@ def build(root: Path) -> pd.DataFrame:
     for m, lab in MEAS.items():
         G = S
         if m in ("neu", "gap"):           # code on hits: the main figure's MIN_HITS gate per animal x epoch (11-07)
-            G, dropped = _paths.hit_gate(S, m, "n_hits")
+            G, dropped, X = _paths.hit_gate(S, m, "n_hits", return_rows=True)
+            SHOWN.append(pd.DataFrame({"position": m, "epoch": X.epoch, "animal": X.animal, "label": X.label,
+                                       "value": X[m], "n_hits": X.n_hits, "panel": lab}))
             print(f"[{m}] hit gate (>= MIN_HITS hits per animal x epoch) dropped: {', '.join(dropped) or 'none'}")
         out.append(pd.DataFrame({"position": m, "epoch": G.epoch, "animal": G.animal, "label": G.label, "day": G.day,
                                  "value": G[m], "panel": lab}))
@@ -73,7 +78,8 @@ def main(argv=None) -> int:
     S.to_csv(src, index=False)
     T = render.render(src, NAME, out, title="Fig 0.6: far-contra hit rate vs frozen code on hits by epoch (lick window)",
                       ylabel="change vs own pre (fraction of pre)", cells=list(MEAS),
-                      labels={"beh": "hit rate", "neu": "code on hits", "gap": "cortex -\nbehavior"}, panel_by="panel")
+                      labels={"beh": "hit rate", "neu": "code on hits", "gap": "cortex -\nbehavior"}, panel_by="panel",
+                      shown_only=pd.concat(SHOWN, ignore_index=True) if SHOWN else None)
     print(T.to_string(index=False))
     return 0
 

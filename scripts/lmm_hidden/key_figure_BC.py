@@ -43,10 +43,15 @@ def _scaled(rows: pd.DataFrame, cell: str, panel: str) -> pd.DataFrame:
                          "value": rows.r / pre_r, "panel": panel})
 
 
+SHOWN: list = []      # rows below MIN_HITS: drawn as "<20 hits", not tested (Priya 11-17)
+
+
 def build(root: Path) -> pd.DataFrame:
     out = []
     S = pd.read_csv(_paths.sub(root, "attempt_coding") / "recovery_timing_series_lick.csv")
-    S, dropped = _paths.hit_gate(S, "neu", "n_hits")     # key_figure._gated: MIN_HITS per animal x epoch (11-07)
+    S, dropped, X = _paths.hit_gate(S, "neu", "n_hits", return_rows=True)   # key_figure._gated: MIN_HITS (11-07)
+    SHOWN.append(pd.DataFrame({"position": "trial:code", "epoch": X.epoch, "animal": X.animal, "label": X.label,
+                               "value": X.neu, "n_hits": X.n_hits, "panel": PANEL["trial"]}))
     print(f"[trial:code] hit gate (>= MIN_HITS hits per animal x epoch) dropped: {', '.join(dropped) or 'none'}")
     out.append(pd.DataFrame({"position": "trial:code", "epoch": S.epoch, "animal": S.animal, "label": S.label,
                              "value": S.neu, "panel": PANEL["trial"]}))
@@ -100,7 +105,8 @@ def main(argv=None) -> int:
     cells = list(dict.fromkeys(S.position))
     T = render.render(src, NAME, out, title="Key figure 1 B-C: frozen read-out vs epoch refit (lateral lick decoder; "
                       "far-contra code on hits)", ylabel="change in fraction of pre-stroke level", cells=cells,
-                      labels=LABELS, panel_by="panel")
+                      labels=LABELS, panel_by="panel",
+                      shown_only=pd.concat(SHOWN, ignore_index=True) if SHOWN else None)
     print(T.to_string(index=False))
     return 0
 

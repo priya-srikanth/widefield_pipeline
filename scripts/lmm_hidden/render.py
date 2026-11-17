@@ -134,8 +134,33 @@ def _slide_layout(fig, *, figsize=None, footnote: str | None = None, suptitle: s
     fig._wf_title_gap_px = _gap(fig, st, axes) if st is not None else None
 
 
+LOWHIT_LABEL = "< 20 hits: shown, not tested"
+
+
+def _draw_shown(fig, S, shown, cells, panels) -> None:
+    """Rows kept OUT of the model (animal x epoch cells below analysis_kit.MIN_HITS hits; Priya 11-17 "show the low-hit
+    cells but mark as <20 hits"): each session's change from its animal's pre mean (pre from the fitted rows), drawn as a
+    hollow gray diamond (the hollow hit diamond of decoder_retention_sessions) at the session-marker position of
+    lmm_change_fig.draw_axis. No estimate, bar or star uses them."""
+    from scripts import lmm_change_fig as L
+    groups = panels or [("", cells)]
+    axes = [a for a in fig.get_axes() if a.get_visible()]
+    for ax, (_p, cs) in zip(axes, groups):
+        for xi, c in enumerate(cs):
+            pre = S[(S.position == c) & (S.epoch == "pre")].groupby("animal").value.mean()
+            D = shown[(shown.position == c) & shown.animal.isin(pre.index)]
+            for k, e in enumerate(L.EP):
+                g = D[D.epoch == e]
+                if g.empty:
+                    continue
+                x = xi + (k - 1) * 0.27 - 0.06
+                rng = np.random.default_rng(7)
+                ax.scatter(x + rng.uniform(-0.03, 0.03, len(g)), g.value.to_numpy() - pre[g.animal].to_numpy(),
+                           marker="D", s=22, facecolors="none", edgecolors="0.55", lw=0.9, zorder=2)
+
+
 def _draw(S, T_draw, cells, out: Path, *, spec: dict, panels=None, ncols=0, figsize=None, footnote=None,
-          T_full=None) -> dict:
+          T_full=None, shown=None) -> dict:
     """lmm_change_fig.draw, with `_slide_layout` applied just before its savefig; returns the drawn-number check."""
     import matplotlib
     matplotlib.use("Agg")
@@ -147,6 +172,8 @@ def _draw(S, T_draw, cells, out: Path, *, spec: dict, panels=None, ncols=0, figs
     got = {}
 
     def savefig(fig, fname, *a, **k):
+        if shown is not None and len(shown):
+            _draw_shown(fig, S, shown, cells, panels)
         _slide_layout(fig, figsize=figsize, footnote=footnote,
                       suptitle=_suptitle(spec.get("title") or out.stem, T_full if T_full is not None else T_draw))
         betas, stars = [], []
@@ -159,11 +186,17 @@ def _draw(S, T_draw, cells, out: Path, *, spec: dict, panels=None, ncols=0, figs
         return orig(fig, fname, *a, **k)
 
     Figure.savefig = savefig
+    orig_lh = L.legend_handles
+    if shown is not None and len(shown):
+        from matplotlib.lines import Line2D
+        L.legend_handles = lambda S_: orig_lh(S_) + [Line2D([], [], ls="none", marker="D", mfc="none", mec="0.55",
+                                                            ms=5, label=LOWHIT_LABEL)]
     try:
         L.draw(S, T_draw, cells, out, title=spec.get("title") or out.stem, ylabel=spec.get("ylabel", "change vs own pre"),
                labels=spec.get("labels") or {}, panels=panels, ncols=ncols, figsize=figsize)
     finally:
         Figure.savefig = orig
+        L.legend_handles = orig_lh
     # the check: every drawn estimate is a beta of the table and every star is the table's star, nothing else
     D = T_draw[T_draw.position.isin(cells) & np.isfinite(T_draw.beta)]
     exp_b = sorted(D.beta.astype(float))
@@ -184,7 +217,7 @@ def _panels(S, cells, panel_by):
 
 def render(sessions: Path, name: str, outdir: Path = OUTDIR, *, title: str = "", ylabel: str = "change vs own pre",
            cells=None, labels: dict | None = None, panel_by: str | None = None, holm_by_panel: bool = False,
-           ncols: int = 0, figsize=None) -> pd.DataFrame:
+           ncols: int = 0, figsize=None, shown_only: pd.DataFrame | None = None) -> pd.DataFrame:
     from scripts import lmm_change_fig as L
     from wfield_local import writeguard
     name, title = _paths.out_name(name), _paths.out_title(title or name)   # all-ITI re-render of a docked figure
@@ -211,10 +244,15 @@ def render(sessions: Path, name: str, outdir: Path = OUTDIR, *, title: str = "",
         if _paths.docked_as() and "_docked" in Path(sessions).name:
             Path(sessions).unlink()          # the extractor wrote it under the docked name; keep only the renamed copy
     T.to_csv(outdir / f"{name}_lmm.csv", index=False)
+    shown = None
+    if shown_only is not None and len(shown_only):
+        shown = shown_only.assign(position=shown_only.position.astype(str))
+        shown.to_csv(outdir / f"{name}_shown_only.csv", index=False)
+        spec["shown_only"] = f"{name}_shown_only.csv"
     (outdir / f"{name}_draw.json").write_text(json.dumps(spec, indent=1))
     for ext in (".png", ".svg"):
         _draw(S, T, cells, outdir / f"{name}{ext}", spec=spec, panels=panels, ncols=ncols,
-              figsize=tuple(figsize) if figsize else None)
+              figsize=tuple(figsize) if figsize else None, shown=shown)
     return T
 
 
@@ -242,11 +280,15 @@ def redraw(name: str, outdir: Path = OUTDIR, *, out_name: str | None = None, pan
         allp = [pc for p in panels for pc in allp if pc[0] == p]
         cells = [c for _, cs in allp for c in cs]
     Sd = S[S.position.isin(cells)]
+    sh = None
+    if spec.get("shown_only"):
+        sh = pd.read_csv(outdir / spec["shown_only"])
+        sh["position"] = sh.position.astype(str)
     nc = spec.get("ncols", 0) if ncols is None else ncols
     out = []
     for ext in (".png", ".svg"):
         out.append(_draw(Sd, T, cells, outdir / f"{out_name or name}{ext}", spec=spec, panels=allp, ncols=nc,
-                         figsize=figsize, footnote=footnote, T_full=T))
+                         figsize=figsize, footnote=footnote, T_full=T, shown=sh))
     return out
 
 

@@ -32,10 +32,16 @@ CLS = ("hit", "failed")
 LABELS = {"hit": "hits", "failed": "failed attempts\n(vs pre hits)"}
 
 
+SHOWN: list = []      # rows below MIN_HITS: drawn as "<20 hits", not tested (Priya 11-17)
+
+
 def build(root: Path) -> pd.DataFrame:
     S = pd.read_csv(_paths.sub(root, "attempt_coding") / "decoder_retention_sessions.csv")
     if "n" in S:                          # decoder_retention_sessions._cell: hit cells need >= MIN_HITS (11-07)
-        H, dropped = _paths.hit_gate(S[S.cls2 == "hit"], "ret", "n", by=("window", "animal", "epoch"))
+        H, dropped, X = _paths.hit_gate(S[S.cls2 == "hit"], "ret", "n", by=("window", "animal", "epoch"),
+                                        return_rows=True)
+        SHOWN.append(pd.DataFrame({"panel": X.window.map(dict(WIN)), "position": X.window + ":hit", "epoch": X.epoch,
+                                   "animal": X.animal, "label": X.label, "value": X.ret, "n_hits": X.n}))
         print(f"[hit] hit gate (>= MIN_HITS hits per window x animal x epoch) dropped: {', '.join(dropped) or 'none'}")
         S = pd.concat([H, S[S.cls2 != "hit"]], ignore_index=True)
     rows = []
@@ -82,7 +88,8 @@ def main(argv=None) -> int:
     labels = {f"{w}:{c}": LABELS[c] for w, _ in WIN for c in CLS}
     R = render.render(src, NAME, out, title="Frozen pre-stroke decoder: far-contra code retained, per session, by trial "
                       "class (failed attempts vs pre hits)", ylabel="retention (1 = pre hits), change vs own pre hits",
-                      cells=cells, labels=labels, panel_by="panel")
+                      cells=cells, labels=labels, panel_by="panel",
+                      shown_only=pd.concat(SHOWN, ignore_index=True) if SHOWN else None)
     print(R.to_string(index=False))
     return 0
 
