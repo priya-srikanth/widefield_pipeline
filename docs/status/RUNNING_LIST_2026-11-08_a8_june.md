@@ -514,3 +514,44 @@ PI deck (backup Overview_2026-11-06.bak_pre_a8_renumber_20261116.pptx): FR page 
     M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/master_pre_v1/lick_left_match_check/own_temporal_lick_by_position_norm_n12.png
     M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/master_pre_v1/lick_left_match_check/own_temporal_lick_n12.png
     M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/master_pre_v1/lick_left_match_check/own_temporal_lick_stats_n12.png
+
+### 11-16 late -- Priya on open items; deck "Data:" pass
+- June vs August-frozen: "just for drift sub-analyses" -> DECISIONS 2026-11-16. il.OUT item = the 11-08 render-queue
+  audit, dropped from the FR list. "Data:" pass: Priya "yes go ahead" -> 21 slides written (8 CONFIRMED provenance rows +
+  13 FR slides), 32 / 206 now carry the block; INFERRED / UNKNOWN rows not written (~150 slides wait). Record
+  docs/status/DECK_DATA_BLOCK_PASS_2026-11-16.csv; slide 4 conflict (confirmed row vs notes on the trial gate) left for
+  the behavior arm.
+- 11-16 late, Priya "confirm provenance": re-ran 34's provenance scripts on today's render logs ->
+  FIGURE_PROVENANCE_20261116_rerun.csv (+ _RERUN.md): CONFIRMED 45 -> 257 (deck 8 -> 38); Data: blocks on 26 more slides
+  (deck 58 / 206). Remaining deck rows need per-figure work (no script named 48, older kept runs 47, missing fields 20,
+  steps not done ~30).
+- 11-16 late, Priya "yes do the per figure sweep" + "and update re-rendered figures": 6 read-only helpers, one per deck
+  slide group (126 picture slides without a Data: block; inputs + outputs in a8 scratchpad sweep/group*.json ->
+  out_group*.json): 7 fields + level LOG (render log) / CODE (code + output file, no log) / UNRESOLVED, plus the current
+  render path vs the deck image source (stale yes / no) and crop. Next: spot-check, write blocks (CODE labelled as such),
+  swap stale images (as-is ones directly; crops reproduced), record.
+- 11-16 night, per-figure sweep DONE (6 helpers + 1 staleness check; outputs docs/status/provenance_sweep_20261116/):
+  126 swept slides = 39 traced to a render log, 76 to code + output file, 11 unresolved. Spot-checked 3 claims against the
+  logs (slide 13 decoder .37->.14 etc., slide 21 chronic Holm .057, slide 141 chronic -.288 / -.269): all exact.
+  Data: blocks on 38 more slides (image not stale; Correction line tagged [traced: render log] or [traced: code + output
+  file, no run log]); deck 96 / 206 with the block (DECK_DATA_BLOCK_PASS3_2026-11-16.csv; backup _datablock3).
+  STALE IMAGES: 109 slides (DECK_STALE_FIGURES_2026-11-16.csv): A 21 swap + recheck numbers, B 53 numbers / text change,
+  C 35 no rebuilt version. NO image swapped; per-slide approval asked from Priya. 3c: not editing the PI deck; holds
+  slide 13 picture, balance 135-140 / 203 (C6), state-space SVD / LocaNMF slides (pre-glue inputs).
+
+### 11-17 — slide 21 (frozen position decoder) normalization check (Priya: "per-animal normalization or raw?")
+- Rebuild test (g7_fig_state_position_r.log, 480accea) = boot_delta PAIRED vs each animal's own pre, on the
+  chance-normalized scale retained = (bal_acc - chance)/(1 - chance); an absolute difference, not divided by own pre.
+- Relative to own pre (post / own-pre mean - 1, then boot_delta + Holm over 6; `provenance_sweep_20261116/slide21_relative_check.py`):
+  position -.42 / -.17 / -.09, chronic p .023, Holm .046 (*); on raw balanced accuracy -.34 / -.13 / -.07, Holm .045.
+  Per animal chronic: PS92 -.01, PS93 -.10, PS94 -.20, PS95 -.06 (4/4 negative, PS92 ~0). Chronic is borderline either way
+  (Holm .057 absolute vs .046 relative); not a normalization artifact. Old slide's "all **" (-.41/-.19/-.09) came from the
+  pre-rebuild inputs, not the scale.
+
+### 11-17 — deck swap pass started (Priya: 1. swap A+B + rewrite text/notes, 2. run C renders, 3. replace held slides with updated versions)
+- Deck backup Overview_2026-11-06.bak_pre_a8_swap_20261117.pptx; plan + per-slide spec schema docs/status/deck_swap_20261117/README.md;
+  6 helpers: A+B specs in 4 batches; C renders (lmm_hidden companions on branch lmm-hidden-20261103; others on main). 162/163 = cohort2 QC, skip.
+- Slide 21 old vs new decomposed (same script on the pre-rebuild epoch/data): old pre had 11 sessions / animal (incl. June 06-06..08),
+  rebuild 8 (August from 08-01). Pre levels .850/.744/.923/.915 -> .829/.681/.922/.908 (PS93 -.06); acute .451/.288/.466/.607 ->
+  .499/.309/.515/.629 (all higher). Both shrink the drop (-.405 -> -.347; chronic -.093 ** -> -.077 n.s.). Not decomposed by factor:
+  the gate is not isolated (Priya: camera gate adds non-contact-lick trials, expected to LOWER accuracy; post went UP).

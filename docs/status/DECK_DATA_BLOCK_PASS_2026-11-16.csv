@@ -1,0 +1,23 @@
+slide,title,source
+4,Hit rate drops acutely for far & contra; recovers,FIGURE_PROVENANCE row 649 (CONFIRMED)
+5,Mixed-model stars: hit rate by spout,FIGURE_PROVENANCE row 650 (CONFIRMED)
+36,Far contra: animals try and fail,FIGURE_PROVENANCE row 680 (CONFIRMED)
+72,"FaceRhythm master face, registered per session","FR arm (a8), FR page captions / slide notes"
+73,FaceRhythm rank 12: left / right lick split,"FR arm (a8), FR page captions / slide notes"
+74,The 12 frozen FaceRhythm factors,"FR arm (a8), FR page captions / slide notes"
+76,Frozen factors still fit post-stroke,"FR arm (a8), FR page captions / slide notes"
+77,Lick right drops; lick left substitutes,"FR arm (a8), FR page captions / slide notes"
+78,Mixed-model stars: FaceRhythm lick-factor peak by side,"FR arm (a8), FR page captions / slide notes"
+79,Per contra lick: face moves less,"FR arm (a8), FR page captions / slide notes"
+80,Mixed-model stars: FaceRhythm per-lick factors,"FR arm (a8), FR page captions / slide notes"
+81,"Per trial: contra lick movements are smaller, not just rarer","FR arm (a8), FR page captions / slide notes"
+82,Face asymmetry falls at contra spouts,"FR arm (a8), FR page captions / slide notes"
+87,Mixed-model stars: FaceRhythm aligned asymmetry,"FR arm (a8), FR page captions / slide notes"
+89,PS94: lick factors match the master before and after the stroke,"FR arm (a8), FR page captions / slide notes"
+94,lick_right loses its 7 Hz peak,"FR arm (a8), FR page captions / slide notes"
+99,Frozen encoder: acute drop = movement,FIGURE_PROVENANCE row 734 (CONFIRMED)
+102,"Frozen encoder: target falls, executed rises",FIGURE_PROVENANCE row 737 (CONFIRMED)
+147,"Encoder spout coding vs behavior, per animal",FIGURE_PROVENANCE row 782 (CONFIRMED)
+200,Backup: like-for-like offset per spout,FIGURE_PROVENANCE row 829 (CONFIRMED)
+201,Mixed-model stars: matched-lick readout per spout,FIGURE_PROVENANCE row 830 (CONFIRMED)
+77,Lick right drops; lick left substitutes,wording: 'peak expression per trial' -> 'peak of the trial-averaged expression'
