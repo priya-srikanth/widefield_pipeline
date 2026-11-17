@@ -88,12 +88,27 @@ class Design:
         return (Z @ self.comps.T).astype(np.float32)
 
 
-#: pickled models must name the IMPORTABLE module, not ``__main__`` (this file runs as ``python -m``)
-Design.__module__ = "wfield_local.arhmm_model"
+    FIELDS = ("columns", "mu", "sd", "w", "zm", "comps", "var_ratio")
+
+    def to_dict(self) -> dict:
+        return {k: getattr(self, k) for k in self.FIELDS}
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "Design":
+        o = cls.__new__(cls)
+        for k in cls.FIELDS:
+            setattr(o, k, d[k])
+        return o
+
+
+#: Models are saved with the design as PLAIN DATA (`Design.to_dict`), never the class: this file runs as
+#: ``python -m``, so its classes live in ``__main__``, and relabelling ``Design.__module__`` made pickle import a SECOND
+#: copy of the module and refuse ("not the same object") -- all six O2 fits of 11-17 were lost at the save step.
 
 
 def load_model(path):
-    """A saved model dict; also reads files pickled before the module fix (``__main__.Design``)."""
+    """A saved model dict with ``design`` rebuilt as a `Design`. Also reads the 11-16 check-fit file that pickled the
+    class itself (``__main__.Design``)."""
     import pickle as _p
 
     class _U(_p.Unpickler):
@@ -102,7 +117,10 @@ def load_model(path):
                 return Design
             return super().find_class(module, name)
     with open(path, "rb") as fh:
-        return _U(fh).load()
+        M = _U(fh).load()
+    if isinstance(M.get("design"), dict):
+        M["design"] = Design.from_dict(M["design"])
+    return M
 
 
 # ----------------------------------------------------------------------------------------------------------- moseq ----
@@ -317,14 +335,18 @@ def main(argv=None) -> int:
     data = make_data(seqs)
     m = fit(data, a.kappa, a.iters, seed=a.seed)
     d = durations_s(m["states"]["z"], data["mask"])
-    with open(out / f"model_{tag}.pkl", "wb") as fh:
-        # plain numpy throughout (params AND hypparams), so the analysis env (no JAX) can read the model
-        tonp = lambda x: np.asarray(x) if hasattr(x, "shape") else x                       # noqa: E731
-        pickle.dump({"params": _jax().tree_util.tree_map(tonp, m["params"]),
-                     "hypparams": _jax().tree_util.tree_map(tonp, m["hypparams"]),
-                     "design": design, "fit_labels": labs, "kappa": a.kappa, "iters": a.iters, "seed": a.seed,
-                     "run_floor": a.run_floor, "per_cell": a.per_cell, "dither": a.dither,
-                     "median_dur_s": float(np.median(d))}, fh)
+    print(f"fit {tag}: median syllable {np.median(d):.2f} s; saving", flush=True)
+    # plain numpy throughout (params AND hypparams) and the design as plain data, so the analysis env (no JAX) can read
+    # the model; serialized BEFORE the file is opened, so a failure cannot leave an empty model file behind
+    tonp = lambda x: np.asarray(x) if hasattr(x, "shape") else x                           # noqa: E731
+    blob = pickle.dumps({"params": _jax().tree_util.tree_map(tonp, m["params"]),
+                         "hypparams": _jax().tree_util.tree_map(tonp, m["hypparams"]),
+                         "design": design.to_dict(), "fit_labels": labs, "kappa": a.kappa, "iters": a.iters,
+                         "seed": a.seed, "run_floor": a.run_floor, "per_cell": a.per_cell, "dither": a.dither,
+                         "median_dur_s": float(np.median(d))})
+    tmp = out / f"model_{tag}.pkl.tmp"
+    tmp.write_bytes(blob)
+    tmp.replace(out / f"model_{tag}.pkl")
     print(f"fit {tag} done: median syllable {np.median(d):.2f} s", flush=True)
     return 0
 
