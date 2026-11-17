@@ -679,3 +679,6 @@ PI deck (backup Overview_2026-11-06.bak_pre_a8_renumber_20261116.pptx): FR page 
   gain, not evoked balance. Cued far-contra shift survives in dec_idx (+.095, inside range +.063, 4/4) and resp_idx (+.079).
   resp vs resp_idx identical in sign / significance everywhere. Unit test for bounded_index requested. 113 / 114 cued per-spout
   window -> 0..1.0 s queued (Priya OK). Slide 139 title options sent to Priya.
+- 11-17 Priya: idx figures as a collapsible goal-page supplement -> captions + paths in deck_swap_20261117/PAGE_SUPPLEMENT_IDX_20261117.md,
+  sent to 3c (page owner; its account cannot reach the page right now). dec / dec_idx ITI bout starts use BOUT_GAP 1 s (resp uses
+  GAP_MAIN 2 s) -> -1.0..-0.5 s baseline can include the previous lick for 1-2 s gaps; gap >= 2 s variant queued.
