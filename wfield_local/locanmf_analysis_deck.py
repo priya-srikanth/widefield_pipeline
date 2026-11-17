@@ -329,7 +329,15 @@ def window_provenance(fig_names, lick_source: str | None = None, fig_paths=None)
             cam = bool(_tc.camera_gate_on())
         except Exception:                                    # noqa: BLE001 - a note must not kill the build
             cam = False
-        bits.append("- " + lpv.licks_line(src, align, camera_gate=cam))
+        # the camera classes hold only for figures of THIS tagged run: an untagged (pre-11-03) render placed in a
+        # tagged build used the DAQ quit-tail working rule (`trial_classes` UNTAGGED_GATE)
+        from wfield_local import run_mode as _rm
+        _tag = _rm.tag()
+        _old = bool(cam and _tag and fig_paths and not any(_tag in str(q) for q in fig_paths))
+        line = lpv.licks_line(src, align, camera_gate=cam and not _old)
+        if _old and src == "daq":
+            line += "; working trials: DAQ quit-tail rule (untagged pre-rebuild render)"
+        bits.append("- " + line)
     else:
         bits.append("- licks: the run named in the notes above (a video / encoder output; not resolved from the "
                     "figure path)")

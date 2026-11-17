@@ -171,3 +171,16 @@ def test_lp_lick_times_cam1_input_is_the_post_cue_file():
     from wfield_local import lp_licks
     src = inspect.getsource(lp_licks._inputs)
     assert '_events.csv"' in src and "events_all" not in src
+
+
+def test_camera_classes_are_claimed_only_for_this_runs_figures(monkeypatch):
+    """A tagged (camera-gate) build also places some untagged pre-11-03 renders; those used the DAQ working rule."""
+    from wfield_local import run_mode
+    from wfield_local import trial_classes as tc
+    monkeypatch.delenv("WIDEFIELD_LICK_SOURCE", raising=False)
+    monkeypatch.setattr(tc, "camera_gate_on", lambda: True)
+    monkeypatch.setattr(run_mode, "tag", lambda: "TAGX")
+    new = window_provenance(["a_cue_working.png"], fig_paths=["M:/labcams/grant_figures/TAGX/epoch/a_cue_working.png"])
+    old = window_provenance(["a_cue_working.png"], fig_paths=["M:/labcams/grant_figures/epoch/a_cue_working.png"])
+    assert "camera trial classes" in new
+    assert "camera trial classes" not in old and "DAQ quit-tail rule" in old
