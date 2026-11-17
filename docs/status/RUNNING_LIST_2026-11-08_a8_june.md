@@ -695,3 +695,7 @@ PI deck (backup Overview_2026-11-06.bak_pre_a8_renumber_20261116.pptx): FR page 
   PS95 has no acute docked curve (53 licks). Footer overlap fixed (footer_bottom helper). gap >= 2 s dec_idx variant: conclusions
   unchanged; docked all-spout dec_idx now +.036 (p .002) like resp_idx. Supplement caption licks line corrected (DAQ lick times,
   LP 3-D angle). Helper commits landed inside another window's commit 74518c9f (shared index) - content verified on main.
+- 11-17 slides 113 / 114 cued per-spout window -> 0..1.0 s applied (specs/cued01.json; 514e5438, lmm 7081a49c; backup
+  .bak_pre_a8_cued01_20261117.pptx). 113: acute far contra now -.12 n.s. (tjM1), far mid loses * acutely; title holds. 114 (hidden
+  LMM): 31 -> 22 / 72 starred, no acute star left. Slide 147 footer-fixed image applied (445902eb). Goal Fig 14.7 path for 3c.
+  Waiting on Priya: lick-source wording fixes (3c audit LICK_SOURCE_AUDIT_20261117.md).
