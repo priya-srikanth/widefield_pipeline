@@ -400,7 +400,7 @@ def _fig_15rpa_reference_by_animal(out_dir, align, variant, wname):
             row_labels=rows, col_labels=EPO + DCOLS, panel_titles=titles,
             delta_cols=tuple(DCOLS), edges=edges, blank=bm.excluded_mask(),
             cbar_label=txt["cbar"], delta_label="change vs pre-stroke\n(same scale unless larger)",
-            subtitle=(_SUPPLEMENT_NOTE.get(variant, "")) + (
+            subtitle=(_SUPPLEMENT_NOTE.get(variant, "")) + prm.skipped_caption(align, variant) + (
                 f"ONE OF A PAIR ({txt['short']}), at the animal level. The pooled 15r figures "
                 f"average these rows and every significance test here estimates its spread from "
                 f"four animals, so neither can show REPLICATION -- which at n=4 is the stronger "
@@ -611,7 +611,8 @@ def _fig_15r_reference_maps(out_dir, align, variant, wname):
                 f"{_stats_sentence(_stats)} This is the same statistical object every bar "
                 "family in this deck uses. "
                 "r = split-half reliability of that epoch's mean map. "
-                f"Acute amplitude relative to each position's own pre-stroke value: {a_txt}.")))
+                + prm.skipped_caption(align, variant)
+                + f"Acute amplitude relative to each position's own pre-stroke value: {a_txt}.")))
     return [p for p in out if p]
 #: What the jaw-only panels are, said on each of them (Priya 11-09).
 _JAW_NOTE = ("JAW-ONLY CLASS: camera jaw_only trials (jaw moved, no camera lick) inside the working period -- trials the "

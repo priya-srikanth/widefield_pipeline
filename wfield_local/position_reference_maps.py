@@ -768,7 +768,8 @@ def _raw_maps_job(job):
         return session_raw_maps_cached(s, align, post_s=post_s, variant=variant)
     except lp_licks.LPUnavailable as ex:
         # LP arm, session never filmed (PS93_0813): empty, exactly as the contact arm; anything else re-raises
-        return map_collect.skip_lp_unavailable_no_video(s["label"], ex, _empty_parts())
+        # marked, so `maps_by_epoch` can NAME and COUNT the skipped sessions for the figure caption (Priya 11-17)
+        return map_collect.skip_lp_unavailable_no_video(s["label"], ex, dict(_empty_parts(), skipped_no_video=True))
 
 
 def _empty_parts() -> dict:
@@ -858,6 +859,25 @@ def reference_maps(parts, reference):
     raise ValueError(f"unknown reference {reference!r}; expected one of {REFERENCES + DERIVED_REFERENCES}")
 
 
+#: ``{(align, variant): [label, ...]}`` -- sessions `maps_by_epoch` skipped because they have no camera / LP lick table
+#: (never filmed). Filled on each (cached) collection; read by the 15r / 15rpa captions via `skipped_no_video`.
+SKIPPED_NO_VIDEO: dict = {}
+
+
+def skipped_no_video(align, variant) -> list:
+    """The never-filmed sessions the arm's collection skipped (empty before `maps_by_epoch` ran for it)."""
+    return list(SKIPPED_NO_VIDEO.get((align, variant), []))
+
+
+def skipped_caption(align, variant) -> str:
+    """Caption sentence: how many sessions were skipped for having no camera / LP lick table, and which."""
+    sk = skipped_no_video(align, variant)
+    if not sk:
+        return "Sessions skipped for having no camera / LP lick table: 0. "
+    return (f"Sessions skipped for having no camera / LP lick table (never filmed): {len(sk)} "
+            f"({', '.join(sk)}). ")
+
+
 @lru_cache(maxsize=8)
 def maps_by_epoch(align, variant, post_s=2.0):
     """``({animal: {epoch: {position: {label: {reference: map}}}}}, reliability, trial counts)``.
@@ -895,6 +915,14 @@ def maps_by_epoch(align, variant, post_s=2.0):
     by_label = {k: _as_parts(v) for k, v in by_label.items()}    # empty-trial sessions arrive as a tuple
     for it, err in fail:
         print(f"  !! ref-map {it[0]}: {err[:90]}", flush=True)
+    # NEVER-FILMED SESSIONS (no camera / LP lick table; PS93_0813): skipped by `_raw_maps_job`, NAMED here and kept for
+    # the caption (`skipped_no_video`), so the figure says how many sessions it is missing and which (Priya 11-17).
+    skipped = sorted(k for k, v in by_label.items() if v.get("skipped_no_video"))
+    SKIPPED_NO_VIDEO[(align, variant)] = skipped
+    if skipped:
+        print(f"  .. ref-map: {len(skipped)} session(s) skipped, no camera / LP lick table (no behavior video): "
+              f"{', '.join(skipped)}", flush=True)
+    by_label = {k: v for k, v in by_label.items() if k not in skipped}
     # DERIVED REFERENCES (WIDEFIELD_MAP_REFS), attached per label AFTER collection; the cached dicts are copied, never
     # mutated. A session without a baseline loses only that column, and the list is printed (rule: say it out loud).
     derived = derived_active()
