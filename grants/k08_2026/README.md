@@ -25,6 +25,7 @@ rendered. Significance marks are read from each figure's own statistics file, ne
 | [`notes/DRAFT_LAYOUT_NOTES_20261106.md`](notes/DRAFT_LAYOUT_NOTES_20261106.md) | The figure folder's original README (6 Nov): house style (Arial, 11 pt bold panel letters, 7.4 in wide), how panels are inlined and id-namespaced, the evidence filter. Its panel maps describe the 6 Nov three-figure draft and are superseded by `FIGURE_SOURCES.md`. |
 | [`notes/K08_panel_manifest.md`](notes/K08_panel_manifest.md) | Priya's panel selections, 6 Nov, with deck slide sources. |
 | [`notes/K08_figure_plan_v3.md`](notes/K08_figure_plan_v3.md) | The figure plan and evidence-status review (only STANDS results carry an argument; WITHDRAWN / NOT ESTABLISHED results stay out). |
+| [`session_scripts/README.md`](session_scripts/README.md) | **The last-mile scripts, recovered 17 Nov.** Thirteen scripts that ran on 9-10 Nov and wrote straight into the grant folder without ever being copied out: the two alternative paths panels, the Figure 3 relettering, the Figure 4D split and lighten, the Figure 5D cued panel and its caption swap, the legend readers, plus a re-export of the one CSV no saved code produced. Without these the submitted figures are not reproducible from this folder alone. |
 
 ## The code, by stage
 
@@ -57,8 +58,14 @@ run that way.
 | `make_figs.py` | The 6 Nov "everything in" drafts (superseded) |
 
 The script numbers are the drafts' numbers; the Research Strategy renumbered them 3 / 4 / 5. Set `NOCAP=1` to write
-the `_panels` version without the caption. The DRAFT4 SVGs were then finished by hand in Illustrator (latest `.ai` files in the grant folder:
-`Figure3_behavior_relettered_v2.ai`, `Figure4_facerhythm_Dsplit_light.ai`, `Figure5_decoder_encoder_cuedD.ai`).
+the `_panels` version without the caption.
+
+The DRAFT4 SVGs were then taken the last mile by the scripts in [`session_scripts/`](session_scripts/README.md), not
+by hand: the Figure 3 relettering and paths swap (`edit_svg.py`, `caption_fix.py`, `edit_v2.py`), the Figure 4D split
+and lighten (`split_d.py`, `declip.py`), the Figure 5D cued panel and caption (`render_5d.py`, `cap5.py`).
+Illustrator was used only to open the result and save the `.ai` (and for Figure 4, to re-save a more compact SVG).
+The latest `.ai` files in the grant folder are `Figure3_behavior_relettered_v2.ai`,
+`Figure4_facerhythm_Dsplit_light.ai` and `Figure5_decoder_encoder_cuedD.ai`.
 
 **3. Post-processing**
 
@@ -68,22 +75,31 @@ the `_panels` version without the caption. The DRAFT4 SVGs were then finished by
 | `fr_mesh_underlay.py` | Adds a faint grey stroke to the FaceRhythm mesh points so the face outline shows where nothing changed |
 | `svg2pdf.py <svg>` | PDF + full-page PNG preview via headless Chromium (playwright) |
 | `fontfix.py <pdf...>` | Renames embedded Liberation Sans to Arial's PostScript names in the PDF |
-| `thalamus_overlay_options.py` | Candidate Paxinos-outline overlays on the thalamus histology (Fig 3B); input path is a methods-paper histology folder |
+| `thalamus_overlay_options.py` | Candidate Paxinos-outline overlays on the thalamus histology (Fig 3B). Input: `~/Documents/Sabatini Lab/Manuscripts/VLS stroke methods paper/histology_panels/PS46-55_sections/` on the laptop, outlines at `plates/plate_zoom_fig<N>.svg`, images at `<stem>_thalamus_zoom{,_noGFAP}.png`. `session_scripts/overlay.py` is the review-sheet version |
 
 ## Re-running
 
 1. Copy the staged inputs into the grant figures folder (paths in `FIGURE_SOURCES.md`; server data under
    `MICROSCOPE/Priya/Widefield/...`, mainly `labcams/grant_figures/lmm_hidden_20261103/` and
    `labcams/grant_figures/epoch/data/`). Folder names the scripts expect: `data/`, `aimstats/`, `hitstats/`,
-   `frstats/`, `recov/`, `fr/`, `ss/`, `fluoro/`, `airaster/`, `deck/`, `deck2/`, `camframes/`.
+   `frstats/`, `frbasis/`, `ssdata/`, `recov/`, `fr/`, `ss/`, `fluoro/`, `airaster/`, `deck/`, `deck2/`, `camframes/`.
+   Two of those are newer than `FIGURE_SOURCES.md` and are listed only in `PROVENANCE.md`: `frbasis/` from
+   `scripts/frozen_refit_basis_compare.py` (`state_space_recovery/frozen_refit_basis/`) and `ssdata/` from
+   `scripts/state_space_trajectories.py` (`state_space_recovery/trajectories_lick_svd/days_sessions.csv`).
 2. `cd` into the grant figures folder and run with this folder's scripts on the path, e.g.
    `PYTHONPATH=<repo>/grants/k08_2026 python <repo>/grants/k08_2026/render_grant_panels.py`; or copy the scripts in.
-3. Compose (`make_fig1/2/3.py`), then `fontnorm.py`, then `svg2pdf.py`, then `fontfix.py` on the PDF.
+3. Compose (`make_fig1/2/3.py`), then the matching `session_scripts/` step for that figure's last mile, then
+   `fontnorm.py`, then `svg2pdf.py`, then `fontfix.py` on the PDF. `fontnorm.py` is what makes the grant-folder SVGs
+   about 900 bytes smaller than the session copies; that is the only difference between them.
 
 Dependencies beyond the `locanmf` env: `playwright` (+ `playwright install chromium`) for `svg2pdf.py` and
 `thalamus_overlay_options.py`, `pikepdf` for `fontfix.py`, Pillow.
 
-**Known not to run as-is:** `thalamus_overlay_options.py` has a hard-coded input path from the session that wrote it;
-`make_fig1.py` / `make_fig3.py` read deck crops (`deck2/`) that were staged by hand. When a source is regenerated,
+**Known not to run as-is:** `thalamus_overlay_options.py` and `session_scripts/overlay.py` have hard-coded input
+paths from the sessions that wrote them (the staging mount `/mnt/user-data/uploads/...`; the real folder is in the
+post-processing table above); `session_scripts/edit_svg.py` and `edit_v2.py` hard-code a session scratch directory
+that no longer exists, so set `D` to the grant figures folder; `render_5d.py` and `session_scripts/update.py` likewise
+point at staging paths for `lick_cued_ramp.pkl` and the `.docx`. `make_fig1.py` / `make_fig3.py` read deck crops
+(`deck2/`) that were staged by hand. When a source is regenerated,
 re-pull it from the path in `FIGURE_SOURCES.md` and re-run; nothing in the figures was hand-traced, so a re-pull is a
 straight swap.
