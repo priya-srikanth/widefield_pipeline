@@ -672,3 +672,5 @@ PI deck (backup Overview_2026-11-06.bak_pre_a8_renumber_20261116.pptx): FR page 
   .bak_pre_a8_iti05_20261117.pptx). FINDINGS (4 places) + ENCODING_FINDINGS (1) ITI 0..1 s numbers replaced (one owner, per 3c).
   3c told to swap goal-page figures. Curves figure: footer overlap + dashed (3-animal) acute docked ITI line -> fix queued with the
   docked-figure helper.
+- 11-17 status: handoff item 00-A8-1117 written (FR handoff section 2). Slide 21 decomposition INTERIM: trial gate drives the change
+  (B_gate -.397 ~ old -.405); pre set / scaling / lick detector ~no effect; hemo + LocaNMF variants running.

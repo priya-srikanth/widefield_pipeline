@@ -56,6 +56,33 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
 
 ## 2. Next, in order
 
+00-A8-1117. **11-17 (a8) -- START HERE (supersedes 00-A8-1116b as the entry point).** Day log:
+   docs/status/RUNNING_LIST_2026-11-08_a8_june.md (11-17 entries). The day was the PI-deck rebuild swap pass, not FR.
+   **Done (deck Overview_2026-11-06.pptx; every step backed up as .bak_pre_a8_<step>_20261117.pptx; specs + applier +
+   apply logs in docs/status/deck_swap_20261117/, README there = spec schema):** A+B stale slides (63), group C renders
+   (LMM companions incl. per-session slide 12, docked-ITI slides, 111 / 116, quiet events, 139 full set), low-hit (<20 hits)
+   cells shown not tested (120, 121, 141-146), Priya decisions (22 pre-rebuild record, 157 rewrite, 21 both scales),
+   ITI response window 0..0.5 s (DECISIONS 2026-11-17; audit ITI_WINDOW_AUDIT_20261117.md; slides 105, 108, 110, 111, 135,
+   136-138, 203 applied; FINDINGS / ENCODING_FINDINGS lines updated). ~120 slides updated in total.
+   **Results documented:** ITI_NEG_AUC_DIAGNOSTIC.md (ITI biphasic dip, pre-heavy -> 0..0.5 s), ITI_MATCHED_ANGLE_MARKERS.md
+   (cued -> cued angle .68; all-ITI balance holds vs spout-matched / docked angles; DOCKED balance loses the recovery link;
+   far-contra within-spout raw balance: cued same-angle shift +.24 log2), FINDINGS recovery-marker block (two 11-17 entries).
+   **Running (background helpers; check their outputs before relaunching):**
+   (1) slide 21 one-factor decomposition -> decomp_slide21_20261117/ + slide21_results.jsonl; done A_pre / D_scale / B_gate /
+       C_lick, E_hemo / E2 / F running. INTERIM: the TRIAL GATE drives the change (B_gate = old gate: acute -.397 vs old -.405;
+       post accuracy back to old levels); pre set (A_pre -.344), scaling (D_scale -.334), lick detector (C_lick -.348) ~no
+       effect. Likely mechanism: the camera gate keeps contact + incomplete trials and drops no-attempt misses that the old
+       gate kept. Report -> SLIDE21_DECOMPOSITION.md, then tell Priya (her 11-17 expectation was the opposite).
+   (2) bounded indices dec_idx (0..0.2 s) + resp_idx (resp window) in lick_balance_angle_lmm + far-contra models ->
+       balangle_{all,dock}_decidx_20261117/, section 5 of ITI_MATCHED_ANGLE_MARKERS.md (reuse-repo-code brief given).
+   (3) docked rebuild of decoded-vs-executed figures (matched curves incl. gap2dock + cued first lick, angle versions,
+       recovery link 16.3-16.5, where scatter / delta, per-lick error) + curves footer-overlap fix + dashed-coverage note ->
+       *_dockfig_20261117/, DOCKED_DECODED_VS_EXECUTED_20261117.md.
+   **Waiting on Priya:** slide 139 title (layout decided: caveat kept + cued-angle bullet, figure full width; spec
+   specs/s139_cuedang.json NOT applied); slides 113 / 114 cued per-spout window 0..0.5 s vs cued 0..1 s (flagged).
+   **From other windows:** 3c swaps goal-page ITI figures (list sent) and sends RESTnl-cam1 rerun + lick-source caption fix
+   lists for the deck. Deck rule learned: export slides only from a scratch COPY (COM attaches to an open PowerPoint).
+
 00-A8-1116b. **11-16 LATE (a8) -- START HERE; the to-do list below (item 00-A8-1116) is DONE except where noted.**
    Page = **v54**. Priya: deck slide yes; delete superseded n12 = yes (done, 118 files, list in the running list); block-
    permutation hold = ok.
