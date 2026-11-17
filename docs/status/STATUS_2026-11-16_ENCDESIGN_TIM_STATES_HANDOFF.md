@@ -61,6 +61,12 @@ Run code from a worktree with `PYTHONPATH=$(pwd -W)` (Windows form). AR-HMM mode
   `scratchpad/arhmm_score.py`): side-within-contact .08 (no dither) -> .36 (dither 0.1, kappa 1e7, median 0.44 s);
   contact / running unchanged. Fits submitted at kappa 5e7 (5x the scan for 31 vs 6 sessions), bundle code ca84b6e1.
 
+- **AR-HMM vs sticky Gaussian HMM (11-17, Priya "is AR-HMM better than standard HMM for us?")**: same 6 sessions /
+  features / dither 0.1, Gaussian HMM by MAP-EM (`scratchpad/ghmm_compare.py`), matched at median 0.44 s (GHMM kappa
+  1e6 vs AR kappa 1e7). NMI vs DAQ labels, GHMM / AR: contact .113 / .154, contact side .127 / .199, running .072 /
+  .091, side within contacts .170 / .362. AR-HMM better on every label (one seed; engines differ: EM vs Gibbs; GHMM
+  on instantaneous features, not per-bin summaries). Keep the AR-HMM.
+
 ## 3. Running at handoff (background in session 37fdbabf; scratchpad
 `C:/Users/SABATI~1/AppData/Local/Temp/claude/179e1046909c5be2/37fdbabf-285a-455b-bbb7-d5927a5affe6/scratchpad`)
 
