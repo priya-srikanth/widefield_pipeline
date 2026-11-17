@@ -111,6 +111,10 @@ def check(root: Path, A: pd.DataFrame, which: str) -> pd.DataFrame:
     peak_n. Returns the cell table; raises if anything differs."""
     sess, wdir, set_ = PUB[which]
     from scripts.lmm_hidden import _paths
+    if which == "iti_dock":       # the docked tables' folder: LMM_HIDDEN_ITI_VARIANT (absolute path allowed), default itidock_main
+        d = _paths.variant(root, "itidock_main")
+        sess, wdir = str(d / Path(sess).name), str(d)
+        print(f"[{which}] published docked tables: {d}", flush=True)
     if not (root / sess).exists() or not (root / wdir / "ramp_window_tests.csv").exists():
         if not _paths.allow_no_pub():
             raise SystemExit(f"[{which}] published table {root / sess} absent: no reproduction possible "

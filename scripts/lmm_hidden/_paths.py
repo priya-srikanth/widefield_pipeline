@@ -16,6 +16,7 @@ re-run on another tree sets the env vars below (or passes --root / --outdir); no
   LMM_HIDDEN_DOCKED_AS      when the ITI set is not the docked one: the suffix that replaces "_docked" in the output
                             names and the word that replaces "DOCKED" / "docked" in the titles (e.g. "alliti"), so an
                             all-ITI re-render can never be mistaken for (or overwrite) a docked figure
+  LMM_HIDDEN_NAME_SUFFIX    appended to every output name (render.render)
   LMM_HIDDEN_ALLOW_NO_PUB   "1": a figure whose published comparison table is absent on this tree (e.g. the docked ITI
                             ramp tables were never re-run) is fitted WITHOUT the row-for-row reproduction check, and
                             says so loudly; default = refuse (SystemExit), as on 11-03
@@ -61,8 +62,11 @@ def docked_as() -> str:
 
 
 def out_name(name: str) -> str:
+    """Output name: "_docked" -> "_<LMM_HIDDEN_DOCKED_AS>" when set, then + LMM_HIDDEN_NAME_SUFFIX (a re-render that must
+    not overwrite an earlier one in the same folder)."""
     d = docked_as()
-    return name.replace("_docked", f"_{d}") if d else name
+    name = name.replace("_docked", f"_{d}") if d else name
+    return name + os.environ.get("LMM_HIDDEN_NAME_SUFFIX", "").strip()
 
 
 def out_title(title: str) -> str:
