@@ -14,7 +14,7 @@ same URL, then re-start the artifact watch. Tick each item here and commit.
   Source render: `rebuild_20261103/labcams/grant_figures/<T>/epoch_footerfix_20261117/` (plot-only redraw, numbers
   byte-identical to 11-09). Three edits, all in Fig 2.3: image, provenance clause, source path. If live != v57, re-apply
   those three edits to live.
-- [ ] **Section 13 (CD leave-one-out mixed models) on the rebuild** — WAITING for Priya's OK on the conclusion change.
+- [ ] **Section 13 (CD leave-one-out mixed models) on the rebuild** — Priya OK 11-17 (rewrite as proposed).
   Table: `rebuild_20261103/.../imaging_encoding/qc/imaging_lmm_cdloo_rebuild_20261117.csv`
   (script `scripts/cd_loo_lmm.py`, record `docs/status/DECK_IMG_FOLLOWUPS_20261117.md`). Proposed: lead with the log
   time-to-contact deficit (primary since 11-05): pre-cue tracks it (-.20, q .019); cue vs contact deficit loses its star
