@@ -2565,7 +2565,32 @@ EPOCH_FIGURES = EPOCH_FIGURES + (
 )
 
 #: Section I legends REPLACED in a tagged (rebuild) build (Priya 11-17): pattern -> legend written from the rebuild run.
-EPOCH_FIGURES_REBUILD_LEGEND: dict = {}
+_CD_LOO_REBUILD = (
+    "CD, LEAVE-ONE-SESSION-OUT, rebuild run 11-17 (scripts/cd_loo_sessions.py -> cd_loo_figures.py, profile "
+    "cohort1_rebuild_20261103, primary DAQ lick arm). Each animal's per-position coding direction (method dom, contrast "
+    "reference, condition-independent mode projected out (orth), occluded components dropped) is fitted on the animal's "
+    "August pre-stroke sessions (frozen, kind cd_directions) and every post-stroke session is projected onto it; each "
+    "pre session is projected onto a direction refitted WITHOUT it, so pre values are out-of-sample like post ones. "
+    "Value = the projection of that position's trials on its OWN direction, pole-normalized per animal (0 = pre-stroke "
+    "not-P, 1 = pre-stroke lick at P), window mean. Windows: pre-cue [-2, 0) s (ENL, slid earlier past any lick), cue "
+    "[0, 1) s, lick [0, 1) s from the first lick. Licks: DAQ spout contact (no camera classes). Trials: lick trials (a DAQ "
+    "spout contact within 3.5 s of the cue; no camera working-period cut); excluded: no-lick trials and late hits; the "
+    "lick-aligned arm is aligned on the first lick after the cue. Baseline: the animal's own August pre. Sessions: pre 32 "
+    "(8 per animal; PS93_0813 is in this DAQ arm), acute 16 (5 / 4 / 6 / 1), subacute 17 (2 / 3 / 5 / 7), chronic 43 (12 "
+    "/ 12 / 8 / 11); epochs per animal from its own lesion day. WINDOW figures: every session's window mean against days "
+    "(open markers; held-out pre gray, band = their range); TRAJECTORY figures: mean +- SEM over sessions per epoch. "
+    "Stats: none on these per-animal figures; the pooled change vs own pre (cd_loo_pooled.py: analysis_kit.boot_delta, "
+    "paired animals -> sessions, animal-weighted, 95% CI, * = excludes 0, cd_loo_pooled_stats.csv) is quoted here. "
+    "Per animal, far contra, pre / acute / subacute / chronic: pre-cue PS92 .87 / -.27 / 1.02 / .62, PS93 .89 / .62 / "
+    ".68 / .69, PS94 .59 / .43 / .17 / .21, PS95 .81 / -.37 / .53 / .80 (acute below pre in 4 / 4); cue PS92 .81 / .26 / "
+    ".68 / .88, PS93 .84 / .51 / .55 / .66, PS94 .65 / .24 / .45 / .45, PS95 .88 / 1.04 / .75 / .55 (acute below in 3 / "
+    "4; PS95 acute = one session); lick PS92 1.00 / 1.35 / .98 / 1.16, PS93 .94 / .79 / .75 / .64, PS94 .85 / 2.48 / .67 "
+    "/ .69, PS95 1.03 / .78 / .93 / .56. Pooled change vs own pre, far contra acute: pre-cue -0.69 [-1.26, -0.10] * (4 / "
+    "4), cue -0.28 [-0.57, +0.03] (3 / 4), lick +0.39 [-0.22, +1.31] (2 / 4); far mid, cue acute -0.40 [-0.72, -0.05] * "
+    "(3 / 4). Hemodynamic caveat (cd_trajectories): read amplitude and gross time course, not onset timing. Held-out "
+    "pre, mean over positions: pre-cue .86 / .63 / .67 / .74, cue .77 / .61 / .74 / .95, lick .90 / .79 / .82 / 1.00 "
+    "(PS92-95) -- the cross-day cost of a pre-stroke direction.")
+EPOCH_FIGURES_REBUILD_LEGEND: dict = {pat: _CD_LOO_REBUILD for pat, _t, _l in EPOCH_FIGURES if pat.startswith("cd_loo/")}
 
 
 #: NO-STROKE DRIFT GROUP (10-24, `scripts/june_august_drift.py`; Priya: "add in a june vs august pre comparison

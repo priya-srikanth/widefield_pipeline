@@ -56,3 +56,34 @@ worktree into `labcams/grant_figures/LP_licks_T/epoch/`.
 31 / 16 / 17 / 43 sessions, camera trial gate and which rows each family scores, frozen references, behavior first with
 the rebuild hit rates and trial classes). The old note (August, one post-stroke session, 44-session reference) stays
 for an untagged build.
+
+## 5. CD leave-one-out on the rebuild (image page Figs 9.3-9.5 family)
+
+Run 11-17 from this worktree under the rebuild profile: `scripts/cd_loo_sessions.py --jobs 4` (fan over animals with
+`analysis_kit.fan_sessions`), then `cd_loo_figures.py` and `cd_loo_pooled.py` (+ `--plot-only` for the `_nolines`
+window figures). Timing: one hold-out fit (PS92, cue) 122-136 s cold; the full run took 2,012 s (33.5 min; 4 animals x
+3 alignments x (1 post fit + 8 hold-outs)). Fixes needed first (this branch): `cd_loo_sessions._rows`,
+`cd_loo_figures.fig_traj` and `cd_loo_pooled.fig_traj` still read `CD_WINDOWS` with a numeric pre-cue start; it is now
+None (= the dump's -win_s). Outputs: `rebuild_20261103/labcams/grant_figures/T/epoch/{data/cd_window_projection_loo_
+sessions_long.csv, data/cd_loo_traces.npz, cd_loo/}`. New frozen `cd_directions` hold-out models in the rebuild store.
+
+Old (pre-rebuild, `labcams/grant_figures/epoch/cd_loo/cd_loo_pooled_stats.csv`, 10-25) vs new (rebuild), pooled change
+vs own pre, pole units, 95% CI, * = CI excludes 0, k = animals below pre:
+
+| align / position / epoch | old | new |
+|---|---|---|
+| cue far_center (far mid) acute | -0.474 [-0.76, -0.09] * (3/4) | -0.404 [-0.72, -0.05] * (3/4) |
+| cue far_R (far contra) acute | -0.205 [-0.49, 0.07] (3/4) | -0.282 [-0.57, 0.03] (3/4) |
+| cue far_R subacute | -0.145 [-0.26, -0.03] * (4/4) | -0.189 [-0.31, -0.07] * (4/4) |
+| precue far_R acute | -0.805 [-1.69, 0.02] (3/4) | -0.687 [-1.26, -0.10] * (4/4) |
+| precue far_R subacute | -0.275 [-0.45, -0.09] * (4/4) | -0.192 [-0.44, 0.17] (3/4) |
+| precue far_R chronic | -0.180 [-0.37, 0.01] (4/4) | -0.214 [-0.40, -0.01] * (4/4) |
+| precue far_center subacute | -0.116 [-0.75, 0.80] (3/4) | -0.536 [-1.00, -0.17] * (4/4) |
+| precue far_center chronic | -0.514 [-0.73, -0.30] * (4/4) | -0.669 [-1.03, -0.40] * (4/4) |
+| lick far_R acute | +0.386 [-0.31, 1.40] (2/4) | +0.392 [-0.22, 1.31] (2/4) |
+| lick far_R subacute | -0.077 [-0.22, 0.05] (2/4) | -0.128 [-0.24, -0.03] * (4/4) |
+
+Starred cells: 5 of 54 old, 10 of 54 new. Mark changes: precue far_L acute, precue far_center subacute, precue far_R
+acute / chronic, cue close_R acute (+0.172), lick far_R subacute gain a star; precue far_R subacute loses it.
+Held-out pre (mean over positions, PS92-95): pre-cue old .87 / .70 / .66 / .69, new .86 / .63 / .67 / .74.
+The image page was NOT edited.
