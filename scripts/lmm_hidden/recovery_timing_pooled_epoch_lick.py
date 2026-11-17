@@ -23,7 +23,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from scripts.lmm_hidden import render
+from scripts.lmm_hidden import _paths, render
 
 ROOT = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding")
 NAME = "recovery_timing_pooled_epoch_lick"
@@ -32,7 +32,7 @@ MEAS = {"beh": "behaviour: far-contra hit rate", "neu": "cortex: far-contra code
 
 
 def build(root: Path) -> pd.DataFrame:
-    S = pd.read_csv(root / "attempt_coding" / "recovery_timing_series_lick.csv")
+    S = pd.read_csv(_paths.sub(root, "attempt_coding") / "recovery_timing_series_lick.csv")
     S["gap"] = S.neu - S.beh
     out = [pd.DataFrame({"position": m, "epoch": S.epoch, "animal": S.animal, "label": S.label, "day": S.day,
                          "value": S[m], "panel": lab}) for m, lab in MEAS.items()]
@@ -53,7 +53,7 @@ def verify(S: pd.DataFrame) -> pd.DataFrame:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--root", default=str(ROOT))
+    ap.add_argument("--root", default=str(_paths.ie_root(ROOT)))
     ap.add_argument("--outdir", default=str(render.OUTDIR))
     a = ap.parse_args(argv)
     S = build(Path(a.root))

@@ -26,7 +26,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from scripts.lmm_hidden import render
+from scripts.lmm_hidden import _paths, render
 
 NAME = "lick_cued_ramp_perspout"
 ROOT = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks")
@@ -46,12 +46,14 @@ def _auc(v: np.ndarray, lags: np.ndarray, t0: float, t1: float) -> float:
 
 
 def table(root: Path) -> pd.DataFrame:
-    labs = sorted(p.stem for p in (root / SESS).glob("*.npz"))
+    from scripts.lmm_hidden import _paths
+    sd = _paths.sess_dir(root, SESS)
+    labs = sorted(p.stem for p in sd.glob("*.npz"))
     if not labs:
-        raise FileNotFoundError(root / SESS)
+        raise FileNotFoundError(sd)
     rows = []
     for x in labs:
-        d = np.load(root / SESS / f"{x}.npz", allow_pickle=False)
+        d = np.load(sd / f"{x}.npz", allow_pickle=False)
         an, ep = str(d["animal"]), str(d["epoch"])
         z = np.load(root / WIDE / f"{x}.npz")
         lags = np.round(np.asarray(z["lags"], float), 3)
@@ -97,7 +99,7 @@ def published(root: Path) -> pd.DataFrame:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--root", default=str(ROOT))
+    ap.add_argument("--root", default=str(_paths.iti_root(ROOT)))
     ap.add_argument("--outdir", default=str(render.OUTDIR))
     a = ap.parse_args(argv)
     root, outdir = Path(a.root), Path(a.outdir)

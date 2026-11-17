@@ -26,7 +26,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from scripts.lmm_hidden import render
+from scripts.lmm_hidden import _paths, render
 
 NAME = "lick_lateral_ratio_auc_docked"
 ROOT = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks")
@@ -39,7 +39,7 @@ EP = ("acute", "subacute", "chronic")
 
 
 def table(root: Path) -> pd.DataFrame:
-    S = pd.read_csv(root / VARIANT / "lateral_ratio_sessions.csv").dropna(subset=[WIN])
+    S = pd.read_csv(_paths.variant(root, VARIANT) / "lateral_ratio_sessions.csv").dropna(subset=[WIN])
     rows = []
     for a in PAIRS:             # panel grid: one row per area pair, columns cued / cue / iti
         for st in SETS:
@@ -69,7 +69,7 @@ def animal_change(D: pd.DataFrame) -> pd.DataFrame:
 
 
 def published(root: Path) -> pd.DataFrame:
-    T = pd.read_csv(root / VARIANT / "lateral_ratio_tests.csv")
+    T = pd.read_csv(_paths.variant(root, VARIANT) / "lateral_ratio_tests.csv")
     T = T[(T.window == WIN) & T.spout.isin([*POS, "all"]) & (T.epoch != "pre")].copy()
     T["position"] = T.set + "|" + T.pair + ":" + T.spout
     T["boot_star"] = np.where(T.sig.astype(str) == "True", "*", "")
@@ -78,7 +78,7 @@ def published(root: Path) -> pd.DataFrame:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--root", default=str(ROOT))
+    ap.add_argument("--root", default=str(_paths.iti_root(ROOT)))
     ap.add_argument("--outdir", default=str(render.OUTDIR))
     a = ap.parse_args(argv)
     root, outdir = Path(a.root), Path(a.outdir)

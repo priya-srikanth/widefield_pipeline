@@ -22,7 +22,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from scripts.lmm_hidden import render
+from scripts.lmm_hidden import _paths, render
 
 ROOT = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding")
 NAME = "fig9i3_cls_pooled"
@@ -32,7 +32,7 @@ LABELS = {"hit": "hits\n(contact)", "failed": "failed attempts\n(vs pre hits)"}
 
 
 def build(root: Path) -> pd.DataFrame:
-    S = pd.read_csv(Path(root) / "attempt_coding_pp" / "coupling_cls_sessions.csv")
+    S = pd.read_csv(_paths.sub(root, "attempt_coding_pp") / "coupling_cls_sessions.csv")
     rows = []
     for kind in KINDS:
         K = S[S.exec == kind]
@@ -48,7 +48,7 @@ def build(root: Path) -> pd.DataFrame:
 def verify(T: pd.DataFrame, root: Path) -> None:
     """mean over animals of (animal post mean - animal pre mean), animals with both arms and >= 2 of them, vs the
     published coupling_cls_pooled.csv delta."""
-    P = pd.read_csv(Path(root) / "attempt_coding_pp" / "coupling_cls_pooled.csv")
+    P = pd.read_csv(_paths.sub(root, "attempt_coding_pp") / "coupling_cls_pooled.csv")
     for pos, D in T.groupby("position", sort=False):
         kind, c = pos.split(":")
         pre = D[D.epoch == "pre"].groupby("animal").value.mean()
@@ -63,7 +63,7 @@ def verify(T: pd.DataFrame, root: Path) -> None:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--root", default=str(ROOT))
+    ap.add_argument("--root", default=str(_paths.ie_root(ROOT)))
     ap.add_argument("--outdir", default=str(render.OUTDIR))
     a = ap.parse_args(argv)
     T = build(Path(a.root))

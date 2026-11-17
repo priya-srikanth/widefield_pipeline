@@ -29,7 +29,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from scripts.lmm_hidden import render
+from scripts.lmm_hidden import _paths, render
 
 ROOT = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding")
 NAME = "key_figure_BC"
@@ -45,11 +45,11 @@ def _scaled(rows: pd.DataFrame, cell: str, panel: str) -> pd.DataFrame:
 
 def build(root: Path) -> pd.DataFrame:
     out = []
-    S = pd.read_csv(root / "attempt_coding" / "recovery_timing_series_lick.csv")
+    S = pd.read_csv(_paths.sub(root, "attempt_coding") / "recovery_timing_series_lick.csv")
     S = S[np.isfinite(S.neu)]
     out.append(pd.DataFrame({"position": "trial:code", "epoch": S.epoch, "animal": S.animal, "label": S.label,
                              "value": S.neu, "panel": PANEL["trial"]}))
-    R = pd.read_csv(root / "iti_licks" / "refit_decoders_sessions.csv")
+    R = pd.read_csv(_paths.sub(root, "iti_licks") / "refit_decoders_sessions.csv")
     R = R[(R.target == "lateral") & np.isfinite(R.r)]
     for st in ("trial", "iti"):
         g = R[R.set == st]
@@ -84,7 +84,7 @@ LABELS = {"trial:code": "frozen\nfar-contra\ncode (hits)", "trial:frozen": "froz
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--root", default=str(ROOT))
+    ap.add_argument("--root", default=str(_paths.ie_root(ROOT)))
     ap.add_argument("--outdir", default=str(render.OUTDIR))
     a = ap.parse_args(argv)
     S = build(Path(a.root))

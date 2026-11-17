@@ -25,7 +25,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from scripts.lmm_hidden import render
+from scripts.lmm_hidden import _paths, render
 
 NAME = "lick_order_iti_cued_slope_docked"
 ROOT = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks")
@@ -37,7 +37,7 @@ EP = ("acute", "subacute", "chronic")
 
 
 def table(root: Path) -> pd.DataFrame:
-    S = pd.read_csv(root / VARIANT / "lick_order_sessions.csv")
+    S = pd.read_csv(_paths.variant(root, VARIANT) / "lick_order_sessions.csv")
     rows = []
     for st, slab in SETS.items():
         for sc, sclab in SCOPES.items():
@@ -64,7 +64,7 @@ def animal_change(D: pd.DataFrame) -> pd.DataFrame:
 
 
 def published(root: Path) -> pd.DataFrame:
-    T = pd.read_csv(root / VARIANT / "lick_order_tests.csv")
+    T = pd.read_csv(_paths.variant(root, VARIANT) / "lick_order_tests.csv")
     T = T[T.measure.str.endswith("_slope") & (T.epoch != "pre")].copy()
     T["position"] = T.set + "|" + T.scope + ":" + T.measure.str.replace("_slope", "")
     T["boot_star"] = np.where((T.lo > 0) | (T.hi < 0), "*", "")
@@ -73,7 +73,7 @@ def published(root: Path) -> pd.DataFrame:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--root", default=str(ROOT))
+    ap.add_argument("--root", default=str(_paths.iti_root(ROOT)))
     ap.add_argument("--outdir", default=str(render.OUTDIR))
     a = ap.parse_args(argv)
     root, outdir = Path(a.root), Path(a.outdir)

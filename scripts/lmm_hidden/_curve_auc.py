@@ -50,14 +50,16 @@ def _subset_keep(aud: dict, label: str, bout_t: np.ndarray) -> np.ndarray:
 
 
 def table(root: Path, key: str = "lick", rois=tuple(lcp.ROIS), subset: str = "") -> pd.DataFrame:
-    labs = sorted(p.stem for p in (root / lcp.SESS).glob("*.npz"))
+    from scripts.lmm_hidden import _paths
+    sd = _paths.sess_dir(root, lcp.SESS)
+    labs = sorted(p.stem for p in sd.glob("*.npz"))
     if not labs:
-        raise FileNotFoundError(root / lcp.SESS)
+        raise FileNotFoundError(sd)
     pp = _prev_pos(root) if key == "iti" else None
     aud = _subset(root, subset) if subset else None
     rows = []
     for x in labs:
-        d = np.load(root / lcp.SESS / f"{x}.npz", allow_pickle=False)
+        d = np.load(sd / f"{x}.npz", allow_pickle=False)
         an, ep = str(d["animal"]), str(d["epoch"])
         z = np.load(root / lcp.WIDE / f"{x}.npz")
         lags = np.round(np.asarray(z["lags"], float), 3)

@@ -32,7 +32,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-OUTDIR = Path("M:/MICROSCOPE/Priya/Widefield/labcams/grant_figures/lmm_hidden_20261103")
+from scripts.lmm_hidden import _paths  # noqa: E402
+
+#: default output folder; LMM_HIDDEN_OUTDIR overrides (a8 11-17, rebuild re-render)
+OUTDIR = _paths.env_path("LMM_HIDDEN_OUTDIR", "M:/MICROSCOPE/Priya/Widefield/labcams/grant_figures/lmm_hidden_20261103")
 GAP_PX = 30          # >= 25 px asked; measured at the saved dpi
 DPI = 150            # lmm_change_fig.draw saves at 150 dpi
 
@@ -181,14 +184,15 @@ def _panels(S, cells, panel_by):
 
 def render(sessions: Path, name: str, outdir: Path = OUTDIR, *, title: str = "", ylabel: str = "change vs own pre",
            cells=None, labels: dict | None = None, panel_by: str | None = None, holm_by_panel: bool = False,
-           ncols: int = 0) -> pd.DataFrame:
+           ncols: int = 0, figsize=None) -> pd.DataFrame:
     from scripts import lmm_change_fig as L
     from wfield_local import writeguard
+    name, title = _paths.out_name(name), _paths.out_title(title or name)   # all-ITI re-render of a docked figure
     S = pd.read_csv(sessions)
     S["position"] = S.position.astype(str)
     cells = list(cells) if cells else L._order(list(dict.fromkeys(S.position)))
     spec = dict(name=name, title=title or name, ylabel=ylabel, cells=cells, labels=labels or {}, panel_by=panel_by,
-                holm_by_panel=holm_by_panel, ncols=ncols)
+                holm_by_panel=holm_by_panel, ncols=ncols, figsize=list(figsize) if figsize else None)
     cap = os.environ.get("LMM_HIDDEN_CAPTURE")
     if cap:
         writeguard.assert_writable(cap)
@@ -204,10 +208,13 @@ def render(sessions: Path, name: str, outdir: Path = OUTDIR, *, title: str = "",
     dst = outdir / f"{name}_sessions.csv"
     if Path(sessions).resolve() != dst.resolve():
         shutil.copyfile(sessions, dst)
+        if _paths.docked_as() and "_docked" in Path(sessions).name:
+            Path(sessions).unlink()          # the extractor wrote it under the docked name; keep only the renamed copy
     T.to_csv(outdir / f"{name}_lmm.csv", index=False)
     (outdir / f"{name}_draw.json").write_text(json.dumps(spec, indent=1))
     for ext in (".png", ".svg"):
-        _draw(S, T, cells, outdir / f"{name}{ext}", spec=spec, panels=panels, ncols=ncols)
+        _draw(S, T, cells, outdir / f"{name}{ext}", spec=spec, panels=panels, ncols=ncols,
+              figsize=tuple(figsize) if figsize else None)
     return T
 
 

@@ -42,13 +42,15 @@ PUB = {"lick": ("cued_ramp_auc_sessions.csv", "", "cued"),
 
 def table(root: Path, key: str = "lick", subset: str = "") -> pd.DataFrame:
     """One row per session x ROI: auc, peak, auc_n, peak_n (lick_cued_ramp.compute / _windows, spouts pooled)."""
-    labs = sorted(p.stem for p in (root / lcp.SESS).glob("*.npz"))
+    from scripts.lmm_hidden import _paths
+    sd = _paths.sess_dir(root, lcp.SESS)
+    labs = sorted(p.stem for p in sd.glob("*.npz"))
     if not labs:
-        raise FileNotFoundError(root / lcp.SESS)
+        raise FileNotFoundError(sd)
     aud = ca._subset(root, subset) if subset else None
     rows = []
     for x in labs:
-        d = np.load(root / lcp.SESS / f"{x}.npz", allow_pickle=False)
+        d = np.load(sd / f"{x}.npz", allow_pickle=False)
         an, ep = str(d["animal"]), str(d["epoch"])
         z = np.load(root / lcp.WIDE / f"{x}.npz")
         lags = np.round(np.asarray(z["lags"], float), 3)
@@ -108,6 +110,26 @@ def check(root: Path, A: pd.DataFrame, which: str) -> pd.DataFrame:
     cell change (mean over animals of animal epoch mean - own pre mean) == ramp_window_tests delta for auc_0_1_n AND
     peak_n. Returns the cell table; raises if anything differs."""
     sess, wdir, set_ = PUB[which]
+    from scripts.lmm_hidden import _paths
+    if not (root / sess).exists() or not (root / wdir / "ramp_window_tests.csv").exists():
+        if not _paths.allow_no_pub():
+            raise SystemExit(f"[{which}] published table {root / sess} absent: no reproduction possible "
+                             "(set LMM_HIDDEN_ALLOW_NO_PUB=1 to fit without it)")
+        print(f"[{which}] !! NO REPRODUCTION CHECK: {root / sess} (or its ramp_window_tests.csv) does not exist on this "
+              "tree; the LMM is fitted on the recomputed values only (LMM_HIDDEN_ALLOW_NO_PUB=1)", flush=True)
+        out = []
+        for meas in ("auc", "peak"):
+            D = as_sessions(A, meas)
+            for c, g in D.groupby("position", sort=False):
+                a = g.groupby(["epoch", "animal"]).value.mean().unstack("animal")
+                for ep in EP:
+                    d = (a.loc[ep] - a.loc["pre"]).dropna() if ep in a.index else pd.Series(dtype=float)
+                    out.append(dict(measure=meas, position=c, epoch=ep, change=d.mean(), n_animals=len(d),
+                                    published=np.nan, boot_lo=np.nan, boot_hi=np.nan))
+        V = pd.DataFrame(out)
+        V["boot_star"] = ""
+        V["match"] = False
+        return V
     S = pd.read_csv(root / sess)
     M = S.merge(A, on=["label", "roi"], how="outer", suffixes=("_pub", ""), indicator=True)
     ok_rows = ((M._merge == "both").all() and np.allclose(M.resp_auc, M.auc, rtol=1e-9, atol=1e-9)

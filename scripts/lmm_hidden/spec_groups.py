@@ -30,7 +30,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from scripts.lmm_hidden import render
+from scripts.lmm_hidden import _paths, render
 
 ROOT = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding")
 NAME = "spec_groups"
@@ -138,7 +138,7 @@ def verify(S: pd.DataFrame, root: Path, tag: str) -> None:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--root", default=str(ROOT))
+    ap.add_argument("--root", default=str(_paths.ie_root(ROOT)))
     ap.add_argument("--tag", default="gate-attempted_v7g3_t3d_frA")
     ap.add_argument("--layer2", default="allsession_encoder_v7g3_t3d_frA_roi")
     ap.add_argument("--outdir", default=str(render.OUTDIR))

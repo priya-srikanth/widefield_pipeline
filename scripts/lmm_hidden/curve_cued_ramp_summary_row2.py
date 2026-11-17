@@ -40,7 +40,7 @@ import pandas as pd
 from scripts.lmm_hidden import _curve_auc as ca
 from scripts.lmm_hidden import _pooled_resp as pr
 from scripts.lmm_hidden import lick_cued_ramp_perspout as lcp
-from scripts.lmm_hidden import render
+from scripts.lmm_hidden import _paths, render
 
 NAME = "cued_ramp_summary_row2_lmm"
 
@@ -71,7 +71,7 @@ def perspout(root: Path, outdir: Path) -> int:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--root", default=str(lcp.ROOT))
+    ap.add_argument("--root", default=str(_paths.iti_root(lcp.ROOT)))
     ap.add_argument("--outdir", default=str(render.OUTDIR))
     ap.add_argument("--perspout", action="store_true", help="the per-spout AUC 0-0.5 s supplement instead")
     a = ap.parse_args(argv)
