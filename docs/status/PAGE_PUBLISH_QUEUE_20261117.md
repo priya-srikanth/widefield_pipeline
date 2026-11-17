@@ -66,6 +66,15 @@ same URL, then re-start the artifact watch. Tick each item here and commit.
   read events_all, re-run every pre-cue / ITI figure (Fig 2.5 / 2.6 frozen decoders, encoder enl kernels, ENL-window
   maps, ITI families), old vs new to Priya before pages.
 
+## 3c. cam1 check decided (Priya 11-17 ~18:00)
+
+- Blind review scored (30 / 40 tongue; far-from-mouth labels = the no-tongue set). Priya: YES to cam4 + cam1 with a
+  far-from-mouth guard (cam1-only events with med_out_px < -120 dropped) = RESTnlc1 v3 (commit 3bf2dd41 on
+  analysis/restnl-cam1-1117). Every v2 RESTnlc1 output of 11-17 is superseded; the whole queue re-runs under v3
+  (record docs/status/RESTNL_V3_RERUN_20261117.md on that branch). Fig 12.1 waits for the v3 tables.
+- The 3b switch (pre-cue / ITI windows to cam4 + cam1) is approved and uses the same v3 rule; not started yet.
+- Priya: no cohort-wide check of sessions where cam4 video ends before the last trial.
+
 ## 4. To do after the re-runs (Priya 11-17): clean up stale iterations
 
 Discuss with Priya before deleting anything; deleted-derived list as in DELETED_DERIVED_20261117.md; never original data.
