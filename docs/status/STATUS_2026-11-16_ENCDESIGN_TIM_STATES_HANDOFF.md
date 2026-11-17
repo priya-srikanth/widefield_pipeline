@@ -54,6 +54,13 @@ Run code from a worktree with `PYTHONPATH=$(pwd -W)` (Windows form). AR-HMM mode
   severity ordering. Quit tails are short (acute median 19 / 21.5 / 27 / 2 trials PS92-95). -> pooled all-epoch fit
   (`glm_hmm --pooled-all --select-k`: shared emissions, per-animal bias inputs) running 11-17.
 
+- **AR-HMM kappa / noise floor (11-17)**: O2 scan (chunked, no dither) gave median 0.08-0.32 s for kappa 1e5-1e11 --
+  states predicted the smooth 25 Hz PCs to ~0.007 (min log|Q| -109), so every change out-bid the stickiness (FR is 5 Hz
+  interpolated: ~half its frames are exact ramps; Priya's June repo ran 12.5 Hz with per-bin tongue summaries). Fix:
+  PC-space dither (`DITHER` 0.1). Scored on 6 sessions against DAQ labels (NMI, Priya's repo metric;
+  `scratchpad/arhmm_score.py`): side-within-contact .08 (no dither) -> .36 (dither 0.1, kappa 1e7, median 0.44 s);
+  contact / running unchanged. Fits submitted at kappa 5e7 (5x the scan for 31 vs 6 sessions), bundle code ca84b6e1.
+
 ## 3. Running at handoff (background in session 37fdbabf; scratchpad
 `C:/Users/SABATI~1/AppData/Local/Temp/claude/179e1046909c5be2/37fdbabf-285a-455b-bbb7-d5927a5affe6/scratchpad`)
 
