@@ -674,3 +674,8 @@ PI deck (backup Overview_2026-11-06.bak_pre_a8_renumber_20261116.pptx): FR page 
   docked-figure helper.
 - 11-17 status: handoff item 00-A8-1117 written (FR handoff section 2). Slide 21 decomposition INTERIM: trial gate drives the change
   (B_gate -.397 ~ old -.405); pre set / scaling / lick detector ~no effect; hemo + LocaNMF variants running.
+- 11-17 bounded indices done (e83b055e; --idx flag, defaults byte-identical; section 5 of ITI_MATCHED_ANGLE_MARKERS.md; FINDINGS
+  sentence). dec's negative ITI same-angle shifts (incl. docked far contra -1.82) VANISH in dec_idx (+.031 ns) -> pre-lick level /
+  gain, not evoked balance. Cued far-contra shift survives in dec_idx (+.095, inside range +.063, 4/4) and resp_idx (+.079).
+  resp vs resp_idx identical in sign / significance everywhere. Unit test for bounded_index requested. 113 / 114 cued per-spout
+  window -> 0..1.0 s queued (Priya OK). Slide 139 title options sent to Priya.
