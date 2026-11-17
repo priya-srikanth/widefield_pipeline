@@ -65,6 +65,15 @@ Run code from a worktree with `PYTHONPATH=$(pwd -W)` (Windows form). AR-HMM mode
   to test next: (1) the animal bias columns are STATE-SPECIFIC weights, so states can absorb animal identity -- make
   the animal offsets shared across states; (2) previous-outcome inputs let a no-response streak be explained inside
   an engaged state -- fit without them so disengagement must be carried by the state.
+- **GLM-HMM DESIGN v2 (11-17, Priya "fix the design issues"; `glm_hmm --design v2`, default): animal offsets SHARED
+  across states, no previous-outcome input.** Pooled, all animals, August-onward, K = 3 (86 % assigned): all three
+  states now mean the same thing in every animal -- S0 engaged + frequent spontaneous licking (attempt 1.00, ITI lick
+  .60-.94), S1 engaged with little spontaneous licking (attempt .93-.98, ITI lick .06-.57), S2 DISENGAGED (attempt
+  .05-.15, no response .51-.59, session position .81). QUIT TAIL: 99-100 % of tail trials in S2 in all four animals
+  (v1: 30-60 %). S2 occupancy pre / acute / subacute / chronic: PS92 .01 / .31 / .04 / .00, PS93 .02 / .32 / .15 /
+  .02, PS94 .09 / .42 / .20 / .07, PS95 .11 / .11 / .35 / .12 (PS95 peaks subacute, matching its raw no-response
+  count: 894 subacute vs 57 acute). K = 4 adds a fourth state that is ALSO consistent across animals: engaged while
+  running (running .28-.32 in every animal). Held-out K selection for v2 running (`select_k_pooled_all_v2.csv`).
 
 - **AR-HMM kappa / noise floor (11-17)**: O2 scan (chunked, no dither) gave median 0.08-0.32 s for kappa 1e5-1e11 --
   states predicted the smooth 25 Hz PCs to ~0.007 (min log|Q| -109), so every change out-bid the stickiness (FR is 5 Hz
