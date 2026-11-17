@@ -160,3 +160,27 @@ Column notes:
 - The run was kept light: 2 workers at first. When free RAM fell to 10 GB, I stopped my own PIDs (44036, 2508, 26984) and continued with 1 worker
   behind a >= 14 GB free-RAM guard.
 - No other process was touched. Nothing was deleted. No pipeline file was edited.
+
+## Priya's blind review, scored (11-17 ~18:00)
+
+Answers: `review/scored_priya_20261117.csv` (copied from Downloads; key = `review/key.csv`).
+
+| group | out | lips | no tongue: other | droplet |
+|---|---|---|---|---|
+| controls: cam4-matched contact licks (6) | 6 | 0 | 0 | 0 |
+| controls: flagged droplets (6) | 2 | 2 | 0 | 2 |
+| test, PS92/93 chronic, not rest-removing (10) | 1 | 9 | 0 | 0 |
+| test, PS92/93 chronic, rest-removing (10) | 0 | 6 | 4 | 0 |
+| test, other animal x epoch, rest-removing (14) | 1 | 8 | 3 | 2 |
+| test, fill (6) | 0 | 5 | 1 | 0 |
+
+- Test events: 30 / 40 tongue (out or lips); rest-removing: 15 / 24 tongue.
+- "No tongue: other" = 8; 7 of them have med_out < -120 px (static label far from the mouth: PS92_0929 x3, PS93_1002,
+  PS94_0903, PS95_0827, PS95_0817). No tongue-scored event has med_out < -120, so a far-from-mouth guard
+  (drop cam1-only events with med_out < -120 px) removes 7 / 8 with no false positives in this sample.
+- Droplets that escaped the filter: 2 / 40 (PS95_0812, PS94_0823), both out in front (+49, +110 px), 12-49 s from any
+  lick, after a miss.
+- The "static and > 1 s from any lick" option (reading 4 above) is NOT supported: 17 tongue-scored events are > 1 s from a
+  cam4 / DAQ lick.
+- Flagged-droplet controls: only 2 / 6 scored droplet (4 tongue), so the droplet filter over-removes in this direction
+  (removes some real licks), which is conservative for a lick-free mask.
