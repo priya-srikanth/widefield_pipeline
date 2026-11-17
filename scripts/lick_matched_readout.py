@@ -253,23 +253,39 @@ def bin_tests(P: pd.DataFrame) -> pd.DataFrame:
 
 
 def inside_curves(P: pd.DataFrame) -> dict:
-    """--inside-curves: smoothed curves of all licks / of post licks inside the pre landing range (pre licks kept whole:
-    they define the range) + bin tests of the inside set; first-lick twins with --first-curves (module flag block)."""
-    assert REF == "loclin", "--inside-curves needs --ref loclin (beyond = distance outside the pre range)"
+    """--inside-curves: smoothed curves of all licks / of post licks INSIDE the animal's own pre curve + bin tests of the
+    inside set; first-lick twins with --first-curves (module flag block). INSIDE (Priya 11-17, "how come in the second
+    row there are places where post-stroke landings are outside pre-stroke landing zones"): a post lick is kept only
+    where the SAME animal's smoothed pre curve of the SAME lick set (first licks for the first-lick panels) exists, i.e.
+    within the landing range of its pre curve (weight >= CURVE_MIN_W). NOT the reference's `beyond` flag, which uses the
+    0.5-99.5 % range of ALL the animal's pre licks of the set and so reaches past where a pre curve can be drawn (and,
+    for first licks, past where pre FIRST licks landed). Pre licks are kept whole: they define the range."""
+    assert REF == "loclin", "--inside-curves needs --ref loclin"
     sg = P.attrs["sigma"]
 
     def sm(Q):
         return lfl.smooth_curves(Q, "act", "dec", sg, CURVE_GRID, CURVE_MIN_W).assign(smooth=True, sigma=sg)
 
     def sub(Q):
-        R = Q[(Q.beyond == 0) | (Q.epoch == "pre")].copy()
+        rng = lfl.curve_coverage(sm(Q[Q.epoch == "pre"])).set_index(["set", "animal"])     # each animal's pre curve
+        key = pd.MultiIndex.from_arrays([Q.set, Q.animal])
+        lo_, hi_ = rng.lo.reindex(key).to_numpy(), rng.hi.reindex(key).to_numpy()
+        half = (CURVE_GRID[1] - CURVE_GRID[0]) / 2                                       # grid point -> its cell
+        inside = (Q.act.to_numpy() >= lo_ - half) & (Q.act.to_numpy() <= hi_ + half)    # NaN range -> False
+        R = Q[inside | (Q.epoch == "pre").to_numpy()].copy()
         R.attrs.update(P.attrs)
         return R
-    out = {"As": sm(P), "Ains": sm(sub(P)), "BTin": bin_tests(sub(P))}
+    def clip(A):     # the kernel lets an inside lick near the edge draw ~1 sigma past it: cut each post curve to the
+        rng = lfl.curve_coverage(A[A.epoch == "pre"]).set_index(["set", "animal"])    # animal's own pre curve range
+        key = pd.MultiIndex.from_arrays([A.set, A.animal])
+        lo_, hi_ = rng.lo.reindex(key).to_numpy(), rng.hi.reindex(key).to_numpy()
+        return A[(A.epoch == "pre").to_numpy() | ((A.mid.to_numpy() >= lo_) & (A.mid.to_numpy() <= hi_))]
+
+    out = {"As": sm(P), "Ains": clip(sm(sub(P))), "BTin": bin_tests(sub(P))}
     if FIRST_CURVES:
         P1 = P[P.cls == "first"].copy()
         P1.attrs.update(P.attrs)
-        out.update(As1=sm(P1), Ains1=sm(sub(P1)), BT1in=bin_tests(sub(P1)))
+        out.update(As1=sm(P1), Ains1=clip(sm(sub(P1))), BT1in=bin_tests(sub(P1)))
     return out
 
 
