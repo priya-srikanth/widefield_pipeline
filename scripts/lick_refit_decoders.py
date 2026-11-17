@@ -275,11 +275,11 @@ def key_sets(*, filt: str | None = "", extra=(), iti_extra=(), cued_extra=(), mo
                         cued_set(extra=[*KEY_ROWS, *extra, *cued_extra]), *more)
 
 
-def where_sets(min_n: int, *, extra=(), more=()) -> str:
-    """ITI + cued licks of the where-decoder loader (`iti_where_decoder.load`: every session-file decoding lick, no ITI
-    filter) in sessions with >= ``min_n`` licks."""
+def where_sets(min_n: int, *, extra=(), more=(), filt: str = "") -> str:
+    """ITI + cued licks of the where-decoder loader (`iti_where_decoder.load`: every session-file decoding lick; ITI
+    filter ``filt`` only when the reader uses a subset copy, default none) in sessions with >= ``min_n`` licks."""
     x = [f">= {min_n} such licks per session", *extra]
-    return _tst().union(iti_set(filt="", extra=x), cued_set(extra=x), *more)
+    return _tst().union(iti_set(filt=filt, extra=x), cued_set(extra=x), *more)
 
 
 def engaged_text() -> str:

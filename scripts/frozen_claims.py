@@ -17,7 +17,7 @@ so these rows come from the frame's BASIS twin re-run with FROZEN_PIX_MUSALL=1 (
 held at the area run's) -- ROI R2 = 1 - w'Ew / w'Sw (`encoder_split_rows.musall_rows`), ROI v8 on the stat mask. Placed
 right after their parent (MOp -> tjM1, MOp_rest; MOs -> ALM, MOs_rest) on a gray band; MOs (area run) added as their
 parent. Validation (basis route vs the area run's MOs / MOp / SSp-m / cortex): docs/status/ALM_TJM1_ROWS_PLAN_20261027.md.
-Usage: python scripts/frozen_claims.py [--out DIR] [--pix-root DIR]
+Usage: python scripts/frozen_claims.py [--out DIR] [--pix-root DIR] [--trend-only | --plot-only]
 Output: <E>/frozen_fr_compare/claims_*.csv, figures/frozen_claims_{contest,peth,trend}.png
 """
 from __future__ import annotations
@@ -89,20 +89,35 @@ def main(argv=None) -> int:
 
     import encoder_split_rows as esr
     import frozen_fr_compare as ffc
-    from position_coding_trend_recovery import half_recovery_day
     global PIX_ROOT
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--out", default=None, help="output folder (default <E>/frozen_fr_compare)")
     ap.add_argument("--pix-root", default=None, help="folder holding the *_basis_pixmusall runs (default <E>)")
+    # 11-17 (slide 147 footer fix): figure-data convention for the trend figure (Fig 0.11). --trend-only = section C +
+    # the trend figure only (no A / B bootstraps); --plot-only = redraw the trend figure from <out>/figdata alone.
+    ap.add_argument("--trend-only", action="store_true", help="section C + the trend figure only")
+    ap.add_argument("--plot-only", action="store_true", help="redraw the trend figure from <out>/figdata/frozen_claims_trend.pkl")
     a = ap.parse_args(argv)
+    from figdata import load_fd, save_fd
     from wfield_local import trial_set_text as tst
     tst.declare(text=tst.union(*(trial_set_sentence(w) for w in WINDOWS), unit="trials"))
     PIX_ROOT = Path(a.pix_root) if a.pix_root else E
     out = Path(a.out) if a.out else E / "frozen_fr_compare"
     (out / "figures").mkdir(parents=True, exist_ok=True)
+    if a.plot_only:
+        D = load_fd(TREND_FD, out / "figdata")
+        trend_figure(plt, D["C"], D["beh"], out)
+        return 0
     pd.set_option("display.width", 240)
     ffc.ALAB.update({x: esr.side_label(x) for x in AR if x not in ffc.ALAB})
     print("split rows from:", {k: str(PIX_ROOT / v) for k, v in PIX.items() if (PIX_ROOT / v).is_dir()} or "NONE (Allen rows only)")
+    MOT = AR[3:]                                         # MOp / MOs and their split rows
+    if a.trend_only:
+        C, beh = trend_data(out, MOT)
+        save_fd(TREND_FD, dict(C=C, beh=beh), out / "figdata")
+        trend_figure(plt, C, beh, out)
+        print("->", out)
+        return 0
 
     # A. target vs executed
     GA = {"target": "no_target", "exec_locked": "no_exec_locked", "exec_within": "no_exec_within"}
@@ -111,8 +126,7 @@ def main(argv=None) -> int:
     BA.to_csv(out / "claims_contest.csv", index=False)
     print("== A. frozen unique R2, epoch - pre\n" + BA[BA.area.isin(["cortex", "SSp-m_right", "SSp-m_left"])][
         ["q", "frame", "window", "area", "epoch", "ref", "point", "lo", "hi", "n_up"]].round(4).to_string(index=False))
-    MOT = AR[3:]                                         # MOp / MOs and their split rows
-    perA = A[A.area.isin(MOT)].groupby(["q", "frame", "window", "area", "animal", "epoch"]).u.mean().unstack("epoch")
+    perA =A[A.area.isin(MOT)].groupby(["q", "frame", "window", "area", "animal", "epoch"]).u.mean().unstack("epoch")
     print("\n== A. per animal (rule 8): frozen unique R2, MOp / MOs and the ALM / tjM1 split rows\n"
           + perA.reindex(columns=["pre", "acute", "subacute", "chronic"]).round(4).to_string())
 
@@ -134,25 +148,7 @@ def main(argv=None) -> int:
           + perB.reindex(columns=["pre", "acute", "subacute", "chronic"]).round(4).to_string())
 
     # C. recovery trend (spout unique, cortex, frame R2, lick window) vs behaviour
-    C = A[A.q == "target"].iloc[:0]
-    C = pd.concat([unique(f, {"spout": "no_spout"}, "frame").assign(frame=k) for k, f in RUNS.items()])
-    from wfield_local import epochs
-    C["day"] = C.label.map(epochs.days_since_stroke)
-    beh = pd.read_csv(E / "qc" / "position_coding_trend_recovery_sessions.csv")[["label", "contact_far_contra"]]
-    H, L = [], []
-    # (the figure plots cortex only; the MOp / MOs / split rows are in the two CSVs -- 10-28)
-    for (k, w, ar), t in C[C.area.isin(["cortex", "SSp-m_right", "SSp-m_left", *MOT])].groupby(["frame", "window", "area"]):
-        for an, g in t.groupby("animal"):
-            g = g.merge(beh, on="label", how="left").sort_values("day").rename(columns={"u": "spout_u"})
-            H.append({"frame": k, "window": w, "area": ar, "animal": an, "half_day_spout": half_recovery_day(g, "spout_u"),
-                      "half_day_contact": half_recovery_day(g, "contact_far_contra")})
-            L.append({"frame": k, "window": w, "area": ar, "animal": an,
-                      **{ep: g[g.epoch == ep].spout_u.mean() for ep in ("pre", "acute", "subacute", "chronic")}})
-    H, L = pd.DataFrame(H), pd.DataFrame(L)
-    H.to_csv(out / "claims_trend_halfday.csv", index=False)
-    L.to_csv(out / "claims_trend_levels.csv", index=False)
-    print("\n== C. spout unique R2 per animal (frozen; rule 8)\n" + L.round(4).to_string(index=False))
-    print("\n== C. day of 50 % acute -> chronic change: spout unique vs far-contra contact\n" + H.to_string(index=False))
+    C, beh = trend_data(out, MOT)
 
     # figures
     for name, Bx, qs, sub in (("contest", BA, list(GA), None), ("peth", BB, list(GB), "measure")):
@@ -188,9 +184,39 @@ def main(argv=None) -> int:
             with tst.active(None, text=trial_set_sentence(w)):                 # this figure's window
                 save_png_svg(fig, out / "figures" / f"frozen_claims_{name}_{w}.png", dpi=105)
             plt.close(fig)
+    save_fd(TREND_FD, dict(C=C, beh=beh), out / "figdata")
     trend_figure(plt, C, beh, out)
     print("->", out)
     return 0
+
+
+TREND_FD = "frozen_claims_trend"      # figure data of the trend figure (<out>/figdata/<TREND_FD>.pkl; figdata.py convention)
+
+
+def trend_data(out: Path, MOT: list) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Section C: per session spout unique R2 in both frozen frames (C) and far-contra contact (beh); writes
+    claims_trend_{halfday,levels}.csv and prints the per-animal tables."""
+    from position_coding_trend_recovery import half_recovery_day
+
+    from wfield_local import epochs
+    C = pd.concat([unique(f, {"spout": "no_spout"}, "frame").assign(frame=k) for k, f in RUNS.items()])
+    C["day"] = C.label.map(epochs.days_since_stroke)
+    beh = pd.read_csv(E / "qc" / "position_coding_trend_recovery_sessions.csv")[["label", "contact_far_contra"]]
+    H, L = [], []
+    # (the figure plots cortex only; the MOp / MOs / split rows are in the two CSVs -- 10-28)
+    for (k, w, ar), t in C[C.area.isin(["cortex", "SSp-m_right", "SSp-m_left", *MOT])].groupby(["frame", "window", "area"]):
+        for an, g in t.groupby("animal"):
+            g = g.merge(beh, on="label", how="left").sort_values("day").rename(columns={"u": "spout_u"})
+            H.append({"frame": k, "window": w, "area": ar, "animal": an, "half_day_spout": half_recovery_day(g, "spout_u"),
+                      "half_day_contact": half_recovery_day(g, "contact_far_contra")})
+            L.append({"frame": k, "window": w, "area": ar, "animal": an,
+                      **{ep: g[g.epoch == ep].spout_u.mean() for ep in ("pre", "acute", "subacute", "chronic")}})
+    H, L = pd.DataFrame(H), pd.DataFrame(L)
+    H.to_csv(out / "claims_trend_halfday.csv", index=False)
+    L.to_csv(out / "claims_trend_levels.csv", index=False)
+    print("\n== C. spout unique R2 per animal (frozen; rule 8)\n" + L.round(4).to_string(index=False))
+    print("\n== C. day of 50 % acute -> chronic change: spout unique vs far-contra contact\n" + H.to_string(index=False))
+    return C, beh
 
 
 def trend_figure(plt, C: pd.DataFrame, beh: pd.DataFrame, out: Path) -> Path:
@@ -224,10 +250,14 @@ def trend_figure(plt, C: pd.DataFrame, beh: pd.DataFrame, out: Path) -> Path:
     fig.suptitle("NEURAL + LICK: recovery course in the FROZEN frame -- spout unique R2 (target + executed spout part) per "
                  "session, both frames, and far-contra contact.\nOpen markers = sessions (shape = animal, color = epoch); "
                  "filled = epoch mean +- SEM over animals (each animal's sessions averaged first).", fontsize=10)
-    fig.subplots_adjust(left=0.05, right=0.86, top=0.82, bottom=0.14, wspace=0.22)
     p = out / "figures" / "frozen_claims_trend.png"
     from wfield_local import trial_set_text as tst
     with tst.active(None, text=trial_set_sentence(None)):
+        # bottom: above the trial-set footer + room for tick labels and "day from stroke" (Priya 11-17, slide 147: the
+        # footer overprinted the x labels); 0.14 when no footer is drawn
+        fb = tst.footer_bottom(fig)
+        fig.subplots_adjust(left=0.05, right=0.86, top=0.82, bottom=max(0.14, fb + 0.5 / fig.get_size_inches()[1]),
+                            wspace=0.22)
         save_png_svg(fig, p, dpi=105)
     plt.close(fig)
     return p

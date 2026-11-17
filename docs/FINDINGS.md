@@ -650,7 +650,10 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   0-0.2 s): tracks angle pre and post (pre slope -.40/deg); its same-angle shift (+1.7) vanishes inside the pre range
   (+0.3, p .62) -> extrapolation. ITI after a far-contra trial (resp 0-0.5 s): pre slope -.013 (all) / -.026 (docked), no
   same-angle shift (+.08 / +.11 ns) -> the raw ITI shift (+.27 / +.37) is the ipsilesional angle change; docked dec shows a
-  NEGATIVE same-angle shift (-1.8, p .001; -1.4 inside the range, p .013). All spouts pooled (session x spout): balance
+  NEGATIVE same-angle shift (-1.8, p .001; -1.4 inside the range, p .013). Bounded, baseline-corrected index in the
+  decoder window (dec_idx = (c - i) / (|c| + |i|), 0-0.2 s from the peak, baseline -1.0..-0.5 s; section 5): the docked
+  dec shift does NOT survive (+.03, p .17), and neither do dec's negative ITI shifts elsewhere (they came from the pre-lick
+  level and gain). The cued far-contra shift DOES survive (+.095, p < 1e-4; +.063 inside the pre range; + in 4/4). All spouts pooled (session x spout): balance
   predicts raw lick angle pre and post (pre slopes negative 4/4, docked included); caveat: the previous spout explains 57 %
   (docked 49 %) of the ITI angle variance across cells, so the within-spout versions are the clean tests. PROVISIONAL (n = 4;
   7-8 pre far-contra sessions per animal).

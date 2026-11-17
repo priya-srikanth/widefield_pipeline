@@ -43,6 +43,8 @@
   ramp companions, docked ITI arm). The primary recovery marker already uses 0.1..0.5 s for ITI (unchanged).
 - Bounded index (c - i) / (|c| + |i|) considered (defined for every row; = (r - 1) / (r + 1) when both AUCs > 0) but in
   the dip sessions it would compare undershoots; window fix preferred. Kept as a robustness option.
+- (2026-11-17, Priya "yes update 113 and 114 to match") Cued per-spout first-lick / cue response AUC (Fig 14.7, deck 113 /
+  114; `lick_cued_ramp.spout_windows`) aligned to `iti_licks.CUED_RESP_WIN` (0..1.0 s; was 0..0.5 s, kept as secondary).
 
 ## 2026-11-16 -- June sessions against August-frozen references: drift sub-analyses only (Priya; a8 window)
 - Priya 11-09 asked for the frozen pre-stroke analyses on the June sessions (August-frozen reference); scope settled

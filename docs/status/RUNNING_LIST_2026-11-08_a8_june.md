@@ -672,3 +672,30 @@ PI deck (backup Overview_2026-11-06.bak_pre_a8_renumber_20261116.pptx): FR page 
   .bak_pre_a8_iti05_20261117.pptx). FINDINGS (4 places) + ENCODING_FINDINGS (1) ITI 0..1 s numbers replaced (one owner, per 3c).
   3c told to swap goal-page figures. Curves figure: footer overlap + dashed (3-animal) acute docked ITI line -> fix queued with the
   docked-figure helper.
+- 11-17 status: handoff item 00-A8-1117 written (FR handoff section 2). Slide 21 decomposition INTERIM: trial gate drives the change
+  (B_gate -.397 ~ old -.405); pre set / scaling / lick detector ~no effect; hemo + LocaNMF variants running.
+- 11-17 bounded indices done (e83b055e; --idx flag, defaults byte-identical; section 5 of ITI_MATCHED_ANGLE_MARKERS.md; FINDINGS
+  sentence). dec's negative ITI same-angle shifts (incl. docked far contra -1.82) VANISH in dec_idx (+.031 ns) -> pre-lick level /
+  gain, not evoked balance. Cued far-contra shift survives in dec_idx (+.095, inside range +.063, 4/4) and resp_idx (+.079).
+  resp vs resp_idx identical in sign / significance everywhere. Unit test for bounded_index requested. 113 / 114 cued per-spout
+  window -> 0..1.0 s queued (Priya OK). Slide 139 title options sent to Priya.
+- 11-17 Priya: idx figures as a collapsible goal-page supplement -> captions + paths in deck_swap_20261117/PAGE_SUPPLEMENT_IDX_20261117.md,
+  sent to 3c (page owner; its account cannot reach the page right now). dec / dec_idx ITI bout starts use BOUT_GAP 1 s (resp uses
+  GAP_MAIN 2 s) -> -1.0..-0.5 s baseline can include the previous lick for 1-2 s gaps; gap >= 2 s variant queued.
+- 11-17 slide 139 applied (Priya title "Cued ipsi-contra balance places an unseen animal on recovery"; caveat kept; cued-angle and
+  ITI / docked bullets; 4-column figure full width below bullets; caption at bottom; notes + Data: from specs/s139_cuedang.json;
+  script deck_swap_20261117/s139_apply.py; backup .bak_pre_a8_s139_20261117.pptx; checked as an exported image).
+- 11-17 overlap audit (Priya "ensure text isn't obscured by or obscuring figures"): deck_swap_20261117/overlap_check.py (bbox) over
+  all 206 slides -> 6 flagged, checked as exported images: only slide 20 was a real problem (right figure ran off the slide,
+  legend cut) -> resized to fit. 3 / 18 / 37 / 105 / 147: frames overlap whitespace only. In-image issue not caught by bbox:
+  147 x-axis labels garbled where the purple footer was whited out (re-render with footer margin queued via curves helper).
+- 11-17 docked decoded-vs-executed done (59223261, 74518c9f; DOCKED_DECODED_VS_EXECUTED_20261117.md): docked ITI like-for-like
+  offset +0.30 / +0.21 / +0.27 mm (all ITI +0.36 / +0.24 / +0.27; after quiet +0.22 / +0.18 / +0.21); angle +4.3 / +2.6 / +3.4 deg;
+  raw within-animal r(ITI offset, aim) gone on docked (+0.03 vs -0.33 all ITI), survives detrended (-0.30, p .013). Dashed acute =
+  PS95 has no acute docked curve (53 licks). Footer overlap fixed (footer_bottom helper). gap >= 2 s dec_idx variant: conclusions
+  unchanged; docked all-spout dec_idx now +.036 (p .002) like resp_idx. Supplement caption licks line corrected (DAQ lick times,
+  LP 3-D angle). Helper commits landed inside another window's commit 74518c9f (shared index) - content verified on main.
+- 11-17 slides 113 / 114 cued per-spout window -> 0..1.0 s applied (specs/cued01.json; 514e5438, lmm 7081a49c; backup
+  .bak_pre_a8_cued01_20261117.pptx). 113: acute far contra now -.12 n.s. (tjM1), far mid loses * acutely; title holds. 114 (hidden
+  LMM): 31 -> 22 / 72 starred, no acute star left. Slide 147 footer-fixed image applied (445902eb). Goal Fig 14.7 path for 3c.
+  Waiting on Priya: lick-source wording fixes (3c audit LICK_SOURCE_AUDIT_20261117.md).

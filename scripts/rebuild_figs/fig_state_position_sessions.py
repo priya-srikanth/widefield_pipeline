@@ -164,15 +164,9 @@ def _footer_bottom(fig, pad: float = 0.012) -> float:
     """Write the trial-set footer NOW (bottom right; `trial_set_text.stamp`, idempotent, so the save path does not add a
     second one) and return the figure fraction it occupies, so `tight_layout` puts the x tick labels above it.
     11-17: the footer was stamped at save time, after the layout, and its four lines sat on the epoch tick labels.
-    Returns 0 when no trial set is declared (no footer, layout unchanged)."""
+    Returns 0 when no trial set is declared (no footer, layout unchanged). Body = `trial_set_text.footer_bottom`."""
     from wfield_local import trial_set_text as tst
-    t = tst.stamp(fig)
-    if t is None:
-        t = next((x for x in fig.texts if x.get_gid() == tst.GID), None)
-    if t is None:
-        return 0.0
-    bb = t.get_window_extent(fig.canvas.get_renderer())
-    return min(0.4, bb.y1 / fig.bbox.height + pad)
+    return tst.footer_bottom(fig, pad)
 
 
 def draw(D: pd.DataFrame, T: dict, png: Path) -> None:

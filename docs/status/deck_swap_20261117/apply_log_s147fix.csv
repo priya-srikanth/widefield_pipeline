@@ -1,0 +1,2 @@
+slide,result,conclusion_changed,changes
+147,"applied: 1 picture(s), 0 text edit(s), notes unchanged",False,"[{""what"": ""slide picture (layout only)"", ""old"": ""s147_frozen_claims_trend.png: footer whited out over the x labels, garbled tick text"", ""new"": ""s147_frozen_claims_trend_footerfix.png: x labels clean; same data, same crop and box"", ""source"": ""frozen_fr_compare_footerfix_20261117/logs/trend_trend-only.log (tables byte-identical to frozen_fr_compare/)""}]"

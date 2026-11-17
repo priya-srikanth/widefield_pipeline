@@ -17,6 +17,8 @@ Outputs <E>/iti_licks/where_angle_reach_{sessions,tests}.csv, figures/lick_where
 cache where_angle_reach_preds<PRED_TAG>.csv.gz (basis-specific name, il.pred_file).
 Figure data <E>/iti_licks/figdata/lick_where_angle_reach.pkl (every panel's dots, lines and bootstrap CIs);
 --plot-only redraws from it alone (no bootstrap).
+Writes go to il.OUT_W (= OUT unless WFIELD_ITI_OUT_W / a SUBSET ITI filter redirects them; 11-17). Under
+WFIELD_ITI_FILTER=dock / gap2dock / ... the filtered prediction copy of iti_dock_where_preds.py is required (no refit).
 Usage: python scripts/iti_where_angle_reach.py [--plot-only]
 """
 from __future__ import annotations
@@ -30,6 +32,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
+from wfield_local import trial_set_text as tst  # noqa: E402
 import iti_where_decoder as wd  # noqa: E402
 from figdata import load_fd, plot_only, save_fd  # noqa: E402
 
@@ -86,6 +89,8 @@ def sessions(P: pd.DataFrame) -> pd.DataFrame:
         pre = g[g.epoch == "pre"]
         thr = pre.act_sag.median()
         for (lab, ep), h in g.groupby(["label", "epoch"]):
+            if il.ITI_SUBSET and len(h) < wd.MIN_SESSION_LICKS:    # subset copy: same session floor as the full
+                continue                                           # cache (iti_dock_where_preds.MIN_N)
             r = dict(set=st, animal=a, label=lab, epoch=ep, n=len(h))
             for t in ("ang", "reach", "elev"):
                 r[f"r_{t}"] = float(np.corrcoef(h[f"dec_{t}"], h[f"act_{t}"])[0, 1])
@@ -145,8 +150,8 @@ def plot(F: dict) -> None:
                  "extension filter).\n"
                  "Thin lines = animals, black = mean, gray dots = sessions, diamonds = change vs pre with 95% paired "
                  "nested bootstrap CI (* = excludes 0). PROVISIONAL", fontsize=9)
-    fig.tight_layout(rect=(0, 0, 1, 1 - 0.8 / fig.get_size_inches()[1]))
-    save_png_svg(fig, il.OUT / "figures" / "lick_where_angle_reach.png", dpi=100)
+    fig.tight_layout(rect=(0, tst.footer_bottom(fig), 1, 1 - 0.8 / fig.get_size_inches()[1]))  # footer (11-17)
+    save_png_svg(fig, il.OUT_W / "figures" / "lick_where_angle_reach.png", dpi=100)
     plt.close(fig)
 
 
@@ -166,17 +171,21 @@ def main() -> int:
         return 0
     il.split_only("iti_where_angle_reach")
     f = il.pred_file(PREDS)      # basis-specific cache name (a plain cache is never reused)
+    if il.ITI_SUBSET and wd.subset_in(f) != il.ITI_SUBSET:     # 11-17: never refit / score every ITI lick in a subset run
+        raise SystemExit(f"ITI subset {il.ITI_SUBSET}: no filtered copy of {PREDS} under {il.OUT_W} "
+                         "(run iti_dock_where_preds.py with the same WFIELD_ITI_FILTER / WFIELD_ITI_OUT_W)")
+    (il.OUT_W / "figures").mkdir(parents=True, exist_ok=True)
     P = pd.read_csv(f) if f.exists() else predictions()
     if not f.exists():
         P.to_csv(f, index=False)
     S = sessions(P)
-    S.to_csv(il.OUT / "where_angle_reach_sessions.csv", index=False)
+    S.to_csv(il.OUT_W / "where_angle_reach_sessions.csv", index=False)
     pd.set_option("display.width", 220)
     for c in ("r_ang_long_d", "r_ang_d", "r_elev_d", "r_reach_d"):
         print(f"== per animal (rule 8): {c}")
         print(S.pivot_table(index=["set", "animal"], columns="epoch", values=c).reindex(columns=EPS).round(2).to_string())
     T = tests(S)
-    T.to_csv(il.OUT / "where_angle_reach_tests.csv", index=False)
+    T.to_csv(il.OUT_W / "where_angle_reach_tests.csv", index=False)
     print("\n== change vs pre (paired nested bootstrap)\n" + T.round(3).to_string(index=False))
     F = figure_data(S)
     save_fd("lick_where_angle_reach", F)
