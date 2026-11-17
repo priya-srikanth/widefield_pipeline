@@ -682,3 +682,6 @@ PI deck (backup Overview_2026-11-06.bak_pre_a8_renumber_20261116.pptx): FR page 
 - 11-17 Priya: idx figures as a collapsible goal-page supplement -> captions + paths in deck_swap_20261117/PAGE_SUPPLEMENT_IDX_20261117.md,
   sent to 3c (page owner; its account cannot reach the page right now). dec / dec_idx ITI bout starts use BOUT_GAP 1 s (resp uses
   GAP_MAIN 2 s) -> -1.0..-0.5 s baseline can include the previous lick for 1-2 s gaps; gap >= 2 s variant queued.
+- 11-17 slide 139 applied (Priya title "Cued ipsi-contra balance places an unseen animal on recovery"; caveat kept; cued-angle and
+  ITI / docked bullets; 4-column figure full width below bullets; caption at bottom; notes + Data: from specs/s139_cuedang.json;
+  script deck_swap_20261117/s139_apply.py; backup .bak_pre_a8_s139_20261117.pptx; checked as an exported image).
