@@ -628,3 +628,7 @@ PI deck (backup Overview_2026-11-06.bak_pre_a8_renumber_20261116.pptx): FR page 
 - 11-17: cued balance -> cued angle done (49d1f416; .../iti_licks/bal_full_cuedang_20261117/): LOAO .68 vs days .08 (cued -> aim .66 vs
   .23); cued angle r .94 with aim -> cued balance mostly a lick-direction readout. Spec specs/s139_cuedang.json NOT applied: goes to
   Priya first (conclusion-level; spec replaces the caveat bullet).
+- 11-17 neg-AUC diagnostic: cued / cue NOT biphasic (tjM1 0.5-1.2 s trough +22 / +26 above baseline; 0 / 214 curves below baseline).
+  ITI dips: share of tjM1 sessions with 0.5-1 s AUC < 0 = 9 % all-ITI, 24 % docked, and EPOCH-DEPENDENT: all-ITI 26 / 12 / 0 / 0 %,
+  docked 43 / 30 / 18 / 9 % (pre / acute / subacute / chronic) -> the 0..1 s ITI integral is pulled down mostly in PRE, inflating
+  post-stroke ITI increases vs own pre. 52 % of ITI bout starts are single licks (short transient). Figures neg_auc_diag_20261117/.
