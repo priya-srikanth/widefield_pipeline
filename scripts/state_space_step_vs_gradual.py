@@ -142,7 +142,7 @@ def time_models(d, c):
     return pd.DataFrame(rows)
 
 
-def figure(d, models):
+def figure(d, models, A=None):
     cols = READ + [("aim", "far-contra aim vs own pre\n(deg, - = ipsilesional)")]
     fig, axs = plt.subplots(2, len(cols), figsize=(3.3 * len(cols), 7.2))
     for j, (c, t) in enumerate(cols):
@@ -182,8 +182,12 @@ def figure(d, models):
             ax.scatter(pre.aim, pre[c], color="0.75", s=10, zorder=0)
             ax.set_xlabel("far-contra aim vs own pre (deg)")
             rr = [g[[c, "aim"]].dropna().corr().iloc[0, 1] for _, g in d[d.epoch != "pre"].groupby("animal")]
-            ax.set_title(t.split("\n")[0] + " vs recovery\nwithin-animal r " + " / ".join(f"{v:.2f}" for v in rr),
-                         fontsize=8.5)
+            ptxt = ""
+            if A is not None and (A.readout == c).any():                     # the within-animal slope's null (11-16)
+                pv = float(A.loc[A.readout == c, "shuffle_p"].iloc[0])
+                ptxt = (f"\nslope p {pv:.3f}" if pv > 0 else "\nslope p < .0005") + " (circular shift, 2,000 draws)"
+            ax.set_title(t.split("\n")[0] + " vs recovery\nwithin-animal r " + " / ".join(f"{v:.2f}" for v in rr)
+                         + ptxt, fontsize=8.5)
     axs[1, -1].axis("off")
     hs = [plt.Line2D([], [], marker=ANIMAL_MARKER[a], ls="", mfc="none", mec="k", label=a) for a in sorted(ANIMAL_MARKER)]
     hs += [plt.Line2D([], [], marker="o", ls="", mfc="none", mec=EPOCH_LINE[e], label=e) for e in EPOCH_LINE]
@@ -193,7 +197,8 @@ def figure(d, models):
            plt.Line2D([], [], marker="o", ls="", color="0.75", label="pre sessions (bottom)")]
     fig.legend(handles=hs, loc="upper center", ncol=11, frameon=False, bbox_to_anchor=(0.5, 1.04))
     fig.suptitle(f"Step or gradual? State-space readouts against time and against far-contra aim recovery "
-                 f"({F.ALIGN_LABEL[S.ALIGN]}{'; ' + S.XFORM if S.XFORM else ''})", y=1.09)
+                 f"({F.ALIGN_LABEL[S.ALIGN]}{'; ' + S.XFORM if S.XFORM else ''}); bottom p = within-animal slope, aim "
+                 f"circularly shifted over the animal's day-sorted sessions, 2,000 draws", y=1.09)
     fig.tight_layout()
     save_png_svg(fig, ROOT / "page_figs" / f"ss_step_{SUF}.png", dpi=140, bbox_inches="tight")
     plt.close(fig)
@@ -221,7 +226,7 @@ def main():
         print(models[["animal", "readout", "n", "cv_step", "cv_ramp", "cv_exp", "best", "par_step", "par_ramp",
                       "par_exp"]].to_string(index=False))
         print(models.groupby("readout").best.value_counts().unstack(fill_value=0))
-    figure(d, models)
+    figure(d, models, A)
 
 
 if __name__ == "__main__":

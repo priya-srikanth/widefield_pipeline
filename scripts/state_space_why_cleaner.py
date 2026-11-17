@@ -3,18 +3,17 @@ on to 'I can measure why these are cleaner by passing the older maps' inputs thr
 one step at a time'"; plan: running list B17).
 
 Start from the 15r lick / lick arm AS RENDERED and change ONE thing per step toward the state-space map:
-  S0  15r as rendered: the rebuild session cache (`position_reference_maps.maps_by_epoch("lick", "lick")`, camera
-      working-trial gate), RESTnl reference (`raw - restnl_base`), each animal x position divided by its own pre RMS over
-      `brain_mask()` -- which under the rebuild profile held the painted glue until the 11-09 glue fix (A9; since then
-      it IS the analysis mask, 151,447 px, so S1 = S0: re-run 11-16) -- contours =
-      `significance_contour` pre-normalized on the profile's stat mask (glue in)
-  S1  + the glue-free analysis mask (the state-space bundle's mask: Allen brain - bulbs - painted glue) for the scale,
-      the test and the display
-  S2  + ONE unit per animal (RMS over the analysis mask of its pre maps, all positions) instead of one per position
-  S3  + every session map through the cohort SVD (U_c U_c^T on the analysis mask: the 100-component low-rank denoising)
-  S4  the state-space map itself (`state_space_chronic_maps.py`, WF_SS_MAPBASE=rest: drift-removed signal, first-lick
+  S0  15r map: the rebuild session cache (`position_reference_maps.maps_by_epoch("lick", "lick")`, camera working-trial
+      gate), RESTnl reference (`raw - restnl_base`), each animal x position divided by its own pre RMS over
+      `brain_mask()`, contours = `significance_contour` pre-normalized on the stat mask. Since the 11-09 glue fix (A9)
+      the rebuild profile's brain mask IS the glue-free analysis mask (Allen brain - bulbs - painted glue, 151,447 px),
+      so the former separate "+ glue-free mask" step gave identical values (re-run 11-16) and is merged into S0
+      (Priya 11-16): S0 = 15r map, glue-free brain mask, per-position pre-RMS units
+  S1  + ONE unit per animal (RMS over the analysis mask of its pre maps, all positions) instead of one per position
+  S2  + every session map through the cohort SVD (U_c U_c^T on the analysis mask: the 100-component low-rank denoising)
+  S3  the state-space map itself (`state_space_chronic_maps.py`, WF_SS_MAPBASE=rest: drift-removed signal, first-lick
       0.1..0.5 s window, its trials), read from chronic_maps_lick_svd_rest/maps.npz
-Per step and panel (mean over spouts + six spouts, acute / subacute / chronic): r with S4 (analysis stat-mask pixels),
+Per step and panel (mean over spouts + six spouts, acute / subacute / chronic): r with S3 (analysis stat-mask pixels),
 split-half reliability (sessions split odd / even within animal and epoch, r of the two half-cohort change maps),
 energy outside the cohort SVD space (1 - |U_c^T m|^2 / |m|^2: noise and anything the 100 components cannot carry), and
 the fraction of the stat mask inside the nested-bootstrap contour (chronic, mean + far contra).
@@ -28,7 +27,9 @@ writes <state_space_recovery>/why_cleaner_lick/ (steps.csv, maps.npz) and page_f
     python scripts/state_space_why_cleaner.py [--out DIR]
 
 `--out DIR` writes steps.csv, maps.npz and ss_why_cleaner_lick.png (+ .svg) all into DIR instead (a re-run beside the
-published outputs, 11-16). The encoding bundle's settings are found by `o2_state_space_lnmf.enc_share` (follows a
+published outputs, 11-16). `--plot-only SRC --out DIR` redraws the figure (and writes the merged steps.csv) from an
+earlier run's SRC/steps.csv + SRC/maps.npz without touching the 15r cache; it reads both the merged format and the
+pre-merge five-step format (S0..S4, S1 == S0), mapping old S0 / S2 / S3 / S4 to S0 / S1 / S2 / S3. The encoding bundle's settings are found by `o2_state_space_lnmf.enc_share` (follows a
 move-aside manifest; raises if the bundle is nowhere).
 """
 from __future__ import annotations
@@ -54,8 +55,12 @@ SS_MAPS = S.ROOT / "chronic_maps_lick_svd_rest" / "maps.npz"
 EPS = S.POST
 POS = ["close_L", "close_center", "close_R", "far_L", "far_center", "far_R"]     # = S.POS order (L = ipsilesional)
 COLS = ["mean", *S.POS]
-STEPS = ["S0 15r as rendered", "S1 + glue-free mask", "S2 + one unit per animal", "S3 + cohort SVD",
-         "S4 state-space map"]
+# Internal (child) step ids 0, 2, 3 = output S0, S1, S2; the state-space map = S3. Child step 1 (glue-free mask) is not
+# run any more: since the glue fix it equals step 0 (Priya 11-16, merged).
+CHILD_STEPS = (0, 2, 3)
+STEPS = ["S0 15r map, glue-free mask, pre-RMS units", "S1 + one unit per animal", "S2 + cohort SVD",
+         "S3 state-space map"]
+OLD_STEP = {"S0 15r as rendered": 0, "S2 + one unit per animal": 1, "S3 + cohort SVD": 2, "S4 state-space map": 3}
 N_BOOT = 2000
 
 
@@ -64,7 +69,7 @@ def _cold(*_a, **_k):
 
 
 def _child(mask1_path, stat1_path, uc_path):
-    """Under the rebuild profile: S0-S3 from the cached 15r maps. Returns small arrays only."""
+    """Under the rebuild profile: child steps 0, 2, 3 (output S0-S2) from the cached 15r maps. Small arrays only."""
     import o2_state_space_lnmf as L
     L._env(L.CACHE)
     os.environ["WIDEFIELD_MAP_JOBS"] = "1"
@@ -177,7 +182,7 @@ def _child(mask1_path, stat1_path, uc_path):
         return out
 
     res = {"info": info, "maps": {}, "halves": {}, "sig": {}, "siglab": {}}
-    for step in range(4):
+    for step in CHILD_STEPS:
         X = {an: {ep: (project(v) if step == 3 else v) for ep, v in d.items()} for an, d in sess.items()}
         U = units(step)
         disp = mask0 if step == 0 else mask1
@@ -257,7 +262,7 @@ def main(out: Path = OUT, figs: Path = FIGS):
     for ep in EPS:
         ss[ep][:, mask1] = z[f"full__{ep}__mean"]
     rows = []
-    for step in range(4):
+    for k, step in enumerate(CHILD_STEPS):
         for ep in EPS:
             M = res["maps"][(step, ep)]
             h1, h2 = res["halves"][(step, ep)]
@@ -265,47 +270,80 @@ def main(out: Path = OUT, figs: Path = FIGS):
                 m = M[ci][stat1]
                 v = np.nan_to_num(M[ci][mask1])
                 e_out = 1 - float(np.sum((v @ Uc) ** 2) / max(np.sum(v ** 2), 1e-30))
-                rows.append({"step": STEPS[step], "epoch": ep, "spout": col, "r_with_S4": _r(m, ss[ep][ci][stat1]),
+                rows.append({"step": STEPS[k], "epoch": ep, "spout": col, "r_with_S3": _r(m, ss[ep][ci][stat1]),
                              "split_half_r": _r(h1[ci], h2[ci]), "energy_outside_svd": e_out,
                              "sig_frac": (float(res["sig"][(step, ci)][stat1].mean())
                                           if ep == "chronic" and (step, ci) in res["sig"] else np.nan)})
     for ep in EPS:
         sig = z[f"full__{ep}__sig"]
         for ci, col in enumerate(COLS):
-            rows.append({"step": STEPS[4], "epoch": ep, "spout": col, "r_with_S4": 1.0, "split_half_r": np.nan,
+            rows.append({"step": STEPS[3], "epoch": ep, "spout": col, "r_with_S3": 1.0, "split_half_r": np.nan,
                          "energy_outside_svd": 0.0, "sig_frac": float(sig[ci][stat1].mean())})
     T = pd.DataFrame(rows)
     T.to_csv(out / "steps.csv", index=False)
-    np.savez_compressed(out / "maps.npz", **{f"S{s}__{ep}": m for (s, ep), m in res["maps"].items()},
-                        **{f"S{s}__sig{ci}": k for (s, ci), k in res["sig"].items()})
+    new = {st: k for k, st in enumerate(CHILD_STEPS)}
+    np.savez_compressed(out / "maps.npz", **{f"S{new[s]}__{ep}": m for (s, ep), m in res["maps"].items()},
+                        **{f"S{new[s]}__sig{ci}": k for (s, ci), k in res["sig"].items()})
     print(res["info"])
     with pd.option_context("display.width", 200, "display.precision", 3):
         for ep in EPS:
             t = T[(T.epoch == ep) & T.spout.isin(["mean", "far_contra"])]
             print(f"\n=== {ep} ===")
-            print(t.pivot_table(index="step", columns="spout", values=["r_with_S4", "split_half_r",
+            print(t.pivot_table(index="step", columns="spout", values=["r_with_S3", "split_half_r",
                                                                          "energy_outside_svd", "sig_frac"],
                                 sort=False).to_string())
-    fig_steps(res, ss, mask1, atlas, z, figs)
+    fig_steps({(new[s], ep): m for (s, ep), m in res["maps"].items()},
+              {(new[s], ci): k for (s, ci), k in res["sig"].items()}, ss, mask1, atlas, z, figs)
     for p in ("_mask1.npy", "_stat1.npy"):
         (out / p).unlink()
     print(f"wrote {out}")
 
 
-def fig_steps(res, ss, mask1, atlas, z, figs: Path = FIGS):
-    """Chronic, mean over spouts + far contra: one row per step, the step's own contour."""
+def plot_only(src: Path, out: Path):
+    """Figure + merged steps.csv from an earlier run (merged or pre-merge five-step format)."""
+    out.mkdir(parents=True, exist_ok=True)
+    T = pd.read_csv(src / "steps.csv")
+    zs = np.load(src / "maps.npz")
+    if "S1 + glue-free mask" in set(T.step):                    # pre-merge: S1 must equal S0, then drop it
+        a, b = T[T.step == "S0 15r as rendered"], T[T.step == "S1 + glue-free mask"]
+        num = ["r_with_S4", "split_half_r", "energy_outside_svd", "sig_frac"]
+        assert np.allclose(a[num].to_numpy(float), b[num].to_numpy(float), equal_nan=True), "S1 != S0: do not merge"
+        assert all(np.array_equal(zs[f"S0__{k}"], zs[f"S1__{k}"], equal_nan=True)
+                   for k in [*EPS, "sig0", "sig6"]), "S1 != S0 maps: do not merge"
+        T = T[T.step != "S1 + glue-free mask"].copy()
+        T["step"] = T.step.map(lambda x: STEPS[OLD_STEP[x]])
+        T = T.rename(columns={"r_with_S4": "r_with_S3"})
+        old = {0: 0, 1: 2, 2: 3}                                # output step -> key in the old npz
+    else:
+        old = {0: 0, 1: 1, 2: 2}
+    T.to_csv(out / "steps.csv", index=False)
+    maps = {(s, ep): zs[f"S{o}__{ep}"] for s, o in old.items() for ep in EPS}
+    sigs = {(s, ci): zs[f"S{o}__sig{ci}"] for s, o in old.items() for ci in (0, 6)}
+    atlas = np.load(S.SVD.parents[1] / "atlas.npy")
+    mask1 = np.load(BASIS_DIR / "mask.npy").reshape(atlas.shape)
+    z = np.load(SS_MAPS)
+    ss = {ep: np.full((7, *mask1.shape), np.nan, np.float32) for ep in EPS}
+    for ep in EPS:
+        ss[ep][:, mask1] = z[f"full__{ep}__mean"]
+    fig_steps(maps, sigs, ss, mask1, atlas, z, out)
+    print(f"wrote {out} (plot-only from {src})")
+
+
+def fig_steps(maps, sigs, ss, mask1, atlas, z, figs: Path = FIGS):
+    """Chronic, mean over spouts + far contra: one column per step (S0-S2 from `maps` / `sigs`, keyed (output step,
+    epoch) / (output step, column); S3 = the state-space map), the step's own contour."""
     import state_space_chronic_maps as C
     from wfield_local import beta_maps as bm
     from wfield_local.atlas_overlay import region_edges
     from wfield_local.figure_layout import save_png_svg
     brain = bm.allen_mask()
-    fig, axs = plt.subplots(2, 5, figsize=(17, 7.2))
+    fig, axs = plt.subplots(2, 4, figsize=(13.8, 7.2))
     for c, (ci, title) in enumerate([(0, "mean over spouts"), (6, "far contra")]):
-        for s in range(5):
+        for s in range(4):
             ax = axs[c, s]
-            if s < 4:
-                M = res["maps"][(s, "chronic")][ci]
-                sig = res["sig"][(s, ci)]
+            if s < 3:
+                M = maps[(s, "chronic")][ci]
+                sig = sigs[(s, ci)]
                 disp = np.isfinite(M) & brain
             else:
                 M, sig, disp = ss["chronic"][ci], z["full__chronic__sig"][ci], mask1
@@ -318,9 +356,9 @@ def fig_steps(res, ss, mask1, atlas, z, figs: Path = FIGS):
                 ax.set_ylabel(title, fontsize=11)
     fig.suptitle(C._wrap("Why the state-space change maps are cleaner: chronic change vs own pre, lick-aligned, RESTnl "
                          "reference, mean of 4 animals; one change per column (left to right). S0 = the 15r activity "
-                         "map as rendered (rebuild cache, glue in, per-position pre scale); S1 glue-free mask; S2 one "
-                         "unit per animal; S3 every session map through the cohort SVD (100 components); S4 the "
-                         "state-space map (drift-removed signal, first-lick 0.1..0.5 s). Contour: nested bootstrap "
+                         "map (rebuild cache, glue-free brain mask since the 11-09 glue fix, per-position pre-RMS "
+                         "units); S1 one unit per animal; S2 every session map through the cohort SVD (100 components); "
+                         "S3 the state-space map (drift-removed signal, first-lick 0.1..0.5 s). Contour: nested bootstrap "
                          "animals -> sessions (2,000), each column's own test. Color scale per panel (99th pct |value|)."),
                  y=1.03, fontsize=9.5)
     save_png_svg(fig, figs / "ss_why_cleaner_lick.png", dpi=110, bbox_inches="tight")
@@ -331,5 +369,12 @@ if __name__ == "__main__":
     import argparse
     ap = argparse.ArgumentParser(description=__doc__.split(chr(10))[0])
     ap.add_argument("--out", type=Path, default=None, help="write every output (tables + figure) here")
+    ap.add_argument("--plot-only", type=Path, default=None,
+                    help="redraw from SRC/steps.csv + SRC/maps.npz (no 15r cache read); needs --out")
     a = ap.parse_args()
-    main(a.out, a.out) if a.out else main()
+    if a.plot_only:
+        if not a.out:
+            sys.exit("--plot-only needs --out (never overwrite the source run)")
+        plot_only(a.plot_only, a.out)
+    else:
+        main(a.out, a.out) if a.out else main()

@@ -127,7 +127,7 @@ def figure(s, A):
     fig.legend(handles=hs, loc="upper center", ncol=9, frameon=False, bbox_to_anchor=(0.5, 1.02))
     fig.suptitle(f"Per spout position: the changed representation against recovery (rows 1-2) and against that spout's own "
                  f"landing (rows 3-4) ({F.ALIGN_LABEL[S.ALIGN]}); r = within-animal PS92 / 93 / 94 / 95, * = within-animal "
-                 f"circular-shift p < .05 (aim / landing rotated over the animal's sessions)", y=1.045)
+                 f"circular-shift p < .05 (aim / landing rotated over the animal's day-sorted sessions, 2,000 draws)", y=1.045)
     fig.tight_layout()
     save_png_svg(fig, ROOT / "page_figs" / f"ss_perpos_{SUF}.png", dpi=130, bbox_inches="tight")
     plt.close(fig)
