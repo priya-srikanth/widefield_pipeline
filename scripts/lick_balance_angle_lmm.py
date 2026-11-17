@@ -9,7 +9,8 @@ session contributes one point per spout and the lick angle varies across spouts 
   BALANCE     per pair (ALM, tjM1, SSp-m, SSp-n), two measures:
               dec  = X_right - X_left in the decoder's own window (mean 0..0.2 s from the lick peak; the decoder's inputs,
                      x1e3 dF/F, no per-lick baseline) -- the measure of 12.17
-              resp = log2(contra / ipsi response AUC 0..1.0 s, baseline -1.0..-0.5 s) -- the measure of 14.9
+              resp = log2(contra / ipsi response AUC, baseline -1.0..-0.5 s) -- the measure of 14.9, on its primary
+                     window per set (Priya 11-17): cued 0..1.0 s, ITI 0..0.5 s (iti_licks.CUED_RESP_WIN / ITI_RESP_WIN)
               (cued: first cued licks; ITI: bout starts)
               WHICH DECODER (11-16): the per-lick lateral WHERE-decoder (iti_lick_order / iti_where_decoder; ridge on
               Allen areas with the ALM / tjM1 split, lags 0..0.2 s, z-scored within session, trained on August pre
@@ -46,6 +47,10 @@ from figdata import load_fd, plot_only, save_fd  # noqa: E402
 
 PAIRS = [*lbr.PAIRS, "orofacial"]       # + the four pooled (Priya 10-28)
 SETMAP = {"trial": "cued", "iti": "iti"}
+# resp = lateral_ratio_sessions.csv column of each set's primary window (Priya 11-17: ITI 0..0.5 s, cued 0..1.0 s)
+RESP_COL = {"cued": f"logr_{il.win_tag(il.CUED_RESP_WIN)}", "iti": f"logr_{il.win_tag(il.ITI_RESP_WIN)}"}
+RESP_LAB = (f"hemispheric BALANCE (ratio) log2(contra / ipsi AUC; cued {il.win_label(il.CUED_RESP_WIN)}, "
+            f"ITI {il.win_label(il.ITI_RESP_WIN)})")
 MIN_LICKS = 5
 EP = ["acute", "subacute", "chronic"]
 
@@ -54,7 +59,8 @@ def points() -> pd.DataFrame:
     from wfield_local import analysis_kit as ak
     P = pd.read_csv(lo.preds_path()).reset_index(drop=True)
     P["k"] = P.groupby(["set", "label"]).cumcount()
-    C = pd.read_csv(il.OUT_W / f"covref_covariates{lo.SRC_TAG}.csv.gz", usecols=["set", "label", "k", "reach_mm", "side_k"])
+    C = pd.read_csv(il.in_path(f"covref_covariates{lo.SRC_TAG}.csv.gz"),
+                    usecols=["set", "label", "k", "reach_mm", "side_k"])
     P = P.merge(C, on=["set", "label", "k"], how="left", validate="one_to_one")
     res, fail = ak.fan_sessions(sorted(P.label.unique()), lbr._session_bal)
     if fail:
@@ -72,8 +78,10 @@ def points() -> pd.DataFrame:
     S = S[S.n >= MIN_LICKS]
     S["set"] = S.set.map(SETMAP) + S.cls
     S = S.drop(columns="cls")
-    R = pd.read_csv(il.OUT_W / "lateral_ratio_sessions.csv")
-    R = R[R.spout.isin(lo.POS)].pivot_table(index=["set", "label", "spout"], columns="pair", values="logr_0-1")
+    R = pd.read_csv(il.in_path("lateral_ratio_sessions.csv"))
+    R = R[R.spout.isin(lo.POS) & R.set.isin(list(RESP_COL))]
+    R = R.assign(y=[r_[RESP_COL[st]] for st, (_i, r_) in zip(R.set, R.iterrows())])
+    R = R.pivot_table(index=["set", "label", "spout"], columns="pair", values="y")
     R.columns = [f"resp_{c}" for c in R.columns]
     S = S.merge(R.reset_index().rename(columns={"spout": "pos"}), on=["set", "label", "pos"], how="left")
     S = S.rename(columns={f"bal_{a}": f"dec_{a}" for a in lbr.PAIRS})
@@ -157,7 +165,7 @@ def plot(F: dict) -> None:
     col = {"pre": "k", **EPOCH_LINE}
     S, M = F["S"], F["M"]
     for meas, lab in (("dec", "hemispheric DIFFERENCE X_right - X_left, 0..0.2 s, no baseline (x1e3 dF/F)"),
-                      ("resp", "hemispheric BALANCE (ratio) log2(contra / ipsi AUC 0..1.0 s)")):
+                      ("resp", RESP_LAB)):
         sets = ("cued", "cued later", "iti", "iti later") if meas == "dec" else ("cued", "iti")
         fig, axs = plt.subplots(len(sets), len(PAIRS), figsize=(24, 4.75 * len(sets)), squeeze=False)
         for i, st in enumerate(sets):

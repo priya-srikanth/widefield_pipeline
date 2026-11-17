@@ -2,8 +2,8 @@
 
 Written 2026-11-04 from the code review of that day
 ([`status/CODE_REVIEW_2026-11-04.md`](status/CODE_REVIEW_2026-11-04.md), "Docs a new lab member would trip on").
-This repo has many "start here" lines. This page puts them in one order. Every path and name below was checked
-against `main` on 2026-11-04.
+This repo has many "start here" lines. This page puts them in one order. Section 1 (analysis branches) was
+rewritten and checked against `main` on 2026-11-17; sections 2 and 3 were checked on 2026-11-04.
 
 Read in this order:
 
@@ -12,7 +12,7 @@ Read in this order:
 2. **The rules:** [`../CLAUDE.md`](../CLAUDE.md), the ground rules at the top (never delete original data, configs are
    the single source of truth, fan per-session loops over cores, one definition per quantity, frozen models).
 3. **Why things are the way they are:** [`../DECISIONS.md`](../DECISIONS.md). It is long; search it for the topic.
-4. **The current handoff for your arm** (table below).
+4. **Your analysis branch** (section 1: question, results page, findings, handoff, code).
 5. **How the code is laid out:** [`ARCHITECTURE.md`](ARCHITECTURE.md), then [`../scripts/INDEX.md`](../scripts/INDEX.md)
    for the 415 scripts outside `archive/`.
 
@@ -22,28 +22,123 @@ anything: hand runs on cohort 2 need `WIDEFIELD_COHORT=cohort2`.
 
 ---
 
-## 1. One current handoff per arm
+## 1. Analysis branches: where each one stands
 
-A "handoff" is the note a working session leaves for the next one: state, what is running, to-dos, pitfalls. Each
-one names the older handoff it supersedes. The full list of status docs is in
-[`status/README.md`](status/README.md); CLAUDE.md "Current status / handoff" keeps the older ones with a line each.
+The project runs as several analysis BRANCHES, each with its own question, results page, findings doc, handoff and
+code. Find yours below. A "handoff" is the note a working session leaves for the next one (state, what is running,
+to-dos, pitfalls); most handoffs grow dated blocks at the top, so **read the block named here first**. The full list
+of status docs is in [`status/README.md`](status/README.md); CLAUDE.md "Current status / handoff" keeps older ones.
+Results pages are claude.ai Artifacts on Priya's account (ask for access). Rewritten 2026-11-17: when you start,
+move or retire a branch, edit its block here in the same commit.
 
-| arm | newest handoff on main | read with it |
-|---|---|---|
-| **Code (engineering, refactors)** | [`status/CODE_REVIEW_2026-11-04.md`](status/CODE_REVIEW_2026-11-04.md): verified findings, what to consolidate, the proposed order of work | [`status/REPO_CONSOLIDATION_PLAN_2026-11-03.md`](status/REPO_CONSOLIDATION_PLAN_2026-11-03.md), [`status/REPO_AUDIT_2026-11-03.md`](status/REPO_AUDIT_2026-11-03.md); older inventory [`status/STATUS_2026-09-21_ENGINEERING.md`](status/STATUS_2026-09-21_ENGINEERING.md) |
-| **Trial gates, imaging section 1 table, pose / 3-D (incl. side cameras), spout position** | [`status/STATUS_2026-11-03_TRIAL_GATES_S1_TABLE_HANDOFF.md`](status/STATUS_2026-11-03_TRIAL_GATES_S1_TABLE_HANDOFF.md) (read its "START HERE (window e0, 11-04 late)" block first) | [`POSE_MODELS.md`](POSE_MODELS.md) (Part E = side cameras and four-camera 3-D); [`status/SPOUT_POSITION_AUDIT_2026-11-04.md`](status/SPOUT_POSITION_AUDIT_2026-11-04.md) |
-| **Quiet-period cortical events, PI deck** | [`status/STATUS_2026-11-01_QUIET_EVENTS_HANDOFF.md`](status/STATUS_2026-11-01_QUIET_EVENTS_HANDOFF.md) (read its "11-04 (evening)" block first) | [`status/RUNNING_LIST_2026-11-03_AWAY.md`](status/RUNNING_LIST_2026-11-03_AWAY.md), [`status/PAGE_EDITS_PENDING_2026-11-04.md`](status/PAGE_EDITS_PENDING_2026-11-04.md) |
-| **Kinematics page (behavior), repo audit** | [`status/STATUS_2026-11-03_KINEMATICS_PAGE_REPO_AUDIT_HANDOFF.md`](status/STATUS_2026-11-03_KINEMATICS_PAGE_REPO_AUDIT_HANDOFF.md) | DECISIONS 2026-11-03 (trial classes) |
-| **Encoding model** | [`status/STATUS_2026-10-26_ENCODING_HANDOFF.md`](status/STATUS_2026-10-26_ENCODING_HANDOFF.md) (section "00. START HERE") | [`ENCODING_FINDINGS.md`](ENCODING_FINDINGS.md). The cohort 1 rebuild (from 11-03) keeps its state on the `rebuild/*` branches (for example `rebuild/cohort1-20261103`), not yet on main. |
-| **FaceRhythm** | [`status/STATUS_2026-10-24_FACE_RHYTHM_HANDOFF.md`](status/STATUS_2026-10-24_FACE_RHYTHM_HANDOFF.md) | [`FACE_RHYTHM_FINDINGS.md`](FACE_RHYTHM_FINDINGS.md), [`FACE_RHYTHM_PIPELINE.md`](FACE_RHYTHM_PIPELINE.md) |
-| **Pose tracking / cam1 / jaw calls (before the 11-03 work)** | [`status/STATUS_2026-10-21_POSE_CAM1_JAW_HANDOFF.md`](status/STATUS_2026-10-21_POSE_CAM1_JAW_HANDOFF.md) | [`POSE_MODELS.md`](POSE_MODELS.md) |
-| **Cohort 2 (PS118-122)** | [`NEW_COHORT_2026-10-29.md`](NEW_COHORT_2026-10-29.md) | [`COHORT2_QC_2026-10-29.md`](COHORT2_QC_2026-10-29.md) |
-| **Chronic stability (cohort 1 imaging complete)** | [`status/STATUS_2026-10-07_CHRONIC_STABILITY_COHORT_COMPLETE.md`](status/STATUS_2026-10-07_CHRONIC_STABILITY_COHORT_COMPLETE.md) | DECISIONS 2026-10-07 |
-| **ENL sensory vs plan** | [`status/STATUS_2026-09-24_ENL_SENSORY_VS_PLAN.md`](status/STATUS_2026-09-24_ENL_SENSORY_VS_PLAN.md) | |
-| **CD trajectories** | [`status/STATUS_2026-09-24_CD_TRAJECTORIES.md`](status/STATUS_2026-09-24_CD_TRAJECTORIES.md) | |
-| **Hemodynamics (closed) and engagement** | [`status/STATUS_2026-09-20.md`](status/STATUS_2026-09-20.md) | [`PREPROCESSING_DECISION.md`](PREPROCESSING_DECISION.md) |
-| **Anatomical arm (where the code moves)** | [`status/STATUS_2026-09-12.md`](status/STATUS_2026-09-12.md) | [`WHERE_THE_CODE_MOVES.md`](WHERE_THE_CODE_MOVES.md) |
-| **Rest baseline** | [`status/STATUS_2026-09-16.md`](status/STATUS_2026-09-16.md) | [`REST_ENGAGEMENT_AUDIT.md`](REST_ENGAGEMENT_AUDIT.md) (read before quoting any rest number) |
+Shared by every branch: trial classes and the working gate (branch D), the August-only pre baseline (CLAUDE.md
+"Current status"), every readout as the change from the animal's OWN pre, significance stars from the nested
+bootstrap (`analysis_kit.boot_delta`), and the block-permutation null for any label that follows the spout blocks
+(branch J).
+
+### A. Behavior (task performance, engagement, licking from the DAQ)
+- **Question:** what does the stroke do to task performance, engagement and the quit tail?
+- **Page:** behavior https://claude.ai/artifact/M1xhZBWSPS84aELTSFaMMK
+- **Findings:** [`FINDINGS.md`](FINDINGS.md); [`WITHIN_SESSION_DECLINE_QUITTING.md`](WITHIN_SESSION_DECLINE_QUITTING.md);
+  engagement in [`status/STATUS_2026-09-20.md`](status/STATUS_2026-09-20.md)
+- **Handoff:** [`status/STATUS_2026-11-03_KINEMATICS_PAGE_REPO_AUDIT_HANDOFF.md`](status/STATUS_2026-11-03_KINEMATICS_PAGE_REPO_AUDIT_HANDOFF.md) (behavior / kinematics split)
+- **Code:** `daq_trials.py`, `spout_behavior.py`, `behavior_events.py`, `trial_classes.py`
+
+### B. Pose tracking and 3-D (DLC / Lightning Pose, cam1-cam4, side cameras)
+- **Question:** clean tongue / jaw / nose positions in 2-D and 3-D, on the DAQ clock, for every other branch.
+- **Register:** [`POSE_MODELS.md`](POSE_MODELS.md) (every model and how it was chosen; Part E = side cameras and
+  four-camera 3-D)
+- **Handoff:** [`status/STATUS_2026-11-03_TRIAL_GATES_S1_TABLE_HANDOFF.md`](status/STATUS_2026-11-03_TRIAL_GATES_S1_TABLE_HANDOFF.md)
+  ("START HERE (window e0, 11-04 late)" block); before 11-03:
+  [`status/STATUS_2026-10-21_POSE_CAM1_JAW_HANDOFF.md`](status/STATUS_2026-10-21_POSE_CAM1_JAW_HANDOFF.md)
+- **Code:** `pose3d.py`, `pose3d_side.py`, `lp_licks.py`, `lp_multiview.py`, `lp_sidecam.py`, `orofacial_clean.py`;
+  O2 runbook [`../runbooks/o2_pose_inference.md`](../runbooks/o2_pose_inference.md)
+
+### C. Kinematics (tongue / jaw readouts from the tracking: direction, aim, attempts, incomplete licks)
+- **Question:** how do individual licks change (direction, accuracy, timing, jaw steering) after the stroke?
+- **Page:** kinematics https://claude.ai/artifact/DKcKRJKbhBoratxxRc6qZv
+- **Findings:** [`OROFACIAL_FINDINGS.md`](OROFACIAL_FINDINGS.md)
+- **Handoff:** [`status/STATUS_2026-11-03_KINEMATICS_PAGE_REPO_AUDIT_HANDOFF.md`](status/STATUS_2026-11-03_KINEMATICS_PAGE_REPO_AUDIT_HANDOFF.md) (section 00)
+- **Code:** `orofacial_cohort.py` (the LP run `RUN`, spout order `POS_ORDER`), `orofacial_outputs.py`,
+  `tongue_kinematics.py`, `jaw_kinematics.py`, `kinematics_chain.py`, `orofacial_stats.py`
+
+### D. Trial classes and gates (contact / incomplete / jaw-only / no response; working; quit tail)
+- **Question:** which trials count. One definition, used by every branch.
+- **Handoff:** [`status/STATUS_2026-11-03_TRIAL_GATES_S1_TABLE_HANDOFF.md`](status/STATUS_2026-11-03_TRIAL_GATES_S1_TABLE_HANDOFF.md); DECISIONS 2026-11-03
+- **Code:** `trial_classes.py` (`GATES`), `working_trials.py`; section 2 below says how to change it
+
+### E. FaceRhythm (whole-face optic-flow factors)
+- **Question:** unbiased whole-face movement factors (the master pre-stroke set `master_pre_v1`, rank 12) and how
+  they change after the stroke.
+- **Page:** FaceRhythm https://claude.ai/artifact/X8NDdQNHi3zMP77PBrZAC1
+- **Findings:** [`FACE_RHYTHM_FINDINGS.md`](FACE_RHYTHM_FINDINGS.md); pipeline [`FACE_RHYTHM_PIPELINE.md`](FACE_RHYTHM_PIPELINE.md)
+- **Handoff:** [`status/STATUS_2026-10-24_FACE_RHYTHM_HANDOFF.md`](status/STATUS_2026-10-24_FACE_RHYTHM_HANDOFF.md)
+  (section 2: the newest `00-A8-...` item first)
+- **Code:** `face_rhythm/` (factors, projection, O2), `face_rhythm_outputs.py`, `face_rhythm_readouts.py`, `fr_groups.py`
+
+### F. Neural coding of spout position (decoders, maps, frozen pre-stroke decoders): the imaging page
+- **Question:** does cortex carry spout-position information before and after the cue, and how does that change?
+- **Page:** imaging https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV (rebuild chain:
+  [`results_pages/imaging/README.md`](results_pages/imaging/README.md))
+- **Findings:** [`FINDINGS.md`](FINDINGS.md); [`WHERE_THE_CODE_MOVES.md`](WHERE_THE_CODE_MOVES.md);
+  [`BEHAVIOURAL_STATE_CONTROL.md`](BEHAVIOURAL_STATE_CONTROL.md); [`FROZEN_MODELS.md`](FROZEN_MODELS.md);
+  [`REST_ENGAGEMENT_AUDIT.md`](REST_ENGAGEMENT_AUDIT.md) (read before quoting any rest number)
+- **Handoff:** [`status/STATUS_2026-11-03_TRIAL_GATES_S1_TABLE_HANDOFF.md`](status/STATUS_2026-11-03_TRIAL_GATES_S1_TABLE_HANDOFF.md)
+  (imaging section 1). Older sub-arms: ENL sensory vs plan
+  [`status/STATUS_2026-09-24_ENL_SENSORY_VS_PLAN.md`](status/STATUS_2026-09-24_ENL_SENSORY_VS_PLAN.md); CD trajectories
+  [`status/STATUS_2026-09-24_CD_TRAJECTORIES.md`](status/STATUS_2026-09-24_CD_TRAJECTORIES.md); chronic stability
+  [`status/STATUS_2026-10-07_CHRONIC_STABILITY_COHORT_COMPLETE.md`](status/STATUS_2026-10-07_CHRONIC_STABILITY_COHORT_COMPLETE.md);
+  rest baseline [`status/STATUS_2026-09-16.md`](status/STATUS_2026-09-16.md); hemodynamics (CLOSED)
+  [`status/STATUS_2026-09-20.md`](status/STATUS_2026-09-20.md)
+- **Code:** `locanmf_position_decoder.py`, `locanmf_frozen_decoder.py`, `frozen_models.py`, `nolick_decoder.py`,
+  `enl_decode.py`, `epoch_figures.py` / `epoch_grant_figures.py`, `attempt_coding.py`
+
+### G. Encoding model (Musall-style ridge encoder: task, movement, FaceRhythm, contact)
+- **Question:** how much of cortical activity is task vs movement, and does the stroke change that split?
+- **Page:** encoding (goal question) https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d
+- **Findings:** [`ENCODING_FINDINGS.md`](ENCODING_FINDINGS.md); [`ENCODER_CEILING.md`](ENCODER_CEILING.md)
+- **Handoff:** [`status/STATUS_2026-10-26_ENCODING_HANDOFF.md`](status/STATUS_2026-10-26_ENCODING_HANDOFF.md)
+  (the newest `00-COMPACT-...` block first)
+- **Code:** `combined_encoding.py` (per session), `frozen_encoder.py` (frozen pre-stroke); O2 `scripts/o2_encoding.py`
+
+### H. Quiet-period cortical events (and the PI deck)
+- **Question:** why do anterolateral orofacial cortical events rise ~5x acutely while the face is still?
+- **Page:** the "quiet-state" section of the encoding page; imaging page section 15
+- **Handoff:** [`status/STATUS_2026-11-01_QUIET_EVENTS_HANDOFF.md`](status/STATUS_2026-11-01_QUIET_EVENTS_HANDOFF.md) (the top `>` block first)
+- **Code:** `quiet_periods.py`, `restnl_mask.py`
+
+### I. State space / BCI-style recovery
+- **Question:** is post-stroke cortical activity the pre-stroke activity re-mapped, re-weighted, or new?
+- **Page:** state space https://claude.ai/artifact/9sGELLFEwADEt9k64fXTxe (source [`results_pages/state_space/`](results_pages/state_space/))
+- **Plan / code map:** [`STATE_SPACE_RECOVERY_PLAN.md`](STATE_SPACE_RECOVERY_PLAN.md), [`STATE_SPACE_CODE.md`](STATE_SPACE_CODE.md),
+  [`STATE_SPACE_RECOVERY_LITERATURE.md`](STATE_SPACE_RECOVERY_LITERATURE.md)
+- **Handoff:** [`status/STATUS_2026-11-07_STATE_SPACE_HANDOFF.md`](status/STATUS_2026-11-07_STATE_SPACE_HANDOFF.md) (the newest "START HERE" block)
+
+### J. Behavioral states, task-independent movement (TIM), AR-HMM syllables, block permutation (from 11-16)
+- **Question:** separate instructed vs uninstructed and task-aligned vs task-independent movement (Yin et al. 2025);
+  engagement states over ALL trials (GLM-HMM); movement syllables (AR-HMM, adapted from Hillary Tong's model, fit on
+  O2); the block-permutation null for labels that follow the spout blocks.
+- **Handoff:** `docs/status/STATUS_2026-11-16_ENCDESIGN_TIM_STATES_HANDOFF.md` on branch `analysis/tim-encdesign-1116`
+  (design `docs/status/ENCODING_DESIGN_TIM_STATES_2026-11-16.md`; audit `docs/status/BLOCK_PERMUTATION_AUDIT_2026-11-16.md`)
+- **Code (on that branch):** `task_independent_movement.py`, `glm_hmm.py`, `arhmm_features.py`, `arhmm_model.py`,
+  `arhmm_states.py`, `scripts/o2_arhmm.py`; the block null `analysis_kit.block_permute` on branch
+  `fix/block-perm-null-1116`
+- **Status:** not merged into main yet; every result is provisional.
+
+### K. Anatomy and histology
+- **Question:** lesion extent per animal; where on cortex the displaced position code moves.
+- **Docs:** [`HISTOLOGY.md`](HISTOLOGY.md); [`WHERE_THE_CODE_MOVES.md`](WHERE_THE_CODE_MOVES.md) (with [`status/STATUS_2026-09-12.md`](status/STATUS_2026-09-12.md))
+- **Code:** `histology_area.py`, `histology_map/`
+
+### L. Cohort 2 (PS118, PS120-122; never pooled with cohort 1)
+- **Docs:** [`NEW_COHORT_2026-10-29.md`](NEW_COHORT_2026-10-29.md), [`COHORT2_QC_2026-10-29.md`](COHORT2_QC_2026-10-29.md);
+  hand runs need `WIDEFIELD_COHORT=cohort2`
+
+### M. Code and engineering (refactors, consolidation)
+- **Handoff:** [`status/CODE_REVIEW_2026-11-04.md`](status/CODE_REVIEW_2026-11-04.md) (verified findings, order of work);
+  [`status/REPO_CONSOLIDATION_PLAN_2026-11-03.md`](status/REPO_CONSOLIDATION_PLAN_2026-11-03.md),
+  [`status/REPO_AUDIT_2026-11-03.md`](status/REPO_AUDIT_2026-11-03.md),
+  [`status/STATUS_2026-09-21_ENGINEERING.md`](status/STATUS_2026-09-21_ENGINEERING.md)
 
 ---
 

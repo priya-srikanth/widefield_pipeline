@@ -18,8 +18,9 @@ Predictors (session means; post-stroke sessions for every model):
      analyses define a bout start (Priya 10-28), with their own pre reference; a third lick set in every model.
   CUED FIRST LICK: only the first post-cue lick of each trial (order 0), own pre reference (Priya 10-28: "are we also
      using first post-cue lick"); 'cued' = every post-cue lick, as 14.16.
-  B. RESPONSE AUC (the 14.x response measure: 0..1 s after the lick, baseline -1.0..-0.5 s; cued = first cued lick,
-     ITI = bout starts; cue response 0..0.5 s after the cue), orofacial pool contra / ipsi / both, each as the change vs
+  B. RESPONSE AUC (the 14.x response measure, baseline -1.0..-0.5 s: cued = first cued lick 0..1.0 s after it, ITI =
+     bout starts 0..0.5 s after it since Priya 11-17 (iti_area_maps windows, 0..1.0 s before);
+     cue response 0..0.5 s after the cue), orofacial pool contra / ipsi / both, each as the change vs
      the animal's own pre mean (fraction), area_auc_sessions_split{_cued}.csv.
 Models per predictor and lick set:
   per-animal r (rule 8, printed first); concurrent MixedLM aim ~ within + between + log(day) + (1 | animal);
@@ -60,7 +61,7 @@ KEY = [("days", "days since stroke"), ("oro_bal", "oro BALANCE"), ("oro_balz", "
        ("oro_balw", "oro balance, pre-fit weights (own animal)"),
        ("oro_balwx", "oro balance, pre-fit weights (other animals)"), ("oro_size", "oro SIZE (both sides)"),
        ("oro_contra", "oro contra"), ("oro_ipsi", "oro ipsi"), ("non_bal", "non-oro balance"), ("non_size", "non-oro size"),
-       ("auc_both", "AUC 0-1 s, both"), ("auc_contra", "AUC contra"), ("auc_ipsi", "AUC ipsi"),
+       ("auc_both", "AUC (cued 0-1 s, ITI 0-0.5 s), both"), ("auc_contra", "AUC contra"), ("auc_ipsi", "AUC ipsi"),
        ("cue_both", "cue AUC, both")]
 
 
@@ -108,6 +109,67 @@ def _gaps(label: str) -> pd.DataFrame:
     gap = pd.Series(np.r_[np.inf, np.diff(A.daq_on_s.to_numpy(float))], index=A.daq_peak_s.to_numpy(float))
     gap = gap[~gap.index.duplicated()]
     return C.assign(gap=gap.reindex(C.t.to_numpy(float)).to_numpy(float)).drop(columns="t")
+
+
+CUED_FC_MIN = 5          # far-contra variant: >= 5 first licks at far contra (iti_recovery_measure.MIN_LICKS["first"])
+
+
+def _cued_first_full(label: str) -> pd.DataFrame:
+    """Every first post-cue lick of a session from firstlick_full (WFIELD_BAL_FULL's set): spout + 3-D landing angle.
+    Reads only the small per-lick arrays (npz members load lazily; X is never touched). Module-level for spawn."""
+    from wfield_local import mask_keys
+    from wfield_local import orofacial_cohort as oc
+    f = il.in_path("firstlick_full") / f"{label}.npz"
+    if not f.exists():
+        return pd.DataFrame()
+    z = np.load(f, allow_pickle=True)
+    mask_keys.check_obj(z, f)                     # stale-read guard (11-09), as lick_balance_subsets._full_session
+    pos = [q if "_" not in q or q.split("_")[-1] not in ("L", "R", "center") else oc.pos_key(q, "L")
+           for q in z["pos"].astype(str)]
+    return pd.DataFrame({"label": label, "animal": str(z["animal"]), "epoch": str(z["epoch"]), "pos": pos,
+                         "side_k": z["side_ml"].astype(float), "reach_mm": z["reach_mm"].astype(float)})
+
+
+def cued_angle_axis(full: bool, labels: list[str] | None = None) -> pd.DataFrame:
+    """CUED ANGLE recovery axis (Priya 11-17 "add cued => cued angle"): the cued analogue of iti_ang, on the SAME first
+    post-cue licks the cued balance is measured on (full = firstlick_full, else the KEY set's order-0 cued licks).
+    Per lick: 3-D landing angle (asin(side / reach), deg) minus the animal's PRE mean angle at the SAME spout (all pre
+    first licks pooled, as the aim's reference in iti_recovery_measure.aim_licks), so the target position is removed;
+    signed like iti_ang / aim (NEGATIVE = ipsilesional; sign from the pre far-contra mean angle).
+      cued_ang     = session mean over ALL spouts' first licks
+      cued_ang_fc  = far-contra first licks only (>= CUED_FC_MIN), ~ the aim on the balance's own lick set
+    Purpose: does the cued balance track the direction of the very licks it is measured on (circularity check)?
+    Returns [label, cued_ang, cued_ang_fc, n_cued_ang]; pre sessions included (vs the pooled pre mean, not fitted)."""
+    from wfield_local import analysis_kit as ak
+    if full:
+        labs = sorted(labels) if labels is not None else sorted(p.stem for p in il.in_path("firstlick_full").glob("*.npz"))
+        res, fail = ak.fan_sessions(labs, _cued_first_full)
+        if fail:
+            raise RuntimeError(f"cued angle: firstlick_full load failed for {len(fail)} sessions: {fail[:5]}")
+        L = pd.concat([v for _i, v in res if len(v)], ignore_index=True)
+    else:
+        P = pd.read_csv(lo.preds_path()).reset_index(drop=True)
+        P["k"] = P.groupby(["set", "label"]).cumcount()
+        C = pd.read_csv(il.in_path(f"covref_covariates{lo.SRC_TAG}.csv.gz"),
+                        usecols=["set", "label", "k", "reach_mm", "side_k"])
+        P = P.merge(C, on=["set", "label", "k"], how="left", validate="one_to_one")
+        L = P[(P.set == "trial") & (P.order == 0)][["label", "animal", "epoch", "pos", "side_k", "reach_mm"]]
+        if labels is not None:
+            L = L[L.label.isin(labels)]
+    L = L.copy()
+    L["angle"] = np.degrees(np.arcsin(np.clip(L.side_k / L.reach_mm, -1, 1)))
+    L = L.dropna(subset=["angle"])
+    pre = L[L.epoch == "pre"]
+    sgn = float(np.sign(pre[pre.pos == "far_contra"].angle.mean()))
+    ref = pre.groupby(["animal", "pos"]).angle.mean()
+    L["off"] = sgn * (L.angle - ref.reindex(pd.MultiIndex.from_arrays([L.animal, L.pos])).to_numpy())
+    L = L.dropna(subset=["off"])
+    out = L.groupby("label").off.agg(cued_ang="mean", n_cued_ang="size")
+    fc = L[L.pos == "far_contra"].groupby("label").off.agg(["mean", "size"])
+    out["cued_ang_fc"] = fc["mean"].where(fc["size"] >= CUED_FC_MIN).reindex(out.index)
+    print(f"== cued angle axis ({'full first-lick set' if full else 'KEY order-0 cued licks'}): {len(L)} first licks, "
+          f"{len(out)} sessions, sign {sgn:+.0f} (pre far-contra)", flush=True)
+    return out.reset_index()[["label", "cued_ang", "cued_ang_fc", "n_cued_ang"]]
 
 
 def _residuals(P: pd.DataFrame, vs: list[str]) -> pd.DataFrame:
@@ -434,7 +496,7 @@ def plot(F: dict) -> None:
     fig.suptitle("Which session measure estimates RECOVERY (far-contra first-lick aim)? BALANCE (contra - ipsi, red) vs SIZE "
                  "(blue) of the orofacial lick response, vs days since stroke (gray). Post-stroke sessions.\nDecoder-window "
                  "measures (0-0.2 s, same lick angle & order as pre): oro balance / size / contra / ipsi, non-oro; AUC = the 14.x "
-                 "response (0-1 s, / animal's pre - 1). OLS aim ~ measure; pooled R². Shuffle = measure permuted "
+                 "response (cued 0-1 s, ITI 0-0.5 s since 11-17; / animal's pre - 1). OLS aim ~ measure; pooled R². Shuffle = measure permuted "
                  "across each animal's sessions (2000x). PROVISIONAL", fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
     save_png_svg(fig, fig_dir / "lick_recovery_markers_cv.png", dpi=95)
@@ -445,7 +507,7 @@ def plot(F: dict) -> None:
     for i, st in enumerate(SETS3):
         for j, (k, lab) in enumerate((("oro_bal", "orofacial BALANCE (contra - ipsi)"),
                                       ("oro_size", "orofacial SIZE (mean of both sides)"),
-                                      ("auc_both", "orofacial response AUC 0-1 s, both sides (/ pre - 1)"))):
+                                      ("auc_both", "orofacial response AUC (cued 0-1 s / ITI 0-0.5 s), both sides (/ pre - 1)"))):
             ax = axs[i, j]
             g = S[S.set == st]
             pre = g[g.epoch == "pre"]

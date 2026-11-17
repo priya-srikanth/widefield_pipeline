@@ -1,0 +1,50 @@
+[
+ {
+  "slide": 120,
+  "title_now": "Refit decodes; frozen ITI read-out ~75–80 %",
+  "status": "ready",
+  "skip_reason": "",
+  "pictures": [
+   {
+    "shape_name": "fig:o_key_BC",
+    "new_image": "M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-17/swap_inputs/s120_key_BC_lowhit.png",
+    "source_render": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/redraw_lowhit_20261117/figures/key_figure.png",
+    "crop_done": "panels B + C, render box (605, 150, 1585, 514) exactly as the current deck image (matched pixel-exact on the 11-11 render); same 980 x 364 px. Panel B's legend moved to lower right (6.5 pt) so the acute diamonds and the '<20 hits' label stay visible"
+   }
+  ],
+  "slide_text": [],
+  "notes_body": [
+   "PANELS SHOWN: B and C of Key figure 1 (A, behavior, is the behavior slide's far-contra story; D is the next slide). Encoding page Key figure 1 (scripts/key_figure.py).",
+   "B CUED licks, fraction of pre (mean of animals, 95 % paired nested CI): frozen far-contra spout code on far-contra hits 0.36 / 0.69 / 0.71 (acute from PS93 only: PS92 (2 sessions, 10 acute far-contra hits; 0.21 of pre) and PS94 (1 session, 8 hits; 0.69) are below the 20-hit minimum and drawn as gray hollow diamonds, shown but not in the mean, CI or k/n; PS95 has 0; subacute / chronic 4/4 below pre); frozen lateral lick decoder 0.80 / 0.89 / 0.93; decoder REFIT per epoch (vs matched-n pre) 0.90 / 0.96 / 1.00 (Fig 10.2b). C ITI licks (all ITI): frozen 0.76 / 0.81 / 0.77 (4/4 below pre every epoch); refit 0.89 / 0.96 / 0.98. D ITI like-for-like offset (all ITI licks): +0.36 [+0.17, +0.55] (4/4) / +0.24 (3/4) / +0.27 (4/4) mm; against pre licks of the SAME previous-trial target (12.15) +0.25 (4/4) / +0.17 (3/4) / +0.23 (4/4).",
+   "Covariate, non-linear and face / tongue-only decoder checks: encoding page 12.16 [#f-lick_covref_offset], 11.20 [#f-lick_nonlinear_decoder], 11.21 [#f-lick_behaviour_decoder].",
+   "SIGN: + = READ more contralesional than the lick landed (decoder like-for-like offset, a DIRECTION quantity); landing / decoded lateral position + = contralesional; image left = ipsilesional. Decoder: frozen pre-stroke KEY-row lateral lick-position decoder per lick set (z-scored Allen areas with the ALM / tjM1 split, lags 0-0.2 s, August pre sessions, pre scored leave-one-session-out). LIKE-FOR-LIKE offset = each lick's decoded lateral position minus a Gaussian-weighted mean (sigma 0.1 mm, chosen by held-out pre prediction) of the decoded positions of the animal's PRE licks of the same set that LANDED at the same lateral place (any spout, no bins). Session means; change vs the animal's own pre, 95 % paired nested bootstrap (animals -> sessions), * = CI excludes 0, k/n animals. ITI = all licks between trials (bout start = no lick for >= 1 s). PROVISIONAL (n = 4).",
+   "Licks: LP video licks (cam4 detector) with 3-D tongue position from cam1 + cam4 pose; DAQ licks use the shared detector (daqlk).",
+   "FIGURE SOURCE: Encoding (goal) page Key figure 1 [#f-key_figure] (https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d) · render M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/redraw_lowhit_20261117/figures/key_figure.png (scripts/key_figure.py --show-low-hits, env of step l_key_figure_g; every printed table identical to the 11-11 run) · deck image: presentations/_source_PI_overview_2026-11-17/swap_inputs/s120_key_BC_lowhit.png (panels B + C)"
+  ],
+  "data_block": {
+   "Window": "lick peak, decoder lags 0..0.2 s",
+   "Licks": "LP video licks (cam4 detector) with 3-D tongue position (cam1 + cam4)",
+   "Trial period": "cued: inside a trial's response window; ITI: between trials (whole session)",
+   "Trial types": "cued licks (B; far-contra code on far-contra hits) and all ITI licks (C); no ITI filter; code-on-hits cells < 20 hits per animal x epoch (acute PS92 10, PS94 8; PS95 0) drawn gray, not tested",
+   "Gate": "OROFACIAL_GATE=attempted, WIDEFIELD_TRIAL_GATE=camera",
+   "Baseline": "August pre (WIDEFIELD_PRE_FROM=0801), pre scored leave-one-session-out; refit vs matched-n pre",
+   "Correction": "paired nested bootstrap 95 % CI (boot_delta, animals -> sessions), uncorrected [traced: render log l_key_figure_g.log]"
+  },
+  "changes": [
+   {
+    "what": "panel B acute code on hits, PS92 / PS94 / PS95",
+    "old": "not drawn; 'n.a. (<20 hits): PS92/PS94/PS95'",
+    "new": "gray hollow diamonds PS92 0.21 (10 hits), PS94 0.69 (8 hits); label '<20 hits: PS92 10, PS94 8, PS95 0'; legend '< 20 hits: shown, not tested'",
+    "source": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/redraw_lowhit_20261117/key_figure_lowhit.log (env of l_key_figure_g.log; table 'code on hits below the hit gate'); redraw key_figure_lowhit_plotonly.log"
+   },
+   {
+    "what": "statistics",
+    "old": "l_key_figure_g.log tables",
+    "new": "unchanged (every printed table identical)",
+    "source": "line diff of key_figure_lowhit.log vs l_key_figure_g.log"
+   }
+  ],
+  "conclusion_changed": false,
+  "conclusion_note": ""
+ }
+]

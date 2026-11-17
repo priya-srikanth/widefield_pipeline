@@ -52,9 +52,12 @@ AN = ["PS92", "PS93", "PS94", "PS95"]
 EPS = ["pre", "acute", "subacute", "chronic"]
 POS = ["close_ipsi", "close_mid", "close_contra", "far_ipsi", "far_mid", "far_contra"]
 PHASES = ["retract", "docked", "outbound"]
+# iti_dock_audit phase -> T2 / T3 ITI phase (anything else = "other"); shared with lick_iti_matched_markers (rule 9)
+PHASE_MAP = {"pre_retract": "retract", "retract": "retract", "docked": "docked", "outbound": "outbound"}
 WIN = (1, 14)                 # post days, inclusive (T1 primary window)
 MIN_SESS_T1 = 24              # scored far-contra trials per session (>= 8 per third)
 MIN_CELL = 10                 # licks per ITI cell
+D_OFF_MIN_SPOUTS = 4          # T3 D_off: previous-spout cells (>= MIN_CELL licks each) needed per session
 BOUT_GAP = 0.5                # s: bout-start ITI licks
 TBINS = np.arange(0.0, 4.01, 0.5)
 SEED = 0
@@ -207,8 +210,7 @@ def cmd_run(jobs: int) -> None:
                      if g.since_stop.notna().any() else np.nan})
         rows.append(g)
     I = pd.concat(rows, ignore_index=True)
-    ph = {"pre_retract": "retract", "retract": "retract", "docked": "docked", "outbound": "outbound"}
-    I["phase"] = I.phase_raw.map(ph).fillna("other")
+    I["phase"] = I.phase_raw.map(PHASE_MAP).fillna("other")
     TT = TA.set_index(["label", "trial_id"])
     pk = pd.MultiIndex.from_arrays([I.label, I.prev_tid])
     I["prev_pos"] = TT.pos.reindex(pk).to_numpy()
@@ -403,6 +405,20 @@ def t2_cells(I: pd.DataFrame, val: str, key: str, sel: np.ndarray | None = None)
     J = J[np.isfinite(J.d)]
     C = J.groupby(["label", "animal", "epoch", "day", "grp", key]).d.agg(["mean", "count"]).reset_index()
     return C[C["count"] >= MIN_CELL]
+
+
+def t3_cells(K: pd.DataFrame, val: str) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """T3 per-lick offsets and session x previous-spout cells. K = the ITI licks to use (e.g. docked); per lick dv = val -
+    the animal's pre mean of val after the SAME previous spout (_refs, own session left out for pre); cells (label x
+    previous spout) with >= MIN_CELL licks: m = mean val, d = mean dv, n, phi = previous spout angle. D_off of a session =
+    mean of its cells' d when >= D_OFF_MIN_SPOUTS cells (cmd_summarise; lick_iti_matched_markers). Returns (K, cells)."""
+    K = K[np.isfinite(K[val])].copy()
+    K["dv"] = K[val] - _refs(K, val, ["prev_pos"])
+    agg = {"m": (val, "mean"), "d": ("dv", "mean"), "n": (val, "size")}
+    if "phi_prev" in K:
+        agg["phi"] = ("phi_prev", "mean")
+    cell = K.groupby(["label", "animal", "epoch", "day", "prev_pos"]).agg(**agg).reset_index()
+    return K, cell[cell.n >= MIN_CELL]
 
 
 def t2_contrast(C: pd.DataFrame, key: str = "phase", a: str = "retract", b: str = "docked") -> pd.DataFrame:
@@ -607,17 +623,13 @@ def cmd_summarise() -> None:
     for vn, sel, val in (("docked, theta_E (primary)", J.phase == "docked", "theta_E"),
                          ("docked, theta_L", (J.phase == "docked") & J.onset_ok, "theta_L"),
                          ("all ITI phases, theta_E", J.phase.isin(PHASES), "theta_E")):
-        K = J[sel.to_numpy(bool) & np.isfinite(J[val])].copy()
-        K["dv"] = K[val] - _refs(K, val, ["prev_pos"])
-        cell = K.groupby(["label", "animal", "epoch", "day", "prev_pos"]).agg(
-            m=(val, "mean"), d=("dv", "mean"), n=(val, "size"), phi=("phi_prev", "mean")).reset_index()
-        cell = cell[cell.n >= MIN_CELL]
+        K, cell = t3_cells(J[sel.to_numpy(bool)], val)
         cell["cued_eE"] = cued.reindex(pd.MultiIndex.from_frame(cell[["label", "prev_pos"]])).to_numpy()
         rows = []
         for (lab, an, ep, day), g in cell.groupby(["label", "animal", "epoch", "day"], sort=True):
             r = {"label": lab, "animal": an, "epoch": ep, "day": day, "n_spouts": len(g)}
             gd = g.dropna(subset=["d"])
-            if len(gd) >= 4:
+            if len(gd) >= D_OFF_MIN_SPOUTS:
                 r["D_off"] = float(gd.d.mean())
                 gc = gd.dropna(subset=["cued_eE"])
                 if len(gc) >= 4:

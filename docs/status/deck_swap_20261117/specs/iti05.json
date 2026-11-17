@@ -1,0 +1,480 @@
+[
+ {
+  "slide": 105,
+  "title_now": "Lick response larger from subacute on, beyond global gain",
+  "status": "ready",
+  "skip_reason": "",
+  "pictures": [],
+  "slide_text": [],
+  "notes_body": [
+   "Normalization backups (hidden slides 110-111): the session z-scored version and the F0 check are on those slides.",
+   "No decoder: measured dF/F around the lick. TOP (Fig 14.1, docked-spout ITI licks): first ITI lick after >= 2 s without licking with the spout docked (8,247 bout starts), per-session mean PETH, line = mean over sessions (animals pooled), band = SEM, baseline -1.5 to -1.0 s; bars above the curves = time bins that differ from pre (paired nested bootstrap per bin, BH-FDR q = .05). Docked ITI response AUC 0-0.5 s / the animal's pre, change vs pre (acute / subacute / chronic): contralesional tjM1 +1.25 / +0.85 / +1.14, SSp-m contra +1.23 / +0.78 / +1.00, SSp-m ipsi +0.61 / +0.44 / +0.70 (all CIs exclude 0); tjM1 ipsi +0.60 / +0.45 (n.s.) / +0.84; ALM contra +0.46 acute only; cortex +0.67 / +0.53 / +0.52 (chronic n.s.); ALM ipsi n.s.",
+   "BOTTOM (Fig 14.23 row 2): first cued lick of each attempted trial, AUC 0-1.0 s after lick onset (baseline -1.0 to -0.5 s) / the animal's pre mean; change vs pre (acute / subacute / chronic): tjM1 contra +.51 / +.40 / +.41, SSp-m contra +.49 / +.46 / +.41, SSp-m ipsi +.45 / +.36 / +.34, cortex +.36 / +.30 / +.26 (all CIs exclude 0); ALM contra +.37 [-.01, +.88] acute (n.s.), +.27 / +.17 subacute / chronic (CIs exclude 0); tjM1 ipsi acute +.37 n.s., then +.24 / +.31. Per animal, contralesional tjM1 acute .97 / 1.19 / 2.06 / 1.81x pre (PS92 / PS93 / PS94 / PS95); subacute 1.50 / 1.16 / 1.48 / 1.46; chronic 1.36 / 1.61 / 1.45 / 1.23. Licks: LP video licks (cam4). PROVISIONAL.",
+   "FIGURE SOURCE: Encoding (goal) page Figs 14.1 [#f-iti_ramp_sessions] and 14.23 [#f-lick_cued_ramp_summary] (https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d) · renders M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/itidock_main_20261117/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/figures/lick_iti_ramp_wide.png (row 1, raw dF/F, docked ITI; run cued_ramp_dock 11-17; the curves do not depend on the AUC window, the AUC numbers above are from the ITI 0..0.5 s re-render itidock_iti05_20261117) and M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/figures/lick_cued_ramp_summary.png (row 2; step l_cued_ramp_g 11-11) · deck images: presentations/_source_PI_overview_2026-11-17/swap_inputs/s105_iti_ramp_row1_dock.png, s105_cued_summary_row2.png",
+   "LICK SOURCE: Fig 14.23 [licks: LP cam4 + DAQ contact]; Fig 14.1 [licks: LP video, cam4 (3-D)]."
+  ],
+  "data_block": {
+   "Window": "ITI: bout-start lick -2..+3 s, response AUC 0..0.5 s (Priya 11-17; ITI window), baseline -1.5..-1.0 s; cued: first cued lick, AUC 0..1.0 s, baseline -1.0..-0.5 s",
+   "Licks": "LP video licks (cam4) + DAQ contact; ITI from the 3-D whole-session lick table",
+   "Trial period": "cued: cue..stop of working trials; ITI: between trials, spout docked (WFIELD_ITI_FILTER=dock)",
+   "Trial types": "first cued lick of attempted trials (hit + incomplete); docked-spout ITI bout starts (no lick for >= 2 s)",
+   "Gate": "OROFACIAL_GATE=attempted, WIDEFIELD_TRIAL_GATE=camera",
+   "Baseline": "August pre (WIDEFIELD_PRE_FROM=0801); response / the animal's own pre mean",
+   "Correction": "AUCs: paired nested bootstrap 95 % CI (boot_delta, animals -> sessions), uncorrected; curve bars: per-bin bootstrap, BH-FDR q .05 [traced: render log itidock_iti05_20261117/logs/cued_ramp_dock.log (ITI) + l_cued_ramp_g.log (cued)]"
+  },
+  "changes": [
+   {
+    "what": "docked ITI response AUC / pre, contralesional tjM1, acute / subacute / chronic",
+    "old": "+2.44* / +2.29 (n.s.) / +2.76* (0..1.0 s)",
+    "new": "+1.25* / +0.85* / +1.14* (0..0.5 s)",
+    "source": "itidock_iti05_20261117/logs/cued_ramp_dock.log, iti_ramp_session_tests_wide.csv"
+   },
+   {
+    "what": "docked ITI response AUC / pre, SSp-m contra",
+    "old": "+1.67* / +1.14 / +1.58*",
+    "new": "+1.23* / +0.78* / +1.00*",
+    "source": "same"
+   },
+   {
+    "what": "docked ITI, cortex",
+    "old": "+0.96* acute only",
+    "new": "+0.67* / +0.53* / +0.52 (n.s.)",
+    "source": "same"
+   }
+  ],
+  "conclusion_changed": false,
+  "conclusion_note": "Title is about cued licks (unchanged). ITI increases shrink by about a third to a half at 0..0.5 s but every contralesional tjM1 / SSp-m cell now has a CI excluding 0 (subacute was n.s. at 0..1.0 s, where the pre integral was pulled down by the post-transient dip)."
+ },
+ {
+  "slide": 108,
+  "title_now": "Mixed-model stars: ITI-lick response AUC 0-1 s (docked spout)",
+  "status": "ready",
+  "skip_reason": "",
+  "pictures": [
+   {
+    "shape_name": "fig:iti_ramp_row1_lmm_w0-1",
+    "new_image": "M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-17/swap_inputs/s108_iti_ramp_row1_lmm_w0-0.5_iti05.png",
+    "source_render": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/grant_figures/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/lmm_hidden_20261117/iti05_20261117/iti_ramp_row1_lmm_w0-0.5_iti05.png",
+    "crop_done": "title cut (crop.drop_title), as the old notitle image; same pixel size 2174 x 661"
+   }
+  ],
+  "slide_text": [
+   {
+    "shape_name": "TextBox 1",
+    "old": "Mixed-model stars: ITI-lick response AUC 0-1 s (docked spout)",
+    "new": "Mixed-model stars: ITI-lick response AUC 0-0.5 s (docked spout)"
+   },
+   {
+    "shape_name": "TextBox 3",
+    "old": "•  0 of 21 tested cells starred: no ROI or epoch reaches p < .05 (smallest p .06)",
+    "new": "•  5 of 21 tested cells starred (0 **): acute SSp-m contra *, acute SSp-m ipsi *, chronic SSp-m contra *, chronic SSp-m ipsi *, chronic tjM1 ipsi *"
+   }
+  ],
+  "notes_body": [
+   "LMM HIDDEN, rebuild re-render 11-17. Hidden companion of the main slide before it (main slide stars = animal bootstrap, boot_delta; these are the mixed-model backup). Docked-spout ITI bout starts, response AUC 0-0.5 s (ITI window since Priya 11-17) / the animal's pre, spouts pooled, 7 ROIs.",
+   "Mixed model (analysis_kit.epoch_change_lmm): session rows; random intercept per animal plus a separate animal x epoch variance per post epoch; t on df = animals - 1; * p < .05, ** Holm across the figure's 21 tested cells. Filled dot = model estimate and 95 % CI; gray bar = animal bootstrap 95 % (these 4 animals); open markers = sessions (shape = animal, color = epoch), change from the animal's own pre mean.",
+   "Starred cells: acute SSp-m contra *, acute SSp-m ipsi *, chronic SSp-m contra *, chronic SSp-m ipsi *, chronic tjM1 ipsi *.",
+   "FIGURE SOURCE: M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-17/swap_inputs/s108_iti_ramp_row1_lmm_w0-0.5_iti05.png (title cut of M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/grant_figures/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/lmm_hidden_20261117/iti05_20261117/iti_ramp_row1_lmm_w0-0.5_iti05.png); statistics M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/grant_figures/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/lmm_hidden_20261117/iti05_20261117/iti_ramp_row1_lmm_w0-0.5_iti05_lmm.csv; source table M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/cued_wide (key iti) + iti_dock_audit.csv; reproduces M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/itidock_iti05_20261117/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/iti_ramp_auc_sessions_wide.csv row for row (714) and its ramp_window_tests.csv auc_0_0.5_n 21/21 cells (checked in the same run, no ALLOW_NO_PUB). Code: wf_lmm_main branch lmm-hidden-20261103 scripts/lmm_hidden/ (render log M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/grant_figures/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/lmm_hidden_20261117/iti05_20261117/logs/iti_ramp_pooled_docked.log carries the code sha and env)."
+  ],
+  "data_block": {
+   "Window": "lick-aligned, per-trial baseline -1.5..-1.0 s, response baseline -1.0..-0.5 s; response AUC 0-0.5 s (ITI window, Priya 11-17) / the animal's pre, spouts pooled",
+   "Licks": "lick onsets of the rebuild cued_wide extract (lick_cued_ramp --extract, _daqlk run)",
+   "Trial period": "whole session between trials",
+   "Trial types": "ITI bout starts, gap >= 2 s, spout docked (iti_dock_audit.csv flag 'dock')",
+   "Gate": "camera trial gate; >= 10 licks per session",
+   "Baseline": "August-only pre (WIDEFIELD_PRE_FROM=0801); every value = change from the animal's own pre mean",
+   "Correction": "Hidden-slide stars = the mixed-model BACKUP: analysis_kit.epoch_change_lmm (session rows; animal intercept + a separate animal x epoch variance per post epoch; t on df = animals - 1); analysis_kit.lmm_stars: * p < .05, ** Holm across the figure's 21 tested cells; untested = degenerate fit (no SE) or < 2 animals in both arms. The main slide's stars are the primary test (animal bootstrap boot_delta, 95 % CI excludes 0) [traced: render log M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/grant_figures/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/lmm_hidden_20261117/iti05_20261117/logs/iti_ramp_pooled_docked.log]"
+  },
+  "changes": [
+   {
+    "what": "LMM starred cells (docked ITI AUC / pre, 21 tests)",
+    "old": "0 of 21 (smallest p .06), 0..1.0 s",
+    "new": "5 of 21 (0 **), 0..0.5 s; contralesional tjM1 acute p .055, chronic .067",
+    "source": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/grant_figures/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/lmm_hidden_20261117/iti05_20261117/logs/iti_ramp_pooled_docked.log"
+   },
+   {
+    "what": "bootstrap stars, same cells",
+    "old": "9 of 21",
+    "new": "14 of 21",
+    "source": "itidock_iti05_20261117/ramp_window_tests.csv"
+   }
+  ],
+  "conclusion_changed": true,
+  "conclusion_note": "Hidden backup: the mixed model now supports the ITI increase in SSp-m (both sides, acute + chronic) and tjM1 ipsi chronic; at 0..1.0 s it supported nothing. Contralesional tjM1 stays just above p .05."
+ },
+ {
+  "slide": 110,
+  "title_now": "Backup: lick response, session z-scored",
+  "status": "ready",
+  "skip_reason": "",
+  "pictures": [],
+  "slide_text": [
+   {
+    "shape_name": "TextBox 3",
+    "old": "•  ITI (docked): contralesional tjM1 / SSp-m increase keeps ~2/3",
+    "new": "•  ITI (docked): contralesional tjM1 / SSp-m increase keeps ~1/2, every epoch"
+   }
+  ],
+  "notes_body": [
+   "LICK SESSION-Z BACKUP. Hidden companion of 'Lick response larger after stroke'. WHY: the post-stroke SD rise is a cortex-wide gain (docs/status/SD_RISE_2026-11-04.md). Session z-scoring removes that gain whether it is biological or not, so read raw = absolute dF/F change, session-z = the change beyond the global gain. Normalization = SD_RISE variant (c): each session x ROI divided by its SD over all samples of the same lick windows (-2..+3 s, same licks, before baselining).",
+   "Cued (first cued lick, AUC 0..1.0 s / the animal's own pre), change vs pre acute / subacute / chronic: contra tjM1 raw +.51* / +.40* / +.41*, session-z +.05 / +.14* / +.15*; contra SSp-m raw +.49* / +.46* / +.41*, z +.04 / +.13* / +.13*; ALM contra raw +.37 (n.s.) / +.27* / +.17*, z +.06 / +.09* / +.05. ITI (docked spout) AUC 0..0.5 s / own pre: contra tjM1 raw +1.25* / +.85* / +1.14*, z +.65* / +.52* / +.68*; contra SSp-m raw +1.23* / +.78* / +1.00*, z +.68* / +.46* / +.59*. * = paired nested bootstrap 95 % CI (animals -> sessions) excludes 0.",
+   "The raw rows reproduce the rebuild's own tables exactly: cued vs l_cued_ramp_g (max |diff| 1e-16), docked ITI (0..0.5 s) vs the docked arm's iti_ramp_auc_sessions_wide.csv (iti_licks/itidock_iti05_20261117, 714 rows, max |diff| 0).",
+   "FIGURE SOURCE: M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/slide95_sessz_iti05_20261117/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/figures/slide95_both_sessz.png (scripts/lick_slide95_sessz.py with WFIELD_SESSZ_ITI_ROOT / WFIELD_SESSZ_OUT, env of l_cued_ramp_g; wf_cleanup2 3354c551 (main)); tables tests_raw_vs_sessz.csv, cued_sessions_raw_sessz.csv, iti_dock_sessions_raw_sessz.csv."
+  ],
+  "data_block": {
+   "Window": "ITI: docked-spout bout-start lick -2..+3 s, baseline -1.5..-1.0 s (AUC numbers in the notes: 0..0.5 s, ITI window, Priya 11-17); cued: first cued lick, AUC 0..1.0 s, baseline -1.0..-0.5 s; both / session SD of the same lick windows",
+   "Licks": "LP video licks (cam4) + DAQ contact; ITI from the 3-D whole-session lick table",
+   "Trial period": "cued: cue..stop of working trials; ITI: spout docked (dock .. next trial_start)",
+   "Trial types": "first cued lick of attempted trials (hit + incomplete); docked-spout ITI bout starts (no lick for >= 2 s)",
+   "Gate": "OROFACIAL_GATE=attempted, WIDEFIELD_TRIAL_GATE=camera, WFIELD_ITI_FILTER=dock (ITI row)",
+   "Baseline": "August pre (WIDEFIELD_PRE_FROM=0801); response / the animal's own pre mean",
+   "Correction": "cued: paired nested bootstrap 95 % CI (boot_delta, animals -> sessions), uncorrected; ITI bars: per-bin bootstrap, BH-FDR q .05 [traced: render log slide95_sessz_iti05_20261117/logs/slide95_sessz.log]"
+  },
+  "changes": [
+   {
+    "what": "docked ITI contra tjM1 raw / session-z",
+    "old": "+2.44* / +2.29 / +2.76*; z +1.58* / +1.56 / +1.96*",
+    "new": "+1.25* / +.85* / +1.14*; z +.65* / +.52* / +.68*",
+    "source": "slide95_sessz_iti05_20261117/logs/slide95_sessz.log"
+   },
+   {
+    "what": "share kept after session-z (tjM1 / SSp-m)",
+    "old": "~2/3",
+    "new": "~1/2 (.52-.61), CI excludes 0 in every epoch",
+    "source": "same"
+   }
+  ],
+  "conclusion_changed": true,
+  "conclusion_note": "The ITI share that survives session-z drops from ~2/3 to ~1/2, but is now significant in all three epochs (subacute was n.s.). The image is unchanged (ITI row = curves)."
+ },
+ {
+  "slide": 111,
+  "title_now": "Mixed-model stars: lick response, session z-scored",
+  "status": "ready",
+  "skip_reason": "",
+  "pictures": [
+   {
+    "shape_name": "fig:lick_lmm_sessz",
+    "new_image": "M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-17/swap_inputs/s111_lick_lmm_sessz_stack_iti05.png",
+    "source_render": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/grant_figures/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/lmm_hidden_20261117/iti05_20261117/lick_lmm_sessz_stack_iti05.png",
+    "crop_done": "title cut of each panel (crop.drop_title), cued top / ITI bottom stacked (crop.stack), as the old stack; 2174 x 1315 (old 2174 x 1290: the ITI title cut is 25 px taller; keep the shape's box, aspect differs by 2 %)"
+   }
+  ],
+  "slide_text": [
+   {
+    "shape_name": "TextBox 3",
+    "old": "•  No cell starred under the mixed model after session z-scoring (raw: 7 cued cells, all subacute / chronic; ITI none)",
+    "new": "•  Cued: no cell starred after session z-scoring (raw: 7 cells, all subacute / chronic); ITI: 2 cells (raw: 5)"
+   },
+   {
+    "shape_name": "TextBox 3",
+    "old": "•  Smallest p: cued SSp-m ipsi chronic .060, cued ALM contra subacute .063, cued tjM1 contra subacute .064; ITI cortex acute .070",
+    "new": "•  Starred ITI cells: cortex acute (p .034), SSp-m ipsi chronic (p .016); smallest cued p: SSp-m ipsi chronic .060, ALM contra subacute .063, tjM1 contra subacute .064"
+   },
+   {
+    "shape_name": "TextBox 5",
+    "old": "Stars = mixed-model backup (main slide: animal bootstrap). Change vs own pre, mixed model (separate between-animal spread per epoch, df = animals - 1); * p < .05, ** Holm across the 21 tested cells. Spouts pooled, response AUC 0-1 s / session SD / the animal's pre.",
+    "new": "Stars = mixed-model backup (main slide: animal bootstrap). Change vs own pre, mixed model (separate between-animal spread per epoch, df = animals - 1); * p < .05, ** Holm across the 21 tested cells. Spouts pooled, response AUC (cued 0-1 s, ITI 0-0.5 s) / session SD / the animal's pre."
+   }
+  ],
+  "notes_body": [
+   "LMM HIDDEN, rebuild re-render 11-17. Hidden companion of the main slide before it (main slide stars = animal bootstrap, boot_delta; these are the mixed-model backup). Lick response after SESSION-Z normalization (SD_RISE variant c), spouts pooled, cued (top, AUC 0-1.0 s) and docked ITI (bottom, AUC 0-0.5 s).",
+   "Mixed model (analysis_kit.epoch_change_lmm): session rows; random intercept per animal plus a separate animal x epoch variance per post epoch; t on df = animals - 1; * p < .05, ** Holm across the figure's 21 tested cells. Filled dot = model estimate and 95 % CI; gray bar = animal bootstrap 95 % (these 4 animals); open markers = sessions (shape = animal, color = epoch), change from the animal's own pre mean.",
+   "Session-z = each session x ROI divided by its SD over all samples of the same lick windows (SD_RISE variant c); it removes the post-stroke cortex-wide gain, so raw = absolute dF/F change and session-z = the change beyond the gain.",
+   "Starred cells: ITI acute cortex *, ITI chronic SSp-m ipsi *; cued none.",
+   "FIGURE SOURCE: M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-17/swap_inputs/s111_lick_lmm_sessz_stack_iti05.png (stack of the cued title cut M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/grant_figures/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/lmm_hidden_20261117/cued_ramp_summary_row2_lmm_w0-1_sessz_notitle.png (unchanged) and the ITI title cut M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/grant_figures/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/lmm_hidden_20261117/iti05_20261117/iti_ramp_row1_lmm_w0-0.5_sessz_iti05_notitle.png); statistics <each>_lmm.csv; source tables M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/slide95_sessz_20261117/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/lmm_cued_sessz_sessions.csv (cued) + M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/slide95_sessz_iti05_20261117/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/lmm_iti_dock_sessz_sessions.csv (ITI, 0..0.5 s). Code: wf_lmm_main branch lmm-hidden-20261103 scripts/lmm_hidden/ (render log M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/grant_figures/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/lmm_hidden_20261117/iti05_20261117/logs/sessz_iti.log carries the code sha and env)."
+  ],
+  "data_block": {
+   "Window": "lick-aligned, per-trial baseline -1.5..-1.0 s, response baseline -1.0..-0.5 s; response AUC cued 0-1.0 s, ITI 0-0.5 s (Priya 11-17) / the session's SD over the same lick windows / the animal's pre, spouts pooled",
+   "Licks": "lick onsets of the rebuild cued_wide extract (lick_cued_ramp --extract, _daqlk run)",
+   "Trial period": "cued: engaged trials; ITI: whole session between trials",
+   "Trial types": "top: first cued lick; bottom: docked-spout ITI bout starts (gap >= 2 s)",
+   "Gate": "camera trial gate; >= 10 licks per session",
+   "Baseline": "August-only pre (WIDEFIELD_PRE_FROM=0801); every value = change from the animal's own pre mean",
+   "Correction": "Hidden-slide stars = the mixed-model BACKUP: analysis_kit.epoch_change_lmm (session rows; animal intercept + a separate animal x epoch variance per post epoch; t on df = animals - 1); analysis_kit.lmm_stars: * p < .05, ** Holm across the figure's 21 tested cells; untested = degenerate fit (no SE) or < 2 animals in both arms. The main slide's stars are the primary test (animal bootstrap boot_delta, 95 % CI excludes 0) [traced: render log M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/grant_figures/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/lmm_hidden_20261117/logs/sessz_cued.log (cued) + lmm_hidden_20261117/iti05_20261117/logs/sessz_iti.log (ITI)]"
+  },
+  "changes": [
+   {
+    "what": "ITI session-z LMM stars",
+    "old": "0 of 21 (smallest p cortex acute .070)",
+    "new": "2 of 21: cortex acute p .034, SSp-m ipsi chronic p .016",
+    "source": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/grant_figures/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/lmm_hidden_20261117/iti05_20261117/logs/sessz_iti.log"
+   },
+   {
+    "what": "ITI raw LMM stars (slide 108 twin)",
+    "old": "none",
+    "new": "5",
+    "source": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/grant_figures/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/lmm_hidden_20261117/iti05_20261117/logs/iti_ramp_pooled_docked.log"
+   }
+  ],
+  "conclusion_changed": true,
+  "conclusion_note": "Hidden backup: 'no cell starred' no longer holds for ITI (2 of 21 after session-z); cued row unchanged."
+ },
+ {
+  "slide": 135,
+  "title_now": "Hemispheric balance: far spouts lose bias",
+  "status": "ready",
+  "skip_reason": "",
+  "pictures": [],
+  "slide_text": [],
+  "notes_body": [
+   "Fig 14.9 (KEY), cued row, rebuild 11-11 (no newer version of this figure exists; the 11-16 shared-y redraw is of Fig 14.13, lick_balance_angle). Pairs ALM, tjM1, SSp-m, SSp-n: X_right (contralesional) vs X_left (ipsilesional), raw dF/F, same traces as Fig 14.7; per session and spout log2(contra AUC 0-1 s / ipsi AUC 0-1 s).",
+   "Pre (per animal, tjM1): close ipsi +.46 to +.58, close contra -.24 to -.94, far contra -.29 to -.84. Change vs pre (cued, 0-1 s; acute / subacute / chronic): far contra tjM1 +.58 / +.36 / +.31, SSp-n +.93 / +.63 / +.59, orofacial +.59 / +.37 / +.33 (every animal positive in every epoch); far mid orofacial +.21 / +.12 / +.16 (4/4 acute); far ipsi orofacial -.06 n.s. / +.12 / +.18; close ipsi orofacial -.18 acute (CI excludes 0, away from balance), then n.s. Distance x epoch interaction p < .001 in tjM1, SSp-n and the pool (mixed-model LR test), so the rebalancing may follow reach distance as well as direction (close vs far: Fig 14.11). Same measure as the read-out offset's balance term (section 4, Figs 12.17-12.21). Licks: LP video licks (cam4), attempted trials. PROVISIONAL.",
+   "CAVEAT (encoding page Fig 14.18): for CUED licks the balance shift is largely the landing error seen through a target code. For ITI bout starts (response balance over 0..0.5 s), the balance at matched landing angle (Fig 14.13, ITI 0..0.5 s re-render 11-17) shifts toward the contralesional hemisphere in ALM (+0.06, p .005; subacute +0.09, chronic +0.06, p .02 each) but not in tjM1 (+0.02, p .58; chronic 3 / 4 animals, PS92 opposite) or the orofacial pool (+0.04, p .16); SSp-n chronic +0.11 (p .04).",
+   "FIGURE SOURCE: Encoding (goal) page Fig 14.9 [#f-lick_lateral_ratio_spout] (https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d) · render M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/figures/lick_lateral_ratio_auc.png (step l_lateral_ratio_g, 11-11) · deck image: presentations/_source_PI_overview_2026-11-17/swap_inputs/s135_lateral_ratio_cued_3panel.png (row 1: tjM1, SSp-n, orofacial + legend; ALM and SSp-m panels on the backup slide)",
+   "LICK SOURCE: Fig 14.9 [licks: LP cam4 + DAQ contact]."
+  ],
+  "data_block": {
+   "Window": "first cued lick-aligned (base -1..-0.5 s), cue-aligned (base -1..-0.5 s before the cue): AUC 0..1 s; ITI bout starts: AUC 0..0.5 s (Priya 11-17); the slide shows the cued row",
+   "Licks": "cued first = camera licks.csv onset (LP cam4) + DAQ contact; ITI from cam4 licks_all",
+   "Trial period": "cue..stop of working trials (cued_wide extraction)",
+   "Trial types": "first cued lick by target spout (sessions x spout with >= 5 licks); ITI bout start by previous spout",
+   "Gate": "OROFACIAL_GATE=attempted, WIDEFIELD_TRIAL_GATE=camera",
+   "Baseline": "August pre (WIDEFIELD_PRE_FROM=0801); change vs each animal's own pre at that spout",
+   "Correction": "MixedLM LR tests (ML) in the titles; per spout x epoch paired nested bootstrap 95 % CI (boot_delta), no multiple-comparison correction [traced: render log l_lateral_ratio_g.log]"
+  },
+  "changes": [
+   {
+    "what": "Fig 14.13 ITI balance shift at matched angle (post, LMM)",
+    "old": "ALM +0.07 p .14, tjM1 +0.10 p .08, orofacial +0.15 p .010 (0..1.0 s)",
+    "new": "ALM +0.06 p .005, tjM1 +0.02 p .58, orofacial +0.04 p .16, SSp-n chronic +0.11 p .04 (0..0.5 s)",
+    "source": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/lateral_ratio_iti05_20261117/logs/balance_angle.log, balance_angle_lmm.csv"
+   }
+  ],
+  "conclusion_changed": true,
+  "conclusion_note": "Slide title (cued) unchanged, but the ITI caveat flips: at 0..0.5 s the matched-angle ITI balance shift is significant in ALM and no longer in the orofacial pool or tjM1. Priya to decide how much of the caveat to keep (sessions x spouts as observations, anti-conservative)."
+ },
+ {
+  "slide": 136,
+  "title_now": "Mixed-model stars: hemispheric balance, first cued lick",
+  "status": "ready",
+  "skip_reason": "",
+  "pictures": [
+   {
+    "shape_name": "fig:lick_lateral_ratio_auc_docked_lmm",
+    "new_image": "M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-17/swap_inputs/s136_lick_lateral_ratio_auc_docked_iti05_cued_lmm.png",
+    "source_render": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/grant_figures/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/lmm_hidden_20261117/iti05_20261117/lick_lateral_ratio_auc_docked_iti05_cued.png",
+    "crop_done": "slide split (slides.SPLITS, render.redraw, no re-fit) + title cut, as the old image; same pixel size 1950 x 776"
+   }
+  ],
+  "slide_text": [
+   {
+    "shape_name": "TextBox 3",
+    "old": "•  32 cells starred in this row (0 **); 71 of 313 across the whole figure",
+    "new": "•  32 cells starred in this row (0 **); 72 of 312 across the whole figure"
+   },
+   {
+    "shape_name": "TextBox 5",
+    "old": "Stars = mixed-model backup (main slide: animal bootstrap). Change vs own pre, mixed model (animal intercept + per-epoch animal x epoch variance, df = animals - 1); * p < .05, ** Holm across the 313 tested cells. Filled dot = model estimate, 95 % CI; gray bar = animal bootstrap 95 % (these 4 animals). Main slide (bootstrap stars): previous slide. Holm family = all 3 rows.",
+    "new": "Stars = mixed-model backup (main slide: animal bootstrap). Change vs own pre, mixed model (animal intercept + per-epoch animal x epoch variance, df = animals - 1); * p < .05, ** Holm across the 312 tested cells. Filled dot = model estimate, 95 % CI; gray bar = animal bootstrap 95 % (these 4 animals). Main slide (bootstrap stars): previous slide. Holm family = all 3 rows."
+   }
+  ],
+  "notes_body": [
+   "LMM HIDDEN, rebuild re-render 11-17. Hidden companion of the main slide before it (main slide stars = animal bootstrap, boot_delta; these are the mixed-model backup). Contra / ipsi response ratio, log2 AUC (cued / cue 0-1 s, ITI 0-0.5 s), first cued lick (row 1 of 3).",
+   "Mixed model (analysis_kit.epoch_change_lmm): session rows; random intercept per animal plus a separate animal x epoch variance per post epoch; t on df = animals - 1; * p < .05, ** Holm across the figure's 312 tested cells. Filled dot = model estimate and 95 % CI; gray bar = animal bootstrap 95 % (these 4 animals); open markers = sessions (shape = animal, color = epoch), change from the animal's own pre mean.",
+   "ITI rows = docked-spout ITI licks (WFIELD_ITI_FILTER=dock, the producer re-run on the rebuild 11-17); cued rows are unaffected by the filter.",
+   "Split image of the whole figure: stars use the Holm family of the WHOLE figure (all 3 rows, 312 tests), not re-corrected per image.",
+   "Starred cells: acute cued ALM all *, acute cued ALM far mid *, acute cued SSp-m far contra *, acute cued SSp-n far contra *, acute cued orofacial far contra *, acute cued orofacial far mid *, acute cued tjM1 far contra *, acute cued tjM1 far mid *, subacute cued ALM all *, subacute cued ALM close mid *, subacute cued ALM far contra *, subacute cued ALM far ipsi *, subacute cued ALM far mid *, subacute cued SSp-m far contra *, subacute cued SSp-n far contra *, subacute cued orofacial all *, subacute cued orofacial close mid *, subacute cued orofacial far contra *, subacute cued tjM1 all *, subacute cued tjM1 far contra *, chronic cued ALM all *, chronic cued ALM close mid *, chronic cued ALM far contra *, chronic cued ALM far ipsi *, chronic cued ALM far mid *, chronic cued SSp-m far contra *, chronic cued SSp-n far contra *, chronic cued orofacial all *, chronic cued orofacial close mid *, chronic cued orofacial far contra *, chronic cued orofacial far mid *, chronic cued tjM1 far contra *.",
+   "FIGURE SOURCE: M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-17/swap_inputs/s136_lick_lateral_ratio_auc_docked_iti05_cued_lmm.png (title cut of M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/grant_figures/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/lmm_hidden_20261117/iti05_20261117/lick_lateral_ratio_auc_docked_iti05_cued.png); statistics M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/grant_figures/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/lmm_hidden_20261117/iti05_20261117/lick_lateral_ratio_auc_docked_iti05_lmm.csv; source table M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/lateral_ratio_dock_iti05_20261117/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/lateral_ratio_{sessions,tests}.csv (= the lateral_ratio_dock_20261117 tables, both windows; 315/315 cells reproduce the bootstrap points). Code: wf_lmm_main branch lmm-hidden-20261103 scripts/lmm_hidden/ (render log M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/grant_figures/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/lmm_hidden_20261117/iti05_20261117/logs/lateral_ratio_docked.log carries the code sha and env)."
+  ],
+  "data_block": {
+   "Window": "lick- or cue-aligned response, per-trial baseline -1.0..-0.5 s; log2 contra / ipsi AUC 0..1 s (cued / cue rows), 0..0.5 s (ITI row, Priya 11-17)",
+   "Licks": "cued: first-lick onsets of the rebuild cued_wide extract; ITI: whole-session licks, bout starts (gap >= 2 s)",
+   "Trial period": "cued / cue: engaged trials; ITI: whole session between trials",
+   "Trial types": "first cued lick by target spout",
+   "Gate": "camera trial gate; >= 5 licks per spout",
+   "Baseline": "August-only pre (WIDEFIELD_PRE_FROM=0801); every value = change from the animal's own pre mean",
+   "Correction": "Hidden-slide stars = the mixed-model BACKUP: analysis_kit.epoch_change_lmm (session rows; animal intercept + a separate animal x epoch variance per post epoch; t on df = animals - 1); analysis_kit.lmm_stars: * p < .05, ** Holm across the figure's 312 tested cells; untested = degenerate fit (no SE) or < 2 animals in both arms. The main slide's stars are the primary test (animal bootstrap boot_delta, 95 % CI excludes 0) [traced: render log M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/grant_figures/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/lmm_hidden_20261117/iti05_20261117/logs/lateral_ratio_docked.log]"
+  },
+  "changes": [
+   {
+    "what": "whole-figure LMM stars / tests",
+    "old": "71 of 313 (0 **)",
+    "new": "72 of 312 (0 **)",
+    "source": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/grant_figures/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/lmm_hidden_20261117/iti05_20261117/logs/lateral_ratio_docked.log"
+   },
+   {
+    "what": "cued row stars",
+    "old": "unchanged",
+    "new": "unchanged (same cells; only the Holm family size changed, 0 ** either way)",
+    "source": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/grant_figures/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/lmm_hidden_20261117/iti05_20261117/logs/lateral_ratio_docked.log"
+   }
+  ],
+  "conclusion_changed": false,
+  "conclusion_note": ""
+ },
+ {
+  "slide": 137,
+  "title_now": "Mixed-model stars: hemispheric balance, cue-aligned",
+  "status": "ready",
+  "skip_reason": "",
+  "pictures": [
+   {
+    "shape_name": "fig:lick_lateral_ratio_auc_docked_cue",
+    "new_image": "M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-17/swap_inputs/s137_lick_lateral_ratio_auc_docked_iti05_cue_lmm.png",
+    "source_render": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/grant_figures/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/lmm_hidden_20261117/iti05_20261117/lick_lateral_ratio_auc_docked_iti05_cue.png",
+    "crop_done": "slide split (slides.SPLITS, render.redraw, no re-fit) + title cut, as the old image; same pixel size 1950 x 776"
+   }
+  ],
+  "slide_text": [
+   {
+    "shape_name": "TextBox 3",
+    "old": "•  26 cells starred in this row (0 **); 71 of 313 across the whole figure",
+    "new": "•  26 cells starred in this row (0 **); 72 of 312 across the whole figure"
+   },
+   {
+    "shape_name": "TextBox 5",
+    "old": "Stars = mixed-model backup (main slide: animal bootstrap). Change vs own pre, mixed model (animal intercept + per-epoch animal x epoch variance, df = animals - 1); * p < .05, ** Holm across the 313 tested cells. Filled dot = model estimate, 95 % CI; gray bar = animal bootstrap 95 % (these 4 animals). Main slide (bootstrap stars): previous slide. Holm family = all 3 rows.",
+    "new": "Stars = mixed-model backup (main slide: animal bootstrap). Change vs own pre, mixed model (animal intercept + per-epoch animal x epoch variance, df = animals - 1); * p < .05, ** Holm across the 312 tested cells. Filled dot = model estimate, 95 % CI; gray bar = animal bootstrap 95 % (these 4 animals). Main slide (bootstrap stars): previous slide. Holm family = all 3 rows."
+   }
+  ],
+  "notes_body": [
+   "LMM HIDDEN, rebuild re-render 11-17. Hidden companion of the main slide before it (main slide stars = animal bootstrap, boot_delta; these are the mixed-model backup). Contra / ipsi response ratio, log2 AUC (cued / cue 0-1 s, ITI 0-0.5 s), cue-aligned (row 2 of 3).",
+   "Mixed model (analysis_kit.epoch_change_lmm): session rows; random intercept per animal plus a separate animal x epoch variance per post epoch; t on df = animals - 1; * p < .05, ** Holm across the figure's 312 tested cells. Filled dot = model estimate and 95 % CI; gray bar = animal bootstrap 95 % (these 4 animals); open markers = sessions (shape = animal, color = epoch), change from the animal's own pre mean.",
+   "ITI rows = docked-spout ITI licks (WFIELD_ITI_FILTER=dock, the producer re-run on the rebuild 11-17); cued rows are unaffected by the filter.",
+   "Split image of the whole figure: stars use the Holm family of the WHOLE figure (all 3 rows, 312 tests), not re-corrected per image.",
+   "Starred cells: acute cue SSp-m close ipsi *, acute cue SSp-n far contra *, subacute cue ALM all *, subacute cue ALM close contra *, subacute cue ALM close mid *, subacute cue ALM far contra *, subacute cue ALM far ipsi *, subacute cue ALM far mid *, subacute cue SSp-m far contra *, subacute cue SSp-n far contra *, subacute cue orofacial close mid *, subacute cue orofacial far contra *, subacute cue tjM1 all *, subacute cue tjM1 far contra *, chronic cue ALM all *, chronic cue ALM close mid *, chronic cue ALM far contra *, chronic cue ALM far ipsi *, chronic cue ALM far mid *, chronic cue SSp-m far contra *, chronic cue SSp-n far contra *, chronic cue SSp-n far mid *, chronic cue orofacial close mid *, chronic cue orofacial far contra *, chronic cue orofacial far mid *, chronic cue tjM1 far contra *.",
+   "FIGURE SOURCE: M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-17/swap_inputs/s137_lick_lateral_ratio_auc_docked_iti05_cue_lmm.png (title cut of M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/grant_figures/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/lmm_hidden_20261117/iti05_20261117/lick_lateral_ratio_auc_docked_iti05_cue.png); statistics M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/grant_figures/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/lmm_hidden_20261117/iti05_20261117/lick_lateral_ratio_auc_docked_iti05_lmm.csv; source table M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/lateral_ratio_dock_iti05_20261117/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/lateral_ratio_{sessions,tests}.csv (= the lateral_ratio_dock_20261117 tables, both windows; 315/315 cells reproduce the bootstrap points). Code: wf_lmm_main branch lmm-hidden-20261103 scripts/lmm_hidden/ (render log M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/grant_figures/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/lmm_hidden_20261117/iti05_20261117/logs/lateral_ratio_docked.log carries the code sha and env)."
+  ],
+  "data_block": {
+   "Window": "lick- or cue-aligned response, per-trial baseline -1.0..-0.5 s; log2 contra / ipsi AUC 0..1 s (cued / cue rows), 0..0.5 s (ITI row, Priya 11-17)",
+   "Licks": "cued: first-lick onsets of the rebuild cued_wide extract; ITI: whole-session licks, bout starts (gap >= 2 s)",
+   "Trial period": "cued / cue: engaged trials; ITI: whole session between trials",
+   "Trial types": "cue-aligned, by target spout",
+   "Gate": "camera trial gate; >= 5 licks per spout",
+   "Baseline": "August-only pre (WIDEFIELD_PRE_FROM=0801); every value = change from the animal's own pre mean",
+   "Correction": "Hidden-slide stars = the mixed-model BACKUP: analysis_kit.epoch_change_lmm (session rows; animal intercept + a separate animal x epoch variance per post epoch; t on df = animals - 1); analysis_kit.lmm_stars: * p < .05, ** Holm across the figure's 312 tested cells; untested = degenerate fit (no SE) or < 2 animals in both arms. The main slide's stars are the primary test (animal bootstrap boot_delta, 95 % CI excludes 0) [traced: render log M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/grant_figures/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/lmm_hidden_20261117/iti05_20261117/logs/lateral_ratio_docked.log]"
+  },
+  "changes": [
+   {
+    "what": "whole-figure LMM stars / tests",
+    "old": "71 of 313 (0 **)",
+    "new": "72 of 312 (0 **)",
+    "source": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/grant_figures/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/lmm_hidden_20261117/iti05_20261117/logs/lateral_ratio_docked.log"
+   },
+   {
+    "what": "cue row stars",
+    "old": "unchanged",
+    "new": "unchanged (same cells; only the Holm family size changed, 0 ** either way)",
+    "source": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/grant_figures/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/lmm_hidden_20261117/iti05_20261117/logs/lateral_ratio_docked.log"
+   }
+  ],
+  "conclusion_changed": false,
+  "conclusion_note": ""
+ },
+ {
+  "slide": 138,
+  "title_now": "Mixed-model stars: hemispheric balance, ITI bout start",
+  "status": "ready",
+  "skip_reason": "",
+  "pictures": [
+   {
+    "shape_name": "fig:lick_lateral_ratio_auc_docked_iti",
+    "new_image": "M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-17/swap_inputs/s138_lick_lateral_ratio_auc_docked_iti05_iti_lmm.png",
+    "source_render": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/grant_figures/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/lmm_hidden_20261117/iti05_20261117/lick_lateral_ratio_auc_docked_iti05_iti.png",
+    "crop_done": "slide split (slides.SPLITS, render.redraw, no re-fit) + title cut, as the old image; same pixel size 1950 x 776"
+   }
+  ],
+  "slide_text": [
+   {
+    "shape_name": "TextBox 3",
+    "old": "•  13 cells starred in this row (0 **); 71 of 313 across the whole figure",
+    "new": "•  14 cells starred in this row (0 **); 72 of 312 across the whole figure"
+   },
+   {
+    "shape_name": "TextBox 3",
+    "old": "•  acute iti ALM all *, acute iti ALM far contra *, acute iti ALM far ipsi *, acute iti ALM far mid *, acute iti SSp-m far contra *, acute iti orofacial all *, acute iti orofacial far contra *, acute iti tjM1 all *, acute iti tjM1 far contra *, subacute iti ALM close contra * (+3 more, notes)",
+    "new": "•  acute ITI ALM all *, ALM far ipsi / mid / contra *, tjM1 all *, tjM1 far mid / contra *, SSp-m far contra *, SSp-n all *, SSp-n far contra *, orofacial all *, orofacial close ipsi / far contra *; subacute tjM1 far contra *"
+   },
+   {
+    "shape_name": "TextBox 5",
+    "old": "Stars = mixed-model backup (main slide: animal bootstrap). Change vs own pre, mixed model (animal intercept + per-epoch animal x epoch variance, df = animals - 1); * p < .05, ** Holm across the 313 tested cells. Filled dot = model estimate, 95 % CI; gray bar = animal bootstrap 95 % (these 4 animals). Main slide (bootstrap stars): previous slide.",
+    "new": "Stars = mixed-model backup (main slide: animal bootstrap). Change vs own pre, mixed model (animal intercept + per-epoch animal x epoch variance, df = animals - 1); * p < .05, ** Holm across the 312 tested cells. Filled dot = model estimate, 95 % CI; gray bar = animal bootstrap 95 % (these 4 animals). Main slide (bootstrap stars): previous slide."
+   }
+  ],
+  "notes_body": [
+   "LMM HIDDEN, rebuild re-render 11-17. Hidden companion of the main slide before it (main slide stars = animal bootstrap, boot_delta; these are the mixed-model backup). Contra / ipsi response ratio, log2 AUC (cued / cue 0-1 s, ITI 0-0.5 s), docked ITI bout starts (row 3 of 3).",
+   "Mixed model (analysis_kit.epoch_change_lmm): session rows; random intercept per animal plus a separate animal x epoch variance per post epoch; t on df = animals - 1; * p < .05, ** Holm across the figure's 312 tested cells. Filled dot = model estimate and 95 % CI; gray bar = animal bootstrap 95 % (these 4 animals); open markers = sessions (shape = animal, color = epoch), change from the animal's own pre mean.",
+   "ITI rows = docked-spout ITI licks (WFIELD_ITI_FILTER=dock, the producer re-run on the rebuild 11-17); cued rows are unaffected by the filter.",
+   "Split image of the whole figure: stars use the Holm family of the WHOLE figure (all 3 rows, 312 tests), not re-corrected per image.",
+   "Starred cells: acute iti ALM far ipsi *, acute iti ALM far mid *, acute iti ALM far contra *, acute iti ALM all *, acute iti tjM1 far mid *, acute iti tjM1 far contra *, acute iti tjM1 all *, acute iti SSp-m far contra *, acute iti SSp-n far contra *, acute iti SSp-n all *, acute iti orofacial close ipsi *, acute iti orofacial far contra *, acute iti orofacial all *, subacute iti tjM1 far contra *.",
+   "FIGURE SOURCE: M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-17/swap_inputs/s138_lick_lateral_ratio_auc_docked_iti05_iti_lmm.png (title cut of M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/grant_figures/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/lmm_hidden_20261117/iti05_20261117/lick_lateral_ratio_auc_docked_iti05_iti.png); statistics M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/grant_figures/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/lmm_hidden_20261117/iti05_20261117/lick_lateral_ratio_auc_docked_iti05_lmm.csv; source table M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/lateral_ratio_dock_iti05_20261117/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/lateral_ratio_{sessions,tests}.csv (= the lateral_ratio_dock_20261117 tables, both windows; 315/315 cells reproduce the bootstrap points). Code: wf_lmm_main branch lmm-hidden-20261103 scripts/lmm_hidden/ (render log M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/grant_figures/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/lmm_hidden_20261117/iti05_20261117/logs/lateral_ratio_docked.log carries the code sha and env)."
+  ],
+  "data_block": {
+   "Window": "lick- or cue-aligned response, per-trial baseline -1.0..-0.5 s; log2 contra / ipsi AUC 0..1 s (cued / cue rows), 0..0.5 s (ITI row, Priya 11-17)",
+   "Licks": "cued: first-lick onsets of the rebuild cued_wide extract; ITI: whole-session licks, bout starts (gap >= 2 s)",
+   "Trial period": "cued / cue: engaged trials; ITI: whole session between trials",
+   "Trial types": "docked-spout ITI bout starts by previous spout (WFIELD_ITI_FILTER=dock)",
+   "Gate": "camera trial gate; >= 5 licks per spout",
+   "Baseline": "August-only pre (WIDEFIELD_PRE_FROM=0801); every value = change from the animal's own pre mean",
+   "Correction": "Hidden-slide stars = the mixed-model BACKUP: analysis_kit.epoch_change_lmm (session rows; animal intercept + a separate animal x epoch variance per post epoch; t on df = animals - 1); analysis_kit.lmm_stars: * p < .05, ** Holm across the figure's 312 tested cells; untested = degenerate fit (no SE) or < 2 animals in both arms. The main slide's stars are the primary test (animal bootstrap boot_delta, 95 % CI excludes 0) [traced: render log M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/grant_figures/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/lmm_hidden_20261117/iti05_20261117/logs/lateral_ratio_docked.log]"
+  },
+  "changes": [
+   {
+    "what": "whole-figure LMM stars / tests",
+    "old": "71 of 313 (0 **)",
+    "new": "72 of 312 (0 **)",
+    "source": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/grant_figures/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/lmm_hidden_20261117/iti05_20261117/logs/lateral_ratio_docked.log"
+   },
+   {
+    "what": "ITI row LMM stars",
+    "old": "13 (0..1.0 s; incl. subacute / chronic ALM close contra, chronic ALM far contra)",
+    "new": "14 (0..0.5 s; acute 13 + subacute tjM1 far contra)",
+    "source": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/grant_figures/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/lmm_hidden_20261117/iti05_20261117/logs/lateral_ratio_docked.log"
+   }
+  ],
+  "conclusion_changed": true,
+  "conclusion_note": "ITI row: the post-acute LMM stars move (chronic ALM close / far contra drop, subacute tjM1 far contra appears); acute pattern holds."
+ },
+ {
+  "slide": 203,
+  "title_now": "Backup: hemispheric balance per spout",
+  "status": "ready",
+  "skip_reason": "",
+  "pictures": [
+   {
+    "shape_name": "fig:lick_lateral_ratio_full",
+    "new_image": "M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-17/swap_inputs/s203_lick_lateral_ratio_auc_docked_iti05.png",
+    "source_render": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/lateral_ratio_dock_iti05_20261117/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/figures/lick_lateral_ratio_auc.png",
+    "crop_done": "full figure (as the old image); purple provenance footer whited out (bottom 90 px only); 2600 x 1250"
+   }
+  ],
+  "slide_text": [],
+  "notes_body": [
+   "Full Fig 14.9: rows = first cued lick by target, cue-aligned by target, ITI bout start (docked spout; 8,247 bout starts) by the previous trial's spout. log2 contra / ipsi AUC per session, 0..1 s for the cued and cue rows and 0..0.5 s for the ITI row; open = sessions, filled = mean ± SEM over animals; * (top band) = change vs pre at that spout, 95 % paired nested bootstrap CI excludes 0. The ITI row is noisier (fewer licks per spout) and is up acutely in every area: pooled over spouts acute +0.33 ALM, +0.50 tjM1, +0.44 SSp-m, +0.56 SSp-n, +0.43 orofacial (CIs exclude 0); subacute still up (+0.20 / +0.32 / +0.27 / +0.36 / +0.26, CIs exclude 0); chronic it stays up only in ALM (+0.13). Spout x epoch LR p .084 ALM, .016 tjM1, .050 SSp-m, .081 SSp-n, .005 orofacial. (0..1 s window: acute +0.50 / +0.88 / +0.88 / +0.65 / +0.67, chronic ALM +0.18; spout x epoch p .021 ALM, .016 orofacial, .098 SSp-m, .24 SSp-n, tjM1 fit degenerate.)",
+   "FIGURE SOURCE: Encoding (goal) page Fig 14.9 [#f-lick_lateral_ratio_spout] · original: M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/lateral_ratio_dock_iti05_20261117/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/figures/lick_lateral_ratio_auc.png (ITI 0..0.5 s re-render 11-17: cued / cue rows 0..1 s, ITI row 0..0.5 s; one-window twins lick_lateral_ratio_auc_0-1.png / _0-0.5.png in the same folder; log M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/lateral_ratio_dock_iti05_20261117/logs/lateral_ratio_dock_plot.log) · deck image: presentations/_source_PI_overview_2026-11-17/swap_inputs/s203_lick_lateral_ratio_auc_docked_iti05.png (full figure)",
+   "LICK SOURCE: LP cam4 + DAQ contact."
+  ],
+  "data_block": {
+   "Window": "first cued lick-aligned (base -1..-0.5 s), cue-aligned (base -1..-0.5 s before cue): AUC 0..1 s; ITI bout starts: AUC 0..0.5 s (Priya 11-17; 0..1 s twin on the page)",
+   "Licks": "cued first = camera licks.csv onset; ITI = cam4 licks_all bout starts while the spout is docked",
+   "Trial period": "camera working period: first cue -> the session's last camera lick, stopped runs (A2 both + excise) out (WIDEFIELD_TRIAL_GATE=camera, WORKING_TRIALS=in_working, TRIAL_WINDOW=cue_stop, TRIAL_END=lick)",
+   "Trial types": "first cued lick by target spout; docked-spout ITI bout start (WFIELD_ITI_FILTER=dock) by the previous trial's spout",
+   "Gate": "attempted (OROFACIAL_GATE=attempted)",
+   "Baseline": "August pre (WIDEFIELD_PRE_FROM=0801)",
+   "Correction": "MixedLM LR tests (ML); boot_delta per spout x epoch, no multiple-comparison correction [traced: render log lateral_ratio_dock_iti05_20261117/logs/lateral_ratio_dock_plot.log (plot-only from the 11-17 docked figure data, both windows) + lateral_ratio_dock.log]"
+  },
+  "changes": [
+   {
+    "what": "docked ITI pooled acute ALM / tjM1 / SSp-m / SSp-n / orofacial",
+    "old": "+0.50 / +0.88 / +0.88 / +0.65 / +0.67 (0..1 s)",
+    "new": "+0.33 / +0.50 / +0.44 / +0.56 / +0.43 (0..0.5 s)",
+    "source": "lateral_ratio_dock_20261117 lateral_ratio_tests.csv (window logr_0-0.5)"
+   },
+   {
+    "what": "chronic pooled",
+    "old": "ALM +0.18 only",
+    "new": "ALM +0.13 only",
+    "source": "same"
+   },
+   {
+    "what": "spout x epoch LR",
+    "old": ".021 ALM, .016 orofacial, .098 SSp-m, .24 SSp-n, tjM1 degenerate",
+    "new": ".084 ALM, .016 tjM1, .050 SSp-m, .081 SSp-n, .005 orofacial",
+    "source": "lateral_ratio_dock_20261117 lateral_ratio_models.csv"
+   }
+  ],
+  "conclusion_changed": false,
+  "conclusion_note": "Backup slide, no title claim; ITI balance still up acutely in every area and chronically only in ALM; magnitudes ~1/3-1/2 smaller and the tjM1 spout x epoch model now converges."
+ }
+]

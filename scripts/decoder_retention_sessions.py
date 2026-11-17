@@ -16,7 +16,11 @@ sessions averaged first). Trial class is told apart by panel row (days figure) o
 HIT-GATED MINIMUM (Priya 11-07, A11): in the pooled-by-epoch figure a HIT cell (code on hits) needs
 >= analysis_kit.MIN_HITS = 20 hit trials summed over the animal x epoch's sessions (and a hollow hit diamond >= 20 hits);
 below it the animal is named "n.a. (<20 hits)" and left out of the mean and the test. Failed attempts are not hit-gated.
-Usage: python scripts/decoder_retention_sessions.py
+--show-low-hits (Priya 11-17, "show the low-hit cells but mark as <20 hits"): the session values of a gated hit cell are
+DRAWN as hollow gray diamonds (analysis_kit.LOWHIT_LABEL) and the cell is labeled "<20 hits" with its summed hits; they
+stay out of the mean, the CI / test and the y-range-free statistics (decoder_retention_pooled.csv is unchanged).
+--out DIR writes every output (CSVs + figures) to DIR instead of the run folder (inputs are still read from it).
+Usage: python scripts/decoder_retention_sessions.py [--show-low-hits] [--out DIR]
 """
 from __future__ import annotations
 from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
@@ -61,7 +65,10 @@ def _cell(v: pd.DataFrame, c: str):
     return v.ret.to_numpy()
 
 
-def main() -> int:
+def main(argv=None) -> int:
+    import argparse
+    from pathlib import Path
+
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -69,14 +76,19 @@ def main() -> int:
 
     from wfield_local import analysis_kit as ak
     from wfield_local import cat_points as cp
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--show-low-hits", action="store_true", help="draw gated (< MIN_HITS) hit cells, marked, untested")
+    ap.add_argument("--out", default=None, help="write CSVs + figures here instead of the run folder")
+    args = ap.parse_args(argv)
+    O = Path(args.out) if args.out else A
     T = load()
     S = (T.groupby(["window", "animal", "epoch", "cls2", "label"])
          .agg(day=("day", "first"), ret=("ret", "mean"), p_true=("p_true", "mean"), n=("ret", "size")).reset_index())
     S = S[S.n >= MIN_TRIALS]
     Aall = T.groupby(["window", "animal", "epoch", "cls2"]).agg(ret=("ret", "mean"), n=("ret", "size")).reset_index()
-    out = A / "figures"
-    out.mkdir(exist_ok=True)
-    S.to_csv(A / "decoder_retention_sessions.csv", index=False)
+    out = O / "figures"
+    out.mkdir(parents=True, exist_ok=True)
+    S.to_csv(O / "decoder_retention_sessions.csv", index=False)
     pd.set_option("display.width", 220)
     print("== per animal (rule 8): retention over all trials of the cell (n)")
     print(Aall.pivot_table(index=["window", "animal"], columns=["epoch", "cls2"], values="ret")
@@ -132,7 +144,21 @@ def main() -> int:
                 by = {an: _cell(v[v.animal == an], c) for an in AN if (v.animal == an).any()}
                 na = [an for an, b in by.items() if not len(b)]
                 by = {an: b for an, b in by.items() if len(b)}
-                if na:                                  # hit cell below MIN_HITS summed hits: named, not plotted / tested
+                if args.show_low_hits and c == "hit" and ep != "pre":
+                    # Priya 11-17: draw the gated cells (gray hollow diamonds, outside mean / CI / test) and name every
+                    # animal below MIN_HITS with its summed hits (0 = no session with >= MIN_TRIALS hits)
+                    low = {an: int(v[v.animal == an].n.sum()) for an in AN if an not in by}
+                    for j, an in enumerate(AN):
+                        g = v[v.animal == an]
+                        if an in na and len(g):
+                            xs = xx + (j - 1.5) * 0.04 + np.random.default_rng(10 * i + j).uniform(-0.015, 0.015, len(g))
+                            ax.scatter(xs, g.ret.to_numpy(), marker="D", s=22, facecolors="none",
+                                       edgecolors=ak.LOWHIT_COLOR, lw=0.9, zorder=3)
+                            allv += list(g.ret.to_numpy())
+                    if low:
+                        ax.text(xx, 0.01, f"<{ak.MIN_HITS} hits:\n" + "\n".join(f"{an} {k}" for an, k in low.items()),
+                                ha="center", va="bottom", fontsize=5.5, color="0.35", transform=ax.get_xaxis_transform())
+                elif na:                                # hit cell below MIN_HITS summed hits: named, not plotted / tested
                     ax.text(xx, 0.01, ak.HIT_GATE_NA + "\n" + "/".join(na), ha="center", va="bottom", fontsize=5.5,
                             color=cp.epoch_color(ep), transform=ax.get_xaxis_transform())   # axes bottom, any y range
                 for j, an in enumerate(AN):
@@ -170,9 +196,12 @@ def main() -> int:
     pad = 0.05 * (hi_ - lo_)
     axs[0].set_ylim(lo_ - pad, hi_ + pad + (hi_ - lo_ + 2 * pad) * 0.22 / 0.78)
     R = pd.DataFrame(rows)
-    R.to_csv(A / "decoder_retention_pooled.csv", index=False)
+    R.to_csv(O / "decoder_retention_pooled.csv", index=False)
     print("== change vs pre-stroke hits (session values, nested bootstrap animals > sessions)\n" + R.round(3).to_string(index=False))
-    legend(fig, [Line2D([], [], marker="D", ls="", mfc="none", mec="0.3", label="animal, all trials (too few per session)")])
+    extra = [Line2D([], [], marker="D", ls="", mfc="none", mec="0.3", label="animal, all trials (too few per session)")]
+    if args.show_low_hits:
+        extra.append(Line2D([], [], marker="D", ls="", mfc="none", mec=ak.LOWHIT_COLOR, label=ak.LOWHIT_LABEL))
+    legend(fig, extra)
     fig.suptitle(f"NEURAL: frozen-decoder far-contra retention pooled per epoch, one dot per SESSION (>= {MIN_TRIALS} trials; left of each "
                  f"epoch = hits, right = failed attempts; a hit cell needs >= {ak.MIN_HITS} hits per animal x epoch, else "
                  f"{ak.HIT_GATE_NA}). Numbers = "

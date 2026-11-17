@@ -7,6 +7,8 @@ Slide 95 (PI_overview_2026-11-02.pptx, figure_provenance rows fig:iti_ramp_row1 
               docked-spout ITI bout starts (gap >= 2 s), per-session PETH (baseline -1.5..-1.0 s), raw dF/F x1e3, mean
               +- SEM over sessions, per-bin bars = iti_licks.sig_compute (paired nested bootstrap, BH-FDR q .05).
   cued row  = row 2 of lick_cued_ramp_summary.png: first cued lick, resp_auc 0..1.0 s (PETH re-baselined -1.0..-0.5 s)
+  ITI scalars (tables / LMM input only, not drawn): docked ITI resp_auc over lick_cued_ramp.ITI_RESP_W = 0..0.5 s
+              (Priya 11-17; 0..1.0 s before)
               / the animal's pre mean; * = iti_licks.dots_compute (analysis_kit.boot_delta CI excludes 0).
 SESSION-Z = variant (c) of docs/status/SD_RISE_2026-11-04.md (widefield_pipeline 371b6e1e; decoder_mix_checks/
 sd_rise_1104/lickresp.py): each session x ROI is divided by sd_win = np.nanstd over ALL samples of that session's
@@ -95,7 +97,9 @@ def _dots(T: pd.DataFrame, val: str) -> dict:
 def _scalars(D: dict, PE: pd.DataFrame, key: str) -> pd.DataFrame:
     br = (LAG >= lcr.BASE_RESP[0]) & (LAG <= lcr.BASE_RESP[1])
     T = PE[["label", "animal", "epoch", "roi", "n"]].copy()
-    T["resp_auc"] = [lcr._auc(p - np.nanmean(p[br]), LAG, *lcr.RESP_W) for p in PE.peth]
+    # window per set (Priya 11-17): cued first lick over lcr.RESP_W (0..1.0 s), ITI bout starts over lcr.ITI_RESP_W (0..0.5 s)
+    win = lcr.ITI_RESP_W if key == "iti" else lcr.RESP_W
+    T["resp_auc"] = [lcr._auc(p - np.nanmean(p[br]), LAG, *win) for p in PE.peth]
     T["sd_win"] = _sd(D, PE, key)
     T["resp_z"] = T.resp_auc / T.sd_win
     for v in ("resp_auc", "resp_z"):
