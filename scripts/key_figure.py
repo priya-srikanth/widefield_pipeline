@@ -15,7 +15,10 @@ far-contra code-on-hits change, which uses the same paired nested bootstrap as e
 Reading: behavior returns; the frozen pre-stroke read-out stays low (ITI) while a decoder refit after the stroke reads
 position again (the code is there, read differently); ITI licks are read ~0.25 mm contralesional of where they land.
 Outputs <E>/iti_licks/figures/key_figure.png; figdata/key_figure.pkl (--plot-only redraws from it).
-Usage: python scripts/key_figure.py [--plot-only]
+--show-low-hits (Priya 11-17, "show the low-hit cells but mark as <20 hits"): panel B also draws each code-on-hits animal x
+epoch cell below analysis_kit.MIN_HITS as a hollow gray diamond (analysis_kit.LOWHIT_LABEL) named with its summed hits;
+the line, CI and k/n are unchanged. --out DIR writes figures/ and figdata/ under DIR instead of the run folder.
+Usage: python scripts/key_figure.py [--plot-only] [--show-low-hits] [--out DIR]
 """
 from __future__ import annotations
 from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
@@ -72,6 +75,19 @@ def compute() -> dict:
                          n_dir=sum(v < 0 for v in am.values()), n=len(com),
                          **{a: (1 + am[a]) if a in am else np.nan for a in AN}))
     code = pd.DataFrame(code).set_index("epoch")
+    # Priya 11-17 ("show the low-hit cells but mark as <20 hits"): every animal x epoch cell below the hit gate, with its
+    # summed hits and (when it has sessions) its fraction of pre = 1 + (cell mean - pre mean). Drawn only with
+    # --show-low-hits; never part of the line, CI or count above.
+    low = []
+    for ep in EP[1:]:
+        for a in AN:
+            v = B[(B.animal == a) & (B.epoch == ep)].dropna(subset=["neu"])
+            if ak.hits_ok(v.n_hits.to_numpy(float)):
+                continue
+            y = 1 + float(v.neu.mean() - ref[a].mean()) if len(v) and len(ref[a]) else np.nan
+            low.append(dict(epoch=ep, animal=a, n_hits=int(np.nansum(v.n_hits.to_numpy(float))), n_sessions=len(v), y=y))
+    code_low = pd.DataFrame(low, columns=["epoch", "animal", "n_hits", "n_sessions", "y"])
+    print("== code on hits below the hit gate (shown with --show-low-hits, not tested)\n" + code_low.round(3).to_string())
     R = pd.read_csv(il.OUT / "refit_decoders_tests.csv")
     dec = {(st, k): _frac(R, st, k) for st in ("trial", "iti") for k in ("frozen", "epoch refit")}
     M = pd.read_csv(il.OUT / "matched_gauss_tests.csv")
@@ -85,10 +101,10 @@ def compute() -> dict:
     for k, v in off.items():
         print(f"== ITI offset, {k}\n" + v[["point", "lo", "hi", "n_dir", "n", *[f"animal_{a}" for a in AN]]].round(3)
               .to_string())
-    return dict(Aim=Aim, code=code, dec=dec, off=off)
+    return dict(Aim=Aim, code=code, dec=dec, off=off, code_low=code_low)
 
 
-def plot(F: dict) -> None:
+def plot(F: dict, show_low: bool = False, out_dir: Path | None = None) -> None:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -129,7 +145,23 @@ def plot(F: dict) -> None:
             for a in AN:
                 ax.scatter(xx[1:], D[a].to_numpy()[1:], s=9, color=c, alpha=0.35, marker=ANIMAL_MARKER.get(a, "o"),
                            lw=0, zorder=1)
-        if st == "trial":                # animals whose code-on-hits cell is below the hit gate (Priya 11-07)
+        if st == "trial" and show_low and F.get("code_low") is not None:
+            # Priya 11-17: cells below the hit gate drawn as gray hollow diamonds at the code line's x, named with their
+            # summed hits (0 = no session with >= 5 hits); outside the line, the CI and the k/n count
+            L_ = F["code_low"]
+            xc = x - (len(lines) - 1) / 2 * 0.07          # x of the code line (k = 0)
+            for i, ep in enumerate(EP[1:], start=1):
+                g = L_[L_.epoch == ep]
+                if not len(g):
+                    continue
+                gy = g[np.isfinite(g.y.to_numpy(float))]
+                ax.scatter(np.full(len(gy), xc[i]), gy.y, marker="D", s=24, facecolors="none",
+                           edgecolors=ak.LOWHIT_COLOR, lw=1.0, zorder=2)
+                ax.text(i - 0.08, 0.02, f"<{ak.MIN_HITS} hits:\n" + "\n".join(f"{r.animal} {r.n_hits}" for r in g.itertuples()),
+                        transform=ax.get_xaxis_transform(), ha="right", va="bottom", fontsize=6, color="0.35")
+            ax.scatter([], [], marker="D", s=24, facecolors="none", edgecolors=ak.LOWHIT_COLOR, lw=1.0,
+                       label=ak.LOWHIT_LABEL)
+        elif st == "trial":              # animals whose code-on-hits cell is below the hit gate (Priya 11-07)
             for i, ep in enumerate(EP[1:], start=1):
                 na = [a for a in AN if not np.isfinite(code.loc[ep, a])]
                 if na:
@@ -139,7 +171,11 @@ def plot(F: dict) -> None:
         ax.set_xticks(x, EP)
         ax.set_ylabel("fraction of pre-stroke level")
         ax.set_title(ttl + "\n(mean of animals, 95% nested CI; small = animals)", fontsize=10, loc="left")
-        ax.legend(fontsize=7.5, frameon=False, loc="lower left")
+        low_b = st == "trial" and show_low and F.get("code_low") is not None
+        if low_b:   # low-hit cells shown: lower left would hide the acute diamonds -> legend lower right, smaller
+            ax.legend(fontsize=6.5, frameon=False, loc="lower right", handletextpad=0.4, borderaxespad=0.2)
+        else:
+            ax.legend(fontsize=7.5, frameon=False, loc="lower left")
     # D ITI offset
     ax = axs[3]
     for k, (lab, T) in enumerate(off.items()):
@@ -169,17 +205,21 @@ def plot(F: dict) -> None:
                  "land,\neven against pre licks of the same previous-trial target. Decoders: z-scored Allen areas with the ALM / tjM1 split, lags 0..0.2 s; "
                  "pre = August pre sessions (leave-one-session-out). PROVISIONAL", fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.86))
-    save_png_svg(fig, il.OUT_W / "figures" / "key_figure.png", dpi=105)
+    out = (out_dir or il.OUT_W) / "figures"
+    out.mkdir(parents=True, exist_ok=True)
+    save_png_svg(fig, out / "key_figure.png", dpi=105)
     plt.close(fig)
 
 
 def main() -> int:
+    show_low = "--show-low-hits" in sys.argv
+    out_dir = Path(sys.argv[sys.argv.index("--out") + 1]) if "--out" in sys.argv else None
     if plot_only():
-        plot(load_fd("key_figure"))
+        plot(load_fd("key_figure"), show_low, out_dir)     # figdata before 11-17 has no code_low: nothing extra drawn
         return 0
     F = compute()
-    save_fd("key_figure", F)
-    plot(F)
+    save_fd("key_figure", F, (out_dir / "figdata") if out_dir else None)
+    plot(F, show_low, out_dir)
     return 0
 
 
