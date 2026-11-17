@@ -2,12 +2,12 @@
 2026-10-19: "in the acute far_contra ... the animal clearly has a lick but it doesn't contact the spout (deviated) --
 does that activity look like a planned + executed far right lick or the lick that it executes?")
 
-Per session, from the O2 bundle inputs (imaging + behaviour; `scripts/o2_encoding.py bundle`) and licks.csv (contact):
+Per session, from the O2 bundle inputs (imaging + behavior; `scripts/o2_encoding.py bundle`) and licks.csv (contact):
   features  region-mean activity (Allen areas x hemisphere, eroded stat mask, z-scored) per lick in three windows:
             evoked = mean over [onset, onset + EVOKED_S] minus mean over [onset - BASE_S, onset)   (lick-evoked, primary)
             post   = mean over [onset, onset + EVOKED_S]                                         (not baseline-subtracted)
             pre    = mean over [onset - BASE_S, onset)                                            (trial context only)
-  decoder   multinomial logistic regression (standardised, L2) trained on CONTACTED licks of ENGAGED trials, label =
+  decoder   multinomial logistic regression (standardized, L2) trained on CONTACTED licks of ENGAGED trials, label =
             spout position (6 classes); cross-validated predictions for the training licks (folds grouped by TRIAL)
   probe     MISDIRECTED licks = no contact, at FAR_CONTRA, executed peak angle deviated > DEV deg toward ipsi; for each,
             the EXECUTION-matched position = the FAR spout whose angle is nearest the executed angle (only licks whose
@@ -17,7 +17,7 @@ Per session, from the O2 bundle inputs (imaging + behaviour; `scripts/o2_encodin
             'pre' window (if misdirected licks already decode as far_contra BEFORE the lick, that is trial context, not
             a lick plan). Pre-stroke far-contra misses = the same analysis without the lesion.
 Caveats: contacted licks carry a touch response that misdirected licks lack (both templates have it); widefield GCaMP is
-slow relative to a ~7 Hz lick rhythm, so a lick's window overlaps its neighbours (baseline subtraction helps).
+slow relative to a ~7 Hz lick rhythm, so a lick's window overlaps its neighbors (baseline subtraction helps).
 
     python scripts/misdirected_lick_decode.py [--run ...] [--name enc_v36_20261019] [--dev 15] [--min-probe 15]
 
@@ -47,7 +47,7 @@ def region_traces(im) -> tuple[np.ndarray, np.ndarray, list[str]]:
 
 
 def lick_table(rv, run: str, animal: str, date: str, B) -> pd.DataFrame:
-    """Per lick (same order as the Behaviour arrays): onset (DAQ s), trial, position, executed angle, contact, engaged."""
+    """Per lick (same order as the Behavior arrays): onset (DAQ s), trial, position, executed angle, contact, engaged."""
     from wfield_local import combined_encoding as ce
     from wfield_local import orofacial_cohort as oc
     from wfield_local import orofacial_outputs as oo
@@ -56,7 +56,7 @@ def lick_table(rv, run: str, animal: str, date: str, B) -> pd.DataFrame:
     L = pd.read_csv(sd / "licks.csv")
     L = L[L.trial_id.isin(cue_t.index)].reset_index(drop=True)
     if len(L) != len(B.lick_on_s):
-        raise RuntimeError(f"lick table / Behaviour mismatch {len(L)} vs {len(B.lick_on_s)}")
+        raise RuntimeError(f"lick table / Behavior mismatch {len(L)} vs {len(B.lick_on_s)}")
     ok = (~L.peak_interp.astype(bool)) & (L.protrusion_px >= ce.MIN_REACH_PX) & np.isfinite(L.peak_angle_deg)
     eng = set(B.trials.trial_id[B.trials.engaged].astype(int))
     return pd.DataFrame({"on_s": B.lick_on_s, "trial_id": L.trial_id.to_numpy(int), "pos": B.lick_pos,
@@ -190,7 +190,7 @@ def _pc(a: np.ndarray, b: np.ndarray) -> float:
 
 
 def template_analysis(Ls: dict, meta: dict, min_n: int = 10, prefix: str = "r_") -> pd.DataFrame:
-    """Per animal, PRE-stroke contacted-lick templates per far spout (mean lick-evoked region pattern), centred on the
+    """Per animal, PRE-stroke contacted-lick templates per far spout (mean lick-evoked region pattern), centered on the
     mean over the far spouts so only the position-SPECIFIC part is compared. Per test set (a session's misdirected
     licks, split by their exec-matched spout; and controls), r(pattern, T_far_contra) vs r(pattern, T_exec). Pre
     sessions are tested against templates built WITHOUT them (leave-one-session-out)."""
@@ -273,9 +273,10 @@ def summarise(D: pd.DataFrame) -> pd.DataFrame:
 
 
 def main(argv=None) -> int:
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
+    from wfield_local import config
     from wfield_local import analysis_kit as ak
     from wfield_local import epochs
-    from wfield_local import o2_inference as oi
     from wfield_local import orofacial_cohort as oc
     from wfield_local import orofacial_outputs as oo
     from wfield_local import writeguard
@@ -292,18 +293,27 @@ def main(argv=None) -> int:
     ap.add_argument("labels", nargs="*")
     a = ap.parse_args(argv)
     rv = PathResolver()
-    out = oo.root(rv) / a.run / "cohort" / "tables" / "misdirected_licks"
-    writeguard.assert_writable(out)
-    cnt = pd.read_csv(out / "counts.csv")
+    # coordinator 11-04: routed. A tagged run reads the counts misdirected_lick_counts produced for IT (they depend on
+    # the engagement gate) and writes beside them, under the run's tagged encoding tree
+    from wfield_local import run_mode
+    out = (run_mode.encoding_out_root(a.run) / "misdirected_licks" if run_mode.tag()
+           else oo.root(rv) / a.run / "cohort" / "tables" / "misdirected_licks")
+    src = out
+    out.mkdir(parents=True, exist_ok=True)
+    writeguard.assert_writable(out / "_")
+    cnt = pd.read_csv(src / "counts.csv")
     n_mis = cnt[cnt.pos == "far_contra"].groupby("label").ipsi_dev.sum()
-    bdir = oi.bundle_dir(rv, a.name) / "inputs"
+    # under a rebuild root the bundle lives in <root>/o2/<name> (o2_encoding.bundle_dir); oi.bundle_dir is the default
+    # DeepLabCut/Widefield/o2 store only, so a rebuild run would find no inputs and skip every session
+    import o2_encoding as oe
+    bdir = oe.bundle_dir(rv, a.name) / "inputs"
     if a.method == "templates":
         return main_templates(a, rv, out, bdir)
     labels = a.labels or [s["label"] for s in ak.curated_sessions() if n_mis.get(s["label"], 0) >= a.min_probe]
     parts = []
     for lab in labels:
         ep = epochs.epoch_of(lab)
-        if ep not in EPOCHS or (ep == "pre" and lab[5:] < oc.LATE_PRE_FROM):
+        if ep not in EPOCHS or (ep == "pre" and config.early_pre(lab)):
             continue
         pk = bdir / f"{lab}.pkl"
         if not pk.exists():
@@ -341,16 +351,16 @@ def main(argv=None) -> int:
 
 
 def main_templates(a, rv, out, bdir) -> int:
+    from wfield_local import config
     from wfield_local import analysis_kit as ak
     from wfield_local import epochs
-    from wfield_local import orofacial_cohort as oc
     cache = out / "lick_patterns"
     cache.mkdir(parents=True, exist_ok=True)
     Ls, meta = {}, {}
     for s in ak.curated_sessions():
         lab = s["label"]
         ep = epochs.epoch_of(lab)
-        if ep not in EPOCHS or (ep == "pre" and lab[5:] < oc.LATE_PRE_FROM) or (a.labels and lab not in a.labels):
+        if ep not in EPOCHS or (ep == "pre" and config.early_pre(lab)) or (a.labels and lab not in a.labels):
             continue
         cf = cache / f"{lab}_dev{a.dev:g}_v3.pkl"
         if cf.exists():
@@ -483,7 +493,7 @@ def _figure(S: pd.DataFrame, path, run: str, dev: float) -> None:
                       + [Line2D([], [], ls="--", color="0.6", label="chance")], frameon=False, fontsize=8,
                       loc="upper right")
     fig.suptitle(f"Misdirected far-contra licks (no contact, deviated > {dev:.0f} deg toward ipsi, nearer another far "
-                 f"spout): decoder trained on contacted licks (6 positions) -- {run}. Markers = animals (colour), bar = "
+                 f"spout): decoder trained on contacted licks (6 positions) -- {run}. Markers = animals (color), bar = "
                  "mean of animals; sessions with too few misdirected licks skipped.", fontsize=10, y=0.995, va="top",
                  wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.9))

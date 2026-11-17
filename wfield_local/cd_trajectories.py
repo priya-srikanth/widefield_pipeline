@@ -14,7 +14,7 @@ WHY A SEPARATE DIRECTION HAS TO BE FITTED, AND WHY THAT IS NOT A COMPROMISE.
 `position_coding_directions` fits in (component x TIME SUB-BIN) space -- its own comment: "a
 direction is a weight per component PER MOMENT in the window", 90 x 4 = 360 for an ENL window. Such
 a vector CANNOT be applied to a single frame, and collapsing it would misrepresent what the
-sub-binned classifier learnt. More importantly, a direction with time structure and a trajectory are
+sub-binned classifier learned. More importantly, a direction with time structure and a trajectory are
 redundant: projecting frame t with weights fitted for a different moment is not a coherent readout.
 **A trajectory requires a time-INVARIANT direction**, so this module fits on the window MEAN
 (``bins=1``) and lets all the time structure live in the projection, which is the standard
@@ -32,8 +32,8 @@ is a fifth object beside them, in the spirit of that module's own note that "_or
 SAME construction with the engagement axis projected out. Kept as separate methods rather than
 replacing the originals, so both are on disk and comparable."
 
-THE DIRECTION IS DEFINED WHERE BEHAVIOUR IS INTACT: PRE-STROKE trials with a successful lick, P
-against not-P, matching `position_coding_directions` exactly. Pole-normalised so 0 = pre-stroke
+THE DIRECTION IS DEFINED WHERE BEHAVIOR IS INTACT: PRE-STROKE trials with a successful lick, P
+against not-P, matching `position_coding_directions` exactly. Pole-normalized so 0 = pre-stroke
 not-P and 1 = pre-stroke lick at P; every trajectory then reads as "fraction of the normal
 position-P signature" and is comparable across positions, animals and epochs.
 
@@ -50,7 +50,7 @@ WHAT EACH ALIGNMENT CAN AND CANNOT SAY -- inherited from `position_coding_direct
                 long and variable. Reporting a number with a caveat is defensible; drawing a
                 time course through it is not.
 
-AND THE ONE THING WIDEFIELD CANNOT DO THAT 2p CAN. The haemodynamic response is slow -- seconds
+AND THE ONE THING WIDEFIELD CANNOT DO THAT 2p CAN. The hemodynamic response is slow -- seconds
 wide -- so these trajectories are that kernel convolved with whatever the underlying signal is.
 Onset times, ramp slopes and the ORDER of two nearby events are NOT readable from them the way they
 are from a 2p CD trajectory. Read amplitude and gross time course; do not read timing.
@@ -70,7 +70,7 @@ of trial scatter:
 **A TIGHTER WINDOW IS WORSE**, monotonically and in both animals -- 1 s costs 28% of d' in PS92.
 `defaults.yaml` says "position information concentrates in the final second before the cue", but
 that is about where the cue-evoked INCREMENT lives relative to a baseline; it does not make a 1 s
-window a better direction. The pre-cue code is sustained and the haemodynamics are slow, so
+window a better direction. The pre-cue code is sustained and the hemodynamics are slow, so
 averaging more frames buys more than the extra second dilutes.
 
 **WIDER SCORES BETTER AND IS STILL REFUSED**, for two reasons. PS92 keeps only 458 of 3911 trials at
@@ -90,6 +90,7 @@ CLI::
     python -m wfield_local.cd_trajectories --align precue cue --out <dir>
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 from pathlib import Path
@@ -134,6 +135,49 @@ MIN_TRIALS = 10
 #: RT at that position) but a TRAJECTORY through an inferred time has a guessed x-axis that grows
 #: with the latency, and post-stroke the latency is long and variable.
 LICK_ALIGNED_CLASSES = ("success",)
+
+
+def trial_set_sentence(align, gate="lick") -> str:
+    """THE TRIAL SET a CD figure draws (Priya 11-09: every figure states exactly which trials are in and out), for one
+    alignment or several (the geometry figure), under the run's switches (`trial_set_text`).
+
+    What `session_arms` really keeps: `nolick_decoder.categorize` -> success = `engaged` (first lick of the run's lick
+    source within max_rt; no camera working-period cut), miss_working = `undetected` cues whose engagement flag is set
+    (camera gate: camera class in `trial_classes.sel_classes("miss_working")`, the cue_stop class table; DAQ gate: before
+    the terminal quit period); late hits (`late_rewarded`) and stopped trials are never in a gate. The gate is forced
+    to success for the lick alignment; the pre-cue arm drops a trial with no lick-free window (`window_start`)."""
+    from wfield_local import trial_set_text as tst
+    aligns = [align] if isinstance(align, str) else list(align)
+    try:
+        from wfield_local import trial_classes as tc
+        max_rt = f"{tc.max_rt_ms() / 1000:g} s"
+    except Exception:                                                   # noqa: BLE001 - a caption never kills a figure
+        max_rt = "max_rt"
+    lick_body = tst.sentence("lick").split(": ", 1)[1].replace("; excluded: no-lick trials", "")
+    late = f"late hits (first lick after {max_rt}, inside the response window)"
+    cue_locked = [a for a in aligns if a != "lick"]
+    classes = GATES[gate] if cue_locked else LICK_ALIGNED_CLASSES
+    if "miss_working" in classes:
+        mw_inc, _, mw_exc = tst.sentence("miss_working").split(": ", 1)[1].partition("; excluded: ")
+        rest = [x for x in mw_exc.split(", ") if x and x != "lick trials"]
+        inc = f"{lick_body}  AND  {mw_inc}"
+        excl = [late, (f"no-lick trials of class {', '.join(rest)}" if rest
+                       else "no-lick trials in the terminal quit period")]
+    else:
+        inc, excl = lick_body, ["no-lick trials", late]
+    rules = []
+    if "precue" in aligns:
+        rules.append(("pre-cue arm: " if len(aligns) > 1 else "")
+                     + "ENL window ending at the cue, slid earlier past any lick; a trial with no lick-free window is "
+                       "dropped")
+    if "lick" in aligns:
+        if cue_locked:
+            rules.append("lick-aligned arm: lick trials only, aligned on the first lick after the cue")
+        else:
+            rules.append("aligned on the first lick after the cue"
+                         + ("; no-lick trials have no lick to align to, so the gate is forced to lick trials"
+                            if "miss_working" in GATES[gate] else ""))
+    return "trials: " + "; ".join([inc, *rules]) + "; excluded: " + ", ".join(excl)
 
 #: Width of the boxcar the projected course is smoothed with, in seconds, and CENTRED.
 #:
@@ -252,7 +296,7 @@ def component_stats(X):
 
 
 def smooth(v, fs, seconds=None, trailing=TRAILING):
-    """Boxcar over the CD time course. TRAILING by default, so a value at t summarises [t-w, t].
+    """Boxcar over the CD time course. TRAILING by default, so a value at t summarizes [t-w, t].
 
     Edges shrink the window rather than pad it, so a constant input stays constant everywhere and
     the ends are not dragged toward zero.
@@ -353,7 +397,7 @@ def condition_independent_modes(G, t, baseline=CIM_BASELINE, var=CIM_VAR, kmax=C
     K is chosen by variance explained (`CIM_VAR`) and capped (`CIM_KMAX`), from the SVD of the grand
     mean's deviation from its own pre-event baseline, so no interval or rank is hand-picked.
 
-    `k` OVERRIDES that choice, and the matched null requires it. `subspace_overlap` normalises by
+    `k` OVERRIDES that choice, and the matched null requires it. `subspace_overlap` normalizes by
     the first basis's dimension and `subspace_chance` is K/n, so two groups that each picked their
     own K would be compared at different dimensions AND against different chance levels -- the null
     would then differ from the observation in two ways at once, only one of them intended.
@@ -394,7 +438,7 @@ def subspace_chance(ncomp, k):
 def subspace_overlap(A, B):
     """Mean squared cosine of the principal angles between two orthonormal bases, in [0, 1].
 
-    The subspace generalisation of the single-vector cosine: 1 means the epoch's shared-response
+    The subspace generalization of the single-vector cosine: 1 means the epoch's shared-response
     subspace is the one that was projected out, and `subspace_chance` -- NOT zero -- is what
     "unrelated" looks like. Reported per epoch as `cim_cos`, beside `cim_chance`.
 
@@ -543,7 +587,7 @@ def directions_vs_rest(X, y, base, labels, stats=None, cim=None, drop=None):
 
 
 def _apply_drop(X, drop):
-    """Zero the dropped components AFTER standardising, so the direction is exactly 0 on them.
+    """Zero the dropped components AFTER standardizing, so the direction is exactly 0 on them.
 
     ZEROING RATHER THAN DELETING keeps every downstream array the same width -- `cd_courses`
     projects the full signal with `w @ sig`, so a zero weight contributes nothing and no index has
@@ -622,7 +666,7 @@ def fit_directions(X, y, labels, method="dom", stats=None, cim=None, with_surviv
 
 
 def trajectory(sig, align_f, w, p0, p1, pre_n, post_n, fs=None):
-    """``(n_trials, pre_n + post_n)`` pole-normalised projections, one row per trial.
+    """``(n_trials, pre_n + post_n)`` pole-normalized projections, one row per trial.
 
     The whole signal is projected ONCE (``w @ sig``, a single matvec over the session) and trials
     are then sliced out of it. Projecting per trial would repeat the same multiply for every
@@ -729,7 +773,7 @@ def courses_cache_kind(align, method, basis_key, dirs, win_s, stats=None):
 
 
 def cd_courses(sig, dirs, fs, win_s, stats=None):
-    """``{position: (T,)}`` -- the pole-normalised, smoothed CD time course for each position.
+    """``{position: (T,)}`` -- the pole-normalized, smoothed CD time course for each position.
 
     One matvec per position over the whole session. Slicing trials out of these is then free, which
     is why this and not a per-trial projection: overlapping windows would repeat the same multiply.
@@ -776,7 +820,7 @@ def session_arms(s, args, basis, align):
       ``fit``  where the direction's feature window STARTS -- `precue_window_start` for the ENL
                (slid to a lick-free gap, or None meaning drop), the FIRST LICK for `lick`, the cue
                for `cue`.
-      ``at``   where the trajectory is CENTRED. Always a real observed event: the CUE for `precue`
+      ``at``   where the trajectory is CENTERED. Always a real observed event: the CUE for `precue`
                and `cue`, the FIRST LICK for `lick`. A slid feature window does not move it, so
                panels stay on a common x-axis.
 
@@ -996,7 +1040,7 @@ def cim_scale(by_epoch, t, baseline=CIM_BASELINE):
 
         overlap ~1, scale ~1     nothing moved
         overlap ~1, scale < 1    same geometry, weaker drive
-        overlap < 1, scale ~1    REORGANISATION -- the code went somewhere else
+        overlap < 1, scale ~1    REORGANIZATION -- the code went somewhere else
         both < 1                 mixed, and neither number alone would have said so
 
     A decoder score conflates all four, because every one of them lowers accuracy. This is the main
@@ -1046,6 +1090,83 @@ def cim_rotation(by_epoch, t):
             for ep, G in by_epoch.items()}
 
 
+def fit_cd_reference(Xall, yall, Gpre_chunks, Rb, drop, *, reference, method, t):
+    """Every quantity `analyse_animal` fits on PRE-STROKE sessions: {"stats", "cim", "dirs", "surviving"}.
+
+    Moved verbatim out of `analyse_animal` (11-02 pass 2) so the stored path and the in-memory opt-out run ONE
+    construction. ``Gpre_chunks`` = the pre-stroke grand means (`grand_means(...)["pre"]`, only when ``orth``), ``Rb``
+    the per-session rest baselines (non-contrast references)."""
+    stats = component_stats(Xall) if STANDARDISE else None
+    cim = None
+    if Gpre_chunks:
+        Gpre = pooled_mean(Gpre_chunks, stats)
+        if drop is not None:
+            # THE SHARED MODE IS FITTED IN THE SAME SUBSPACE THE DIRECTIONS LIVE IN. A mode with
+            # weight on a dropped component could not be orthogonalised out of a direction that has
+            # none, so the two would be describing different spaces.
+            Gpre = np.asarray(Gpre, float).copy()
+            Gpre[np.asarray(drop, bool)] = 0.0
+        cim = condition_independent_modes(Gpre, t)
+    if reference == "contrast":
+        dirs, surviving = fit_directions(Xall, yall, DISPLAY_ORDER, method=method,
+                                         stats=stats, cim=cim, with_surviving=True, drop=drop)
+    else:
+        # SESSION-AVERAGED, matching how `Xall` pools sessions. A per-session subtrahend would
+        # be a different reference frame per day, which is what the frozen basis exists to
+        # avoid (rule 10).
+        base = {k_: np.mean(np.stack(v_), 0) for k_, v_ in Rb.items()}
+        dirs = directions_vs_rest(Xall, yall, base, DISPLAY_ORDER, stats=stats, cim=cim, drop=drop)
+        surviving = {}      # the rest references do not renormalise, so nothing collapses
+    return {"stats": stats, "cim": cim, "dirs": dirs, "surviving": surviving}
+
+
+#: STORED BY DEFAULT (11-02 pass 2; Priya: "yes cache all frozen decoders"; CLAUDE.md rule 10). `analyse_animal`'s
+#: pre-stroke reference -- the component z-score frame, the condition-independent mode (``orth``) and the per-position
+#: directions with their poles -- goes through `frozen_models.load_or_fit`, kind `cd_directions`; spec align carries the
+#: alignment, method, reference, fitting classes (gate), orth, occluded mask, window and span, so each analysis
+#: variant has its own id, and the training set is the pre sessions the fit used (``exclude_fit`` removes them, so a
+#: leave-one-out run of `scripts/cd_loo_sessions.py` gets one id per held-out session). OPT-OUT WIDEFIELD_CD_FROZEN=0
+#: fits in memory through the same `fit_cd_reference`. The cached CD courses are keyed on the direction VALUES
+#: (`courses_cache_kind`), so a stored model equal to the in-memory one leaves every courses cache warm. Under
+#: WIDEFIELD_LICK_SOURCE=lp the store serves the LP-TRAINED reference (default since 11-03, Priya), the DAQ-trained one
+#: (DAQ arm's pre set) with WIDEFIELD_LP_FROZEN=daq (its directions then key their own courses cache entries).
+CD_FROZEN_ENV = "WIDEFIELD_CD_FROZEN"
+
+
+def cd_spec_align(align, *, method, reference, use, orth, mask_occluded, win_n, pre_n, post_frames):
+    return (f"{align}-{method}-{reference}-{'+'.join(use)}-{'orth' if orth else 'raw'}-"
+            f"{'mask' if mask_occluded else 'all'}-w{win_n}-p{pre_n}x{post_frames}-z{int(STANDARDISE)}-"
+            f"a{ARMS_VERSION}")
+
+
+def stored_cd_reference(animal, align, basis, train, fit, *, method, reference, use, orth, mask_occluded, win_n,
+                        pre_n, post_frames, post_s, excl=(), verbose=True, train_data=None):
+    """``fit()`` through the store (default), or called directly with WIDEFIELD_CD_FROZEN=0."""
+    from wfield_local import frozen_models
+    if not frozen_models.family_on(CD_FROZEN_ENV):
+        if verbose:
+            print(f"  [cd] {animal} {align}: {CD_FROZEN_ENV}=0 -> reference fitted IN MEMORY", flush=True)
+        return fit()
+    if frozen_models.daq_trained_in_lp():
+        # DAQ-TRAINED reference in the LP arm: the DAQ run's training set (the animal's curated pre sessions minus
+        # ``exclude_fit``), not the LP-kept list. A miss raises (the LP run never fits a DAQ spec).
+        from wfield_local import analysis_kit as ak
+        from wfield_local import epochs
+        train = sorted(s["label"] for s in ak.curated_sessions() if s["label"].startswith(animal)
+                       and epochs.epoch_of(s["label"]) == "pre" and s["label"] not in set(excl))
+    spec = frozen_models.make_spec(
+        animal, "cd_directions",
+        align=cd_spec_align(align, method=method, reference=reference, use=use, orth=orth,
+                            mask_occluded=mask_occluded, win_n=win_n, pre_n=pre_n, post_frames=post_frames),
+        source="locanmf", train_labels=train, post_s=post_s, basis_id=basis.basis_id, n_features=int(basis.ncomp),
+        train_data=train_data if train_data is not None else frozen_models._MISSING)   # required (FREEZE_VERSION 2)
+    payload, status = frozen_models.load_or_fit(spec, fit, meta={"n_train_sessions": len(train)})
+    if verbose:
+        print(f"  [cd] {animal} {align}: cd_directions {frozen_models._slug(spec)} {status} "
+              f"(trained on {spec.get('lick_source', 'daq')} pre trials)", flush=True)
+    return payload
+
+
 def analyse_animal(animal, align="precue", *, method="dom", post_s=None, orth=False,
                    gate="lick", reference="contrast", mask_occluded=True, verbose=True,
                    exclude_fit=None, project_only=None):
@@ -1067,7 +1188,7 @@ def analyse_animal(animal, align="precue", *, method="dom", post_s=None, orth=Fa
     makes caching safe, and `courses_cache_kind` memoises the courses, so a re-run projects nothing.
     """
     from wfield_local import analysis_kit as ak
-    from wfield_local import config, epochs, joint_locanmf, session_cache
+    from wfield_local import epochs, joint_locanmf, lp_licks, session_cache
     from wfield_local.locanmf_frozen_decoder import _args
 
     basis = joint_locanmf.load(animal)
@@ -1078,8 +1199,11 @@ def analyse_animal(animal, align="precue", *, method="dom", post_s=None, orth=Fa
     # the same shape as `enl_state_counts` hardcoding a 2.0 s response window against the decoder's
     # 3.5 s (rule 9).
     if post_s is None:
-        post_s = float(config.defaults()["decode"].get(f"{align}_post_s", 2.0))
-    args = _args(source="roi", align=align, post_s=post_s)
+        post_s = lp_licks.post_s_for(align)
+    # THE ENL WINDOW FOLLOWS THE LICK SOURCE (Priya 11-04): `post_s_for` above (1.0 s under LP) and `apply_enl_window`
+    # here for an explicit post_s, exactly as `_trial_features` does -- `session_arms` slides its lick-free window on
+    # `args.post_s` with the LP train under LP, and until 11-04 it was handed 2.0 s there. Before the cache keys.
+    args = lp_licks.apply_enl_window(_args(source="roi", align=align, post_s=post_s))
     win_n = int(round(args.post_s * args.fs))
     pre_n, post_frames = span_frames(align, args.fs)
     # THE CURATED SET, in `load_sessions()` ORDER -- the same source `enl_decode.sessions_for` uses.
@@ -1139,7 +1263,6 @@ def analyse_animal(animal, align="precue", *, method="dom", post_s=None, orth=Fa
         return {"animal": animal, "align": align, "skipped": "no pre-stroke success trials",
                 "errors": errs}
     Xall = np.vstack(Xf)
-    stats = component_stats(Xall) if STANDARDISE else None
     # THE OCCLUDED COMPONENTS ARE DROPPED BY DEFAULT (Priya, 2026-09-24: *"i think for the CD
     # analyses we should drop the masked components"*). `component_exclusion` holds the measurement.
     # The decision rests on an ASYMMETRY: dropping them costs little (9-14% of the pole gap, which is
@@ -1159,31 +1282,23 @@ def analyse_animal(animal, align="precue", *, method="dom", post_s=None, orth=Fa
     # `cim_rotation` and `cim_scale` read. Same trials, same cache entry, one definition.
     Ge = grand_means([b for b in book if b[0]["label"] not in excl], use, basis, align, pre_n,
                      post_frames) if orth else {}
-    cim = None
-    if Ge.get("pre"):
-        Gpre = pooled_mean(Ge["pre"], stats)
-        if drop is not None:
-            # THE SHARED MODE IS FITTED IN THE SAME SUBSPACE THE DIRECTIONS LIVE IN. A mode with
-            # weight on a dropped component could not be orthogonalised out of a direction that has
-            # none, so the two would be describing different spaces.
-            Gpre = np.asarray(Gpre, float).copy()
-            Gpre[np.asarray(drop, bool)] = 0.0
-        cim = condition_independent_modes(Gpre, np.arange(-pre_n, post_frames) / args.fs)
-    if reference == "contrast":
-        dirs, surviving = fit_directions(Xall, np.concatenate(yf), DISPLAY_ORDER, method=method,
-                                         stats=stats, cim=cim, with_surviving=True, drop=drop)
-    elif not Rb:
+    if reference != "contrast" and not Rb:
         return {"animal": animal, "align": align,
                 "skipped": f"no {reference} baseline on any pre-stroke session",
                 "errors": errs}
-    else:
-        # SESSION-AVERAGED, matching how `Xall` pools sessions. A per-session subtrahend would
-        # be a different reference frame per day, which is what the frozen basis exists to
-        # avoid (rule 10).
-        base = {k_: np.mean(np.stack(v_), 0) for k_, v_ in Rb.items()}
-        dirs = directions_vs_rest(Xall, np.concatenate(yf), base, DISPLAY_ORDER,
-                                  stats=stats, cim=cim, drop=drop)
-        surviving = {}      # the rest references do not renormalise, so nothing collapses
+    # THE PRE-STROKE REFERENCE (z-score frame, condition-independent mode, directions), STORED BY DEFAULT (11-02 pass
+    # 2, CD_FROZEN_ENV): the fit below is `fit_cd_reference`, called once per spec and then loaded.
+    train = sorted(s["label"] for s, ep, arms in book
+                   if ep == "pre" and s["label"] not in excl and any(arms[c]["y"] for c in use))
+    cref = stored_cd_reference(
+        animal, align, basis, train, lambda: fit_cd_reference(
+            Xall, np.concatenate(yf), Ge.get("pre"), Rb, drop, reference=reference, method=method,
+            t=np.arange(-pre_n, post_frames) / args.fs),
+        method=method, reference=reference, use=use, orth=orth, mask_occluded=mask_occluded, win_n=win_n,
+        pre_n=pre_n, post_frames=post_frames, post_s=args.post_s, excl=excl, verbose=verbose,
+        # the arrays `fit_cd_reference` is fitted on (rebuild 11-03 training-data fingerprint)
+        train_data=(Xall, np.concatenate(yf), Ge.get("pre"), Rb, drop))
+    stats, cim, dirs, surviving = cref["stats"], cref["cim"], cref["dirs"], cref["surviving"]
     if not dirs:
         return {"animal": animal, "align": align, "skipped": "no position could be fitted",
                 "errors": errs}
@@ -1524,15 +1639,15 @@ def _differs(a, b):
 EPOCHS = ("pre", "acute", "subacute", "chronic")
 
 def _epoch_color():
-    """The project's GREY RAMP for epochs -- `epoch_figures.EPOCH_GREY`, never a new palette.
+    """The project's GRAY RAMP for epochs -- `epoch_figures.EPOCH_GREY`, never a new palette.
 
     THIS MODULE DEFINED ITS OWN AND THE COLLISION WAS THE POINT OF THE FIX (Priya, 2026-09-25:
     "right now similar colors are being used for epoch and animals"). It was a Dark2 set -- acute
-    orange, subacute purple, chronic green -- against animal colours of tab:orange, tab:red,
-    tab:green and tab:blue, so two of the four epochs wore an animal's colour in a deck that shows
-    both. The grey ramp exists precisely so it cannot: `transfer_matrix.epoch_color` already
-    delegates here, citing Priya 2026-09-17, "use the same shades of grey as in all the decoder
-    graphs". Grey also READS as the ordering the epochs are, which a categorical palette hides.
+    orange, subacute purple, chronic green -- against animal colors of tab:orange, tab:red,
+    tab:green and tab:blue, so two of the four epochs wore an animal's color in a deck that shows
+    both. The gray ramp exists precisely so it cannot: `transfer_matrix.epoch_color` already
+    delegates here, citing Priya 2026-09-17, "use the same shades of gray as in all the decoder
+    graphs". Gray also READS as the ordering the epochs are, which a categorical palette hides.
     """
     from wfield_local.epoch_figures import EPOCH_GREY
 
@@ -1543,7 +1658,7 @@ def _pos_color():
     """The cohort position palette -- hue = SIDE, lightness = RING -- keyed by position CODE.
 
     `spout_behavior.position_style` is the single definition, unified 2026-09-10 after three
-    competing conventions were found in one deck. What was here before was six seaborn-deep colours
+    competing conventions were found in one deck. What was here before was six seaborn-deep colors
     with no mapping to side or ring at all, which is the scheme that unification retired.
     """
     from wfield_local.plot_lick_aligned_averages import POSITION_NAMES as _PN
@@ -1614,9 +1729,9 @@ def _suptitle(res, extra=""):
            if res.get("mask_occluded") else "")
         + (", CONDITION-INDEPENDENT MODE PROJECTED OUT" if res.get("orth") else "")
         + f") · basis {str(res['basis_id'])[:12]} {res['ncomp']}c\n"
-        f"{res.get('smooth_s', float('nan')):g}s centred boxcar · MEAN over trials, band = 95% CI "
+        f"{res.get('smooth_s', float('nan')):g}s centered boxcar · MEAN over trials, band = 95% CI "
         f"OF THE MEAN · anchor: {res.get('anchor', float('nan')):.2f} over {win}{cos_s}\n"
-        f"0 = pre-stroke not-P, 1 = pre-stroke lick at P · x = 0 is the {zero} · HAEMODYNAMICS ARE "
+        f"0 = pre-stroke not-P, 1 = pre-stroke lick at P · x = 0 is the {zero} · HEMODYNAMICS ARE "
         f"SLOW — read amplitude and gross time course, NOT onset or ordering")
 
 
@@ -1686,7 +1801,7 @@ def figure_epochs(res, out):
     fig.suptitle(_suptitle(res, " — EPOCHS OVERLAID"), fontsize=8.5)
     out = Path(out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, dpi=150)
+    save_png_svg(fig, out, dpi=150)
     plt.close(fig)
     return out
 
@@ -1758,7 +1873,7 @@ def figure_cross(res, out):
                  fontsize=8.5)
     out = Path(out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, dpi=150)
+    save_png_svg(fig, out, dpi=150)
     plt.close(fig)
     return out
 
@@ -1822,13 +1937,17 @@ def _render_animal(item):
                 tag = "_".join([item["method"], item["reference"], gate]
                                + (["orth"] if orth else [])
                                + (["cortexonly"] if item.get("mask_occluded") else []))
-                for lay in item["layouts"]:
-                    try:
-                        made.append(str(cdt.LAYOUTS[lay](
-                            res, out / f"cd_{lay}_{item['animal']}_{align}_{tag}.png")))
-                    except Exception as exc:
-                        errs.append(f"{item['animal']} {align} {lay}: "
-                                    f"{type(exc).__name__}: {exc}"[:160])
+                # THE TRIAL SET of this (align, gate) unit on every figure it saves (Priya 11-09); declared in the
+                # worker, which a spawned process does not inherit from main()
+                from wfield_local import trial_set_text as tst
+                with tst.active(None, text=cdt.trial_set_sentence(align, gate)):
+                    for lay in item["layouts"]:
+                        try:
+                            made.append(str(cdt.LAYOUTS[lay](
+                                res, out / f"cd_{lay}_{item['animal']}_{align}_{tag}.png")))
+                        except Exception as exc:
+                            errs.append(f"{item['animal']} {align} {lay}: "
+                                        f"{type(exc).__name__}: {exc}"[:160])
     return {"made": made, "errors": errs}
 
 
@@ -1853,7 +1972,8 @@ def default_out():
     """
     from wfield_local.paths import PathResolver
 
-    return Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch"
+    from wfield_local import lp_licks              # run-mode routing (rebuild 11-03): identity for the default run
+    return lp_licks.output_dir(Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch")
 
 
 def main(argv=None) -> int:
@@ -1868,9 +1988,11 @@ def main(argv=None) -> int:
                          "cross = the full 6x6, every position's trials on every position's CD")
     ap.add_argument("--gate", nargs="+", default=["lick"], choices=tuple(GATES),
                     help="which trials the direction is fitted on AND the trace is built from. "
-                         "`lick` = success only; `lick_or_working` = success + miss-while-working "
-                         "pooled at the trial level. Run both to see whether miss-while-working "
-                         "carries the same position code as licks.")
+                         "`lick` = success only; `lick_or_working` = success + no-lick working trials "
+                         "(camera gate: no-lick trials of class incomplete inside the working period; DAQ "
+                         "rule: no-lick trials outside the terminal quit period), pooled at the trial level. Run "
+                         "both to see whether those no-lick working trials carry the same position code "
+                         "as licks.")
     ap.add_argument("--method", default="dom", choices=("dom", "lr"))
     ap.add_argument("--reference", nargs="+", default=["contrast"], choices=REFERENCES,
                     help="what position P is contrasted AGAINST. `contrast` = the other five positions (the default everywhere else, and the one whose directions sum to ~0 and so force a shared signal to split sign). `rest` = the flat time-local rest baseline, identical for all six, so nothing cancels. `restw` = each position against ITS OWN rest frames -- conservative, since rest itself carries position information.")
@@ -1887,7 +2009,7 @@ def main(argv=None) -> int:
     ap.add_argument("--post-s", type=float, default=None,
                     help="override decode.{align}_post_s; default reads it per alignment")
     ap.add_argument("--occluded", default="drop", choices=("drop", "keep"),
-                    help="what to do with the components that sit mostly under the painted fibre "
+                    help="what to do with the components that sit mostly under the painted fiber "
                          "glue or in an olfactory bulb -- about a quarter of every animal's basis "
                          "(see wfield_local.component_exclusion). DROP is the default: the map "
                          "analyses already exclude that territory, dropping costs about what "
@@ -1897,7 +2019,7 @@ def main(argv=None) -> int:
     ap.add_argument("--replot", action="store_true",
                     help="re-draw from the SAVED numbers under <out>/results/ and compute nothing. "
                          "Every run without it persists what each figure needs, so an axis or "
-                         "colour change costs seconds instead of re-projecting the basis. A dump "
+                         "color change costs seconds instead of re-projecting the basis. A dump "
                          "made under different constants is REFUSED rather than redrawn.")
     ap.add_argument("--jobs", type=int, default=None, help="parallel animals (default: cores-2)")
     ap.add_argument("--out", default=None,

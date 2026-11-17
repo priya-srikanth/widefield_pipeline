@@ -34,6 +34,11 @@ are offset in some sessions.
 
 The DAQ path is untouched when the switch is unset. Results go to separate LP_licks outputs and cache keys
 (`spec_token`), so LP and DAQ numbers can never be served for each other.
+
+ENGAGEMENT GATE: a separate switch, WIDEFIELD_GATE_SOURCE=lp (11-01, `wfield_local/gate_source.py`), makes the engaged /
+working / stopped gate and the S28 quit count DAQ contact OR an LP attempt as a response. NB under this module's
+WIDEFIELD_LICK_SOURCE=lp alone, the imaging gate and the S28 quit are already LP-only (they read this train), while the
+rest-baseline gates stay DAQ-only; see that module. Its runs get a "_gateLP" output tag here.
 """
 from __future__ import annotations
 
@@ -46,15 +51,35 @@ import pandas as pd
 #: Selects the imaging lick source: "daq" (default, spout contact) or "lp" (this module).
 LICK_SOURCE_ENV = "WIDEFIELD_LICK_SOURCE"
 LICK_SOURCES = ("daq", "lp")
+#: OPT-IN attempts SUPPLEMENT (Priya 11-09, June camera tables, route 2b): the path of a separately built attempts table
+#: (`scripts/trial_attempts.py --labels ... --out`, same columns) that serves ONLY sessions ABSENT from the run's
+#: registered table -- the June pre sessions, which the PRE_FROM=0801 build excluded. It never overrides a registered
+#: session (any label in both tables raises `AttemptsSupplementOverlap`). It is deliberately NOT in `spec_token` /
+#: `cache_tag`, so every registered session's LP keys stay exactly as they are; a session served from the supplement gets
+#: its own key part instead (`supplement_token`, folded into its session-cache signature by `session_cache.cached`), so a
+#: rewrite of the supplement recomputes only those sessions. Unset (the default) = byte-identical behavior and keys.
+SUPPLEMENT_ENV = "WIDEFIELD_ATTEMPTS_SUPPLEMENT"
 ATTEMPT_CLASSES = ("hit", "incomplete")
 #: LP cue <-> DAQ cue match tolerance (s).
 MATCH_TOL_S = 0.02
 #: Bump when the definition above changes (enters every LP cache key).
-LP_VERSION = 1
+LP_VERSION = 2          # 2 (11-04): first-lick timing falls back to the DAQ contact at the close spouts
+#: LP-vs-DAQ timing tolerance, ms (Priya 11-04; wf_attempt docs/status/rebuild_20261103/lp_missed_contact/
+#: LP_MISSED_CONTACT_20261104.md): a first LP lick ONSET more than this after the trial's first DAQ contact (in the
+#: response window, cue + 70 ms .. min(cue + max_rt, stop)) is late -- at a CLOSE spout the contact time is used instead
+#: (LP missed the lick; ``timing_source`` = "daq"), at a FAR spout the LP time is kept and the trial is flagged
+#: ``grooming_suspect`` (a paw on the spout: 7 / 8 paw contacts caught, 0 false alarms). Classes are unchanged. Enters
+#: `spec_token`, so every LP cache key / lick-aligned frame carries it.
+LP_DAQ_TOL_MS = 50.0
+CLOSE_POSITIONS = ("close_ipsi", "close_mid", "close_contra", "close_L", "close_center", "close_R")
 
 
 class LPUnavailable(RuntimeError):
     """The session has no LP lick tables (no video, or not tracked): it has no LP_licks version."""
+
+
+class AttemptsSupplementOverlap(RuntimeError):
+    """The attempts supplement holds a session the registered table already has (the supplement may only ADD)."""
 
 
 def lick_source() -> str:
@@ -68,6 +93,15 @@ def is_lp() -> bool:
     return lick_source() == "lp"
 
 
+def refuse_lp_folder(path, what: str) -> None:
+    """An LP_licks output folder is written ONLY by an LP run (fifth review N5b): a render block that forgot to set
+    WIDEFIELD_LICK_SOURCE=lp would otherwise put DAQ-gated figures into an LP-named folder. SystemExit."""
+    from pathlib import Path as _P
+    if any(seg.startswith("LP_licks") for seg in _P(path).parts) and not is_lp():
+        raise SystemExit(f"{what}: refusing to write {path} -- an LP_licks folder, but {LICK_SOURCE_ENV} is not 'lp' "
+                         "(set it in the render block: render_profile block_env)")
+
+
 def _run_dir(rv=None) -> Path:
     from wfield_local import orofacial_cohort as oc
     from wfield_local import orofacial_outputs as oo
@@ -75,8 +109,19 @@ def _run_dir(rv=None) -> Path:
     return oo.root(rv or PathResolver()) / oc.RUN
 
 
+def _enc_dir(rv=None) -> Path:
+    """The adopted run's imaging_encoding tree (`orofacial_outputs.encoding_root`: inside the rebuild root under one)."""
+    from wfield_local import orofacial_outputs as oo
+    return oo.encoding_root(rv=rv)
+
+
 def attempts_path(rv=None) -> Path:
-    return _run_dir(rv) / "imaging_encoding" / "qc" / "trial_attempts.csv"
+    """The per-trial attempts table: THIS run's (`run_mode.attempts_dir`, coordinator 11-04) -- in a camera-gated
+    rebuild run the routed table on the run's camera classes, never the pre-rebuild one; the untagged qc by default."""
+    from wfield_local import run_mode
+    if run_mode.tag():
+        return run_mode.attempts_dir() / "trial_attempts.csv"
+    return _enc_dir(rv) / "qc" / "trial_attempts.csv"
 
 
 _CAM1_SIG: dict = {}
@@ -105,7 +150,28 @@ def spec_token(rv=None) -> str:
     trial_attempts.csv -- the jaw_onsets reruns -- invalidates every LP entry) + the cam1 event folder's identity."""
     p = attempts_path(rv)
     st = p.stat() if p.exists() else None
-    return f"lp{LP_VERSION}:{st.st_mtime_ns if st else 0}:{st.st_size if st else 0}:cam1-{_cam1_signature(rv)}"
+    return (f"lp{LP_VERSION}t{LP_DAQ_TOL_MS:g}:{st.st_mtime_ns if st else 0}:{st.st_size if st else 0}"
+            f":cam1-{_cam1_signature(rv)}")
+
+
+def first_lick_timing(pos, lp_ms, contact_ms, stop_ms, tol_ms: float = LP_DAQ_TOL_MS) -> pd.DataFrame:
+    """Per trial (Priya 11-04, `LP_DAQ_TOL_MS`): ``first_lick_ms`` (the lick time lick-aligned frames use, ms from the
+    cue), ``timing_source`` ("lp" | "daq" | "" = no time) and ``grooming_suspect``. ``lp_ms`` = first LP lick onset
+    (combined, else cam4), ``contact_ms`` = first DAQ contact from cue + 70 ms; only a contact inside the response
+    window (<= min(max_rt, stop), `trial_classes.response_end_ms`) is used. CLOSE spouts: LP missing or > tol after the
+    contact -> the contact time ("daq"). FAR spouts: the LP time, flagged when > tol after the contact."""
+    from wfield_local import trial_classes as TC
+    lp = np.asarray(lp_ms, float)
+    ct = np.asarray(contact_ms, float)
+    ct = np.where((ct >= TC.POSTCUE_START_MS) & (ct <= TC.response_end_ms(stop_ms)), ct, np.nan)
+    close = np.isin(np.asarray(pos, dtype=object), CLOSE_POSITIONS)
+    has_c = np.isfinite(ct)
+    late = has_c & (~np.isfinite(lp) | (lp > ct + tol_ms))
+    use_daq = close & late
+    t = np.where(use_daq, ct, lp)
+    src = np.where(use_daq, "daq", np.where(np.isfinite(lp), "lp", ""))
+    groom = ~close & has_c & np.isfinite(lp) & (lp > ct + tol_ms)
+    return pd.DataFrame({"first_lick_ms": t, "timing_source": src, "grooming_suspect": groom})
 
 
 #: Pre-cue (ENL) lick-free window length, s (Priya 10-21, after `scripts/enl_lp_census.py`: "1.0 s, plus DAQ 1.0 s").
@@ -119,10 +185,91 @@ LP_ENL_WINDOW_S = 1.0
 
 
 def enl_window_s() -> float | None:
+    """The ENL window OVERRIDE in force (WIDEFIELD_ENL_WINDOW_S, else 1.0 under LP), or None for the default DAQ run.
+    None means "the config window" -- `enl_post_s` resolves it; this form exists for keys that must stay unchanged on
+    the default run (`frozen_models.make_spec`, `map_collect.cache_kind`)."""
     v = os.environ.get(ENL_WINDOW_ENV, "").strip()
     if v:
         return float(v)
     return LP_ENL_WINDOW_S if is_lp() else None
+
+
+def enl_post_s(source: str | None = None) -> float:
+    """THE pre-cue (ENL) window, s -- the ONE definition every ENL analysis reads (Priya 11-04: "every ENL analysis
+    follows the lick source"). WIDEFIELD_ENL_WINDOW_S if set; else 1.0 s under the LP source (`LP_ENL_WINDOW_S`); else
+    the DAQ window `decode.precue_post_s` (2.0 s). ``source`` forces a lick source instead of reading
+    WIDEFIELD_LICK_SOURCE -- cohort 2 has no LP and passes "daq". Never read `precue_post_s` directly for an ENL
+    window: under LP it is the wrong number (the 11-04 audit found six scripts doing so)."""
+    src = lick_source() if source is None else str(source).strip().lower()
+    if src not in LICK_SOURCES:
+        raise ValueError(f"lick source {source!r}; expected one of {LICK_SOURCES}")
+    v = os.environ.get(ENL_WINDOW_ENV, "").strip()
+    if v:
+        return float(v)
+    if src == "lp":
+        return LP_ENL_WINDOW_S
+    from wfield_local import config
+    return float(config.defaults()["decode"]["precue_post_s"])
+
+
+def is_precue(align) -> bool:
+    """True for the pre-cue alignment and its variant names ("precue-rt2-..", see `frozen_models.make_spec`)."""
+    return align == "precue" or str(align).startswith("precue-")
+
+
+def post_s_for(align: str, source: str | None = None) -> float:
+    """``decode.{align}_post_s``, except the pre-cue window, which is `enl_post_s` -- for code that resolves a window
+    per alignment (`position_coding_directions`, `cd_trajectories`, ...)."""
+    if is_precue(align):
+        return enl_post_s(source)
+    from wfield_local import config
+    return float(config.defaults()["decode"].get(f"{align}_post_s", 2.0))
+
+
+#: DAQ-clock sample rate used when a caller has cue / lick TIMES (s) rather than samples (`gate_licks_s`): 10 us.
+_GATE_SR = 100_000.0
+
+
+def gate_licks_s(label: str, cue_s, daq_lick_s, max_rt: float, source: str | None = None, rv=None):
+    """``(lick_s, keep)``: the lick train an ENL lick-free gate must use -- the SAME source as `enl_post_s` -- and a
+    per-cue keep mask. DAQ: ``daq_lick_s`` sorted, every cue kept. LP: `session_lp`'s train (the edited LP train
+    `_trial_features` uses) on these cues, and cues without an LP verdict dropped. For scripts that gate on cue / lick
+    TIMES (DAQ s) instead of through `_trial_features`; ``cue_s`` must be finite."""
+    src = lick_source() if source is None else str(source).strip().lower()
+    cue_s = np.asarray(cue_s, float)
+    if src != "lp":
+        return np.sort(np.asarray(daq_lick_s, float)), np.ones(len(cue_s), bool)
+    lp = session_lp(label, np.round(cue_s * _GATE_SR).astype(np.int64), _GATE_SR, float(max_rt), rv)
+    return np.asarray(lp["lick_samples"], float) / _GATE_SR, ~np.asarray(lp["drop"], bool)
+
+
+#: ms grid on which `enl_window_starts_s` runs the decoders' frame-based search (licks occupy one tick: 1 ms).
+_SLIDE_TICK_S = 1e-3
+
+
+def enl_window_starts_s(cue_s, strobe_s, lick_s, win_s: float | None = None):
+    """Per trial, the start (DAQ s) of its LICK-FREE ENL window, NaN = no lick-free window -> drop the trial.
+
+    THE DECODERS' OWN RULE, not a copy (Priya 11-04: "reuse that exact function"):
+    `locanmf_position_decoder.precue_window_start` -- the fixed window ending at the cue if it holds no lick, else the
+    latest lick-free gap in [strobe, cue] long enough for the window, else drop -- run on a 1 ms grid, since it works
+    in integer frames. ``lick_s`` must come from the window's source (`gate_licks_s`); ``win_s`` defaults to
+    `enl_post_s()`. For scripts that build ENL windows on times instead of through `_trial_features`. The search is
+    `enl_window.precue_window_start` itself (the decoders re-export it; the combined encoder calls it on frames): one
+    function, imported from its home so a time-based caller does not pull in the decoder's sklearn imports."""
+    from wfield_local.enl_window import precue_window_start
+    w = enl_post_s() if win_s is None else float(win_s)
+    k = 1.0 / _SLIDE_TICK_S
+    L = np.sort(np.round(np.asarray(lick_s, float) * k))
+    wn = int(round(w * k))
+    out = np.full(len(np.atleast_1d(cue_s)), np.nan)
+    for i, (c, st) in enumerate(zip(np.atleast_1d(cue_s), np.atleast_1d(strobe_s))):
+        if not np.isfinite(c):
+            continue
+        r = precue_window_start(int(round(c * k)), (st * k) if np.isfinite(st) else np.nan, L, wn)
+        if r is not None:
+            out[i] = r / k
+    return out
 
 
 def apply_enl_window(args):
@@ -142,8 +289,20 @@ def output_tag() -> str | None:
     "DAQ_ENL<w>s" (DAQ source with a non-default ENL window); None for the default DAQ run."""
     w = enl_window_s()
     if is_lp():
-        return "LP_licks" if w == LP_ENL_WINDOW_S else f"LP_licks_ENL{w:g}s"
-    return None if w is None else f"DAQ_ENL{w:g}s"
+        tag = "LP_licks" if w == LP_ENL_WINDOW_S else f"LP_licks_ENL{w:g}s"
+    else:
+        tag = None if w is None else f"DAQ_ENL{w:g}s"
+    from wfield_local import gate_source
+    if gate_source.is_lp():             # LP-inclusive gate: its own folder, never the plain LP_licks / default one
+        tag = f"{tag or 'DAQ'}_gateLP"
+    # RUN MODE (rebuild 2026-11-03, `run_mode`): hemo variant, LocaNMF projection, PRE_FROM, trial selection, map refs,
+    # in-memory refits, the LP arm's DAQ-trained cross-check. Each adds a part, so such a run is routed by
+    # `output_dir` and REFUSED by `writeguard` outside its folder. The default run adds nothing (None, as before).
+    from wfield_local import run_mode
+    extra = run_mode.parts()
+    if extra:
+        tag = "_".join(([tag] if tag else []) + extra)
+    return tag
 
 
 def output_dir(default: Path) -> Path:
@@ -165,7 +324,35 @@ def stamp(fig) -> None:
         return
     w = enl_window_s()
     txt = (("LP licks: video lick (cam4 + cam1) attempts, gate = hit / incomplete within max_rt; lick-aligned = LP "
-            "onset; ") if is_lp() else "DAQ contact licks; ") + f"ENL lick-free window {w:g} s"
+            "onset; ") if is_lp() else "DAQ contact licks; ") + (f"ENL lick-free window {w:g} s" if w is not None
+                                                                  else "ENL lick-free window 2 s")
+    from wfield_local import gate_source
+    if gate_source.is_lp():
+        txt += "; engagement gate / quit = DAQ contact OR LP attempt"
+    from wfield_local import run_mode
+    if run_mode.tag():
+        txt += f"; mode {run_mode.tag()}"
+    from wfield_local import trial_classes as _tc
+    if _tc.camera_gate_on():                  # N6 (Priya 11-03): name the partially video-covered sessions
+        try:
+            txt += "\n" + _tc.coverage_note()
+        except Exception as ex:                       # noqa: BLE001 - a caption must not kill a figure; say why
+            if output_tag():
+                # coordinator 11-04: in a tagged (rebuild) run a missing coverage table is an ERROR, never a quiet
+                # "unavailable" caption on every camera-gated figure
+                raise
+            txt += f"\ncamera gate: coverage note unavailable ({type(ex).__name__})"
+        from wfield_local import spout_scaling
+        if spout_scaling.spout_scaling() and spout_scaling.FALLBACK_USED:          # D-B3: the fallbacks actually used
+            txt += ("\nbal_em centre: camera-working rows; contact-row fallback for "
+                    + ", ".join(sorted(spout_scaling.FALLBACK_USED)))
+        txt += "\n" + _tc.design_note()                                       # review 7A (main's 11-03 design)
+        try:                                                                      # review 7A NB3 / 8A: from the classes
+            _ex = _tc.working_excluded_sessions()
+        except Exception as ex:                                                   # noqa: BLE001 - say why, never die
+            _ex = [f"unavailable ({type(ex).__name__})"]
+        if _ex:
+            txt += "\nworking selection excludes (no camera working rows): " + ", ".join(_ex)
     fig.text(0.995, 0.002, txt, ha="right", va="bottom", fontsize=6, color="#8a2be2")
 
 
@@ -194,6 +381,22 @@ def cache_tag(rv=None) -> str:
 _ATTEMPTS: dict = {}
 
 
+def _prep_attempts(A: pd.DataFrame, p) -> pd.DataFrame:
+    """One attempts table as the LP source reads it (the registered table and the supplement alike)."""
+    if "cls_raw" in A:
+        # a camera-gated table: `cls` carries the run's session-level classes (stopped / early_run / after_end);
+        # the LP source needs the TRIAL-level class (the camera gate applies the run's rules itself)
+        A["cls"] = A["cls_raw"]
+    for c in ("pos", "stop_ms", "contact"):
+        if c not in A:
+            raise LPUnavailable(f"{p}: no {c!r} column (the first-lick DAQ fallback needs it; rebuild the table)")
+    A = A[["label", "trial_id", "cls", "cam4", "combined", "pos", "stop_ms", "contact"]].copy()
+    tm = first_lick_timing(A.pos, A.combined.fillna(A.cam4), A.contact, A.stop_ms)
+    A["first_lick_ms"], A["timing_source"] = tm.first_lick_ms.to_numpy(), tm.timing_source.to_numpy()
+    A["grooming_suspect"] = tm.grooming_suspect.to_numpy()
+    return A
+
+
 def _attempts(rv=None) -> pd.DataFrame:
     p = attempts_path(rv)
     key = (str(p), p.stat().st_mtime_ns if p.exists() else 0)
@@ -201,8 +404,54 @@ def _attempts(rv=None) -> pd.DataFrame:
         if not p.exists():
             raise LPUnavailable(f"no attempts table {p}")
         _ATTEMPTS.clear()
-        _ATTEMPTS[key] = pd.read_csv(p, usecols=["label", "trial_id", "cls", "cam4", "combined"])
+        _ATTEMPTS[key] = _prep_attempts(pd.read_csv(p), p)
     return _ATTEMPTS[key]
+
+
+def supplement_path() -> Path | None:
+    """The opt-in attempts supplement (`SUPPLEMENT_ENV`), or None when unset."""
+    v = os.environ.get(SUPPLEMENT_ENV, "").strip()
+    return Path(v) if v else None
+
+
+_SUPP: dict = {}
+
+
+def _supplement(rv=None) -> pd.DataFrame | None:
+    """The supplement's rows (LP-source form), or None when the switch is unset. Refuses a missing file and any label
+    the registered table already holds (`AttemptsSupplementOverlap`: the supplement only ADDS sessions)."""
+    sp = supplement_path()
+    if sp is None:
+        return None
+    if not sp.exists():
+        raise FileNotFoundError(f"{SUPPLEMENT_ENV}={sp}: no such attempts supplement")
+    p = attempts_path(rv)
+    st = sp.stat()
+    key = (str(sp), st.st_mtime_ns, st.st_size, str(p), p.stat().st_mtime_ns if p.exists() else 0)
+    if key not in _SUPP:
+        S = _prep_attempts(pd.read_csv(sp), sp)
+        reg = set(_attempts(rv).label) if p.exists() else set()
+        both = sorted(set(S.label) & reg)
+        if both:
+            raise AttemptsSupplementOverlap(
+                f"{SUPPLEMENT_ENV}={sp}: {len(both)} session(s) already in the registered {p.name} ({', '.join(both[:5])}"
+                f"{' ...' if len(both) > 5 else ''}); the supplement may only add sessions, never override one")
+        _SUPP.clear()
+        _SUPP[key] = S
+    return _SUPP[key]
+
+
+def supplement_token(label: str, rv=None) -> str:
+    """Per-session cache-key part: "" for every session NOT served from the supplement (the switch unset, or the label
+    not in it -- so registered sessions' keys never move), else the supplement's identity ("sup:<size>:<mtime_ns>").
+    `session_cache.cached` folds a non-empty token into that session's signature."""
+    if supplement_path() is None:
+        return ""
+    S = _supplement(rv)
+    if S is None or not (S.label == label).any():
+        return ""
+    st = supplement_path().stat()
+    return f"sup:{st.st_size}:{st.st_mtime_ns}"
 
 
 def _inputs(label: str, rv):
@@ -285,7 +534,8 @@ def session_lp(label: str, cue_samples, sr: float, max_rt: float, rv=None) -> di
     """Memoised per process on (label, cue train, sr, max_rt, attempts identity) -- see `_session_lp`."""
     import hashlib
     cs = np.ascontiguousarray(np.asarray(cue_samples, np.int64))
-    key = (label, hashlib.sha1(cs.tobytes()).hexdigest(), float(sr), float(max_rt), spec_token(rv))
+    key = (label, hashlib.sha1(cs.tobytes()).hexdigest(), float(sr), float(max_rt), spec_token(rv),
+           supplement_token(label, rv))
     if key not in _LP:
         if len(_LP) > 64:
             _LP.clear()
@@ -302,10 +552,14 @@ def _session_lp(label: str, cue_samples, sr: float, max_rt: float, rv=None) -> d
     counts for the log."""
     cue_s = np.asarray(cue_samples, float) / float(sr)
     licks, cue_t = lp_lick_times(label, rv)
+    S = _supplement(rv)                  # None unless the opt-in supplement is set (validated: it only adds sessions)
     A = _attempts(rv)
     A = A[A.label == label]
+    if A.empty and S is not None:
+        A = S[S.label == label]
     if A.empty:
-        raise LPUnavailable(f"{label}: not in {attempts_path(rv).name}")
+        raise LPUnavailable(f"{label}: not in {attempts_path(rv).name}"
+                            + (f" nor in the supplement {supplement_path().name}" if S is not None else ""))
     A = A.set_index("trial_id")
     A = A[A.index.isin(cue_t.index)]
     tcue = cue_t.loc[A.index, "cue_daq"].to_numpy(float)
@@ -321,7 +575,8 @@ def _session_lp(label: str, cue_samples, sr: float, max_rt: float, rv=None) -> d
     first_s = np.full(n, np.nan)
     cue_cls = np.full(n, "", dtype=object)          # attempts class per DAQ cue ("" = no attempts row matched)
     cue_tid = np.full(n, -1, int)                   # trial_attempts trial_id per DAQ cue (-1 = none)
-    lat = A.combined.fillna(A.cam4).to_numpy(float) / 1000.0
+    # first lick time: LP, or at a close spout the DAQ contact when LP missed / was late (`first_lick_timing`, 11-04)
+    lat = A.first_lick_ms.to_numpy(float) / 1000.0
     cls = A.cls.astype(str).to_numpy()
     for kk, good, c, la, tid in zip(k, ok, cls, lat, A.index.to_numpy(int)):
         if not good:

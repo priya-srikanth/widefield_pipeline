@@ -37,7 +37,7 @@ import numpy as np
 from wfield_local import analysis_kit as ak
 from wfield_local import cd_trajectories as cdt
 from wfield_local import component_exclusion as cex
-from wfield_local import config, epochs, joint_locanmf, session_cache
+from wfield_local import epochs, joint_locanmf, lp_licks, session_cache
 from wfield_local.locanmf_frozen_decoder import _args
 from wfield_local.plot_lick_aligned_averages import DISPLAY_ORDER, POSITION_NAMES
 
@@ -57,7 +57,7 @@ def _features(animal, align, basis, only_pre=True):
     the LEVEL here is not comparable to a published decode; the DIFFERENCE between column sets is,
     and that is the whole question.
     """
-    post_s = float(config.defaults()["decode"].get(f"{align}_post_s", 2.0))
+    post_s = lp_licks.post_s_for(align)
     args = _args(source="roi", align=align, post_s=post_s)
     win_n = int(round(args.post_s * args.fs))
     akind = cdt.arms_cache_kind(args, align)

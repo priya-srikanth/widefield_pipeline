@@ -55,10 +55,23 @@ def _string_literals_in_code(path: Path):
             yield node.lineno, node.value
 
 
+def _modules():
+    """Every .py under wfield_local, INCLUDING subpackages (face_rhythm/, histology_map/, ...), as (relpath, path).
+    Until 2026-11-04 this was a top-level glob, so a literal in a subpackage was never checked (code review 11-04;
+    the recursive scan found none at the time). ALLOWED names top-level modules by bare name, as before."""
+    for py in sorted(WFIELD.rglob("*.py")):
+        yield py.relative_to(WFIELD).as_posix(), py
+
+
+def test_scan_reaches_subpackages():
+    rels = {rel for rel, _ in _modules()}
+    assert any("/" in r for r in rels), "rglob found no subpackage modules -- the scan is not recursive"
+
+
 def test_no_machine_specific_paths_in_executable_code():
     offenders = []
-    for py in sorted(WFIELD.glob("*.py")):
-        if py.name in ALLOWED:
+    for rel, py in _modules():
+        if rel in ALLOWED:
             continue
         for lineno, val in _string_literals_in_code(py):
             if DRIVE.match(val) or val.startswith("~/") or "Users/sabatini" in val:
@@ -66,7 +79,7 @@ def test_no_machine_specific_paths_in_executable_code():
                 # require the literal to BE a path, not merely contain one
                 if len(val) < 4 or " " in val.strip():
                     continue
-                offenders.append(f"{py.name}:{lineno}: {val!r}")
+                offenders.append(f"{rel}:{lineno}: {val!r}")
     assert not offenders, (
         "machine-specific path literal in executable code — add a logical root to configs/paths.yaml "
         "and resolve it via config.resolver().root(...):\n  " + "\n  ".join(offenders))

@@ -17,6 +17,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from wfield_local.pose3d import pose3d_dir
 
 V36 = "lp_r4_heatmap_20261013__clean_v36"
 PAIRS = (("lr_px", "neg_ml", "lateral: cam4 lr vs -ml"),
@@ -30,7 +31,7 @@ PAIRS = (("lr_px", "neg_ml", "lateral: cam4 lr vs -ml"),
 def session_licks(rv, animal: str, date: str) -> pd.DataFrame | None:
     from scripts.apparatus_mouth import _rig
     from wfield_local import spout_world as SW
-    f3 = Path(rv.root("dlc")) / "session_poses" / "pose3d" / f"{animal}_{date}_frames.csv.gz"
+    f3 = pose3d_dir(rv) / f"{animal}_{date}_frames.csv.gz"
     f4 = Path(rv.root("orofacial")) / V36 / "sessions" / animal / date / "licks.csv"
     if not (f3.exists() and f4.exists()):
         return None
@@ -67,7 +68,7 @@ def main(argv=None) -> int:
     ap.add_argument("sessions", nargs="*", metavar="ANIMAL:YYYYMMDD")
     a = ap.parse_args(argv)
     rv = PathResolver()
-    d3 = Path(rv.root("dlc")) / "session_poses" / "pose3d"
+    d3 = pose3d_dir(rv)
     sess = a.sessions or sorted(f.name.replace("_frames.csv.gz", "").replace("_", ":", 1) for f in d3.glob("PS*_frames.csv.gz"))
     out = d3 / "crosscheck"
     out.mkdir(exist_ok=True)

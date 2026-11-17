@@ -13,7 +13,10 @@ from pathlib import Path
 
 import numpy as np
 
-from wfield.io import mmap_dat
+from wfield_local.wfield_import import no_style_leak
+
+with no_style_leak():   # wfield restyles matplotlib at import (wfield_import docstring)
+    from wfield.io import mmap_dat
 # Sign-corrected motion correction (wfield 0.4.2 registration_upsample doubles drift
 # due to a phase-correlation sign error). See wfield_local/motion_correct_fixed.py.
 from wfield_local.motion_correct_fixed import motion_correct

@@ -5,8 +5,8 @@ frames, or a BAND OF ROWS (rolling-shutter signature). The DAQ says those exposu
 exposure TTL, 16.0 ms period, nothing irregular at 0.2 ms resolution). This script answers what the SVD cannot:
   1. Is a swapped frame an exact DUPLICATE of another frame nearby (camera/labcams buffer repeat), or a real new
      exposure? (np.array_equal against every frame in +-8.)
-  2. Its brightness and ROW-BAND profile vs same-LED neighbours (+-2), from the raw counts: which rows got the
-     other LED's light (top, bottom, centre-out -- the PCO edge reads out from the centre).
+  2. Its brightness and ROW-BAND profile vs same-LED neighbors (+-2), from the raw counts: which rows got the
+     other LED's light (top, bottom, center-out -- the PCO edge reads out from the center).
   3. The camlog around it: camera frame_id step (should be 1), timestamp step (should be ~16 ms), the #LED line
      sequence, and the labcams write queue ("# Queue: N" lines). A frame_id skip / repeat / time hiccup / queue
      backlog at exactly these frames points at acquisition software or disk load.
@@ -162,7 +162,7 @@ def main():
             for r in rows[:24]:
                 ax.plot(r["bands"], np.arange(len(r["bands"])), lw=0.8)
             ax.invert_yaxis()
-            ax.set_xlabel("raw brightness / same-LED neighbours")
+            ax.set_xlabel("raw brightness / same-LED neighbors")
             ax.set_ylabel(f"row band (top -> bottom, {NB})")
             ax.set_title(f"{sess.name}: swapped frames, row profile")
             fig.tight_layout()

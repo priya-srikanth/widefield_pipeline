@@ -47,7 +47,7 @@ The second form exists because some cells are refused BY DESIGN -- the lick arm'
 acute cell falls under the 20-trial floor because the animal does not lick there, and that refusal
 IS the deficit. A glob-placed note shared by three arms resolves on two of them and cannot resolve
 on the third, so without a fallback the published slide carries a ``[[? ...]]`` marker and every
-build reports the same miss forever. A warning that fires on correct behaviour trains its reader to
+build reports the same miss forever. A warning that fires on correct behavior trains its reader to
 ignore warnings. It is scoped to a missing ROW: a missing FILE or COLUMN is a schema failure and
 stays loud regardless, because no author can legitimately anticipate those.
 

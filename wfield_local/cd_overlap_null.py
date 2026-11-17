@@ -37,7 +37,7 @@ second group is post-stroke or pre-stroke. Reading the observation against a nul
 pre set instead would hand the null a quieter reference than the observation gets -- conservative for
 overlap, ANTI-conservative for amplitude, i.e. flattering the exact number in question.
 
-K IS FIXED ACROSS THE COMPARISON, from the full pre-stroke set. `subspace_overlap` normalises by the
+K IS FIXED ACROSS THE COMPARISON, from the full pre-stroke set. `subspace_overlap` normalizes by the
 first basis's dimension and chance is K/n, so letting each group choose its own K by variance
 explained would vary the dimension AND the chance level between the observation and its own null.
 
@@ -90,7 +90,7 @@ def trial_matched_split(counts, n_target, k_sessions=None, rng=None, n_swap=N_SW
     when it can also match the trials; trials win, because the bias being calibrated is within-session
     estimation noise and that scales with trials, not sessions.
 
-    GREEDY WITH A TOLERANCE, NOT EXHAUSTIVE. Two reasons it stops early rather than optimising: the
+    GREEDY WITH A TOLERANCE, NOT EXHAUSTIVE. Two reasons it stops early rather than optimizing: the
     draws must VARY (see `MATCH_TOL`), and the achieved counts are reported, so a cell the data
     cannot match is visible in the output rather than absorbed into it.
 
@@ -336,11 +336,11 @@ def run_animal(animal, align="precue", gate="lick", n_draw=N_DRAW, seed=0, verbo
     already wrote.
     """
     from wfield_local import analysis_kit as ak
-    from wfield_local import config, epochs, joint_locanmf, session_cache
+    from wfield_local import epochs, joint_locanmf, lp_licks, session_cache
     from wfield_local.locanmf_frozen_decoder import _args
 
     basis = joint_locanmf.load(animal)
-    post_s = float(config.defaults()["decode"].get(f"{align}_post_s", 2.0))
+    post_s = lp_licks.post_s_for(align)
     args = _args(source="roi", align=align, post_s=post_s)
     win_n = int(round(args.post_s * args.fs))
     pre_n, post_frames = cdt.span_frames(align, args.fs)

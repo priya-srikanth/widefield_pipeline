@@ -26,6 +26,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from wfield_local import run_mode as _rmode  # the run's (tagged) encoding tree (coordinator 11-04)
+
 VARS = ("cue", "arrival", "pos_enl", "pos_cue", "licks", "exec_angle", "tongue", "jaw", "nose", "running")
 GROUPS = ("task", "instructed", "uninstructed")
 GROUP_OF = {"cue": "task", "arrival": "task", "pos_enl": "task", "pos_cue": "task", "licks": "instructed",
@@ -96,17 +98,16 @@ def _save(fig, path: Path) -> None:
     _plt().close(fig)
 
 
-def load(run: str, order: str, baseline: str, late_from: str):
+def load(run: str, order: str, baseline: str):
     """Region table (long), per-session map dicts, PETH / SSE arrays and session metadata."""
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
-    d = oo.root(PathResolver()) / run / "imaging_encoding" / order / "sessions"
+    from wfield_local import config
+    d = _rmode.encoding_out_root(run) / order / "sessions"
     metas, R, sess = [], [], {}
     for jf in sorted(d.glob("PS*_*.json")):
         m = json.loads(jf.read_text(encoding="utf-8"))
         if m["epoch"] not in EPOCHS:
             continue
-        if baseline == "late" and m["epoch"] == "pre" and m["date"][4:8] < late_from:
+        if baseline == "late" and m["epoch"] == "pre" and config.early_pre(m["date"]):
             continue
         lab = m["label"]
         r = pd.read_csv(d / f"{lab}_regions.csv")
@@ -196,7 +197,7 @@ def fig4_bars(Wd: pd.DataFrame, path: Path, title: str, epoch: str = "pre") -> N
     _title(fig, title, f"Musall Fig. 4-style, cortex, {epoch.upper()} sessions {n}: OPEN = single-variable cvR$^2$ "
                  "(alone; own ridge penalty), FILLED = unique $\\Delta$R$^2$, shuffled in the full movement-first model "
                  "(variance shared with later groups credited to it), HATCHED = drop $\\Delta$R$^2$, full minus a refit "
-                 "without it, unorthogonalised (shared variance credited to nobody); colour = group (task green, instructed orange, uninstructed purple); dots = animals, bars = "
+                 "without it, unorthogonalised (shared variance credited to nobody); color = group (task green, instructed orange, uninstructed purple); dots = animals, bars = "
                  "mean +- SEM over animals")
     fig.tight_layout(rect=(0, 0, 1, 0.93))
     _save(fig, path)
@@ -378,7 +379,8 @@ def fig_position_maps(meta, sess, path: Path, title: str, outline, kind: str = "
     _save(fig, path)
 
 
-POS6 = ("close_contra", "close_mid", "close_ipsi", "far_contra", "far_mid", "far_ipsi")
+# canonical spout order (Priya 10-25; settings audit 11-08 found this one contra-first)
+from wfield_local.orofacial_cohort import POS_ORDER as POS6  # noqa: E402
 
 
 def fig_position_each_maps(meta, sess, path: Path, title: str, outline, window: str, kind: str = "shufpos") -> None:
@@ -429,7 +431,7 @@ def fig_position_signed_maps(meta, sess, path: Path, title: str, outline, window
     PATTERN. kind 'respdev' = the fitted position-DEVIATION component (pos_enl / pos_cue: that spout's response minus
     the shared arrival / cue response) averaged over the window, on the pixel grid; 'resp' = the full TASK component per
     spout (absolute). CAVEAT respdev: the deviations are built so their trial-weighted mean over the six spouts is ~0, so
-    a change shared by all spouts splits into opposite signs (the 09-24 CD artefact) -> read respdev as RELATIVE pattern,
+    a change shared by all spouts splits into opposite signs (the 09-24 CD artifact) -> read respdev as RELATIVE pattern,
     'resp' for absolute levels."""
     plt = _plt()
     keys = [f"{kind}:{p}|{window}" for p in POS6]
@@ -509,6 +511,7 @@ def fig_dR2_by_epoch(Wd: pd.DataFrame, ST: pd.DataFrame, path: Path, title: str,
                      prefix: str = "dR2") -> None:
     """dR2 (filled) and alone (open) per epoch, one panel per variable / group, one row per window; animal dots; stars
     = change vs pre significant by both tests."""
+    from wfield_local.sig_marks import reserve_headroom, star_top
     plt = _plt()
     names = [*VARS, *GROUPS]
     D = Wd[Wd.pos == area]
@@ -532,7 +535,7 @@ def fig_dR2_by_epoch(Wd: pd.DataFrame, ST: pd.DataFrame, path: Path, title: str,
                 for xi, e in zip(x, s.index):
                     r = ST[(ST.metric == key) & (ST.pos == area) & (ST.epoch == e)]
                     if len(r) and r.agree.iloc[0] == "both":
-                        ax.text(xi, ax.get_ylim()[1], "*", ha="center", va="top", fontsize=13, color="k")
+                        star_top(ax, xi, "*", "k", fontsize=13)          # top band (10-30), not at the data's ylim
             ax.set_xticks(x)
             ax.set_xticklabels([e[:3] for e in s.index], fontsize=10)
             ax.tick_params(labelsize=9.5)
@@ -543,6 +546,7 @@ def fig_dR2_by_epoch(Wd: pd.DataFrame, ST: pd.DataFrame, path: Path, title: str,
     _title(fig, title, f"Unique $\\Delta$R$^2$ by epoch, {area}: mean +- SEM over animals (within animal first), dots = "
                  "animals; * = change vs pre significant by BOTH the session Mann-Whitney (BH-FDR) and the animal-"
                  "weighted bootstrap")
+    reserve_headroom(fig)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
     _save(fig, path)
 
@@ -572,7 +576,7 @@ def fig5_task_aligned(Wd: pd.DataFrame, path: Path, title: str, window: str = "a
     axs[0][0].set_ylabel(f"cvR$^2$ ({area}, {window})", fontsize=9)
     axs[0][-1].legend(fontsize=10, frameon=False, loc="upper left", bbox_to_anchor=(1.0, 1.0))
     _title(fig, title, "Musall Fig. 5-style: each movement variable's explained variance split into TASK-ALIGNED "
-                 "(grey; also explained by the task variables) and TASK-INDEPENDENT (coloured; cvR$^2$(task + v) - "
+                 "(gray; also explained by the task variables) and TASK-INDEPENDENT (colored; cvR$^2$(task + v) - "
                  "cvR$^2$(task)); mean over animals, bar = SEM of the task-independent part")
     fig.tight_layout(rect=(0, 0, 0.92, 0.88))
     _save(fig, path)
@@ -689,7 +693,7 @@ def fig_peth_partition(meta, sess, path: Path, title: str, epoch: str, areas=("c
     axs[0][-1].legend(fontsize=10, frameon=False, loc="upper left", bbox_to_anchor=(1.0, 1.0))
     n = meta[meta.epoch == epoch].groupby("animal").date.nunique().to_dict()
     _title(fig, title, f"PETH partition, {epoch.upper()} sessions {n}: data (black), the FULL model's prediction "
-                 "(grey dashed) and its split by group (the full model fitted once; its prediction summed over each "
+                 "(gray dashed) and its split by group (the full model fitted once; its prediction summed over each "
                  "group's regressors, no refit), cue-aligned, per spout position; within animal, then mean over animals")
     fig.tight_layout(rect=(0, 0, 0.93, 0.9))
     _save(fig, path)
@@ -794,7 +798,7 @@ def fig_target_vs_executed(Wd: pd.DataFrame, path: Path, title: str, area: str =
 
 def fig_target_vs_executed_sessions(Wd: pd.DataFrame, path: Path, title: str, area: str = "cortex",
                                     st: str = "notxy") -> None:
-    """Every SESSION as a dot (animal colour), animal means as large markers, cohort mean of animal means as the black
+    """Every SESSION as a dot (animal color), animal means as large markers, cohort mean of animal means as the black
     line (Priya 10-19: "are these figures showing all sessions or only each animal mean" -> show both).
     Rows: lick / cue window; columns: category, target (lick kernel), executed (lick kernel), executed - target."""
     from wfield_local import config
@@ -849,7 +853,7 @@ def fig_spatial_contest(Wd: pd.DataFrame, path: Path, title: str, base: str, are
     """The fair target-vs-executed contest of one subset run. Rows: lick / cue / ENL window. Columns: gains over the
     base alone (category ceiling, target, executed, kinematics); unique target vs unique executed (no kinematics);
     the same given the kinematics (+ unique kinematics); per-session executed - target unique (no kinematics).
-    Mean +- SEM over animals, dots = animals; last column dots = sessions (animal colour)."""
+    Mean +- SEM over animals, dots = animals; last column dots = sessions (animal color)."""
     from wfield_local import config
     plt = _plt()
     D = Wd[Wd.pos == area].copy()
@@ -942,8 +946,7 @@ def tr_window_table(meta, sess, kind: str, trial: bool, t0: float = 0.0, t1: flo
 def tr_main(a, figs: Path, tabs: Path) -> int:
     """Subset runs with the time-resolved model set: `<order>_subset-trmodels` (trial-to-trial + all-variance drop
     dR2) and `musall_subset-shuf` (Musall-order shuffle dR2)."""
-    from wfield_local import orofacial_cohort as oc
-    _R, meta, sess = load(a.run, a.order, a.baseline, oc.LATE_PRE_FROM)
+    _R, meta, sess = load(a.run, a.order, a.baseline)
     title = (f"Combined encoding model, {a.order} -- {a.run} -- baseline: "
              f"{'LATE (August) pre only' if a.baseline == 'late' else 'all curated pre'} -- sessions: "
              f"{meta.groupby('animal').label.nunique().to_dict()}")
@@ -1028,9 +1031,8 @@ def tr_contest(meta, sess, tabs: Path, t0: float = 0.0, t1: float = 1.5,
 
 def contest_main(a, base: Path, figs: Path, tabs: Path) -> int:
     """Subset run (`--order <order>_subset-nokin` etc.): the spatial contest readout only."""
-    from wfield_local import orofacial_cohort as oc
     from wfield_local.orofacial_stats import session_change_tests
-    R, meta, sess = load(a.run, a.order, a.baseline, oc.LATE_PRE_FROM)
+    R, meta, sess = load(a.run, a.order, a.baseline)
     Wd = region_wide(R)
     Wd.to_csv(tabs / "region_measures.csv", index=False, float_format="%.5g")
     bases = [b for b in ("nokin", "nodir") if any(c.startswith(f"{b}:") for c in Wd.columns)]
@@ -1083,11 +1085,10 @@ def contest_main(a, base: Path, figs: Path, tabs: Path) -> int:
 
 
 def main(argv=None) -> int:
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
     from wfield_local import writeguard
     from wfield_local.orofacial_stats import session_change_tests
-    from wfield_local.paths import PathResolver
     oc._repo_on_path()
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--run", default=oc.RUN)
@@ -1096,18 +1097,21 @@ def main(argv=None) -> int:
     ap.add_argument("--signed-only", action="store_true",
                     help="only the signed per-spout maps (resp / respdev) of a full run (Priya 10-19)")
     a = ap.parse_args(argv)
-    base = oo.root(PathResolver()) / a.run / "imaging_encoding" / a.order
+    base = _rmode.encoding_out_root(a.run) / a.order
     sfx = "_allpre" if a.baseline == "all" else ""
     figs, tabs = base / f"figures{sfx}", base / f"tables{sfx}"
     writeguard.assert_writable(base)
     figs.mkdir(parents=True, exist_ok=True)
     tabs.mkdir(parents=True, exist_ok=True)
-    if a.order.endswith("_subset-trmodels") or a.order.startswith("musall"):
+    # the run-setting suffixes `combined_encoding.out_dir` appends AFTER the subset (`_exec-polar_licks-combined`, `_bins`,
+    # `_nolicksall`, ...; rebuild collect 11-04) do not change which figure suite a subset run gets
+    core = a.order.split("_exec-", 1)[0]
+    if core.endswith("_subset-trmodels") or a.order.startswith("musall"):
         return tr_main(a, figs, tabs)
     # per-spout maps from the FIXED one-vs-rest rerun (10-19); O2 `collect` names it `_subset-shufpos-` (ONLY=shufpos-)
-    kindp = next((k for k in ("shufpos", "droppos") if a.order.rstrip("-").endswith(f"_subset-{k}")), None)
+    kindp = next((k for k in ("shufpos", "droppos") if core.rstrip("-").endswith(f"_subset-{k}")), None)
     if kindp:
-        _R, meta, sess = load(a.run, a.order, a.baseline, oc.LATE_PRE_FROM)
+        _R, meta, sess = load(a.run, a.order, a.baseline)
         title = (f"Combined encoding model, {a.order} ({kindp}) -- {a.run} -- baseline: "
                  f"{'LATE (August) pre only' if a.baseline == 'late' else 'all curated pre'} -- sessions: "
                  f"{meta.groupby('animal').label.nunique().to_dict()}")
@@ -1118,7 +1122,7 @@ def main(argv=None) -> int:
         print(f"figures -> {figs}")
         return 0
     if a.signed_only:                                       # signed per-spout maps from the main run's resp / respdev
-        _R, meta, sess = load(a.run, a.order, a.baseline, oc.LATE_PRE_FROM)
+        _R, meta, sess = load(a.run, a.order, a.baseline)
         title = (f"Combined encoding model ({a.order}) -- {a.run} -- baseline: "
                  f"{'LATE (August) pre only' if a.baseline == 'late' else 'all curated pre'} -- sessions: "
                  f"{meta.groupby('animal').label.nunique().to_dict()}")
@@ -1135,7 +1139,7 @@ def main(argv=None) -> int:
         return 0
     if "_subset-" in a.order:
         return contest_main(a, base, figs, tabs)
-    R, meta, sess = load(a.run, a.order, a.baseline, oc.LATE_PRE_FROM)
+    R, meta, sess = load(a.run, a.order, a.baseline)
     Wd = region_wide(R)
     Wd.to_csv(tabs / "region_measures.csv", index=False, float_format="%.5g")
     title = (f"Combined task + movement encoding model ({a.order}) -- {a.run} -- baseline: "

@@ -24,7 +24,7 @@ def _write_daq(path, n_exposures, hiccup_at=()):
     """A minimal DAQ .h5 with `n_exposures` pco pulses, LEDs alternating 415/470 per pulse.
 
     Each exposure is a narrow strobe with a gap before the next (as the real DAQ records), so an
-    exposure's label window never bleeds into a neighbour's. ``hiccup_at`` repeats the previous LED
+    exposure's label window never bleeds into a neighbor's. ``hiccup_at`` repeats the previous LED
     on those pulses -- the alternation hiccups every real session has ~150 of, and the thing that
     makes a head offset visible in the labels at all.
     """

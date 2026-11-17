@@ -1,4 +1,4 @@
-"""TRAJECTORY softmax confusion matrices, the path analogue of the landing matrices (Priya 10-24: "can you make the same
+"""TRAJECTORY softmax confusion matrices, the path analog of the landing matrices (Priya 10-24: "can you make the same
 softmax_trajectory_change confusion matrices as you did for landing?"). LICK DATA only.
 
   1. per lick: the 3-D tongue path on a fixed 4 ms grid from -PRE to +POST ms around the lick's 3-D peak (the TRACKED part
@@ -22,6 +22,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from wfield_local.pose3d import pose3d_dir
 
 PRE_MS, POST_MS, DT = 32, 32, 4
 GRID = np.arange(-PRE_MS, POST_MS + DT, DT)
@@ -45,7 +46,7 @@ def session_job(item):
     f = Path(out) / f"{session}.npz"
     if f.exists():
         return str(f)
-    F = pd.read_csv(_dlc() / "session_poses" / "pose3d" / f"{session}_frames.csv.gz",
+    F = pd.read_csv(pose3d_dir(root=_dlc()) / f"{session}_frames.csv.gz",
                     usecols=["trial_id", "t_ms", "tongue_ml", "tongue_ap", "tongue_dv"]).sort_values(["trial_id", "t_ms"])
     by = {t: g for t, g in F.groupby("trial_id")}
     P = np.full((len(L), len(GRID), 3), np.nan, np.float32)
@@ -88,21 +89,37 @@ def boot_change(S: dict, ep: str, nb=4000, seed=0):
     return obs, (lo > 0) | (hi < 0), agree, len(ans)
 
 
+def trial_set_sentence() -> str:
+    """THE lick set of the figures (Priya 11-09): the 3-D trial licks of the pose3d snapshot with a scorable path."""
+    from wfield_local import trial_set_text as tst
+    return tst.events("trial licks of the pose3d kinematics/licks snapshot (pose3d_kin_licks_snapshot_20261023) with a "
+                      "3-D peak time", keep=[
+                          "August-on sessions (June early pre dropped, config.early_pre)",
+                          "target spout one of the six", f"animals {', '.join(AN)}",
+                          f"path scored only with >= {MIN_PTS} tracked points of the {len(GRID)}-point grid "
+                          f"({-PRE_MS}..+{POST_MS} ms around the 3-D peak); pre licks scored against leave-one-session-out "
+                          "templates"],
+                      excluded=["June early-pre sessions", "licks without a 3-D peak"])
+
+
 def main(argv=None) -> int:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
+    from wfield_local import config
     from wfield_local import analysis_kit as ak
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--jobs", type=int, default=10)
     a = ap.parse_args(argv)
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())
     K = pd.read_csv(I / "pose3d_kin_licks_snapshot_20261023.csv.gz",
                     usecols=["animal", "session", "epoch", "trial_id", "position", "t_peak_3d", "date"])
-    K = K[(K.date.astype(str).str[4:6] != "06") & K.t_peak_3d.notna()].copy()       # August-on (encoding rule)
+    K = K[~K.date.astype(str).map(config.early_pre) & K.t_peak_3d.notna()].copy()       # August-on (encoding rule)
     K["target"] = K.position.map(MOUSE)
     K = K.dropna(subset=["target"]).reset_index(drop=True)
-    out = _dlc() / "session_poses" / "pose3d" / "trajectories"
+    out = pose3d_dir(root=_dlc()) / "trajectories"
     cache = out / "per_lick"
     cache.mkdir(parents=True, exist_ok=True)
     (out / "figures").mkdir(exist_ok=True)

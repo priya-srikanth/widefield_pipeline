@@ -2,7 +2,7 @@
 
 `stopped_tail_contamination` showed the global order-10 fit is pulled by a disengaged tail, changing
 the subtracted TREND inside the engaged period by a median 16.3% of the signal. That is a statistic
-about the trend, NOT about any result -- the decoder standardises per fold and reads trial-window
+about the trend, NOT about any result -- the decoder standardizes per fold and reads trial-window
 means, so a smooth slow difference is partly absorbed, while map AMPLITUDES would feel it more.
 
 This rebuilds `SVTcorr` two ways for the same session and re-runs the same within-working analyses:

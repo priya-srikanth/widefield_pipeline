@@ -1,4 +1,4 @@
-"""Evaluate the epoch-170 snapshot on CPU (GPU is busy training): labelled frames with per-frame error + split,
+"""Evaluate the epoch-170 snapshot on CPU (GPU is busy training): labeled frames with per-frame error + split,
 then the three review clips via the opencv reader."""
 import sys, time, torch
 torch.set_num_threads(12)

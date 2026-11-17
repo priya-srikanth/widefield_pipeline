@@ -1,6 +1,9 @@
 # Architecture — what the code is, in layers, and where each part is used
 
-`wfield_local/` holds **162 modules**, **109 of them runnable** with `python -m wfield_local.<name>`.
+`wfield_local/` holds **255 top-level modules** (plus `__init__.py`) and two subpackages, `face_rhythm/` and
+`histology_map/` (27 more files). **150 of the top-level modules are runnable** with `python -m wfield_local.<name>`,
+and so are both subpackages (counted on main, 2026-11-04). The layer diagram below dates from 09-22 (162 modules); the
+modules added since are listed in "Modules added since 09-22" near the end.
 That is a lot of entry points for one package, and it is deliberate: this repo grew as an analysis
 notebook that learned to be a pipeline, and nearly every question anyone asked became a module that
 could be run on its own and would print its answer. The cost is that the tree does not tell you
@@ -107,7 +110,7 @@ the most trouble, and both are explained below.
 | [`config`](../wfield_local/config.py) | the session registry, curated date sets, animal lists, `defaults.yaml`. **103 modules import it.** Anything that hardcodes a session list instead of asking `config` is a bug waiting to go stale. |
 | [`paths`](../wfield_local/paths.py) | every root, per machine. There are four machines (`analysis`, `imaging`, `mac`, `analysis_desktop`) and they mount the same shares at different letters. Hardcoding a path is how the same bug appeared in `BEH_ROOT`, `DEFAULT_OUT` and the session cache. |
 | [`writeguard`](../wfield_local/writeguard.py) | refuses writes outside Priya's subtree on MICROSCOPE. Ground rules 0/1. |
-| [`epochs`](../wfield_local/epochs.py) | pre / acute / subacute / chronic, per animal, counted from that animal's own lesion date. `chronic_from` is DERIVED from behaviour each run and published to `epoch_boundaries.json`. |
+| [`epochs`](../wfield_local/epochs.py) | pre / acute / subacute / chronic, per animal, counted from that animal's own lesion date. `chronic_from` is DERIVED from behavior each run and published to `epoch_boundaries.json`. |
 | [`parallel`](../wfield_local/parallel.py) | `fan_out` over processes. Ground rule 6: per-session loops fan out. Two traps it exists to prevent — collect in sorted order, and options travel in the ITEM, because spawn does not inherit globals. |
 | [`analysis_kit`](../wfield_local/analysis_kit.py) | the shared bootstrap and session-selection helpers. `boot_ci` is flat-pool for LEVELS, `boot_delta` is animal-weighted for CHANGES, and confusing the two is what retracted a published number. |
 
@@ -236,7 +239,7 @@ Numbers are the test. The suite does not cover the analysis scripts, and it is n
 | figure renderers | render before and after, byte-compare the PNGs. Use `--output` to a scratch directory, never the share. |
 | pure functions | pin them: check a frozen copy of the pre-extraction source into a test and assert EXACT equality of the draws. Milliseconds instead of hours, and stronger. |
 | module constants | hash every one before and after and compare exactly. Covers constants no particular run reaches. |
-| where artefacts LAND | [`scripts/check_figure_layout.py`](../scripts/check_figure_layout.py) — scans the output tree for sidecars sitting flat beside a figure. Empirical, because a source scan cannot see a file a third-party script dropped there. `--fix` repairs, move-only. |
+| where artifacts LAND | [`scripts/check_figure_layout.py`](../scripts/check_figure_layout.py) — scans the output tree for sidecars sitting flat beside a figure. Empirical, because a source scan cannot see a file a third-party script dropped there. `--fix` repairs, move-only. |
 
 Two rules learned the hard way, both of which have already caught real bugs:
 
@@ -246,6 +249,54 @@ Two rules learned the hard way, both of which have already caught real bugs:
 - **Mutation-test the check.** Before trusting the deck fingerprint, two deliberate defects were
   introduced to confirm it noticed: swapping two registry entries moved 60 lines, a three-character
   typo in one speaker note moved 2.
+
+---
+
+## Modules added since 09-22 (not in the diagram)
+
+The layer diagram above predates these. One line each, from the module's docstring. The behavior and video work
+(orofacial, pose, FaceRhythm) mostly runs in the `dlc` env on the analysis desktop; see README "Per-machine
+environments".
+
+**Trial definitions and lick source (used by most imaging analyses since 11-03)**
+
+| module | what it is |
+|---|---|
+| [`trial_classes`](../wfield_local/trial_classes.py) | THE trial classification: one behavioral class per trial (contact, incomplete lick, jaw only, no response, ...), first match wins, inside a chosen window. `GATES` names the class sets |
+| [`working_trials`](../wfield_local/working_trials.py) | maps the working-trial selection onto the decoders' pooled feature rows. Production = contact + incomplete camera licks, cut at the session's last camera lick (`WIDEFIELD_WORKING_TRIALS`). Note its `IN_WORKING` excludes jaw-only, while `trial_classes.GATES["working"]` includes it |
+| [`lp_licks`](../wfield_local/lp_licks.py) | video (Lightning Pose) licks as the imaging pipeline's lick source, instead of DAQ spout contact (`WIDEFIELD_LICK_SOURCE=lp`) |
+
+**Encoder**
+
+| module | what it is |
+|---|---|
+| [`frozen_encoder`](../wfield_local/frozen_encoder.py) | frozen pre-stroke encoder in Allen-area space: one model per animal fitted on its August pre-stroke sessions and applied unchanged to every session, so a changed cortical response can be told from fewer or smaller movements. The per-session encoder is `combined_encoding` |
+
+**Pose and orofacial (video)**
+
+| module | what it is |
+|---|---|
+| [`pose3d`](../wfield_local/pose3d.py) | per-frame 3-D pose from cam1 (bottom) + cam4 (front): triangulated tongue / jaw / nose / spout in mouth-centered mm, and one row per 3-D lick |
+| [`pose3d_side`](../wfield_local/pose3d_side.py) | adds the side cameras (cam2 + cam3): per-session camera pose from the spouts, N-camera triangulation, and the cross-camera offset check |
+| [`orofacial_clean`](../wfield_local/orofacial_clean.py) | clean tongue / jaw traces from DLC or Lightning Pose output: drop outliers and low-confidence frames, fill short gaps, subtract a baseline, cut cue-aligned trials |
+| [`orofacial_outputs`](../wfield_local/orofacial_outputs.py) | the pose analysis outputs on the share: run-versioned, session-first, one index |
+| [`orofacial_cohort`](../wfield_local/orofacial_cohort.py) | pre- vs post-stroke orofacial kinematics across the cohort, from the organized pose outputs. A hub: many scripts import it (often as `oc`) |
+| [`orofacial_stats`](../wfield_local/orofacial_stats.py) | statistics for the orofacial cohort figures (session-level tests, after stroke_orofacial's hierarchy) |
+| [`orofacial_heatmaps`](../wfield_local/orofacial_heatmaps.py) | trial-aligned spatial occupancy heatmaps of the cam4 keypoints, pre vs post stroke |
+| [`orofacial_jaw_lateral`](../wfield_local/orofacial_jaw_lateral.py) | jaw lateral readout on whole sessions with the production pose model |
+| [`orofacial_w2`](../wfield_local/orofacial_w2.py) | Wasserstein-2 distance between each session's keypoint distribution and the animal's pre-stroke one |
+| [`orofacial_deck`](../wfield_local/orofacial_deck.py) | PowerPoint deck of the orofacial pre- vs post-stroke figures (runs in `locanmf`, for python-pptx) |
+| [`face_rhythm/`](../wfield_local/face_rhythm/__init__.py) | FaceRhythm analysis layer: cam4 face video as a tracked mesh, a frozen pre-stroke factor set (`face_rhythm/factors/`, fitted on O2), and the shared pieces of every FaceRhythm readout: `common` (cohort constants, side conventions), `licks` (the LP lick table), `face` (face movement from the frozen point PCs), `stats` (change vs each animal's own pre, via `analysis_kit.boot_delta`) |
+
+**Figure style (one definition each)**
+
+| module | what it is |
+|---|---|
+| [`cat_points`](../wfield_local/cat_points.py) | how an epoch summary is drawn at a category (spout position, epoch): no line joins categories, faded session dots |
+| [`sig_marks`](../wfield_local/sig_marks.py) | the significance asterisk on a bar or point plot, so every figure marks significance the same way |
+
+`enl_window` (the ENL scoring window that follows the lick source) exists only on a rebuild branch so far (`rebuild/cohort1-20261103`), not on
+main.
 
 ---
 
@@ -259,8 +310,10 @@ labcams/
   analysis_figures/          the nightly mirror of every analysis figure  ·  json/
   channel_comparison/        415-vs-470 channel-identity diagnostics
   retired/                   superseded output, never deleted
-  frozen_models/ joint_bases/ xday/ deck_history/ snapshots/
-  spout_position_analysis_summary.pptx   + .manifest.json
+  frozen_models/ joint_bases/ xday/ snapshots/
+  spout_position_analysis_summary.manifest.json + .run.json   (the deck's sidecars)
+presentations/pipeline/      every auto-built .pptx (root decks_out; moved here from labcams 2026-11-06, Priya)
+  analysis/ preprocessing/ behavior/ orofacial/<run>/ history/ cohort2/<kind>/
 ```
 
 `retired/` is the convention for anything superseded: nothing on MICROSCOPE is deleted (ground

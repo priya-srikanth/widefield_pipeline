@@ -6,7 +6,7 @@ THE FAILURE THIS FINDS. A figure is produced by the nightly and referenced by no
 be detected downstream: the deck's figures-placed/missing counter only counts slides it TRIED to
 build, and `if not path.exists(): continue` is silent by construction, so a filename the deck never
 constructs at all is invisible from both ends. Two instances were found by hand on 2026-08-24 --
-twelve behaviour slides (`coding_engagement_*`, the filename carried no method but the deck built one
+twelve behavior slides (`coding_engagement_*`, the filename carried no method but the deck built one
 into every path) and 144 per-session per-class matrices (`coding_crosssess_*`, `coding_pairsess_*`,
 which no slide referenced at all) -- and finding them by hand is not a method.
 
@@ -21,7 +21,7 @@ tuple) still counts as "referenced". This finds families that are wholly absent,
 that has actually happened twice, not per-file placement.
 
 READ THE "matching NO file" HALF WITH THE ROOT IN MIND. Only ONE figure root is scanned per run, so
-every pattern belonging to a deck that reads a different root (the behaviour deck's `behavior_out`
+every pattern belonging to a deck that reads a different root (the behavior deck's `behavior_out`
 tree, the preprocessing deck's per-session directories) shows up there and is not a dead reference.
 Point the script at those roots separately to check them.
 """

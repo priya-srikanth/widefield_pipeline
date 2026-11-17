@@ -9,7 +9,7 @@ Two things here are less obvious than they look.
 **Only `_sessions.csv` is an input.** The cohort table is DERIVED from it inside `main`, so
 loading the cohort CSV as well produced eight epoch rows where the figure expected four. It was
 caught by matplotlib complaining about mismatched axes -- luck, since the two had to disagree in
-LENGTH for anything to notice. A derived artefact is not a second source of truth.
+LENGTH for anything to notice. A derived artifact is not a second source of truth.
 
 **`_read_conf` must index by CODE, never by position.** The live path fixes the code order up
 front precisely so per-epoch matrices can be summed; reading them back positionally would
@@ -74,7 +74,7 @@ def test_an_epoch_with_no_rows_is_a_zero_matrix_not_a_missing_key(tmp_path):
 
 def test_the_skipped_count_round_trips(tmp_path):
     """It is in the figure's suptitle, so getting it wrong is a one-glyph difference -- exactly
-    the shape of the CHRONIC_RULE caption artefact on 2026-09-22."""
+    the shape of the CHRONIC_RULE caption artifact on 2026-09-22."""
     assert rfd._load_meta(tmp_path, "s") is None
     q = rfd._save_meta(tmp_path, "s", 7)
     assert q.parent.name == "data", "the meta sidecar must not land flat"

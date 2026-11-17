@@ -3,7 +3,7 @@
 Priya 10-31 on the PS94 08-25 event video: "when the animal is running sensory limb cortex is blue instead of the
 bright red we normally see w activation during running". The videos show RAW 470 (no hemo correction), so a blue
 limb cortex is either blood volume outweighing GCaMP there, or the 470 / 415 slots swapped over a stretch.
-A swap predicts the "470" running map looks like the 415 one (and the 415 like a GCaMP map); a haemodynamic cause
+A swap predicts the "470" running map looks like the 415 one (and the 415 like a GCaMP map); a hemodynamic cause
 predicts 415 more negative than 470 with the corrected map still positive.
 
 Running onsets = canonical DAQ running bouts (behavior_events npz), bouts >= 2 s with >= 3 s of no running before.
@@ -35,7 +35,7 @@ def one(label):
     from wfield_local.plot_spout_trial_averages import _load_daq_events as _lc
     s = next(s for s in config.load_sessions(machine="analysis_desktop") if s["label"] == label)
     res, func = Path(s["mc"]) / "wfield_local_results", int(hv.functional_channel(s))
-    _, _, csmp = _frames(s, _lc(s["h5"]), _ll(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10))
+    _, _, csmp = _frames(s, _lc(s["h5"]), _ll(s["h5"], "lick_analog"))
     csmp = np.asarray(csmp)
     animal, mmdd = label.split("_")
     z = np.load(EVENTS / animal / f"2026{mmdd}.npz", allow_pickle=True)

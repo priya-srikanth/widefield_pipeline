@@ -7,7 +7,7 @@ A. far_center DIAGONAL (PS92 chronic): closest-approach points on a line paralle
    the rod?
 B. acute far_R PRE-CUE tongue (PS92 acute): the 3-D tongue sits ~0.25 mm out before the cue (pre ~0.05). Pre-cue frames
    with a 3-D tongue point -- tongue at the lips, a real lick, or a false point?
-C. ANCHORED JAW at the centre spouts (PS92 pre): frames placed by the rest-depth anchor (`pose3d.anchor_single_view`,
+C. ANCHORED JAW at the center spouts (PS92 pre): frames placed by the rest-depth anchor (`pose3d.anchor_single_view`,
    src 4 = cam1 + anchor, 5 = cam4 + anchor), the one place the held-out test could not check. The anchored 3-D jaw is
    projected into BOTH cameras -- including the one that did not see it -- does it land on the chin?
 
@@ -22,6 +22,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from wfield_local.pose3d import pose3d_dir
 
 TILE, CROP = 300, (260, 220)
 
@@ -41,7 +42,7 @@ def _session(rv, s: str):
     m1, m4 = SF.ruler_medians(f1, ix1), SF.ruler_medians(f4, ix4)
     cg, _ = P3.pnp_group(_cgroup(rv).subset_cameras_names(["cam1", "cam4"]), {"cam1": m1, "cam4": m4},
                          _rig(rv, a, d)["geometry"])
-    S = pd.read_csv(Path(rv.root("dlc")) / "session_poses" / "pose3d" / f"{s}_frames.csv.gz")
+    S = pd.read_csv(pose3d_dir(rv, "2cam") / f"{s}_frames.csv.gz")
     return {"cg": cg, "S": S, "cams": {"cam1": (ix1, f1), "cam4": (ix4, f4)}, "a": a, "d": d}
 
 
@@ -141,7 +142,7 @@ def _grid(tiles: list, ncol: int, title: str, path: Path) -> None:
 
 
 def section_a(rv, out: Path, per: int, rng) -> None:
-    d3 = Path(rv.root("dlc")) / "session_poses" / "pose3d"
+    d3 = pose3d_dir(rv, "2cam")
     K = pd.read_csv(d3 / "kinematics" / "licks.csv.gz", dtype={"date": str})
     g = K[(K.animal == "PS92") & (K.position == "far_center") & (K.epoch == "chronic")].copy()
     g["on_line"] = (np.abs(g.dv_err_mm + g.ap_err_mm + 1.6) < 0.15) & (g.ap_err_mm < -0.3)
@@ -164,7 +165,7 @@ def section_a(rv, out: Path, per: int, rng) -> None:
 
 def section_b(rv, out: Path, per: int, rng) -> None:
     from wfield_local import epochs
-    d3 = Path(rv.root("dlc")) / "session_poses" / "pose3d"
+    d3 = pose3d_dir(rv, "2cam")
     cands = [f.name.replace("_frames.csv.gz", "") for f in sorted(d3.glob("PS92_*_frames.csv.gz"))]
     acute = [s for s in cands if epochs.epoch_of(f"PS92_{s.split('_')[1][4:]}") == "acute"]
     tiles = []
@@ -191,12 +192,12 @@ def section_c(rv, out: Path, per: int, rng) -> None:
     tiles = []
     for code, lab in ((5, "cam4 + anchor (cam1 missed)"), (4, "cam1 + anchor (cam4 missed)")):
         g = S[S.position.isin(["far_center", "close_center"]) & (S.jaw_src == code) & (S.t_ms > 70)]
-        print(f"{s}: centre-spout anchored jaw frames src {code}: {len(g)}")
+        print(f"{s}: center-spout anchored jaw frames src {code}: {len(g)}")
         g = g.groupby("trial_id").head(1)
         for _, row in g.sample(min(per, len(g)), random_state=int(rng.integers(1 << 30))).iterrows():
             tiles.append(_tiles(rv, ses, row, "jaw", f"{lab}: {row.position} trial {row.trial_id} t {row.t_ms:+.0f} ms",
                                 extra=model.get((row.trial_id, row.t_ms))))
-    _grid(tiles, 2, f"C. {s} (pre) centre spouts: one-camera 3-D jaw, REST-DEPTH ANCHOR (cyan) vs DEPTH MODEL "
+    _grid(tiles, 2, f"C. {s} (pre) center spouts: one-camera 3-D jaw, REST-DEPTH ANCHOR (cyan) vs DEPTH MODEL "
                     "(yellow), projected into both cameras; 2-D LP jaw (magenta)", out / f"C_anchored_jaw_{s}.png")
 
 
@@ -208,7 +209,7 @@ def main(argv=None) -> int:
     ap.add_argument("--only", default=None, help="sections to draw, e.g. C (default ABC)")
     a = ap.parse_args(argv)
     rv = PathResolver()
-    out = Path(rv.root("dlc")) / "session_poses" / "pose3d" / "check_sheet"
+    out = pose3d_dir(rv, "2cam") / "check_sheet"
     out.mkdir(exist_ok=True)
     rng = np.random.default_rng(a.seed)
     ap_only = a.only or "ABC"

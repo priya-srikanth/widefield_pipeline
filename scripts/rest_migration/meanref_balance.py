@@ -8,7 +8,7 @@ IT IS TRIAL-WEIGHTED, IN TWO INDEPENDENT PLACES.
      `working` arm fits with `class_weight=None` and is pulled by base rates, while the `lick` arm
      gets `class_weight="balanced"`. **Figure 14's working and lick panels are therefore not the
      same estimator**, which is stated nowhere.
-  2. The Haufe transform. `A = Cov(X) beta` centres on `X[tr].mean(0)` and takes the covariance
+  2. The Haufe transform. `A = Cov(X) beta` centers on `X[tr].mean(0)` and takes the covariance
      over training trials as they come — the trial mean, never a per-position one.
 
 WHY IT MATTERS HERE SPECIFICALLY. Figure 14's positions are COUPLED by construction (each class's

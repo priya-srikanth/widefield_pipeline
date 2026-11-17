@@ -25,6 +25,7 @@ Run: ``python -m wfield_local.epoch_grant_figures [--only 1b 5c ...] [--output D
 from __future__ import annotations
 
 import argparse
+import contextlib
 from pathlib import Path
 
 from wfield_local import epoch_figures as ef
@@ -92,6 +93,7 @@ from wfield_local.epoch_maps import (  # noqa: F401
     _fig_15r_reference_maps,
     _fig_15rpa_reference_by_animal,
     _long_of,
+    supplement_panels,
     _n_stat_bins,
     _stats_sentence,
 )
@@ -125,6 +127,8 @@ from wfield_local.writeguard import assert_writable
 #: arm removes (Priya, 2026-09-11: "the stopped class should basically be another frozen decoder /
 #: encoder analysis set"). No lick-aligned stopped arm exists and none can -- a trial inside the
 #: quit period is a non-response by construction, so there is no lick to align to.
+#: THE CAPTION (4th field) IS THE DAQ-RULE WORDING; the arm loop replaces it with `trial_set_text.arm_caption` -- the
+#: ACTIVE selection's words (Priya 11-09: under the camera gate "lick + miss-while-working" is stale).
 ARMS = (("ENL", "precue", "working", "ENL (pre-cue), lick + miss-while-working"),
         ("cue", "cue", "working", "post-cue, lick + miss-while-working"),
         ("lick", "lick", "lick", "post-lick, lick trials only"),
@@ -140,7 +144,8 @@ ARMS = (("ENL", "precue", "working", "ENL (pre-cue), lick + miss-while-working")
         # acute and +0.112 subacute, both Bonferroni-corrected. But that arm CONDITIONS ON A
         # DETECTED LICK, so post-stroke its trial population is itself a product of the deficit:
         # the animal licks less and licks different spouts, and acute far-contralateral is gated
-        # out entirely below MIN_REFIT_SHARE.
+        # out entirely below MIN_REFIT_SHARE (retired 11-08, D7: 10-trial floor only; lick class = all camera
+        # licks on the LP source, so acute far contra is no longer near-empty there).
         #
         # These two hold the TRIAL SET fixed at lick trials and move only the WINDOW. If the effect
         # is about position coding it should appear post-cue on the same trials; if it is about
@@ -286,8 +291,8 @@ MATRIX_FAMILIES = (
     # substitution claim otherwise rests on decoder confusions and best-match fraction, both of
     # which are LABEL-level -- they say which position the readout assigns, not which position the
     # pattern moved toward. Diverging: the scale is centred on zero, so RdBu_r not magma.
-    ("8rc", "_matrices_crossnobis_rowcentred", "crossnobis distance, row-centred", "RdBu_r", None,
-     "Crossnobis geometry, row-centred -- which position did it move TOWARD"),
+    ("8rc", "_matrices_crossnobis_rowcentred", "crossnobis distance, row-centered", "RdBu_r", None,
+     "Crossnobis geometry, row-centered -- which position did it move TOWARD"),
     # WHERE THE BEST MATCH WENT (Priya, 2026-09-10): "could we add a version that plots, for each
     # spout position across epochs, where the best matches were -- so we could see if there is a
     # shift to one other position or if it's evenly distributed". Family 10b already reduces this
@@ -301,7 +306,7 @@ MATRIX_FAMILIES = (
     # epochs and not in MAGNITUDE. Dividing each row by its own SD makes it a z-profile and fixes
     # that, at the cost of discarding how far the position moved -- which 8 and 8rc still carry.
     ("8rz", "_matrices_crossnobis_rownorm", "row z-score", "RdBu_r", (-2.0, 2.0),
-     "Crossnobis geometry, row-NORMALISED -- direction only, scale-free"),
+     "Crossnobis geometry, row-NORMALIZED -- direction only, scale-free"),
 )
 
 
@@ -340,6 +345,71 @@ SCALAR_FAMILIES = (("8g", _fig_8g), ("9", _fig_9), ("10", _fig_10),
 
 
 
+
+
+# ------------------------------------------------------------------------- the trial set of each family
+# Priya 11-09: "EVERY figure must state EXACTLY which trials were included / excluded". The arm loop activates the
+# ARM's class; a family whose figures draw another set (a pre-stroke LICK reference, stopped trials against an engaged
+# template, 1 s state segments, every cued trial) is wrapped in `_trial_set(<family>)`, whose sentence comes from
+# `epoch_kit` (the collectors' own selection rules). The savefig hook stamps it on every figure saved inside.
+def _sentence_of(fam, align=None, variant=None):
+    from wfield_local import epoch_kit as ek
+    if fam in ("acc", "5c", "5r", "5rm", "5ro", "5rmo"):
+        return ek.decoder_trial_text(align, variant)
+    if fam == "5cr":
+        return ek.decoder_trial_text(align, variant, refit_only=True)
+    if fam in ("mat", "scal", "10e", "10cs"):
+        return ek.pattern_trial_text(align, variant)
+    if fam in ("12s", "12b"):
+        return ek.stopped_trial_text(align, fam)
+    if fam == "13s":
+        return ek.state_segment_text()
+    if fam == "15e":
+        return ek.evoked_trial_text()
+    if fam in ("1b", "1b daq", "1c"):
+        from wfield_local.epoch_behaviour import MIN_POSITION_TRIALS
+        return ek.behaviour_trial_text("camera" if fam == "1b" else "daq", min_trials=MIN_POSITION_TRIALS)
+    from wfield_local import trial_set_text as tst                  # 14m / 15r: the arm's own class on every session
+    return tst.sentence(variant)
+
+
+def trial_set_sentence(fam, align=None, variant=None):
+    """THE trial-set sentence family ``fam`` ("1b", "1b daq", "1c", or an arm family key) draws on arm
+    (``align``, ``variant``) under the run's selection -- what its figures are stamped with."""
+    return _sentence_of(fam, align, variant)
+
+
+@contextlib.contextmanager
+def _trial_set(fam, align=None, variant=None):
+    """Every figure saved inside carries ``fam``'s trial set. A sentence that cannot be built leaves the figures
+    WITHOUT a trial-set caption (said in the log) rather than with the arm's, which would be the wrong set."""
+    from wfield_local import trial_set_text as tst
+    try:
+        txt = _sentence_of(fam, align, variant)
+    except Exception as ex:                                            # noqa: BLE001 - a caption never kills a figure
+        print(f"  .. {fam} {align}/{variant}: no trial-set caption ({type(ex).__name__}: {str(ex)[:120]})",
+              flush=True)
+        txt = None
+    with tst.active(None, text=txt):
+        yield
+
+
+def _behaviour_families(want, out):
+    """1b (camera working period, primary; + the DAQ quit-tail robustness row) and 1c, each under its own trial set."""
+    if "1b" in want:
+        try:
+            with _trial_set("1b"):
+                _report("1b", fig_behaviour(out))                       # camera working period (primary, 11-05)
+            with _trial_set("1b daq"):
+                _report("1b daq", fig_behaviour(out, period="daq"))     # the DAQ quit-tail robustness row
+        except Exception as ex:                                        # noqa: BLE001
+            print(f"  !! 1b: {type(ex).__name__} {str(ex)[:160]}", flush=True)
+    if "1c" in want:
+        try:
+            with _trial_set("1c"):
+                _report("1c", fig_behaviour_timecourse(out))
+        except Exception as ex:                                        # noqa: BLE001
+            print(f"  !! 1c: {type(ex).__name__} {str(ex)[:160]}", flush=True)
 
 
 #: Arm-level family keys (mirrors `ARM_KEYS` inside `main`; the non-arm families are 1b / 1c).
@@ -384,10 +454,15 @@ def _parallel_arms(args, want, out) -> int:
                 print(f"  [arm {arm}] exit {pr.returncode} after {(time.time() - t0) / 60:.0f} min", flush=True)
                 del running[arm]
         time.sleep(5)
+    # 1b / 1c in the parent, each under its own trial set (`_trial_set`; same sets as `_behaviour_families`)
     if "1b" in want:
-        _report("1b", fig_behaviour(out))
+        with _trial_set("1b"):
+            _report("1b", fig_behaviour(out))                       # camera working period (primary, 11-05)
+        with _trial_set("1b daq"):
+            _report("1b daq", fig_behaviour(out, period="daq"))     # the DAQ quit-tail robustness row
     if "1c" in want:
-        _report("1c", fig_behaviour_timecourse(out))
+        with _trial_set("1c"):
+            _report("1c", fig_behaviour_timecourse(out))
     print(f"[epoch] all arms done in {(time.time() - t0) / 60:.0f} min (rc {rc})", flush=True)
     return rc
 
@@ -425,7 +500,13 @@ def main(argv=None) -> int:
     ap.add_argument("--only", nargs="+", default=None, action="extend",
                     choices=("1b", "1c", "acc", "5c", "5cr", "5r", "5rm", "5ro", "5rmo", "10e", "10cs", "12s", "12b",
                              "13s", "14m", "15e", "15r", "mat", "scal"))
+    ap.add_argument("--pre-from", default=None, metavar="MMDD|all",
+                    help="pre-stroke baseline for THIS render block (rebuild 11-03: August-only = 0801 for the "
+                         "decoders, per block, never a config default); sets WIDEFIELD_PRE_FROM, outputs tagged "
+                         "pre<MMDD>")
     args = ap.parse_args(argv)
+    from wfield_local import config as _config
+    _config.apply_pre_from(args.pre_from)
     out = args.output or (Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch")
     from wfield_local import lp_licks
     out = lp_licks.output_dir(out)            # LP_licks renders -> grant_figures/LP_licks/...
@@ -440,16 +521,7 @@ def main(argv=None) -> int:
     if args.parallel_arms and args.parallel_arms > 1 and not args.arm:
         return _parallel_arms(args, want, out)
 
-    if "1b" in want:
-        try:
-            _report("1b", fig_behaviour(out))
-        except Exception as ex:                                        # noqa: BLE001
-            print(f"  !! 1b: {type(ex).__name__} {str(ex)[:160]}", flush=True)
-    if "1c" in want:
-        try:
-            _report("1c", fig_behaviour_timecourse(out))
-        except Exception as ex:                                        # noqa: BLE001
-            print(f"  !! 1c: {type(ex).__name__} {str(ex)[:160]}", flush=True)
+    _behaviour_families(want, out)
 
     #: The per-arm keys. DERIVED, not written out again: the guard below skips the whole arm loop
     #: when none of them is wanted, and listing them twice meant `--only scal` and `--only mat`
@@ -459,9 +531,14 @@ def main(argv=None) -> int:
                 "15r", "mat", "scal"}
     arms = [a for a in ARMS if not args.arm or a[0] in set(args.arm)]
     print(f"[epoch] arms: {' '.join(a[0] for a in arms)}", flush=True)
+    from wfield_local import trial_set_text
     for disp, align, variant, wname in arms:
         if not (want & ARM_KEYS):
             break
+        # THE TRIAL SET OF EVERY FIGURE OF THIS ARM (Priya 11-09): the caption from the ACTIVE selection, and the full
+        # sentence stamped on each figure at save time (`trial_set_text`)
+        wname = trial_set_text.arm_caption(align, variant)
+        trial_set_text.activate(variant, align)
         try:
             per_animal = _epoch_arm(align, variant)
         except Exception as ex:                                        # noqa: BLE001
@@ -478,22 +555,25 @@ def main(argv=None) -> int:
               flush=True)
         if "acc" in want:
             try:
-                _report(f"acc {align}/{variant}",
-                        _per_position_accuracy(per_animal, out, disp, align, variant, wname))
+                with _trial_set("acc", align, variant):
+                    _report(f"acc {align}/{variant}",
+                            _per_position_accuracy(per_animal, out, disp, align, variant, wname))
             except Exception as ex:                                    # noqa: BLE001
                 print(f"  !! acc {align}/{variant}: {type(ex).__name__} {str(ex)[:160]}",
                       flush=True)
         if "5c" in want:
             try:
-                for p in _confusion_rows(per_animal, out, disp, align, variant, wname):
-                    _report(f"5c {align}/{variant}", p)
+                with _trial_set("5c", align, variant):
+                    for p in _confusion_rows(per_animal, out, disp, align, variant, wname):
+                        _report(f"5c {align}/{variant}", p)
             except Exception as ex:                                    # noqa: BLE001
                 print(f"  !! 5c {align}/{variant}: {type(ex).__name__} {str(ex)[:160]}",
                       flush=True)
         if "5cr" in want:
             try:
-                for p in _refit_confusion_rows(out, align, variant, wname):
-                    _report(f"5cr {align}/{variant}", p)
+                with _trial_set("5cr", align, variant):
+                    for p in _refit_confusion_rows(out, align, variant, wname):
+                        _report(f"5cr {align}/{variant}", p)
             except Exception as ex:                                    # noqa: BLE001
                 print(f"  !! 5cr {align}/{variant}: {type(ex).__name__} {str(ex)[:160]}",
                       flush=True)
@@ -509,15 +589,19 @@ def main(argv=None) -> int:
                     _report(f"15r {align}/{variant}", p)
                 for p in (_fig_15rpa_reference_by_animal(out, align, variant, wname) or []):
                     _report(f"15rpa {align}/{variant}", p)
+                if variant == "working":   # PERIOD SUPPLEMENT + JAW-ONLY panels (Priya 11-09; camera gate only)
+                    for p in supplement_panels(out, align, lambda v, a=align: trial_set_text.arm_caption(a, v)):
+                        _report(f"15r supplement {align}", p)
             except Exception as ex:                                    # noqa: BLE001
                 print(f"  !! 15r {align}/{variant}: {type(ex).__name__} {str(ex)[:160]}",
                       flush=True)
         if "15e" in want:
             try:
-                _report(f"15e {align}/{variant}",
-                        _fig_15_evoked_maps(out, align, variant, wname))
-                _report(f"15pa {align}/{variant}",
-                        _fig_15pa_evoked_maps_by_animal(out, align, variant, wname))
+                with _trial_set("15e", align, variant):
+                    _report(f"15e {align}/{variant}",
+                            _fig_15_evoked_maps(out, align, variant, wname))
+                    _report(f"15pa {align}/{variant}",
+                            _fig_15pa_evoked_maps_by_animal(out, align, variant, wname))
             except Exception as ex:                                    # noqa: BLE001
                 print(f"  !! 15e {align}/{variant}: {type(ex).__name__} {str(ex)[:160]}",
                       flush=True)
@@ -534,8 +618,9 @@ def main(argv=None) -> int:
                       flush=True)
         if "13s" in want:
             try:
-                for p in (_fig_13_state(out, align, variant, wname) or []):
-                    _report(f"13s {align}/{variant}", p)
+                with _trial_set("13s", align, variant):          # 13n states its two sets itself
+                    for p in (_fig_13_state(out, align, variant, wname) or []):
+                        _report(f"13s {align}/{variant}", p)
             except Exception as ex:                                    # noqa: BLE001
                 print(f"  !! 13s {align}/{variant}: {type(ex).__name__} {str(ex)[:160]}",
                       flush=True)
@@ -544,28 +629,32 @@ def main(argv=None) -> int:
         # case that is correct by construction -- the same guard 12s needed.
         if "10cs" in want:
             try:
-                _report(f"10cs {align}/{variant}", _fig_10cs(out, align, variant, wname))
+                with _trial_set("10cs", align, variant):
+                    _report(f"10cs {align}/{variant}", _fig_10cs(out, align, variant, wname))
             except Exception as ex:                                    # noqa: BLE001
                 print(f"  !! 10cs {align}/{variant}: {type(ex).__name__} {str(ex)[:160]}",
                       flush=True)
         if "12b" in want and variant == "working":
             try:
-                _report(f"12b {align}/{variant}",
-                        _fig_12b_stopped_pooled(out, align, variant, wname))
+                with _trial_set("12b", align, variant):
+                    _report(f"12b {align}/{variant}",
+                            _fig_12b_stopped_pooled(out, align, variant, wname))
             except Exception as ex:                                    # noqa: BLE001
                 print(f"  !! 12b {align}/{variant}: {type(ex).__name__} {str(ex)[:160]}",
                       flush=True)
         if "12s" in want and variant == "working":
             try:
-                _report(f"12s {align}/{variant}",
-                        _fig_12_stopped(out, align, variant, wname))
+                with _trial_set("12s", align, variant):
+                    _report(f"12s {align}/{variant}",
+                            _fig_12_stopped(out, align, variant, wname))
             except Exception as ex:                                    # noqa: BLE001
                 print(f"  !! 12s {align}/{variant}: {type(ex).__name__} {str(ex)[:160]}",
                       flush=True)
         if "10e" in want:
             try:
-                for p in (_fig_10e_best_match_grid(out, align, variant, wname) or []):
-                    _report(f"10e {align}/{variant}", p)
+                with _trial_set("10e", align, variant):
+                    for p in (_fig_10e_best_match_grid(out, align, variant, wname) or []):
+                        _report(f"10e {align}/{variant}", p)
             except Exception as ex:                                    # noqa: BLE001
                 print(f"  !! 10e {align}/{variant}: {type(ex).__name__} {str(ex)[:160]}",
                       flush=True)
@@ -575,27 +664,31 @@ def main(argv=None) -> int:
             if _k not in want:
                 continue
             try:
-                for q in (_fn(out, align, variant, wname) or []):
-                    _report(f"{_k} {align}/{variant}", q)
+                with _trial_set(_k, align, variant):
+                    for q in (_fn(out, align, variant, wname) or []):
+                        _report(f"{_k} {align}/{variant}", q)
             except Exception as ex:                                    # noqa: BLE001
                 print(f"  !! {_k} {align}/{variant}: {type(ex).__name__} {str(ex)[:160]}",
                       flush=True)
         if "scal" in want:
             for key, fn in SCALAR_FAMILIES:
                 try:
-                    _report(f"{key} {align}/{variant}", fn(out, align, variant, wname))
+                    with _trial_set("scal", align, variant):
+                        _report(f"{key} {align}/{variant}", fn(out, align, variant, wname))
                 except Exception as ex:                                # noqa: BLE001
                     print(f"  !! {key} {align}/{variant}: {type(ex).__name__} "
                           f"{str(ex)[:160]}", flush=True)
         if "mat" in want:
             for key, collector, unit, cmap, scale, stem in MATRIX_FAMILIES:
                 try:
-                    _report(f"{key} {align}/{variant}",
-                            _matrix_family(key, collector, unit, cmap, scale, stem,
-                                           out, align, variant, wname))
+                    with _trial_set("mat", align, variant):
+                        _report(f"{key} {align}/{variant}",
+                                _matrix_family(key, collector, unit, cmap, scale, stem,
+                                               out, align, variant, wname))
                 except Exception as ex:                                # noqa: BLE001
                     print(f"  !! {key} {align}/{variant}: {type(ex).__name__} "
                           f"{str(ex)[:160]}", flush=True)
+    trial_set_text.deactivate()
     return 0
 
 

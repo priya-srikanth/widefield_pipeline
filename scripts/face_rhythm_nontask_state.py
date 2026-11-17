@@ -2,11 +2,11 @@
 6d caveat.)
 
 6d found between-trial (non-task) factor expression falls acutely as much as task expression. That could be (i) less
-of each behaviour per unit time IN a given state, or (ii) the same behaviour per state but more time spent at rest /
+of each behavior per unit time IN a given state, or (ii) the same behavior per state but more time spent at rest /
 less running. Here every between-trial session bin (> 3 s before / > 6 s after any engaged cue, the 6d definition, large
-movements kept) is classed by the DAQ behaviour events (`behavior_events`): RUNNING (running bout), REST (the
+movements kept) is classed by the DAQ behavior events (`behavior_events`): RUNNING (running bout), REST (the
 `rest_*` mask: slow treadmill, away from licks / rewards), GROOMING, or OTHER. Per session x state x factor: mean
-absolute expression (weight x FR normaliser D, `proj/`); per session: the fraction of between-trial time in each state.
+absolute expression (weight x FR normalizer D, `proj/`); per session: the fraction of between-trial time in each state.
 
 Per animal x epoch (session means first): log2 change vs the animal's pre sessions (pre averages 0); `boot_delta`
 (paired animals -> sessions) per epoch x state x factor; per-animal tables first (rule 8). If the drop holds INSIDE
@@ -17,7 +17,7 @@ rest and inside running, it is not explained by state occupancy.
 sessions), nontask_occupancy.png (time in each state by epoch), data/nontask_state_sessions.csv (cache;
 ``--plot-only`` redraws from it AND the stored nontask_state_stats.csv: no bootstrap, no CSV written),
 nontask_state_stats.csv. Epochs are categories (Priya 11-03, `wfield_local.cat_points`): no lines between them, faded
-OPEN markers = the SESSIONS (shape = animal, colour = epoch) behind each summary.
+OPEN markers = the SESSIONS (shape = animal, color = epoch) behind each summary.
 """
 from __future__ import annotations
 
@@ -196,12 +196,12 @@ def main(argv=None) -> int:
                 ax.set_ylabel(q if q in ("lick", "nontask") else names[int(q[1:])], fontsize=7)
     cp.add_animal_entries(axs[0, -1], L.animal.unique())
     frf.legend_outside(axs[0, -1], fontsize=7)
-    fig.suptitle(f"{fdir.name}: between-trial factor expression by behavioural state, log2 vs pre")
+    fig.suptitle(f"{fdir.name}: between-trial factor expression by behavioral state, log2 vs pre")
     frf.save(fig, out / "nontask_state.png", f"""Between-trial (cue -3..+6 s excluded) absolute factor expression per
-behavioural state (DAQ behaviour events: running bouts, rest mask, grooming), log2 vs the animal's pre sessions. Each
+behavioral state (DAQ behavior events: running bouts, rest mask, grooming), log2 vs the animal's pre sessions. Each
 epoch is its own category (Priya 11-03: no lines between epochs). Faded OPEN markers = the individual SESSIONS (shape =
-animal, colour = epoch); squares = `boot_delta` point estimate and 95 % interval (paired animals -> sessions; epoch
-colours; pre = the animals' own level, 0 by construction; data/../nontask_state_stats.csv). Cells with < {a.min_bins} bins per session skipped. lick / nontask = summed lick / other factors (fr_groups
+animal, color = epoch); squares = `boot_delta` point estimate and 95 % interval (paired animals -> sessions; epoch
+colors; pre = the animals' own level, 0 by construction; data/../nontask_state_stats.csv). Cells with < {a.min_bins} bins per session skipped. lick / nontask = summed lick / other factors (fr_groups
 lick split, as 6d).""")
 
     fig, axs = frf.subplots(1, 4, figsize=(12, 3), sharey=True, squeeze=False)
@@ -220,8 +220,8 @@ lick split, as 6d).""")
     axs[0, 0].set_ylabel("fraction of between-trial time")
     cp.add_animal_entries(axs[0, -1], S.animal.unique())
     frf.legend_outside(axs[0, -1], fontsize=7)
-    frf.save(fig, out / "nontask_occupancy.png", """Fraction of between-trial time in each behavioural state: bars =
-mean of the animals' epoch means (FR epoch colours); open markers = the individual SESSIONS (shape = animal, colour =
+    frf.save(fig, out / "nontask_occupancy.png", """Fraction of between-trial time in each behavioral state: bars =
+mean of the animals' epoch means (FR epoch colors); open markers = the individual SESSIONS (shape = animal, color =
 epoch). Epochs are categories, no connecting lines (Priya 11-03).""")
     print(f"-> {out}")
     return 0

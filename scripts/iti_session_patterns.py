@@ -1,10 +1,10 @@
 """FULLY PER-SESSION Haufe pattern maps (Priya 10-27: "can we not do per-session haufe maps"; map-level permutation and
-amplitude-normalised change maps; per-spout-position version of the position maps).
+amplitude-normalized change maps; per-spout-position version of the position maps).
 
 Every session gets its own decoder, fit on THAT session's licks only (ridge, penalty by internal CV), and its own
 activation pattern A = Cov(X, yhat) / Var(yhat) (Haufe et al. 2014) on the same licks, mapped to pixels with the animal's
 pre-stroke SVD basis (W @ A; features as `iti_decoder_patterns`: 200 components, lags 0..0.2 s from the lick peak).
-Because no map depends on which sessions are labelled pre / post, session labels can be permuted (`iti_session_pattern_
+Because no map depends on which sessions are labeled pre / post, session labels can be permuted (`iti_session_pattern_
 tests.py`). Targets, per lick set (ITI; cued = all post-cue licks, `iti_licks.extract`):
   lat, sag            landing position (lateral + = contralesional; sagittal extension)
   wlat, wsag          WITHIN-SPOUT: landing minus the session's mean landing at that spout (cued: target spout; ITI:
@@ -61,6 +61,28 @@ def _within(y: np.ndarray, pos: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     return out, keep
 
 
+def family_sentence(fam: str) -> str:
+    """The licks behind one map family of these per-session maps (Priya 11-09; read by iti_session_pattern_tests /
+    iti_session_cluster_tests, which draw them). fam: position | within_spout | spout_cued | spout_iti (or a map key
+    prefix "iti" / "trial")."""
+    import iti_where_decoder as wd
+    from wfield_local import trial_set_text as tst
+    kw = dict(tracked="the map's target coordinate", min_n=MIN_LICKS, unit=" (per map)")
+    if fam == "all":               # every family together (whole-map tests, similarity)
+        kw.update(tracked="", unit=" per map (position maps: target coordinate tracked; spout maps: licks at the six "
+                                   "spouts)")
+        ex = [f"within-spout and one-vs-rest spout maps: spouts with >= {MIN_SPOUT} licks in the session"]
+        return tst.union(wd.iti_caption("", extra=ex, **kw), wd.cued_caption(extra=ex, **kw))
+    if fam in ("spout_cued", "spout_iti"):
+        kw.update(tracked="", unit=" at the six spouts")
+        sp = [f"one-vs-rest map per spout with >= {MIN_SPOUT} licks of it"]
+        return (wd.cued_caption(extra=sp, **kw) if fam == "spout_cued"
+                else wd.iti_caption("", extra=sp, spout="spout = the previous trial's spout", **kw))
+    ex = ([f"within-spout target: spouts with >= {MIN_SPOUT} licks in the session (one of the six)"]
+          if fam == "within_spout" else [])
+    return tst.union(wd.iti_caption("", extra=ex, **kw), wd.cued_caption(extra=ex, **kw))
+
+
 def main() -> int:
     from recovery_timing import series
 
@@ -73,7 +95,7 @@ def main() -> int:
         return 0
     D = wd.load("svdbasis")
     for a in todo:
-        W = np.asarray(pickle.loads((SPATIAL / f"spatial_{a}.pkl").read_bytes())["P"], np.float32)
+        W = np.asarray(pickle.loads(il.te_basis_spatial(a, SPATIAL).read_bytes())["P"], np.float32)
         res = {}
         for x, d in sorted(D.items()):
             if d["animal"] != a:

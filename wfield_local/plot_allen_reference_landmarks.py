@@ -12,7 +12,10 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import ndimage
-from wfield.allen import atlas_from_landmarks_file
+from wfield_local.wfield_import import no_style_leak
+
+with no_style_leak():   # wfield restyles matplotlib at import (wfield_import docstring)
+    from wfield.allen import atlas_from_landmarks_file
 
 
 def _edges(atlas: np.ndarray) -> np.ndarray:

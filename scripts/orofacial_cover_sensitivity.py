@@ -72,13 +72,11 @@ def main() -> None:
     ap.add_argument("--run", default=oc.RUN)
     ap.add_argument("--fracs", type=float, nargs="*", default=[0.0, 0.25, 0.5, 0.75])
     a = ap.parse_args()
-    from wfield_local import orofacial_outputs as oo
     from wfield_local import writeguard
     from wfield_local.paths import PathResolver
     rv = PathResolver()
-    base = oo.root(rv) / a.run / "cohort"
-    tab = base / "tables" / "prepost"
-    out = base / "qc" / "cover_sensitivity"
+    tab = oc.cohort_dir("tables", run=a.run, rv=rv)        # the cohort's gate-named tables (A27)
+    out = oc.cohort_dir("qc", "cover_sensitivity", run=a.run, rv=rv)
     writeguard.assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
     rd = lambda n: pd.read_csv(tab / n, dtype={"date": str})                    # noqa: E731

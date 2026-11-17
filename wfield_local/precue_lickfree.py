@@ -14,7 +14,7 @@ construction, not merely absent by luck.
 
 WHAT THE CHECK ADDS ANYWAY. "Largely" is per-SESSION, not per-animal: PS93 sits at 98% lick-free in
 June but falls to 76% on 8/9. A per-animal average would hide exactly the sessions where the licking
-behaviour is most atypical -- and PS93's licking (often not reaching the spout) is already unusual.
+behavior is most atypical -- and PS93's licking (often not reaching the spout) is already unusual.
 
 THE WINDOW IS SEARCHED, NOT FIXED (Priya, 2026-08-13). Requiring the fixed 2 s ending at the cue to be
 clean discards a whole trial for one lick anywhere in it -- including a lick 200 ms before the cue,
@@ -70,7 +70,11 @@ from wfield_local.plot_spout_trial_averages import _load_daq_events as _load_cue
 from wfield_local.precue_attribution import CHANCE, C_REG, encoding_ev, family_columns, region_names
 
 FS = 31.23
-PRE_S = 2.0            # the pipeline's pre-cue window: 2 s ENDING at the cue
+#: The pipeline's pre-cue window ENDING at the cue: THE shared ENL window (`lp_licks.enl_post_s`, Priya 11-04) of the DAQ
+#: source, because this control reads DAQ contact licks only (`trial_table`) -- 2.0 s (decode.precue_post_s), as before;
+#: the window and the licks it is tested against always share a source.
+from wfield_local import lp_licks as _lp_licks  # noqa: E402
+PRE_S = _lp_licks.enl_post_s(source="daq")
 MIN_TRIALS = 40        # below this a decode result is not reported at all
 ENL_LICKFREE_WARN = 0.85   # below this, say so: the ENL assumption is the pre-cue readout's floor
 
@@ -85,7 +89,7 @@ def trial_table(session, source="roi", pre_s=PRE_S):
     """(X, y, blocks, n_licks) for the pre-cue window. ``n_licks`` counts licks INSIDE that window."""
     sig, feat_reg = _build_signal(session, source)
     cue = _load_cue(session["h5"])
-    lk = _load_daq_events(session["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    lk = _load_daq_events(session["h5"], "lick_analog")
     cue_f, lick_f, _ = _frames(session, cue, lk)
     codes = classify_cues_with_backup(session, cue, verbose=False)
     ls = np.sort(np.asarray(lick_f))
@@ -149,7 +153,7 @@ def rolling_lickfree(session, source="roi", win_s=ROLL_WIN_S, step_s=ROLL_STEP_S
     COURSE spanning ENL -> post-cue instead of a single scalar. Exclusion is per (trial, bin), so a
     trial contributes wherever it is quiet and is dropped only from the bins it contaminates.
 
-    Returns offsets (s, window CENTRE relative to cue), accuracy with and without lick filtering, and
+    Returns offsets (s, window CENTER relative to cue), accuracy with and without lick filtering, and
     the surviving trial count per bin -- the count is reported because it is the honest denominator: a
     bin decoded from few trials is not comparable to one decoded from all of them.
     
@@ -158,7 +162,7 @@ def rolling_lickfree(session, source="roi", win_s=ROLL_WIN_S, step_s=ROLL_STEP_S
     """
     sig, _ = _build_signal(session, source)
     cue = _load_cue(session["h5"])
-    lk = _load_daq_events(session["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    lk = _load_daq_events(session["h5"], "lick_analog")
     cue_f, lick_f, _ = _frames(session, cue, lk)
     codes = classify_cues_with_backup(session, cue, verbose=False)
     ls = np.sort(np.asarray(lick_f))
@@ -353,6 +357,7 @@ def main(argv=None) -> int:
     units = [(s["label"], args.source) for s in SESSIONS
              if s["label"].split("_")[0] in set(only) and s["label"][-4:] in dates]
     got, failures = parallel.fan_out(units, _analyse_one, jobs=args.jobs, label="session")
+    got = sorted(got, key=lambda kv: repr(kv[0]))  # completion order -> unit order (T10)
     for (lab, _src), err in failures:
         print(f"  !! {lab}: {err}", flush=True)
 

@@ -2,8 +2,8 @@
 
 A focused successor to the date-first summary deck and the 6/5-8 xsession deck: it includes ONLY the
 curated (filtered) sessions (``configs/animals.yaml date_policy.cross_session``) and only the analyses
-Priya wants, and it is written to the ``labcams`` TOP LEVEL (not two dirs deep) as
-``spout_position_analysis_summary.pptx``.
+Priya wants, and it is written to ``<decks_out>/analysis/spout_position_analysis_summary.pptx``
+(``presentations/pipeline/analysis``; the ``labcams`` top level until 2026-11-06, Priya).
 
 Sections (per animal, then type, then date):
   A  WITHIN-DAY decoding — post-cue 2 s (no-lick generalization) + pre-cue 2 s confusion + recall per
@@ -30,7 +30,7 @@ reference wins for every animal (within-animal swing up to 0.36) — the joint b
 reference-free version of that same idea. See DECISIONS.md. Missing PNGs are skipped, so the deck builds
 from whatever figures are present.
 
-    python -m wfield_local.locanmf_analysis_deck                 # src = figures_working, out = labcams
+    python -m wfield_local.locanmf_analysis_deck                 # src = figures_working, out = decks_out/analysis
     python -m wfield_local.locanmf_analysis_deck --src <dir> --out <path.pptx>
 
 WHERE THE DECK'S CODE LIVES (split 2026-09-21; it was 5,484 lines in this file alone):
@@ -212,8 +212,8 @@ def _refuse_failed_steps(out_path, failed_steps, allow_failed_steps=False):
         failed_steps)
 
 
-def _write_manifest(out_path, placed_figures, run_start=None):
-    """Record every figure the deck PLACED, with its mtime, beside the deck.
+def _write_manifest(out_path, placed_figures, run_start=None, sidecar_dir=None):
+    """Record every figure the deck PLACED, with its mtime, beside the deck (in ``sidecar_dir`` if given).
 
     Staleness is REPORTED, not enforced, and the measurement is why. Of 1311 PNGs in the figure tree
     on 2026-08-20 only 402 were touched by that night's run; the rest are one-off and cross-sectional
@@ -239,8 +239,9 @@ def _write_manifest(out_path, placed_figures, run_start=None):
              "age_days": round((time.time() - m) / 86400, 2),
              "refreshed_this_run": (run_start is not None and m >= run_start)}
             for n, m in sorted(seen.items())]
-    man = Path(out_path).with_suffix(".manifest.json")
+    man = (Path(sidecar_dir) / Path(out_path).name if sidecar_dir else Path(out_path)).with_suffix(".manifest.json")
     try:
+        man.parent.mkdir(parents=True, exist_ok=True)
         man.write_text(_json.dumps(
             {"deck": str(out_path), "n_placed": len(rows),
              "run_start": (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(run_start))
@@ -282,7 +283,8 @@ def window_provenance(fig_names) -> str:
                   if ("_" + a + "_") in names or ("_" + a + ".") in names), None)
     if align is None:
         return ""
-    post = float(d.get(align + "_post_s", 2.0))
+    from wfield_local import lp_licks
+    post = lp_licks.post_s_for(align)        # the pre-cue window follows the lick source (Priya 11-04)
     nb = int((d.get("bins") or {}).get(align, 1) or 1)
     binning = (f"{nb} sub-bins of {post / nb:.2f} s (the decoder sees a time course, not one mean)"
                if nb > 1 else "1 bin (the window mean)")
@@ -436,7 +438,10 @@ def figure_caption(fig_names, years=None) -> str:
 
 
 def keep_previous(out_path) -> Path | None:
-    """Copy the deck that is about to be overwritten into ``deck_history/``, stamped with ITS mtime.
+    """Copy the deck that is about to be overwritten into the history folder, stamped with ITS mtime.
+
+    The folder is `paths.deck_history_dir`: ``<decks_out>/history/`` for a default deck (``labcams/deck_history``
+    until 2026-11-06), ``deck_history/`` beside the deck for an explicit ``--out`` elsewhere.
 
     Every rebuild writes the same filename, so until 2026-08-22 each one destroyed the last. That is
     fine while rebuilds only add -- and not fine the moment one is worse: a hand-run rebuild that day
@@ -447,12 +452,13 @@ def keep_previous(out_path) -> Path | None:
     backup must not stop the deck from being written.
     """
     from wfield_local import writeguard
+    from wfield_local.paths import deck_history_dir
 
     try:
         out_path = Path(out_path)
         if not out_path.exists():
             return None
-        hist = out_path.parent / "deck_history"
+        hist = deck_history_dir(out_path)
         stamp = time.strftime("%Y%m%d_%H%M", time.localtime(out_path.stat().st_mtime))
         dst = hist / f"{out_path.stem}__{stamp}{out_path.suffix}"
         if dst.exists():
@@ -470,11 +476,33 @@ def keep_previous(out_path) -> Path | None:
 
 
 
+def _tagged_k(root, rel, grant_root):
+    """Section K's registered path in THIS tagged run (review 7B N3), or None to keep the registered one: the LP /
+    DAQ-ENL1s epoch families live under the LP / ENL block's own tag (``grant_figures/<block tag>/epoch``), the LP
+    attempt maps under ``attempt_maps/<LP tag>/figures`` -- not the untagged pre-rebuild folders the registry names."""
+    from wfield_local import lp_licks, run_mode
+    m = re.match(r"grant_figures/(LP_licks|DAQ_ENL1s)/epoch/(.+)$", rel)
+    if root in ("labcams", "cohort_out") and m:
+        env = ({lp_licks.LICK_SOURCE_ENV: "lp"} if m.group(1) == "LP_licks"         # review 8B N2: the DAQ ENL arm
+               else {lp_licks.ENL_WINDOW_ENV: str(lp_licks.LP_ENL_WINDOW_S), lp_licks.LICK_SOURCE_ENV: None})
+        with run_mode.with_env(**env):
+            return Path(lp_licks.output_dir(Path(grant_root) / "epoch")) / m.group(2)
+    m = re.match(r".*/imaging_encoding/attempt_maps/figures/(.+)$", rel)
+    if root == "orofacial" and m:
+        from wfield_local import attempt_maps
+        with run_mode.with_env(**{lp_licks.LICK_SOURCE_ENV: "lp"}):
+            return Path(attempt_maps.out_dir()) / "figures" / m.group(1)
+    return None
+
+
 def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag=None, allow_missing=0,
                         allow_unresolved=0,
                         failed_steps=(), allow_failed_steps=False, run_start=None,
-                        grant_dir=None) -> dict:
+                        grant_dir=None, sidecar_dir=None) -> dict:
     """Build the refined analysis deck at ``out_path`` from figures in ``src``. Returns a summary dict.
+
+    ``sidecar_dir`` is where the ``.manifest.json`` goes (default: beside the deck). The default deck lives in
+    ``<decks_out>/analysis`` and its sidecars stay in ``cohort_out`` (2026-11-06): only .pptx files are in decks_out.
 
     ``grant_dir`` is the ONE input that does not live under ``src`` -- the grant summary set is a
     deliverable under ``labcams``, not an analysis intermediate under ``figures_working``. It is an
@@ -482,8 +510,24 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     so a test can keep the build hermetic instead of silently reaching onto the MICROSCOPE share.
     """
     src = Path(src)
-    grant_dir = Path(grant_dir) if grant_dir is not None else (
-        Path(PathResolver().root("cohort_out")) / "grant_figures")
+    from wfield_local import lp_licks as _lpl
+    _lpl.refuse_lp_folder(out_path, "analysis deck")      # N5b: an LP deck block must set WIDEFIELD_LICK_SOURCE=lp
+    # R2 (fourth review, 11-03): a TAGGED run (hemo variant / projection / camera gate / PRE_FROM ...) builds its deck only
+    # from its OWN figures. Under the rebuild root every default below already resolves inside it; outside one, the
+    # defaults are the untagged pre-rebuild figures, so a tagged build without an explicit grant_dir REFUSES.
+    from wfield_local import rebuild_root, run_mode
+    if grant_dir is None and run_mode.tag() and not rebuild_root.active():
+        raise RuntimeError(f"analysis deck in run mode {run_mode.tag()!r} without a rebuild root: its default inputs are "
+                           "the untagged figures -- apply the render profile (rebuild_root) or pass grant_dir / --src")
+    # review 7B N3: the DEFAULT grant_dir of a TAGGED run is THIS run's tagged folder (`lp_licks.output_dir`:
+    # grant_figures/<tag>, whose epoch dir is grant_figures/<tag>/epoch -- where grant_figures / epoch_grant_figures
+    # write); the untagged grant_figures in the default run. ``_grant_root`` = the untagged grant_figures either way.
+    _grant_given = grant_dir is not None
+    _grant_root = (Path(grant_dir) if _grant_given else Path(PathResolver().root("cohort_out")) / "grant_figures")
+    grant_dir = _grant_root if _grant_given else Path(_lpl.output_dir(_grant_root))
+    #: a tagged build counts every registered grant / epoch figure it cannot find as MISSING (the completeness guard);
+    #: the default build keeps skipping absent ones as before
+    _strict = bool(run_mode.tag()) and not _grant_given
     # phase="all" IS LOAD-BEARING. curated_dates() defaults to phase="pre" (stroke-aware since
     # 2026-08-17), so the bare call returns 0606-0814 and SILENTLY DROPS EVERY POST-STROKE DATE.
     # The comment that used to sit here said a hand-run deck covers the same dates as the nightly.
@@ -690,10 +734,10 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         s = slide()
         title(s, "Encoder — encoded variance per POSITION x SESSION, all animals on one scale",
               "The summary the per-animal bar charts could not give (Priya, 2026-08-19): a position "
-              "that degrades across days is a COLUMN that changes colour, and the lesion is a rule "
+              "that degrades across days is a COLUMN that changes color, and the lesion is a rule "
               "rather than something the reader has to hold in mind. Ridge from a one-hot position "
               "design, scored per position with the same block GroupKFold the decoders use. ONE "
-              "colour scale across animals, so the panels are comparable.",
+              "color scale across animals, so the panels are comparable.",
               trials=TRIALS_LICK)
         note(s, M_ENCODE, specific=S_ENC_MATRIX)
         big(s, src / "locanmf_encoder_ev_matrix.png", top=1.6, width=12.6)
@@ -825,7 +869,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             s = slide()
             title(s, f"FROZEN cross-day ENCODER ({al_name}, {bname}): position → activity — all "
                      f"animals{warn}",
-                  "Held-out-day EV against that day's own noise ceiling, and the ceiling-normalised "
+                  "Held-out-day EV against that day's own noise ceiling, and the ceiling-normalized "
                   "FEVE. The forward model for post-stroke residuals — note its transfer cost is "
                   "NEGATIVE where the decoder's is positive.",
                   trials=TRIALS_LICK)
@@ -859,7 +903,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         divider("D2 - Trials with NO DETECTED LICK",
                 "The pre-stroke reference for post-stroke failures. A failed trial can mean the plan "
                 "was never formed or that it was formed and the movement failed; those are different "
-                "injuries and identical in the behaviour log.")
+                "injuries and identical in the behavior log.")
         for nice, fig_ref in _nl:
             s_ = slide()
             title(s_, f"No-detected-lick ({nice}): does the position code survive without a movement?",
@@ -965,7 +1009,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     for _hk, _htitle, _hsub in (
         ("rdms", "per-animal RDMs, split by hemisphere",
          "Top row = LEFT-hemisphere components, bottom = RIGHT, same 6 positions and the same "
-         "colour scale in both. A position geometry that is genuinely bilateral looks the same in "
+         "color scale in both. A position geometry that is genuinely bilateral looks the same in "
          "the two rows; a hemisphere that carries the code differently is visible as a row that "
          "does not match. This is the PRE-stroke reference for that comparison, so the asymmetry "
          "seen here is the baseline a post-stroke asymmetry has to beat."),
@@ -1016,7 +1060,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     if _post_labels and (src / "section_g_matched_all.png").exists():
         divider("G. POST-STROKE \u2014 the frozen pre-stroke model applied after the lesion",
                 f"Lesion {config.stroke_cutoff()}; post-stroke pool = {', '.join(_post_labels)}. "
-                f"Behaviour first: what the animal still attempts bounds what any decoding number "
+                f"Behavior first: what the animal still attempts bounds what any decoding number "
                 f"can mean.")
 
         # --- G0. the design, before any number
@@ -1030,7 +1074,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             ("PRE keeps the ENGAGED cut (decode.max_rt_s); POST uses ALL trials \u2014 the missing "
             "licks ARE the phenotype, so filtering them out would delete the effect being measured. "
             "Declared by name in nolick_analysis.SANCTIONED_MISMATCHES."),
-            "EVERY post-stroke slide is shown on BOTH ARMS. ALL trials scores all six positions, so chance is 1/6 for every session and the panels are comparable across sessions and animals. LICK-ONLY uses that session's own preserved positions, so its chance level MOVES with the behaviour (PS95: 4 positions on 8/17, 6 on 8/18) and its accuracies must NOT be laid side by side. Neither arm is comparable to the 6-way numbers in sections A\u2013F, which are engaged-only throughout.",
+            "EVERY post-stroke slide is shown on BOTH ARMS. ALL trials scores all six positions, so chance is 1/6 for every session and the panels are comparable across sessions and animals. LICK-ONLY uses that session's own preserved positions, so its chance level MOVES with the behavior (PS95: 4 positions on 8/17, 6 on 8/18) and its accuracies must NOT be laid side by side. Neither arm is comparable to the 6-way numbers in sections A\u2013F, which are engaged-only throughout.",
             "The DIFFERENCE between the arms is the point: it separates a code that degraded from a code that is fine whenever the animal manages to lick.",
             ("There is NO post-stroke 'disengaged' label. Engagement filtering post-stroke is RETIRED: "
             "a local dip in response rate cannot be distinguished from a run of motor failures, and "
@@ -1051,10 +1095,10 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             if not _exists(beh):
                 continue
             s = slide()
-            title(s, f"G1. {a} \u2014 behaviour across sessions, lesion marked",
-                  "Every per-position behavioural metric over that animal's sessions. DASHED RED = "
-                  "the lesion; grey shading = a session excluded from both phases. This is the "
-                  "figure the nightly behaviour pipeline already produces, not a bespoke plot.")
+            title(s, f"G1. {a} \u2014 behavior across sessions, lesion marked",
+                  "Every per-position behavioral metric over that animal's sessions. DASHED RED = "
+                  "the lesion; gray shading = a session excluded from both phases. This is the "
+                  "figure the nightly behavior pipeline already produces, not a bespoke plot.")
             note(s, M_POSTSTROKE, specific=S_G1)
             big(s, beh, top=1.5, width=12.9)
         # ONE counts slide: trial counts are trial counts, so this figure does not depend on the
@@ -1100,7 +1144,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                      "lick-aligned window cannot be defined for a trial that has no lick. At the "
                      "impaired positions that is most of the trials, which is exactly where the "
                      "question is. The lick window appears in G9, where the no-lick classes are "
-                     "placed at an INFERRED would-be-lick time and labelled as inference."
+                     "placed at an INFERRED would-be-lick time and labeled as inference."
                      if _arm == "all" else
                      "Each session on ITS OWN preserved positions, so the chance line differs "
                      "between panels and the accuracies are NOT comparable across them."))
@@ -1137,7 +1181,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             title(s, "G2c. After an effective lesion: the PLAN survives, EXECUTION does not "
                      "\u2014 in all four animals, every post-stroke day",
                   "Pre-cue and post-cue are two windows on the SAME trials, so every session-level "
-                  "confound acts on both equally and cannot produce a difference between them. GREY "
+                  "confound acts on both equally and cannot produce a difference between them. GRAY "
                   "SQUARES = PS92/PS93 on 8/17 after the laser that did NOT take: nothing outside the "
                   "band, then the dissociation appears one day later after the effective lesion \u2014 "
                   "a within-animal before/after control. PURPLE = outside the band but ABOVE it.")
@@ -1216,7 +1260,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                       "laser did not take. What it should show is NOTHING: no dissociation, values "
                       "inside the pre-stroke band. That is what makes the effective-lesion result "
                       "one day later a lesion effect rather than a day-to-day effect, a handling "
-                      "effect, or an anaesthesia effect. THESE SESSIONS ARE NEVER POOLED with either "
+                      "effect, or an anesthesia effect. THESE SESSIONS ARE NEVER POOLED with either "
                       "phase \u2014 `session_phase` returns 'excluded' and `config.pooled_labels` "
                       "drops them by construction, so nothing on any other slide contains them.")
                 note(s, M_RECODING, specific=S_G2C)
@@ -1266,7 +1310,19 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                         note(s, M_POSTSTROKE, specific=S_G3)
                         grid(s, _chunk, cols=2, top=1.95)
 
-        # --- G4. identity, with its control read first
+        # --- G4 PRIMARY (coordinator 11-04): the camera-class discriminator; the DAQ slides below are robustness
+        if (src / "section_g_g4_camclass.png").exists():
+            s = slide()
+            title(s, "G4. Post-stroke trials by CAMERA CLASS, read by a pre-stroke working-vs-no-response boundary",
+                  "Pre-stroke WORKING (contact + incomplete) vs NO-RESPONSE (raw camera class, working period; "
+                  "unknown never trained), position-balanced; each group's post "
+                  "rows scored separately (spout-balanced, cells < 10 rows left out), against the same group "
+                  "pre-stroke (dotted = pre working where the group is absent pre). Right: the DAQ "
+                  "lick-vs-no-lick discriminator, ROBUSTNESS.")
+            note(s, M_POSTSTROKE, specific=S_G4)
+            big(s, src / "section_g_g4_camclass.png", top=1.7, width=11.5)
+
+        # --- G4. identity, with its control read first (DAQ discriminator: ROBUSTNESS since 11-04)
         if (src / "poststroke_G4_identity.png").exists():
             s = slide()
             title(s, "G4. Do post-stroke NO-LICK trials look like pre-stroke LICKING trials?",
@@ -1308,7 +1364,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             title(s, f"G5. Same code at reduced strength, or a different code? ({_armn} arm)",
                   "Per-position correlation between the pre- and post-stroke mean activity "
                   "patterns, one series per post-stroke session. Decoding accuracy alone cannot "
-                  "separate a weakened code from a reorganised one; this can. G8f asks the same "
+                  "separate a weakened code from a reorganized one; this can. G8f asks the same "
                   "question of the whole 6x6 geometry, and adds the midline test.")
             note(s, M_POSTSTROKE, specific=S_G5)
             big(s, _sf5, top=1.7, width=11.8)
@@ -1353,16 +1409,16 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         if _SHOW_SMALL_LESION and _excluded and (src / "section_g_smalllesion_matched_all.png").exists():
             s = slide()
             title(s, "G7. SMALL-LESION COMPARISON \u2014 the two animals without an overt deficit",
-                  f"{', '.join(_excluded)}: lesioned 8/16, no behavioural deficit, re-lesioned AFTER "
-                  f"this session. Same day, same anaesthesia, same handling, same frozen decoder. If "
+                  f"{', '.join(_excluded)}: lesioned 8/16, no behavioral deficit, re-lesioned AFTER "
+                  f"this session. Same day, same anesthesia, same handling, same frozen decoder. If "
                   f"these two also dropped, the G2\u2013G6 effects would be the DAY, not the lesion.")
             note(s, M_POSTSTROKE, specific=S_G7)
             big(s, src / "section_g_smalllesion_matched_all.png", top=1.75, width=12.3)
             if (src / "section_g_smalllesion_counts.png").exists():
                 s = slide()
-                title(s, "G7b. SMALL-LESION behaviour \u2014 all six positions still attempted",
+                title(s, "G7b. SMALL-LESION behavior \u2014 all six positions still attempted",
                       "Against G1b, where PS94 has ZERO engaged trials at far_center and far_R. The "
-                      "behavioural collapse is specific to the animals whose lesion took, which is "
+                      "behavioral collapse is specific to the animals whose lesion took, which is "
                       "what makes the decoding comparison interpretable at all.")
                 note(s, M_POSTSTROKE, specific=S_G7B)
                 big(s, src / "section_g_smalllesion_counts.png", top=1.6, width=12.5)
@@ -1508,7 +1564,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             for _kind, _tag, _blurb in (
                 ("direction", "time course",
                  ("One panel per spout position, MOST IMPAIRED first, every class over sessions with "
-                 "the stroke marked. LINEAR projection, pole-normalised: 0 = pre-stroke "
+                 "the stroke marked. LINEAR projection, pole-normalized: 0 = pre-stroke "
                  "NOT-this-position, 1 = pre-stroke LICK here. Error bars are SEM over trials; a "
                  "HOLLOW marker means fewer than 10 trials, shown rather than dropped.")),
                 ("pooled", "pooled over sessions",
@@ -1530,17 +1586,17 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                  "in PS94 and PS95, which lose 0.25 and 0.35 of their pre-stroke response rate by "
                  "the last quartile, and NOT in PS92/PS93, which lose 0.09 and 0.06. RT stays flat "
                  "throughout (0.13 s in every quartile at close positions), so these are trials "
-                 "SKIPPED, not slowed -- the sated tail. But the behavioural drop is UNIFORM across "
+                 "SKIPPED, not slowed -- the sated tail. But the behavioral drop is UNIFORM across "
                  "positions (PS95 -0.31 to -0.39 at all six) while the neural decline is not, so it "
                  "cannot be read position by position: a close-position one-vs-rest axis is largely "
                  "a close-vs-far contrast, and a uniform state shift along that dimension loads on "
                  "it asymmetrically.")),
                 ("cross", "cross-position matrix",
                  ("Rows = TRUE spout position, columns = which position's direction it was scored "
-                 "on. Panel 1 is the PRE-STROKE baseline, because neighbouring positions are "
+                 "on. Panel 1 is the PRE-STROKE baseline, because neighboring positions are "
                  "intrinsically similar before any stroke; the rest are DIFFERENCES from it, so a "
                  "row going red OFF the diagonal is a remapping rather than a large number.")),
-                ("engagement", "BEHAVIOUR: response rate over the session",
+                ("engagement", "BEHAVIOR: response rate over the session",
                  ("THE FIGURE THE WITHIN-SESSION PANEL MUST BE READ AGAINST. Response rate per "
                  "position, binned by where a trial falls within its OWN session, pooled over the "
                  "sessions of a phase. Reward is auto-held after a miss run, so a terminal collapse "
@@ -1556,7 +1612,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                  "direction (position structure) or because it sits further from its session's "
                  "engaged centroid (everything else) -- and correlating the two CANNOT separate "
                  "them, since a trial moving further out ALONG the direction raises both. LEFT: the "
-                 "same post-stroke LICK value scored raw and on UNIT-NORMALISED trials, cos(x,w), "
+                 "same post-stroke LICK value scored raw and on UNIT-NORMALIZED trials, cos(x,w), "
                  "which is blind to magnitude. Bars that agree = directional. RIGHT: each position "
                  "against its post/pre norm ratio; pure gain would put it on the dashed line. "
                  "Measured 2026-08-22: every cell moves by at most 0.15 except PS92 far_center "
@@ -1687,7 +1743,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                             continue
                         s = slide()
                         title(s, f"G9c. {_an} — {_w} window, {_tag} — {_clsn}",
-                              _blurb + "  READ THE CLASS: miss-while-working is position-specific, "
+                              _blurb + "  READ THE CLASS: no-lick working trials (no lick, outside the terminal quit period) are position-specific, "
                               "STOPPED is the animal having quit and is position-GENERAL, so a row "
                               "that moves in STOPPED at every position is a state change and not a "
                               "remapping.")
@@ -1710,7 +1766,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                  ("READ IT AS: how much is this axis really the close-vs-far dimension (x), and how "
                  "much do its own pre-stroke LICK trials drift over the session (y). ONE POINT PER "
                  "POSITION PER ANIMAL; circles are close positions, triangles far. THE ARGUMENT: "
-                 "the behavioural disengagement is uniform across positions, so it cannot by itself "
+                 "the behavioral disengagement is uniform across positions, so it cannot by itself "
                  "produce a decline at only some of them. What it CAN do is move activity along one "
                  "dimension -- close-vs-far -- and a one-vs-rest axis for a close position is "
                  "largely that dimension, because 'not close_center' is majority-far. So the more "
@@ -1810,7 +1866,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                       "leave-one-session-out reference; the two post panels ADD BACK to the "
                       "poststroke_lick matrix shown everywhere else. Rightmost panel is the actual "
                       "comparison \u2014 per-position recall, early against late \u2014 because "
-                      "judging that by matching colours across two heatmaps is the one thing the "
+                      "judging that by matching colors across two heatmaps is the one thing the "
                       "eye is worst at.  PRESERVED on late trials = plan intact, execution slow; "
                       "DEGRADED = a different result. BUT READ n FIRST: measured 2026-08-28 the late "
                       "arm is only 3.4% of post-stroke rewarded trials (PS92 5.6%, PS93 7.5%, PS94 "
@@ -1846,7 +1902,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                   "Temporal SD is what a mean image cannot show, and homotopic correlation is what "
                   "survives the optical asymmetries that make amplitudes fragile. Third row is the "
                   "specificity check: a homotopic drop only means interhemispheric decoupling if "
-                  "WITHIN-hemisphere coupling holds. Grey = the small-lesion sessions (not no-lesion).")
+                  "WITHIN-hemisphere coupling holds. Gray = the small-lesion sessions (not no-lesion).")
             note(s, M_HEMIDYN, specific=S_G8B)
             big(s, _df, top=1.85, width=12.9)
 
@@ -1855,7 +1911,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         if _vf.exists():
             s = slide()
             title(s, "G8c. Surface vessel contrast — do the vessels get fainter?",
-                  "Vessels image dark because haemoglobin absorbs, so their contrast is an optical "
+                  "Vessels image dark because hemoglobin absorbs, so their contrast is an optical "
                   "readout of blood in the light path. Gain-invariant by construction. Read the L/R "
                   "ROW: focus drift and a clouding window reduce contrast BILATERALLY. CAVEAT: these "
                   "are PIAL vessels over DORSAL cortex and the lesion is ventrolateral striatum, so a "
@@ -1882,13 +1938,13 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                 for _pi, _fsf in enumerate(_pages, 1):
                     s = slide()
                     _of = f" (part {_pi} of {len(_pages)})" if len(_pages) > 1 else ""
-                    title(s, f"G8d. Pre- vs post-stroke maps on ONE COMMON COLOUR SCALE "
+                    title(s, f"G8d. Pre- vs post-stroke maps on ONE COMMON COLOR SCALE "
                              f"— {_an}, {_nice}{_of}",
                           "Every panel shares one symmetric vmin/vmax, so a 2-3x amplitude "
                           "difference shows as a 2-3x difference in saturation. The standard maps "
-                          "renormalise per session and cannot show this. Baseline F is unchanged "
+                          "renormalize per session and cannot show this. Baseline F is unchanged "
                           "(ratios 0.99-1.02), so the change is in the numerator."
-                          + (" The colour limit is shared across ALL parts and the PRE row is "
+                          + (" The color limit is shared across ALL parts and the PRE row is "
                              "repeated on each, so the pages compare directly." if _of else ""))
                     note(s, M_FIXEDSCALE, specific=S_G8D)
                     big(s, _fsf, top=1.9, width=11.6)
@@ -1949,7 +2005,7 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             (f"EXCLUDED from every POOLED slide: {', '.join(_excluded)}. Their 8/16 attempt produced "
              "no deficit; the effective lesion (3.75 / 5.5 mW) followed the 8/17 session, so 8/17 is "
              "neither a clean baseline nor post-stroke and belongs to neither phase. They "
-             "are NOT unanalysed \u2014 they are the SMALL-LESION COMPARISON, shown per session at G7c and as the two grey squares in G2c's grid, and more "
+             "are NOT unanalysed \u2014 they are the SMALL-LESION COMPARISON, shown per session at G7c and as the two gray squares in G2c's grid, and more "
              "importantly, the WITHIN-ANIMAL BEFORE/AFTER CONTROL in G2c: these same animals' 8/18 "
              "sessions ARE post-stroke and carry the dissociation, while their 8/17 sessions show "
              "nothing outside the band at any alignment. Same animal, same rig, one day apart. That "
@@ -1981,6 +2037,10 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     # A DIFFERENT ROOT: these are NOT in `src` (figures_working) but under `labcams`, because they
     # are a deliverable rather than an analysis intermediate.
     _grant = grant_dir
+    if _strict and not _grant.exists():
+        # review 8B N3: a tagged build whose tagged grant dir was never rendered counts EVERY registered figure MISSING
+        for _pat, _t, _b in GRANT_FIGURES:
+            _exists(_grant / _pat)
     if _grant.exists():
         divider("H. GRANT FIGURES — the summary set",
                 "Built by `python -m wfield_local.grant_figures` into <labcams>/grant_figures. "
@@ -2014,7 +2074,10 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         # future deck. The compact PNGs are a deliverable for pasting into the grant document, not
         # deck slides, and nothing else in the repo reads them.
         for _pat, _title, _blurb in sorted(GRANT_FIGURES, key=_hkey):
-            for _gf in sorted(_grant.glob(_pat)) if "*" in _pat else [_grant / _pat]:
+            _hits = sorted(_grant.glob(_pat)) if "*" in _pat else [_grant / _pat]
+            if _strict and not any(h.exists() for h in _hits):
+                _exists(_grant / _pat)                      # review 7B N3: counted (and named) as MISSING
+            for _gf in _hits:
                 if not _gf.exists() or _gf.stem.endswith("_compact"):
                     continue
                 s = slide()
@@ -2054,6 +2117,9 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     # magnitudes; the companion carries the effect SIZE and what the multiple-comparison correction
     # costs. A mark says only "not zero", which is the half of the result that travels worst.
     _epoch = _grant / "epoch"
+    if _strict and not _epoch.exists():
+        for _pat, _t, _b in EPOCH_FIGURES:                       # review 8B N3: as section H
+            _exists(_epoch / _pat)
     if _epoch.exists():
         # THE BOUNDARIES ARE NAMED ON THE DIVIDER because `chronic_from` is DERIVED each run
         # (2026-09-07). A deck that shows epoch-stratified panels without saying which epochs it
@@ -2069,14 +2135,21 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                 "recovery epoch instead of a time axis. Speaker notes are written as grant figure "
                 "legends."
                 f"\n\nBOUNDARIES USED IN THIS DECK ({_epochs.resolved_source()}): {_bnd}. "
-                f"Chronic is derived from behaviour each run -- {_epochs.CHRONIC_RULE}.")
+                f"Chronic is derived from behavior each run -- {_epochs.CHRONIC_RULE}.")
         # NUMBERED BY POSITION. The keys used to be written into the data, so inserting a
         # family in narrative order meant renumbering every entry after it -- and the cost of not
         # doing that was 33 of 75 figures simply not referenced anywhere, which the deck's own
         # completeness check cannot report: it reports figures it EXPECTS and is silent about ones
         # it was never told about.
         for _n, (_pat, _ttl, _legend) in enumerate(EPOCH_FIGURES, 1):
-            for _ef in (sorted(_epoch.glob(_pat)) if "*" in _pat else [_epoch / _pat]):
+            if _pat.startswith("../../chronic_stability/june_august_drift/"):
+                # its own block's folder (PRE_FROM unset), one definition with the script (review 7B B1)
+                _hits = [run_mode.june_august_drift_dir(_grant_root.parent) / Path(_pat).name]
+            else:
+                _hits = sorted(_epoch.glob(_pat)) if "*" in _pat else [_epoch / _pat]
+            if _strict and not any(h.exists() for h in _hits):
+                _exists(_hits[0] if len(_hits) == 1 else _epoch / _pat)    # review 7B N3: counted as MISSING
+            for _ef in _hits:
                 if not _ef.exists():
                     continue
                 _sl = slide()
@@ -2157,12 +2230,14 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     # ROOTS FOLLOW `grant_dir`, like every other labcams input here: "labcams" is its parent, and the other
     # share roots are used only when `grant_dir` IS the share's (a test that points `grant_dir` at an empty
     # tmp dir must not have real figures placed from MICROSCOPE -- `test_builds_and_skips_missing`).
-    _lab = Path(_grant).parent
+    # R2: "on the share" = grant_dir is THIS run's cohort_out/grant_figures (inside the rebuild root under one), and the
+    # other roots resolve through `PathResolver.derived` (imaging_encoding inside the rebuild root too)
+    _lab = _grant_root.parent              # labcams / cohort_out: the untagged root (review 7B N3)
     try:
-        _on_share = _lab.resolve() == Path(PathResolver().root("labcams")).resolve()
+        _on_share = _lab.resolve() == Path(PathResolver().root("cohort_out")).resolve()
     except Exception:                                                  # noqa: BLE001
         _on_share = False
-    _roots = {"labcams": _lab}
+    _roots = {"labcams": _lab, "cohort_out": _lab}
     _k_found = []
     for _n, (_root, _rel, _ttl, _legend) in enumerate(LP_GATED_FIGURES, 1):
         if _root not in _roots:
@@ -2173,7 +2248,13 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         _base = _roots[_root]
         if _base is None:
             continue
-        for _f in (sorted(_base.glob(_rel)) if "*" in _rel else [_base / _rel]):
+        _one = (_base / _rel) if _root in ("labcams", "cohort_out") else Path(PathResolver().derived(_root, _rel))
+        _tagged_one = _tagged_k(_root, _rel, _grant_root) if run_mode.tag() else None
+        if _tagged_one is not None:                       # review 7B N3: THIS run's tagged block output
+            if not _exists(_tagged_one):
+                continue
+            _one = _tagged_one
+        for _f in (sorted(_base.glob(_rel)) if "*" in _rel and _tagged_one is None else [_one]):
             if _f.exists():
                 _k_found.append((_n, _ttl, _legend, _f))
     if _k_found:
@@ -2236,9 +2317,13 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         for line in unresolved[:20]:
             print(f"    {line}", flush=True)
     _refuse_unresolved_overwrite(out_path, unresolved, allow_unresolved)
+    # T5 (third review): a tagged run may never replace the default deck -- guard the SAVE itself (the writeguard
+    # refuses a default-path write in a tagged mode)
+    from wfield_local.writeguard import assert_writable
+    assert_writable(out_path)
     keep_previous(out_path)
     prs.save(str(out_path))
-    manifest, stale = _write_manifest(out_path, placed_figures, run_start)
+    manifest, stale = _write_manifest(out_path, placed_figures, run_start, sidecar_dir=sidecar_dir)
     return {"out": str(out_path), "slides": len(prs.slides),
             "figures_present": placed["present"], "figures_missing": placed["missing"],
             "missing_figures": missing_figures, "tag": tag,
@@ -2252,7 +2337,7 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--src", type=Path, default=None, help="figure dir (default: figures_working root)")
     ap.add_argument("--out", type=Path, default=None,
-                    help="output pptx (default: <labcams>/spout_position_analysis_summary.pptx)")
+                    help="output pptx (default: <decks_out>/analysis/spout_position_analysis_summary.pptx)")
     ap.add_argument("--machine", default=None)
     ap.add_argument("--allow-missing", type=int, default=0, metavar="N",
                     help="publish even though N figures are missing (default 0: refuse)")
@@ -2262,9 +2347,14 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
     rv = PathResolver(machine=args.machine)
     src = args.src or Path(rv.root("figures_working"))
-    out = args.out or (Path(rv.root("cohort_out")) / "spout_position_analysis_summary.pptx")
+    from wfield_local import run_mode
+    from wfield_local.paths import deck_dir
+    out = args.out or (run_mode.routed_output(deck_dir("analysis", rv), guard=False)
+                       / "spout_position_analysis_summary.pptx")       # T5: the tag folder in a tagged run
+    # the manifest stays in cohort_out (tag-routed the same way); an explicit --out keeps it beside the deck
+    side = None if args.out else run_mode.routed_output(Path(rv.root("cohort_out")), guard=False)
     summary = build_analysis_deck(src, out, allow_missing=args.allow_missing,
-                                  run_start=args.run_start)
+                                  run_start=args.run_start, sidecar_dir=side)
     print(f"[analysis_deck] wrote {summary['out']}  ({summary['slides']} slides, "
           f"{summary['figures_present']} figures placed, {summary['figures_missing']} missing)", flush=True)
     return 0

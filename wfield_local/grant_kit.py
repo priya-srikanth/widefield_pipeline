@@ -1,4 +1,4 @@
-"""THE GRANT RENDERER'S SHARED MACHINERY — plotting, saving, seeding, caching, labelling.
+"""THE GRANT RENDERER'S SHARED MACHINERY — plotting, saving, seeding, caching, labeling.
 
 Split out of `grant_figures` on 2026-09-21. `grant_figures.py` was 6,599 lines and 133 functions;
 these twenty are the ones that are not about any particular figure. Measured by call graph rather
@@ -34,6 +34,7 @@ from __future__ import annotations
 import csv
 import json
 import os
+import re
 import textwrap
 import warnings
 from functools import lru_cache
@@ -47,7 +48,7 @@ import numpy as np
 from matplotlib.figure import Figure
 
 from wfield_local import config
-from wfield_local.figure_layout import svg_path as _svg_path
+from wfield_local import figure_layout as _figure_layout
 from wfield_local.paths import PathResolver
 
 ANIMALS = ("PS92", "PS93", "PS94", "PS95")
@@ -145,7 +146,7 @@ def _boot_cached(tag, parts, compute):
     were present in the run that produced it. Both were fixed first, deliberately, and neither is
     optional for this.
 
-    Stored beside the session cache and honouring the same disable switch, so one environment
+    Stored beside the session cache and honoring the same disable switch, so one environment
     variable turns off every memoisation at once when a result is under suspicion.
     """
     import pickle
@@ -273,7 +274,7 @@ def coverage_note(source_labels=None):
 
 def _sg_labels():
     """Post-stroke sessions actually present in `section_g.json` (figures 3b and 5)."""
-    f = _fig_root() / "section_g.json"
+    f = _fig_root() / _mode_name("section_g.json")
     if not f.exists():
         return []
     return [k for k in json.loads(f.read_text(encoding="utf-8"))
@@ -286,7 +287,7 @@ def _cd_labels():
     Read from the per-session store of whichever window/animal the file has, since every window
     carries the same session set.
     """
-    f = _fig_root() / "coding_direction.json"
+    f = _fig_root() / _mode_name("coding_direction.json")
     if not f.exists():
         return []
     d = json.loads(f.read_text(encoding="utf-8"))
@@ -412,6 +413,115 @@ def _fit_bottom(fig, pad=0.008):
         print(f"  [layout] bottom fit skipped ({type(exc).__name__})", flush=True)
 
 
+def _fit_stamp(fig, stamp_texts, pad=0.006):
+    """Give the run stamp (`lp_licks.stamp`, bottom right) its own band at the foot of the figure.
+
+    The LP_licks stamp is drawn last, at the very bottom, and grows to several lines under the camera gate (coverage
+    note, design note, excluded sessions). On the LP grant render (11-08, g6_grant_lp.log) it sat on top of the
+    "Post-stroke sessions used" footer in ~40 figures and on bottom legends / a color-bar label in others. Measured, as
+    `_fit_bottom` is: every figure text (not the suptitle) and figure legend whose foot lies inside the stamp's height is
+    lifted by the shortfall, then every axes is raised (and shortened) until its tight box clears the lifted band. The
+    top of the figure does not move, so the header `_fit_header` fitted stays fitted. A no-op when there is no stamp
+    (default run) or nothing collides.
+    """
+    stamp_texts = [t for t in stamp_texts if str(t.get_text()).strip()]
+    if not stamp_texts:
+        return
+    try:
+        fig.canvas.draw()
+        rend = fig.canvas.get_renderer()
+        inv = fig.transFigure.inverted()
+        sb = [inv.transform_bbox(t.get_window_extent(rend)) for t in stamp_texts]
+        s_top = max(b.y1 for b in sb)
+        sup = getattr(fig, "_suptitle", None)
+        texts = [t for t in fig.texts if t is not sup and t not in stamp_texts and str(t.get_text()).strip()]
+        tb = [(t, inv.transform_bbox(t.get_window_extent(rend))) for t in texts]
+        lb = [(g, inv.transform_bbox(g.get_window_extent(rend))) for g in fig.legends]
+        low = [(a, b) for a, b in tb + lb if b.y0 < s_top]
+
+        def _hits(b):
+            return any(min(b.x1, s.x1) - max(b.x0, s.x0) > 0 and min(b.y1, s.y1) - max(b.y0, s.y0) > 0 for s in sb)
+
+        lift = (s_top + pad - min(b.y0 for _, b in low)) if any(_hits(b) for _, b in low) else 0.0
+        for art, _b in low if lift > 0 else ():
+            if art in fig.legends:
+                anc = inv.transform_bbox(art.get_bbox_to_anchor())
+                art.set_bbox_to_anchor((anc.x0, anc.y0 + lift, anc.width, anc.height), transform=fig.transFigure)
+            else:
+                x, y = art.get_position()
+                if art.get_transform() == fig.transFigure:
+                    art.set_y(y + lift)
+                else:                                      # a text in another frame: move it in figure units
+                    xf, yf = inv.transform(art.get_transform().transform((x, y)))
+                    art.set_transform(fig.transFigure)
+                    art.set_position((xf, yf + lift))
+        fig.canvas.draw()
+        band = max([s_top] + [inv.transform_bbox(a.get_window_extent(rend)).y1 for a, _ in low]) + pad
+        axs = [a for a in fig.axes if a.get_visible()]
+        tight = [inv.transform_bbox(a.get_tightbbox(rend)) for a in axs]
+        hit = [(a, b) for a, b in zip(axs, tight) if b.y0 < band
+               and any(min(b.x1, s.x1) - max(b.x0, s.x0) > 0 for s in sb + [x for _, x in tb + lb])]
+        if not hit:
+            return
+        shift = band - min(b.y0 for _, b in hit)
+        top = max(a.get_position().y1 for a in axs)
+        lo = min(a.get_position().y0 for a in axs)
+        k = max(0.5, (top - lo - shift) / max(1e-9, top - lo))   # compress the axes block, keep its top fixed
+        for a in axs:
+            p = a.get_position()
+            a.set_position([p.x0, top - (top - p.y0) * k, p.width, p.height * k])
+    except Exception as exc:                                         # noqa: BLE001
+        print(f"  [layout] stamp fit skipped ({type(exc).__name__})", flush=True)
+
+
+#: A tick label that is a DAY (or a session count): "d15", "15", "-3". Only these are thinned by `_thin_crowded_ticks`;
+#: position labels ("cL", "close_L") and category labels ("ALL pre") are always kept.
+_DAY_TICK = re.compile(r"^\s*d?-?\d+\s*$")
+
+
+def _thin_crowded_ticks(fig, gap=0.18):
+    """Hide DAY tick labels that crowd their neighbor, never a tick and never a non-day label.
+
+    7b / 8b / 11 / 3b / 1b label every recorded post-stroke day; with the October sessions the late days (d11 d15 d18
+    d22 d25 ...) run together on the narrow per-animal panels (g6_grant_lp.log: 120 of its 139 "[layout]" lines).
+    Greedy left to right with the gap `_overlaps` demands (0.18 x the mean label width): a day label is shown only when
+    it clears the last shown label; the LAST day is always shown (the axis ends where the data ends), dropping the
+    shown label before it if they collide. The tick marks stay, so every session is still marked on the axis.
+    """
+    try:
+        fig.canvas.draw()
+        rend = fig.canvas.get_renderer()
+        for ax in fig.axes:
+            if not ax.get_visible():
+                continue
+            labs = [t for t in ax.get_xticklabels() if t.get_visible() and str(t.get_text()).strip()]
+            if len(labs) < 3 or not any(_DAY_TICK.match(str(t.get_text())) for t in labs):
+                continue
+            boxes = sorted(((t, t.get_window_extent(rend)) for t in labs), key=lambda r: r[1].x0)
+
+            def _clear(b1, b2):
+                return (b2.x0 - b1.x1) >= gap * (b1.width + b2.width) / 2
+
+            shown = []
+            for t, b in boxes:
+                if not shown or _clear(shown[-1][1], b):
+                    shown.append((t, b))
+                elif not _DAY_TICK.match(str(t.get_text())):     # a category label wins over a day label
+                    if _DAY_TICK.match(str(shown[-1][0].get_text())):
+                        shown[-1] = (t, b)
+            last = [r for r in boxes if _DAY_TICK.match(str(r[0].get_text()))]
+            if last and last[-1] not in shown:
+                while shown and not _clear(shown[-1][1], last[-1][1]) and _DAY_TICK.match(str(shown[-1][0].get_text())):
+                    shown.pop()
+                shown.append(last[-1])
+            keep = {id(t) for t, _ in shown}
+            for t, _ in boxes:
+                if id(t) not in keep:
+                    t.set_visible(False)
+    except Exception as exc:                                         # noqa: BLE001
+        print(f"  [layout] tick thinning skipped ({type(exc).__name__})", flush=True)
+
+
 def _twinned(axa, axb):
     """True when two axes are a twinx/twiny pair, which overlay each other BY CONSTRUCTION.
 
@@ -438,7 +548,7 @@ def _twinned(axa, axb):
 
 
 def _overlaps(fig):
-    """Intersecting pairs among a figure's CHROME: suptitle, figure texts, legends, colour-bar
+    """Intersecting pairs among a figure's CHROME: suptitle, figure texts, legends, color-bar
     labels, axis labels and panel titles. Tick labels are excluded -- they sit close to their own
     axis by design.
 
@@ -509,7 +619,7 @@ def _overlaps(fig):
     # function reported the figure clean.
     for i, ax in drawn:
         for getter, which in ((ax.get_xticklabels, "x"), (ax.get_yticklabels, "y")):
-            labs = [t for t in getter() if str(t.get_text()).strip()]
+            labs = [t for t in getter() if t.get_visible() and str(t.get_text()).strip()]
             boxes = []
             for t in labs:
                 try:
@@ -547,11 +657,179 @@ def _overlaps(fig):
     return sorted(bad, key=lambda r: -r[2])
 
 
+# ---------------------------------------------------------------------------------------------
+# THE TRIAL SET OF EVERY GRANT FIGURE (Priya 11-09: "EVERY figure must state EXACTLY which trials were included /
+# excluded"). Resolved PER SAVED FIGURE from its file stem (``grant_<key>_..._<align>_<variant>``) in `_save`, so the
+# serial loop, a spawned worker (`grant_figures._render_unit`) and a test calling one figure function all carry the
+# same sentence with no declaration per unit. Built from the run's switches (`trial_set_text.sentence`), the calling
+# figure's own ``min_trials``, and -- for the JSON-fed figures -- the scored set / arms the JSON records.
+# ---------------------------------------------------------------------------------------------
+def _ts_body(text: str) -> str:
+    """A `trial_set_text` sentence without its leading ``"trials: "``."""
+    return text.split(": ", 1)[1] if text.startswith("trials: ") else text
+
+
+def _ts_camera_working() -> bool:
+    """The camera gate with a camera working selection: the condition under which the 5b / 5c pre panels are WORKING
+    trials (`_frozen_frame(sel="working")`), else lick trials."""
+    from wfield_local import trial_classes as _tc
+    from wfield_local import working_trials as _wt
+    return _tc.camera_gate_on() and _wt.is_camera(_tc.working_selection())
+
+
+def _ts_pattern(variant, min_trials=None) -> str:
+    """The `_collect_7` / `_pooled_bundle` pattern families (6 .. 11): post-stroke = the class, the PRE-STROKE
+    REFERENCE = lick trials for every class (`_collect_7`)."""
+    from wfield_local import trial_set_text as tst
+    cell = f"; session x position cells with < {min_trials} trials dropped" if min_trials else ""
+    if variant == "lick":
+        return f"trials: pre- and post-stroke sessions, {_ts_body(tst.sentence('lick'))}{cell}"
+    return (f"trials: POST-STROKE {_ts_body(tst.sentence(variant))}  AND  PRE-STROKE REFERENCE: "
+            f"{_ts_body(tst.sentence('lick'))}{cell}")
+
+
+def _ts_5c(variant) -> str:
+    """5c / 5d (`_collect_5c`): post-stroke = the class; the held-out pre-stroke sessions (leave-one-session-out) =
+    the same WORKING class under the camera working frame, else lick trials."""
+    from wfield_local import trial_set_text as tst
+    pre = variant if (variant == "working" and _ts_camera_working()) else "lick"
+    if variant == pre:
+        return (f"trials: pre-stroke sessions (each held out, leave-one-session-out) and post-stroke sessions, "
+                f"{_ts_body(tst.sentence(variant))}")
+    return (f"trials: POST-STROKE {_ts_body(tst.sentence(variant))}  AND  PRE-STROKE (each session held out, "
+            f"leave-one-session-out): {_ts_body(tst.sentence(pre))}")
+
+
+def _ts_scored(align):
+    """``{scored_set: [animals]}`` from ``joint_xsession_decoder_<align>.json`` (the rows its per-session accuracies and
+    confusions were scored on: "working" = camera working rows, "engaged" = lick trials), or None without the JSON."""
+    f = _fig_root() / _mode_name(f"joint_xsession_decoder_{align}.json")
+    if not f.exists():
+        return None
+    out = {}
+    for an, r in json.loads(f.read_text(encoding="utf-8")).items():
+        if an in ANIMALS and isinstance(r, dict):
+            out.setdefault(str(r.get("scored_set") or r.get("scored_rows") or "engaged"), []).append(an)
+    return out
+
+
+def _ts_joint(aligns):
+    """2 / 2b / 4: PRE-STROKE sessions of the joint-basis LOSO decoder, per window the set its JSON was scored on."""
+    from wfield_local import trial_set_text as tst
+    parts = []
+    for al in aligns:
+        sc = _ts_scored(al)
+        if not sc:
+            continue
+        txt = []
+        for s, ans in sorted(sc.items()):
+            body = _ts_body(tst.sentence("working" if s == "working" else "lick"))
+            txt.append(body if len(sc) == 1 else f"{'/'.join(ans)}: {body}")
+        parts.append(f"{tst.ALIGN_TEXT.get(al, al)}: " + " | ".join(txt))
+    if not parts:
+        return None
+    return ("trials: PRE-STROKE sessions only (config phase pre), each scored by a decoder that never saw it "
+            "(leave-one-session-out); " + "  AND  ".join(parts))
+
+
+def _ts_section_g(gkey):
+    """5: the arms `section_g.json` recorded for the pre / pre-no-lick / post panels (`crossed_confusion`)."""
+    f = _fig_root() / _mode_name("section_g.json")
+    if not f.exists():
+        return None
+    G = json.loads(f.read_text(encoding="utf-8"))
+    blk = next((b for s in sorted(G) for b in [((((G[s] or {}).get("arms") or {}).get("all") or {})
+                                                 .get("confusion") or {}).get(gkey)] if b), None)
+    if not blk:
+        return None
+    from wfield_local import trial_set_text as tst
+    return (f"trials ({tst.lick_text()}): LEFT = PRE-stroke {blk.get('pre_arm', 'engaged only, leave-one-session-out')}"
+            f"; MIDDLE = {blk.get('pre_nolick_arm', 'PRE-stroke NO-LICK trials')}; RIGHT = POST-stroke "
+            f"{blk.get('post_arm', 'ALL trials (engaged + no-lick)')}, post-stroke sessions pooled (no quit-tail or "
+            "class cut)")
+
+
+def trial_set_sentence(stem, min_trials=None):
+    """THE trial-set sentence of the grant figure saved as ``stem`` (``grant_<key>_...``), or None for a stem the grant
+    driver does not name. ``min_trials`` = the figure's per-cell trial floor (`_save` reads the caller's)."""
+    from wfield_local import trial_set_text as tst
+    stem = Path(str(stem)).stem
+    if not stem.startswith("grant_"):
+        return None
+    key = stem.split("_")[1]
+    align, variant = tst.variant_from_name(stem)
+    last = stem.rsplit("_", 1)[-1]
+    if variant is not None:
+        return _ts_5c(variant) if key in ("5c", "5d") else _ts_pattern(variant, min_trials)
+    if key in ("1", "1b"):
+        return tst.events(
+            "engaged trials of the behavior per-position table (hit = DAQ spout contact)",
+            keep=["engaged = the behavior engagement gate (spout_behavior.reference_engagement: judged at the "
+                  "reference positions, backdated to the start of the run of misses that trips it)",
+                  "a session x position point needs >= 5 engaged trials"],
+            excluded=["the terminal quit period", "sessions config marks excluded (after the laser that did not take)"],
+            unit="trials")
+    if key in ("2", "2b"):
+        return _ts_joint([w[1] for w in WINDOWS])
+    if key == "4":
+        return _ts_joint([last])
+    if key == "5":
+        return _ts_section_g({"precue": "pre-cue", "postcue": "post-cue"}.get(last, last))
+    if key == "5b":
+        pre = "working" if _ts_camera_working() else "lick"
+        return (f"trials: LEFT = PRE-stroke sessions, each held out (leave-one-session-out): "
+                f"{_ts_body(tst.sentence(pre))}  AND  MIDDLE = every POST-stroke trial (lick + no-lick; no class, "
+                f"working-period or quit-tail cut)  AND  RIGHT = POST-STROKE {_ts_body(tst.sentence('working'))}")
+    if key == "3a":
+        import inspect
+        imp = inspect.signature(_impaired).parameters
+        return (f"trials: post-stroke sessions; IMPAIRED positions (engaged hit rate < "
+                f"{imp['thresh'].default:g} on any post-stroke session with >= {imp['min_n'].default} engaged "
+                f"trials): {_ts_body(tst.sentence('miss_working'))}  AND  every other position: "
+                f"{_ts_body(tst.sentence('lick'))}; projected on each position's pre-stroke (lick-trial) coding "
+                "direction")
+    if key == "3b":
+        return (f"trials: post-stroke sessions; pre-cue and post-cue rows: ALL trials of the session (lick + no-lick, "
+                f"all six positions; section_g arm 'all'); post-lick row: lick trials only ({tst.lick_text()}), at "
+                "the session's preserved positions (section_g arm 'lickonly'); red = frozen pre-stroke decoder, green "
+                "= decoder trained on that session; band = the pre-stroke sessions")
+    return None
+
+
+def _caller_min_trials(depth=6):
+    """The ``min_trials`` the figure function that called `_save` ran with (directly, or through `_delta_grid`), or
+    None -- the value it USED, not a copy of its default."""
+    import sys
+    f = sys._getframe(2)
+    for _ in range(depth):
+        if f is None:
+            break
+        if "min_trials" in f.f_locals and isinstance(f.f_locals["min_trials"], int):
+            return f.f_locals["min_trials"]
+        f = f.f_back
+    return None
+
+
+def _grant_trial_set(path, min_trials=None):
+    """The trial-set sentence of the grant figure saved at ``path`` (`trial_set_sentence` on its stem). None (= the
+    active / declared set, if any) when a renderer has ACTIVATED a narrower set, for a stem the grant driver does not
+    name, or when the sentence cannot be built (a caption never costs the figure)."""
+    from wfield_local import trial_set_text
+    if trial_set_text._ACTIVE.get() is not None:              # a narrower, context-scoped set wins
+        return None
+    try:
+        return trial_set_sentence(Path(path).stem, min_trials)
+    except Exception as ex:                                    # noqa: BLE001
+        warnings.warn(f"[trial set] {Path(path).name}: no grant caption ({type(ex).__name__}: {ex})",
+                      RuntimeWarning, stacklevel=2)
+        return None
+
+
 def _save(fig, path, **kw):
     """Save, and REPORT any chrome overlap on the way out.
 
     Layout faults in this module have been found by eye, one at a time, each fix pushing the problem
-    onto a neighbour -- the reference colour bar alone collided with three different things. A render
+    onto a neighbor -- the reference color bar alone collided with three different things. A render
     that names its own overlaps turns that into a list, and the list is checkable after every run
     instead of after every complaint.
 
@@ -564,7 +842,12 @@ def _save(fig, path, **kw):
     _fit_header(fig)
     _fit_bottom(fig)
     from wfield_local import lp_licks
+    _before = set(map(id, fig.texts))
     lp_licks.stamp(fig)                         # LP_licks renders say so on the figure itself
+    from wfield_local import trial_set_text     # the figure's trial set (Priya 11-09), in the same stamp band
+    trial_set_text.stamp(fig, _grant_trial_set(path, _caller_min_trials()))
+    _fit_stamp(fig, [t for t in fig.texts if id(t) not in _before])
+    _thin_crowded_ticks(fig)
     try:
         bad = _overlaps(fig)
     except Exception as ex:                                          # noqa: BLE001
@@ -572,23 +855,16 @@ def _save(fig, path, **kw):
         print(f"  [layout] {Path(path).name}: check failed ({type(ex).__name__})", flush=True)
     for na, nb, _area in bad[:6]:
         print(f"  [layout] {Path(path).name}: {na} x {nb}", flush=True)
-    # UNBOUND CALL, for the same reason `_suptitle` uses `Figure.suptitle`: the sweep that routed
-    # every `fig.savefig(` in this module through `_save` rewrote this line too, and a helper that
-    # calls itself surfaces as a RecursionError on the first figure of a two-hour render. Second
-    # time this exact trap has been sprung by a mechanical sweep over a file containing its own
-    # definition -- hence the explicit form rather than a comment asking the next person to be
-    # careful.
-    Figure.savefig(fig, path, **kw)
-    # Also emit a vector SVG beside the PNG (Priya, 2026-08-29). The deck places the PNGs, so those
-    # stay; the SVGs are for editing / print. UNBOUND call for the same self-reference reason as above,
-    # and it WARNS rather than raises so an un-vectorisable figure never loses the PNG or its neighbours.
-    _p = Path(path)
-    if _p.suffix.lower() == ".png":
-        try:
-            Figure.savefig(fig, _svg_path(_p),
-                           **{k: v for k, v in kw.items() if k != "dpi"})   # dpi is a no-op for vector
-        except Exception as ex:                                            # noqa: BLE001
-            print(f"  [svg] {_p.name}: failed ({type(ex).__name__})", flush=True)
+    # NOT `fig.savefig(`, for the same reason `_suptitle` uses `Figure.suptitle`: the sweep that routed
+    # every `fig.savefig(` in this module through `_save` once rewrote this line too, and a helper that
+    # calls itself surfaces as a RecursionError on the first figure of a two-hour render (sprung twice
+    # by mechanical sweeps over a file containing its own definition). This line used the unbound
+    # `Figure.savefig(fig, ...)` for that; since 2026-11-06 it is the module-qualified shared helper,
+    # which no `.savefig(` sweep matches either.
+    # The PNG plus a vector SVG beside it (Priya, 2026-08-29): same PNG call as before, the SVG without
+    # dpi in `svg/`, text kept as text (svg.fonttype none), and an SVG failure WARNS so an
+    # un-vectorisable figure never loses the PNG or its neighbours.
+    _figure_layout.save_png_svg(fig, path, **kw)
     return path
 
 
@@ -604,8 +880,16 @@ def _footer(fig, source_labels=None):
     # that lives in the speaker notes is not present when the panel is lifted into a grant.
     fig.text(0.5, 0.004,
              coverage_note(source_labels)
-             + "      positions: c = close, f = far;  L / C / R = left / centre / right",
+             + "      positions: c = close, f = far;  L / C / R = left / center / right",
              ha="center", va="bottom", fontsize=7, color="0.30")
+
+
+def _mode_name(name: str) -> str:
+    """A fixed-name JSON (section_g / coding_direction / joint_xsession_decoder_*) under THIS run's mode:
+    ``run_mode.keyed_name`` (unchanged for the default run; rebuild 11-03, trap T21 -- a JSON-fed figure used to draw
+    whatever mode last wrote the file)."""
+    from wfield_local import run_mode
+    return run_mode.keyed_name(name)
 
 
 def _fig_root():
@@ -614,7 +898,8 @@ def _fig_root():
     `E:/cue_lick` is the analysis box's path and would be wrong on the imaging box;
     tests/test_no_hardcoded_machine_paths.py fails the build for exactly this, and did.
     """
-    return Path(PathResolver().root("figures_working"))
+    from wfield_local import run_mode  # tagged runs never overwrite default figures (review H2)
+    return run_mode.subdir(Path(PathResolver().root("figures_working")))
 
 
 def _day(animal, mmdd):
@@ -675,7 +960,7 @@ def only() -> tuple:
 # ============================================================================================
 # ------------------------------------------------------------------ 1. behaviour
 def _position_metrics(animal, mmdd):
-    """{position: (hit_rate, ci_lo, ci_hi, n_engaged)} from the behaviour per-session CSV."""
+    """{position: (hit_rate, ci_lo, ci_hi, n_engaged)} from the behavior per-session CSV."""
     root = Path(PathResolver().root("behavior_out")) / "sessions" / animal / config.date8(mmdd)
     if not root.exists():
         return {}
@@ -732,7 +1017,7 @@ def _out(out_dir, stem):
     """Output path for a figure stem."""
     return Path(out_dir) / f"{stem}.png"
 def _short(labels):
-    """Position labels shortened for an axis. Anything unrecognised passes through unchanged."""
+    """Position labels shortened for an axis. Anything unrecognized passes through unchanged."""
     return [POS_SHORT.get(str(q), str(q)) for q in labels]
 #: One bundle per (animal, alignment), reused across every figure that needs it.
 #:
@@ -756,7 +1041,10 @@ def _pooled_bundle(an, align):
     reason it was extracted: two figures that claim to describe the same trials should not be able to
     disagree, and now they cannot even in principle -- they hold the same object.
     """
-    key = (an, align)
+    from wfield_local import trial_classes as _tck
+    # the gate mode and its selection are part of the key (merge review N8): a bundle built under one gate
+    # (camera row classes, RefusedMask not_eng) must never serve the other
+    key = (an, align, _tck.gate_mode(), _tck.run_selection_tag())
     if key in _BUNDLE_CACHE:
         return _BUNDLE_CACHE[key]
     from wfield_local import joint_locanmf
@@ -797,20 +1085,80 @@ def _pooled_bundle(an, align):
               # adopt the bundle: they fit and score on the integer codes, not the names.
               "YE": YE, "YU": YU,
               "BE": BE_all, "BU": BU_all,
-              "not_eng": not_eng, "kept": kept, "pre_i": pre_i,
+              "not_eng": not_eng, "kept": kept, "pre_i": pre_i, "animal": an, "align": align,
+              "basis_id": getattr(basis, "basis_id", None),     # for the frozen epoch decoders (lp-final)
               "e_pre": np.isin(np.asarray(GE), list(pre_i))}
+    from wfield_local import trial_classes as _tc
+    if _tc.camera_gate_on():
+        # per-row camera classes for `_class_select`'s camera rule (rebuild 11-03); only under the switch, so the
+        # default bundle is unchanged. FAIL CLOSED: bundle["not_eng"] is then a `trial_classes.RefusedMask` (any use
+        # raises); the real DAQ quit-tail mask is kept as "not_eng_daq" for a LABELLED DAQ robustness row only
+        # (`_class_select(..., rule="daq")`, s1_refit_locanmf_table's quit-tail row).
+        bundle["cls"] = _tc.pool_row_classes(feat, kept, len(YE), len(YU))
+        g_daq = _gate_all(feat, kept, XE, YE, GE, XU, YU, GU, rule="daq")
+        bundle["not_eng_daq"] = g_daq[0] if g_daq else np.zeros(len(YU), bool)
     _BUNDLE_CACHE[key] = bundle
     return bundle
-def _frozen_frame(bd):
+def _working_masks(bd):
+    """``(work_e, work_u)``: the bundle's camera WORKING rows on the engaged AND no-lick arms (main 48f2cc6d
+    `working_trials.row_masks`; Priya 11-03 late: production contact | incomplete, whatever the DAQ lick), from the
+    rebuild's live classes (``bd["cls"]``, `trial_classes.in_sel`), or None: the lick window (no lick time without a
+    lick), the DAQ gate, or a non-camera working selection."""
+    from wfield_local import trial_classes as _tc
+    from wfield_local import working_trials as _wt
+    cls = bd.get("cls")
+    if cls is None or bd.get("align") == "lick" or not _tc.camera_gate_on() \
+            or not _wt.is_camera(_tc.working_selection()):
+        return None
+    we = _tc.in_sel(cls[0], "working")
+    wu = _tc.in_sel(cls[1], "working") if len(cls[1]) else np.zeros(len(bd["GU"]), bool)
+    return we, wu
+
+
+def _proj_arrays(bd):
+    """``(XE, XU)`` for the pattern / template families (main 26fd5b44 / 4a37cbc8, Priya 11-03 item C, 11-04 re-check):
+    the bundle's rows in a spout decoder's scoring frame when the projection frame is on
+    (`spout_scaling.projection_frame_on`), else the production rows. The center rows (`spout_scaling.projection_centre`):
+    "engaged" = the engaged-trained frame (`_frozen_frame(bd)`, its center rows by the rebuild's `centre_mask`),
+    "working" / "contact" = the working-trained frame centered on the working / contact rows."""
+    from wfield_local import spout_scaling
+    if not spout_scaling.projection_frame_on():
+        return bd["XE"], bd["XU"]
+    pc_ = spout_scaling.projection_centre()
+    # no working masks = the lick window / the DAQ gate / a non-camera selection: the engaged-row frame, as
+    # `spout_scaling.projection_arrays` (the lick-gate spout decoder's frame)
+    if pc_ == "engaged" or bd.get("align") == "lick" or _working_masks(bd) is None:
+        fr = _frozen_frame(bd, sel="engaged")
+    else:
+        fr = _frozen_frame(bd, sel="working", centre=pc_)
+    return fr["XEs"], fr["XUs"]
+
+
+def _uses_working(bd, sel):
+    """True when ``sel`` is "working" and the bundle has camera working rows (cue / precue, camera selection)."""
+    return sel == "working" and _working_masks(bd) is not None
+
+
+def _frozen_frame(bd, an=None, align=None, store=True, sel="engaged", centre=None):
     """The pre-stroke SPOUT-POSITION decoder for one bundle, and the frames it is trained and scored in.
 
-    ``{"scaling", "XT", "full", "loso": {pre index: model}, "pi_full", "pi_loso", "XEs", "XUs"}``, memoised ON the
-    bundle (per scaling), so every frozen-decoder site that reads a bundle uses one fit and one frame.
+    ``{"scaling", "sel", "XT", "full", "loso": {pre index: model}, "pi_full", "pi_loso", "XEs", "XUs", "R", "RT",
+    "train_sessions", "work"}``, memoised ON the bundle (per scaling, center, store, selection), so every frozen-decoder
+    site that reads a bundle uses one fit and one frame.
+
+    ``sel`` = the TRAINING and CENTER rows (main 48f2cc6d `_frozen_frame(bd, sel)`): "engaged" (the lick gate; the
+    lick window, the `lick` / `stopped` classes) or "working" (Priya 11-03 late / coordinator 11-04: the camera WORKING
+    trials, ENGAGED AND NO-LICK rows of class contact | incomplete, on both sides -- the pre-stroke training set, each
+    session's label-free EM center and the pre panel). "working" falls back to "engaged" for the lick window and the
+    DAQ gate. ``R`` = (RX, RY, RG), the training / center rows; ``RT`` = R in the training frame; ``train_sessions`` =
+    the pre sessions with R rows (PS93_0813, no video, has none under "working", so it is neither trained on nor
+    scored). ``center`` (working frame only) = the SCORED frame's center rows, "working" or "contact"; None = the run's
+    `spout_scaling.score_centre_rows` (coordinator 11-04). The models do not depend on it; the memo key does.
 
     ``scaling`` is `spout_scaling.spout_scaling()`: ``session_bal_em`` in production since 2026-11-03 (Priya, "I would
     adopt B everywhere"; DECISIONS 2026-11-03). Then ``XT`` = the bundle's engaged rows with each pre session
-    re-centred on the equal-weight mean of its TRUE class means (training labels), and ``XEs`` / ``XUs`` = every
-    session in its SCORING frame: label-free EM centre from its engaged rows with its scoring model (LOSO for a pre
+    re-centered on the equal-weight mean of its TRUE class means (training labels), and ``XEs`` / ``XUs`` = every
+    session in its SCORING frame: label-free EM center from its engaged rows with its scoring model (LOSO for a pre
     session, ``full`` otherwise), applied to its no-lick rows too. Under ``WIDEFIELD_SPOUT_SCALING=session_z``,
     ``XT = XEs = bd["XE"]`` and ``XUs = bd["XU"]`` (the same objects), so the pre-11-03 output is bit-identical.
 
@@ -821,40 +1169,118 @@ def _frozen_frame(bd):
     from wfield_local import spout_scaling
     from wfield_local.locanmf_frozen_decoder import _pipe
     sc = spout_scaling.spout_scaling()
-    key = f"_frozen_{sc}"
+    from wfield_local import grant_confusion as _gc
+    an, align = an or bd.get("animal"), align or bd.get("align")
+    # a stored and an opt-out frame never mix; keyed by the (animal, window) the store is asked for
+    use = bool(store) and _gc.epoch_frozen_on()
+    work = _working_masks(bd) if sel == "working" else None
+    use_w = work is not None
+    from wfield_local import trial_classes as _tcs
+    selkey = _tcs.run_selection() if use_w else "engaged"
+    centre = (centre or spout_scaling.score_centre_rows()) if use_w else "engaged"
+    key = (f"_frozen_{sc}_{spout_scaling.centre_rows() if sc else 'z'}_{'store' if use else 'mem'}_{an}_{align}"
+           f"_{selkey}" + ("" if centre == "engaged" else f"_c{centre}"))
     if key in bd:
         return bd[key]
     XE, YE, GE, XU, GU = bd["XE"], bd["YE"], bd["GE"], bd["XU"], bd["GU"]
-    pre_i, e_pre = sorted(bd["pre_i"]), bd["e_pre"]
+    YU = np.asarray(bd.get("YU", np.zeros(len(GU), int)))
+    if use_w:
+        we, wu = work
+        RX = np.vstack([XE[we]] + ([XU[wu]] if np.any(wu) else []))
+        RY = np.concatenate([YE[we], YU[wu].astype(YE.dtype)])
+        RG = np.concatenate([np.asarray(GE)[we], np.asarray(GU)[wu]])
+        pre_i = sorted(i for i in bd["pre_i"] if np.any(RG == i))
+    else:
+        RX, RY, RG = XE, YE, np.asarray(GE)
+        pre_i = sorted(bd["pre_i"])
+    e_pre = np.isin(RG, pre_i)
     XT = spout_scaling.train_frame(XE, YE, GE, pre_i) if sc else XE
-    full = _pipe().fit(XT[e_pre], YE[e_pre])
-    loso, pi_loso = {}, {}
-    for i in pre_i:
-        tr = e_pre & (GE != i)
-        if len(np.unique(YE[tr])) < 2:
-            continue
-        loso[i] = _pipe().fit(XT[tr], YE[tr])
-        pi_loso[i] = spout_scaling.class_prior(YE[tr])
-    pi_full = spout_scaling.class_prior(YE[e_pre])
-    if sc:
+    RT = (spout_scaling.train_frame(RX, RY, RG, pre_i) if sc else RX) if use_w else XT
+    # MERGE (rebuild x main, 11-03): the models come from the FROZEN STORE (kind `epoch_decoder`, rule 10; spec carries
+    # the scaling and the training-data fingerprint) when the bundle knows its animal / alignment and the store is on
+    # (`grant_confusion.epoch_frozen_on`); otherwise, and with WIDEFIELD_EPOCH_FROZEN=0, the same fits in memory.
+    stored = None
+    if use and an and align:
+        from wfield_local import grant_confusion
+        stored = grant_confusion._stored_epoch_decoder(an, align, bd, tag="frame", XT=RT, scaling=sc,
+                                                       R=(RX, RY, RG, pre_i) if use_w else None)
+    if stored is not None:
+        full = stored["full"]
+        loso = {i: stored["loso"][bd["kept"][i]] for i in pre_i if bd["kept"][i] in stored["loso"]}
+    else:
+        full = _pipe().fit(RT[e_pre], RY[e_pre])
+        loso = {}
+        for i in pre_i:
+            tr = e_pre & (RG != i)
+            if len(np.unique(RY[tr])) >= 2:
+                loso[i] = _pipe().fit(RT[tr], RY[tr])
+    pi_loso = {i: spout_scaling.class_prior(RY[e_pre & (RG != i)]) for i in loso}
+    pi_full = spout_scaling.class_prior(RY[e_pre])
+    if sc and use_w:
+        # THE WORKING CENTRE (coordinator 11-04, main 48f2cc6d): each session's label-free EM centre from ITS working
+        # rows, engaged AND no-lick, under its scoring model (LOSO for a pre session); a session with none (no video)
+        # is not scored by this model and stays in the production frame; a pre session without a LOSO model is not
+        # scored either
+        XEs, XUs = np.array(XE, float), np.array(XU, float)
+        GEa, GUa = np.asarray(GE), np.asarray(GU)
+        # THE SCORED-FRAME CENTRE KIND (Priya 11-04, FINAL; `spout_scaling.kind_centre_fn`): wt (default) |
+        # working | contact | cto | n, from the session's working rows; the models do not depend on it
+        _cls = bd.get("cls")
+        RC = (np.concatenate([np.asarray(_cls[0], dtype=object)[work[0]], np.asarray(_cls[1], dtype=object)[work[1]]])
+              if _cls is not None else None)
+        centre_of = spout_scaling.kind_centre_fn(
+            centre, RX, RY, RG, RC, label_of=lambda i: bd["kept"][i],
+            model_of=lambda i: ((loso.get(i), pi_loso.get(i)) if i in bd["pre_i"] else (full, pi_full)),
+            train_of=lambda i: [s for s in pre_i if s != i], stats=spout_scaling.pool_stats_of(XE))
+        for i in range(len(bd["kept"])):
+            if i in bd["pre_i"] and i not in loso:
+                if not np.any(RG == i):
+                    spout_scaling.note_working_excluded(bd["kept"][i], "_frozen_frame")
+                continue
+            got = centre_of(i)
+            if got is None:
+                if i in bd["pre_i"] or not spout_scaling.is_post_session(bd["kept"][i]):   # by phase (review 8A B1)
+                    spout_scaling.note_working_excluded(bd["kept"][i], "_frozen_frame")
+                    continue
+                raise spout_scaling.BalEmCentreRefused(            # review 7A NB4: never scored uncentred
+                    f"working frame: post session {bd['kept'][i]} has 0 camera working rows -- cannot center it")
+            mu, sdv = got
+            XEs[GEa == i] = (np.asarray(XE)[GEa == i] - mu) / sdv
+            if len(GUa) and np.any(GUa == i):
+                XUs[GUa == i] = (np.asarray(XU)[GUa == i] - mu) / sdv
+    elif sc:
+        # the centre rows: the camera WORKING engaged rows under the camera gate (Priya 11-03), else every engaged row
         XEs, XUs = spout_scaling.scored_frame(
             XE, GE, XU, GU, range(len(bd["kept"])),
             model_of=lambda i: loso.get(i) if i in bd["pre_i"] else full,
-            prior_of=lambda i: pi_loso.get(i) if i in bd["pre_i"] else pi_full)
+            prior_of=lambda i: pi_loso.get(i) if i in bd["pre_i"] else pi_full,
+            centre_mask=_bundle_centre_mask(bd), session_names=bd["kept"])
     else:
         XEs, XUs = XE, XU
-    fr = {"scaling": sc or spout_scaling.SCALING_SESSION_Z, "XT": XT, "full": full, "loso": loso,
-          "pi_full": pi_full, "pi_loso": pi_loso, "XEs": XEs, "XUs": XUs}
+    fr = {"scaling": sc or spout_scaling.SCALING_SESSION_Z, "sel": "working" if use_w else "engaged",
+          "XT": XT, "full": full, "loso": loso, "pi_full": pi_full, "pi_loso": pi_loso, "XEs": XEs, "XUs": XUs,
+          "R": (RX, RY, RG), "RT": RT, "train_sessions": pre_i, "work": work, "centre": centre}
     bd[key] = fr
     return fr
-def _frozen_score_rows(bd, model, pi, i, Xe_rows, Xu_rows=None):
+def _bundle_centre_mask(bd):
+    """`spout_scaling.centre_mask` for a pooled bundle: its camera classes per engaged row (``bd["cls"][0]``, present
+    under the camera gate)."""
+    from wfield_local import spout_scaling
+    cls = bd.get("cls")
+    return spout_scaling.centre_mask(cls[0] if cls is not None else None)
+
+
+def _frozen_score_rows(bd, model, pi, i, Xe_rows, Xu_rows=None, centre_rows=None):
     """Session ``i``'s rows in the scoring frame of an AD HOC frozen-style model (the size-matched frozen arm):
-    centre from ALL of the session's engaged rows (production-z), label-free, applied to the given rows. Identity under
+    center from ALL of the session's engaged rows (production-z), label-free, applied to the given rows. Identity under
     session_z."""
     from wfield_local import spout_scaling
     if not spout_scaling.spout_scaling():
         return Xe_rows, Xu_rows
-    mu, sd = spout_scaling.score_centre(model, bd["XE"][bd["GE"] == i], pi)
+    # ``centre_rows``: the session's working rows (engaged + no-lick) when the scored frame is the working one
+    C = (spout_scaling._centre_rows_of(bd["XE"], bd["GE"] == i, _bundle_centre_mask(bd), bd["kept"][i])
+         if centre_rows is None else centre_rows)
+    mu, sd = spout_scaling.score_centre(model, C, pi)
     return ((Xe_rows - mu) / sd, None if Xu_rows is None else (Xu_rows - mu) / sd)
 def _runs_to_blocks(sess, pos):
     """Block ids from runs of the same (session, position), for trials that carry none of their own.
@@ -870,7 +1296,7 @@ def _runs_to_blocks(sess, pos):
     changed[1:] = (sess[1:] != sess[:-1]) | (pos[1:] != pos[:-1])
     # negative ids so they can never collide with the real BE ids, which are non-negative
     return -(np.cumsum(changed).astype(np.int64) + 1)
-def _class_select(variant, sess_e, sess_u, not_eng):
+def _class_select(variant, sess_e, sess_u, not_eng, cls=None, rule=None):
     """Which ENGAGED and which UNENGAGED rows belong to a trial class, as two boolean masks.
 
     THE THREE COPIES OF THIS RULE DISAGREED THE MOMENT A THIRD CLASS EXISTED. `lick`, `working` and
@@ -886,10 +1312,24 @@ def _class_select(variant, sess_e, sess_u, not_eng):
 
     `stopped` and `working` partition the unengaged trials and `stopped` takes none of the engaged
     ones, so the three classes are not nested: a trial is in `working` or in `stopped`, never both.
+
+    CAMERA RULE (rebuild 2026-11-03; `trial_classes` "run's trial gate"): with ``trial_selection.gate`` /
+    WIDEFIELD_TRIAL_GATE = camera (or ``rule="camera"``), working / stopped come from the shared camera classes
+    (`trial_classes.camera_select`): ``cls`` = (class per engaged row, class per unengaged row) over the WHOLE pool,
+    the bundle's ``"cls"`` (`_pooled_bundle`). No silent DAQ fallback: a camera run without classes raises.
+    ``rule="daq"`` forces the quit-tail rule (the robustness row). Default (daq run, rule None): unchanged.
     """
     import numpy as _np
+    from wfield_local import trial_classes as _tc
+    if (rule or _tc.gate_mode()) == "camera":
+        if cls is None:
+            raise RuntimeError("camera trial gate: no per-row camera classes were passed to _class_select (bundle "
+                               "'cls'); refusing to fall back to the DAQ quit-tail rule")
+        return _tc.camera_select(variant, cls[0], cls[1], sess_e, sess_u)
     e_none = _np.zeros(len(sess_e), bool)
     u_none = _np.zeros(len(sess_u), bool)
+    if variant not in ("lick", "working", "stopped"):        # second pass 11-03: never fall through to "lick"
+        raise ValueError(f"_class_select: unknown trial class {variant!r} (lick / working / stopped)")
     if variant == "stopped":
         return e_none, (sess_u & not_eng) if len(sess_u) else u_none
     if variant == "working":
@@ -919,7 +1359,21 @@ def _class_select(variant, sess_e, sess_u, not_eng):
 #: version with the pre-stroke stopped column as an explicit "quitting alone" control. So do not
 #: read these generic class arms as the stopped-trial ANALYSIS -- they are the engaged-trial
 #: families with the class switch flipped, and 12/12b are the purpose-built ones.
-def _class_note(variant):
+def _class_note(variant, pattern=False):
+    """How a trial class reads in a caption, for the ACTIVE selection (review 7A NB2). ``pattern`` = a `_collect_7`
+    pattern family, whose PRE-STROKE reference is LICK trials for every class (main's 11-03 design, pending Priya)."""
+    if variant == "working":
+        from wfield_local import trial_classes as _tc
+        from wfield_local import working_trials as _wt
+        if _tc.camera_gate_on() and _wt.is_camera(_tc.working_selection()):
+            jaw = _tc.working_selection() == _wt.IN_WORKING_JAW
+            if _tc.working_selection() == _wt.IN_WORKING_CONTACT:      # the successful-lick supplement (Priya 11-07)
+                txt = ("camera WORKING trials: contact only (successful licks; supplement), cue to the session's last "
+                       "camera lick; incomplete and jaw_only excluded")
+                return txt + ("; PRE-STROKE REFERENCE IS LICK TRIALS" if pattern else "")
+            txt = ("camera WORKING trials: contact + incomplete" + (" + jaw_only" if jaw else "") +
+                   ", cue to the session's last camera lick" + ("" if jaw else "; jaw_only excluded"))
+            return txt + ("; PRE-STROKE REFERENCE IS LICK TRIALS" if pattern else "")
     return {"lick": "LICK trials only",
             "working": "LICK + miss-while-working (quit period removed)",
             "stopped": ("THE TERMINAL QUIT PERIOD ONLY -- no licking trials; PRE-STROKE REFERENCE "
@@ -943,20 +1397,30 @@ def _session_trials(bd, i, q, variant, field="X"):
     # far only ever been used to THROW those trials away.
     me, mu = _class_select(variant, (bd["GE"] == i) & (bd["en"] == q),
                            (bd["GU"] == i) & (bd["un"] == q) if len(bd["un"])
-                           else np.zeros(0, bool), bd["not_eng"])
+                           else np.zeros(0, bool), bd["not_eng"], cls=bd.get("cls"))
     if field == "blk":
         parts = [bd["BE"][me]] + ([bd["BU"][mu]] if mu.any() else [])
         keep = [z for z in parts if len(z)]
         return np.concatenate(keep) if keep else np.zeros(0, np.int64)
-    parts = [bd["XE"][me]] + ([bd["XU"][mu]] if mu.any() else [])
+    _XE, _XU = _proj_arrays(bd)          # the projection frame (item C); production rows when off
+    parts = [_XE[me]] + ([_XU[mu]] if mu.any() else [])
     keep = [z for z in parts if len(z)]
     return np.vstack(keep) if keep else np.zeros((0, bd["XE"].shape[1]))
 #: Figures 7, 7b, 8 and 8b all need the SAME per-animal trial collection, and loading it means
 #: reading every session's LocaNMF fit. Six entries covers every (window, class) this module builds,
 #: so a full render loads each one once instead of four times. The features are LocaNMF components,
 #: not pixels, so the whole cache is ~100 MB.
-@lru_cache(maxsize=12)
 def _collect_7(align, variant, min_trials, field="X"):
+    """`_collect_7_cached` keyed ALSO by the run's trial selection (the 5c cache pitfall, review 7A): the camera gate /
+    working selection change the post-stroke `working` trials."""
+    from wfield_local import trial_classes as _tc
+    from wfield_local import working_trials as _wt
+    run = (_tc.run_selection(), _wt.selection() if _tc.camera_gate_on() else "")
+    return _collect_7_cached(align, variant, min_trials, field, run)
+
+
+@lru_cache(maxsize=12)
+def _collect_7_cached(align, variant, min_trials, field="X", _run=None):
     """(per-animal) pre-stroke reference/other halves + per-day post trials, kept AS TRIALS.
 
     CACHED, so callers must treat the result as read-only -- mutating it would corrupt every later
@@ -976,6 +1440,8 @@ def _collect_7(align, variant, min_trials, field="X"):
         try:
             bd = _pooled_bundle(an, align)
         except Exception as ex:                                          # noqa: BLE001
+            from wfield_local import trial_classes as _tcr
+            _tcr.reraise_under_camera(ex, f"7 {an} {align}/{variant}")    # review 7A NB6: never thin silently
             print(f"  !! 7 {an} {align}: {type(ex).__name__} {str(ex)[:90]}", flush=True)
             continue
         pre_by_sess, by_day = {}, {}
@@ -984,7 +1450,9 @@ def _collect_7(align, variant, min_trials, field="X"):
             if i in bd["pre_i"]:
                 # PRE-STROKE trials are the LICKING set in every class: the pre-stroke animal is
                 # not missing, so "working" would add nothing and would silently make the reference
-                # a different kind of trial from itself.
+                # a different kind of trial from itself. KEPT under the camera working selection too: main's
+                # 11-03 design ("pattern families' post side uses the working trials, their pre reference stays
+                # lick trials"), pending Priya (review 7A NB1); the captions say so (`_class_note(pattern=True)`).
                 pat = {q: _session_trials(bd, i, q, "lick", field) for q in CONF_LABELS
                        if len(_session_trials(bd, i, q, "lick")) >= min_trials}
                 if pat:
@@ -1187,10 +1655,10 @@ def _delta_grid(mats, days, out_dir, fname, *, title, abs_label, delta_label,
                 vmin, vmax, cmap, dmax, summary, ylab, figh=9.5, cis=None,
                 higher_is_better=True):
     """Column 0 = the pre-stroke reference in its own units; every later column = that column MINUS
-    the reference, on a diverging scale centred at zero.
+    the reference, on a diverging scale centered at zero.
 
     TWO COLOURBARS, DELIBERATELY. One shared scale would either compress the deltas into the middle
-    of an absolute ramp or draw the reference on a diverging map centred somewhere meaningless. The
+    of an absolute ramp or draw the reference on a diverging map centered somewhere meaningless. The
     two columns groups are different quantities and are scaled as such.
     """
     # A DEDICATED SPACER COLUMN FOR THE REFERENCE COLOUR BAR. Attaching it to `ax=axes[:, 0]` puts
@@ -1456,7 +1924,7 @@ def _best_match(M, higher_is_better=True):
         rank[i] = 1 + int((v[ok] > v[i]).sum())
     return best, rank
 def _impaired(an, thresh=0.5, min_n=10):
-    """Positions that DROPPED below `thresh` on any post-stroke session, from behaviour alone.
+    """Positions that DROPPED below `thresh` on any post-stroke session, from behavior alone.
 
     THE WORST SESSION, not the pooled rate. Pooling across every post-stroke day averages a
     recovery away: PS95's far_R goes 0.00 on day 1 to 0.87 by day 2, which pools to 0.48-0.55 and
@@ -1484,3 +1952,6 @@ N_BOOT_RDM = 200
 #: 0.82 / 0.95 / 0.97 (day 3) -- indistinguishable, and half the run time. The width is dominated by
 #: the post-stroke session's own trial noise, not by the ceiling.
 N_LOO_DRAW = 4
+
+
+_collect_7.cache_clear = lambda: _collect_7_cached.cache_clear()       # callers that clear the 7 cache

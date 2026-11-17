@@ -19,7 +19,7 @@ run LP on O2 across sessions". The counterpart of `o2_pose_runner.py` (DLC), wit
   against the desktop on a shared session (`o2_inference collect` reports it for PS93 0814).
 * NOT resumable inside a video (LP predicts a file in one pass). A finished video is skipped on a re-run (done.json),
   so an array requeue repeats only unfinished videos.
-* LP "not visible" points are parked near the image centre at low likelihood -- downstream always applies a
+* LP "not visible" points are parked near the image center at low likelihood -- downstream always applies a
   likelihood cut (the cleaning does).
 """
 from __future__ import annotations

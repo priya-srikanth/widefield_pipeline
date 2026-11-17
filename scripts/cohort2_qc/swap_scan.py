@@ -3,7 +3,7 @@
 `swapped_frames.py` finds them by BRIGHTNESS: a swapped frame jumps by F_other / F_own - 1. That only works when
 the two channels differ in brightness (RiboL1: 470 ~2x 415). In GCaMP6s, 415 and 470 are about equally bright, so
 here the per-PIXEL ratio map is used as well. P = F_other / F_own - 1 (from `frames_average`) is not flat: vessels
-and parenchyma, and the two LEDs' illumination fields, differ. A swapped frame's dF/F deviation from its neighbours
+and parenchyma, and the two LEDs' illumination fields, differ. A swapped frame's dF/F deviation from its neighbors
 IS that map. So each frame's deviation from an 11-frame running median, e_t (K components), is scored on:
 
   m_t = brain-mean deviation / mean(P)                 -> 1 for a swap (meaningful only if |mean P| is large)

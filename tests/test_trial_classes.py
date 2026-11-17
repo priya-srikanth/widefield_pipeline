@@ -21,6 +21,7 @@ CASES = {
     12: ("far_R", 0, [5000.0], [], False, 0, 0, False, np.nan, "no_response"),          # after the stop: outside
 }
 STOP_MS, STROBE_MS = 3500.0, -1000.0
+PEAK_AFTER_ONSET_MS = 40.0
 
 
 def _session(tmp_path):
@@ -37,11 +38,12 @@ def _session(tmp_path):
     np.savez(sd / "windows.npz", ix_trial_id=tid, ix_t_ms=np.tile([0.0, 10.0, 20.0], len(CASES)),
              ix_daq_s=tid * 10.0 + np.tile([0.0, 0.01, 0.02], len(CASES)),
              ix_strobe_ms=np.full(len(tid), STROBE_MS), ix_stop_ms=np.full(len(tid), STOP_MS))
-    pd.DataFrame([{"trial_id": t, "on_ms": x, "contact": c[1] > 0} for t, c in CASES.items() for x in c[2]],
-                 columns=["trial_id", "on_ms", "contact"]).to_csv(sd / "licks.csv", index=False)
-    ev = [{"trial_id": t, "on_ms": x, "cam4_matched": False, "in_3d": False, "contact": False, "jaw_only_trial": False,
+    pd.DataFrame([{"trial_id": t, "on_ms": x, "t_ms": x + PEAK_AFTER_ONSET_MS, "contact": c[1] > 0}
+                  for t, c in CASES.items() for x in c[2]],
+                 columns=["trial_id", "on_ms", "t_ms", "contact"]).to_csv(sd / "licks.csv", index=False)
+    ev = [{"trial_id": t, "on_ms": x, "t_peak_ms": x + PEAK_AFTER_ONSET_MS, "cam4_matched": False, "in_3d": False, "contact": False, "jaw_only_trial": False,
            "droplet": False} for t, c in CASES.items() for x in c[3]]
-    ev += [{"trial_id": t, "on_ms": np.nan, "cam4_matched": True, "in_3d": False, "contact": False,
+    ev += [{"trial_id": t, "on_ms": np.nan, "t_peak_ms": np.nan, "cam4_matched": True, "in_3d": False, "contact": False,
             "jaw_only_trial": True, "droplet": False} for t, c in CASES.items() if c[4]]
     pd.DataFrame(ev).to_csv(c1 / "PS92_20260818_events.csv", index=False)
     pd.DataFrame([{"session": "PS92_20260818", "trial_id": t, "cam4_moved": c[5], "cam1_moved": c[6],
@@ -58,7 +60,8 @@ def test_every_rule(tmp_path):
     assert got == {t: c[-1] for t, c in CASES.items()}
     assert (T.window == "cue_stop").all()
     assert not T.loc[8, "jaw_judged"] and T.loc[6, "jaw_judged"]
-    assert TC.in_gate(T.cls, "working").sum() == 6          # 1, 2, 3, 4, 5, 10
+    assert TC.in_gate(T.cls, "working").sum() == 6          # 1, 2, 3, 4, 5, 10 (the jaw-inclusive gate, as on main)
+    assert TC.in_sel(T.cls, "working").sum() == 4           # 1, 2, 3, 4 (production in_working: jaw_only 5, 10 out)
     assert TC.in_gate(T.cls, "camera_lick").sum() == 4      # 1, 2, 3, 4
 
 
@@ -83,7 +86,7 @@ def test_missing_contact_table_raises(tmp_path):
 
 
 def test_selection_tag():
-    assert TC.selection_tag() == "sel-camera-cue_stop"
+    assert TC.selection_tag() == "sel-camera-cue_stop"                # the base tag, as on main (class part: run tags)
     assert TC.selection_tag("daq", "trial") == "sel-daq-trial"
 
 
@@ -99,10 +102,11 @@ def test_end_of_session_cutoff():
     assert keep("contact") == [True, True] + [False] * 6
     assert keep("close") == [True] + [False] * 7
     assert keep("none") == [True] * 8
+    # the jaw-inclusive in_working, as on main (production narrows it: & camera_lick, `in_sel`)
     assert TC.in_working(cls, order, session=sess).tolist() == [True, True, True, True, False, False, False, False]
     assert TC.DEFAULT_END == "lick"
 
 
 def test_selection_tag_end():
-    assert TC.selection_tag() == "sel-camera-cue_stop"                 # unchanged without an end anchor
+    assert TC.selection_tag() == "sel-camera-cue_stop"                 # no end anchor: no end part
     assert TC.selection_tag(end="lick") == "sel-camera-cue_stop-endlick"

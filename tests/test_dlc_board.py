@@ -111,7 +111,7 @@ def test_making_the_board_bigger_MOVES_the_window_it_does_not_widen_it():
     """Why "just print it huge" is not the answer.
 
     Both bounds scale linearly with the board, so the ratio is invariant: a 4x board has the same
-    ~4x of latitude, just centred 4x further away -- which may be outside the enclosure. Size picks
+    ~4x of latitude, just centered 4x further away -- which may be outside the enclosure. Size picks
     WHERE you stand, not how forgiving the setup is.
     """
     small = db.working_window(db.board_spec(), CAM4_PXMM, CAM4_PX, CAM2_PXMM)

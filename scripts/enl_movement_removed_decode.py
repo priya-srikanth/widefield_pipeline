@@ -101,7 +101,9 @@ def main(argv=None) -> int:
         vb = (vb - np.nanmean(vb, 0)) / np.where(np.nanstd(vb, 0) > 0, np.nanstd(vb, 0), 1.0)
         signals["video_only"] = np.nan_to_num(vb, nan=0.0)
 
-    args = argparse.Namespace(align="precue", baseline="none", fs=31.23, pre_s=1.0, post_s=dp["precue_post_s"],
+    # ENL window = the lick source's (`lp_licks.enl_post_s`, Priya 11-04); `_trial_features` gates on the same source
+    from wfield_local import lp_licks
+    args = argparse.Namespace(align="precue", baseline="none", fs=31.23, pre_s=1.0, post_s=lp_licks.enl_post_s(),
                               max_rt=dp["max_rt_s"], source="locanmf", bins=None, cv="block")
     names = {int(k): v for k, v in json.load(open(glob.glob(
         f"{s['mc']}/wfield_local_results/allen_aligned_affine8v1/allen_area_names.json")[0]))}
@@ -129,7 +131,8 @@ def main(argv=None) -> int:
                          "majority_floor": float(floor)})
             print(f"  {nm:11s} {gname:4s} n={len(y)} acc {acc:.3f} (null {nu['raw_null_mean']:.3f}, p={nu['raw_p']:.4f})"
                   f"  balanced {bal:.3f} (null {nu['bal_null_mean']:.3f}, p={nu['bal_p']:.4f})", flush=True)
-    out = session_dir(rv, a.session)[2] / "enl_movement_removed_decode.csv"
+    from wfield_local import run_mode          # keyed by the run tag: an LP / ENL-window run never overwrites the DAQ file
+    out = session_dir(rv, a.session)[2] / run_mode.keyed_name("enl_movement_removed_decode.csv")
     pd.DataFrame(rows).to_csv(out, index=False)
     print("->", out)
     return 0

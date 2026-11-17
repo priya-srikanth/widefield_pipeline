@@ -32,13 +32,13 @@ Status tags: **STANDS** (survived the controls listed), **PROVISIONAL** (one con
 > | Destination vs landing "target-like 61 / 73 / 90 %" (2.4c) | CORRECTED (inflated) | separating rows only: target-leaning, ~6 decisive sessions, 2 animals |
 > | Target vs executed, decisive test = lick-level STRAYS vs on-target (2.6) | FIRST RUN: not decisive (far-contra reference fails validation 3/4) | census on the 10-21 snapshot (PS92 + PS93, trial licks); 3-D for all 4 now exists; per-lick ITI 3-D requested |
 > | Within-spout lick direction (2.5) | PROVISIONAL; no robust post-stroke execution-like shift | cam4 (all 4) / 3-D (2, snapshot; 4 now available); split-half reliability ~0.5 |
-> | Chronic coding gain beyond behavioural normalisation (4.1, 4.3.3) | STANDS (4.1) / PROVISIONAL (LMM) | PS94 shows no gain |
-> | Frozen decoder back at full behavioural recovery (2, 4.3.5) | CORRECTED: NOT back (+0.08, only PS92 back); refit gain over frozen > 0 in 4/4 but not significant under the deck bootstrap | LMM vs deck resampling disagree (DECISIONS 2026-09-12) |
+> | Chronic coding gain beyond behavioral normalization (4.1, 4.3.3) | STANDS (4.1) / PROVISIONAL (LMM) | PS94 shows no gain |
+> | Frozen decoder back at full behavioral recovery (2, 4.3.5) | CORRECTED: NOT back (+0.08, only PS92 back); refit gain over frozen > 0 in 4/4 but not significant under the deck bootstrap | LMM vs deck resampling disagree (DECISIONS 2026-09-12) |
 > | Running response is sublinear, forward-only from 1.5 mm/s = v7 default; a push term breaks post-stroke windows (3.4) | PROVISIONAL (v7 chosen 10-23) | push frames 2-5x more frequent post-stroke in 3/4 -> no push term |
 > | Relabel: far-contra trials sit in another spout's pre-stroke state (2.7, 8.3) | NOT ESTABLISHED at session level (heterogeneous; other spouts also lose their label; nothing survives Bonferroni) | 4 animals, final frame; per-trial run in progress |
 > | Failed attempts on the frozen decoder: "distance kept, side lost"; no pre-cue plan signature (2.8) | FIRST RUN (10-24) | video attempt classes, rebuilt attempts table; DAQ-frozen pre decoder |
 > | Failed-attempt maps: same bilateral pattern, lower amplitude than hits (3/4) but not than touch-matched pre misses (2/4) (2.9) | FIRST RUN (10-24) | >= 5 trials per session x spout x class |
-> | Layer 2: the behaviour -> cortex mapping changes chronically beyond pre-stroke session variability (2.5 Layer 2, 8.5) | STANDS vs the random-split null (chronic P = 0, 4/4); PROVISIONAL as "reorganisation" | grows with time (early chronic ~null in PS93 / PS95); slow drift not separable without a trend model; no single group carries it |
+> | Layer 2: the behavior -> cortex mapping changes chronically beyond pre-stroke session variability (2.5 Layer 2, 8.5) | STANDS vs the random-split null (chronic P = 0, 4/4); PROVISIONAL as "reorganization" | grows with time (early chronic ~null in PS93 / PS95); slow drift not separable without a trend model; no single group carries it |
 > | Licks land / travel toward the wrong spout from launch; decoder follows landing on average, trial coupling breaks acutely (8.1, 8.2) | STANDS | landing + trajectory softmax, nested bootstrap, Bonferroni 36 cells; 4/4 |
 >
 > **Standing re-run rule (Priya 10-23) -- NOW DUE:** every lick-DIRECTION result (exec_within / exec_locked dR2, stray
@@ -146,11 +146,11 @@ deciding analysis.
 >   tied. Stronger than the reference-gate local run (PS92 lick 14.6 vs 8.9, PS95 9.0 vs 2.7).
 > - subacute: MIXED -- target ahead 2/4 per window, different animals (cue PS94 9.8 vs 6.6, PS95 6.6 vs 0.1; PS93
 >   executed ahead 2.4 vs 10.9; PS92 tied; lick PS92 10.7 vs 3.4, PS93 14.0 vs 10.9; PS94 tied; PS95 ~0); fewest
->   sessions (2 / 3 / 5 / 7), behaviour recovering.
+>   sessions (2 / 3 / 5 / 7), behavior recovering.
 > - pre: no target lead (both small).
 > - **Softmax width sweep (0.5 / 1 / 2):** chronic target > executed 4/4 at 0.5 and 1 in both windows, 3/4 at 2 (PS94
 >   ties: lick 14.1 vs 15.9, cue 18.4 vs 19.4); acute lick target ahead 4/4 at 0.5, 3/4 at 1, 2/4 at 2 (PS92, PS95). The
->   executed set gains as the bins widen (a wide soft bin smears each lick over neighbouring spouts, so it overlaps the
+>   executed set gains as the bins widen (a wide soft bin smears each lick over neighboring spouts, so it overlaps the
 >   target categories more): the chronic lead holds across the sweep, the acute lead is width-dependent.
 > - **Where the licks land (LICK data; `fig9*` on the goal page, `softmax_landing_change_stats.csv`):** within-animal
 >   epoch - pre landing matrices, mean of animals, nested bootstrap (animals -> sessions), Bonferroni over 36 cells: far
@@ -243,7 +243,7 @@ chronic session (pre ~0; PS93 acute 0.78). Target-like > execution-like in PS93;
 ### 2.4c Destination vs landing (10b x 3-D landing zones), PS92 + PS93 — PROVISIONAL (two animals)
 
 `scripts/best_match_destination.py` -> `qc/best_match_destination.csv`. Brain: the pre-stroke spout whose activity
-pattern each post-stroke spout matches best (figure 10b, cue / working, frozen). Behaviour: where its licks landed (3-D
+pattern each post-stroke spout matches best (figure 10b, cue / working, frozen). Behavior: where its licks landed (3-D
 calibrated zones; cam4 zones FAILED the pre check and are not used). Pre self-match ~1.0 except PS93 far_mid (0.62).
 Far contra: PS92 target-like in every session incl. acute (5/5, own-zone landing 16 %); PS93 acute mixed (1 target, 1
 execution = far mid, 2 neither = close mid), target from subacute on. PS93 far_mid lands correctly (~0.7) but its
@@ -255,7 +255,7 @@ licks landed mostly at the AIMED spout, so a target match is equally an executio
 target-like. Only rows where landing departs from the aim can separate the two: 42 rows (PS92 + PS93), target 32 /
 execution 2 / neither 8, and most are weak separations (own-zone landing 0.2-0.4, licks short toward the middle spout;
 almost all chronic rows); strong ones (own-zone < 0.15): 4 target / 1 execution / 2 neither. The default arm is
-CUE-aligned (spout present ~3 s before the cue; acute far-contra first licks often > 1.5 s after it), which favours
+CUE-aligned (spout present ~3 s before the cue; acute far-contra first licks often > 1.5 s after it), which favors
 target. Re-analysis pending: dissociating rows only, graded by own-zone landing, lick-aligned arm
 (`best_match_destination_lick_lick.csv`), a continuous target-vs-landing similarity score, a within-spout shuffle null,
 per animal. Status: target-leaning in the separating rows, NOT established. Read with 2.4 (xyz2: executed >= target
@@ -284,7 +284,7 @@ No per-lick plan signature. "Target" here = spout location / touch / posture / c
   Repo map tests with animal as unit (nested bootstrap, cluster): between pre vs 0 = 28 % of brain; no post-vs-pre
   change in either map. `mixed_model.csv`, `figures/within_spout_maps_{nested,cluster}_*.png`.
 
-- **Acute far-contra licking (behaviour, 10-20).** First lick > 1.5 s after the cue on 35-38 % (PS92 / PS93) vs
+- **Acute far-contra licking (behavior, 10-20).** First lick > 1.5 s after the cue on 35-38 % (PS92 / PS93) vs
   17-18 % (PS94 / PS95) of licked trials; cam1's small licks barely change it (-> real delay); no spout contact on
   85-97 % of those trials in all four. Among LICKED trials: PS92 / PS93 = slow to start, PS94 / PS95 = prompt but miss.
   Across all canonical trials (top box): PS92 / PS93 / PS94 try and fail; PS95 mostly fails to try. `qc/first_lick_latency*`.
@@ -319,7 +319,7 @@ No per-lick plan signature. "Target" here = spout location / touch / posture / c
   angles put far_ipsi chronic at 2/4 (PS94 reversal, PS92 drop; PS93 opposite) and the close_contra acute flip at 2-3/4;
   far contra inconsistent. Within-spout angle terms do not predict held-out activity (CV gain ~0), so an eccentricity
   tuning curve cannot be tested. **No per-spout toward-midline effect meets rule 8; no robust within-spout
-  execution-like signal post-stroke.** Behaviour: miss-then-correct trials common (far contra pre 25-56 %); PS94
+  execution-like signal post-stroke.** Behavior: miss-then-correct trials common (far contra pre 25-56 %); PS94
   chronic far contra 80 % (first-lick contact 15 % vs 71 % pre) = corrective recovery.
   **Commanded-axis across-spout slope (10-21 midday):** survives the contact-adjusted spout means (SSp-m bilateral
   deficit z 8.5 cam4 / 8.5 3-D; 3-D hits-only 4.8); the cam4 hits-only collapse = far contra missing from acute
@@ -329,10 +329,10 @@ No per-lick plan signature. "Target" here = spout location / touch / posture / c
   acutely 3/4; far_ipsi chronic PS94 reversed, PS92 lost; reliability-corrected, PS95's chronic weakening was
   attenuation (scatter halves). Effect size ~0.2-0.4 SD per SD.
 
-- **Coding tracks behavioural recovery and overshoots (PROVISIONAL, 10-20 night; `scripts/encoding_mixed.py`).**
+- **Coding tracks behavioral recovery and overshoots (PROVISIONAL, 10-20 night; `scripts/encoding_mixed.py`).**
   Mixed models with animal random effects, sessions as observations. Calendar time: position coding drops at day 1
-  (cue) and recovers with log(days), mostly via DISTANCE. Behaviour-indexed (far-contra contact deficit): position /
-  angle coding falls with the deficit and sits ABOVE pre once behaviour has recovered (lick distance z -5.2 / +4.5;
+  (cue) and recovers with log(days), mostly via DISTANCE. Behavior-indexed (far-contra contact deficit): position /
+  angle coding falls with the deficit and sits ABOVE pre once behavior has recovered (lick distance z -5.2 / +4.5;
   cue unique target z -8.0 / +8.7; 10-20 attempts -- current deficit z -6.8, jaw_only bullet below). Mixed models are now the primary readout; epochs (chronic starts day 11-25 by
   animal) descriptive. Cue-window effects partly = delayed licking -> `firstlick` window pending (O2).
 
@@ -349,25 +349,25 @@ No per-lick plan signature. "Target" here = spout location / touch / posture / c
   Target still tracks the deficit (3-D cue z -6.8, cam4 -6.7 / first lick -5.1); position first lick now z -2.0
   (q .08); strict executed null. Old outputs `qc/superseded_attempts_jaw_20261021/`.
 
-- **Frozen decoder vs refit after behavioural recovery (CORRECTED 10-23; was "decoders recover with behaviour, the code
-  stays reorganised", 10-20 late; `scripts/imaging_lmm.py`).** The 10-20 line said the frozen-decoder deficit is ~0 at
-  full behavioural recovery while refit-over-frozen reorganisation stays positive (z 3.7). **The current output (rerun
+- **Frozen decoder vs refit after behavioral recovery (CORRECTED 10-23; was "decoders recover with behavior, the code
+  stays reorganized", 10-20 late; `scripts/imaging_lmm.py`).** The 10-20 line said the frozen-decoder deficit is ~0 at
+  full behavioral recovery while refit-over-frozen reorganization stays positive (z 3.7). **The current output (rerun
   10-21 14:36 after the attempt re-definitions, `qc/imaging_lmm_summary.csv`, post rows, y ~ deficit, cue / working)
   supports only the second half:**
   - frozen deficit F at deficit = 0: **+0.083 (z 2.2) matched / +0.082 (z 2.7) unmatched -- NOT ~0**; per animal
     (sessions from day 11 on, matched / unmatched) PS92 -.02 / .02, PS93 .09 / .06, PS94 .15 / .17, PS95 .09 / .08
     -> only PS92 is back at its pre-stroke frozen accuracy; the refit decoder itself is back (refit deficit -0.01, z -0.4);
-  - reorganisation G = (refit - frozen) - pre gap at deficit = 0: +0.093 (z 3.9) matched / +0.092 (z 5.1) unmatched,
+  - reorganization G = (refit - frozen) - pre gap at deficit = 0: +0.093 (z 3.9) matched / +0.092 (z 5.1) unmatched,
     > 0 in 4/4 animals from day 11 (.06-.17 matched, .05-.15 unmatched; last three sessions .08-.22); G does NOT track
-    the behavioural deficit (slope z -1.4 / -0.4), so it is roughly flat over the post period; matched time model:
+    the behavioral deficit (slope z -1.4 / -0.4), so it is roughly flat over the post period; matched time model:
     ~0 at day 1 (z 0.7), rising with log(day) (z 2.2).
-  **Status: PROVISIONAL and in tension with the 2026-09-12 withdrawal** (DECISIONS: "reorganisation persists into
+  **Status: PROVISIONAL and in tension with the 2026-09-12 withdrawal** (DECISIONS: "reorganization persists into
   chronic" withdrawn because the deck's animals -> sessions -> BLOCKS bootstrap, Bonferroni over 9 contrasts, puts chronic
   G at +0.07-0.08 with intervals spanning 0; 83 % of the uncertainty between animals). The LMM has no block level and no
   correction across those contrasts, so per that entry's rule it does not overrule the deck. What is new: G is positive
   in each of the four animals individually (rule 8 met as a point-estimate pattern), and the frozen readout is not fully
-  back at full behavioural recovery in 3/4. Read as "refit gains over frozen persist in every animal; significance
-  depends on the resampling" -- not as established persistent reorganisation.
+  back at full behavioral recovery in 3/4. Read as "refit gains over frozen persist in every animal; significance
+  depends on the resampling" -- not as established persistent reorganization.
   All session-level time courses now via `wfield_local/mixed_models.py` (one definition).
 
 - **CORRECTED 10-24 (afternoon) -- the Layer 2 drift-null comparison below is NOT like-for-like; the claim does not
@@ -390,7 +390,7 @@ No per-lick plan signature. "Target" here = spout location / touch / posture / c
   38.7 / 59.0 / 4.0, last-4 122.6 / 59.6 / 62.1 / 138.3 vs null 9.8 / 33.4 / 28.7 / 22.1 -> not a session-count effect
   (PS92 / PS94 stay far above), but it GROWS WITH TIME (PS93 / PS95: early chronic ~null, late chronic >> null). Early
   chronic > null 2/4, late chronic 4/4. The null spans one week, chronic one to two months, so progressive
-  reorganisation and slow drift are not separable here -> the deciding test is a trend model with a pre-stroke slope
+  reorganization and slow drift are not separable here -> the deciding test is a trend model with a pre-stroke slope
   (as 4.3.3). PROVISIONAL.
   **All-August-pre reference (10-24 evening, Priya: "just use august sessions with loso"):** the "post" fit already does
   this (every August pre session is reference, held out LOSO): change_ref cortex acute 50.2 / 36.5 / 60.2 / (1 session),
@@ -399,7 +399,7 @@ No per-lick plan signature. "Target" here = spout location / touch / posture / c
   August pre sessions as a pseudo-epoch, kappa fixed per animal) running; it controls session noise / count, not slow
   drift (the trend model's job). June stays out of encoder analyses (kinematics off, no FaceRhythm).
 - **[WITHDRAWN 10-24 -- design flaw (gain = distance from an all-epoch compromise, null fitted on pre only), see the
-  REDESIGNED bullets above and 8.5; kept as the record.] Layer 2 all-session encoder: the cortical RESPONSE to behaviour
+  REDESIGNED bullets above and 8.5; kept as the record.] Layer 2 all-session encoder: the cortical RESPONSE to behavior
   changes beyond pre-stroke drift, acutely AND chronically (FIRST RUN 10-23 night; `wfield_local/allsession_encoder.py` at 2fc9fce, grouping v3, frozen
   push; `<E>/allsession_encoder_v7push/`).** Shared kernels + per-epoch kernel changes, scored on held-out sessions;
   gain = held-out R2 of (shared + changes) - (shared only), x1e3; null = same fit on pre sessions with the later half as
@@ -412,9 +412,9 @@ No per-lick plan signature. "Target" here = spout location / touch / posture / c
     all above null 4/4 (PS94 exec_within small). "other" (running / push / nose) is noisy (PS94 null 7.0);
   - contralesional SSp-m: acute 12.1 / 75.3 / -5.6 / -24.9 vs null 4.0 / 1.7 / 2.3 / 6.1 -> only 2/4 (PS94 / PS95
     below the shared fit); chronic 16.4 / 8.5 / 23.1 / 9.3 -> 4/4.
-  **Reading:** on top of Layer 1 (behaviour changes carry the acute far-contra drop; small residual), the mapping from
-  behaviour to cortex does change -- most in the target and within-spout direction responses -- and the change
-  persists chronically after behavioural recovery. This is the encoding-side counterpart of the decoder's
+  **Reading:** on top of Layer 1 (behavior changes carry the acute far-contra drop; small residual), the mapping from
+  behavior to cortex does change -- most in the target and within-spout direction responses -- and the change
+  persists chronically after behavioral recovery. This is the encoding-side counterpart of the decoder's
   refit-over-frozen G > 0 in 4/4 above. Sizes are small (gains of 1-5e-3 R2 per group). Caveats: the null has 4 + 4
   sessions vs 1-12 per post epoch; kappa is chosen separately per fit (post 3-30, null 10-100); no block-level
   resampling yet; a summary bug (pandas read the fit label "null" as missing) hid the null rows on the first print --
@@ -426,7 +426,7 @@ No per-lick plan signature. "Target" here = spout location / touch / posture / c
 > table's `daq_peak_s`, which is stored to 4 SIGNIFICANT DIGITS (0.1 s resolution after 100 s, 1 s after 1000 s: up to
 > 0.5 s off in a 1 h session; e.g. two licks of one bout both read 121.3). The lick-event kernels below are therefore
 > smeared by up to +-0.5 s, worse late in each session. Fix: take the exact time from the session's `licks_all.csv`
-> row `lick_uid` (as `scripts/iti_licks.py` does; checked: context matches 100 %, clock match to the behaviour licks
+> row `lick_uid` (as `scripts/iti_licks.py` does; checked: context matches 100 %, clock match to the behavior licks
 > 1 ms). Read everything in this section as provisional until the re-run.
 
 **First full run (10-23 night, `wfield_local/stray_licks.py` at 4bc7687, 104 / 107 sessions, 4 animals, all licks with
@@ -461,7 +461,7 @@ correlated with the PRE references near|q (r_target: same aim) and near|j (r_exe
   close / far contra positive, .01-.54). So the equal-touch-response assumption fails (part of the negative r is
   mechanical: the leave-spout-out average contains the other spouts' near kernels, whose spout-specific part is
   anti-correlated with q's). Its far-contra table (e.g. PS95 "target-like" before and after, driven by very negative
-  landing r) is an artefact of this and is NOT interpreted. **The stray test does not answer A vs B; relabel is the
+  landing r) is an artifact of this and is NOT interpreted. **The stray test does not answer A vs B; relabel is the
   test.** Kept from 2.6: in the intact animal the spout-specific lick response follows the landing more than the aim.
 
 **Original design notes (10-23, before the run):**
@@ -472,9 +472,9 @@ per-spout contrast maps, 3.4: the spout part tracks the data, the target / exec_
 comparing LICK stray response vs on-target response"). The pre-stroke arm is a result in itself (target vs executed in
 the intact animal).
 - **Census (3-D, trial licks, August pre; `pose3d_kin_licks_snapshot_20261021`):** thousands of no-contact licks land
-  nearer another spout's CALIBRATED centre (median of that spout's contact licks; the nominal spout angles are biased
-  ~21 deg), pre-stroke included (PS92 1,129, PS93 6,679 pre). Close-spout centres overlap, so the error is treated as
-  continuous (in within-spout SD units, plus direction toward the nearest other centre), not as zones.
+  nearer another spout's CALIBRATED center (median of that spout's contact licks; the nominal spout angles are biased
+  ~21 deg), pre-stroke included (PS92 1,129, PS93 6,679 pre). Close-spout centers overlap, so the error is treated as
+  continuous (in within-spout SD units, plus direction toward the nearest other center), not as zones.
 - **Design (queued):** per-lick regressor sets (on-target at q; strays from q toward j) inside one model, so corrective
   licks overlapping in time are separated by the fit (raw stray averages are contaminated toward the target); compare
   stray kernels' maps with the pre on-target maps of q and j, controlling pre q-j similarity; pre AND post.
@@ -482,7 +482,7 @@ the intact animal).
   since 10-23 -> run the test on 4 animals (PS95 acute still missing). Per-lick 3-D for pre-cue and spontaneous ITI
   licks landed 10-23 (`kinematics_all/licks.csv.gz`, `context` column, key `lick_uid`): ITI licks (PS92-95 20k / 25k /
   30k / 9k) have no target, so they serve as the execution-only reference (direction relative to the calibrated spout
-  centres); pre-cue licks (spout parked) add strays with a defined target.
+  centers); pre-cue licks (spout parked) add strays with a defined target.
 
 ### 2.7 Relabel test: which spout's pre-stroke state the far-contra trials are in — FIRST RUN 10-24: HETEROGENEOUS
 
@@ -506,7 +506,7 @@ better). Pre sessions are predicted by leave-one-session-out fits. PRELIMINARY.
     spouts equally mixed (close_ipsi -> close_mid 4/6, far_mid -> far_contra 3/6).
 - **Reading:** no single answer across animals. One animal (PS95) shows the "re-aimed at far mid" pattern cleanly and
   transiently; one (PS93) keeps the far-contra state while executing badly ("aims far contra, execution off"); two lose
-  spout-specific structure broadly. Combined with Layer 1 (behaviour carries the drop) and the stray test (lick responses
+  spout-specific structure broadly. Combined with Layer 1 (behavior carries the drop) and the stray test (lick responses
   follow the landing), the far-contra deficit is not one mechanism in all four. Caveats: PS95 acute is one session; a
   general shrink of all margins (Layer 2's changed mapping) can move best labels without re-aiming -- hence the
   per-spout control; executed-lick templates are spout-locked, so "state" = target + typical movement, not aim alone.
@@ -618,7 +618,7 @@ lick direction; not separable here). Around licking the dominant per-spout patte
 Family 15r (trial-average position maps, no model) re-gated on VIDEO lick attempts (LP_licks: cam4 + cam1 licks,
 trial = hit / incomplete attempt within max_rt, lick-aligned = first LP lick onset, ENL lick-free window 1.0 s) instead
 of spout contact. `labcams/grant_figures/LP_licks/epoch/` (corner-stamped); calibration `.../LP_licks/epoch/results/`.
-Numbers: % of 2,022 bins flagged by the nested bootstrap (pre-normalised), rest reference; amplitude = acute / pre.
+Numbers: % of 2,022 bins flagged by the nested bootstrap (pre-normalized), rest reference; amplitude = acute / pre.
 - **Acute far contra is now measurable around the lick.** Contact gating left 0 acute sessions above the 20-trial
   floor; LP gives 4 animals / 15 sessions / 778 trials. Post-lick activity is LOWER than pre (amplitude 0.70; 19.7 % of
   bins; restw 17.8 %, precue 17.3 %), against a June-vs-August drift of <= 1.4 % at that position. Every other position
@@ -645,7 +645,7 @@ Numbers: % of 2,022 bins flagged by the nested bootstrap (pre-normalised), rest 
   licks / tongue / jaw are smaller or absent, and the model's movement terms account for the whole drop; the
   position-specific part and the residual are small. Other positions go UP acutely, also mostly via movement terms.
   Chronic: data and movement return to or above pre together (PS92 / PS93 SSp-m +16, movement +12 / +17).
-  CAVEATS: the partition is the ridge fit's -- task is penalised hardest (alpha 1e5 vs licks 1e4, orofacial 1), so
+  CAVEATS: the partition is the ridge fit's -- task is penalized hardest (alpha 1e5 vs licks 1e4, orofacial 1), so
   variance shared between target and movement goes to movement (the movement-first convention, 2.x); it says the
   drop needs no target term, not that no target signal is lost (3.1's drop-p, far contra ~0 acutely, is that test).
   Cue-aligned over attempted trials, not LP-onset-aligned like the maps (PS95's map increase is not seen here).
@@ -679,7 +679,7 @@ epoch_acc_by_position_*`; matched contact 1.0 s ENL arm: `DAQ_ENL1s/epoch/`. Pre
   Extent is descriptive (see below), but the direction is consistent across both rest references.
 
 **How to read the outlines (all map families).** Nested-bootstrap outlines (black) are bin-level family-wise
-significant: they localise -- each outlined bin changed. Their EXTENT is a lower bound that depends on power (n = 4
+significant: they localize -- each outlined bin changed. Their EXTENT is a lower bound that depends on power (n = 4
 animals), not a measured area; an unflagged bin is not evidence of no change, and "19 % vs 6 % of bins" is descriptive,
 not a test of a difference. Cluster-permutation outlines support only "a change exists" (cluster-level control; false
 clusters are large in area), not where it stops.
@@ -697,7 +697,7 @@ clusters are large in area), not where it stops.
 > pre** (data 18.8 | 18.4, 16.0 | 19.5, 6.7 | 8.6, 2.4 | 3.9) while the frozen model predicts ~0 or a decrease (full
 > -9.1 | -5.1, 4.9 | 6.8, -8.1 | -1.5, 0.3 | 0.6), so the increase is in the RESIDUAL (27.9 | 23.6, 11.0 | 12.7, 14.8 |
 > 10.2, 2.2 | 3.3; 4/4 positive, PS95 small). MOs the same direction, weaker; cue window the same. Reading: the acute
-> drop is behaviour through the pre-stroke mapping; the chronic increase is cortex responding MORE to the same behaviour
+> drop is behavior through the pre-stroke mapping; the chronic increase is cortex responding MORE to the same behavior
 > (the response change the redesigned Layer 2 attributes to groups). Maps: `frozen_encoder_gate-attempted_v7g3_t3d_basis/
 > figures/pixel_maps_joint_far_contra_{acute,subacute,chronic}_lick.png` (residual broad lateral / anterior, PS92
 > strongest).
@@ -711,7 +711,7 @@ clusters are large in area), not where it stops.
 > residual-vs-day model with a pre-stroke slope (as 4.3.3), and the FR runs (does face movement absorb it). Not a
 > finding until then. Also not far-contra-specific (chronic hits up at all six spouts, 2.9).
 > **MAP SIGNIFICANCE of the residual (10-24, `scripts/frozen_residual_significance.py`; each epoch's per-session residual
-> maps vs the PRE sessions' residual maps, repo map tests, pre-normalised; `frozen_encoder_gate-attempted_v7g3_t3d_basis/
+> maps vs the PRE sessions' residual maps, repo map tests, pre-normalized; `frozen_encoder_gate-attempted_v7g3_t3d_basis/
 > residual_significance.csv`, `figures/residual_significance_*`).** Nested bootstrap bins / 2,022 (cluster test):
 > lick window -- drift calibration (late vs early pre) 22, acute 80, subacute 41, chronic 48; cue -- drift 39, acute 20
 > (suppressed: rim), subacute 8, chronic 34. The cluster test finds NOTHING in any epoch; pure nulls flag ~1.6 % under
@@ -744,7 +744,7 @@ fitted on its August pre sessions and applied unchanged to every session (Allen-
 movement trace is split into the animal's PRE-STROKE mean trace for that spout (cue-locked before the trial's first
 post-cue lick, lick-locked after; pooled over its pre sessions) and the deviation from it. Groups: timing, target
 (position blocks), exec_locked (the spout-locked part: executed but fully predictable from the spout), exec_within
-(direction deviation within a spout), LICK (deviation of lick timing / tongue speed / jaw opening: vigour that is not
+(direction deviation within a spout), LICK (deviation of lick timing / tongue speed / jaw opening: vigor that is not
 "which spout", and any post-stroke change at a spout), other (nose y, running), contact. Output
 `E/frozen_encoder_gate-attempted_v4/`. Leakage (spout decoding, chance .17, templates leave the tested session out):
 target / exec_locked .99-1.00; lick .38-.40 (v3 "directionless" .60-.69); with each session's OWN template lick
@@ -843,7 +843,7 @@ per animal; six models incl. v7 candidates: `..._v6_to_v7fwd15push.csv`):**
   frames are RARE pre-stroke (PS92 / PS93 / PS94 / PS95 0.6 / 0.7 / 3.9 / 1.8 %) and (descriptive, no test) 2-5x more frequent by chronic in
   3/4 (2.5 / 3.8 / 5.3 / 5.9 %; PS94 1.4x), and harder (mean 0.54-0.60 -> 0.70-0.81 mm/s, p99 1.4-2.2 -> 2.2-2.5); a
   kernel fitted on rare pre-stroke pushes, applied to many post-stroke pushes, over-predicts. -> no push term in v7
-  (option kept, `FROZEN_PUSH=1`). **Behavioural side-finding (PROVISIONAL):** backward / postural treadmill pushes
+  (option kept, `FROZEN_PUSH=1`). **Behavioral side-finding (PROVISIONAL):** backward / postural treadmill pushes
   become 2-5x more frequent after the stroke in PS92 / PS93 / PS95 (PS94 already high pre) -- bracing / posture change.
 - acute far-contra decomposition identical in all six (contralesional SSp-m lick part -28 / -20 / -19 / -23 to -26,
   target <= 3.8).
@@ -883,18 +883,18 @@ span is 8 days and the extrapolated prediction intervals are +-0.07 .. +-0.45 (b
 not a negative). The June + August result above is from the 10-19 cam4 runs (stale inputs); it stands only until a
 final-frame run with June sessions exists. Status: level gain STANDS; beyond-trend PROVISIONAL.
 
-### 4.2 It FOLLOWS behavioural recovery — PROVISIONAL (coarse sampling)
+### 4.2 It FOLLOWS behavioral recovery — PROVISIONAL (coarse sampling)
 10-25 final-frame re-run: 50 % day, ceiling vs far-contra contact PS92 18 vs 9, PS93 15 vs 7, PS94 9 vs 11, PS95 no
 ceiling change (spread 7 vs contact 3): cortex still later in PS92 / PS93. Numbers below are the 10-20 version.
 
 Day of 50 % of the acute -> chronic change: far-contra contact recovers first (PS92 day 9 vs neural 15, PS93 7 vs 15,
-PS95 3 vs 4); PS94 partly recovers behaviourally with no cortical gain. Reading: cortex consolidates or reflects a
-recovered behaviour more than it drives recovery. Sessions every 2-4 days. `qc/position_coding_half_recovery.csv`.
+PS95 3 vs 4); PS94 partly recovers behaviorally with no cortical gain. Reading: cortex consolidates or reflects a
+recovered behavior more than it drives recovery. Sessions every 2-4 days. `qc/position_coding_half_recovery.csv`.
 
 ### 4.3 What the time-course mixed models changed relative to the epoch tables (consolidated 10-23)
 
 Session-level LMMs (`wfield_local/mixed_models.py`, one definition; `scripts/encoding_mixed.py`, `scripts/imaging_lmm.py`,
-`scripts/within_spout_mixed.py`; models: TIME y ~ post + post:log(day), BEHAVIOUR y ~ post + post:deficit with deficit =
+`scripts/within_spout_mixed.py`; models: TIME y ~ post + post:log(day), BEHAVIOR y ~ post + post:deficit with deficit =
 far-contra time-to-contact / contact loss relative to the animal's August pre, random intercept + step + slope per animal
 with fallbacks; DECISIONS 2026-10-20 night / late night, 2026-10-21 night). What they did to the epoch-based results:
 
@@ -904,27 +904,27 @@ with fallbacks; DECISIONS 2026-10-20 night / late night, 2026-10-21 night). What
 2. **The acute drop is a step plus a log-time recovery, not a flat epoch.** Position coding drops at day 1 (cue step
    z -3.2) and recovers with log(days) (z 4.0), carried mostly by DISTANCE (recovery z 8.6); far-contra spout coding
    step z -2.6 / recovery z 5.5.
-3. **The chronic gain (4.1) is a gain BEYOND behavioural normalisation, not just elapsed time.** Indexed by behaviour,
-   coding falls with the far-contra deficit and sits ABOVE pre once behaviour is back at the pre level (cue ceiling
-   +53 x1e3, z 4.6; lick distance z 4.5). This upgrades 4.1 and reframes 4.2 (cortex follows / overshoots behavioural
+3. **The chronic gain (4.1) is a gain BEYOND behavioral normalization, not just elapsed time.** Indexed by behavior,
+   coding falls with the far-contra deficit and sits ABOVE pre once behavior is back at the pre level (cue ceiling
+   +53 x1e3, z 4.6; lick distance z 4.5). This upgrades 4.1 and reframes 4.2 (cortex follows / overshoots behavioral
    recovery).
 4. **Target vs executed over recovery (2.1 / 2.4b):** unique TARGET tracks the deficit strongly (3-D cue z -6.8 after
    the attempt re-definition; cam4 -6.7, first-lick window -5.1) and recovers with log days (3-D cue z 7.4); unique
    executed weaker (z 2.1 / -2.7); STRICT executed (beyond the spout category) present pre-stroke and unchanged after
    (step z ~1). The epoch reading "the post-stroke rise is target" holds as a time course.
 5. **Frozen decoders / encoder: identity returns, the frozen code does not fully.** (CORRECTED 10-23, see the §2
-   decoder bullet: the frozen-decoder deficit is NOT ~0 at full behavioural recovery -- +0.08, z 2.2-2.7, only PS92 back
+   decoder bullet: the frozen-decoder deficit is NOT ~0 at full behavioral recovery -- +0.08, z 2.2-2.7, only PS92 back
    -- while refit-over-frozen G is +0.09, z 3.9-5.1, > 0 in 4/4 but not significant under the deck's block bootstrap,
    DECISIONS 2026-09-12; PROVISIONAL.) Frozen encoder EV (family 11)
    still below pre at full recovery (z -4.1) while far-contra own-position best match (10b) is back at pre (z -0.7).
-   Epoch tables alone could not separate "not yet recovered" from "recovered but reorganised".
+   Epoch tables alone could not separate "not yet recovered" from "recovered but reorganized".
 6. **Some epoch effects weakened or went away under the LMM + controls:** the within-spout toward-midline chronic
    change (LMM z -3.4) falls to -1.5 with the contact covariate (hits only) -- not robust; position coding in the
    first-lick window only z -2.0 (q .08) after the attempt re-definition; cue-window effects partly reflect delayed
    licking (hence the first-lick windows).
 7. **NOT yet on the LMMs:** the frozen pre-stroke encoder decomposition (3.4, v4 / v6: acute far-contra drop carried
    by lick) is still EPOCH-based. Queued: its per-session parts (lick, spout, target, residual per spout x window) and
-   the coming all-session shared + per-epoch model into the TIME and BEHAVIOUR models.
+   the coming all-session shared + per-epoch model into the TIME and BEHAVIOR models.
 
 ### 4.4 Postural / forelimb pushes collapse acutely with the deficit and overshoot after recovery — PROVISIONAL (10-23)
 
@@ -935,13 +935,13 @@ cue-locked push (fraction of trials with a push in the 1 s after the cue) PS92 .
 PS94 .46 -> .10 -> .47, PS95 .25 -> .03 -> .52 (acute down 4/4; chronic above pre 3/4, PS94 ~equal); pushes per minute
 1.3 -> 1.3 -> 4.3, 1.3 -> 0.6 -> 5.6, 7.2 -> 1.7 -> 7.9, 2.8 -> 0.4 -> 6.9. Forward running unchanged (no epoch / deficit
 effect). LMMs: every push measure FALLS with the far-contra deficit (push rate z -11.5, push fraction z -10.3, far-contra
-cue push z -5.0, cue push z -4.1) and sits ABOVE pre at full behavioural recovery (rate +2.7 / min z 7.9, size +0.18
+cue push z -5.0, cue push z -4.1) and sits ABOVE pre at full behavioral recovery (rate +2.7 / min z 7.9, size +0.18
 mm/s z 10.1, cue push +0.22 z 2.6); time: day-1 step down (q ~.10), rise with log(day) (rate z 12.1, cue push z 11.3).
 **Reading:** the cue-locked postural / forelimb adjustment is lost acutely in proportion to the orofacial deficit and
-returns above pre -- the same shape as the cortical coding (4.3.3). Part of the same motor programme (postural set for
+returns above pre -- the same shape as the cortical coding (4.3.3). Part of the same motor program (postural set for
 licking) and / or chronic compensation (bracing to reach). Open: engagement as a common cause (licked-trials-only /
 engagement covariate), side-camera clips acute vs chronic, some LMMs fell back to random intercepts (4 animals).
-Encoding consequence: push tracks the deficit, so it is modelled per session (`FROZEN_PUSH=free`, 3.4) and will get its
+Encoding consequence: push tracks the deficit, so it is modeled per session (`FROZEN_PUSH=free`, 3.4) and will get its
 own kernel + per-epoch deltas in the all-session model; a frozen push kernel fails (3.4).
 - **Free-push frozen run DONE (10-23 night, `_v7pushfree`; `qc/frozen_running_compare_v7fwd15_to_v7pushfree.csv`).**
   Re-fitting push per session (5-block CV ridge on the frozen residual) removes the frozen-push failure: PS95 chronic
@@ -985,14 +985,14 @@ own kernel + per-epoch deltas in the all-session model; a frozen push kernel fai
 - **Movement-first ordering** credits shared variance to movement; "after movement" = after licks, tongue, jaw, nose,
   running (cam4 kinematics, no video). Video is not used in the lick window (it re-describes the licks).
 - **Shuffle dR2 of slow / event variables is inflated** (circular shift); lead with drop dR2.
-- **Map significance tests (10-21 evening, STANDS).** Contours are now computed on the same pre-normalised scale as
+- **Map significance tests (10-21 evening, STANDS).** Contours are now computed on the same pre-normalized scale as
   the pooled picture (`beta_maps.NORMALISE_TESTS_BY_PRE`). Calibration on pre-vs-pre splits: the nested bootstrap
   (primary) flags nothing on any pure null (figure 14 beta maps and all three 15r position windows); the cluster test
   is roughly calibrated (2 / 24 random splits) but its false clusters are LARGE on rest / restw maps -> read cluster
   contours as yes / no, not by area. June vs August pre (no stroke) shows up to ~21 % 'change' at a few positions:
-  the August-only baseline is the right one. Acute far contra survives everything (58-93 %). Normalising mostly
+  the August-only baseline is the right one. Acute far contra survives everything (58-93 %). Normalizing mostly
   shrinks acute near-spout changes under the precue reference (lick near contra 36.7 -> 6.5 %; figure 14 far mid,
-  cue, 20.0 -> 1.9 %). (An earlier line here said normalising removes changes "carried by the brighter animals":
+  cue, 20.0 -> 1.9 %). (An earlier line here said normalizing removes changes "carried by the brighter animals":
   withdrawn 10-21 -- the per-animal check does not support it.) All map statistics are animal-weighted.
 - **Lick-window imaging analyses use spout CONTACT unless tagged LP_licks (10-21).** Contact gating selects the
   licks that landed: acute far contra has 0 sessions with 20 contact trials, and acute far-spout post-lick amplitudes
@@ -1022,7 +1022,7 @@ own kernel + per-epoch deltas in the all-session model; a frozen push kernel fai
 | frozen encoder decomposition | `qc/` | `lp_encoder_decompose_frozen_encoder_gate-attempted_<tag>_<variant>[_lick]_by_animal.csv` |
 | frozen encoder pixel maps | `frozen_encoder_gate-attempted_v6basis/` (`_v6grid` PS92 check) | `figures/pixel_maps_*`, `figures/pre_spout_{maps,contrast}_*` |
 | running-model comparison | `qc/` | `frozen_running_compare_*.csv` (+ `_curves.csv`); QC `qc/running_clips/`, `_v6thr1/figures/qc_running_threshold*.png` |
-| decoder / reorganisation LMM | `qc/` | `imaging_lmm_summary.csv` (source `decoder_*`); inputs `labcams/grant_figures/epoch/data/recovery_trajectory_*_cue_working.csv` |
+| decoder / reorganization LMM | `qc/` | `imaging_lmm_summary.csv` (source `decoder_*`); inputs `labcams/grant_figures/epoch/data/recovery_trajectory_*_cue_working.csv` |
 
 ## 7. Next (in order; 10-24) -- the goal question
 
@@ -1048,8 +1048,8 @@ acc / accdelta / 5c / 5cr, calibration; `lp_trial_counts` first; PS93 LP-frozen 
 the final frame + O2 main; O2 variants not in the batch (nokin_matched / tr / win, drop_win: submit or retire); within-spout
 in the final frame (attempted gate + combined licks; cue-aligned + ENL variants; mixed model, per-position direction maps,
 reliability chained after); destination vs landing (fix `CONTEST_3D`, deleted folder) and lick templates on 4 animals;
-behaviour / target-vs-execution figures, `lick_contact_by_epoch`, recovery trend, trial-average R2 after the O2 collect.
-Deferred: non-linear ceiling; pre-cue -> lick-window carry-over decode; decoder reorganisation contrast (2 / 4.3.5).
+behavior / target-vs-execution figures, `lick_contact_by_epoch`, recovery trend, trial-average R2 after the O2 collect.
+Deferred: non-linear ceiling; pre-cue -> lick-window carry-over decode; decoder reorganization contrast (2 / 4.3.5).
 
 ## 8. Results of 10-24 night / 10-25 (goal question; to be folded into 2-4) — results page Figs renumbered 10-25
 
@@ -1161,7 +1161,7 @@ cells are many; per-animal numbers on the page.
 
 PARTIAL REFIT, TE design (10-26 15:46; `partial_refit.py` with FROZEN_DESIGN=te, `<run>_te/partial_refit/boot.csv`;
 page 1.37). One set refit per session on held-out folds, rest frozen; gain over its null; 5 draws. Nulls: TARGET = block
-permutation of trial spouts (arrival / cue kernels + target-labelled lick kernels; only refit columns rebuilt); LANDING
+permutation of trial spouts (arrival / cue kernels + target-labeled lick kernels; only refit columns rebuilt); LANDING
 = landing weights circularly shifted along landed licks (10-90 %). Pre levels, contra SSp-m lick window: target - null
 0.22, target lick - null 0.18, landing lick - null 0.07, execution - null 0.04 (nulls differ in kind -> compare changes).
 ACUTE: target - null falls (contra SSp-m -0.126 [-0.230, -0.027], 0/4 up; also contra MOp); landing lick - null -0.048
@@ -1246,7 +1246,7 @@ so the UNMATCHED fit (all of a group's sessions; table mode = all) is read along
 - TARGET kernels: too noisy to read (split-half 0.13-0.76; late pre vs early pre already 0.35-0.75).
 - CAVEAT that decides the reading: chronic sessions are 3-7 weeks from early pre, late pre only days, so a steady
   divergence is what ordinary representational drift predicts (the 10-07 chronic_drift_vs_reorg result: the crossnobis
-  distance still rising chronically was drift, not reorganisation). NEEDED: a drift-RATE test -- within-chronic early vs
+  distance still rising chronically was drift, not reorganization). NEEDED: a drift-RATE test -- within-chronic early vs
   late kernel r per day against the pre-stroke rate per day -- before any "lick kernels remapped" claim. Maps at +0.1 s
   also show midline venous stripes post-stroke (vessel contamination, as in 8.13).
 Figures `<run>/epoch_kernels/epoch_kernels_r.png`, `epoch_kernel_maps_<lick|target|cue>.png`; page Figs 1uc2 / 1uc3.
@@ -1280,12 +1280,16 @@ coupling (direction not determined), not more face variability.
   acute (4/4 further), -0.15 subacute / -0.15 [-0.26, -0.05] chronic (0/4). -> "cued read CLOSER" holds on the forward
   (out_ap) axis every epoch but on total extension only from subacute (REVISED; KEY wording on the page not yet changed,
   pending Priya). Chronic cued far-contra lateral -0.24 [-0.35, -0.12] (0/4) stands. MAE sagittal: ITI +0.15 subacute
-  only. Pull centre = mean of ALL the animal's pre licks (one decoder, spout unknown), not each spout's mean; pre
+  only. Pull center = mean of ALL the animal's pre licks (one decoder, spout unknown), not each spout's mean; pre
   landings cluster medial of the spouts; acute far-contra sagittal extension is LOWER than pre (4/4).
-  Sagittal-run frozen r change vs pre: sagittal ITI -0.01 / -0.07 / -0.05, in-trial -0.09 / -0.04 / +0.01 (n.s.);
-  lateral ITI -0.13 / -0.12 / -0.13, in-trial -0.15 / -0.08 / -0.06 (4/4); encoder angle ITI -0.11 / -0.07 / -0.10,
-  in-trial -0.09 / -0.05 / -0.04 (n.s. chronic). The r loss is lateral; "in-trial angle above pre" (horizontal angle)
-  superseded -- on the encoder angle it returns to ~pre.
+  Frozen r change vs pre (REBUILD 11-07, r normalized to pre, areas; replaces "the r loss is lateral", Priya 11-07): cued
+  licks lose BOTH axes acutely -- lateral -20 / -10 % (4/4), -8 % chronic (n.s., 3/4); sagittal -25 / -21 / -8 % (4/4);
+  the subacute / chronic sagittal loss is carried by short licks that miss the spout within successful trials (contact
+  licks only: -24 % acute 4/4, -14 % n.s., +7 % n.s.). ITI: lateral -23 / -22 / -24 % (4/4); sagittal -13 % n.s., then
+  -23 / -24 % (4/4). The page -> rebuild change is not the trial gate (the cued set is all post-cue camera licks); it
+  comes from the imaging / pre-set changes (attribution test queued). Encoder angle: ITI -0.11 / -0.07 / -0.10, in-trial
+  -0.09 / -0.05 / -0.04 (n.s. chronic); "in-trial angle above pre" (horizontal angle) superseded -- on the encoder angle
+  it returns to ~pre.
   Z-SCORE CHECK (10-26 late, `scripts/iti_zscore_check.py` -> iti_licks/zscore_check/; Priya: "z-scored within session
   is ok", not a pre-lick baseline because the ITI carries position information): every area divided by its frame-wise
   SD in the session (after the same drift removal; over all frames, not licks). Beyond-pull ITI lateral +0.33 / +0.22 /
@@ -1295,14 +1299,14 @@ coupling (direction not determined), not more face variability.
   many small mixed-sign contributions (ridge spreads credit over correlated areas), no single area; lick-window activity
   rises in PS92 / PS93 and falls in PS94 / PS95 for cued licks, so "more tjM1 / ALM" is not the cue-lick premise.
 
-  ITI LICK RATE vs RECOVERY (BEHAVIOUR, 10-26 ~15:40, `scripts/iti_lick_rate.py`, iti_lick_rate{,_tests,_recovery}.csv;
+  ITI LICK RATE vs RECOVERY (BEHAVIOR, 10-26 ~15:40, `scripts/iti_lick_rate.py`, iti_lick_rate{,_tests,_recovery}.csv;
   page 3.11; Priya: "does inter-trial licking correlate with recovery (and exceed pre-stroke levels)"). Rate = licks_all
   context iti / ITI minutes (next strobe - stop, gaps clipped 0..60 s). Per animal licks / ITI min pre / acute / subacute /
   chronic: PS92 55/21/40/40, PS93 42/26/34/36, PS94 44/19/39/35, PS95 5/7/6/23. PS92-94 drop acutely (-38..-62 %) and
   stay BELOW pre chronically (-14..-28 %); PS95 (almost no ITI licking pre) rises ~4x chronically (0907 13x) -> pooled
   chronic +72 % [-28, +258], carried by PS95 alone. No-contact rate and ITI licks per trial the same. Within animal over
   post sessions, rate vs far-contra hit rate / pre: r +0.67 (0.53-0.88, 4/4); log(day) removed +0.51 (PS92 / PS93 ~+0.86,
-  PS95 +0.32, PS94 ~0). Permutation p (behaviour shuffled within animal) ignores autocorrelation -> not quoted. Contact
+  PS95 +0.32, PS94 ~0). Permutation p (behavior shuffled within animal) ignores autocorrelation -> not quoted. Contact
   share up acute / subacute (+19 / +34 %, CIs exclude 0), ~pre chronic. Reading: ITI licking dips with the deficit and
   returns with it; it exceeds pre only in PS95; the frozen-decoder ITI loss is not a rate effect.
   IN-TRIAL r LOSS EXPLAINED BY LICK ACCURACY (10-26 ~21:00; Priya: "shouldn't we still see lower r for in-trial licks
@@ -1323,7 +1327,7 @@ coupling (direction not determined), not more face variability.
   decoded position mostly reflects the TARGET spout. POST: the share followed FALLS (acute 0.08, -0.18 [-0.33, -0.05];
   chronic 0.14, -0.12 [-0.20, -0.05]; chronic lower in 4/4: PS92 .17->.11, PS93 .27->.18, PS94 .26->.04, PS95 .33->.25)
   while the across-spout layout slope is unchanged -> ipsi-deviated cued licks look MORE like on-target licks after the
-  stroke (target over execution), converging with the TE partial refit (target-labelled > landing-labelled lick
+  stroke (target over execution), converging with the TE partial refit (target-labeled > landing-labeled lick
   kernels chronically). Share of licks >= 0.5 mm ipsi of target: pre 0.14, acute 0.46, chronic 0.20.
   SIGNED DECODING ERROR PER LICK, ITI vs IN-TRIAL (10-26 late, `scripts/iti_where_signed_error.py` ->
   where_signed_error_tests.csv; Priya: "does the decoder predict the tongue further right (contralesional) than where it
@@ -1358,7 +1362,7 @@ coupling (direction not determined), not more face variability.
   the r loss is the gain / noise part. PS93's lateral coordinates sit right of the others' (animal-specific frame).
   WHERE: LATERAL vs OUTWARD (10-26 ~15:00, `scripts/iti_where_decoder.py`, where_decoder_tests.csv; Priya: "angle and
   distance together ... or lateral location instead of angle"). Same decoder per target, three bases (areas / LocaNMF /
-  SVD basis), chronic change normalised to pre. ITI: LATERAL -20 / -19 / -19 % (4/4 each); OUTWARD poorly decoded even
+  SVD basis), chronic change normalized to pre. ITI: LATERAL -20 / -19 / -19 % (4/4 each); OUTWARD poorly decoded even
   pre (r 0.35-0.42) and no consistent change; 2-D vector r -21 / -13 / -13 % (lateral-driven); angle -10 / -14 / -10 %
   (CIs reach 0 in two bases); reach -10 % areas only. IN-TRIAL: outward drops ACUTELY (-24 / -16 / -22 %) and recovers
   fully by subacute (chronic ~0, SVD basis +7 %); lateral -8 / -9 / -4 %; ANGLE unchanged acutely and BETTER than pre
@@ -1371,16 +1375,16 @@ coupling (direction not determined), not more face variability.
   footprints fit 08-15 on 11 pre sessions; every session projected from the adopted SVTcorr) and the te_basis pre-stroke
   SVD basis (200 comps): ITI chronic r -0.125 (areas) / -0.119 (LocaNMF) / -0.117 (SVD basis), all CIs exclude 0, 4/4
   animals each; in-trial chronic -0.063 / -0.062 / -0.029 (last n.s.); acute in-trial -0.146 / -0.148 / -0.127.
-  Finer bases do not decode better (pre ITI r 0.62 / 0.61 / 0.59) -> not a basis or within-area spatial-shift artefact.
+  Finer bases do not decode better (pre ITI r 0.62 / 0.61 / 0.59) -> not a basis or within-area spatial-shift artifact.
   RECOVERY MARKER (10-26 ~09:30, `scripts/iti_recovery_marker.py`, recovery_marker.csv; Priya: "perhaps a marker of
   recovery?"). Within animal, post sessions (19 per animal): frozen-decoder r / pre vs far-contra hit rate / pre.
   In-trial: r +0.62 (PS92 0.85, PS93 0.60, PS94 0.53, PS95 0.50; within-animal permutation p 0.0002); after
-  partialling out the session's spread of lick directions (a correlation rises with spread; PS92 r(behaviour, spread)
+  partialling out the session's spread of lick directions (a correlation rises with spread; PS92 r(behavior, spread)
   0.79) +0.53 (4/4, p 0.0002); after removing log(day) +0.29 (4/4, p 0.02); spread + log(day) +0.16 (4/4 positive,
   0.07-0.24, p 0.19). ITI: +0.10 (signs mixed, p 0.39). In-trial minus ITI +0.52 (p 0.0006; spread-controlled +0.40,
-  p 0.005). Reading: the in-trial frozen decoder follows the RECOVERY TIME COURSE and the ITI one does not; behaviour
+  p 0.005). Reading: the in-trial frozen decoder follows the RECOVERY TIME COURSE and the ITI one does not; behavior
   is nearly bimodal (acute ~0, chronic ~1), so most of the link is the acute -> chronic step, and tracking of
-  day-to-day behaviour beyond the shared trend is not established (small, consistent in sign).
+  day-to-day behavior beyond the shared trend is not established (small, consistent in sign).
 
   CONTACT + PAIRED GAP (10-26 ~09:00, `scripts/iti_contact_check.py`, contact_check.csv; handoff B(i)-(ii)). Each lick's
   DAQ contact flag from licks_all.csv (exact peak-time join, 100 % matched). In-trial licks touch the spout 74-95 %;
@@ -1404,7 +1408,7 @@ coupling (direction not determined), not more face variability.
   MOp, SSp-m, tjM1 bilateral (+2.6..+3.0); build-up weaker chronically in SSp-n both sides (-1.5 / -1.3), SSp-un
   contra, ALM contra (SSp-m -1.2, tjM1 contra -1.0 just miss); medial / visual / RSP unchanged. Group test (divided
   by the animal's pre group-mean response): chronic build-up orofacial -0.11 [-0.21, -0.01], visual + RSP +0.10 n.s.
-  Per-area normalisation by each area's own pre response was dropped (near-zero denominators in small caudal areas).
+  Per-area normalization by each area's own pre response was dropped (near-zero denominators in small caudal areas).
   CORRECTION (10-26 ~14:10, `iti_area_maps.py --compare`, page orofacial-vs-control PETHs): control areas show the
   same DIRECTION chronically (VISam, RSPd, SSp-bfd responses ~1.4-1.8x their pre peak; build-up lower in SSp-bfd and
   visual areas; RSPd / ACAd no build-up change), so the chronic changes are strongest in, NOT confined to, orofacial
@@ -1417,12 +1421,12 @@ coupling (direction not determined), not more face variability.
 `scripts/iti_licks.py`, `<E>/iti_licks/` (102 sessions, 4 animals; Priya 10-25: "let's also do the inter-trial 3d licks,
 pre-lick ramp timing"). ITI licks (whole-session 3-D table, context iti) have no trial, cue or target; the spout is
 RETRACTED between trials (Priya 10-26; an earlier line here said it was in place -- wrong). Lick times from each session's licks_all.csv via lick_uid (the kinematics table's daq_peak_s is rounded to
-4 significant digits -- see 2.6); clock match to the behaviour licks 1 ms in every session. ROIs: ALM / tjM1 = the
+4 significant digits -- see 2.6); clock match to the behavior licks 1 ms in every session. ROIs: ALM / tjM1 = the
 anterolateral 40 % of MOs / MOp per hemisphere (Priya: "the anterolateral 1/3 to 1/2 of MOs and MOp").
 - RAMP (bout-start ITI licks: no lick for 2 s, no cue / spout move within -2..+0.75 s; onset-aligned, baseline -1.5..-1.0
   s; 427-3177 per animal pre). Pre-stroke activity rises from ~-1 s, earliest in tjM1 (half-amplitude ~-0.35 s) and
   SSp-m, later in ALM / MOs (~-0.15 s). The half-amplitude time (t50) moves LATER post-stroke (tjM1 contra +0.25 s acute,
-  4/4) -- but that is an AMPLITUDE artefact: the post-onset response roughly DOUBLES acutely (peak 0.1-0.4 s, in units of
+  4/4) -- but that is an AMPLITUDE artifact: the post-onset response roughly DOUBLES acutely (peak 0.1-0.4 s, in units of
   the animal's pre amplitude at the lick: tjM1 contra +1.43 [0.51, 2.41], SSp-m contra +1.52, MOp +0.85-0.94, ALM
   +0.55-0.73; 4/4) and stays elevated chronically (tjM1 / SSp-m / MOp +0.5-0.8, 4/4). Amplitude-free early ramp
   (-0.6..-0.2 s, same units): acute UNCHANGED (PS93 / PS94 up, PS92 / PS95 down); CHRONIC WEAKER in tjM1 (contra -0.40
@@ -1452,7 +1456,7 @@ anterolateral 40 % of MOs / MOp per hemisphere (Priya: "the anterolateral 1/3 to
   PS92-94 (median pre 888 / 1174 / 1225 vs acute 524 / 697 / 476; PS95 more chronically). Frozen decoder scored on test
   sets subsampled to 40 licks in EVERY session (200 draws): ITI -0.136 / -0.115 / -0.123, in-trial -0.144 / -0.080 /
   -0.064 (acute / subacute / chronic) = the full-n values; within epoch, sessions with MORE licks have slightly LOWER r
-  (Spearman -0.55 / -0.79 / -0.29) -- not a fewer-licks artefact.
+  (Spearman -0.55 / -0.79 / -0.29) -- not a fewer-licks artifact.
   CONTROLS (10-26, Priya: "lick kinematics ... and face movement before the lick"; page 3.25 / 3.26; controls_tests.csv):
   post-stroke ITI bout-start licks are slightly SLOWER (peak speed -10, -0.26 SD acute and chronic) and a little longer
   chronically (reach +0.23 mm). Post-onset response after regressing reach + speed (per-animal fit on pre licks): tjM1
@@ -1471,19 +1475,19 @@ anterolateral 40 % of MOs / MOp per hemisphere (Priya: "the anterolateral 1/3 to
   PS93 -0.01 (3/4; subacute 4/4); in-trial recovery may ride on spout CONTACT -> test in-trial licks without contact.
   FROZEN DECODER PER LAG + SESSION-POOLED (10-26, Priya: "KEY results"; page 3.8 / 3.9; one dot per session, nested
   bootstrap animals -> sessions): ITI lateral direction -0.138 [-0.191, -0.075] acute, -0.123 subacute, -0.135
-  [-0.213, -0.067] chronic (normalised to each animal's pre: -23 % / -20 % / -22 %); IN-TRIAL licks (decoder trained on
+  [-0.213, -0.067] chronic (normalized to each animal's pre: -23 % / -20 % / -22 %); IN-TRIAL licks (decoder trained on
   pre in-trial licks) -0.149 acute but -0.080 subacute and -0.063 [-0.131, -0.009] chronic (-20 % -> -11 % -> -9 %).
   => the pre-stroke mapping largely returns for cued, targeted licks but NOT for self-initiated ones. Pre-stroke ITI
   direction is decodable from ~-0.5 s before the lick peak (r ~0.25), post-stroke ~0.1 (may include the previous lick
   of a bout). Figures iti_frozen_timecourse.png / iti_frozen_summary.png; tests decode_frozen_session_tests.csv.
   Ramp session-pooled (page 3.22 / 3.23; ramp_session_tests.csv): post-onset response up acutely in every ROI, still up
-  chronically in tjM1 / SSp-m (raw and normalised); early build-up down chronically in tjM1, SSp-m, ALM.
+  chronically in tjM1 / SSp-m (raw and normalized); early build-up down chronically in tjM1, SSp-m, ALM.
   Reading: cortex still carries the executed direction of self-initiated licks as strongly as before, but in a
   DIFFERENT mapping from the pre-stroke one -- the execution code without a target is intact but remapped, like the
   trial code (8.12-8.14). This is the target-free counterpart of the far-contra trial result: there the code on failed
   attempts is lost; here, with no target, direction stays decodable session by session.
   Caveat: in-trial within-spout r rises post-stroke (0.15 -> 0.25-0.26) with larger within-spout spread (r depends on the
-  behavioural variance); the frozen drop is not explained by variance (more variance would raise r).
+  behavioral variance); the frozen drop is not explained by variance (more variance would raise r).
 
 ### 8.16 Per-spout lick kernels in the frozen model; target vs executed reconciled (10-25 night) -- PROVISIONAL
 
@@ -1503,7 +1507,7 @@ anterolateral 40 % of MOs / MOp per hemisphere (Priya: "the anterolateral 1/3 to
 ### 8.15 Trial-by-trial coupling by trial class; what acute far-contra trials look like; nulls (10-25 night) -- PROVISIONAL
 
 - Coupling = within-session r between the frozen decoder's P(far mid) - P(far contra) and the trial's lick weight far mid
-  - far contra (landing: 3-D endpoints; trajectory: lick paths; soft weights to each spout's pre landing centre), on
+  - far contra (landing: 3-D endpoints; trajectory: lick paths; soft weights to each spout's pre landing center), on
   far-contra target trials, August pre only (June had been in the landing panel; removed).
 - NULLS: the per-session / per-cell test is now a BLOCK permutation (runs of consecutive far-contra trials permuted,
   internal order kept); the trial shuffle it replaced gave the same calls in every cell. Spout sequences: runs of ~6
@@ -1511,7 +1515,7 @@ anterolateral 40 % of MOs / MOp per hemisphere (Priya: "the anterolateral 1/3 to
   0.12-0.19 per animal x epoch (PS92_1006 0.34) -> a single shift is a noisy null; the partial refit's nulls are being
   redone as 5-draw block permutations (scores averaged).
 - Statistic = change ACROSS EPOCHS (Priya 10-25), not r vs 0. All trials: acute -0.25 [-0.39, -0.11] landing / -0.30
-  [-0.42, -0.18] trajectory (nested bootstrap on session r); normalised to each animal's pre r: -1.04 / -1.01 (~100 %
+  [-0.42, -0.18] trajectory (nested bootstrap on session r); normalized to each animal's pre r: -1.04 / -1.01 (~100 %
   loss); subacute / chronic ~0. Per animal (Welch over sessions): acute < pre in PS93, PS94 (landing p .045 / .030) and
   PS92 trajectory (.004); PS95 has one acute session.
 - BY CLASS (`scripts/coupling_by_class.py`): failed attempts acute -0.26 [-0.42, -0.15] (each animal p <= .025), subacute
@@ -1576,7 +1580,7 @@ anterolateral 40 % of MOs / MOp per hemisphere (Priya: "the anterolateral 1/3 to
 - "CONTROL" WORDING (Priya): visual / retrosplenial / trunk SSp = non-orofacial COMPARISON set, not a null.
 - PS94 DOMINANCE: pre target-unique R2 contra SSp-m (cue PETH / lick frame) PS92 .004 / .022, PS93 .024 / .020, PS94 .37 /
   .16, PS95 .029 / .004 -> mean target maps are largely PS94's (tests count animals). Per-spout target unique ~0 in PS93
-  (close spouts ~1e-6..4e-4). R2 is already normalised per area / pixel, so not a data-scale issue; candidates = block-
+  (close spouts ~1e-6..4e-4). R2 is already normalized per area / pixel, so not a data-scale issue; candidates = block-
   aligned state (positions in ~6-trial blocks; PS94 high running / pushing, lowest full R2), weaker movement regressors,
   or real tuning. CHECKED (`scripts/state_spout_check.py`, `qc/state_spout_check.csv` / `_tracking.csv`): post-cue
   PUSHING is strongly spout-locked in EVERY animal (systematic eta2 .13-.17 vs shift null <= .005; running weakly, PS93 .05)
@@ -1584,8 +1588,8 @@ anterolateral 40 % of MOs / MOp per hemisphere (Priya: "the anterolateral 1/3 to
   first lick 97.7 %, single-view 23 %). Free push barely changes PS94's target unique (cue PETH .176 -> .163; others
   unchanged); FaceRhythm already halves it (.37 without FR -> .18). => not block-state, push or tracking; most likely
   stronger spout-specific responses in PS94 (or an unmeasured spout-locked factor). Mean target maps must be animal-
-  normalised (the per-spout figures are). Per-spout target vs executed unique maps with animal-normalised means + per-animal panels / tests:
-  `scripts/spout_unique_maps.py` (no-FR basis run; page Figs 1ud-1uh): animal-normalised (pre scales target .004-.036,
+  normalized (the per-spout figures are). Per-spout target vs executed unique maps with animal-normalized means + per-animal panels / tests:
+  `scripts/spout_unique_maps.py` (no-FR basis run; page Figs 1ud-1uh): animal-normalized (pre scales target .004-.036,
   executed .07-.18; PS94 highest). TARGET unique per spout changes little (chronic close ipsi up 16 bins; far spouts small
   decreases 2-7). EXECUTED unique changes ACUTELY and spout-specifically: far contra UP in ipsilesional lateral / frontal
   cortex (52 bins), close ipsi / far ipsi / far mid DOWN there (41 / 28 / 22); chronic close ipsi still down (32).
@@ -1616,14 +1620,14 @@ anterolateral 40 % of MOs / MOp per hemisphere (Priya: "the anterolateral 1/3 to
   +1.46 -> +0.83 pre-SD, orofacial contra +2.35 -> +1.95, contrast +0.53 -> +0.79. Pushes carry ~40 % of the lick-window
   residual in non-orofacial cortex and a smaller share in orofacial cortex; no headline claim depends on push.
   Allen-ROI (residual_roi): lick chronic significant areas 13 -> 7 with free push (posterior / visual drop out except
-  contra VISam; SSp-m both, contra SSp-n / MOp / SSp-un / MOs stay), cue unchanged (3). Behaviour-matched residual
+  contra VISam; SSp-m both, contra SSp-n / MOp / SSp-un / MOs stay), cue unchanged (3). Behavior-matched residual
   still positive in SSp-m (lick +3.7 / +4.1 x1e3, 3-4/4; without push +5.5 / +5.6).
 
 ### 8.11 Is the chronic change specific to orofacial cortex? Does it track recovery? (10-25 afternoon) -- PROVISIONAL
 
 **WORDING (Priya 10-25): the "control" areas are a non-orofacial COMPARISON set, not a null -- widefield movement,
 arousal and stroke (diaschisis) effects reach visual / retrosplenial cortex too. They show where a change is concentrated;
-a cortex-wide change is not thereby drift or artefact.** Frozen frame with FaceRhythm (`gate-attempted_v7g3_t3d_frA`; Layer 2 `allsession_encoder_v7g3_t3d_frA`). Orofacial = SSp-m,
+a cortex-wide change is not thereby drift or artifact.** Frozen frame with FaceRhythm (`gate-attempted_v7g3_t3d_frA`; Layer 2 `allsession_encoder_v7g3_t3d_frA`). Orofacial = SSp-m,
 SSp-n, MOp, MOs; CONTROL = visual (7 areas), retrosplenial (3), SSp trunk / lower limb; both hemispheres; group = mean over
 the areas present in all of an animal's sessions. Residual = data - frozen prediction, evoked, mean of six spouts, in each
 animal's pre-SD units per area. Scripts `scripts/specificity_control.py` (outputs
@@ -1633,7 +1637,7 @@ animal's pre-SD units per area. Scripts `scripts/specificity_control.py` (output
   [0.028, 0.075] (4/4 each), contrast +0.002 [-0.017, 0.018]; per-area map uniform, every area's CI excludes 0 (visual and
   retrosplenial included). Mixed model (time): control areas NO step at the stroke (-0.003) but a steady rise with log day
   (+0.016 / e-fold, z 6.1); orofacial - control has an ACUTE step only (+0.025, z 2.6) that decays (-0.007 / e-fold, z -3.0).
-  Behaviour model: the change is LARGER in better-behaving (later) sessions (control -0.007 / unit ttc deficit, z -5.0).
+  Behavior model: the change is LARGER in better-behaving (later) sessions (control -0.007 / unit ttc deficit, z -5.0).
   -> a cortex-wide change accumulating with time: a real stroke effect reaching all of cortex, or drift on a longer time
   scale than the 8-day August null -- undecided; the orofacial-SPECIFIC part is an acute, transient excess.
 - **RESIDUAL: partly global, partly orofacial; a disruption that tracks the deficit plus a persistent part.** Chronic,
@@ -1642,7 +1646,7 @@ animal's pre-SD units per area. Scripts `scripts/specificity_control.py` (output
   +0.53 n.s. Area map: cue residual = bilateral lateral frontal / orofacial cortex; lick residual also posterior (contra RSP
   / visual). Mixed model (ttc): orofacial residual steps up at day 1 (+2.7 to +3.3 SD, z 6.8-7.9) and DECLINES with log day
   (z -2.4 to -6.0); larger in sessions with a larger deficit (+0.16 to +0.36 SD / unit, z 2.6-5.5); still present at full
-  behavioural recovery (contra cue +1.33, lick +2.31, z 5.0 / 8.3); orofacial - control at recovery, cue +0.73 (z 3.2),
+  behavioral recovery (contra cue +1.33, lick +2.31, z 5.0 / 8.3); orofacial - control at recovery, cue +0.73 (z 3.2),
   lick +0.39 (n.s.). Contact deficit: same signs.
 - A global-gain correction (control-area scale removed) was tried and DROPPED (Priya 10-25: not needed; it assumes one
   multiplicative scale shared by all areas and was unstable, PS94); the orofacial - control contrast is the test.
@@ -1652,8 +1656,8 @@ animal's pre-SD units per area. Scripts `scripts/specificity_control.py` (output
   NOT 4/4; "persists at recovery" (the fitted level at deficit 0, where most post sessions sit) is the robust part.
   Layer 2 vs days (`remap_lmm_layer2_time.png`): control areas rise steadily ~0.02 -> ~0.08 over 50 days in every animal;
   the orofacial excess over control is confined to the first ~5 days (PS93, PS94).
-- **BEHAVIOUR-MATCHED RESIDUAL (analysis 4, `scripts/matched_residual.py`, `imaging_encoding/matched_residual/<tag>/`):
-  NOT an extrapolation artefact.** Per animal x spout envelope = Mahalanobis distance on the first lick's 3-D endpoint,
+- **BEHAVIOR-MATCHED RESIDUAL (analysis 4, `scripts/matched_residual.py`, `imaging_encoding/matched_residual/<tag>/`):
+  NOT an extrapolation artifact.** Per animal x spout envelope = Mahalanobis distance on the first lick's 3-D endpoint,
   reach, peak speed, 3-D peak time and the trial's lick count <= the pre trials' leave-one-session-out 95th percentile.
   Share of 3-D-tracked trials inside: chronic .96 / .93 / .72 / .78 (PS92-95), acute .81 / .75 / .35 / .77; far contra acute
   .24-.46, chronic .85-.96. Residual (per-trial window means, x1e3 dF/F) on inside-envelope trials ~ all trials: chronic
@@ -1681,12 +1685,12 @@ Scripts: frozen_fr_compare.py, frozen_fr_musall.py, frozen_claims.py, frozen_pos
   Layer 2 chronic change beyond drift (cortex +0.054, SSp-m +0.059 / +0.061, 4/4); relabel pattern.
 - REVISED: target vs executed (frozen target unique falls and stays down; executed spout-locked part up); contralesional
   position rise (not reproduced; SPOUT package contra - ipsi +0.039 / +0.048 with FR, 4/4); PETH loss does not recover
-  chronically; recovery course 2/4 up (cortex at / after behaviour). Pixel maps (no FR, basis): position unique only
+  chronically; recovery course 2/4 up (cortex at / after behavior). Pixel maps (no FR, basis): position unique only
   decreases (few bins), spout unique up acutely (31 bins, lateral), full R2 down acute (377) / chronic central (69); per-
   animal z and per-animal session-level views agree; calibrated 4-6 % (raw). Per-animal session-level view: only the chronic medial full-R2 fall reaches >= 3 of 4 animals (20 bins at 16 px); the acute spout rise is 1-2 animals per bin. Page Figs 1l-1m (v54).
 - FR unique in the frozen frame (per regressor): cortex directionless 0.008 vs direction 0.001; SSp-m 0.004 vs 0.003 --
   "almost all directionless" holds cortex-wide, NOT in SSp-m. Direction unique falls chronically in contra SSp-m (0.013 ->
-  0.003 cue), but Layer 2 change_fr_dir <= pre_late drift: MIXED behaviour / neural.
+  0.003 cue), but Layer 2 change_fr_dir <= pre_late drift: MIXED behavior / neural.
 - Movement with vs without lick-position info (quick, FR lick sum unsplit): pre SSp-m alone 0.46 / 0.46, unique 0.03 vs
   0.09; chronic noposinfo unique up in SSp-m (ipsi +0.050 [0.023, 0.074] 4/4), posinfo alone down contra (-0.065, 0/4).
 - Refit FR maps with PER-ANIMAL z (`fr_pixel_significance.py --zscore`): counts kept or raised (chronic position no FR 99 ->
@@ -1705,7 +1709,7 @@ R2 as a FRACTION from here on. FRAME: per-session refit encoder (FR factors froz
   chronically (-0.010, 0/4); they take less of the position code post-stroke. The contralesional SSp-m position rise is present with
   DIRECTIONLESS FR (cue +0.028 [+0.002, +0.058], 4/4; lick +0.022 3/4 n.s.). 
 - **Why the direction factors decouple** (`scripts/fr_direction_mechanism.py`, MODEL-FREE: raw FR factors, bundle 3-D tongue
-  and cortex, engaged trials, cue 0-1.5 s; Fig 16p): (a) behaviour: side-index spout eta2 pre 0.72, acute -0.10 [-0.20, -0.01];
+  and cortex, engaged trials, cue 0-1.5 s; Fig 16p): (a) behavior: side-index spout eta2 pre 0.72, acute -0.10 [-0.20, -0.01];
   tongue ml eta2 pre 0.86, acute -0.12 [-0.19, -0.04] 4/4, subacute -0.07, chronic back; within-spout SD of side index chronic
   -21 % [-38, -4] (3/4). (c) measurement: within-spout r(side, tongue ml) pre -0.23, acute +0.15 [0.01, 0.30] (weaker), sub /
   chronic back. (b) cortex: partial r(SSp-m, side | lick) ipsilesional pre -0.10 -> +0.12 acute, +0.13 subacute, +0.08 [0.02,
@@ -1774,14 +1778,14 @@ R2 as a FRACTION from here on. FRAME: per-session refit encoder (FR factors froz
 
 - **2026-10-23 (late evening)** — 3-D complete (119 sessions, 4 animals; re-cut 107 encoding sessions; 4-animal polar
   contest running); contact kernel sign checked (negative 4/4 -> the + contact part = fewer contacts); PS93 contact
-  note; v7 basis maps (per-position far contra not a clean loss); free-push variant and push behaviour readout running.
+  note; v7 basis maps (per-position far contra not a clean loss); free-push variant and push behavior readout running.
 
 - **2026-10-23 (evening)** — v7 chosen and made the default (forward-only running from 1.5 mm/s, no push term;
   STATS_VERSION 7); push term breaks post-stroke windows because pushes are 2-5x more frequent after the stroke
-  (provisional behavioural finding); 3.4 / status box / next updated; `_v7basis` running.
+  (provisional behavioral finding); 3.4 / status box / next updated; `_v7basis` running.
 
 - **2026-10-23 (afternoon)** — status box at the top (what each result rests on, incomplete data, the 3-D re-run
-  rule); **CORRECTED** the decoder line (frozen deficit NOT ~0 at full behavioural recovery: +0.08, only PS92 back;
+  rule); **CORRECTED** the decoder line (frozen deficit NOT ~0 at full behavioral recovery: +0.08, only PS92 back;
   refit gain G > 0 in 4/4 but not significant under the deck bootstrap, DECISIONS 2026-09-12); 2.6 strays section
   (census, design, pending); 2.4b 3-D 2x2 status; 3.4 retitled (v6 current, v7 pending) + running-model side-by-side,
   pre-stroke per-spout contrasts, pixel / per-position maps pending; caveats (lick timing, direction, running);
@@ -1799,13 +1803,13 @@ R2 as a FRACTION from here on. FRAME: per-session refit encoder (FR factors froz
   chronic frozen fit fails via "other" (open). v3 frozen outputs (`frozen_encoder_gate-attempted/`) superseded.
 - **2026-10-21 (night)** — 3.3 added: 15r position maps under LP lick attempts (acute far contra measurable: post-lick
   activity below pre in 3/4, bilateral; contact gating had inflated acute far-spout amplitudes); LP null calibration;
-  how to read nested vs cluster outlines; "brighter animals" normalisation claim withdrawn.
+  how to read nested vs cluster outlines; "brighter animals" normalization claim withdrawn.
 
 - **2026-10-21** — trial attempts + time-to-contact deficit; 3-D contest + template rerun (2.4b); destination vs 3-D
   landing (2.4c); jaw-onset rewrite rerun; within-spout per spout + contact control (pooled toward-midline not
   robust); one-load variants + local input cache (handoff STATUS_2026-10-21_ENCODING_HANDOFF).
 
-- **2026-10-21 (evening)** — map tests on the pre-normalised scale + calibration (caveats); LP_licks family
+- **2026-10-21 (evening)** — map tests on the pre-normalized scale + calibration (caveats); LP_licks family
   built on a branch; ENL LP census running (handoff STATUS_2026-10-21_ENCODING_HANDOFF §1d).
 
 - **2026-10-20 (evening)** — within-spout lick-aligned / bilateral / mixed model / map tests; 3-D landing zones

@@ -16,7 +16,7 @@ with PS95_0812 and PS95_0814, which report none at all.
 THE KEPT SET NEVER CHANGED, and that is why this went unnoticed for two weeks: both paths drop the
 same trial, so every number computed from the features was correct. What was wrong was the reason
 given, on a PRE-STROKE session that feeds the reference band -- a label asserting a cause that
-nothing checks, pointing an exclusion at the animal's behaviour when the cause was a gap in the
+nothing checks, pointing an exclusion at the animal's behavior when the cause was a gap in the
 imaging. The same shape as the frozen models trained on post-stroke data and the "curated" dates that
 meant pre-stroke only by historical accident.
 """
@@ -48,7 +48,7 @@ def test_coverage_is_dropped_before_the_lickfree_accounting():
 
 def test_the_two_counters_are_separate():
     """One `continue` per trial, two counters. Sharing one would restore the ambiguity the fix
-    removes -- the point is being able to answer "how many of these are behavioural?"."""
+    removes -- the point is being able to answer "how many of these are behavioral?"."""
     src = inspect.getsource(D._trial_features)
     assert src.count("n_dropped_coverage = 0") == 1
     assert src.count("n_dropped_dirty = 0") == 1

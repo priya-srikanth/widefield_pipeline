@@ -1,5 +1,5 @@
-"""Labelled review clips of RAW pose predictions on a `session_poses` trial clip, one panel per model, the SAME frame in
-every panel (Priya 2026-10-18: labelled clips for the cam1 round-2 model). Replaces the one-off
+"""Labeled review clips of RAW pose predictions on a `session_poses` trial clip, one panel per model, the SAME frame in
+every panel (Priya 2026-10-18: labeled clips for the cam1 round-2 model). Replaces the one-off
 `inference_check_20261012_round4/render_models_grid.py`; for CLEANED traces use `scripts.cleaned_label_clips` (cam4 cleaning).
 
     python -m scripts.model_label_clips PS93:20260814:cam1 --model "DLC c1r2={d}/dlc_r2/*.csv" [--model "DLC c1r1={d}/dlc_r1/*.csv"] \\

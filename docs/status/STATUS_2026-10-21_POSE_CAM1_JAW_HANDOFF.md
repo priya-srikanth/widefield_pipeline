@@ -16,7 +16,7 @@ ENCODING window, which owns `scripts/trial_attempts.py`, `wfield_local/mixed_mod
     agreeing, link, detail-doc pointer. Family docs stay as the evidence record (no deletions) and get a header line
     pointing to FINDINGS.md.
   * Sections:
-    1. behaviour + orofacial kinematics -- **mine**;
+    1. behavior + orofacial kinematics -- **mine**;
     2. pose / 3-D / cam1 -- **mine**;
     3. imaging decode / state / anatomy -- d4 extracts, **I review / correct**;
     4. encoding + goal question -- d4 (cites my 3-D landing / trajectories);
@@ -40,7 +40,7 @@ ENCODING window, which owns `scripts/trial_attempts.py`, `wfield_local/mixed_mod
 
 * **10-24 IMAGING RESULTS PAGE + DECKS (this window):**
   * Page https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV ("Cortical Spout Coding After Stroke"). Scope: imaging results
-    whose behaviour input is only DAQ contact, the engagement gate or the LP attempt gate -- no full encoding models, no
+    whose behavior input is only DAQ contact, the engagement gate or the LP attempt gate -- no full encoding models, no
     kinematics. Sources: `scratchpad/imaging_page/`.
   * Decks rebuilt 20:35 on the share FROM THE SHARE's figure tree:
     `--src M:/MICROSCOPE/Priya/Widefield/labcams/analysis_figures`. This box's figures_working (`C:/Users/SabatiniLab/cue_lick`)
@@ -96,14 +96,14 @@ jaw_onsets columns unchanged).
 `cam1_contrast` (mean |jaw speed| cue .. min(stop, 1.5 s) / -1 .. 0 s; ~1 = no cue response), `tread_pre_mm_s` /
 `tread_post_mm_s` (DAQ treadmill). Reviewed jaw_only trials: contrast 0.90-1.04, opening 5-12 px (lick openings ~60-90
 px); a001 walking at 8 mm/s, a014 2.1 mm/s pre-cue.
-**cam4 ENCODER KEYFRAME artefact:** every video frame with index % 12 == 0 (from the video start) has ~33 % more
+**cam4 ENCODER KEYFRAME artifact:** every video frame with index % 12 == 0 (from the video start) has ~33 % more
 frame-difference energy (20.8 Hz + 41.7 / 62.5 Hz harmonics; a static background corner peaks at 12.01 frames, 190x).
 Fix = interpolate over those frames (20.8 Hz power down 4-8x): `scripts/attempt_review.py` (KEYFRAME_EVERY),
 documented in `wfield_local/roi_motion.py`. Told the FaceRhythm window (interpolate point displacements over those
 frames before the VQT, or expect a 20.8 Hz band). The published review clips predate this fix (5-frame median only).
 
 **FaceRhythm registration FINAL (10-21 ~11:30; supersedes the smoothing paragraph below where they differ):**
-* EYES: Priya clicked eye centres on the master + 3 templates (page https://claude.ai/artifact/Duo8fgvKosCnXvMyFDjqho,
+* EYES: Priya clicked eye centers on the master + 3 templates (page https://claude.ai/artifact/Duo8fgvKosCnXvMyFDjqho,
   db `eye_landmarks`) -> `face_rhythm/cam4/register_inputs/eye_landmarks.json` (outside register/ so a re-run keeps
   it). They join nose + jaw in the template -> master similarity fit (equal weight; "eyes once" was worse: PS94 eye
   7 -> 12.5 px). Raw eye zones were tried and DROPPED (`RAW_EYES = ()`): DeepFlow folded around the eyes (bunching median
@@ -124,7 +124,7 @@ field now has THREE zones (`face_rhythm_register.register`): MOUTH (within MOUTH
 ramp SHELL_PX) = raw field (Priya: keep the mouth edge); face INTERIOR (inside Priya's master face polygon, carried into
 each animal template through its template->master field) = INNER_SMOOTH_PX 8 px Gaussian; OUTER SHELL (50 px band inside
 the contour, ramp) and outside = SMOOTH_PX 25 px. Results vs unsmoothed: face landmark error UNCHANGED (jaw 2.8-4.3, nose
-1.6-5.2 px), mouth 0.0 px change, bunched points (< 4 px neighbour of 2,287) median 45 -> 0, worst 305 -> 82 (PS93: its
+1.6-5.2 px), mouth 0.0 px change, bunched points (< 4 px neighbor of 2,287) median 45 -> 0, worst 305 -> 82 (PS93: its
 template->master field had fold seams along the left pad / under the snout, inherited by every PS93 session), spacing p5
 4.9 -> 6.5 px (`register/qc_spacing.csv`, `register/qc_bunching.png`). Uniform 10-20 px smoothing was rejected (cost PS92
 / PS93 jaw 3-4 -> 6-7 px); a radius-around-the-nose blend did not follow the face. Earlier field sets kept:
@@ -157,7 +157,7 @@ cam4 + combined, phase 1.68 M rows, spout error, cue + first-lick traces: max di
 * `wfield_local/result_cache.py`: per-session result cache keyed on input files (size + mtime) + a hash of the code
   (`code_version`), pickles under `<out>/_cache/<step>/`. Used by jaw_onsets, pose3d_kinematics (now a parallel
   per-session worker, ~1 GB each instead of 12 GB serial), pose3d_phase + pose3d_spout_error (one exact `get_indexer`
-  per position instead of a reindex per lick), pose3d_cue_traces (key includes the behaviour table + engagement gate).
+  per position instead of a reindex per lick), pose3d_cue_traces (key includes the behavior table + engagement gate).
   Cached reruns: kinematics 16 s (was 6 + 22 min), phase 74 s (was 17 min). `WFIELD_RESULT_CACHE=0` disables reads.
   OPEN: the cached jaw_onsets rerun still took 13 min on the loaded box -- not yet diagnosed.
 * `scripts/pose_chain.py`: the whole §4 chain in order (collect + sidecars -> pose3d production -> kinematics x2 ->
@@ -229,7 +229,7 @@ fr_cam4_20261021, 108 tasks, June excluded):
 ## 1. Done since the 10-20 handoff (details: 10-20 doc §4a)
 
 * **Jaw anchor OFF** (`pose3d.ANCHOR_PARTS = ()`): open one-camera jaws misplaced 0.5-1.4 mm; a depth model (held out
-  0.25-0.31 mm) still extrapolated at close_center. Centre-spout 3-D jaw ~0.81-0.86 coverage, close_center opening
+  0.25-0.31 mm) still extrapolated at close_center. Center-spout 3-D jaw ~0.81-0.86 coverage, close_center opening
   biased low -- keep it out of opening comparisons. FAR_DIR / CLOSE_DIR unaffected.
 * **3-D / cam1 figures and analyses** (all on template time): cue- and FIRST-LICK-aligned 3-D traces
   (`scripts/pose3d_cue_traces.py --align cue|first_lick`, incl. aim angles `mid` / `elev`), spout-error epoch figures
@@ -286,7 +286,7 @@ seconds on **compute-gc-17-242** (L40S x4, MIXED): "no GPU visible to torch" -> 
 `--exclude=compute-gc-17-242` (EXCLUDE THIS NODE in future cam1 / LP submissions). gpu_requeue preempts (112 lost 28 min
 at 34 % once); A100 there ran 3.6 it/s (~84 min / video). gpu_quad test-only 10-23 still later (10-25) than gpu_requeue.
 **pose_chain now defaults to --jobs 6 and collects in parallel** (856bcfc; 10-session batch was ~66 min, collect 19 min serial).
-Array 56830841: pending tasks ask `gres/gpu:1`, wait on Priority (fairshare). 10 non-curated tasks cancelled.
+Array 56830841: pending tasks ask `gres/gpu:1`, wait on Priority (fairshare). 10 non-curated tasks canceled.
 `gpu_requeue` accepts 10 h jobs but its estimated start was ~1 day out. Local cam1 LP run (reverse order from task 137
 = PS95 1005; WSL, sequence_length 16, ~10-12 h / video) DEFERRED (box shared) -- if started, `scancel 56830841_<idx>`.
 

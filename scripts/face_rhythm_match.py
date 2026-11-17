@@ -16,7 +16,7 @@ master, spatial loading and spectral (frequency) similarity reported separately,
   match_pre_pairs.csv    pre-vs-pre pairs within each animal, per factor (the floor)
   match_epochs.csv       per animal x epoch x factor: mean cosines + the animal's pre floor (rule 8: per animal first)
   match_by_day.png       per factor: spatial and spectral cosine to the master over days since stroke, per animal,
-                         grey band = pre floor (5th-95th pct of pre pairs, all animals), dashed = chance
+                         gray band = pre floor (5th-95th pct of pre pairs, all animals), dashed = chance
   match_by_day_pooled.png  the same angles z-scored vs each animal's own pre sessions, pooled over animals by epoch
                          (boot_delta, * / ** Holm over factors; + data/match_by_day_pooled.csv); `--plot-only` redraws
                          it and asymmetry_two_ways.png from the stored tables (statistics read, not recomputed)
@@ -41,7 +41,7 @@ EPOCHS = frc.EPOCHS
 
 def pooled_by_day_figure(S: pd.DataFrame, names: list[str], out: Path, set_name: str,
                          rule: str = "Hungarian-matched", stored: bool = False) -> pd.DataFrame:
-    """Cross-animal, WITHIN-ANIMAL-NORMALISED version of `match_by_day.png` (Priya 10-25). Per animal x factor, each
+    """Cross-animal, WITHIN-ANIMAL-NORMALIZED version of `match_by_day.png` (Priya 10-25). Per animal x factor, each
     session's matched-factor ANGLE to the master (spatial and spectral separately) is z-scored against that animal's own
     PRE sessions (August only): (angle - mean pre) / SD pre, so pre averages exactly 0. Per post epoch: the mean of the
     animals, the `boot_delta` change vs pre (via `face_rhythm.stats.epoch_change`, seeded rng 0, factors in order) and the
@@ -127,7 +127,7 @@ fit {rule} to the frozen master; larger = further from the master) as a z-score 
 sessions (August only; mean and SD over its {', '.join(f'{a} {n}' for a, n in n_pre.items())} pre sessions), so pre is
 0 by construction. Big markers: the mean over animals of each animal's epoch mean = the `boot_delta` change vs pre
 (paired animals -> sessions bootstrap, 95 % interval, `face_rhythm.stats.epoch_change`); faded open markers: the
-SESSIONS (shape = animal, colour = epoch, seeded jitter; no line joins factors, Priya 11-03). Top band, epoch colour:
+SESSIONS (shape = animal, color = epoch, seeded jitter; no line joins factors, Priya 11-03). Top band, epoch color:
 k/n = animals above pre; * = interval excludes 0, ** = also Holm-significant over the {len(names)} factors of that
 measure x epoch. Caveats: the master was fitted on pre sessions, so pre angles are in-sample and a post increase partly
 measures out-of-sample fit; an animal with few or very similar pre sessions has a small SD and large z. Descriptive.""")
@@ -136,7 +136,7 @@ measures out-of-sample fit; an animal with few or very similar pre sessions has 
 
 def _epoch_points(ax, d: pd.DataFrame, value: str, seed: int) -> None:
     """EPOCHS on x (Priya 11-03 categorical-x rules, `cat_points`): SESSION values of ``d`` (animal, epoch, value) as
-    faded open markers (shape = animal, colour = epoch) and the mean +- SEM across animals of the per-animal epoch means
+    faded open markers (shape = animal, color = epoch) and the mean +- SEM across animals of the per-animal epoch means
     (marker + interval, no line between epochs)."""
     from wfield_local import cat_points as cp
     ecol = frc.epoch_colors()
@@ -186,7 +186,7 @@ def two_ways_figure(S: pd.DataFrame, pts: pd.DataFrame | None, names: list[str],
         frf.save(fig, out / "asymmetry_two_ways.png", f"""
 Two measures of contra- vs ipsilesional face asymmetry, (contra - ipsi) / (contra + ipsi), split at the face midline
 (x = {mid:.0f}, the master's LP nose; cam4 ipsilesional = IMAGE RIGHT, all lesions left), by epoch. Faded open markers:
-the SESSIONS (shape = animal, colour = epoch, seeded jitter); filled marker + bar: mean +- SEM across animals of each
+the SESSIONS (shape = animal, color = epoch, seeded jitter); filled marker + bar: mean +- SEM across animals of each
 animal's mean over its sessions (no line joins epochs; Priya 11-03). Descriptive: no test on this figure. LEFT TWO:
 tracked-point MOVEMENT -- RMS speed of the 25 Hz mesh points summed over each half of the face, in the response window
 (cue 0..+4 s, engaged trials, all six spouts pooled) and between trials (`face_rhythm_readouts.movement`, readouts
@@ -210,7 +210,7 @@ def main(argv=None) -> int:
     ap.add_argument("--set", default=fro.SET)
     ap.add_argument("--bundle", default=fro.BUNDLE)
     ap.add_argument("--fdir", type=Path, default=None)
-    ap.add_argument("--on", default="product", choices=fm.ON, help="what the assignment maximises")
+    ap.add_argument("--on", default="product", choices=fm.ON, help="what the assignment maximizes")
     ap.add_argument("--assign", default="hungarian", choices=("hungarian", "best"),
                     help="one-to-one Hungarian, or each master factor's BEST column (may repeat; DECISIONS 10-25: the "
                          "shape readouts use --on spatial --assign best)")
@@ -336,7 +336,7 @@ Each session's OWN rank-{len(names)} non-negative CP fit (`fitsession`, best of 
 master's factors by {'the Hungarian assignment maximising' if a.assign == 'hungarian' else "each master factor's best column (may repeat) by"} the {a.on} of the spatial and spectral cosines (spatial loadings
 as {'(x, y) displacement vectors over all points' if a.spatial == 'vector' else '|(x, y)| per point'}). Plotted: the
 matched pair's spatial (left) and spectral (right) cosine, per session, over days since stroke, one line per animal.
-Grey band: 5th-95th percentile of the same factor's cosine between two PRE-stroke sessions of one animal (both own fits
+Gray band: 5th-95th percentile of the same factor's cosine between two PRE-stroke sessions of one animal (both own fits
 aligned to the master first) -- the day-to-day variation a post-stroke value is read against. Dashed: chance, the 95th
 percentile of the matched cosine with the session's points / frequencies permuted (non-negative factors: chance > 0).
 Pre sessions' own fits are matched to the full master here (in-sample for the master's fit rows). Split / merge: see

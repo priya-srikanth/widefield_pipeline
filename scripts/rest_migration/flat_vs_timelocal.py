@@ -4,7 +4,7 @@ Priya, 2026-09-13/14, after being told the polynomial detrend is enough for the 
 *"but shouldn't that be enough for the 'rest' detrend too then?"*
 
 THE INFERENCE DOES NOT CARRY, BUT THE QUESTION BEHIND IT WAS NEVER ANSWERED. The decoder is
-invariant to drift -- per-fold standardisation ignores a shared additive offset, and it reports a
+invariant to drift -- per-fold standardization ignores a shared additive offset, and it reports a
 discrimination, not an amplitude. A map reference reports an amplitude, and an error in the
 subtrahend lands in it directly; worse, drift is NOT common-mode across positions, because each
 position's trials cluster in its own blocks and so sample drift at its own times.

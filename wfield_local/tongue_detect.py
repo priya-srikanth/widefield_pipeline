@@ -249,7 +249,7 @@ def _classify_raw_clusters(y, is_interp_fill, is_baseline_fill, n_frames, fps, *
     """Step 1a: label each raw cluster keep_low / keep_real / artifact_{narrow,isolated_short,flat}.
 
     A cluster that reaches high (>= high_thr) is REAL if it has lick shape on its own (Rule A: dips low, or
-    spans a wide range) or if it is attached to the trace and has a low non-baseline neighbour nearby
+    spans a wide range) or if it is attached to the trace and has a low non-baseline neighbor nearby
     (Rule B). Otherwise it is a narrow high plateau -- the DLC jump-to-a-wrong-landmark signature.
     """
     high_thr = float(params["high_thr_px"])
@@ -559,7 +559,7 @@ class LickPeaks:
 
 
 def _moving_avg_nan(arr, window_ms, fps):
-    """NaN-tolerant centred moving average over ``window_ms`` (their `_moving_avg_nan`)."""
+    """NaN-tolerant centered moving average over ``window_ms`` (their `_moving_avg_nan`)."""
     win_n = max(1, int(round(window_ms / 1000.0 * fps)))
     if win_n <= 1:
         return arr.astype(np.float64, copy=True)

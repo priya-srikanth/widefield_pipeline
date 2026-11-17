@@ -45,6 +45,14 @@ def test_core_hookspath_points_at_the_repo_hooks():
     if not (ROOT / ".git").exists():
         pytest.skip("not a git checkout (worktree or export)")
     got = _git("config", "core.hooksPath")
+    # an ABSOLUTE path to a clone's own .githooks also enables them (this box sets one so every worktree of the clone
+    # shares the hooks); accept it when it is that directory and holds the same pre-push
+    p = pathlib.Path(got) if got else None
+    if p is not None and p.is_absolute() and p.name == ".githooks" and (p / "pre-push").is_file():
+        def _norm(f):
+            return f.read_bytes().replace(b"\r\n", b"\n")
+        if _norm(p / "pre-push") == _norm(ROOT / ".githooks" / "pre-push"):
+            return
     assert got == ".githooks", (
         f"git hooks are NOT enabled in this clone (core.hooksPath = {got or '<unset>'!s}).\n"
         f"  Nothing you commit or push here is being linted or tested.\n"

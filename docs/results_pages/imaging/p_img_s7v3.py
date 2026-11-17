@@ -162,7 +162,7 @@ idx = ('<div class="tbl"><table>\n'
        '<tr><td>LICK &middot; REST</td><td>%s</td><td>%s (headline), %s per animal</td><td>%s | %s</td></tr>\n'
        '<tr><td>LICK &middot; PRECUE</td><td>%s</td><td>%s</td><td>%s | %s</td></tr>\n'
        '</table></div>\n<p class="input">Drift index complete (10-25): all three arms (contact, LP-lick, ENL) rendered; summary tables in '
-       '<code>grant_figures/map_drift_prepre/&lt;arm&gt;/drift_vs_stroke_panels.csv</code>.</p>') % (
+       '<code>grant_figures/map_drift_prepre/&lt;arm, or the run tag in the rebuild&gt;/drift_vs_stroke_panels.csv</code>.</p>') % (
     cell("pcRC"), cell("pcRL"), cell("pcRCd"), cell("pcRLd"),
     cell("enlRC"), cell("enlRCd"),
     cell("cueRC"), cell("cueRCa"), cell("cueRL"), cell("cueRCd"), cell("cueRLd"),

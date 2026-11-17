@@ -31,7 +31,7 @@ collect <- share (M:) <-------   /n/files  <---rsync---------------  /n/scratch/
 
 | item | value |
 |---|---|
-| conda module | `conda/miniforge3/24.11.3-0` (worked; HMS docs say non-`miniconda3` modules were hidden in 2024 — if `module load` fails, `module spider miniconda3` and update `o2_inference.conda_module`) |
+| conda module | `conda/miniforge3/26.9.4-1` (worked; HMS docs say non-`miniconda3` modules were hidden in 2024 — if `module load` fails, `module spider miniconda3` and update `o2_inference.conda_module`) |
 | env | `deeplabcut` (Priya's): DeepLabCut **3.0.0rc13**, torch 2.9.0+cu128, OpenCV 4.11 — runs our runner + prior (benchmark and 5000-frame test passed). Do NOT modify it; if it ever breaks, make a separate `dlc3` env (COMMANDS.md step 0). |
 | GPU seen | `gpu` partition, NVIDIA **L40S 46 GB**, driver CUDA 13.2 (>= the 12.8 torch needs) |
 | speed | `--bench 2000`: batch 1 98.1 fps, 4 89.2, 8 75.0, 16 70.9, 32 68.7, 64 67.2 → **batch 1** (CPU decode is the limit, not the GPU). Real runs: 66 fps on a 5000-frame test, **88 fps** sustained in the array job; a cam4 session is ~2.2 M frames (PS93 0814: 2 209 351) → **~7 h per session**. |
@@ -63,7 +63,7 @@ collect <- share (M:) <-------   /n/files  <---rsync---------------  /n/scratch/
 6. **Desktop**, from the repo folder (`C:\Users\SabatiniLab\Github\widefield_pipeline`), `dlc` env (h5py added
    10-06) or `locanmf`: `python -m wfield_local.o2_inference collect --name <name>` → `session_poses/<a>_<d>_full/`.
    Checks predicted frames == the video's frame count, then splits the whole video into every trial's window
-   (strobe - 0.5 s .. stop + 3 s; neighbouring windows overlap a few s) in the `session_poses` format.
+   (strobe - 0.5 s .. stop + 3 s; neighboring windows overlap a few s) in the `session_poses` format.
 7. Clean `_chunks/` once collected. Staged videos stay until Priya confirms all server analysis is finished.
 
 ## Lightning Pose (the production cam4 model, from 2026-10-15)
@@ -139,10 +139,10 @@ helps the job backfill sooner.
   release, resubmit only the failed ids (`sbatch --array=<ids>%12 --exclude=... --gres=gpu:1 -t 6:00:00 run_pose.sbatch`;
   the runner skips videos with a done.json). `o2_inference.exclude_nodes` now carries those nodes for every new bundle.
   Symptom to watch: many tasks `CG` / `FAILED` under a minute -> `sacct ... --format=JobID,NodeList,Elapsed`.
-  Root cause check: `module load conda/miniforge3/24.11.3-0; conda activate lp; python -c "import torch;
+  Root cause check: `module load conda/miniforge3/26.9.4-1; conda activate lp; python -c "import torch;
   print(torch.cuda.get_arch_list())"` -> `sm_75 ... sm_120`, no `sm_70`. Re-check after any rebuild of the env.
 * **Coverage check (run after any failure / resubmit, and at the end)** -- by OUTPUTS, not sacct states (a task can end
-  FAILED, NODE_FAIL, TIMEOUT, CANCELLED ...):
+  FAILED, NODE_FAIL, TIMEOUT, CANCELED ...):
   ```
   cd /n/scratch/users/p/ps150/o2/<bundle>
   awk -F'	' 'NR>1{sub(/\.avi$/,"",$4); print $1, "out/"$2"_"$3"/"$4"_done.json"}' tasks.tsv     | while read id f; do [ -f "$f" ] || echo $id; done | sort -n > /tmp/notdone
@@ -179,7 +179,7 @@ also took the 6 calibration-folder videos; harmless).
 
 `r3_PS93_20261002` (round-3 cam4 model, 3 PS93 videos): smoke test passed; array task 1 (0814) submitted as job
 55345148 and running. Tasks 2-3 need their videos copied first. This is a PIPELINE test — the production run
-waits for the next cam4 model (labelling round 4).
+waits for the next cam4 model (labeling round 4).
 
 ## Next on O2
 

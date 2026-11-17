@@ -36,7 +36,7 @@ def detect(out_px, lat_px, present, trial_id, t_ms, src_frame, stop_ms, position
            lips_px: float = LIPS_PX, span: str = "post") -> pd.DataFrame:
     """``span`` "post" = cue .. trial stop (the original post-cue events); "all" = every frame of the trial windows
     (strobe - 0.5 s .. stop + 3 s, cut at the next trial; encoding window via Priya 10-20: licks outside cue..stop),
-    label with `orofacial_outputs.lick_context`."""
+    label with `orofacial_outputs.lick_context` (by the event's PEAK, 11-04)."""
     out_px, lat_px = np.asarray(out_px, float), np.asarray(lat_px, float)
     t, stop = np.asarray(t_ms, float), np.asarray(stop_ms, float)
     tid, src, pos = np.asarray(trial_id), np.asarray(src_frame), np.asarray(position)

@@ -23,6 +23,7 @@ pre).
     set WFIELD_INPUT_CACHE=C:/Users/SabatiniLab/wfield_cache
     python scripts/cohort2_qc/quiet_fluct.py [--jobs 6] [--summarise]
 """
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 import argparse
 import sys
 from pathlib import Path
@@ -34,6 +35,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from quiet_area_spikes import EP, columns, session_traces  # noqa: E402
 from quiet_spikes_v2 import V2, busy_frames, detrend  # noqa: E402
+from wfield_local import config  # noqa: E402
 
 FL = V2 / "fluct"                                           # follows QS_LICK_SOURCE (quiet_spikes_v2.V2)
 K_EVT = 4.0
@@ -48,7 +50,7 @@ def animal_sd():
     from wfield_local import epochs
     out = {}
     for f in sorted((V2 / "sessions").glob("*.npz")):
-        if epochs.epoch_of(f.stem) == "pre" and f.stem[-4:] >= "0806":
+        if epochs.epoch_of(f.stem) == "pre" and not config.early_pre(f.stem):
             out.setdefault(f.stem[:4], []).append(np.load(f)["sd_q"])
     return {a: np.nanmedian(v, 0) for a, v in out.items()}
 
@@ -124,7 +126,7 @@ def load():
     D = {}
     for f in sorted((FL / "sessions").glob("*.npz")):
         ep = epochs.epoch_of(f.stem)
-        if ep is None or (ep == "pre" and f.stem[-4:] < "0806"):
+        if ep is None or (ep == "pre" and config.early_pre(f.stem)):
             continue
         D[f.stem] = dict(np.load(f), epoch=ep)
     return D
@@ -187,7 +189,7 @@ def fig_spectrum(D):
     fig.suptitle("Quiet-period power spectrum (no lick / running within 1.5 s; engaged; Welch 4-s segments): "
                  "which frequencies grow after the stroke", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
-    fig.savefig(FL / "quiet_spectrum.png", dpi=110)
+    save_png_svg(fig, FL / "quiet_spectrum.png", dpi=110)
     import pandas as pd
     B = pd.DataFrame(rows)
     B.to_csv(FL / "quiet_spectrum_bands.csv", index=False)
@@ -302,7 +304,7 @@ def fig_maps(D):
                  "ratio = geometric mean over sessions vs the animal's pre; ipsilesional = image left; Allen area edges.\n"
                  "Black outline = change significant (bootstrap, max-statistic family-wise p < 0.05 over 8x8-px bins, "
                  "eroded mask): pooled = animals -> sessions; per animal = sessions.", fontsize=9, y=0.995)
-    fig.savefig(FL / "quiet_sd_maps.png", dpi=110, bbox_inches="tight")
+    save_png_svg(fig, FL / "quiet_sd_maps.png", dpi=110, bbox_inches="tight")
     pd.DataFrame(rows).to_csv(FL / "quiet_sd_maps_significance.csv", index=False)
     print(pd.DataFrame(rows).to_string())
 
@@ -341,7 +343,7 @@ def fig_eta(D):
     fig.suptitle("Event-triggered average traces (events > 4 x pre robust SD, quiet engaged); mean of animal means "
                  "(sessions with >= 3 events)", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.96))
-    fig.savefig(FL / "quiet_eta_traces.png", dpi=110)
+    save_png_svg(fig, FL / "quiet_eta_traces.png", dpi=110)
     # maps: orofacial UP and limb UP -- pre, acute, and DELTA acute - pre (Priya 11-01) -- at MAP_LAGS_S
     import pandas as pd
     from wfield_local import beta_maps as bm
@@ -385,11 +387,11 @@ def fig_eta(D):
             fig.colorbar(im, ax=ax[r, :].tolist(), fraction=0.02, label="dF/F %" if ep != "delta" else "delta dF/F %")
             r += 1
     fig.suptitle("Event-triggered average maps (high-passed movie, positive events > 4 x pre SD), mean of animal means; "
-                 "ipsilesional = image left.\nDELTA = acute - pre within animal (own colour scale); black outline = "
+                 "ipsilesional = image left.\nDELTA = acute - pre within animal (own color scale); black outline = "
                  "significant (nested animals -> sessions bootstrap, max-statistic family-wise p < 0.05, 8x8-px bins, "
                  "eroded mask)", fontsize=9)
     fig.subplots_adjust(top=0.93)
-    fig.savefig(FL / "quiet_eta_maps.png", dpi=110, bbox_inches="tight")
+    save_png_svg(fig, FL / "quiet_eta_maps.png", dpi=110, bbox_inches="tight")
     pd.DataFrame(sig_rows).to_csv(FL / "quiet_eta_maps_significance.csv", index=False)
     print(pd.DataFrame(sig_rows).to_string())
 
@@ -422,7 +424,7 @@ def main():
     if not a.summarise:
         from wfield_local.analysis_kit import curated_labels
         from wfield_local.analysis_kit import fan_sessions  # fan_out + sort (rule 9)
-        labels = a.only or [k for k in sorted(curated_labels()) if k[-4:] >= "0806"]
+        labels = a.only or [k for k in sorted(curated_labels()) if not config.early_pre(k)]
         res, fail = fan_sessions(labels, extract, jobs=a.jobs, label="session")
         print(f"{len(res)} done, {len(fail)} failed")
         for x in fail:

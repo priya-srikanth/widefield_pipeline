@@ -8,9 +8,9 @@ bitten this repo three times --
   1. `fan_out` completion order feeding a bootstrap pool (2026-09-20). The point estimate stayed
      exact at -18.7 licks/min while the CI moved from [-22.9, -13.7] to [-23.1, -13.6].
   2. `for lab in {set comprehension}` in `rest_coupling._contrast_by_animal` (2026-09-21). Python
-     randomises string hashing per process, so the module disagreed with ITSELF between two runs
+     randomizes string hashing per process, so the module disagreed with ITSELF between two runs
      of identical code over identical data.
-  3. `animals = list(results)` in the frozen decoder's summary figures, and three JSON artefacts
+  3. `animals = list(results)` in the frozen decoder's summary figures, and three JSON artifacts
      written from completion-ordered dicts (2026-09-21). No number moved; the FIGURE and the FILE
      BYTES did, which defeats the point of a frozen model -- you freeze it so you can diff it.
 
@@ -106,7 +106,7 @@ def test_spec_id_does_not_depend_on_how_the_training_set_was_passed():
     from wfield_local import frozen_models as fm
 
     labs = ["PS92_0812", "PS92_0808", "PS92_0814"]
-    kw = dict(align="cue", source="roi")
+    kw = dict(align="cue", source="roi", train_data=None)
     a = fm.make_spec("PS92", "decoder", train_labels=labs, **kw)
     b = fm.make_spec("PS92", "decoder", train_labels=list(reversed(labs)), **kw)
     c = fm.make_spec("PS92", "decoder", train_labels=set(labs), **kw)

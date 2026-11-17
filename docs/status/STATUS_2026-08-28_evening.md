@@ -49,9 +49,9 @@ section H would regress against the copy already there until the render lands.
    faults this month were found only by driving rather than reading the diff.
 6. **Deck section for the epoch figures**, placed 4-up at quarter page.
 
-7. **Parallelise the render.** Measured 2026-08-28: 1.51 of 24 cores over 5.65 h, 6.3% of the box,
+7. **Parallelize the render.** Measured 2026-08-28: 1.51 of 24 cores over 5.65 h, 6.3% of the box,
    with 42 GB free. The bigger win than anything left in the serial code, and the real answer to
-   "how do we make the nightly faster". **Parallelise by figure FAMILY or by (animal, alignment),
+   "how do we make the nightly faster". **Parallelize by figure FAMILY or by (animal, alignment),
    not by figure** — `_BUNDLE_CACHE` and the collector `lru_cache`s are per process, so one figure
    per worker re-pays every shared collection and raises total CPU. See DECISIONS for the full set
    of caveats (Agg, processes not threads, `session_cache` write races, `OMP_NUM_THREADS`).

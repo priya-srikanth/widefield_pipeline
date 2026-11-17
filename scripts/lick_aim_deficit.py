@@ -1,19 +1,21 @@
-"""BEHAVIOURAL AIM DEFICIT per session, FIRST cued lick vs all licks, weighted vs far contra (Priya 10-27: switch the
-behaviour axis / mixed-model deficit to the first-lick weighted aim; "can I see a comparison between the weighted deficit
+"""BEHAVIORAL AIM DEFICIT per session, FIRST cued lick vs all licks, weighted vs far contra (Priya 10-27: switch the
+behavior axis / mixed-model deficit to the first-lick weighted aim; "can I see a comparison between the weighted deficit
 and the first-lick far-contra deficit vs time across animals").
 
-Per cued lick: angle atan2(lateral, sagittal) (deg; 3-D landing at the extension peak) minus the animal's PRE mean angle
-at the same target spout (as `iti_recovery_measure.py`). First lick = lick_idx 0 (first post-cue lick of the trial;
-joined via first_lick_preds.csv.gz). Per session:
+THE aim definition lives in `iti_recovery_measure.py` (aim_licks / weighted / far_contra; rule 9): per cued lick, angle
+atan2(lateral, sagittal) (deg; 3-D landing at the extension peak) minus the animal's PRE mean angle at the same target
+spout. First lick = lick_idx 0 (first post-cue lick of the trial; joined via first_lick_preds.csv.gz). Per session:
   weighted_first / weighted_all   signed offset per spout, combined with weights far contra 3, far mid 2, others 1
   farcontra_first / farcontra_all signed offset at far contra
 (- = aim shifted ipsilesional). Split-half reliability (random half of the session's licks, Spearman-Brown).
-The mixed models' behaviour deficit = pre - session of weighted_first (deg; `iti_lmm_figures.py --deficit aim`).
+Min licks per spout: first 5, all 10 (iti_recovery_measure.MIN_LICKS). The mixed models' behavior deficit = pre -
+session of the weighted aim of the WFIELD_AIM lick set (first by default; iti_recovery_measure.aim_deficit).
 Outputs <E>/iti_licks/aim_deficit_sessions.csv, figures/lick_cued_aim_deficit_compare.png
 (figure data figdata/lick_cued_aim_deficit_compare.pkl; --plot-only redraws from it).
 Usage: python scripts/lick_aim_deficit.py [--plot-only]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import pickle
 import sys
@@ -24,47 +26,29 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
+import iti_recovery_measure as rm  # noqa: E402
 
-AN = ["PS92", "PS93", "PS94", "PS95"]
-POS = ["close_ipsi", "close_mid", "close_contra", "far_ipsi", "far_mid", "far_contra"]
-W = {"far_contra": 3.0, "far_mid": 2.0}
+AN = rm.AN
 FD = il.OUT / "figdata" / "lick_cued_aim_deficit_compare.pkl"
 
 
-def _weighted(g: pd.DataFrame, min_n: int) -> float:
-    m = g.groupby("pos").off.agg(["mean", "size"])
-    m = m[m["size"] >= min_n]
-    if m.empty:
-        return np.nan
-    w = np.array([W.get(s, 1.0) for s in m.index])
-    return float((m["mean"] * w).sum() / w.sum())
-
-
-def _fc(g: pd.DataFrame, min_n: int) -> float:
-    h = g[g.pos == "far_contra"].off
-    return float(h.mean()) if len(h) >= min_n else np.nan
-
-
 def compute() -> pd.DataFrame:
+    """Per session, from THE aim definition (iti_recovery_measure: aim_licks / weighted / far_contra; rule 9): FIRST-lick
+    and all-lick weighted + far-contra signed aim (MIN_LICKS per spout of each set) and split halves of the first-lick
+    licks (>= 3 licks per spout per half)."""
     from wfield_local import epochs
-    p = pd.read_csv(il.OUT / "zscore_check" / "where_preds_z.csv")
-    p = p[(p.set == "trial") & p.pos.isin(POS)].dropna(subset=["act_lat", "act_sag"]).copy()
-    p["ang"] = np.degrees(np.arctan2(p.act_lat, p.act_sag))
-    F = pd.read_csv(il.OUT / "first_lick_preds.csv.gz")[["label", "act", "lick_idx"]].drop_duplicates(["label", "act"])
-    p["k"], F["k"] = p.act_lat.round(6), F.act.round(6)
-    p = p.merge(F[["label", "k", "lick_idx"]], on=["label", "k"], how="left")
-    p["animal"] = p.label.str.split("_").str[0]
-    pre = p[p.epoch == "pre"].groupby(["animal", "pos"]).ang.mean()
-    p["off"] = p.ang - pre.reindex(pd.MultiIndex.from_arrays([p.animal, p.pos])).to_numpy()
+    p = rm.aim_licks()
     rng = np.random.default_rng(0)
     rows = []
+    mf, ma = rm.MIN_LICKS["first"], rm.MIN_LICKS["all"]
     for (lab, ep, a), g in p.groupby(["label", "epoch", "animal"]):
-        f = g[g.lick_idx == 0]
+        f = g[g["first"]]
         hf = rng.random(len(f)) < 0.5
         rows.append(dict(label=lab, epoch=ep, animal=a, day=float(epochs.days_since_stroke(lab)),
-                         weighted_all=_weighted(g, 5), weighted_first=_weighted(f, 5),
-                         farcontra_all=_fc(g, 5), farcontra_first=_fc(f, 5),
-                         wf_h1=_weighted(f[hf], 3), wf_h2=_weighted(f[~hf], 3), fcf_h1=_fc(f[hf], 3), fcf_h2=_fc(f[~hf], 3),
+                         weighted_all=rm.weighted(g, ma), weighted_first=rm.weighted(f, mf),
+                         farcontra_all=rm.far_contra(g, ma), farcontra_first=rm.far_contra(f, mf),
+                         wf_h1=rm.weighted(f[hf], 3), wf_h2=rm.weighted(f[~hf], 3),
+                         fcf_h1=rm.far_contra(f[hf], 3), fcf_h2=rm.far_contra(f[~hf], 3),
                          n_first=len(f), n_all=len(g)))
     S = pd.DataFrame(rows).sort_values(["animal", "day"])
     S.to_csv(il.OUT / "aim_deficit_sessions.csv", index=False)
@@ -114,15 +98,29 @@ def plot(S: pd.DataFrame, rel: dict) -> None:
                      fontsize=7.5, frameon=False, loc="lower right")
     txt = "; ".join(f"{k.replace('_', ' ')}: split-half r {v[0]:.2f}, reliability {v[1]:.2f} ({v[2]} sessions)"
                     for k, v in rel.items())
-    fig.suptitle("BEHAVIOUR: cued-lick aim deficit per session vs days since stroke -- weighted (far contra x3, far mid x2, "
+    fig.suptitle("BEHAVIOR: cued-lick aim deficit per session vs days since stroke -- weighted (far contra x3, far mid x2, "
                  "others x1) vs far contra only, FIRST post-cue lick vs all licks.\n" + txt + ". The mixed models' "
-                 "behaviour deficit = pre - session of the FIRST-lick weighted aim. PROVISIONAL", fontsize=9.5)
+                 "behavior deficit = pre - session of the FIRST-lick weighted aim. PROVISIONAL", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.86))
-    fig.savefig(il.OUT / "figures" / "lick_cued_aim_deficit_compare.png", dpi=100)
+    save_png_svg(fig, il.OUT / "figures" / "lick_cued_aim_deficit_compare.png", dpi=100)
     plt.close(fig)
 
 
+def trial_set_sentence() -> str:
+    """The lick sets of the aim-deficit comparison (Priya 11-09): the cued decoding licks of the session files with a
+    3-D lateral + sagittal tip position at one of the six spouts (`iti_recovery_measure.aim_licks`); FIRST = lick_idx 0;
+    per spout >= MIN_LICKS licks of the set."""
+    import lick_covariate_reference as cv
+    from wfield_local import trial_set_text as tst
+    c = "3-D lateral + sagittal tip position"
+    first = cv.session_cued(first_only=True, coords=c, extra=[f">= {rm.MIN_LICKS['first']} per spout x session"])
+    allk = cv.session_cued(coords=c, extra=[f">= {rm.MIN_LICKS['all']} per spout x session"])
+    return tst.union(first, allk)
+
+
 def main() -> int:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())          # every figure states its lick set (Priya 11-09)
     if "--plot-only" in sys.argv and FD.exists():
         S, rel = pickle.loads(FD.read_bytes())
     else:

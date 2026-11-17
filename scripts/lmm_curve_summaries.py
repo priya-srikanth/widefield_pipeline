@@ -11,6 +11,7 @@ import argparse
 from pathlib import Path
 
 import pandas as pd
+from wfield_local.pose3d import pose3d_dir
 
 POS = ["close_ipsi", "close_mid", "close_contra", "far_ipsi", "far_mid", "far_contra"]
 P3 = {"close_L": "close_ipsi", "close_center": "close_mid", "close_R": "close_contra", "far_L": "far_ipsi",
@@ -48,11 +49,12 @@ def cam4(base: Path) -> dict:
 
 def pose3d(curves: Path) -> dict:
     import sys
+    from wfield_local import config
     sys.path.insert(0, str(Path(__file__).parent))
     import kinematics_pooled_figs as K
     C = pd.read_csv(curves)
     C = C[(C.kind == "norm") & (C.lickset == "all") & (C["cov"] >= 0.5)]
-    C = C[(C.epoch != "pre") | (C.date.astype(str).str[-4:] >= "0801")]
+    C = C[(C.epoch != "pre") | (~C.date.astype(str).map(config.early_pre))]
     lo, hi = (0.1, 0.9) if C.x.max() <= 1.0 + 1e-9 else (10, 90)          # phase stored as 0-1 or 0-100
     C = C[C.x.between(lo, hi)]
     g = ["animal", "session", "epoch", "position"]
@@ -85,14 +87,15 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     out = Path(a.out)
     rv = PathResolver()
-    base = Path(rv.root("orofacial")) / oc.RUN / "cohort" / "tables" / "prepost"
-    jobs = {**cam4(base), **pose3d(Path(rv.root("dlc")) / "session_poses" / "pose3d" / "phase" / "curves.csv.gz")}
+    base = oc.cohort_dir("tables", rv=rv)          # the cam4 cohort's gate-named tables (A27)
+    jobs = {**cam4(base), **pose3d(pose3d_dir(rv) / "phase" / "curves.csv.gz")}
     for stem, (D, title, ylab) in jobs.items():
         D = D[D.epoch.isin(["pre", "acute", "subacute", "chronic"])]
         two = "panel" in D
         if not two:
             D = D.assign(position=D.pos)
-        f = out / f"{stem}_long.csv"
+        from wfield_local import figure_layout as FL
+        f = FL.sidecar_for(out, stem, "_long.csv")          # the data/ sidecar (test_no_writer_bypasses_figure_layout)
         D[["position", "epoch", "animal", "value"] + (["panel"] if two else [])].to_csv(f, index=False)
         cells = ([f"{m}:{p}" for m in dict.fromkeys(D.position.str.split(":").str[0]) for p in POS] if two else POS)
         args = [str(f), "--out", str(out / f"{stem}_lmm.png"), "--title", title, "--ylabel", ylab,

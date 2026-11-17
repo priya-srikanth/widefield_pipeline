@@ -1,5 +1,5 @@
-"""Stray-lick test: overlapping lick kernels are recovered by the regression, and licks are categorised by context,
-contact and nearest calibrated spout centre."""
+"""Stray-lick test: overlapping lick kernels are recovered by the regression, and licks are categorized by context,
+contact and nearest calibrated spout center."""
 import numpy as np
 import pandas as pd
 from scipy import sparse

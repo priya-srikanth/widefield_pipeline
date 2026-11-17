@@ -10,6 +10,7 @@ legends with each other or figures, and ensure methods are documented").
                  `orofacial_outputs.README`). Titles stay SHORT; how the numbers were made goes in the methods text.
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import contextlib
 import re
@@ -32,6 +33,37 @@ def subplots(*args, **kw):
     return plt.subplots(*args, **kw)
 
 
+def face_background(ax, home, mask=None) -> None:
+    """Every mesh point (or those in ``mask``) as a small light-gray dot, under the marked points (Priya 11-07: show the
+    full face on the significant-point maps)."""
+    import numpy as np
+    home = np.asarray(home)
+    if mask is not None:
+        home = home[np.asarray(mask, bool)]
+    ax.scatter(home[:, 0], home[:, 1], s=1.2, color="0.85", lw=0, zorder=0)
+
+
+def sign_rings(ax, home, mask, values, s: float = 7, lw: float = 0.5) -> None:
+    """Rings around the marked points, dark red where the change is up and dark blue where it is down (Priya 11-07:
+    outlines in the change's color instead of black)."""
+    import numpy as np
+    home, mask, values = np.asarray(home), np.asarray(mask, bool), np.asarray(values, float)
+    for sel, col in ((mask & (values > 0), "#67001f"), (mask & (values <= 0), "#053061")):
+        if sel.any():
+            ax.scatter(home[sel, 0], home[sel, 1], s=s, facecolors="none", edgecolors=col, linewidths=lw)
+
+
+def sig_cmap():
+    """RdBu_r without its pale middle (Priya 11-07: a marked point near white reads as the gray background); marked
+    points are never near 0, so nothing is lost."""
+    import matplotlib
+    import numpy as np
+    from matplotlib.colors import ListedColormap
+    base = matplotlib.colormaps["RdBu_r"]
+    return ListedColormap(np.vstack([base(np.linspace(0.0, 0.33, 128)), base(np.linspace(0.67, 1.0, 128))]),
+                          name="RdBu_r_nomid")
+
+
 def legend_outside(ax, **kw) -> None:
     """Legend to the right of ``ax`` (constrained layout makes room for it)."""
     ax.legend(loc="upper left", bbox_to_anchor=(1.01, 1.0), borderaxespad=0.0, frameon=False, **kw)
@@ -42,7 +74,7 @@ def save(fig, path: Path, methods: str, title: str | None = None, dpi: int = 110
     import matplotlib.pyplot as plt
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(path, dpi=dpi)
+    save_png_svg(fig, path, dpi=dpi)
     plt.close(fig)
     readme = path.parent / "README.md"
     head = f"## {path.name}"

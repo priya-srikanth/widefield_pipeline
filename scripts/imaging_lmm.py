@@ -1,19 +1,20 @@
-"""Session-level mixed models for the imaging / behaviour tables that already carry one value per session (Priya
+"""Session-level mixed models for the imaging / behavior tables that already carry one value per session (Priya
 2026-10-20: "take a close look at the current imaging analyses - decide where lmm approach would make sense and prepare
 code to do so ... avoiding redundancy"). Models and conventions: wfield_local/mixed_models.py (the shared definition).
 
 WHICH ANALYSES, AND WHY THESE (survey 10-20, DECISIONS):
   trend      qc/position_coding_trend_recovery_sessions.csv (scripts/position_coding_trend_recovery.py): the position
-             ceiling (category - none) and the per-spout spread, pre + post sessions -> time + behaviour models
+             ceiling (category - none) and the per-spout spread, pre + post sessions -> time + behavior models
   decoder    grant_figures/epoch/data/recovery_trajectory_{unmatched,matched}_cue_working.csv
              (wfield_local/recovery_trajectory.py): frozen / refit decoder recall, gap, F_deficit, G_reorg -- POST rows
              only, already expressed against the animal's pre -> post-only models y ~ lday and y ~ deficit
-             (random intercept + slope per animal when estimable)
-  behaviour  cohort/tables/prepost/session_metrics.csv (wfield_local/orofacial_cohort.py): response rate, contact,
-             latency, pre-cue licking, ipsi bias ... -> time model only (the deficit is itself behaviour)
+             (random intercept + slope per animal when estimable). The pre sessions (`*_presessions.csv`, held-out
+             frozen = LOSO) are drawn on the time_post figures as pre-colored dots at their negative days; not fitted
+  behavior  cohort/tables/prepost/session_metrics.csv (wfield_local/orofacial_cohort.py): response rate, contact,
+             latency, pre-cue licking, ipsi bias ... -> time model only (the deficit is itself behavior)
   epoch      grant_figures/epoch/data/*_sessions_long.csv (scripts/epoch_sessions_long.py, other window 10-21): the epoch
              scalar families 8g / 10 / 10b / 11 / 11amp / 11pos / 11c per session (pre sessions scored leave-one-out,
-             August pre) -> time / behaviour / epoch models; source = `epoch:<family>`, measure = "<measure> | <arm> |
+             August pre) -> time / behavior / epoch models; source = `epoch:<family>`, measure = "<measure> | <arm> |
              <position>". CD window projections (family cd): PRE ROWS ARE IN-SAMPLE (directions fitted on them), so
              CD gets the post-only models only (y ~ lday, y ~ deficit), never a step from pre.
 ALREADY ON THE MODULE: the encoding measures (scripts/encoding_mixed.py) and the within-spout slopes
@@ -21,7 +22,7 @@ ALREADY ON THE MODULE: the encoding measures (scripts/encoding_mixed.py) and the
 NOT HERE: pixel maps keep beta_maps.significance_contour / vs_zero_contour.
 
 Output: <run>/imaging_encoding/qc/imaging_lmm.csv + imaging_lmm_summary.csv.
-Usage: PYTHONPATH=. python scripts/imaging_lmm.py [--sources trend,decoder,behaviour,epoch]
+Usage: PYTHONPATH=. python scripts/imaging_lmm.py [--sources trend,decoder,behavior,epoch]
 """
 from __future__ import annotations
 
@@ -57,26 +58,43 @@ def push_table(E: Path) -> pd.DataFrame:
 
 
 def behaviour_table(run_root: Path) -> pd.DataFrame:
-    S = pd.read_csv(run_root / "cohort" / "tables" / "prepost" / "session_metrics.csv")
+    """The cam4 cohort's session table of run ``run_root.name`` (`orofacial_cohort.cohort_dir`: the gate-named
+    prepost_<gate> folder, A27)."""
+    from wfield_local import orofacial_cohort as oc
+    S = pd.read_csv(oc.cohort_dir("tables", run=Path(run_root).name) / "session_metrics.csv")
     return _long(S, BEHAVIOUR_METRICS, "behaviour")
 
 
-def decoder_table() -> pd.DataFrame:
-    """Post-stroke rows of the recovery trajectory, with the session label recovered from (animal, day)."""
+def decoder_table(d: Path | None = None) -> pd.DataFrame:
+    """Post-stroke rows of the recovery trajectory, with the session label recovered from (animal, day), PLUS the
+    pre-stroke sessions from the separate pre sidecar (`recovery_trajectory.pre_series`, `PRE_SESSIONS_SUFFIX`) when it
+    exists. The pre rows are for DRAWING only: `main` fits the post-only models on ``post == 1`` and hands the pre rows
+    to the figures as dots at their negative days (Priya 11-06, imaging Fig 13.1). Their frozen accuracy is the
+    leave-one-session-out decoder of that session (held out; see `pre_series`). ``d`` = the epoch dir (default: this
+    run's `grant_figures/epoch`)."""
     from wfield_local import analysis_kit as ak
     from wfield_local import epochs
     from wfield_local import figure_layout as fl
-    from wfield_local.paths import PathResolver
-    d = Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch"
-    lab_of = {(x[:4], epochs.days_since_stroke(x)): x for x in ak.curated_labels(order="sorted")}
+    from wfield_local.recovery_trajectory import PRE_SESSIONS_SUFFIX
+    if d is None:
+        from wfield_local.paths import PathResolver
+        from wfield_local import lp_licks          # run-mode routing (rebuild 11-03): identity for the default run
+        d = lp_licks.output_dir(Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch")
+    curated = ak.curated_labels(order="sorted")
+    lab_of = {(x[:4], epochs.days_since_stroke(x)): x for x in curated}
     out = []
     for tag in ("unmatched", "matched"):
-        p = fl.sidecar_for(d, f"recovery_trajectory_{tag}_cue_working", ".csv", mkdir=False)
+        stem = f"recovery_trajectory_{tag}_cue_working"
+        p = fl.sidecar_for(d, stem, ".csv", mkdir=False)
         if not p.exists():
             continue
         R = pd.read_csv(p)
         R["label"] = [lab_of.get((a, int(dd))) for a, dd in zip(R.animal, R.day)]
         out.append(_long(R.dropna(subset=["label"]), DECODER_METRICS, f"decoder_{tag}"))
+        pp = fl.sidecar_for(d, stem, PRE_SESSIONS_SUFFIX, mkdir=False)
+        if pp.exists():                             # the pre rows carry their label; curated sessions only, as above
+            P = pd.read_csv(pp)
+            out.append(_long(P[P.label.isin(set(curated))], DECODER_METRICS, f"decoder_{tag}"))
     return pd.concat(out, ignore_index=True) if out else pd.DataFrame()
 
 
@@ -84,7 +102,8 @@ def epoch_tables() -> tuple[pd.DataFrame, pd.DataFrame]:
     """(families with LOO pre rows, CD rows) in the long format, from the `*_sessions_long.csv` files."""
     from wfield_local import orofacial_cohort as oc
     from wfield_local.paths import PathResolver
-    d = Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch" / "data"
+    from wfield_local import lp_licks              # run-mode routing (rebuild 11-03): identity for the default run
+    d = lp_licks.output_dir(Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch") / "data"
     fs = sorted(d.glob("*_sessions_long.csv"))
     if not fs:
         return pd.DataFrame(), pd.DataFrame()
@@ -97,7 +116,7 @@ def epoch_tables() -> tuple[pd.DataFrame, pd.DataFrame]:
 
 
 def post_only_table(L: pd.DataFrame) -> pd.DataFrame:
-    """Post-stroke-only sources: y ~ lday (time) and y ~ deficit (behaviour), random intercept (+ slope)."""
+    """Post-stroke-only sources: y ~ lday (time) and y ~ deficit (behavior), random intercept (+ slope)."""
     from wfield_local import mixed_models as mm
     from wfield_local.orofacial_stats import bh_fdr
     rows = []
@@ -125,7 +144,7 @@ def figures(L: pd.DataFrame, T: pd.DataFrame, figs: Path, sfx: str = "") -> None
     sets = [("trend", ("ceiling", "spread", "spread_enl"), ("time", "behaviour"),
              "position ceiling / spread (trend table)"),
             ("behaviour", ("resp_rate", "contact_frac", "latency_ms", "ipsi_bias_deg", "angle_gain_far",
-                           "precue_rate_hz"), ("time",), "behaviour (orofacial session metrics)")]
+                           "precue_rate_hz"), ("time",), "behavior (orofacial session metrics)")]
     sets += [(f"decoder_{t}", DECODER_METRICS, ("time_post", "behaviour_post"),
               f"frozen / refit decoder ({t}; post-stroke only)") for t in ("unmatched", "matched")]
     ep = [f"{m} | {arm}" for arm in ("cue / working", "lick / lick") for m in ("frozen EV", "EV after rescale")]
@@ -153,18 +172,20 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--run", default=oc.RUN)
     ap.add_argument("--sources", default="trend,decoder,behaviour,epoch")
-    ap.add_argument("--deficit", default=None, help="behavioural index (mixed_models.DEFICITS); non-default -> *_<name>")
+    ap.add_argument("--deficit", default=None, help="behavioral index (mixed_models.DEFICITS); non-default -> *_<name>")
     a = ap.parse_args(argv)
     run_root = oo.root(PathResolver()) / a.run
-    E = run_root / "imaging_encoding"
+    E = oo.encoding_root(a.run)
     dname = a.deficit or mm.DEFICIT
     sfx = "" if dname == mm.DEFICIT else f"_{dname}"
     if set(a.sources.split(",")) != {"trend", "decoder", "behaviour", "epoch"}:   # a subset never overwrites the full set
         sfx += "_" + "-".join(a.sources.split(","))
-    deficit = mm.deficit(E / "qc", dname)
+    from wfield_local import run_mode as _rm
+    deficit = mm.deficit(_rm.deficit_qc_dir(dname), dname)   # THIS run's trial_attempts table (was <E>/qc: missing in a tagged run)
     src = a.sources.split(",")
     tabs, L, D, C = [], None, None, None
-    prepost = [f(E if f in (trend_table, push_table) else run_root)
+    # trend: the run's tagged encoding qc, where position_coding_trend_recovery.py writes it (D9 11-08); push: <E>/qc
+    prepost = [f(_rm.encoding_out_root() if f is trend_table else E if f is push_table else run_root)
                for name, f in (("trend", trend_table), ("behaviour", behaviour_table), ("push", push_table)) if name in src]
     if prepost:
         L = mm.add_time_covariates(pd.concat(prepost, ignore_index=True))
@@ -180,13 +201,17 @@ def main(argv=None) -> int:
             L = Le if L is None else pd.concat([L, Le], ignore_index=True)
         if not C.empty:                                     # CD: pre rows in-sample -> post-only models
             C = mm.add_time_covariates(C)
-            C = C[C.post == 1].assign(deficit=lambda x: x.label.map(deficit))
+            C = mm.add_deficit(C[C.post == 1], deficit)          # post-only; log deficit -> deficit_x / deficit_tf for the plot axis
             tabs.append(post_only_table(C))
+    Dpre = None
     if "decoder" in src:
         D = decoder_table()
         if not D.empty:
             D = mm.add_time_covariates(D)
-            D = D[D.post == 1].assign(deficit=lambda x: x.label.map(deficit))
+            # PRE rows (the pre sidecar) are DRAWN, never fitted: the decoder models stay post-only (y ~ lday,
+            # y ~ deficit). deficit NaN keeps them off the behaviour_post panels (no post-stroke deficit to place them)
+            Dpre = D[D.post == 0].assign(deficit=np.nan)
+            D = mm.add_deficit(D[D.post == 1], deficit)          # post-only; log deficit -> deficit_x / deficit_tf for the plot axis
             print("  decoder (post-stroke only), per-animal epoch means\n"
                   + mm.animal_epoch_table(D, ["source", "measure"]).round(4).to_string())
             tabs.append(post_only_table(D))
@@ -198,7 +223,7 @@ def main(argv=None) -> int:
         S = T[T.model == model]
         print(f"\n=== {model}\n" + S.pivot_table(index=["source", "measure"], columns="term",
                                                 values=["coef", "z", "q"]).round(3).to_string())
-    figures(pd.concat([x for x in (L, D, C) if x is not None and not x.empty], ignore_index=True), T,
+    figures(pd.concat([x for x in (L, D, Dpre, C) if x is not None and not x.empty], ignore_index=True), T,
             E / "figures" / "mixed_models", sfx)
     print(f"\n-> {E / 'qc' / 'imaging_lmm.csv'}, {E / 'figures' / 'mixed_models'}/imaging_lmm_*.png")
     return 0

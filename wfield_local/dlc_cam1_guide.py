@@ -1,4 +1,4 @@
-"""The labelling page for camera 1 (the view from below) -- which folders, in which order, how to open them.
+"""The labeling page for camera 1 (the view from below) -- which folders, in which order, how to open them.
 
     conda activate dlc            # or locanmf; needs pandas + Pillow only
     python -m wfield_local.dlc_cam1_guide            # writes CAM1_GUIDE.html beside LABELLING_GUIDE.html
@@ -15,7 +15,7 @@ WHAT IT KNOWS THAT THE MANUAL DID NOT (2026-09-29):
     2026-09-12 and confirmed by Priya on 2026-09-29, with the caveat that the cam1 "nose" (ventral tip)
     and the cam4 "nose" (frontal tip) need not be the same 3-D point. The manual had said to leave it
     empty; it is corrected, and this page repeats the rule.
-  * `cam1_2026-06-06T12_25_18` is not "mostly done": its 71 labelled frames carry jaw (71) and tongue
+  * `cam1_2026-06-06T12_25_18` is not "mostly done": its 71 labeled frames carry jaw (71) and tongue
     (38) but **no nose and no spout on any frame**, and 15 of its 86 frames are blank. Its points file
     also still lists the retired twelve-part set (whiskers, eyes), so napari shows twelve names there.
   * The order is chosen so that a partial job is still balanced: each block of four folders covers all
@@ -167,12 +167,12 @@ def _block(n: int, r, live: Path, parts: list[str]) -> str:
         if r.suggested:
             ctx_note += (f"<br><b>Plus {len(r.suggested)} suggested lick frames</b>: <b>{pos(r.suggested)}</b> "
                          f"&mdash; about every 3rd frame through the start and end of each lick. Flexible: "
-                         f"if a neighbour is harder to judge, label that one instead (or as well).")
+                         f"if a neighbor is harder to judge, label that one instead (or as well).")
         ctx_note += (f"<br>The other {len(r.context)} are <i>context</i> &mdash; scroll through them to "
                      f"judge the lick; leave them blank unless you choose to label one completely.")
         if r.context_labelled:
             ctx_note += (f" {r.context_labelled} context frame(s) already carry points &mdash; "
-                         f"check each is labelled completely.")
+                         f"check each is labeled completely.")
     if not r.has_file:
         what = (f"<b>Empty &mdash; place every point.</b> {len(r.targets)} target frames. Load "
                 f"<code>config.yaml</code> first, then this folder (step 4 above).{ctx_note}")
@@ -224,13 +224,13 @@ ROUND4_WHY = {
                     "If the jaw point is visible beside the spout, place it; blank only if it is covered.",
     # cam1 round 2 (2026-10-05, `dlc_hard_frames.CAM1_KINDS`)
     "tongue_dropout": "mid-lick, the network lost the tongue for a few frames although it saw it just before and "
-                      "after. Scroll the neighbours: if the tip is visible here, place it; blank only if it is truly "
+                      "after. Scroll the neighbors: if the tip is visible here, place it; blank only if it is truly "
                       "hidden (e.g. behind the spout).",
     "unsure_tongue": "the mouth is open and the network was unsure of the tongue (often the tongue just coming out, "
                      "or a sideways lick). Place the tip if you can see it.",
     "jaw_near_spout": "the network put the jaw right beside the spout tip with the mouth closed. If the spout covers "
                       "the jaw point, leave jaw <b>blank</b>; place it only if you can actually see it.",
-    "lick_rise": "one lick, labelled at three moments &mdash; this is the mouth starting to open.",
+    "lick_rise": "one lick, labeled at three moments &mdash; this is the mouth starting to open.",
     "lick_peak": "the same lick, mouth most open.",
     "lick_fall": "the same lick, mouth closing again.",
 }
@@ -286,7 +286,7 @@ scroll the context, leave it blank.
 Each pick says why it was chosen. <b>Most are incomplete licks</b> &mdash; the tongue tip only just between
 the lips, never touching the spout. They are the whole point of this round, and they matter most after the
 stroke. The &ldquo;also label&rdquo; frames are three frames either side of a pick; as on cam1, they are
-a suggestion &mdash; if a neighbour is the harder frame, label that one instead or as well.</p>
+a suggestion &mdash; if a neighbor is the harder frame, label that one instead or as well.</p>
 <p style="margin-bottom:.2em">These are new folders: load <code>config.yaml</code> first, then the folder,
 exactly as for an empty cam1 folder.</p>
 </div>
@@ -367,12 +367,12 @@ needed)</p>
 <p>Each listed frame says why it was chosen. There are two kinds:</p>
 <ul>
 <li><b>&ldquo;same moment as &hellip; on camera 4&rdquo;</b> &mdash; an instant that was hard on camera 4 (an
-incomplete lick, a jaw half behind the spout, ...): labelling it from below lets the two views be combined
-later. These have no suggested neighbours.</li>
+incomplete lick, a jaw half behind the spout, ...): labeling it from below lets the two views be combined
+later. These have no suggested neighbors.</li>
 <li><b>Camera 1's own hard frames</b> &mdash; where the camera-1 networks lose or misplace the tongue or jaw, plus
-one or two licks per folder labelled at three moments (opening, most open, closing). Tongue picks come with
+one or two licks per folder labeled at three moments (opening, most open, closing). Tongue picks come with
 <b>&ldquo;also label&rdquo;</b> frames, three frames either side: the tongue changes a lot in 12 ms, so these
-are worth labelling. If a neighbour is the harder frame, label that one instead or as well.</li>
+are worth labeling. If a neighbor is the harder frame, label that one instead or as well.</li>
 </ul>
 <p>Label what <b>camera 1</b> shows, completely, with the same four-part rules as above &mdash; a part you cannot
 see stays blank.</p>
@@ -411,7 +411,7 @@ def build(rv=None, dest: Path | None = None) -> Path:
         f"<td>{html.escape(by.loc[s, 'epoch'])}</td><td>{html.escape(by.loc[s, 'date'])}</td>"
         f"<td>{len(by.loc[s, 'blank'])}</td></tr>" for k, s in enumerate(order))
     part1 = (f"""<h2 id="cam1">Part 2 &mdash; the {len(order)} camera-1 folders that are still empty</h2>
-<p>These {len(order)} folders were part of the first camera-1 round and nobody has labelled them yet. After
+<p>These {len(order)} folders were part of the first camera-1 round and nobody has labeled them yet. After
 camera 4, do them first: each one adds a whole session (an animal and a recovery stage the network has not
 seen).</p>
 <style>.t{{border-collapse:collapse;margin:.4em 0}} .t td,.t th{{padding:3px 12px;border-bottom:1px solid #ddd;text-align:left}}</style>
@@ -421,7 +421,7 @@ seen).</p>
 """ if order else "<h2 id='cam1'>Part 2 &mdash; empty camera-1 folders</h2><p>None left.</p>")
 
     head = f"""<div class="wrap">
-<h1>Labelling worksheet &mdash; from 5 October</h1>
+<h1>Labeling worksheet &mdash; from 5 October</h1>
 <p class="sub">generated {today}</p>
 <p>What is left to label, in order: <a href="#cam4">Part 1 &mdash; camera 4 round 4</a> (in progress), then
 <a href="#cam1">Part 2 &mdash; the empty camera-1 folders</a>, then <a href="#cam1r2">Part 3 &mdash; camera 1
@@ -432,10 +432,10 @@ stood through the first round is in <code>_guide_archive/</code>.</p>
 <div class="card note">
 <h3 style="margin-top:.2em">Camera 1: place these four &mdash; and nothing else</h3>
 <ul>
-<li><b>nose</b> &mdash; the tip of the nose as you see it from below. When the spout rod covers it (the centre
+<li><b>nose</b> &mdash; the tip of the nose as you see it from below. When the spout rod covers it (the center
 spout positions), leave it blank.</li>
 <li><b>jaw</b> &mdash; the same landmark you use on cam4, found from below. When the spout tip sits over the chin
-(centre spout positions, mouth closed), the jaw point is covered &mdash; leave jaw <b>blank</b>. Do not place it
+(center spout positions, mouth closed), the jaw point is covered &mdash; leave jaw <b>blank</b>. Do not place it
 beside the spout.</li>
 <li><b>tongue</b> &mdash; the tip, <b>only when you can see the tip itself.</b> From below the spout often
 sits between the camera and the tongue and hides it. If the tip is hidden, leave tongue blank; do not mark
@@ -456,7 +456,7 @@ starting at 0).</p>
 <li><b>Listed frames &mdash; label these, completely.</b> Every part you can see; a part you cannot see stays
 blank.</li>
 <li><b>&ldquo;Also label&rdquo; frames (Part 1, and camera 1's own picks in Part 3)</b> &mdash; about every third frame through the start and end of a
-lick. Label them too; if a neighbour is the harder frame, label that one instead or as well.</li>
+lick. Label them too; if a neighbor is the harder frame, label that one instead or as well.</li>
 <li><b>Context frames &mdash; everything else in the folder.</b> Scroll back and forth through them to see where
 the tongue tip really is and what the jaw is doing. <b>They do not need labels</b>; leaving them blank is
 correct.</li>
@@ -507,7 +507,7 @@ check the sidebar before carrying on.</p>
     cam4_html, cam4_todo = round4_section(rv, live)
     page = ("<!doctype html><html><head><meta charset='utf-8'>"
             "<meta name='viewport' content='width=device-width, initial-scale=1'>"
-            f"<title>Labelling worksheet</title><style>{CSS}</style></head>"
+            f"<title>Labeling worksheet</title><style>{CSS}</style></head>"
             f"<body>{head}{cam4_html}{part1}{''.join(blocks)}{r2_html}</div></body></html>")
     dest.write_text(page, encoding="utf-8")
     print(f"[dlc_cam1_guide] cam1: {len(df)} folders, {todo_frames} blank; cam1 round 2: {r2_todo} blank; "

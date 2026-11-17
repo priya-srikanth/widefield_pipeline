@@ -1,5 +1,5 @@
 """DOES THE CHRONIC REMAPPING TRACK RECOVERY? (Priya 10-25, analysis 2 of the synthesis.) Session mixed models
-(`wfield_local.mixed_models`, the shared definition: time y ~ post + post:lday, behaviour y ~ post + post:deficit, epoch;
+(`wfield_local.mixed_models`, the shared definition: time y ~ post + post:lday, behavior y ~ post + post:deficit, epoch;
 random intercept / step / slope per animal when estimable) with the two strongest chronic results as the OUTCOME:
 
   residual   frozen-encoder residual (data - prediction, evoked, mean of six spouts) per session, from the specificity
@@ -8,8 +8,8 @@ random intercept / step / slope per animal when estimable) with the two stronges
   layer2     Layer 2 change_ref per session (combined fit; pre rows = the LATE-pre sessions, i.e. drift from early pre,
              so `post` is the change beyond pre-stroke drift), same area groups
 
-Behaviour model deficit: `ttc` (far-contra time to contact, primary) and `contact` (both deficit definitions, as
-imaging_lmm). Reading: post:deficit < 0 with post > 0 = the remapping is largest when behaviour is worst and shrinks with
+Behavior model deficit: `ttc` (far-contra time to contact, primary) and `contact` (both deficit definitions, as
+imaging_lmm). Reading: post:deficit < 0 with post > 0 = the remapping is largest when behavior is worst and shrinks with
 recovery (a disruption); post:deficit ~ 0 with post > 0 = present at full recovery, independent of the deficit (a new
 steady state); post:deficit > 0 would mean more remapping in worse sessions only if deficit is coded worse = larger
 (it is: 0 = pre level, larger = worse). Compensation predicts remapping that GROWS as the deficit shrinks (time slope
@@ -19,6 +19,7 @@ Usage: python scripts/remap_lmm.py [--tag gate-attempted_v7g3_t3d_frA] [--layer2
 Output: <E>/remap_lmm/<tag>/remap_lmm_<deficit>.csv (+ summary)
 """
 from __future__ import annotations
+from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import argparse
 import sys
@@ -27,12 +28,14 @@ from pathlib import Path
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from fr_musall import E  # noqa: E402
+from fr_musall import E, E_BASE  # noqa: E402  (E: encoder-mode root; E_BASE: unrouted base)
 from specificity_control import GROUPS, group_means  # noqa: E402
 
 
 def residual_long(tag: str) -> pd.DataFrame:
-    T = pd.read_csv(E / "specificity_control" / tag / "sessions.csv")
+    from wfield_local import run_mode
+    # the WRITER's folder (specificity_control: run_mode.subdir(E_BASE / "specificity_control"); T6, third review)
+    T = pd.read_csv(run_mode.subdir(E_BASE / "specificity_control") / tag / "sessions.csv")
     G = group_means(T, ("residual_z",))
     G = G[G.area.isin(["orofacial contra", "orofacial ipsi", "control", "orofacial - control"])]
     L = G.melt(id_vars=["label", "window", "area"], value_vars=["residual_z"], var_name="q", value_name="y")
@@ -61,8 +64,8 @@ def layer2_long(folder: str) -> pd.DataFrame:
 def main(argv=None) -> int:
     from wfield_local import mixed_models as mm
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--tag", default="gate-attempted_v7g3_t3d_frA")
-    ap.add_argument("--layer2", default="allsession_encoder_v7g3_t3d_frA")
+    ap.add_argument("--tag", default=_design_tag("gate-attempted_v7g3_t3d_frA"))
+    ap.add_argument("--layer2", default=_design_tag("allsession_encoder_v7g3_t3d_frA"))
     ap.add_argument("--deficits", nargs="+", default=["ttc", "contact"])
     a = ap.parse_args(argv)
     out = E / "remap_lmm" / a.tag
@@ -70,7 +73,8 @@ def main(argv=None) -> int:
     L = mm.add_time_covariates(pd.concat([residual_long(a.tag), layer2_long(a.layer2)], ignore_index=True))
     pd.set_option("display.width", 230)
     for dname in a.deficits:
-        Ld = mm.add_deficit(L, mm.deficit(E / "qc", dname))
+        from wfield_local import run_mode as _rm
+        Ld = mm.add_deficit(L, mm.deficit(_rm.deficit_qc_dir(dname), dname))   # THIS run's trial_attempts table
         T = mm.lmm_table(Ld, ["source", "measure"], ("time", "behaviour", "epoch"), fdr_by=("source",),
                          print_animals=(dname == a.deficits[0]))
         T.to_csv(out / f"remap_lmm_{dname}.csv", index=False, float_format="%.5g")

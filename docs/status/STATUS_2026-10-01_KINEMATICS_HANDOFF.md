@@ -1,7 +1,7 @@
 # Handoff — 2026-10-01: clean traces, spout reference frame, tongue/jaw kinematics port, first QC on our data
 
 **START HERE for orofacial KINEMATICS (tongue / jaw traces, licks, angles, mismatch).** For the tracking models and
-labelling (DLC round 3/4, Lightning Pose, cam1), the previous handoff
+labeling (DLC round 3/4, Lightning Pose, cam1), the previous handoff
 `STATUS_2026-09-30_LP_OCCLUSION_ROUND4_HANDOFF.md` still holds; §1 below lists what changed there today.
 Reasoning for everything: `DECISIONS.md`, entries dated 2026-10-01 (several, with addenda). Analysis desktop;
 **M: = MICROSCOPE, N: = standby since the 09-30 reboot — take paths from `PathResolver`, never type a letter.**
@@ -40,17 +40,17 @@ Nothing is running. The pipeline below exists end to end and has been exercised 
    results in DECISIONS 2026-10-02 (acute far-position collapse; far_L stays impaired chronically; post-stroke
    image-left angle shift at L/center positions — to confirm). Next: more sessions / animals, and full sessions on
    a server (DLC ~40 fps here).
-5. Still pending from before: labelling round 4 (Priya, 131 cam4 frames) + cam1 (student); retrain DLC + LP after;
+5. Still pending from before: labeling round 4 (Priya, 131 cam4 frames) + cam1 (student); retrain DLC + LP after;
    `python -m scripts.chronic_stability` once 0928 stage 2 has landed.
 
 ## 1. What changed today (10-01)
 
-**Labelling / models**
+**Labeling / models**
 * Round 4 add-on: one DLC-confident / LP-hidden frame per session (alternating tongue / jaw) → **131** cam4 frames
   to label (`dlc_hard_frames addon`; backup `round4_scan/round4_rows.before_addon.csv`). Worksheet rebuilt.
 * LP-vs-DLC comparison figures (PS93 0908): cue-aligned trial overlays raw / median-5 / CLEANED, a zoomed 4-trial
-  version with below-cutoff points coloured (DLC green, LP grey), and the "only one model confident" contact sheet.
-  **LP's below-cutoff point is always the image centre (~338, 338 px)** — mask by likelihood, never use it.
+  version with below-cutoff points colored (DLC green, LP gray), and the "only one model confident" contact sheet.
+  **LP's below-cutoff point is always the image center (~338, 338 px)** — mask by likelihood, never use it.
 
 **Code (all in `wfield_local/`, tests in `tests/`, config in `configs/defaults.yaml`)**
 | module | what | provenance |
@@ -67,7 +67,7 @@ Nothing is running. The pipeline below exists end to end and has been exercised 
 * **Spout reference frame is the reference** (Priya: nose/jaw can change post-stroke). The three spout lines meet to
   0.1–0.8 px in every session, on the mouth opening; stable within a session (< 4 px), shifts between sessions
   (PS93 20 px) are absorbed by rebuilding per session. Nose / resting jaw are MEASURED in the frame (a facial-weakness
-  readout). Angle 0 = along the centre line, + = image-right = **mouse LEFT on cam4**. cam4 foreshortens AP; cam1 / 3-D
+  readout). Angle 0 = along the center line, + = image-right = **mouse LEFT on cam4**. cam4 foreshortens AP; cam1 / 3-D
   for horizontal-plane angles. Far-L 3.5 vs 4 mm (PS93) moves along its line — no effect.
 * **Tongue zero = the mouth** (spout-frame origin), not a percentile; jaw keeps the data-driven baseline. All tongue px
   thresholds are therefore mouth-relative (tongue y, PS93: rest ~40–50, median 103–111, lick peaks 45 / 148 / 207 at
@@ -87,7 +87,7 @@ Nothing is running. The pipeline below exists end to end and has been exercised 
 ## 3. Pitfalls
 1. **Every px threshold in `orofacial_clean`, `orofacial_kinematics.*` is the OLD rig's** (Flea3 view) until retuned;
    ms values transfer (both 250 fps). Frame-count constants transfer only at 250 fps.
-2. **A low-confidence LP point is the image centre** — any interpolation/averaging must mask first.
+2. **A low-confidence LP point is the image center** — any interpolation/averaging must mask first.
 3. **The DAQ lick sensor sees contacts only** — it lower-bounds missed licks and says nothing about incomplete licks.
 4. Trial stop is on the DAQ as an **analog** channel (`trial_end`), not digital — I first said there was none.
 5. `clean_windows` on a cue-window clip: windows must be separated by more than the tongue slice (+stop+3 s) or
@@ -110,6 +110,6 @@ Nothing is running. The pipeline below exists end to end and has been exercised 
   orofacial_clean px thresholds (x-range, v3.4 ceilings).
 * Angle checks (signed-max window), jaw close_center QC, velocity comparison.
 * Whole-session predictions (DLC + LP) and a session-level run; spout frame from full strobe → stop spans.
-* Spout frame in cam1 once labelled; 3-D later.
+* Spout frame in cam1 once labeled; 3-D later.
 * Unported from stroke_orofacial (deliberately): session-inclusion gate (old-cohort thresholds), plotting /
   visual bundles, cohort/day-binning, phase-aligned endpoints.

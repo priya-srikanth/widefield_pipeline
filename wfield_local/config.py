@@ -6,9 +6,11 @@ Reads `configs/*.yaml` (mirrors stroke_orofacial_pipeline). `load_sessions()` pr
 """
 from __future__ import annotations
 
+import contextlib
 import functools
 import os
 import re
+import warnings
 from pathlib import Path
 
 import yaml
@@ -62,7 +64,7 @@ def cohort() -> str:
     """The ACTIVE cohort's name (``WIDEFIELD_COHORT``, else cohorts.yaml `default` = cohort1).
 
     Every animal / session / pooled set in this module is the active cohort's ONLY: cohort1 (PS92-95) and
-    cohort2 (PS118, PS120-122) are never pooled. To analyse another cohort set ``WIDEFIELD_COHORT``.
+    cohort2 (PS118, PS120-122) are never pooled. To analyze another cohort set ``WIDEFIELD_COHORT``.
     """
     return _paths.active_cohort()
 
@@ -160,11 +162,38 @@ def locanmf_dir_name(variant: str | None = None) -> str:
 
     Override per call with ``variant``, or globally with ``WIDEFIELD_LOCANMF_VARIANT``, which is how
     an analysis can be pointed at a non-default decomposition without editing config.
+
+    THE HEMO SWITCH DRIVES IT (rebuild 2026-11-03, single hemo switch). Without an explicit override the
+    name FOLLOWS `hemo_variant()` -- the same switch as `svtcorr_path` and `combined_encoding.hemo_dir` -- so a
+    non-default hemo variant can never be served the adopted per-session decomposition under its own label (trap
+    T7: per-session C used to stay adopted whatever the variant). For the default variant the name is exactly
+    ``output_dir_name`` (pinned by a test); under another variant it is ``<prefix>_hemo_<variant>``, a directory
+    that exists only once LocaNMF (or the projection path, `locanmf_session`) has produced it -- a missing
+    directory fails loudly instead of silently mixing variants.
     """
     v = variant or os.environ.get("WIDEFIELD_LOCANMF_VARIANT")
     if v:
         return f"locanmf_affine8v1_hemo_{v}"
-    return str(defaults()["locanmf"]["output_dir_name"])
+    name = str(defaults()["locanmf"]["output_dir_name"])
+    if locanmf_projection_on():
+        # PROJECTION PATH (`locanmf_session`): footprints A / regions come from the STORED decomposition (this name);
+        # C is never read from it -- every C load goes through `locanmf_session.load_C`, which projects.
+        return name
+    prefix, sep, built = name.rpartition("_hemo_")
+    want = hemo_variant() or "zerophase"
+    if not sep or built == want:
+        return name
+    return f"{prefix}_hemo_{want}"
+
+
+#: Per-session LocaNMF PROJECTION PATH (rebuild 2026-11-03, item j; default OFF): "1" serves every session's C as the
+#: least-squares projection of the SELECTED hemo variant's SVTcorr onto the session's STORED footprints A
+#: (`locanmf_session`). Needed whichever per-session LocaNMF decision is taken (main path or the bridge comparison).
+LOCANMF_PROJECT_ENV = "WIDEFIELD_LOCANMF_PROJECT"
+
+
+def locanmf_projection_on() -> bool:
+    return os.environ.get(LOCANMF_PROJECT_ENV, "").strip().lower() in ("1", "true", "yes", "on")
 
 
 def locanmf_dir(mc, variant: str | None = None) -> str:
@@ -184,10 +213,62 @@ def hemo_variant(variant: str | None = None) -> str | None:
     zerophase product -- it is what the pipeline wrote. Override per call, or globally with
     ``WIDEFIELD_HEMO_VARIANT``.
     """
-    v = variant if variant is not None else os.environ.get("WIDEFIELD_HEMO_VARIANT")
+    # an EMPTY env var is UNSET (review L3, 11-03): it used to mean zerophase
+    v = variant if variant is not None else (os.environ.get("WIDEFIELD_HEMO_VARIANT", "").strip() or None)
     if v is None:
         v = (defaults().get("hemo") or {}).get("variant")
     return None if v in (None, "", "none", "zerophase") else str(v)
+
+
+#: The hemo variant whose outputs and caches carry NO mode tag: everything produced before the 2026-11-03 rebuild was
+#: built on it. Fixed on purpose -- NOT the current default -- so that flipping ``defaults.yaml hemo.variant`` to a new
+#: variant still tags every new output (``hemo_tag``) and can never overwrite or prune an untagged (adopted) one.
+UNTAGGED_HEMO_VARIANT = "meegkit_hpfit"
+
+
+def default_hemo_variant() -> str | None:
+    """``defaults.yaml hemo.variant`` (None = zerophase), ignoring the env override."""
+    return hemo_variant((defaults().get("hemo") or {}).get("variant") or "none")
+
+
+def hemo_dir_name(variant: str | None = None) -> str | None:
+    """``hemo_<variant>`` -- the directory under ``wfield_local_results`` the selected variant lives in -- or None for
+    the bare zerophase ``SVTcorr.npy``. THE ONE PLACE a script should build that name (never ``hemo_{ADOPTED}`` or a
+    literal ``hemo_meegkit_hpfit``)."""
+    v = hemo_variant(variant)
+    return None if v is None else f"hemo_{v}"
+
+
+def hemo_manifest_path(mc_or_results, variant: str | None = None) -> str:
+    """``.../wfield_local_results/hemo_<variant>/manifest.json`` for an ``mc`` dir or a ``wfield_local_results`` dir.
+    Raises for zerophase (the bare product has no manifest)."""
+    d = hemo_dir_name(variant)
+    if d is None:
+        raise ValueError("the zerophase (bare SVTcorr.npy) product has no hemo manifest")
+    base = str(mc_or_results).rstrip("/\\")
+    if not base.replace("\\", "/").endswith("wfield_local_results"):
+        base = f"{base}/wfield_local_results"
+    return f"{base}/{d}/manifest.json"
+
+
+def maps_dir_tag(variant: str | None = None) -> str:
+    """Suffix of the per-session ACTIVITY-MAP directories (``spout_trial_averages_<t>``, ``lick_aligned_<t>``,
+    ``running_activity_<t>``; `preprocess._maps_commands`): ``defaults.yaml preprocess.maps.tag`` (affine8v1), plus
+    ``_hv-<variant>`` under any hemo variant other than `UNTAGGED_HEMO_VARIANT` (rebuild 2026-11-03, trap T22 / item
+    k): those npz are baked from SVTcorr, so a rebuild under another variant writes BESIDE the adopted maps, never over
+    them. The registration dir ``allen_aligned_<tag>`` and the quiet masks are hemo-independent and keep the bare tag."""
+    base = str(defaults()["preprocess"]["maps"]["tag"])
+    t = hemo_tag(variant)
+    return f"{base}_{t}" if t else base
+
+
+def hemo_tag(variant: str | None = None) -> str:
+    """Mode tag of the selected hemo variant: "" for `UNTAGGED_HEMO_VARIANT`, else ``hv-<variant>`` (``hv-zerophase``
+    for the bare product). Enters output folders (`run_mode`), session-cache kinds and restnl cache names."""
+    v = hemo_variant(variant)
+    if v == UNTAGGED_HEMO_VARIANT:
+        return ""
+    return f"hv-{v or 'zerophase'}"
 
 
 def svtcorr_path(mc, variant: str | None = None) -> str:
@@ -298,7 +379,7 @@ def curated_dates(machine: str | None = None, phase: str = "pre") -> list[str]:
     every night was pre-stroke; the moment a lesion exists it becomes a live hazard, because this
     list feeds the joint bases, the frozen decoder's training pool and the no-lick reference. With
     any `stroke_date` set, ``phase="pre"`` (the DEFAULT) returns only dates up to and including the
-    cutoff, ``phase="post"`` only dates after it, and ``phase="all"`` the old behaviour. While the
+    cutoff, ``phase="post"`` only dates after it, and ``phase="all"`` the old behavior. While the
     whole cohort is pre-stroke nothing changes.
 
     This is the ONLY curated-set accessor. A static ``date_policy.cross_session`` list used to sit
@@ -343,8 +424,8 @@ def epoch_spec(animal: str | None = None):
     animal's dict when `animal` is given.
 
     `acute` and `subacute_from` ARE THE SOURCE. `chronic_from` is a last-resort seed: it is derived
-    from behaviour each nightly run and published to `epoch_boundaries.json`, and this value applies
-    only when pinned or when no artifact exists (a fresh clone). A crashed or behaviour-less run
+    from behavior each nightly run and published to `epoch_boundaries.json`, and this value applies
+    only when pinned or when no artifact exists (a fresh clone). A crashed or behavior-less run
     uses the last DERIVED file. See `wfield_local.epochs` for the full precedence.
 
     `acute` becomes a TUPLE. YAML gives a list, and `epoch_of` compares it against stored specs and
@@ -406,18 +487,107 @@ def animal_excluded_dates(animal: str) -> set[str]:
     return {str(d)[4:] if len(str(d)) == 8 else str(d) for d in v}
 
 
+def baseline_pre_from() -> str | None:
+    """The ACTIVE cohort's August-only baseline cut, MMDD (cohorts.yaml `baseline_pre_from`; cohort1 = 0806), or None.
+
+    THE ONE SPELLING (code review 11-04 item 2, Priya 11-05). Before this the cut was written about 130 times in five
+    ways (`>= "0801"`, `>= "0806"`, month == "08", month != "06", three module constants) that agree only because
+    date_policy excludes 0805, and every one was an MMDD string compare, which breaks for a cohort that crosses New
+    Year. Read the cut here and test a session with `early_pre`. This is the cohort's DEFINITION of its baseline; the
+    run mode that applies it to the pooled sets is `pre_from()` (WIDEFIELD_PRE_FROM), which is unchanged."""
+    v = _paths.cohort_spec().get("baseline_pre_from")
+    return str(v) if v else None
+
+
+def early_pre(x) -> bool:
+    """True for a session (label ``PS92_0607``, MMDD or YYYYMMDD) dated BEFORE the cohort's baseline cut: a June
+    session in cohort1, i.e. one an August-only analysis drops. False when the cohort has no cut.
+
+    Date-only on purpose: the cut precedes every stroke, so a session before it is pre-stroke whatever its epoch, and
+    the old inline filters (``x[-4:] >= "0806"`` on mixed pre + post lists) were date-only too. It does NOT apply
+    date_policy; cohort1's cut (0806) is the first curated August day, so the excluded 0805 counts as early."""
+    cut = baseline_pre_from()
+    return bool(cut) and date_key(x) < date_key(cut)
+
+
 def pre_from() -> str | None:
     """MMDD from ``WIDEFIELD_PRE_FROM``: an OPT-IN late-baseline sensitivity mode (Priya 2026-10-18).
 
     Unset (the default) changes nothing. Set (e.g. ``0801``), every pre-stroke session dated before it is
     ``'excluded'`` -- out of every pooled set, frozen-model training set and epoch pool, and not scored as post
-    either. Why: behaviour shows the animals were still learning in June (close-spout contact 0.5 -> 0.97 June ->
+    either. Why: behavior shows the animals were still learning in June (close-spout contact 0.5 -> 0.97 June ->
     August; lick kinematics changed as much as many stroke effects), so a June + August baseline can mix learning
     / drift into post-stroke changes. A new training set gets a new frozen-model spec_id (rule 10: the canonical
     models are untouched). `epoch_audit.full_cohort` SUSPENDS it: epoch boundaries are derived from the full pre
     set and must never move. Always write the outputs of such a run to separate (``*_latepre``) directories."""
     v = os.environ.get("WIDEFIELD_PRE_FROM", "").strip()
     return v or None
+
+
+#: True once this process has CHOSEN the June + August pre set (``apply_pre_from("all")``, `require_full_pre`,
+#: `full_pre_ok`), so `_warn_bare_pre` stays quiet for runs that include June on purpose.
+_FULL_PRE_CHOSEN = False
+_BARE_PRE_WARNED = False
+
+
+@contextlib.contextmanager
+def full_pre_ok():
+    """Body deliberately uses every pre session (e.g. `epoch_audit.full_cohort`): no bare-run warning inside it."""
+    global _FULL_PRE_CHOSEN
+    old, _FULL_PRE_CHOSEN = _FULL_PRE_CHOSEN, True
+    try:
+        yield
+    finally:
+        _FULL_PRE_CHOSEN = old
+
+
+def _warn_bare_pre(date: str) -> None:
+    """Warn ONCE per process when a BARE run (no WIDEFIELD_PRE_FROM, no render profile, no explicit "all") pools an
+    early (June) pre session although the cohort has an August-only cut (Priya 11-06, Q1: warn now; the default
+    switches to the cut after the page-replacement pass, because that renames output folders). Changes no number."""
+    global _BARE_PRE_WARNED
+    if _BARE_PRE_WARNED or _FULL_PRE_CHOSEN or "WIDEFIELD_PRE_FROM" in os.environ:
+        return
+    if os.environ.get("WIDEFIELD_REBUILD_ROOT", "").strip():   # a render profile owns the pre set, unsets included
+        return
+    if not early_pre(date):
+        return
+    _BARE_PRE_WARNED = True
+    # Suggest the PRIMARY run value, not the cut itself: it names the existing `_pre0801_` folders, and a new value
+    # would re-render into new ones (same sessions, test_baseline_pre_from pins that).
+    from wfield_local import run_mode
+    warnings.warn(f"bare run: pooling pre sessions before the cohort's August-only cut ({baseline_pre_from()}, e.g. "
+                  f"{date}); set WIDEFIELD_PRE_FROM / --pre-from {run_mode.PRIMARY_PRE_FROM} for the primary baseline "
+                  "(reuses its outputs), or --pre-from all to include June on purpose", stacklevel=3)
+
+
+def apply_pre_from(value: str | None) -> str | None:
+    """Set WIDEFIELD_PRE_FROM for THIS process (a render block's ``--pre-from``; rebuild 2026-11-03: the decoders'
+    August-only pre is chosen PER RENDER BLOCK, never as a config default). ``None`` leaves the environment as it is;
+    ``"all"`` / ``""`` clears it (June + August). Returns the effective value. Call before any pool is built (no phase
+    set is cached at import). Outputs of such a run are tagged ``pre<MMDD>`` by `run_mode`."""
+    if value is None:
+        return pre_from()
+    global _FULL_PRE_CHOSEN
+    v = str(value).strip()
+    if v.lower() in ("", "all", "none"):
+        _FULL_PRE_CHOSEN = True
+        os.environ.pop("WIDEFIELD_PRE_FROM", None)
+        return None
+    if not re.fullmatch(r"\d{4}", v):
+        raise ValueError(f"--pre-from must be MMDD (e.g. 0801) or 'all', got {value!r}")
+    os.environ["WIDEFIELD_PRE_FROM"] = v
+    return v
+
+
+def require_full_pre(what: str) -> None:
+    """Raise when WIDEFIELD_PRE_FROM is set: for analyses that NEED the June pre sessions (the June vs August drift
+    decoder, 12.1b lick-free rest), kept as labeled June + August sensitivities (rebuild 2026-11-03)."""
+    global _FULL_PRE_CHOSEN
+    if pre_from():
+        raise SystemExit(f"{what} needs the June pre sessions (June + August sensitivity, labeled as such): unset "
+                         "WIDEFIELD_PRE_FROM / drop --pre-from for this block")
+    _FULL_PRE_CHOSEN = True
 
 
 def session_phase(animal: str, date: str) -> str:
@@ -435,6 +605,8 @@ def session_phase(animal: str, date: str) -> str:
     pf = pre_from()
     if ph == "pre" and pf and date_key(date) < date_key(pf):   # opt-in late-baseline mode (WIDEFIELD_PRE_FROM)
         return "excluded"
+    if ph == "pre":
+        _warn_bare_pre(date)
     return ph
 
 
@@ -511,6 +683,42 @@ def defaults(session: str | None = None) -> dict:
         return base
     ov = (_load("session_overrides.yaml") or {}).get("overrides") or {}
     return _deep_merge(base, ov[session]) if ov.get(session) else base
+
+
+#: Fallback physiological lick floor (ms) when `defaults.yaml lick_detection` has no ``min_ili_ms``. ONE value for every
+#: reader (REBUILD_CODE 8.53, 11-05): `behavior_events` / `restnl_mask` / `rest_by_position` fell back to 0, `daq_trials` /
+#: `dlc_context_frames` / `spout_behavior` to 40; the yaml sets 40, so both ran at 40, but a missing key split them.
+LICK_MIN_ILI_MS_DEFAULT = 40.0
+
+#: The imaging run-tag token of the BEHAVIOUR DAQ lick detector (Priya 11-04/05, REBUILD_CODE 8.53): every tagged run
+#: built after the switch carries it (`run_mode.lickdet_part`), so no output of the old imaging detector (1.0 V offset,
+#: 0.10 s refractory) can be read as the new one.
+LICK_DETECTOR_TAG = "daqlk"
+
+
+def lick_min_ili_s() -> float:
+    """The physiological lick floor, s: `defaults.yaml lick_detection.min_ili_ms` (`LICK_MIN_ILI_MS_DEFAULT` if absent)."""
+    return float(defaults()["lick_detection"].get("min_ili_ms", LICK_MIN_ILI_MS_DEFAULT)) / 1000.0
+
+
+def lick_detector() -> dict:
+    """THE DAQ lick detector (Priya 11-04/05: imaging uses the BEHAVIOR detector everywhere; REBUILD_CODE 8.53).
+
+    From `defaults.yaml lick_detection`: ``thresh_upper`` (onset, V), ``thresh_lower`` (offset, V), ``lockout_s`` (the
+    falling-edge lockout), ``refractory_s`` = 0.0 (no bout-collapse refractory -- the old imaging 0.10 s dropped real
+    10-11 Hz licks, LICK_DETECTOR_COMPARE_2026-11-04.md on main a69fb9c3) and ``min_ili_s`` (the 40 ms physiological floor;
+    `daq_io.lick_onsets` applies it itself). Same detector as `daq_trials.decode` / `behavior_events` / `dlc_frames`."""
+    ld = defaults()["lick_detection"]
+    return {"thresh_upper": float(ld["thresh_upper"]), "thresh_lower": float(ld["thresh_lower"]),
+            "lockout_s": tuple(float(v) for v in ld["lockout_falling_edge_s"]),
+            "refractory_s": 0.0, "min_ili_s": lick_min_ili_s()}
+
+
+def lick_detector_args() -> tuple:
+    """`lick_detector` as the positional ``(thresh_upper, thresh_lower, lockout_s, refractory_s)`` of
+    `daq_io.lick_onsets` / `plot_lick_aligned_averages._load_daq_events` (which apply ``min_ili_s`` themselves)."""
+    d = lick_detector()
+    return d["thresh_upper"], d["thresh_lower"], d["lockout_s"], d["refractory_s"]
 
 
 def paths() -> dict:
@@ -602,7 +810,40 @@ def _filter_set(explicit, env_name):
     return {str(v) for v in val}
 
 
+#: Per-process memo of `load_sessions` (profile 11-09: one grant unit called it 368 times, 289 s, nearly all of it
+#: `PathResolver.resolve` stat-ing list mounts on M:). Key = the arguments + every WIDEFIELD_* / WFIELD_* variable (the
+#: cohort, subset filters, root overrides and rebuild root all come from there) + the IDENTITY of the parsed
+#: sessions.yaml and of the cached resolver, so `_load.cache_clear()` / `resolver.cache_clear()` (await_locanmf
+#: re-reads sessions.yaml after registering) start fresh. Every call returns a deep copy.
+_SESSIONS_MEMO: dict = {}
+
+
+def _sessions_memo_key(machine, animals, dates):
+    from wfield_local.session_memo import _env_key
+
+    def norm(v):
+        return v if v is None or isinstance(v, str) else tuple(str(x) for x in v)
+    return (machine, norm(animals), norm(dates), _env_key())
+
+
 def load_sessions(machine: str | None = None, animals=None, dates=None) -> list[dict]:
+    """`_load_sessions_uncached`, memoized per process (see `_SESSIONS_MEMO`); a deep copy per call."""
+    import copy
+    key = _sessions_memo_key(machine, animals, dates)
+    raw, rv = _load("sessions.yaml"), resolver(machine)
+    hit = _SESSIONS_MEMO.get(key)
+    if hit is None or hit[0] is not raw or hit[1] is not rv:
+        if len(_SESSIONS_MEMO) > 64:
+            _SESSIONS_MEMO.clear()
+        hit = (raw, rv, _load_sessions_uncached(machine, animals, dates))
+        _SESSIONS_MEMO[key] = hit
+    return copy.deepcopy(hit[2])
+
+
+load_sessions.cache_clear = _SESSIONS_MEMO.clear
+
+
+def _load_sessions_uncached(machine: str | None = None, animals=None, dates=None) -> list[dict]:
     """Flatten `configs/sessions.yaml` into the pipeline's SESSIONS list:
     `dict(label, mc, h5, regime, fmdir, [behavior_trials])`, ordered by (date, animal).
 

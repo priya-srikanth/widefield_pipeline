@@ -1,27 +1,28 @@
-"""Pre- vs post-stroke activity maps on ONE COMMON COLOUR SCALE.
+"""Pre- vs post-stroke activity maps on ONE COMMON COLOR SCALE.
 
 Priya, 2026-08-19: the preprocessing decks show much larger amplitude bars post-stroke, and asked
 whether any current figure bears that out clearly. None does, and one actively hides it.
 
-WHY THE EXISTING MAPS CANNOT SHOW IT. `plot_spout_trial_averages` sets its colour limit from a
-percentile of THAT SESSION's own maps, so every session is renormalised to fill the same colour range.
+WHY THE EXISTING MAPS CANNOT SHOW IT. `plot_spout_trial_averages` sets its color limit from a
+percentile of THAT SESSION's own maps, so every session is renormalized to fill the same color range.
 A session whose responses are three times larger looks identical; only the number on the colourbar
 changes. That is the right default for reading one session's spatial pattern and exactly wrong for
 comparing amplitude across sessions -- the observation had to be made by reading colourbar values,
 which is the figure failing at its job.
 
 Here every panel shares one symmetric vmin/vmax computed across ALL panels in the figure, so a 2-3x
-amplitude difference appears as a 2-3x difference in colour saturation.
+amplitude difference appears as a 2-3x difference in color saturation.
 
-THE AMPLITUDE RISE IS NOT A dF/F DENOMINATOR ARTEFACT, which was the obvious worry: baseline F is
+THE AMPLITUDE RISE IS NOT A dF/F DENOMINATOR ARTIFACT, which was the obvious worry: baseline F is
 unchanged post-stroke (PS94 pre/post ratio 1.01, PS95 1.02, PS92 0.99), so the rise is in the
-numerator. Verified before building this, because a figure that dramatises an artefact is worse than
+numerator. Verified before building this, because a figure that dramatises an artifact is worse than
 no figure.
 
 Maps are reconstructed on the ATLAS grid (U_atlas @ window-mean SVT), so pixels are comparable across
 sessions and animals. The window is the same one the decoders use.
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import glob
@@ -45,7 +46,7 @@ MIN_TRIALS = 8
 def _position_maps(s, align="cue", post_s=2.0):
     """Memoized wrapper: one session's maps cannot change when a different session is recorded.
 
-    The COMMON COLOUR SCALE is computed across sessions and legitimately moves when the cohort grows
+    The COMMON COLOR SCALE is computed across sessions and legitimately moves when the cohort grows
     -- that stays live. What is cached is only each session's own maps, which do not (18 min/night,
     measured 2026-08-25).
     """
@@ -67,7 +68,7 @@ def _position_maps_uncached(s, align="cue", post_s=2.0):
     U = np.load(f"{ad[0]}/U_atlas.npy")                      # (H, W, k)
     SVT = np.load(config.svtcorr_path(s["mc"]))              # (k, T)
     cue = _load_cue_events(s["h5"])
-    lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    lk = _load_daq_events(s["h5"], "lick_analog")
     cue_f, lick_f, _csmp = _frames(s, cue, lk)
     codes = np.asarray(classify_cues_with_backup(s, cue))
     if align == "cue":
@@ -107,7 +108,7 @@ def animal_maps(animal, align="cue", max_post=None, post_s=2.0):
     accepted the argument and no caller passed it. The preprocessing decks show the post-lick maps
     at **150 ms**, which is the window a reader actually compares across days -- and those had no
     common-scale version at all, so every cross-day comparison of them was being made between two
-    independently-chosen colour limits (Priya, 2026-08-22: "scale is also wildly different"). PS94
+    independently-chosen color limits (Priya, 2026-08-22: "scale is also wildly different"). PS94
     is +-0.02425 on 8/14 and +-0.08854 on 8/17, a factor of 3.65.
     """
     pre_dates = set(config.curated_dates())
@@ -154,7 +155,7 @@ def plot(animal, pre_mean, post, out_dir, align, post_s):
     without it is unreadable on its own (Priya, 2026-08-23). It costs one row per part and makes
     each slide self-contained.
 
-    THE COLOUR LIMIT IS COMPUTED ACROSS EVERY PART, not per part. Re-deriving it per chunk would
+    THE COLOR LIMIT IS COMPUTED ACROSS EVERY PART, not per part. Re-deriving it per chunk would
     give each slide its own scale, which is precisely the auto-scaling defect this whole module
     exists to fix -- and it would be invisible, because each part would look internally consistent.
     """
@@ -226,14 +227,14 @@ def _plot_part(animal, cols, POS, lim, out_dir, align, post_s, part, n_parts):
     fig.colorbar(im, cax=cax)
     fig.suptitle(
         f"{animal} - {align}-aligned activity maps, {round(post_s * 1000)} ms window, on ONE COMMON "
-        + (f"[part {part} of {n_parts}, PRE row repeated; the colour limit is shared "
+        + (f"[part {part} of {n_parts}, PRE row repeated; the color limit is shared "
            f"across ALL parts] " if n_parts > 1 else "") + 
-        f"COLOUR SCALE (+-{lim:.3f}).\n"
+        f"COLOR SCALE (+-{lim:.3f}).\n"
         "The per-session maps in the preprocessing deck are auto-scaled, so every session fills the "
-        "same colour range and an amplitude difference is invisible -- only the colourbar NUMBER "
+        "same color range and an amplitude difference is invisible -- only the colourbar NUMBER "
         "changes. Here all panels share one limit, so a 2-3x larger response looks 2-3x more "
         "saturated. Baseline F is unchanged post-stroke (ratio ~1.0), so this is a numerator effect, "
-        "not a dF/F denominator artefact. n IS ON EVERY PANEL, in RED where it is under 3x "
+        "not a dF/F denominator artifact. n IS ON EVERY PANEL, in RED where it is under 3x "
         "the inclusion floor -- a mean over ten trials beside means over a hundred looks "
         "like a large effect and is mostly noise.", fontsize=8.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 0.90, 0.93))
@@ -243,7 +244,7 @@ def _plot_part(animal, cols, POS, lim, out_dir, align, post_s, part, n_parts):
     # part 1 keeps the historical filename so no existing deck reference dangles
     q = Path(out_dir) / (f"fixed_scale_maps_{animal}_{_tag}.png" if part == 1
                          else f"fixed_scale_maps_{animal}_{_tag}__p{part}.png")
-    fig.savefig(q, dpi=140)
+    save_png_svg(fig, q, dpi=140)
     plt.close(fig)
     return q
 
@@ -261,7 +262,8 @@ def main(argv=None) -> int:
                          "reported, never silent.")
     ap.add_argument("--output", type=Path, default=None)
     args = ap.parse_args(argv)
-    out = args.output or Path(PathResolver().root("figures_working"))
+    from wfield_local import run_mode  # tagged runs never overwrite default figures (review H2)
+    out = run_mode.routed_output(args.output or Path(PathResolver().root("figures_working")))
     animals = args.animals or sorted({l.split("_")[0] for l in config.phase_labels("post")})
     for align in args.align:
         for a in animals:

@@ -1,4 +1,4 @@
-"""cam4 labelling round 4: the frames DLC round 3 gets wrong, each with consecutive CONTEXT around it.
+"""cam4 labeling round 4: the frames DLC round 3 gets wrong, each with consecutive CONTEXT around it.
 
     conda activate dlc
     python -m wfield_local.dlc_hard_frames scan      # DLC round 3 over the windows; poses cached per session
@@ -24,18 +24,18 @@ frame. Per session, from those predictions:
 
   incomplete_tongue  jaw-nose opening 12-30 px above the session's resting level (a peak), and no tongue
                      p > 0.6 within +-6 frames (24 ms)                                   context +-4
-  erratic_tongue     confident (p > 0.8) tongue that jumps > 15 px from BOTH neighbours while the
-                     neighbours agree, or a confident tongue with the mouth closed        context +-4
+  erratic_tongue     confident (p > 0.8) tongue that jumps > 15 px from BOTH neighbors while the
+                     neighbors agree, or a confident tongue with the mouth closed        context +-4
   erratic_jaw        the same spike rule for the jaw, or a confident jaw far lateral of its usual
                      offset from the nose (the "jaw on the tongue's edge" pattern)        context +-2
   tricky_spout       spout p in 0.1-0.6 (a local minimum), or moving > 5 px/frame at p < 0.9   none
 
 Sessions: two per post-stroke epoch (acute, subacute, chronic), animals spread -- six in all, no pre-stroke;
-none already in the cam4 labelled set, all with passing templates on
+none already in the cam4 labeled set, all with passing templates on
 cam4 AND cam1 (the matched bursts). Picks within a session are >= 0.25 s apart.
 
-TARGETS, CONTEXT, PROMOTED CONTEXT -- same rule as cam1 (`dlc_context_frames`): the centre is a target
-(category ``round4``, phase = the rule name), neighbours are ``context``, and every ~3rd neighbour is
+TARGETS, CONTEXT, PROMOTED CONTEXT -- same rule as cam1 (`dlc_context_frames`): the center is a target
+(category ``round4``, phase = the rule name), neighbors are ``context``, and every ~3rd neighbor is
 promoted to ``context_label`` (suggested, flexible). All-blank frames never reach training
 (`dlc_train.drop_unlabelled`).
 
@@ -44,16 +44,16 @@ with cam4)"). Same machinery, the cam1 DLC model (`training/...-orofacial-cam1`)
 six sessions as cam4 round 4 by default (`round4_scan/sessions.csv`) so both views' hard frames are pairable for
 multi-view LP. Two rules change because the view does (`CAMS`):
   * the mouth OPENING is jaw y minus the session's resting jaw y, not jaw minus nose: from below the nose is
-    hidden behind the rod on every centre-position trial, and the head is fixed, so the jaw alone measures it;
+    hidden behind the rod on every center-position trial, and the head is fixed, so the jaw alone measures it;
     the lateral-jaw rule likewise uses jaw x minus its session median.
-  * cam1 sees opening ~2.5x larger than cam4: labelled jaw y moves +62..+134 px with the tongue out (11
+  * cam1 sees opening ~2.5x larger than cam4: labeled jaw y moves +62..+134 px with the tongue out (11
     sessions), against cam4's 12-30 px incomplete-lick band, so the band is 30-70 px (PROVISIONAL -- check the
     scanned opening-peak distribution before trusting the picks).
 Targets go to `_frame_staging/cam1_*` (the worksheet); the matched cam4 frames go to `_frame_staging_unassigned/`.
 
 MATCHED cam1 BURSTS go to ``_frame_staging_unassigned/`` -- NOT `_frame_staging`, because
-`dlc_project.sync_frames` copies every ``cam1_*`` folder there into the labelling project, i.e. onto the
-student's worksheet. They exist so a moment labelled on cam4 is pairable later (multi-view LP needs the
+`dlc_project.sync_frames` copies every ``cam1_*`` folder there into the labeling project, i.e. onto the
+student's worksheet. They exist so a moment labeled on cam4 is pairable later (multi-view LP needs the
 image in every view; see DECISIONS). Nobody is asked to label them yet.
 """
 from __future__ import annotations
@@ -125,7 +125,7 @@ POST_EPOCHS = ("acute", "subacute", "chronic")
 # --------------------------------------------------------------------------- the rules (pure)
 
 def _spikes(x, y, p, jump=15.0, agree=8.0, p_min=P_SURE) -> np.ndarray:
-    """Frames where a confident point jumps > ``jump`` px from both neighbours, which agree within ``agree``."""
+    """Frames where a confident point jumps > ``jump`` px from both neighbors, which agree within ``agree``."""
     xy = np.c_[x, y]
     out = np.zeros(len(x), bool)
     if len(x) < 3:
@@ -145,7 +145,7 @@ def candidates(P: dict, rest_open: float, lat_med: float, lat_mad: float, ref: s
     ``P[part]`` = (x, y, p) arrays. ``rest_open`` / ``lat_med`` / ``lat_mad`` are session-level (the resting
     jaw-nose opening, and the jaw's median lateral offset from the nose and its MAD), so a window is judged
     against the session, not against itself. ``ref="rest"`` (cam1) measures both from the jaw alone: opening =
-    jaw y - resting jaw y, lateral = jaw x - its session median (the nose is hidden on centre trials).
+    jaw y - resting jaw y, lateral = jaw x - its session median (the nose is hidden on center trials).
     """
     from scipy.signal import find_peaks
 
@@ -405,7 +405,7 @@ def predict_window(video: str, f0: int, f1: int, predict, chunk: int = 64) -> np
 
 def choose_sessions(rv=None, per_epoch: int = PER_EPOCH, epochs_=POST_EPOCHS) -> list[tuple[str, str, str, str]]:
     """(animal, date, sid, epoch): ``per_epoch`` sessions in each post-stroke epoch, animals spread
-    (`dlc_frames._thin_epochs`), each the most central of that animal's epoch that is not already labelled
+    (`dlc_frames._thin_epochs`), each the most central of that animal's epoch that is not already labeled
     on cam4 and has passing templates on cam4 AND cam1.
 
     Six sessions, post-stroke only (Priya, 2026-09-30: "for cam4, we can use fewer sessions"): the first
@@ -664,7 +664,7 @@ def cmd_picks(rv, sess, lp_dir: Path | None, cam: str = "cam4") -> Path:
 def cmd_addon(rv, sess, lp_dir: Path) -> Path:
     """Append `ONLY_KINDS` picks to an already-extracted round 4 (`round4_rows.csv`), clear of its picks.
 
-    Existing rows are never changed or re-ordered, so frames already being labelled are untouched; run
+    Existing rows are never changed or re-ordered, so frames already being labeled are untouched; run
     `extract` afterwards (idempotent: it writes only the new PNGs and manifest rows)."""
     rows_csv = _cache(rv) / "round4_rows.csv"
     old = pd.read_csv(rows_csv, dtype={"date": str})
@@ -748,13 +748,13 @@ def main(argv=None) -> int:
 
 
 def pair_rows(matched: list[dict], round_name: str) -> list[dict]:
-    """The other camera's matched frames of a round, re-labelled for THIS camera's worksheet.
+    """The other camera's matched frames of a round, re-labeled for THIS camera's worksheet.
 
     Targets keep their pick as ``phase = "pair:<kind>"`` (so the worksheet can say why the moment is hard) and
-    become ``round_name``; EVERY neighbour becomes plain ``context`` -- including cam4's suggested
+    become ``round_name``; EVERY neighbor becomes plain ``context`` -- including cam4's suggested
     ``context_label`` ones. Priya, 2026-10-05: the context in these folders is "there for context and do NOT
     need to be labeled"; consecutive frames of one lick add little pose information (2026-09-13), so the
-    suggested neighbours wait until the cam1 DLC / LP evaluation says they are needed."""
+    suggested neighbors wait until the cam1 DLC / LP evaluation says they are needed."""
     out = []
     for r in matched:
         r = {k: v for k, v in r.items() if k != "_video"}
@@ -770,8 +770,8 @@ def cmd_pairs(rv, cam: str = "cam1") -> int:
     """Put the cam1 frames matched to cam4 round 4 (in `_frame_staging_unassigned/`) on the cam1 worksheet.
 
     COPIES the PNGs into `_frame_staging/<stem>/` (the unassigned copies stay; nothing is deleted), appends the
-    re-labelled rows to the manifest (de-duplicated on video_stem + frame, so a re-run adds nothing), and
-    syncs into the labelling project. Idempotent."""
+    re-labeled rows to the manifest (de-duplicated on video_stem + frame, so a re-run adds nothing), and
+    syncs into the labeling project. Idempotent."""
     import shutil
 
     from wfield_local import dlc_project

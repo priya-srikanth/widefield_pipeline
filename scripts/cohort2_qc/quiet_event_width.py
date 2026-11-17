@@ -30,6 +30,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from quiet_area_spikes import columns, session_traces  # noqa: E402
 from quiet_spikes_v2 import BASE_S, MAX_HW_S, V2, busy_frames, detrend  # noqa: E402
+from wfield_local import config  # noqa: E402
 
 K = 4.0
 COLS = ["orofacial_left", "orofacial_right", "limb_left", "limb_right", "orofacial", "limb"]
@@ -115,7 +116,7 @@ def session_table():
     rows = []
     for f in sorted((OUTW / "sessions").glob("*.npz")):
         lab, ep = f.stem, epochs.epoch_of(f.stem)
-        if ep is None or lab[-4:] < "0806" or lab[:4] not in sd:
+        if ep is None or config.early_pre(lab) or lab[:4] not in sd:
             continue
         z = np.load(f)
         E = z["ev"]
@@ -210,7 +211,7 @@ def main():
     a = ap.parse_args()
     if not a.summarise:
         from wfield_local.analysis_kit import fan_sessions  # fan_out + sort (rule 9)
-        labels = sorted(f.stem for f in (V2 / "sessions").glob("*.npz") if f.stem[-4:] >= "0806")
+        labels = sorted(f.stem for f in (V2 / "sessions").glob("*.npz") if not config.early_pre(f.stem))
         res, fail = fan_sessions(labels, extract, jobs=a.jobs, label="session")
         print(f"{len(res)} done, {len(fail)} failed")
         for x in fail:

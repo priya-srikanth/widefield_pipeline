@@ -39,9 +39,10 @@ def job(label):
 def main():
     import pandas as pd
 
+    from wfield_local import config
     from wfield_local import analysis_kit as ak
     from wfield_local import combined_encoding as ce
-    labels = [x for x in sorted(ce.sessions_available()) if x[-4:] >= "0801"]
+    labels = [x for x in sorted(ce.sessions_available()) if not config.early_pre(x)]
     got, fail = ak.fan_sessions(labels, job, jobs=int(sys.argv[1]) if len(sys.argv) > 1 else 4, label="jitter")
     D = pd.DataFrame([r for _l, r in got])
     D.to_csv(sys.argv[2] if len(sys.argv) > 2 else "lick_jitter.csv", index=False)

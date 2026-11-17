@@ -10,7 +10,7 @@ Fitted on the INTACT (contralesional) hemisphere only, anchored on the anatomica
 Score = median distance (mm) from the section's hemisphere outline (midline cut excluded) to the plate's brain
 outline + from its contralesional striatum outline (QuPath) to the plate's CPu outline. Boundary distance, not area
 overlap: overlap scoring over-sized every section (Priya). kx, ky in 0.82-1.15 (an unconstrained fit collapsed
-PS95 s5 to 0.71 on a torn ventral edge). When striatum and cortex edge disagree the result favours the striatum
+PS95 s5 to 0.71 on a torn ventral edge). When striatum and cortex edge disagree the result favors the striatum
 (Priya chose this explicitly; PS93's cortex edge then sits slightly inside the atlas outline). The lesioned
 hemisphere is carried by the same transform and never rescaled.
 """
@@ -75,6 +75,6 @@ def fit_section(T, plate_rasters: dict, figures):
 
 
 def to_mm(x, y, rec):
-    """Standardised section px -> plate mm, using a sections.json record."""
+    """Standardized section px -> plate mm, using a sections.json record."""
     s = UM / 1000
     return (np.asarray(x) - rec["midline_x"]) * rec["kx"] * s, rec["ty"] + (np.asarray(y) - rec["y_top"]) * rec["ky"] * s

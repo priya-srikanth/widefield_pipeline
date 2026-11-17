@@ -1,7 +1,7 @@
-"""T21: is the acute ~2x larger lick-evoked cortical response a consequence of a SYNCHRONISED cortical state? (cohort1, 11-01)
+"""T21: is the acute ~2x larger lick-evoked cortical response a consequence of a SYNCHRONIZED cortical state? (cohort1, 11-01)
 
-WHY. Acutely the lick-evoked orofacial response is ~2x larger and quiet orofacial cortex is more synchronised (more 1-4 Hz
-power, T20). In barrel cortex, passive sensory responses are larger in the synchronised quiet-wakefulness state
+WHY. Acutely the lick-evoked orofacial response is ~2x larger and quiet orofacial cortex is more synchronized (more 1-4 Hz
+power, T20). In barrel cortex, passive sensory responses are larger in the synchronized quiet-wakefulness state
 (Crochet & Petersen 2006). If the same holds here, licks that start from a high-slow-power state should evoke larger
 responses WITHIN pre-stroke sessions, and the acute increase in pre-lick slow power should predict part of the acute
 response increase.
@@ -31,6 +31,7 @@ MATCHED-POWER CHECK: response by pre-lick power quintile (animal's pooled pre+po
     set WFIELD_INPUT_CACHE=C:/Users/SabatiniLab/wfield_cache
     python scripts/cohort2_qc/quiet_state_response.py [--jobs 4] [--summarise] [--only PS92_0811 ...]
 """
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 import argparse
 import sys
 from pathlib import Path
@@ -43,6 +44,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from quiet_area_spikes import EP, EVENTS, columns, session_traces  # noqa: E402
 from quiet_lick_lfo import BAND, KIND_LAB, KINDS, bandpass, interp_bad, lick_events  # noqa: E402
 from quiet_spikes_v2 import V2, busy_frames  # noqa: E402
+from wfield_local import config  # noqa: E402
 
 SR = V2 / "state_response"                                  # follows QS_LICK_SOURCE
 COLS = ["orofacial", "orofacial_left", "orofacial_right", "cortex"]
@@ -124,7 +126,7 @@ def lick_table():
     for f in sorted((SR / "sessions").glob("*.npz")):
         lab = f.stem
         ep = epochs.epoch_of(lab)
-        if ep is None or (ep == "pre" and lab[-4:] < "0806"):
+        if ep is None or (ep == "pre" and config.early_pre(lab)):
             continue
         d = np.load(f)
         for kind in KINDS:
@@ -321,12 +323,12 @@ def fig_slopes(S, T):
     sig_marks.reserve_headroom(fig)
     fig.suptitle(_wrap("T21: within-session slope of the lick-evoked response (mean dF/F 0..0.5 s minus -0.5..-0.1 s) on "
                        "pre-lick 1-4 Hz power (-1.0..-0.1 s, z-scored within session). Open markers = sessions (shape = "
-                       "animal, colour = epoch); filled = pooled mean, nested animal -> session bootstrap 95% CI. Stars: "
+                       "animal, color = epoch); filled = pooled mean, nested animal -> session bootstrap 95% CI. Stars: "
                        "at PRE = mean pre slope differs from 0 (mixed model pre_level); post epochs = slope differs from "
                        "pre (epoch model); FDR q within measure. Causal power = forward-only filter, no post-lick leak.",
                        190), fontsize=9)
     fig.tight_layout(rect=(0, 0, 0.94, 0.955), h_pad=1.6, w_pad=1.2)
-    fig.savefig(SR / "state_response_slopes.png", dpi=110)
+    save_png_svg(fig, SR / "state_response_slopes.png", dpi=110)
     plt.close(fig)
     print("wrote", SR / "state_response_slopes.png")
 
@@ -379,7 +381,7 @@ def fig_prediction(Pd):
                        "pre slope only. Per-animal ratios are unstable where the observed change is ~0 (PS95 ITI), so titles give "
                        "the ratio of sums over animals.", 190), fontsize=9)
     fig.tight_layout(rect=(0, 0, 0.88, 0.94), h_pad=1.5)
-    fig.savefig(SR / "state_response_prediction.png", dpi=110)
+    save_png_svg(fig, SR / "state_response_prediction.png", dpi=110)
     plt.close(fig)
     print("wrote", SR / "state_response_prediction.png")
 
@@ -418,9 +420,9 @@ def fig_matched(L, S):
         ax[i, 0].set_ylabel("lick-evoked response\n(% dF/F, mean +/- SEM)", fontsize=8)
     fig.suptitle(_wrap("T21 matched-power check: is the post-stroke response still larger at the SAME pre-lick 1-4 Hz power? "
                        "Quintile bins of the animal's licks pooled over epochs; each epoch's licks in each bin (bins with "
-                       ">= 5 licks). Colour = epoch; legend = licks per epoch.", 190), fontsize=9)
+                       ">= 5 licks). Color = epoch; legend = licks per epoch.", 190), fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.94), h_pad=3)
-    fig.savefig(SR / "state_response_matched_power.png", dpi=110)
+    save_png_svg(fig, SR / "state_response_matched_power.png", dpi=110)
     plt.close(fig)
     print("wrote", SR / "state_response_matched_power.png")
 
@@ -476,7 +478,7 @@ def main():
     if not a.summarise:
         from wfield_local.analysis_kit import curated_labels
         from wfield_local.analysis_kit import fan_sessions  # fan_out + sort (rule 9)
-        labels = a.only or [k for k in sorted(curated_labels()) if k[-4:] >= "0806" and k[:4] in ANIMALS]
+        labels = a.only or [k for k in sorted(curated_labels()) if not config.early_pre(k) and k[:4] in ANIMALS]
         res, fail = fan_sessions(labels, extract, jobs=a.jobs, label="session")
         print(f"{len(res)} done, {len(fail)} failed")
         for x in fail:

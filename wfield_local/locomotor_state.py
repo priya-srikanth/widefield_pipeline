@@ -39,7 +39,7 @@ DROPPED = "lick+run"
 
 
 def _in_any_bout(t0, t1, starts, stops):
-    """Does [t0, t1) overlap any [start, stop) bout? Vectorised over bouts, looped over trials."""
+    """Does [t0, t1) overlap any [start, stop) bout? Vectorized over bouts, looped over trials."""
     if not len(starts):
         return np.zeros(len(t0), bool)
     starts = np.asarray(starts, np.int64)
@@ -194,10 +194,10 @@ def segments(starts, stops, fs, *, seg_s=SEGMENT_S, cap=MAX_SEGMENTS_PER_PERIOD,
                   which is the one thing the class must not contain.
 
     THE ASYMMETRY IS REAL AND MUST BE STATED WHEREVER THIS IS PLOTTED: licking windows are locked to
-    a behavioural transition while the other two are sampled from within sustained states, so a
+    a behavioral transition while the other two are sampled from within sustained states, so a
     decoder could in principle separate them on transient-versus-sustained rather than on which
-    behaviour it is. That is a limit on the interpretation, not a defect -- the control asks whether
-    cortex still distinguishes behavioural states at all.
+    behavior it is. That is a limit on the interpretation, not a defect -- the control asks whether
+    cortex still distinguishes behavioral states at all.
     """
     n = round(seg_s * fs)
     out_s, out_p = [], []
@@ -344,7 +344,7 @@ def three_way_segments(events, *, seg_s=SEGMENT_S, cap=MAX_SEGMENTS_PER_PERIOD,
     licking window sits a fixed distance after a cue while running and quiet windows fall anywhere.
     A decoder separating them is therefore reading "licking state OR its cue-locked context", and
     that is a limit on the interpretation, not a bug -- the control asks whether cortex still
-    distinguishes behavioural states at all, and it does not need the three to be matched in time
+    distinguishes behavioral states at all, and it does not need the three to be matched in time
     to answer that. Say it rather than let a reader assume otherwise.
 
     ``lick_mode`` CHOOSES WHAT A LICKING WINDOW IS ANCHORED TO, and `postcue` is the default the

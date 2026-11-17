@@ -203,7 +203,9 @@ def main() -> int:
         for q in am:
             cells[(an, anat[q])] = am[q] - grand
     if cells:
-        d = __import__("pathlib").Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch"
+        from wfield_local import lp_licks          # run-mode routing (rebuild 11-03): identity for the default run
+        d = lp_licks.output_dir(__import__("pathlib").Path(PathResolver().root("cohort_out")) / "grant_figures"
+                                / "epoch")
         out = ef.map_grid(
             cells, d, name="epoch_15x_REST_by_position_by_animal",
             title="REST activity by spout position, per animal -- does the baseline carry position?",
@@ -218,9 +220,9 @@ def main() -> int:
             subtitle=(
                 "EACH CELL IS THAT ANIMAL'S MEAN REST MAP FOR ONE POSITION, MINUS ITS OWN "
                 "ACROSS-POSITION MEAN -- the exact contrast the bootstrap tests, so figure and "
-                "statistic show the same quantity. Rest periods are labelled by position ONLY when "
+                "statistic show the same quantity. Rest periods are labeled by position ONLY when "
                 "the preceding and following trial share one, so the label is unambiguous. "
-                "PRE-STROKE SESSIONS ONLY. Colour scale is PER ANIMAL: these are raw dF/F units and "
+                "PRE-STROKE SESSIONS ONLY. Color scale is PER ANIMAL: these are raw dF/F units and "
                 "animals differ in expression, so rows are not comparable to each other. "
                 "IF THE REST BASELINE WERE POSITION-INDEPENDENT -- which is what the REST reference "
                 "assumes when it subtracts ONE session mean from all six positions -- every cell "

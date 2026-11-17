@@ -21,6 +21,7 @@ STATISTICS: per-animal table first, `mixed_models.lmm_table` epoch + time models
     set WFIELD_INPUT_CACHE=C:/Users/SabatiniLab/wfield_cache
     python scripts/cohort2_qc/quiet_spikes_v2_fr.py [--jobs 6] [--summarise]
 """
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 import argparse
 import os
 import sys
@@ -35,6 +36,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from quiet_area_spikes import DETREND_S, EP, columns, mad, session_traces  # noqa: E402
 from quiet_spikes_fr import MOVE_PCTL, MOVE_WIN_S, N_FOLD, face_regressors, lagged, ridge_oof  # noqa: E402
 from quiet_spikes_v2 import V2, busy_frames, detect, detrend  # noqa: E402
+from wfield_local import config  # noqa: E402
 
 K = 4.0
 FRV2 = V2 / f"fr_regressed_{os.environ['QS_FR_BASIS']}"
@@ -97,13 +99,13 @@ def session_table():
     from wfield_local import epochs
     D = {f.stem: dict(np.load(f)) for f in sorted((FRV2 / "sessions").glob("*.npz"))}
     cols = columns()
-    pre = {k: d for k, d in D.items() if epochs.epoch_of(k) == "pre" and k[-4:] >= "0806"}
+    pre = {k: d for k, d in D.items() if epochs.epoch_of(k) == "pre" and not config.early_pre(k)}
     sd = {(an, kind): np.nanmedian([d[f"sd_{kind}"] for k, d in pre.items() if k.startswith(an)], 0)
           for an in sorted({k[:4] for k in D}) for kind in ("raw", "res")}
     rows = []
     for k, d in D.items():
         ep = epochs.epoch_of(k)
-        if ep is None or (ep == "pre" and k[-4:] < "0806"):
+        if ep is None or (ep == "pre" and config.early_pre(k)):
             continue
         an, fs = k[:4], float(d["fs"])
         mins = int(d["n_quiet_eng"]) / fs / 60
@@ -190,7 +192,7 @@ def figure(S, T, rows, out, title):
     sig_marks.reserve_headroom(fig)
     fig.suptitle(title, fontsize=8.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.92 if len(rows) < 3 else 0.95))
-    fig.savefig(FRV2 / out, dpi=110)
+    save_png_svg(fig, FRV2 / out, dpi=110)
     print("wrote", FRV2 / out)
 
 
@@ -211,7 +213,7 @@ def summarise():
     cap = ("events = brief deflections in the 2-s-median-detrended dF/F trace whose height above the preceding "
            "1.0-0.2 s exceeds 4 x the animal's pre-stroke robust SD (1.4826 x MAD), positive or negative; quiet = no "
            "lick / running within 1.5 s before or after (spout may be out), engaged part of the session. Open markers "
-           "= sessions (shape = animal, colour = epoch); filled = pooled mean, nested animal -> session bootstrap 95% "
+           "= sessions (shape = animal, color = epoch); filled = pooled mean, nested animal -> session bootstrap 95% "
            "CI; stars = mixed model, epoch vs August pre, FDR.")
     figure(S, T, ["res_both"], "quiet_events_face_regressed.png",
            "Quiet-period events per minute after regressing out face movement (each session's own FaceRhythm "
@@ -230,7 +232,7 @@ def main():
     if not a.summarise:
         from wfield_local.analysis_kit import curated_labels
         from wfield_local.analysis_kit import fan_sessions  # fan_out + sort (rule 9)
-        labels = a.only or [k for k in sorted(curated_labels()) if k[-4:] >= "0806"]
+        labels = a.only or [k for k in sorted(curated_labels()) if not config.early_pre(k)]
         res, fail = fan_sessions(labels, extract, jobs=a.jobs, label="session")
         print(f"{len(res)} done, {len(fail)} failed")
         for x in fail:

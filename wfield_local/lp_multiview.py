@@ -9,7 +9,7 @@ WHAT LP 2.4.2 EXPECTS (read from the installed package, 2026-10-06, not guessed)
 * One CSV per view (`data.csv_file` is a LIST, same order as `data.view_names`), DLC 3-row header
   (scorer / bodyparts / coords). With an explicit visibility flag the coords row is x, y, visible
   for EVERY keypoint, in that order (`utils/io.parse_label_csv` reshapes the columns to (N, K, 3)).
-  Values must be 0 / 1 / 2: 0 = not labelled (all-zero heatmap, dropped from the loss by
+  Values must be 0 / 1 / 2: 0 = not labeled (all-zero heatmap, dropped from the loss by
   `HeatmapLoss.remove_nans`), 1 = occluded (uniform heatmap target, overrides any x, y),
   2 = visible (Gaussian; a visible-2 point with NaN x, y also becomes a zero heatmap).
 * Rows are paired BY POSITION: every CSV has the same number of rows and row i must have the same
@@ -25,11 +25,11 @@ WHAT LP 2.4.2 EXPECTS (read from the installed package, 2026-10-06, not guessed)
   `clips` cuts them on the DAQ clock (cam4 frames consecutive, cam1 frame = the DAQ-matched one).
 
 THE SPLIT RULE (DECISIONS 2026-10-05, Priya), per keypoint k, view v, moment m:
-* view v has no labelled frame at m (unpaired)              -> 0 (not labelled)
+* view v has no labeled frame at m (unpaired)              -> 0 (not labeled)
 * m is listed in `dlc.train.all_occluded` for view v         -> 1 (every part hidden)
-* k labelled in v                                            -> 2
-* k blank in v and labelled in SOME other labelled view      -> 0 (let the network infer it)
-* k blank in EVERY labelled view at m                        -> 1 (teaches "absent")
+* k labeled in v                                            -> 2
+* k blank in v and labeled in SOME other labeled view      -> 0 (let the network infer it)
+* k blank in EVERY labeled view at m                        -> 1 (teaches "absent")
 
 PAIRING: a moment is a DAQ instant, keyed by its cam4-clock frame. cam1 frames map to cam4 through
 the alignment templates (`dlc_frames.frame_of`, the same affine `dlc_hard_frames.matched_frames`
@@ -38,7 +38,7 @@ map to the same cam4 frame (`--tol` frames, default 1, for the rounding of a ~1 
 
 LABEL SOURCES: the per-camera DLC TRAINING copies (`dlc_train.train_project`), i.e. exactly the
 label sets the single-view models were trained on (cam1 round 1, 294 rows; cam4 rounds 1-3, 407
-rows) -- never the labelling project, which holds rounds in progress. The `all_occluded` frames
+rows) -- never the labeling project, which holds rounds in progress. The `all_occluded` frames
 were dropped from the training copy (all-blank) and are added back here as visible 1.
 """
 from __future__ import annotations
@@ -62,8 +62,8 @@ NOT_LABELLED, OCCLUDED, VISIBLE = 0, 1, 2
 def split_visibility(labelled: dict, present: dict, all_occluded: dict | None = None) -> dict:
     """Per-view (n, K) visibility codes under the split rule.
 
-    labelled[v]     (n, K) bool -- keypoint k has x, y in view v at moment i
-    present[v]      (n,)   bool -- view v has a labelled frame at moment i (False = unpaired here)
+    labeled[v]     (n, K) bool -- keypoint k has x, y in view v at moment i
+    present[v]      (n,)   bool -- view v has a labeled frame at moment i (False = unpaired here)
     all_occluded[v] (n,)   bool -- moment i of view v is in `dlc.train.all_occluded`
     """
     views = list(labelled)
@@ -206,7 +206,7 @@ def load_view(cam: str, rv) -> tuple[pd.DataFrame, list[str]]:
                                "trial_id", "position"]].drop_duplicates(["video_stem", "image"])
     rows = rows.merge(man, on=["video_stem", "image"], how="left")
     if rows.animal.isna().any():
-        raise ValueError(f"{cam}: {int(rows.animal.isna().sum())} labelled frame(s) not in the manifest")
+        raise ValueError(f"{cam}: {int(rows.animal.isna().sum())} labeled frame(s) not in the manifest")
     rows["frame"] = rows.frame.astype(np.int64)
     rows["src_image"] = [str(project_dir(rv) / "labeled-data" / s / i) for s, i in zip(rows.video_stem, rows.image)]
     return rows.reset_index(drop=True), keypoints
@@ -344,7 +344,7 @@ def _write_clip(video: Path, frames: np.ndarray, dst: Path) -> None:
 
 
 def clips(out: Path, rv=None, dur_s: float = 10.0, pre_s: float = 3.0, seed: int = 92) -> list[str]:
-    """One frame-synced cam1/cam4 clip pair per labelled (animal, epoch), cut around a random cue."""
+    """One frame-synced cam1/cam4 clip pair per labeled (animal, epoch), cut around a random cue."""
     from wfield_local.dlc_frames import frame_of, manifest_path
     from wfield_local.paths import PathResolver
     from wfield_local.writeguard import assert_writable

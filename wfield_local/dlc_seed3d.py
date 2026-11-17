@@ -21,7 +21,7 @@ frame, because the labeller's eye anchors to whatever is already on screen.
 THIS IS ALSO THE WHISKER TEST. Whether `L_whiskers_1` in cam4 and `L_whiskers_1` in cam2 are the
 same whisker has been an open question (DECISIONS.md, "correspondence error is not correctable").
 The residual answers it empirically: if they are different whiskers, the rays miss and the part
-fails acceptance on its own. No judgement call required.
+fails acceptance on its own. No judgment call required.
 
 CLI::
 
@@ -87,7 +87,7 @@ def moment_key(df: pd.DataFrame) -> pd.Series:
     """What makes a row the SAME INSTANT across cameras.
 
     The anchor (`dlc.frames.anchor_cam`) makes every view sample the same trials and the same licks,
-    so a moment is identified by the BEHAVIOUR rather than by a frame number -- frame numbers differ
+    so a moment is identified by the BEHAVIOR rather than by a frame number -- frame numbers differ
     between cameras even when the instant does not.
     """
     return (df.animal.astype(str) + "|" + df.date.astype(str) + "|"

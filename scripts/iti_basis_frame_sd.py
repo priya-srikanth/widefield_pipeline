@@ -1,5 +1,5 @@
 """FRAME-LEVEL spread of each basis component per session (Priya 10-27: "frame-level scaling for SVD -- yes, seems
-important esp. since we're analysing ITI").
+important esp. since we're analyzing ITI").
 
 The Allen-area features are z-scored by each area's SD over ALL imaging frames of the session (zscore_check/session_sd.csv).
 The SVD / LocaNMF features were z-scored by their SD over the session's LICK windows, which the larger post-stroke lick

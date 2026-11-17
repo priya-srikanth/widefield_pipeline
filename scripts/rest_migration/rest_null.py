@@ -7,12 +7,12 @@ so it is an independent line of evidence rather than a restatement.
 
 THE STATISTIC. For each (reference, position, epoch): take each animal's OWN `epoch - pre` map,
 then the MEAN PAIRWISE PEARSON r between animals, over the 129,770 px of `stat_mask`. Pearson r is
-invariant to a positive scale factor per animal, so the within-animal RMS normalisation cannot move
+invariant to a positive scale factor per animal, so the within-animal RMS normalization cannot move
 it -- it measures SHAPE agreement, not size.
 
 WHY IT NEEDS A NULL, and this is the part that matters. **The PRE-STROKE maps already correlate
 between animals at r ~= 0.88.** Four mice share gross cortical anatomy, one Allen warp, one imaging
-geometry and one set of optical artefacts. A large positive r is this statistic's RESTING STATE, not
+geometry and one set of optical artifacts. A large positive r is this statistic's RESTING STATE, not
 a finding. Reading a ranking off the raw numbers -- which is what I did the first time -- mistakes
 the shared anatomy for a shared result.
 
@@ -127,7 +127,8 @@ def main() -> int:
                                  null_p=round(float(np.mean([x >= obs for x in nulls])), 4)))
         print(f"  .. {ref} done ({time.time() - t0:.0f}s)", flush=True)
 
-    out = pathlib.Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch"
+    from wfield_local import lp_licks              # run-mode routing (rebuild 11-03): identity for the default run
+    out = lp_licks.output_dir(pathlib.Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch")
     from wfield_local import figure_layout as fl
     p = fl.sidecar_for(out, "epoch_15x_between_animal_null_RESTref", ".csv")
     with open(p, "w", newline="", encoding="utf-8") as fh:

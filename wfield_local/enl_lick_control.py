@@ -22,7 +22,7 @@ The window is ``[cue - 2s, cue]`` and the spout arrives ~3 s before the cue, so 
 the window IS the first second after spout arrival. This is spout-arrival licking.
 
 **AND IT IS DIRECTED AT THE SPOUT, SO IT CARRIES POSITION.** That is what makes it a confound rather
-than noise: the contaminating signal is correlated with the very label being decoded. A haemodynamic
+than noise: the contaminating signal is correlated with the very label being decoded. A hemodynamic
 response peaks 1-2 s after the lick -- inside the window -- so a window that is lick-free by
 construction can still contain a position-informative MOTOR signal. If the ENL code were mostly
 that, "the pre-cue code is not only a held plan" would be true for the wrong reason.
@@ -42,7 +42,7 @@ lick. Then, per arm:
 
 `transfer_lead_to_clean` runs the reverse -- train on LEAD trials, score CLEAN ones. If a
 lick-trained decoder reads lick-free trials above null, the two share a representation rather than
-the lick-trained one having learnt a movement artefact.
+the lick-trained one having learned a movement artifact.
 
 POST-STROKE IS DESCRIPTIVE ONLY. `enl_states.witness_verdict` has not been run, so no post-stroke
 cell here supports a claim about whether a plan was formed. As a CONTAMINATION control the epoch

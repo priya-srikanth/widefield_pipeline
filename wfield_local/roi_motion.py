@@ -10,9 +10,9 @@ ROIs (`rois`): two rectangles, image-LEFT and image-RIGHT of the session-median 
 PS92-95 frames 10-21: cam4 = the whisker pads beside the snout, clear of the rod; cam1 = the whisker shafts against the
 dark background). Each ROI is split into vertical STRIPS of ``STRIP_PX`` so the spout rod (cam1: it crosses the
 whisker field at far spouts) can be dropped per trial afterwards by its LP x. Value per frame = mean |frame -
-previous frame| over a strip of the ``ds``-downsampled grey image.
+previous frame| over a strip of the ``ds``-downsampled gray image.
 
-ARTEFACT (10-21): the cam4 videos carry an ENCODER KEYFRAME on every frame whose index % 12 == 0 (20.8 Hz): that frame's
+ARTIFACT (10-21): the cam4 videos carry an ENCODER KEYFRAME on every frame whose index % 12 == 0 (20.8 Hz): that frame's
 motion energy is ~33 % higher than the other 11 phases (flat), a static background corner peaks at exactly 12.01
 frames, and the pads correlate with it (r 0.48). Fix = interpolate the motion energy over frames with index % 12 == 0
 (`scripts/attempt_review.py`): 20.8 Hz power down 4-8x, 62.5 Hz harmonic removed (a 5-frame median or a background-corner

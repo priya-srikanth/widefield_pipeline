@@ -3,7 +3,7 @@ movement add variance, and does it absorb the spout-position code? (handoff: "do
 or the spout coding?")
 
 Per session x area x window, from the region tables (held-out R2, combined_encoding):
-  FR gain           fr:full - full                       (what FaceRhythm adds to the full behavioural model)
+  FR gain           fr:full - full                       (what FaceRhythm adds to the full behavioral model)
   position | FR     fr:full - fr:drop:position           (unique spout-position R2 with FR in the model)
   position          full - drop:position (main run)      (unique spout-position R2 without FR; same base model)
   retained          position | FR / position             (1 = FR takes none of the position code)
@@ -14,16 +14,19 @@ Usage: python scripts/fr_encoding_summary.py [--areas cortex SSp-m_left ...]
 Output: <E>/fr_encoding_summary/{fr_session_table.csv, fr_summary_by_animal.csv, figures/*.png}
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-E = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding")
+from wfield_local import fr_groups as _fg  # the collected FR run folder per mode
+from wfield_local import run_mode as _rmode  # the run's (tagged) encoding tree (coordinator 11-04)
+
+E = _rmode.encoding_out_root()          # the FR encoder runs live here (combined_encoding routing)
 MAIN = E / "movement_first_exec-polar_licks-combined" / "sessions"
-FR = {m: E / f"movement_first_fr-master_pre_v1_subset-fr_exec-polar_licks-combined_frg-{m}" / "sessions" for m in "ABSD"}
+FR = {m: _fg.run_folder(E, m) / "sessions" for m in "ABSD"}
 AN = ["PS92", "PS93", "PS94", "PS95"]
 EP = ["pre", "acute", "subacute", "chronic"]
 MK = {"PS92": "o", "PS93": "s", "PS94": "^", "PS95": "D"}
@@ -35,7 +38,7 @@ def session_table(areas, windows) -> pd.DataFrame:
     rows = []
     for f in sorted(MAIN.glob("*_regions.csv")):
         lab = f.stem.replace("_regions", "")
-        if lab[-4:] < "0801":
+        if config.early_pre(lab):
             continue
         m = pd.read_csv(f)
         m = m[m.area.isin(areas) & m.window.isin(windows)]
@@ -60,6 +63,7 @@ def session_table(areas, windows) -> pd.DataFrame:
 
 
 def main(argv=None) -> int:
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -150,7 +154,7 @@ def main(argv=None) -> int:
                      "animals, markers = animals (o PS92, s PS93, ^ PS94, D PS95).\nMode A = FR lick amount + side + distance + other; B = "
                      "directionless (lick amount + other); S = + side; D = + distance.", fontsize=9)
         fig.tight_layout(rect=(0, 0, 1, 0.93))
-        fig.savefig(out / "figures" / f"fr_summary_{area}.png", dpi=115)
+        save_png_svg(fig, out / "figures" / f"fr_summary_{area}.png", dpi=115)
         plt.close(fig)
     (out / "pooled_changes.txt").write_text("\n".join(lines))
     print("\n".join(lines))

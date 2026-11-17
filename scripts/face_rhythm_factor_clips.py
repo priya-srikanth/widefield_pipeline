@@ -4,10 +4,10 @@
                                                [--events 4] [--half-s 1.0] [--out DIR]
 
 Per factor, the ``events`` strongest moments (``--window``: engaged-trial windows cue -2..+4 s by default; their
-response part; between trials; large movement; anywhere) of its ABSOLUTE expression in one session (weights x FR normaliser D,
+response part; between trials; large movement; anywhere) of its ABSOLUTE expression in one session (weights x FR normalizer D,
 `face_rhythm_outputs.combined_series(absolute=True)`: 25 Hz in engaged trial windows, 5 Hz elsewhere), at least 10 s
 apart, each +- ``half_s`` around the peak, every 2nd video frame at 50 fps (2.5x slow), one mp4 per factor:
-  points  the TRACKED mesh (25 Hz `points` displacement + home), COLOUR = the direction the factor moves the point
+  points  the TRACKED mesh (25 Hz `points` displacement + home), COLOR = the direction the factor moves the point
           (Rich's convention: hue by the angle of its x / y spatial weights -- blue = lateral, red = vertical),
           SIZE / brightness = the point's weight in the factor x the factor's expression at that frame;
   strip   the factor's absolute expression over the clip with a cursor; the nearest cue's position and time from cue.
@@ -48,8 +48,8 @@ def peaks(t: np.ndarray, a: np.ndarray, n: int, min_sep_s: float = 10.0, edge_s:
 
 
 def point_colours(Wk: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """Per point: BGR colour from the x / y weight angle (0 = lateral -> blue, 90 deg = vertical -> red) and the
-    normalised weight magnitude (0..1)."""
+    """Per point: BGR color from the x / y weight angle (0 = lateral -> blue, 90 deg = vertical -> red) and the
+    normalized weight magnitude (0..1)."""
     import cv2
     wx, wy = np.abs(Wk[0]), np.abs(Wk[1])
     ang = np.arctan2(wy, wx) / (np.pi / 2)                                   # 0 lateral .. 1 vertical
@@ -77,7 +77,7 @@ def main(argv=None) -> int:
                     help="where events may come from: engaged-trial windows cue -2..+4 s (trial, default -- the "
                          "trials output window), their response part 0..+4 s (response; for both: the "
                          "session-wide top of several factors is grooming), between trials outside large movement, "
-                         "large movement (grooming + vigorous spontaneous licking: for labelling), anywhere")
+                         "large movement (grooming + vigorous spontaneous licking: for labeling), anywhere")
     ap.add_argument("--out", type=Path, default=None)
     a = ap.parse_args(argv)
     rv = PathResolver()

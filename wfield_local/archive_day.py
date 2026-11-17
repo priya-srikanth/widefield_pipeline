@@ -59,14 +59,11 @@ Drive roots default to this rig's mounts; override with --e-lab/--e-daq/--m-raw/
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import os
 import sys
 
-from wfield_local import writeguard
-
-BUF = 64 * 1024 * 1024
+from wfield_local import safe_copy, writeguard
 
 def _defaults() -> dict:
     """Drive roots for THIS machine, from configs/paths.yaml.
@@ -93,26 +90,10 @@ def _defaults() -> dict:
 DEFAULTS = _defaults()
 
 
-def _size(p):
-    try:
-        return os.path.getsize(p)
-    except OSError:
-        return -1
-
-
-def _sha256(p):
-    """Full SHA-256 of a file (streamed). Returns None if unreadable."""
-    h = hashlib.sha256()
-    try:
-        with open(p, "rb", buffering=0) as f:
-            while True:
-                b = f.read(BUF)
-                if not b:
-                    break
-                h.update(b)
-    except OSError:
-        return None
-    return h.hexdigest()
+# Size (-1 if absent) and full streamed SHA-256 (None if unreadable): the shared definitions in safe_copy, which
+# camera_nightly uses too. Kept under these names because the delete-time re-verification in cmd_clean calls them.
+_size = safe_copy.size
+_sha256 = safe_copy.sha256
 
 
 def _is_big(job):
@@ -218,32 +199,11 @@ def _copy_one(src, dst, verify=False, big=False):
     The source SHA-256 is computed *during* the copy (piggybacks on the read we
     already do, so it is free) and returned for the manifest. When ``verify`` and
     the file is not ``big``, the destination is read back and hashed to confirm a
-    bit-for-bit copy; ``big`` files (raw/.bin -> slow M:) are size-checked only."""
-    os.makedirs(os.path.dirname(dst), exist_ok=True)
-    ssz = _size(src)
-    if os.path.exists(dst) and _size(dst) == ssz:
-        if verify and not big:                       # already there: byte-check anyway
-            sh = _sha256(src)
-            if sh is None or sh != _sha256(dst):
-                return "FAIL", sh
-            return "skip", sh
-        return "skip", None
-    tmp = dst + ".part"
-    h = hashlib.sha256()
-    with open(src, "rb", buffering=0) as fi, open(tmp, "wb", buffering=0) as fo:
-        while True:
-            b = fi.read(BUF)
-            if not b:
-                break
-            fo.write(b)
-            h.update(b)
-    os.replace(tmp, dst)
-    src_hash = h.hexdigest()
-    if _size(dst) != ssz:
-        return "FAIL", src_hash
-    if verify and not big and _sha256(dst) != src_hash:   # read-back byte verify (cheap files)
-        return "FAIL", src_hash
-    return "ok", src_hash
+    bit-for-bit copy; ``big`` files (raw/.bin -> slow M:) are size-checked only.
+
+    The copy + verify itself is `safe_copy.verified_copy` (shared with camera_nightly since 2026-11-04; the
+    two copies had drifted). A missing source raises, which cmd_archive / cmd_upload_daq report as FAIL."""
+    return safe_copy.verified_copy(src, dst, readback=verify and not big)
 
 
 def cmd_archive(cfg, date, verify=False, hash_raw=False):
@@ -309,8 +269,8 @@ def _verify(cfg, date, use_hash=False, hash_raw=False):
         elif d != s:
             mismatch.append((j, s, d))
         elif use_hash and not (_is_big(j) and not hash_raw):
-            if _sha256(j["src"]) != _sha256(j["dst"]):
-                mismatch.append((j, s, -2))          # size ok but bytes differ
+            if not safe_copy.same_bytes(j["src"], j["dst"]):
+                mismatch.append((j, s, -2))          # size ok but bytes differ (or a side is unreadable)
             else:
                 ok.append(j)
         else:
@@ -479,7 +439,7 @@ def cmd_clean(cfg, date, execute, use_hash=False, hash_raw=False):
             print(f"  note: {j['src']} not yet at {j['dst']} (its other destination is verified)")
             continue
         print(f"  KEEP (dest missing): {j['src']}")
-    for j, s, d in mismatch:
+    for j, _s, _d in mismatch:
         if j["src"] in _verified_src:
             print(f"  note: {j['src']} mismatched at {j['dst']} (its other destination is verified)")
             continue
@@ -501,8 +461,9 @@ def cmd_clean(cfg, date, execute, use_hash=False, hash_raw=False):
             print(f"  SKIP at-delete (dest size changed): {j['src']}")
             continue
         if use_hash and not (_is_big(j) and not hash_raw):   # re-verify bytes at delete time
-            if _sha256(j["src"]) != _sha256(j["dst"]):
-                print(f"  SKIP at-delete (dest bytes differ): {j['src']}")
+            # an unreadable side must SKIP: two None digests compared equal here until 2026-11-04 (code review)
+            if not safe_copy.same_bytes(j["src"], j["dst"]):
+                print(f"  SKIP at-delete (dest bytes differ or unreadable): {j['src']}")
                 continue
         # HARD RULE: acquired data only goes when a server copy is confirmed. The size/byte
         # re-verification just above IS that confirmation, so pass the destination as the verified

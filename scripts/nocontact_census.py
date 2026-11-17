@@ -25,7 +25,7 @@ exactly PS93's profile.
 THE TESTABLE PREDICTION Priya raised: PS93 often licked LEFTWARD without spout contact pre-stroke,
 so its no-contact trials should be enriched at far_L rather than spread evenly. This counts them.
 An enrichment at the position CONTRALATERAL to the animal's later deficit, present BEFORE any
-lesion, is behavioural evidence that these are off-target licks and not inattention.
+lesion, is behavioral evidence that these are off-target licks and not inattention.
 """
 import numpy as np
 

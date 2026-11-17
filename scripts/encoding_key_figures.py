@@ -1,4 +1,4 @@
-"""Key-finding figures for the encoding / behaviour work (Priya 10-20: "are there other figures you could or should make to
+"""Key-finding figures for the encoding / behavior work (Priya 10-20: "are there other figures you could or should make to
 illustrate key and important points or findings"). Reads tables other scripts already wrote -- no refitting.
 
   precue_licking.png     pre-cue (spout present, before the cue) DAQ contacts per animal x epoch, and the pre-cue
@@ -12,6 +12,7 @@ illustrate key and important points or findings"). Reads tables other scripts al
 Output: <run>/imaging_encoding/figures/behaviour/. Usage: PYTHONPATH=. python scripts/encoding_key_figures.py
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import glob
@@ -21,7 +22,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from wfield_local.orofacial_cohort import POS_ORDER as POS   # the pipeline's canonical order (Priya 10-20)
+from wfield_local.orofacial_cohort import POS_ORDER as POS  # the pipeline's canonical order (Priya 10-20)
 
 EPOCHS = ("pre", "acute", "subacute", "chronic")
 ANIMAL_COL = {"PS92": "#1b9e77", "PS93": "#d95f02", "PS94": "#7570b3", "PS95": "#e7298a"}
@@ -36,7 +37,8 @@ def _plt():
 
 def precue_licking(E: Path, figs: Path) -> None:
     plt = _plt()
-    P = pd.read_csv(E / "qc" / "precue_contacts.csv")
+    from wfield_local import run_mode
+    P = pd.read_csv(run_mode.behaviour_qc_dir() / "precue_contacts.csv")           # behaviour input (untagged, seeded)
     R = pd.concat([pd.read_csv(f) for f in glob.glob(str(E / "movement_first" / "sessions" / "*_regions.csv"))])
     R = R[(R.area == "cortex") & (R.window == "enl") & R.model.isin(["full", "drop:position"])]
     dp = R.pivot_table(index="label", columns="model", values="r2")
@@ -58,16 +60,17 @@ def precue_licking(E: Path, figs: Path) -> None:
     fig.suptitle("The pre-cue window is NOT lick-free: our lick tables start at the cue; the raw DAQ contact channel "
                  "shows licks before it (PS95 the exception)", fontsize=9)
     fig.tight_layout()
-    fig.savefig(figs / "precue_licking.png", dpi=150)
+    save_png_svg(fig, figs / "precue_licking.png", dpi=150)
     plt.close(fig)
 
 
 def lick_deficits(E: Path, figs: Path) -> None:
     plt = _plt()
-    S = pd.read_csv(E / "qc" / "first_lick_latency_late_licked_trials.csv")
+    from wfield_local import run_mode
+    S = pd.read_csv(run_mode.behaviour_qc_dir() / "first_lick_latency_late_licked_trials.csv")   # behaviour (seeded)
     cols = (("cam4_late", "first cam4 lick > 1.5 s after cue"), ("comb_late", "... with cam1 small licks added"),
             ("contact_none", "no spout contact at all"))
-    sp = ("far_contra", "far_mid", "close_contra")
+    sp = tuple(p for p in POS if p in ("far_contra", "far_mid", "close_contra"))   # canonical order (Priya 10-25)
     fig, ax = plt.subplots(len(sp), len(cols), figsize=(12, 8), squeeze=False, sharey=True)
     for i, p in enumerate(sp):
         for j, (c, t) in enumerate(cols):
@@ -83,7 +86,7 @@ def lick_deficits(E: Path, figs: Path) -> None:
     fig.suptitle("Two acute deficits: PS92 / PS93 slow to START far-contra licking; PS94 / PS95 start promptly but "
                  "almost never reach the spout (cam1 not yet for PS94 / PS95)", fontsize=9)
     fig.tight_layout()
-    fig.savefig(figs / "lick_deficits.png", dpi=150)
+    save_png_svg(fig, figs / "lick_deficits.png", dpi=150)
     plt.close(fig)
 
 
@@ -123,18 +126,19 @@ def landing_zones(E: Path, figs: Path) -> None:
     fig.suptitle("Where licks land (3-D): mean soft weight on each pre-stroke landing zone (columns)\n"
                  "per aimed spout (rows); diagonal = lands in its own zone", fontsize=9)
     fig.tight_layout()
-    fig.savefig(figs / "landing_zones.png", dpi=150)
+    save_png_svg(fig, figs / "landing_zones.png", dpi=150)
     plt.close(fig)
 
 
 def main(argv=None) -> int:
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--run", default=oc.RUN)
     a = ap.parse_args(argv)
-    E = oo.root(PathResolver()) / a.run / "imaging_encoding"
+    from wfield_local import run_mode
+    E = run_mode.encoding_out_root(a.run)                # the run's (tagged) encoding tree, coordinator 11-04
+    (E / "qc").mkdir(parents=True, exist_ok=True)
     figs = E / "figures" / "behaviour"
     figs.mkdir(parents=True, exist_ok=True)
     for f in (precue_licking, lick_deficits, landing_zones):

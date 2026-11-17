@@ -1,4 +1,4 @@
-"""Test the spout-position reference frame: do the close->far lines for L, centre and R converge on the mouth?
+"""Test the spout-position reference frame: do the close->far lines for L, center and R converge on the mouth?
 
     python -m scripts.spout_reference_frame                 # the six round-4 sessions (cached DLC poses)
     python -c "import scripts.spout_reference_frame as s; s.examples()"   # example frames, 2 sessions
@@ -18,7 +18,7 @@ excluded; the median is per position over every remaining frame.
 GEOMETRY. Each side's line runs from far_<side> through close_<side> and is extended past close toward the animal.
 The "projected mouth" is the least-squares point closest to all three lines (perpendicular distances); the
 residual is the RMS of those distances (0 = the three lines meet exactly). Compared against the nose and the
-resting jaw (median jaw in the pre-cue second, i.e. mouth closed), both labelled points.
+resting jaw (median jaw in the pre-cue second, i.e. mouth closed), both labeled points.
 """
 from __future__ import annotations
 
@@ -151,7 +151,7 @@ def main() -> int:
 
 def examples(sessions=("PS93_20260826", "PS95_20260917"), out_name="spout_reference_frame_examples.png") -> Path:
     """Per session: one parked-spout frame and one tongue-out frame per position, with the frame overlaid and the
-    tongue angle (from the meeting point, relative to the centre line; + = toward the image right) printed."""
+    tongue angle (from the meeting point, relative to the center line; + = toward the image right) printed."""
     import cv2
     import matplotlib
     matplotlib.use("Agg")
@@ -206,7 +206,7 @@ def examples(sessions=("PS93_20260826", "PS95_20260917"), out_name="spout_refere
                     v = tip - X
                     ang = np.degrees(np.arctan2(v[0] * (-ap[1]) - v[1] * (-ap[0]), np.dot(v, -ap)))
                     ax.annotate("", xy=tip, xytext=X, arrowprops=dict(arrowstyle="->", color="orange", lw=1.8))
-                    title += f"\ntongue {ang:+.0f} deg from centre line"
+                    title += f"\ntongue {ang:+.0f} deg from center line"
                 ax.set_title(title, fontsize=9)
                 ax.set_xlim(150, 530)
                 ax.set_ylim(640, 230)
@@ -215,7 +215,7 @@ def examples(sessions=("PS93_20260826", "PS95_20260917"), out_name="spout_refere
                             ha="right", va="center", fontsize=10)
     fig.suptitle("Spout reference frame, examples (cam4, DLC round 3): star = lines' meeting point; dot = median spout "
                  "tip for that position; orange = tongue vector on the frame where the tongue reaches farthest "
-                 "(likelihood > 0.9); angle relative to the centre line, + = image right", fontsize=10)
+                 "(likelihood > 0.9); angle relative to the center line, + = image right", fontsize=10)
     fig.tight_layout()
     p = DF.staging_root(rv).parent / "reference_frame" / out_name
     fig.savefig(p, dpi=150, bbox_inches="tight")

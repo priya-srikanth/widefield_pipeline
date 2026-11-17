@@ -10,6 +10,7 @@ the 60 s of the session's middle third with the most engaged quiet.
 
     python scripts/cohort2_qc/quiet_spikes_v2_examples.py
 """
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 import sys
 from pathlib import Path
 
@@ -29,7 +30,7 @@ SEARCH = "middle"                                  # window search: "middle" thi
 
 
 def one(label):
-    """Window traces, quiet mask, event (frame, signed height, baseline) per column, behaviour (spawn worker)."""
+    """Window traces, quiet mask, event (frame, signed height, baseline) per column, behavior (spawn worker)."""
     Xr, ft, fs, rest, engaged, _ = session_traces(label, detrend=False)
     X = detrend(Xr, fs)
     busy, badw = busy_frames(label, ft, fs)
@@ -138,14 +139,14 @@ def main():
         a.text(0.8, 3, "2% dF/F", fontsize=7, va="center")
     ax[-1].set_xlabel("s (60-s window in the middle third of the session with the most engaged quiet)")
     fig.suptitle("Quiet-period events, v2 detector at +/-4 x the animal's pre-stroke robust SD (value at right). Traces = "
-                 "dF/F % minus a 2-s running median; same y-scale in every row. Grey = quiet (no lick / running within 1.5 s "
+                 "dF/F % minus a 2-s running median; same y-scale in every row. Gray = quiet (no lick / running within 1.5 s "
                  "before or after; spout may be out). Black triangles = events (height above the median of the preceding "
                  "1.0-0.2 s beyond the threshold), pointing down onto an UP peak from above / up onto a DOWN trough from "
                  "below. Bottom: blue ticks = cues, dark bar = spout "
                  "out, red = DAQ contact licks" + (", orange = LP video licks" if LICK_SOURCE == "daq+lp" else "") + ", green = running.", fontsize=8.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.96))
     out = V2 / "quiet_event_example_traces.png"
-    fig.savefig(out, dpi=110)
+    save_png_svg(fig, out, dpi=110)
     pd.DataFrame(rows).to_csv(V2 / "quiet_event_example_traces.csv", index=False)
     print("wrote", out)
 

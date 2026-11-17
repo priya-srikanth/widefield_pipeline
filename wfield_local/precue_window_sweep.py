@@ -77,7 +77,7 @@ def windows(s, sig, align="precue"):
                                   cue alignment in 4/4 animals for exactly that reason)
     """
     cue = _load_cue(s["h5"])
-    lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    lk = _load_daq_events(s["h5"], "lick_analog")
     cue_f, lick_f, _ = _frames(s, cue, lk)
     codes = classify_cues_with_backup(s, cue, verbose=False)
     ls = np.sort(np.asarray(lick_f))
@@ -160,7 +160,7 @@ def main():
             print(f"  !! {lab}: {type(ex).__name__} {str(ex)[:50]}", flush=True)
             continue
         cue = _load_cue(s["h5"])
-        lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+        lk = _load_daq_events(s["h5"], "lick_analog")
         _c, _l, csmp = _frames(s, cue, lk)
         for m in modes:
             try:

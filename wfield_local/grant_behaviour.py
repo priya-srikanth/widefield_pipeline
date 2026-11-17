@@ -1,4 +1,4 @@
-"""GRANT FIGURES — BEHAVIOUR
+"""GRANT FIGURES — BEHAVIOR
 
 Licking accuracy per spout position, and the pre-stroke decoding capability claim.
 
@@ -54,6 +54,7 @@ from wfield_local.grant_kit import (  # noqa: F401
     _excludes_zero,
     _feed,
     _fig_root,
+    _mode_name,
     _fit_bottom,
     _fit_header,
     _footer,
@@ -244,7 +245,7 @@ def fig_prestroke_decoding(out_dir):
     x = np.arange(len(ANIMALS))
     any_drawn = False
     for wi, (_disp, align, wname) in enumerate(WINDOWS):
-        f = _fig_root() / f"joint_xsession_decoder_{align}.json"
+        f = _fig_root() / _mode_name(f"joint_xsession_decoder_{align}.json")
         if not f.exists():
             print(f"  [grant] MISSING {f.name} -- run `joint_xsession --align {align}`", flush=True)
             continue
@@ -295,15 +296,15 @@ def fig_prestroke_decoding_cohort(out_dir):
     """2b: the cohort version of panel 2 -- one bar per window, all four animals.
 
     THE ANIMAL IS THE UNIT. Bar = mean of the four per-animal leave-one-session-out accuracies,
-    error bar = SEM across ANIMALS (n=4), and each animal is drawn as a labelled point. Pooling all
+    error bar = SEM across ANIMALS (n=4), and each animal is drawn as a labeled point. Pooling all
     ~44 held-out sessions into one bar instead would give a far tighter interval that describes how
     much a SESSION varies, not how much an ANIMAL does -- and a cohort claim is a claim about
     animals. With n=4 the SEM is wide, which is honest: it is what four mice support.
     """
     fig, ax = plt.subplots(figsize=(7.6, 5.2))
     marks = ("o", "s", "^", "D")
-    for wi, (_disp, align, wname) in enumerate(WINDOWS):
-        f = _fig_root() / f"joint_xsession_decoder_{align}.json"
+    for wi, (_disp, align, wname) in enumerate(WINDOWS):  # noqa: B007
+        f = _fig_root() / _mode_name(f"joint_xsession_decoder_{align}.json")
         if not f.exists():
             continue
         d = json.loads(f.read_text(encoding="utf-8"))

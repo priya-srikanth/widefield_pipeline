@@ -18,6 +18,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from wfield_local.pose3d import pose3d_dir
 
 PRE_MS, POST_MS, DT = 120, 80, 4
 GRID = np.arange(-PRE_MS, POST_MS + DT, DT)
@@ -36,7 +37,7 @@ def _dlc() -> Path:
 def session_job(item):
     """(session, licks rows as records) -> {(target, landing): (sum path (T x 3), count)} for one session."""
     session, L = item
-    F = pd.read_csv(_dlc() / "session_poses" / "pose3d" / f"{session}_frames.csv.gz",
+    F = pd.read_csv(pose3d_dir(root=_dlc()) / f"{session}_frames.csv.gz",
                     usecols=["trial_id", "t_ms", "tongue_ml", "tongue_ap", "tongue_dv"])
     F = F.sort_values(["trial_id", "t_ms"])
     by_trial = {t: g for t, g in F.groupby("trial_id")}
@@ -59,7 +60,22 @@ def session_job(item):
     return session, acc
 
 
+def trial_set_sentence() -> str:
+    """THE lick set of the figures (Priya 11-09): the 3-D trial licks of the pose3d snapshot this script reads."""
+    from wfield_local import trial_set_text as tst
+    return tst.events("trial licks of the pose3d kinematics/licks snapshot (pose3d_kin_licks_snapshot_20261023) with a "
+                      "3-D peak time", keep=[
+                          "August-on sessions (June early pre dropped, config.early_pre)",
+                          "finite 3-D tip position (side_ml, out_ap, down_dv)",
+                          f"sessions: every pre, acute and subacute session + up to {MAX_CHRONIC} evenly spaced chronic "
+                          "sessions per animal", "grouped by target spout (far-contra licks also by dominant landing bin)"],
+                      excluded=["June early-pre sessions", "licks without a 3-D peak or tip position"])
+
+
 def main(argv=None) -> int:
+    from wfield_local import config
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("lick_trajectories_3d")   # unrouted share writer: refuses in a non-default run mode
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -68,10 +84,12 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--jobs", type=int, default=4)
     a = ap.parse_args(argv)
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())
     K = pd.read_csv(I / "pose3d_kin_licks_snapshot_20261023.csv.gz",
                     usecols=["animal", "session", "epoch", "trial_id", "position", "t_peak_3d", "side_ml", "out_ap",
                              "down_dv", "date"])
-    K = K[(K.date.astype(str).str[4:6] != "06") & K.t_peak_3d.notna()].dropna(subset=["side_ml", "out_ap", "down_dv"])
+    K = K[~K.date.astype(str).map(config.early_pre) & K.t_peak_3d.notna()].dropna(subset=["side_ml", "out_ap", "down_dv"])
     K["target"] = K.position.map(MOUSE)
     C = pd.read_csv(I / "exec_bins_calib_20261023.csv")
     C = C[C.calib_for == "default"]
@@ -104,7 +122,7 @@ def main(argv=None) -> int:
                 agg[k] = [np.zeros_like(s), np.zeros_like(n)]
             agg[k][0] += s
             agg[k][1] += n
-    out = _dlc() / "session_poses" / "pose3d" / "trajectories"
+    out = pose3d_dir(root=_dlc()) / "trajectories"
     (out / "figures").mkdir(parents=True, exist_ok=True)
     np.savez_compressed(out / "lick_trajectories.npz", grid_ms=GRID,
                         **{"|".join(k): np.where(n > 0, s / np.maximum(n, 1), np.nan) for k, (s, n) in agg.items()},

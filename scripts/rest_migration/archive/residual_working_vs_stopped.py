@@ -10,7 +10,7 @@ MEASURE. Row 0 of the corrected `SVTcorr` -- the dominant global mode, and a one
 SD ACROSS BIN MEDIANS: that is slow-band amplitude with the fast task-locked content averaged out. The
 sign ambiguity of an SVD component does not matter to an SD.
 
-Computed separately over the ENGAGED period and the STOPPED tail, for the analysed variant and for
+Computed separately over the ENGAGED period and the STOPPED tail, for the analyzed variant and for
 the stock zerophase product, so the comparison is against something.
 
 WHY IT MATTERS. The rest definition requires frames to lie INSIDE the engaged period, so the stopped
@@ -93,7 +93,7 @@ def main():
             continue
         rows.append((s["label"], w_new, t_new, t_new / w_new, w_old, t_old,
                      (t_old / w_old) if (np.isfinite(w_old) and w_old > 0) else np.nan))
-        print(f"  {s['label']:12s} analysed: working {w_new:.5f}  stopped {t_new:.5f}  "
+        print(f"  {s['label']:12s} analyzed: working {w_new:.5f}  stopped {t_new:.5f}  "
               f"ratio {t_new/w_new:5.2f}x", flush=True)
 
     if not rows:
@@ -103,7 +103,7 @@ def main():
     r_old = np.array([r[6] for r in rows], float)
     print(f"\n{len(rows)} STOPPED sessions, slow-band SD in {a.bin_s:.0f} s bins "
           f"(stopped / working):")
-    print(f"  ANALYSED (meegkit_hpfit)  median {np.median(r_new):.2f}x   "
+    print(f"  ANALYZED (meegkit_hpfit)  median {np.median(r_new):.2f}x   "
           f"mean {np.mean(r_new):.2f}x   range {r_new.min():.2f}-{r_new.max():.2f}x")
     print(f"  above 1x: {int((r_new > 1).sum())}/{len(r_new)} sessions")
     ok = np.isfinite(r_old)

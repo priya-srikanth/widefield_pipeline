@@ -8,7 +8,7 @@ order-10 polynomial, because polynomials are GLOBAL basis functions -- a late st
 locally, so the fit either misses it or rings across the whole record reaching for it. Ranking by
 tail level put three sessions on top that worked to the last minute.
 
-So the stop is taken from BEHAVIOUR (the `engaged` column of the per-session trial table, the same
+So the stop is taken from BEHAVIOR (the `engaged` column of the per-session trial table, the same
 shared gate the rest definition uses) and the fluorescence change is measured ACROSS THAT BOUNDARY.
 
 Reads row 0 of `SVT.npy` via mmap -- the dominant global component, enough to RANK. The plotting

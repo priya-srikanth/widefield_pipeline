@@ -5,6 +5,7 @@
     python -m scripts.pose_chain --from kinematics            # resume at a step
     python -m scripts.pose_chain --only jaw_onsets phase      # just these steps
     python -m scripts.pose_chain --dry-run                    # print the commands
+    python -m scripts.pose_chain --source 4cam --side-bundle <O2 side bundle>   # the FOUR-camera 3-D and everything after it
 
 Steps (each a separate process, the right conda env; per-session steps are CACHED on their input files
 (`wfield_local.result_cache`), so after a batch only the new sessions are computed and the cohort tables re-assembled):
@@ -20,6 +21,9 @@ Steps (each a separate process, the right conda env; per-session steps are CACHE
                  10-23: last run 10-19 / 10-20 on PS92 + part of PS93 only, so they were added here)             locanmf
   jaw_onsets     jaw_onsets (WATCHED by the encoding window: written last, once)                          locanmf
 --jobs (default 6) is per step: sessions in parallel, collect included.
+--source 2cam | 4cam (2026-11-04): sets `pose3d.SOURCE_ENV` for every child step, so each reads and writes its 3-D tables
+under that source's folder (`pose3d.pose3d_dir`: session_poses/pose3d or pose3d_4cam) -- the two never mix; --side-bundle
+(or `scripts.pose3d.SIDE_BUNDLE_ENV`) names the side model's whole-session O2 output for 4cam.
 Each step's log goes to <dlc>/session_poses/pose_chain_logs/<stamp>_<step>.log; the run stops at the first failure.
 """
 from __future__ import annotations
@@ -29,6 +33,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from wfield_local.pose3d import pose3d_dir
 
 ENVS = {"locanmf": r"C:\Users\SabatiniLab\miniconda3\envs\locanmf\python.exe",
         "dlc": r"C:\Users\SabatiniLab\miniconda3\envs\dlc\python.exe"}
@@ -43,7 +48,7 @@ def _pending(rv) -> dict:
     sp = Path(rv.root("dlc")) / "session_poses"
     cam1 = sorted(d.name[:-len("_cam1_full")] for d in sp.glob("PS*_cam1_full") if (d / "windows_LP.csv").exists())
     cam1 = [s for s in cam1 if s in ak.curated_ids()]
-    return {"pose3d": [s for s in cam1 if not (sp / "pose3d" / f"{s}_frames.csv.gz").exists()],
+    return {"pose3d": [s for s in cam1 if not (pose3d_dir(rv) / f"{s}_frames.csv.gz").exists()],
             "cam1_licks": [s for s in cam1 if not (sp / "cam1_licks" / f"{s}_events.csv").exists()]}
 
 
@@ -88,7 +93,19 @@ def main(argv=None) -> int:
     # Use --jobs 3 when the other windows need the box.
     ap.add_argument("--jobs", type=int, default=6)
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--source", choices=["2cam", "4cam"], default=None,
+                    help="3-D source for every step (default: the env var, else 2cam)")
+    ap.add_argument("--side-bundle", default=None, help="4cam: the side model's whole-session O2 bundle")
     a = ap.parse_args(argv)
+    import os
+
+    from scripts.pose3d import SIDE_BUNDLE_ENV
+    from wfield_local import pose3d as P3
+    if a.source:
+        os.environ[P3.SOURCE_ENV] = a.source                    # inherited by every child step (subprocess env)
+    if a.side_bundle:
+        os.environ[SIDE_BUNDLE_ENV] = a.side_bundle
+    print(f"3-D source: {P3.pose3d_source()} -> {P3.pose3d_dir()}")
     rv = PathResolver()
     steps = a.only or list(STEPS[STEPS.index(a.start):])
     sessions = [s.replace(":", "_", 1) for s in a.sessions] if a.sessions else None

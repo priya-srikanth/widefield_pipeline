@@ -90,7 +90,8 @@ def _epoch_dir():
     correct on either box rather than correct on the one it was written on.
     """
     from wfield_local.paths import PathResolver
-    return Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch"
+    from wfield_local import lp_licks              # run-mode routing (rebuild 11-03): identity for the default run
+    return lp_licks.output_dir(Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch")
 
 
 def projection(rest_p, trial_p, restw):
@@ -146,7 +147,7 @@ def projection_components(rest_c, trial_c, restw_c, G):
 def _plot(rows, out, variant_name, aligns):
     """`epoch_15s_shared_position_*` -- one row per window, positions on x, epochs as series.
 
-    THE NULL IS DRAWN, not summarised in a caption. `shared` is a regression coefficient with no
+    THE NULL IS DRAWN, not summarized in a caption. `shared` is a regression coefficient with no
     natural zero-point for "unrelated" once drift and block structure are in play, so a bar without
     its circular-shift null cannot be read at all. The null band is the 5th-95th percentile of the
     per-cell nulls pooled within (window, epoch).
@@ -211,8 +212,7 @@ def _plot(rows, out, variant_name, aligns):
     fig.tight_layout(rect=(0, 0.01, 1, 0.93))
     p = out / f"epoch_15s_shared_position_{variant_name}.png"
     from wfield_local import figure_layout as fl
-    fig.savefig(p, dpi=150)
-    fig.savefig(fl.svg_path(p))
+    fl.save_png_svg(fig, p, dpi=150)      # PNG + svg/ twin (text kept as text, 2026-11-06)
     plt.close(fig)
     return p
 
@@ -386,7 +386,7 @@ def main() -> int:
     ap.add_argument("--perm", type=int, default=50)
     ap.add_argument("--animals", nargs="*", default=None)
     ap.add_argument("--no-engagement-gate", action="store_true",
-                    help="keep the pre-2026-09-16 ungated behaviour, for measuring "
+                    help="keep the pre-2026-09-16 ungated behavior, for measuring "
                          "the size of the correction only")
     ap.add_argument("--replot", action="store_true",
                     help="redraw the figure from the existing CSV without re-measuring")

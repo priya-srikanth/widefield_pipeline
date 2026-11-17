@@ -5,7 +5,7 @@ target and execution maps"). From the frozen pixel (shared-SVD basis) run's drop
   executed unique of q  (SSE[base|drop:q whole] - SSE[base|drop:q]) / SST_q   the further loss when q's spout-locked
                         movement templates are ALSO swapped for the other spouts' (the executed movement's spout part)
 Rows: target pre level, acute / chronic minus pre; executed the same. Columns: spouts in the canonical order. Change maps:
-within animal, mean of 4; contours = significant 16 px bins (nested bootstrap animals -> sessions, Bonferroni; the same
+within animal, mean of 4; contours = significant 16 px bins (nested bootstrap animals -> sessions, max-statistic over bins, family-wise per panel; the same
 test as `frozen_pixel_unique_sig.py`), white halo under black. Target and the executed spout-locked part follow the spout
 together, so the split is credited by the joint ridge (the target-first / executed-first orderings bracket it).
 Image left = ipsilesional; half resolution.
@@ -14,6 +14,8 @@ Usage: python scripts/spout_unique_maps.py [--tag gate-attempted_v7g3_t3d_basis]
 Output: <E>/frozen_encoder_<tag>/figures/spout_unique_maps.png, spout_unique_sig.csv
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
+from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import argparse
 import json
@@ -27,7 +29,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fr_musall import E  # noqa: E402
-from fr_pixel_significance import FACTORS, block_mask, test  # noqa: E402
+from fr_pixel_significance import FACTORS, block_mask, correction_label, test  # noqa: E402
 from frozen_r2_maps import pixel_sse  # noqa: E402
 
 POS_ORDER = ["close_ipsi", "close_mid", "close_contra", "far_ipsi", "far_mid", "far_contra"]   # canonical
@@ -39,22 +41,25 @@ def main(argv=None) -> int:
     import matplotlib
     matplotlib.use("Agg")
 
+    from wfield_local import config
     from wfield_local import combined_encoding as ce
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--tag", default="gate-attempted_v7g3_t3d_basis")
+    ap.add_argument("--tag", default=_design_tag("gate-attempted_v7g3_t3d_basis"))
     ap.add_argument("--base", default="joint")
     a = ap.parse_args(argv)
     run = E / f"frozen_encoder_{a.tag}"
     dd = run / "dropspout" / "sessions"
-    pj = sorted(p for p in dd.glob("*_pix.json") if p.stem.split("_pix")[0][-4:] >= "0801")
+    pj = sorted(p for p in dd.glob("*_pix.json") if not config.early_pre(p.stem.split("_pix")[0]))
     lab0 = pj[0].stem.split("_pix")[0]
     _V, _ft, _Ub, flat, _pa, _nm, shape, pstat = ce.load_imaging(lab0)
     H, W = (int(x) for x in shape)
     pix = flat[pstat]
     cache = run / f"spout_unique_cache_{a.base}.npz"
     spatial, meta, maps = {}, [], {}
+    from wfield_local import mask_keys
     if cache.exists():
         zc = np.load(cache, allow_pickle=True)
+        mask_keys.check_obj(zc, cache)           # stale-read guard (11-09)
         meta = pd.DataFrame(list(zc["meta"]))
         maps = {tuple(str(k).split("|")): m for k, m in zip(zc["keys"], zc["maps"])}
         pj = []
@@ -78,7 +83,7 @@ def main(argv=None) -> int:
         meta.append({"label": lab, "animal": an, "epoch": m["epoch"]})
     if pj:
         np.savez_compressed(cache, keys=np.array(["|".join(k) for k in maps]), maps=np.stack(list(maps.values())).astype(np.float32),
-                            meta=np.array(meta, dtype=object))
+                            meta=np.array(meta, dtype=object), **mask_keys.stamp())
     meta = pd.DataFrame(meta)
     figures(run, a, meta, maps, block_mask())
     return 0
@@ -89,8 +94,8 @@ PARTS = ("target", "executed")
 
 
 def figures(run, a, meta, maps, mask) -> None:
-    """(1) LEVELS per epoch, (2) CHANGES vs pre with significance, (3) PER ANIMAL with each animal's own colour bar.
-    Means across animals use ANIMAL-NORMALISED maps (each animal / its own pre-stroke 99th percentile over spouts of that
+    """(1) LEVELS per epoch, (2) CHANGES vs pre with significance, (3) PER ANIMAL with each animal's own color bar.
+    Means across animals use ANIMAL-NORMALIZED maps (each animal / its own pre-stroke 99th percentile over spouts of that
     part), so one animal cannot set the picture (PS94's target unique is ~10x the others'); tests use the raw maps."""
     import matplotlib.pyplot as plt
 
@@ -127,7 +132,7 @@ def figures(run, a, meta, maps, mask) -> None:
         for an in sorted(meta.animal.unique()):
             st = [lev[(name, "pre", q)][an] for q in POS_ORDER if an in lev[(name, "pre", q)]]
             scale[(name, an)] = np.nanpercentile(np.stack(st), 99) if st else np.nan
-    print("normalising scales (99th pct of pre level):", {k: f"{v:.4f}" for k, v in scale.items()}, flush=True)
+    print("normalizing scales (99th pct of pre level):", {k: f"{v:.4f}" for k, v in scale.items()}, flush=True)
 
     def nmean(name, ep, q, minus_pre=False):
         out = []
@@ -168,11 +173,11 @@ def figures(run, a, meta, maps, mask) -> None:
                     cb.ax.tick_params(labelsize=6)
                     cb.set_label("x animal's pre scale", fontsize=6)
     title(fig, f"NEURAL: PER-SPOUT UNIQUE R2 LEVELS by epoch, TARGET (top 4 rows) vs EXECUTED (bottom 4), frozen pixel run {a.tag} "
-               f"(base {a.base}; each spout's own trials). Mean of 4 animals after normalising each animal by its own pre-stroke "
+               f"(base {a.base}; each spout's own trials). Mean of 4 animals after normalizing each animal by its own pre-stroke "
                "99th percentile (so one animal cannot dominate); one scale per part, so epochs compare directly. Canonical spout "
                "order. Image left = ipsilesional.")
     fig.subplots_adjust(left=0.05, right=0.97, top=0.93, bottom=0.02, wspace=0.06, hspace=0.1)
-    fig.savefig(run / "figures" / "spout_unique_levels.png", dpi=100)
+    save_png_svg(fig, run / "figures" / "spout_unique_levels.png", dpi=100)
     plt.close(fig)
 
     # (2) CHANGES with significance (raw-map nested bootstrap)
@@ -215,10 +220,10 @@ def figures(run, a, meta, maps, mask) -> None:
     S.to_csv(run / "spout_unique_sig.csv", index=False)
     print(S.to_string(index=False), flush=True)
     title(fig, f"NEURAL: PER-SPOUT UNIQUE R2 CHANGES, TARGET vs EXECUTED, frozen pixel run {a.tag}: epoch - pre within animal, "
-               "animal-normalised mean (x each animal's pre scale). Contours = significant 16 px bins on the RAW maps (nested "
-               "bootstrap animals > sessions, Bonferroni); corner = bins up / down. Canonical spout order. Image left = ipsilesional.")
+               "animal-normalized mean (x each animal's pre scale). Contours = significant 16 px bins on the RAW maps (nested "
+               f"bootstrap animals > sessions, {correction_label()}); corner = bins up / down. Canonical spout order. Image left = ipsilesional.")
     fig.subplots_adjust(left=0.05, right=0.97, top=0.9, bottom=0.02, wspace=0.06, hspace=0.12)
-    fig.savefig(run / "figures" / "spout_unique_maps.png", dpi=105)
+    save_png_svg(fig, run / "figures" / "spout_unique_maps.png", dpi=105)
     plt.close(fig)
 
     # (3) PER ANIMAL: pre and chronic levels, one colour scale (and bar) per animal x part
@@ -261,10 +266,10 @@ def figures(run, a, meta, maps, mask) -> None:
                         cb.ax.tick_params(labelsize=6)
                         cb.set_label("unique R2", fontsize=6)
         title(fig, f"NEURAL: PER-SPOUT {name.upper()} UNIQUE R2 per ANIMAL, pre and chronic levels (frozen pixel run {a.tag}, base "
-                   f"{a.base}). One colour scale per animal (pre and chronic share it; colour bar at right of each row) -- read "
+                   f"{a.base}). One color scale per animal (pre and chronic share it; color bar at right of each row) -- read "
                    "magnitudes from the bars: animals differ ~10x. Chronic panels: outlines = 16 px bins where THIS animal's chronic sessions differ from its pre sessions (Welch t, Bonferroni; red up, blue down; secondary view). Canonical spout order. Image left = ipsilesional.")
         fig.subplots_adjust(left=0.05, right=0.96, top=0.94, bottom=0.02, wspace=0.06, hspace=0.12)
-        fig.savefig(run / "figures" / f"spout_unique_per_animal_{name}.png", dpi=95)
+        save_png_svg(fig, run / "figures" / f"spout_unique_per_animal_{name}.png", dpi=95)
         plt.close(fig)
     print("->", run / "figures", "(spout_unique_levels / _maps / _per_animal_*)")
 

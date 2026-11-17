@@ -3,7 +3,8 @@ FR neural maps eg 16g" -- the tests were drawn only in the separate significance
 
 Reads the per-animal maps saved by `fr_musall.py` (fr_musall_pixel_maps_mode<M>.npz, keys "epoch|animal|quantity|window")
 and the tests saved by `fr_pixel_significance.py` (pixel_significance/sig_<quantity>_<window>_<epoch>_<16|32>px.npz: nested
-bootstrap animals -> sessions, Bonferroni over bins; calibrated, 5 % of random pre half-splits give >= 1 false bin).
+bootstrap animals -> sessions, max-statistic over bins = family-wise per panel, not across panels; calibrated, ~5 % of
+random pre half-splits give >= 1 false bin).
 Rows: pre level, then acute / subacute / chronic minus pre (within animal, then mean of animals); contours = significant
 bins (black solid 16 px, purple dashed 32 px); "not tested" where no test exists (FaceRhythm alone). Image left = ipsilesional.
 
@@ -20,6 +21,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fr_musall import AN, E, PIX  # noqa: E402
+from fr_pixel_significance import correction_label  # noqa: E402
 
 FACTORS = {16: 8, 32: 16}
 EPS = ["acute", "subacute", "chronic"]
@@ -90,7 +92,7 @@ def main(argv=None) -> int:
         fig.suptitle(f"NEURAL: Musall-style PIXEL maps WITH significance, per-session encoder with FaceRhythm (mode {a.mode}), "
                      f"{w} window; held-out R2 (fraction, 0-1) per 2x2-px block, within animal then mean of 4.\nRow 1 pre level "
                      "(viridis); rows 2-4 epoch minus pre (RdBu, one scale per column). Contours = significant bins: black 16 px, "
-                     "purple dashed 32 px (nested bootstrap animals > sessions, Bonferroni over bins; corner = number of "
+                     f"purple dashed 32 px (nested bootstrap animals > sessions, {correction_label()}; corner = number of "
                      "significant bins). Image left = ipsilesional.", fontsize=9)
         fig.subplots_adjust(left=0.03, right=0.995, top=0.9, bottom=0.03, wspace=0.08, hspace=0.14)
         p = S / "figures" / f"fr_pixel_maps_sig_{w}_mode{a.mode}.png"

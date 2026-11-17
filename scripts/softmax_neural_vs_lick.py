@@ -3,7 +3,7 @@
 
 NEURAL softmax = the stored frozen pre-stroke spout decoder's probabilities over the six spouts per trial (`attempt_coding`
 pp_<spout>, LOSO for pre sessions). LICK softmax = each lick's weights over the six executed bins (3-D landing, the
-encoder's rule: w_p ~ exp(-0.5 d_p^2 / w^2), d in within-spout SD units to each spout's pre-stroke landing centre,
+encoder's rule: w_p ~ exp(-0.5 d_p^2 / w^2), d in within-spout SD units to each spout's pre-stroke landing center,
 `exec_bins_calib_20261023.csv`), averaged over the trial's licks; widths 0.5 and 1. Trials with licks only: pre-stroke
 hits, post-stroke hits + failed attempts (incomplete).
 
@@ -22,8 +22,11 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from wfield_local.attempt_coding import trials_name as attempt_trials_name  # noqa: E402
+from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # rebuild root (11-03)
+from wfield_local.pose3d import pose3d_dir
 
-E = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding")
+E = _encoding_root()
 I = Path("C:/Users/SabatiniLab/wfield_cache/pose3d_inputs")
 SP = ["close_ipsi", "close_mid", "close_contra", "far_ipsi", "far_mid", "far_contra"]
 LAB = ["cI", "cM", "cC", "fI", "fM", "fC"]
@@ -58,8 +61,7 @@ def lick_weights(width: float) -> pd.DataFrame:
 
 def path_weights(width: float):
     """Per trial (label, trial_id): mean TRAJECTORY softmax weight of its licks (`scripts/lick_path_softmax.py`), or None."""
-    from wfield_local.paths import PathResolver
-    f = Path(PathResolver().root("dlc")) / "session_poses" / "pose3d" / "trajectories" / "path_softmax_licks.csv.gz"
+    f = pose3d_dir() / "trajectories" / "path_softmax_licks.csv.gz"
     if not f.exists():
         return None
     P = pd.read_csv(f)
@@ -102,16 +104,19 @@ def boot_change(S: dict, ep: str, nb=4000, seed=0):
 
 
 def main(argv=None) -> int:
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--window", default="lick", choices=("lick", "cue"))
     a = ap.parse_args(argv)
-    D = E / "attempt_coding_pp"
+    from wfield_local import run_mode
+    # attempt_coding --out attempt_coding_pp is routed as an LP family (run_mode.subdir(lp_family=True)); read and write there
+    D = run_mode.subdir(E / "attempt_coding_pp", lp_family=True)
     fd = D / "figures"
     fd.mkdir(exist_ok=True)
-    T = pd.concat([pd.read_csv(D / f"trials_{a.window}_{an}.csv.gz") for an in AN])
+    T = pd.concat([pd.read_csv(D / attempt_trials_name(a.window, an)) for an in AN])
     T = T[(T.method == "dom") & T.cls.isin(["pre_hit", "hit", "incomplete"])]
     rows = []
     for w in (0.5, 1.0):

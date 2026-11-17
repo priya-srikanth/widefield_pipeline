@@ -1,4 +1,4 @@
-"""THE HAEMODYNAMIC DIP, TIMED DIRECTLY: does the evoked HRF slow after the stroke?
+"""THE HEMODYNAMIC DIP, TIMED DIRECTLY: does the evoked HRF slow after the stroke?
 
 Priya, 2026-09-19: *"why does the lag relate to the neurovascular coupling - i thought the vascular
 part was the later dip"*, then *"yes run the dip comparison"*.
@@ -19,7 +19,7 @@ replication rather than a re-slice of the same data.
 THREE DESIGN CHOICES THAT MATTER:
 
     PARENCHYMA ONLY      Vessels carry no GCaMP, so what the camera collects there is scattered
-                         light from neighbouring cortex -- a diluted copy of the parenchymal
+                         light from neighboring cortex -- a diluted copy of the parenchymal
                          signal by the same factor in BOTH channels (0.41 vs 0.43 at 0.4 s, see
                          `channel_vessel_sign`). Including them adds no information and drags both
                          traces toward each other. The mask is the LOCAL-contrast one, because an
@@ -86,7 +86,7 @@ def session_latency(s):
     cue = _load_cue_events(s["h5"])
     codes = np.asarray(classify_cues_with_backup(s, cue, verbose=False))
     from wfield_local.plot_lick_aligned_averages import _load_daq_events
-    lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    lk = _load_daq_events(s["h5"], "lick_analog")
     not_engaged = _quit_trials(s, np.asarray(cs), codes, np.asarray(lk["lick_samples"]))
 
     T = min(v.shape[1] for v in S.values())
@@ -154,7 +154,8 @@ def main(argv=None) -> int:
     from wfield_local import figure_layout as fl
     from wfield_local.paths import PathResolver
 
-    out_dir = a.out or (Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch")
+    from wfield_local import lp_licks              # run-mode routing (rebuild 11-03): identity for the default run
+    out_dir = a.out or lp_licks.output_dir(Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch")
 
     if a.from_csv:
         q_in = fl.find_sidecar_for(out_dir, "epoch_22_evoked_hrf_latency", ".csv")

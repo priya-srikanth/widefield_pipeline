@@ -1,6 +1,6 @@
 import os
-"""VLS manuscript stroke-extent figure, PS46-55: nine Paxinos levels, coloured outlines per animal.
-Per level and animal: the real section on that plate; else a real section from the named neighbouring plate
+"""VLS manuscript stroke-extent figure, PS46-55: nine Paxinos levels, colored outlines per animal.
+Per level and animal: the real section on that plate; else a real section from the named neighboring plate
 (drawn on the target plate in the same mm coordinates); else, where allowed, the signed-distance interpolation."""
 import sys, json, copy
 sys.path.insert(0, '/home/claude/widefield_pipeline')
@@ -41,8 +41,8 @@ if SCHEME == 'severity':   # VLS paper phenotype groups + manuscript colours (sc
         for i, a in enumerate(animals):
             dl = (i - (len(animals) - 1) / 2) * 0.07          # small lightness steps around the paper colour
             COLORS[a] = colorsys.hls_to_rgb(h, min(max(l - dl, 0.15), 0.8), s_); STYLE[a] = DASH[i]
-EXTRA_FB = {}
-INTERP_EXTRA = {(30, 'PS51')} if COHORT == 'PS46-55' else set()   # Priya 10-22: interpolate Moderate #2 (PS51) at +0.14 in every version   # (was PS51 at -0.10 from +0.02; replaced by the real PS51_2_10 section, 2026-10-22)
+EXTRA_FB = {(29, 'PS55'): 28, (29, 'PS51'): 28, (25, 'PS48'): 24, (29, 'PS48'): 30, (27, 'PS49'): 26} if COHORT == 'PS46-55' else {}   # Priya 10-23: fill a blank level between two drawn levels with the section one plate away
+INTERP_EXTRA = {(30, 'PS51'), (27, 'PS50')} if COHORT == 'PS46-55' else set()   # Priya 10-22: interpolate Moderate #2 (PS51) at +0.14 in every version   # (was PS51 at -0.10 from +0.02; replaced by the real PS51_2_10 section, 2026-10-22)   # Priya 10-23: Mild #4 at +0.50 interpolated from +0.74 and +0.26
 HATCH = ['|||', '---', '\\\\\\', '///']
 matplotlib.rcParams['hatch.linewidth'] = 0.6
 real, rows = SC.footprints_from_polygons(POLY)
@@ -112,7 +112,7 @@ from matplotlib.legend_handler import HandlerTuple, HandlerLine2D
 LAB = [f'{g.capitalize()} #{i + 1}' for g, an in GROUPS.items() for i, a in enumerate(an)] if SCHEME == 'severity' else [x.get_label() for x in h]
 fig.legend(h, LAB, handler_map={tuple: HandlerTuple(ndivide=1, pad=0), **{m: HandlerLine2D(numpoints=3, marker_pad=0.6) for m in (MKH if SCHEME == 'severity' else [])}}, loc='lower center', ncol=int(np.ceil(len(h) / 2)), frameon=False, fontsize=8, handlelength=3.2, handleheight=1.6, bbox_to_anchor=(0.5, fb))
 if NOTE:
-    fig.text(0.5, fb - 0.01, 'Outlines are sections cut at the labelled level, except:', ha='center', va='top', fontsize=7.5, color='0.15')
+    fig.text(0.5, fb - 0.01, 'Outlines are sections cut at the labeled level, except:', ha='center', va='top', fontsize=7.5, color='0.15')
     for i, line in enumerate(NOTE):
         fig.text(0.5, fb - 0.01 - (i + 1) * 0.2 / (H0 + EXTRA), line, ha='center', va='top', fontsize=7.5, color='0.25')
 plt.tight_layout(rect=(0, fb + 0.5 / (H0 + EXTRA), 1, 0.98), w_pad=0.2, h_pad=4.0)

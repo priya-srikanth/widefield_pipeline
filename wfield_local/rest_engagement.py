@@ -58,6 +58,14 @@ def engaged_by_cue(session, cue_samples, codes, response_window_s=None):
     n = len(np.asarray(cue_samples))
     if n == 0:
         return np.zeros(0, bool), "no cues"
+    from wfield_local import trial_classes as _tc
+    if _tc.camera_gate_on():
+        # CAMERA TRIAL GATE (rebuild 11-03): the session's camera WORKING PERIOD (`trial_classes.camera_engaged_period`,
+        # PROVISIONAL: every cue up to the last camera-working trial). Does NOT fail open: an error propagates.
+        from wfield_local.plot_spout_trial_averages import _load_daq_events
+        sr = float(_load_daq_events(session["h5"])["sample_rate_hz"])
+        eng = _tc.camera_engaged_period(session["label"], np.asarray(cue_samples, float) / sr)
+        return eng, f"{int((~eng).sum())}/{n} trials after the last camera-working trial ({_tc.run_selection()})"
     try:
         responded = _responded_per_cue(session, cue_samples, response_window_s)
     except Exception as ex:                                              # noqa: BLE001
@@ -65,10 +73,38 @@ def engaged_by_cue(session, cue_samples, codes, response_window_s=None):
     if responded is None or len(responded) != n:
         return np.ones(n, bool), "gate unavailable (no lick/response data) -- UNGATED"
     order = np.arange(n)
+    from wfield_local import gate_source as _gs  # [gate-source hook] WIDEFIELD_GATE_SOURCE (see that module)
+    if _gs.is_lp():  # [gate-source hook] DAQ contact | LP attempt within the session's response window
+        _w = response_window_s or _response_window_s(session)  # [gate-source hook]
+        responded = _gs.gate_responded(session["label"], order, responded, _w, cue_samples)  # [gate-source hook]
     pos = np.array([POSITION_NAMES.get(int(c), str(c)) for c in np.asarray(codes)[:n]])
     not_eng = engagement_gate(order, np.asarray(responded, bool), pos)
     eng = ~np.asarray(not_eng, bool)
     return eng, f"{int((~eng).sum())}/{n} trials in the quit period"
+
+
+def frame_gate_bounds(cue_samples, eng, camera: bool) -> tuple[int, int]:
+    """``(start_sample, quit_sample)``: frames with ``start_sample <= t < quit_sample`` are engaged (`engaged_frame_mask`).
+
+    THE QUIT PERIOD IS THE TERMINAL SUFFIX: it begins at the cue AFTER the last engaged cue. Under the DAQ gate the
+    non-engaged cues are that suffix by construction, so "first non-engaged cue" was the same thing. Under the CAMERA
+    gate the working period is a SPAN (first camera lick .. last camera lick, `trial_classes.camera_engaged_period`), so
+    a session whose first cue is not a camera lick has an early non-engaged cue, and "first non-engaged" put the quit
+    boundary at cue 0: every frame after the first cue counted as quit (found 11-06: gain_bio R5 empty in 8 / 107
+    sessions -- PS92_0813, PS92_0822, PS93_0818, PS93_0822, PS93_0824, PS94_0817, PS94_0820, PS95_0818).
+
+    START: under the camera gate the frames before the span's first cue are outside the working period too. When the
+    span starts at cue 0 (and always under the DAQ gate) the start stays open, so the pre-first-cue frames remain engaged
+    exactly as before -- sessions the bug did not touch get the same mask."""
+    cs = np.asarray(cue_samples, np.int64)
+    idx = np.flatnonzero(np.asarray(eng, bool))
+    lo, hi = int(np.iinfo(np.int64).min), int(np.iinfo(np.int64).max)
+    if not len(idx):
+        return hi, hi
+    last = int(idx[-1])
+    quit_sample = int(cs[last + 1]) if last + 1 < len(cs) else hi
+    start_sample = int(cs[int(idx[0])]) if (camera and int(idx[0]) > 0) else lo
+    return start_sample, quit_sample
 
 
 def engaged_frame_mask(session, n_frames):
@@ -113,6 +149,11 @@ def engaged_frame_mask(session, n_frames):
 
     n_frames = int(n_frames)
     keep = np.ones(n_frames, bool)
+    # CAMERA TRIAL GATE (rebuild 11-03): the boundary comes from `engaged_by_cue`'s camera branch (the cue after the
+    # session's last camera-working trial, PROVISIONAL), with the same frame mapping. Under camera this does NOT fail
+    # open: an error or a missing frame map propagates instead of returning an ungated session.
+    from wfield_local import trial_classes as _tc
+    camera = _tc.camera_gate_on()
     try:
         with h5py.File(session["h5"], "r") as f:
             dn = [x.decode() for x in f["digital/channel_names"][:]]
@@ -122,9 +163,13 @@ def engaged_frame_mask(session, n_frames):
         cs = np.asarray(cue["cue_samples"], np.int64)
         codes = np.asarray(classify_cues_with_backup(session, cue, verbose=False))
         eng, note = engaged_by_cue(session, cs, codes)
+        if camera and not eng.any():
+            # second pass 11-03: no camera working period at all (e.g. PS93_0813, no video) -> NO engaged frame, not
+            # the pre-first-cue frames the DAQ rule would keep
+            return np.zeros(n_frames, bool), "no camera working period -- no engaged frames"
         if "UNGATED" in note or bool(eng.all()):
             return keep, note if "UNGATED" in note else "no quit period"
-        first_quit_sample = int(cs[int(np.flatnonzero(~eng)[0])])
+        start_sample, first_quit_sample = frame_gate_bounds(cs, eng, camera)
 
         if session.get("regime") == "B":
             fm = sorted(glob.glob(f"{session.get('fmdir') or session['mc']}"
@@ -132,6 +177,8 @@ def engaged_frame_mask(session, n_frames):
             summ = sorted(glob.glob(f"{session.get('fmdir') or session['mc']}"
                                     f"/*cleanpairs_summary.json"))
             if not fm or not summ:
+                if camera:
+                    raise RuntimeError(f"{session.get('label')}: no frame map (camera trial gate does not fail open)")
                 return keep, "no frame map -- UNGATED"
             with open(summ[0]) as fh:
                 off = int(json.load(fh)["chosen_exposure_offset"])
@@ -140,10 +187,13 @@ def engaged_frame_mask(session, n_frames):
         else:
             fs_samp = pco[np.arange(len(pco) // 2) * 2]
     except Exception as ex:                                              # noqa: BLE001
+        if camera:
+            raise
         return keep, f"gate unavailable ({type(ex).__name__} {str(ex)[:40]}) -- UNGATED"
 
     m = min(len(fs_samp), n_frames)
-    keep[:m] = np.asarray(fs_samp[:m]) < first_quit_sample
+    fsm = np.asarray(fs_samp[:m])
+    keep[:m] = (fsm < first_quit_sample) & (fsm >= start_sample)
     if m < n_frames:
         # Frames past the mapping are past the end of the recording; keeping them would put
         # unmapped frames on the engaged side of a gate that never saw them.

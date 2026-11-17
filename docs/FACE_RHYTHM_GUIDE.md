@@ -21,8 +21,8 @@ someone who wants to answer a question with the cam4 FR data of the VLS-stroke c
 * **Own fits** (`own8/`, and per animal x epoch `own_epoch/`) are fresh fits of the same rank to a session's (or epoch's)
   data. They answer "does the vocabulary itself change?": EVR of the frozen set vs the own fit, and the angle between
   matched factors.
-* **Absolute vs share.** FR normalises each frame by its total movement. *Absolute* expression = factor weight x the
-  frame's normaliser D (how much of that movement there is) — the default in every readout. *Share* = the weight
+* **Absolute vs share.** FR normalizes each frame by its total movement. *Absolute* expression = factor weight x the
+  frame's normalizer D (how much of that movement there is) — the default in every readout. *Share* = the weight
   alone (how movement is distributed).
 * **Change vs each animal's own pre.** Animals differ in scale, so every number is relative to that animal's
   pre-stroke sessions: log2 for amplitudes (0 = pre, −1 = halved, +1 = doubled), ratio or difference for EVR.
@@ -32,7 +32,7 @@ someone who wants to answer a question with the cam4 FR data of the VLS-stroke c
   not survive), then the paired animals → sessions bootstrap of the change (`analysis_kit.boot_delta`). Marks:
   `*` = the 95 % interval excludes 0; `**` = also survives Holm over everything that figure tests at once (12 factors or
   6 spout positions). Levels (is something above 0?) use `boot_ci`.
-* **Colours.** Animals: `config.animal_color()` (the repo palette). Epochs: pre black, acute pink, subacute gold, chronic
+* **Colors.** Animals: `config.animal_color()` (the repo palette). Epochs: pre black, acute pink, subacute gold, chronic
   teal (the orofacial / 3-D kinematics palette).
 
 ## 2. Setting up a camera (once; done for cam4)
@@ -73,7 +73,7 @@ folder with a `README.md` of figure captions (methods) and the tables behind the
 | where on the face movement changes | `maps`, `position-maps` | 5f |
 | does the pre-stroke vocabulary still fit? | `readouts` then `evr` | 6-master |
 | do the factors change shape? | `match` (and the pooled `own_epoch/` fits) | 6c |
-| non-task movement, by behavioural state | `nontask` | 6d |
+| non-task movement, by behavioral state | `nontask` | 6d |
 | treadmill pushes | `push` (locanmf env) | 6b |
 
 ## 4. Adding an analysis

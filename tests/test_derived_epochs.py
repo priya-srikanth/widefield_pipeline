@@ -118,7 +118,7 @@ def test_unavailable_behaviour_writes_nothing(monkeypatch, derived):
                         lambda **k: {"available": False, "reason": "no table"})
     res = epoch_audit.resolve()
     assert res["available"] is False
-    assert not derived.exists(), "nothing may be written when behaviour is unavailable"
+    assert not derived.exists(), "nothing may be written when behavior is unavailable"
     assert epochs.epoch_of("PS94_0828") == "subacute"
 
 
@@ -128,7 +128,7 @@ def test_the_live_derivation_still_matches_the_stored_spec(derived):
     animal genuinely crosses -- at which point the stored spec is the stale one, and the fallback it
     provides (on a crash, or a missing cohort table) is what needs updating."""
     if not epoch_audit._cohort_path().exists():
-        pytest.skip("no cohort behaviour table on this box")
+        pytest.skip("no cohort behavior table on this box")
     rep = epoch_audit.audit()
     derived_now = epoch_audit.derived_spec(rep)
     # ALL THREE boundaries, not just chronic. Normalised because `acute` round-trips as a list.
@@ -220,7 +220,7 @@ def test_the_rule_text_is_built_from_the_constants():
 
 
 def test_a_stale_fallback_is_reported_with_the_yaml_to_paste():
-    """When behaviour moves a boundary, `animals.yaml` does NOT follow -- the pipeline must not edit
+    """When behavior moves a boundary, `animals.yaml` does NOT follow -- the pipeline must not edit
     a version-controlled file both machines push. But a promotion that requires re-deriving the
     number by hand is one that does not happen, so the lines to paste are produced ready."""
     crossed = {a: {"chronic_from": s["chronic_from"]} for a, s in epochs.EPOCH_SPEC.items()}
@@ -240,7 +240,7 @@ def test_a_stale_fallback_is_reported_with_the_yaml_to_paste():
 
 
 def test_nothing_is_stale_today():
-    """The committed fallback matches what behaviour currently implies. Expected to fail when an
+    """The committed fallback matches what behavior currently implies. Expected to fail when an
     animal crosses -- which is the prompt to promote, not a defect."""
     spec = {a: {"chronic_from": s["chronic_from"]} for a, s in epochs.EPOCH_SPEC.items()}
     assert epoch_audit.stale_fallback(spec) == []
@@ -250,7 +250,7 @@ def test_the_fallback_precedence(derived, monkeypatch):
     """PINNED > derived > LAST DERIVED FILE > animals.yaml, in that order.
 
     The third step is the one that is easy to get wrong and was documented wrongly for an hour: a
-    crashed or behaviour-less run keeps the LAST DERIVED boundaries rather than reverting to the
+    crashed or behavior-less run keeps the LAST DERIVED boundaries rather than reverting to the
     hand-declared seed. Reverting would mean a mount failure silently restaged every pooled panel
     to whatever was last promoted, which could be months old.
     """
@@ -292,7 +292,7 @@ def test_acute_is_derived_and_reproduces_the_declared_ranges():
     have to hard-code them?" -- correct. The rule reproduces all four declared ranges exactly, which
     is why switching to deriving them moved no published panel."""
     if not epoch_audit._cohort_path().exists():
-        pytest.skip("no cohort behaviour table on this box")
+        pytest.skip("no cohort behavior table on this box")
     hit, _lick = epoch_audit.load_far_position_tables()
     got = epochs.derive_acute_boundaries(hit)
     for animal, declared in epochs.EPOCH_SPEC.items():
@@ -334,7 +334,7 @@ def test_a_relapse_is_reported_not_folded_into_the_acute_range():
 
 def test_an_underivable_boundary_is_omitted_not_written_as_none():
     """`spec_for` merges key-by-key, so an omitted key falls back to the declared value. Writing
-    None instead would assert "there is no acute epoch" -- a much stronger claim than "behaviour
+    None instead would assert "there is no acute epoch" -- a much stronger claim than "behavior
     could not tell me", and one that unassigns every early post-stroke session."""
     rep = {"chronic": {"PS92": {"derived_day": 11}},
            "acute_derived": {"PS92": {"acute": None, "subacute_from": None, "relapse": []}}}

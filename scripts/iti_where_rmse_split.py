@@ -22,8 +22,9 @@ EP = ["acute", "subacute", "chronic"]
 
 
 def main(argv=None) -> int:
+    il.split_only("iti_where_rmse_split")   # outputs not basis-tagged: split basis only (10-27 late)
     unscaled = "--unscaled" in (argv if argv is not None else sys.argv[1:])
-    p = pd.read_csv(il.OUT / "where_preds.csv" if unscaled else il.OUT / "zscore_check" / "where_preds_z.csv")
+    p = pd.read_csv(il.pred_file("where_preds.csv") if unscaled else il.pred_file("zscore_check/where_preds_z.csv"))
     rows = []
     for (st, a, ep, lab), g in p.groupby(["set", "animal", "epoch", "label"]):
         for ax_ in ("lat", "sag"):

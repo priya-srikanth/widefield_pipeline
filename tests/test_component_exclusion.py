@@ -255,13 +255,14 @@ def test_the_CD_notes_carry_the_ARTEFACT_WARNING_not_just_the_method():
         if "lick_or_working" in pat:
             # the second gate's panels must say WHAT THE GATE IS, since that is the only thing
             # distinguishing them from the success-only panels beside them on the deck
-            assert "MISS-WHILE-WORKING" in legend, pat
+            assert "NO-LICK trials outside the terminal quit period" in legend, pat
+            assert "MISS-WHILE-WORKING" not in legend.upper(), pat   # stale DAQ-era wording (Priya 11-09)
             assert "NO LICK-ALIGNED VERSION" in legend, pat
         assert "0.289" in legend, pat                 # the measured near-cancellation
         assert "artefact" in legend.lower() or "artifact" in legend.lower(), pat
         assert "surviving fraction" in legend or "survived" in legend, pat
         assert "Z-SCORED" in legend, pat              # the standardisation, measured
-        assert "HAEMODYNAMICS ARE SLOW" in legend, pat
+        assert "HEMODYNAMICS ARE SLOW" in legend, pat
 
 
 def test_the_geometry_note_states_the_CHANCE_LEVEL_and_the_MISSING_NULL():
@@ -280,7 +281,7 @@ def test_the_DERIVED_families_carry_THEIR_OWN_caveats():
 
     A pooled delta invites "the band includes zero so nothing happened", when pre-stroke is zero BY
     CONSTRUCTION and the difference carries both epochs' noise. A migration matrix invites reading
-    off-diagonal mass as movement, when the six directions are not orthogonal and neighbouring
+    off-diagonal mass as movement, when the six directions are not orthogonal and neighboring
     positions resemble each other already. Neither caveat is the trajectory panels' caveat, so they
     are asserted separately rather than by requiring one string everywhere.
     """

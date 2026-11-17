@@ -2,8 +2,8 @@
 light? The same measures on the corrected 470 (adopted), the UNCORRECTED 470 and the 415 nm channel (cohort1, PS92-95).
 
 QUESTION. After the VLS stroke, brief quiet-period events in orofacial cortex rise ~5x acutely and quiet power rises at
-~2-3 Hz (quiet_spikes_v2.py, quiet_fluct.py). The analysed signal is the hemo-corrected 470 (hemo_meegkit_hpfit SVTcorr,
-`combined_encoding.load_imaging`). If the effect were haemodynamic (or a light / motion artefact common to both
+~2-3 Hz (quiet_spikes_v2.py, quiet_fluct.py). The analyzed signal is the hemo-corrected 470 (hemo_meegkit_hpfit SVTcorr,
+`combined_encoding.load_imaging`). If the effect were hemodynamic (or a light / motion artifact common to both
 wavelengths), the 415 nm channel -- calcium-insensitive (isosbestic, plus a small NEGATIVE calcium term) -- would show it
 too, and uncorrected 470 would show it larger than corrected. If it is calcium, 415 shows no increase and no event-locked
 response.
@@ -16,7 +16,7 @@ hemo manifest -- exactly the loader logic of scripts/iti_hemo_check.py. Both hal
 logic) project all three. No extra drift removal: every measure works on 2-s-median-detrended traces or 4-s linearly
 detrended Welch segments.
 FRAMES: QUIET ENGAGED (quiet_spikes_v2.busy_frames: no DAQ lick / running bout within 1.5 s, no swapped pair within
-0.5 s; engaged = before the quit), identical for all channels. August sessions; pre = August pre (>= 0806).
+0.5 s; engaged = before the quit), identical for all channels. August sessions; pre = August pre (not config.early_pre, cohort1 cut 0806).
 MEASURES per session x channel x ROI (orofacial_left / _right / orofacial / limb_left / _right / limb / cortex):
   (a) sd     robust SD (1.4826 x MAD) of the 2-s-median-detrended trace over quiet engaged frames
   (b) p14 / p0510  quiet band power 1-4 Hz / 0.5-1 Hz ((dF/F %)^2), Welch 4-s Hann segments, linear detrend, on quiet
@@ -48,11 +48,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from quiet_area_spikes import EP, GROUPS, columns, mad, session_traces  # noqa: E402
 from quiet_spikes_v2 import BASE_S, V2, busy_frames, detect, detrend  # noqa: E402
+from wfield_local import config  # noqa: E402
 
 HO = V2 / "hemo415"
 CACHE_VERSION = 1
 CH = ("corr470", "raw470", "raw415")
-CHLAB = {"corr470": "corrected 470 (analysed)", "raw470": "uncorrected 470", "raw415": "415 nm (calcium-insensitive)"}
+CHLAB = {"corr470": "corrected 470 (analyzed)", "raw470": "uncorrected 470", "raw415": "415 nm (calcium-insensitive)"}
 ROIS = ["orofacial_left", "orofacial_right", "orofacial", "limb_left", "limb_right", "limb", "cortex"]
 K_EVT, SEG_S, N_NULL = 4.0, 4.0, 400
 BANDS = {"p14": (1.0, 4.0), "p0510": (0.5, 1.0)}
@@ -88,7 +89,7 @@ def _animal_pre_sd_v2():
     from wfield_local import epochs
     out = {}
     for f in sorted((V2 / "sessions").glob("*.npz")):
-        if epochs.epoch_of(f.stem) == "pre" and f.stem[-4:] >= "0806":
+        if epochs.epoch_of(f.stem) == "pre" and not config.early_pre(f.stem):
             out.setdefault(f.stem[:4], []).append(np.load(f)["sd_q"])
     return {a: np.nanmedian(v, 0) for a, v in out.items()}
 
@@ -97,7 +98,8 @@ def work(label):
     """One session -> HO/sessions/<label>.npz. Module-level for spawn."""
     from scipy.signal import welch
     from wfield_local import combined_encoding as ce
-    from wfield_local.hemo_variants import ADOPTED, functional_channel
+    from wfield_local import config
+    from wfield_local.hemo_variants import functional_channel
     f = HO / "sessions" / f"{label}.npz"
     if f.exists() and int(np.load(f)["cache_version"]) == CACHE_VERSION:
         return {"label": label, "cached": True}
@@ -110,7 +112,7 @@ def work(label):
         raise RuntimeError(f"{label}: ROI weights do not reproduce session_traces")
     res = Path(_session(label)["mc"]) / "wfield_local_results"
     fc = functional_channel(label)
-    man = json.loads((res / f"hemo_{ADOPTED}" / "manifest.json").read_text())
+    man = json.loads(Path(config.hemo_manifest_path(res)).read_text())   # selected variant, call time (review L2)
     mf = int(man.get("functional_channel", -1))
     if mf != fc:
         raise RuntimeError(f"{label}: functional slot {fc} vs hemo manifest {mf}")
@@ -210,7 +212,7 @@ def load():
         if f.stem.endswith(".tmp"):
             continue
         ep = epochs.epoch_of(f.stem)
-        if ep is None or (ep == "pre" and f.stem[-4:] < "0806") or not f.stem.startswith(("PS92", "PS93", "PS94", "PS95")):
+        if ep is None or (ep == "pre" and config.early_pre(f.stem)) or not f.stem.startswith(("PS92", "PS93", "PS94", "PS95")):
             continue
         D[f.stem] = dict(np.load(f), epoch=ep, day=epochs.days_since_stroke(f.stem))
     return D
@@ -354,10 +356,10 @@ def figure(S, T, roi=SHOW_ROI):
     ax[0, -1].legend(handles=handles, fontsize=7, loc="upper left", bbox_to_anchor=(1.02, 1), frameon=False,
                      title="animal", title_fontsize=7)
     sig_marks.reserve_headroom(fig)
-    fig.suptitle("Is the post-stroke quiet-period change in orofacial cortex calcium or haemodynamic? The same measures on "
-                 "the corrected 470 (analysed), uncorrected 470 and 415 nm channels -- bilateral orofacial ROI, engaged quiet "
-                 "frames, August pre. Open markers = sessions (shape = animal, colour = epoch), filled = pooled mean with "
-                 "nested bootstrap 95% CI; stars = LMM epoch vs pre (FDR within measure). Last column: grey band = 5-95% "
+    fig.suptitle("Is the post-stroke quiet-period change in orofacial cortex calcium or hemodynamic? The same measures on "
+                 "the corrected 470 (analyzed), uncorrected 470 and 415 nm channels -- bilateral orofacial ROI, engaged quiet "
+                 "frames, August pre. Open markers = sessions (shape = animal, color = epoch), filled = pooled mean with "
+                 "nested bootstrap 95% CI; stars = LMM epoch vs pre (FDR within measure). Last column: gray band = 5-95% "
                  "of the random-quiet-frame null.", fontsize=8, wrap=True)
     fig.tight_layout(rect=(0, 0, 0.94, 0.90), w_pad=2.0, h_pad=1.5)
     fig.savefig(HO / "quiet_hemo_check.png", dpi=110)

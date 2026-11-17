@@ -22,6 +22,7 @@
 animals:
   PS118:
     color: "tab:purple"
+    marker: ">"     # session-dot SHAPE (cat_points.animal_marker). Unique within the cohort and distinct from cohort1's.
     sex: M
     date_of_birth: 2026-08-03
     genotype: "Thy1-GCaMP6s GP4.3"
@@ -29,12 +30,13 @@ animals:
     characteristics: {}
     stroke_date: null
     stroke_laterality: "L"          # planned (same as cohort1); confirm
-    reference_date: null          # null = the cohort's master alignment session
-    reference_landmarks: null
+    reference_date: "1106"        # Allen reference = 11-06 (large 509x480 ROI); landmarks drawn 2026-11-08
+    reference_landmarks: v1
     exclude: []
 
   PS120:
     color: "tab:brown"
+    marker: "<"
     sex: M
     date_of_birth: 2026-08-03
     genotype: "Thy1-GCaMP6s GP4.3"
@@ -42,12 +44,13 @@ animals:
     characteristics: {}
     stroke_date: null
     stroke_laterality: "L"
-    reference_date: null          # null = the cohort's master alignment session
-    reference_landmarks: null
+    reference_date: "1103"        # Allen reference = 11-03 (large 509x480 ROI); raw on M:, landmarks read-from-M: 2026-11-08
+    reference_landmarks: v1
     exclude: []
 
   PS121:
     color: "tab:pink"
+    marker: "P"     # was ">" under the old name-hash rule -- the SAME shape as PS118 (code review 2026-11-04)
     sex: F
     date_of_birth: 2026-01-29
     genotype: "VGLUT1-IRES-Cre x LSL-RiboL1-jGCaMP8s"
@@ -55,12 +58,13 @@ animals:
     characteristics: {}
     stroke_date: null
     stroke_laterality: "L"
-    reference_date: null          # null = the cohort's master alignment session
-    reference_landmarks: null
+    reference_date: "1106"        # Allen reference = 11-06 (large 509x480 ROI); landmarks drawn 2026-11-08
+    reference_landmarks: v1
     exclude: []
 
   PS122:
     color: "tab:olive"
+    marker: "v"
     sex: F
     date_of_birth: 2026-01-29
     genotype: "VGLUT1-IRES-Cre x LSL-RiboL1-jGCaMP8s"
@@ -72,8 +76,8 @@ animals:
     characteristics: {camera_roi_height_2026_10_29: 509}
     stroke_date: null
     stroke_laterality: "L"
-    reference_date: null          # null = the cohort's master alignment session
-    reference_landmarks: null
+    reference_date: "1103"        # Allen reference = 11-03 (large 509x480 ROI); raw on M:, landmarks read-from-M: 2026-11-08
+    reference_landmarks: v1
     exclude: []
 
 date_policy:

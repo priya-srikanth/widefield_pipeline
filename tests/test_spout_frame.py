@@ -8,7 +8,7 @@ MOUTH = np.array([340.0, 350.0])
 
 
 def _medians():
-    """Spouts on three rays from MOUTH, downward in the image: centre straight down, 'L' to image-right (cam4)."""
+    """Spouts on three rays from MOUTH, downward in the image: center straight down, 'L' to image-right (cam4)."""
     out = {}
     for side, ang in (("center", 0.0), ("L", 40.0), ("R", -40.0)):
         d = np.array([np.sin(np.radians(ang)), np.cos(np.radians(ang))])        # image coords, y down
@@ -51,7 +51,7 @@ def test_position_medians_skip_low_confidence():
 # --------------------------------------------------------------------------- cam1 (2026-10-18)
 
 def _cam1_like():
-    """A V of L / R spout lines meeting at the mouth (300, 380); the centre line seen end-on (close == far)."""
+    """A V of L / R spout lines meeting at the mouth (300, 380); the center line seen end-on (close == far)."""
     mouth = np.array([300.0, 380.0])
     med = {"close_L": (345, 400, 50), "far_L": (390, 420, 50), "close_R": (255, 400, 50), "far_R": (210, 420, 50),
            "close_center": (300, 392, 50), "far_center": (300, 390, 50)}

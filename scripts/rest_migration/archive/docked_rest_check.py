@@ -4,7 +4,7 @@ RUN BEFORE FLIPPING THE CONFIG, not after. Turning on `segmentation.rest.docked`
 `variant: restdock` regenerates every mask and every behavior_events npz and then needs a full
 re-render -- so the question "does every session survive it, and with how much rest left" has to be
 answered on the cheap path first. The docked window is ~1.35 s against the loose ~2.0 s and it is
-intersected with the behavioural terms, so the cost is not predictable from the window ratio.
+intersected with the behavioral terms, so the cost is not predictable from the window ratio.
 
 Reports per session: loose rest fraction, docked rest fraction, the ratio, and which path the
 docked window came from. A session that RAISES is a bug, not a bonus -- docked is a strict subset.

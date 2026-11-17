@@ -1,5 +1,5 @@
 """Slide layout of the FaceRhythm per-lick LMM figure (Priya 11-03 via a8: "bottom plot is way too spread out; top plot is
-too busy"): two rows of six factors grouped by preferred lick direction (row 1 right + centre, row 2 left), licks per
+too busy"): two rows of six factors grouped by preferred lick direction (row 1 right + center, row 2 left), licks per
 trial as a narrow panel at the right, short labels, faded session markers. Statistics are READ from the existing
 ``<stem>_lmm.csv`` (written by scripts/lmm_change_fig.py), so stars and intervals are unchanged.
 
@@ -28,6 +28,9 @@ def main(argv=None) -> int:
     ap.add_argument("--labels", required=True, help="file: comma list cell=label (label = 'factor / direction lick')")
     ap.add_argument("--out", required=True)
     a = ap.parse_args(argv)
+    from wfield_local import run_mode
+    run_tag = run_mode.require_input_tag(a.sessions, "lmm_per_lick_fig")   # fifth review N5
+    run_mode.require_input_tag(a.stats, "lmm_per_lick_fig stats")
     S = pd.read_csv(a.sessions)
     T = pd.read_csv(a.stats)
     T["star"] = T["star"].fillna("")
@@ -43,7 +46,7 @@ def main(argv=None) -> int:
     fig = plt.figure(figsize=(13, 5.6))
     gs = fig.add_gridspec(2, 2, width_ratios=[3, 1], hspace=0.55, wspace=0.12)
     axes = []
-    for r, (cs, ttl) in enumerate(((row1, "factors per RIGHT (contra) lick, and per centre lick (last two)"),
+    for r, (cs, ttl) in enumerate(((row1, "factors per RIGHT (contra) lick, and per center lick (last two)"),
                                    (row2, "factors per LEFT (ipsi) lick"))):
         ax = fig.add_subplot(gs[r, 0])
         draw_axis(ax, S, T, cs, {c: name[c].replace("_", "_\n", 1) if len(name[c]) > 12 else name[c] for c in cs},
@@ -61,6 +64,7 @@ def main(argv=None) -> int:
     fig.legend(handles=legend_handles(S), fontsize=7, ncol=9, loc="lower center", frameon=False)
     sm.reserve_headroom(fig)
     fig.subplots_adjust(left=0.06, right=0.99, top=0.86, bottom=0.17)
+    fig.text(0.995, 0.005, f"input run tag: {run_tag or 'default'}", ha="right", va="bottom", fontsize=6, color="0.5")
     fig.savefig(out, dpi=150)
     plt.close(fig)
     print(out)

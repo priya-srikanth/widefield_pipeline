@@ -1,11 +1,11 @@
 """bal_em: the PRODUCTION frozen SPOUT-POSITION decoder scaling since 2026-11-03 (Priya: "I would adopt B everywhere").
 
-Train on pre-stroke sessions each centred on the equal-weight mean of its TRUE class means; score every session with
-the label-free EM centre of its ENGAGED trials (Saerens priors -> soft class means -> 1/6 each, production SD, 3
+Train on pre-stroke sessions each centered on the equal-weight mean of its TRUE class means; score every session with
+the label-free EM center of its ENGAGED trials (Saerens priors -> soft class means -> 1/6 each, production SD, 3
 passes, no guard), applied to its no-lick trials too. DECISIONS 2026-11-03.
 
 Pins: (a) spec ids: session_z (= the pre-11-03 production) is byte-identical to the old spec, bal_em is a new id that
-differs only in ``scaling`` / ``scaling_params``; (b) no scored-session label reaches its centre -- shuffling them leaves
+differs only in ``scaling`` / ``scaling_params``; (b) no scored-session label reaches its center -- shuffling them leaves
 the inputs to the model bit-identical, and the scoring functions take no labels by signature; (c) on a synthetic
 6-spout case whose engaged set loses one spout, the old engaged-trial z-score biases the per-spout accuracies and
 bal_em removes most of that bias; (d) the state decoder still reads the shared primitives (moved, not copied).
@@ -39,7 +39,7 @@ def fake_store(monkeypatch):
 
 
 def _session(rng, mix, n=360, a=2.5, n_nolick=0):
-    """Six spout patterns + a per-session offset and gain (what the per-session normalisation is for). ``n_nolick``
+    """Six spout patterns + a per-session offset and gain (what the per-session normalization is for). ``n_nolick``
     extra trials of spout 5 share the session's offset and gain: the no-lick arm of the acute far-contra cell."""
     k = rng.choice(K, size=n, p=mix)
     k = np.concatenate([k, np.full(n_nolick, K - 1)])
@@ -54,7 +54,7 @@ def _session(rng, mix, n=360, a=2.5, n_nolick=0):
 
 def _pool(seed=0, post_mix=None, n_pre=5, n_post=3):
     """Production-frame pool: engaged rows z-scored per session (as `pool_sessions`), plus no-lick rows of the missing
-    spout normalised with the ENGAGED statistics (the shape of the acute far-contra cell)."""
+    spout normalized with the ENGAGED statistics (the shape of the acute far-contra cell)."""
     rng = np.random.default_rng(seed)
     post_mix = post_mix or [0.24, 0.24, 0.24, 0.14, 0.12, 0.02]
     XE, YE, GE, XU, YU, GU, kept = [], [], [], [], [], [], []
@@ -78,13 +78,18 @@ def test_session_z_spec_is_the_pre_1103_spec(fake_store, monkeypatch):
     """Under WIDEFIELD_SPOUT_SCALING=session_z the decoder spec has NO scaling keys and the same id as a spec built the
     way `decoder_spec` built it before 11-03; bal_em is a new id differing only in the scaling fields."""
     XE, YE, GE, *_r, kept, pre_i = _pool()
-    kw = dict(align="cue", source="roi", post_s=2.0)
+    kw = dict(align="cue", source="roi", post_s=2.0, YE=YE, GE=GE)
+    # COHORT-1 REBUILD (merge 11-03): FREEZE_VERSION 2 specs carry the training-data fingerprint, so the pinned HEAD
+    # literal (d19c950c2139) no longer applies on this branch; the contract -- session_z adds no key, bal_em differs
+    # only in the scaling fields -- is what is checked
+    m = np.isin(GE, sorted(pre_i))
     old = fm.make_spec("PSX", "decoder", align="cue", source="roi", train_labels=[kept[i] for i in pre_i],
-                       post_s=2.0, zscore=True, basis_id=None, n_features=int(XE.shape[1]))
+                       post_s=2.0, zscore=True, basis_id=None, n_features=int(XE.shape[1]),
+                       train_data=(XE[m], YE[m], GE[m]))
     monkeypatch.setenv(ss.SPOUT_SCALING_ENV, "session_z")
     z = fd.decoder_spec(XE, kept, pre_i, **kw)
     assert z == old and "scaling" not in z and "scaling_params" not in z
-    assert fm.spec_id(z) == fm.spec_id(old) == "d19c950c2139"           # pinned literal: the HEAD (pre-11-03) id
+    assert fm.spec_id(z) == fm.spec_id(old)
     monkeypatch.delenv(ss.SPOUT_SCALING_ENV)
     b = fd.decoder_spec(XE, kept, pre_i, **kw)                           # production default
     assert b["scaling"] == "session_bal_em"
@@ -103,9 +108,12 @@ def test_session_z_spec_is_the_pre_1103_spec(fake_store, monkeypatch):
 def test_other_spec_ids_are_untouched():
     """Every non-decoder spec is built without the spout scaling: the state ids pinned in test_state_bal_em, and an
     encoder spec, are unchanged by this module existing."""
-    kw = dict(align="segments", source="joint_x", train_labels=[], basis_id="x", n_features=3, post_s=1.0)
-    assert fm.spec_id(fm.make_spec("PS92", "state", **kw)) == "e14c78c2c8e8"
-    assert fm.spec_id(fm.make_spec("PS92", "state", **kw, scaling="session_z")) == "85aa81b36cb3"
+    # COHORT-1 REBUILD (merge 11-03): FREEZE_VERSION 2 ids differ from main's pinned literals (e14c78c2c8e8 /
+    # 85aa81b36cb3, see test_state_bal_em); the spout scaling still adds nothing to a non-decoder spec
+    kw = dict(align="segments", source="joint_x", train_labels=[], basis_id="x", n_features=3, post_s=1.0,
+              train_data=None)
+    a = fm.make_spec("PS92", "state", **kw)
+    assert "scaling" not in a and fm.spec_id(fm.make_spec("PS92", "state", **kw, scaling="session_z")) != fm.spec_id(a)
     assert ss.spec_kw(None) == {}
 
 
@@ -196,7 +204,7 @@ def _per_class(y, p):
 def test_bal_em_removes_the_mix_bias_session_z_has(fake_store, monkeypatch):
     """Post sessions' ENGAGED set has spout 5 at 2 % (pre: 1/6); spout-5 trials are scored mostly from the no-lick arm,
     in the engaged frame (the acute far-contra cell). The engaged-trial z-score pulls every trial toward spout 5's
-    pattern; bal_em's label-free centre lands near the ORACLE centre (true class means, the same bal_em-trained model)
+    pattern; bal_em's label-free center lands near the ORACLE center (true class means, the same bal_em-trained model)
     and removes most of the per-spout bias."""
     XE, YE, GE, XU, YU, GU, kept, pre_i = _pool(seed=11)
     post = [i for i in range(len(kept)) if i not in pre_i]
@@ -230,3 +238,103 @@ def test_state_decoder_reads_the_shared_primitives():
     assert ld.saerens_em is label_shift.saerens_em
     assert ld._session_sd is label_shift.session_sd
     assert ld._proba_full is label_shift.proba_full
+
+
+# ------------------------------------------------------------------ (e) the extension to the other cross-session decoders
+def _pipe_factory():
+    return fd._pipe()
+
+
+def test_frozen_frame_session_z_is_the_old_inline_fit(monkeypatch):
+    """Under session_z `FrozenFrame` hands back the production arrays and the inline fit the callers always made."""
+    monkeypatch.setenv(ss.SPOUT_SCALING_ENV, "session_z")
+    XE, YE, GE, XU, _YU, GU, kept, pre_i = _pool()
+    ff = ss.FrozenFrame(XE, YE, GE, pre_i, _pipe_factory, loso=False)
+    assert ff.XT is ff.XE and ff.apply(XE, 6) is XE and ff.apply_rows(XU, GU) is XU
+    tr = np.isin(GE, pre_i)
+    assert np.array_equal(ff.full.predict(XE), fd._pipe().fit(XE[tr], YE[tr]).predict(XE))
+
+
+def test_frozen_frame_scored_rows_ignore_scored_labels(monkeypatch):
+    """Post labels shuffled -> the scored rows are bit-identical (six-way and a class-filtered four-way model)."""
+    monkeypatch.delenv(ss.SPOUT_SCALING_ENV, raising=False)
+    XE, YE, GE, XU, _YU, GU, kept, pre_i = _pool()
+    post = ~np.isin(GE, pre_i)
+    ys = YE.copy()
+    ys[post] = np.random.default_rng(9).permutation(ys[post])
+    for classes in (None, [0, 1, 2, 4]):
+        tm = None if classes is None else np.isin(YE, classes)     # training rows only read on pre sessions
+        a = ss.FrozenFrame(XE, YE, GE, pre_i, _pipe_factory, classes=classes, train_mask=tm)
+        b = ss.FrozenFrame(XE, ys, GE, pre_i, _pipe_factory, classes=classes, train_mask=tm)
+        for i in (5, 6, 7):
+            assert np.array_equal(a.apply(XU[GU == i], i), b.apply(XU[GU == i], i))
+            assert np.array_equal(a.apply(XE[GE == i], i), b.apply(XE[GE == i], i))
+        assert a.scaling == "session_bal_em" and not np.array_equal(a.XT, XE)
+
+
+def test_state_frames_are_off_by_default_and_label_free(monkeypatch):
+    """The state-class bal_em for the engagement discriminators is OPT-IN (it fails their own pre-stroke check,
+    DECISIONS 2026-11-03): by default, even with the spout decoder on bal_em, the frames are the input arrays."""
+    monkeypatch.delenv(ss.SPOUT_SCALING_ENV, raising=False)
+    monkeypatch.delenv(ss.STATE_DISC_SCALING_ENV, raising=False)
+    assert ss.spout_scaling() == "session_bal_em" and ss.state_disc_scaling() is None
+    XE, YE, GE, XU, YU, GU, kept, pre_i = _pool()
+    se, su = np.ones(len(XE), bool), np.ones(len(XU), bool)
+    A, B = ss.state_train_frame(XE, GE, XU, GU, se, su, pre_i)
+    assert A is XE and B is XU
+    monkeypatch.setenv(ss.STATE_DISC_SCALING_ENV, "state_bal_em")
+    from sklearn.linear_model import LogisticRegression
+    yd = np.r_[np.ones(len(XE)), np.zeros(len(XU))]
+    m = LogisticRegression(max_iter=2000).fit(np.vstack([XE, XU]), yd)
+    pi = ss.model_prior(m, yd)
+    A1, B1 = ss.state_scored(m, pi, XE, GE, XU, GU, se, su, [5, 6, 7])
+    # the centre comes from the session's rows alone: position labels never enter, and other sessions are untouched
+    assert np.array_equal(A1[GE < 5], XE[GE < 5])
+    assert not np.array_equal(B1[GU == 5], XU[GU == 5])
+    for fn in (ss.state_scored, ss.state_centre, ss.FrozenFrame.apply, ss.FrozenFrame.centre):
+        assert not set(inspect.signature(fn).parameters) & {"y", "YE", "YU", "labels", "y_true"}, fn.__name__
+
+
+def test_lick_helpers_are_identity_by_default(monkeypatch):
+    from wfield_local import poststroke_compare as pc
+    monkeypatch.delenv(ss.STATE_DISC_SCALING_ENV, raising=False)
+    XE, YE, GE, XU, YU, GU, kept, pre_i = _pool()
+    d = {"XE": XE, "YE": YE, "GE": GE, "XU": XU, "YU": YU, "GU": GU, "kept": kept, "pre_i": set(pre_i),
+         "post_i": {5, 6, 7}}
+    assert pc._lick_train(d, [0, 1, 2, 3, 4, 5]) is d
+    A, B = pc._lick_scored(d, [0, 1], None, None, [5], d)
+    assert A is XE and B is XU
+
+
+# ------------------------------------------------------------------ (f) items B / C (Priya 11-03)
+def test_spout_frame_mode_needs_the_spout_decoder_on_bal_em(monkeypatch):
+    monkeypatch.setenv(ss.STATE_DISC_SCALING_ENV, "spout_frame")
+    monkeypatch.delenv(ss.SPOUT_SCALING_ENV, raising=False)
+    assert ss.state_disc_scaling() == ss.SCALING_SPOUT_FRAME
+    monkeypatch.setenv(ss.SPOUT_SCALING_ENV, "session_z")
+    assert ss.state_disc_scaling() is None
+
+
+def test_projection_arrays_identity_when_off_and_label_free_when_on(monkeypatch):
+    XE, YE, GE, XU, YU, GU, kept, pre_i = _pool()
+    monkeypatch.setenv(ss.PROJECTION_FRAME_ENV, "session_z")
+    A, B = ss.projection_arrays(XE, YE, GE, XU, GU, pre_i, _pipe_factory)
+    assert A is XE and B is XU
+    monkeypatch.setenv(ss.PROJECTION_FRAME_ENV, "spout_frame")
+    monkeypatch.delenv(ss.SPOUT_SCALING_ENV, raising=False)
+    A1, B1 = ss.projection_arrays(XE, YE, GE, XU, GU, pre_i, _pipe_factory)
+    ys = YE.copy()
+    post = ~np.isin(GE, pre_i)
+    ys[post] = np.random.default_rng(4).permutation(ys[post])
+    A2, B2 = ss.projection_arrays(XE, ys, GE, XU, GU, pre_i, _pipe_factory)
+    assert np.array_equal(A1, A2) and np.array_equal(B1, B2)
+    assert not np.array_equal(A1, XE)
+
+
+def test_frozen_frame_train_apply_matches_the_training_rows(monkeypatch):
+    monkeypatch.delenv(ss.SPOUT_SCALING_ENV, raising=False)
+    XE, YE, GE, XU, YU, GU, kept, pre_i = _pool()
+    ff = ss.FrozenFrame(XE, YE, GE, pre_i, _pipe_factory, loso=False)
+    for i in pre_i:
+        assert np.allclose(ff.train_apply(XE[GE == i], i), ff.XT[GE == i], atol=0, rtol=0)
+    assert ff.train_apply(XE[GE == 6], 6) is not None

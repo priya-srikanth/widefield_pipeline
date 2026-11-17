@@ -1,7 +1,7 @@
 # Handoff — 2026-10-02: session-level kinematics (PS93 pre / acute / chronic), lick phase, reach measures, O2
 
 **START HERE for orofacial kinematics.** It continues `STATUS_2026-10-01_KINEMATICS_HANDOFF.md` (port, spout frame,
-trial windows, first QC — still valid background). Tracking models and labelling: `STATUS_2026-09-30_LP_OCCLUSION_
+trial windows, first QC — still valid background). Tracking models and labeling: `STATUS_2026-09-30_LP_OCCLUSION_
 ROUND4_HANDOFF.md`. Reasoning for everything below: `DECISIONS.md`, entries dated 2026-10-01 (late) and 2026-10-02.
 Analysis desktop; **M: = MICROSCOPE, N: = standby — take paths from `PathResolver`, never type a letter.**
 
@@ -21,9 +21,9 @@ Nothing is running locally.
 2. **Decisions waiting on Priya:** none blocking. Open questions: does the post-stroke image-left shift of the
    successful-lick direction survive more sessions / animals and 3-D (head pose)? close_L disagreement between DLC
    and LP on that measure.
-3. **Next analyses:** more sessions / animals (via O2); cam1 once labelled (horizontal-plane direction; the
+3. **Next analyses:** more sessions / animals (via O2); cam1 once labeled (horizontal-plane direction; the
    spout-referenced reach angle makes sense there); 3-D.
-4. Still pending from before: labelling round 4 (131 cam4 frames, Priya) + cam1 (student) → retrain DLC + LP;
+4. Still pending from before: labeling round 4 (131 cam4 frames, Priya) + cam1 (student) → retrain DLC + LP;
    `python -m scripts.chronic_stability` once 0928 stage 2 has landed.
 
 ## 0b. Added later on 10-02
@@ -36,7 +36,7 @@ Nothing is running locally.
   `tongue_kinematics.phase_mean`). The per-lick-extent rows look smoother only by construction.
 * **Next proposed:** pre-stroke 60-trial subsets for PS92 / PS94 / PS95 (and PS92 chronic) — locally overnight or on
   O2. **Design for using DLC / LP in the widefield GCaMP analyses: `docs/DLC_IN_WIDEFIELD_ANALYSES.md`** (5 open
-  decisions in its §6, incl. the two DAQ lick detectors that already disagree between imaging and behaviour code).
+  decisions in its §6, incl. the two DAQ lick detectors that already disagree between imaging and behavior code).
 
 * **O2 on hold** until the next DLC / LP iteration (Priya). **Movement-regressor encoding framework built**
   (`movement_encoding`, `movement_inputs`; synthetic-tested) — next: wire imaging frame times + the per-session
@@ -71,9 +71,9 @@ figures); `session_poses/lick_summary_PS93.{csv,png}`, `lick_phase_epochs_PS93.p
 * Lick detection on **protrusion distance** (matters for cam1; ~no change on cam4).
 * **Tongue − spout-tip angle is NOT accuracy on cam4**: it is ±30-35° even on contact licks — the spout-tip label is
   the tube's top edge beside the mouth, the tongue tip is pressed past the spout (`tongue_spout_rays_PS93_20260908.png`).
-  Replaced by **deviation from the successful-lick direction** (`lick_reference`); the dA columns are kept, labelled.
+  Replaced by **deviation from the successful-lick direction** (`lick_reference`); the dA columns are kept, labeled.
 * Lick phase **centered on the peak, fixed window = the animal's pre-stroke median within-bout ILI** (stroke_orofacial's
-  `synthetic_only` mode). The per-lick visible-extent stretch made shape differences partly artefactual
+  `synthetic_only` mode). The per-lick visible-extent stretch made shape differences partly artifactual
   (`lick_phase_modes_PS93.png`). Short / incomplete licks INCLUDED everywhere; only the lip zone (< 30 px) is masked.
 * O2: commands generated, never executed from Python (DUO); bundle on the share; our runner, not `analyze_videos`.
 

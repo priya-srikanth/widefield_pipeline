@@ -151,12 +151,10 @@ def summarise(out: Path) -> None:
 
 
 def main(argv=None) -> int:
+    from wfield_local import config
     from wfield_local import analysis_kit as ak
     from wfield_local import combined_encoding as ce
     from wfield_local import frozen_encoder as fe
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
     from wfield_local.writeguard import assert_writable
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--from", dest="src", required=True)
@@ -165,7 +163,9 @@ def main(argv=None) -> int:
     ap.add_argument("--labels", nargs="*", default=None)
     ap.add_argument("--summarise-only", action="store_true")
     a = ap.parse_args(argv)
-    E = oo.root(PathResolver()) / oc.RUN / "imaging_encoding"
+    E = fe.out_root()        # the (tagged) encoder root, where the frames live and the readers look (rebuild 11-05)
+    fe.check_tag(a.src, "--from")                       # the frozen design (v7g3_t3d | _spont) is in both tags
+    fe.check_tag(a.tag, "relabel")
     src = E / f"frozen_encoder_{a.src}"
     out = E / f"frozen_relabel_{a.tag}"
     assert_writable(out)
@@ -174,6 +174,8 @@ def main(argv=None) -> int:
         summarise(out)
         return 0
     pre_stats = pickle.loads((src / "fit" / "pre_stats.pkl").read_bytes())
+    if not fe.stats_design_ok(pre_stats):               # never mix the two lick designs
+        raise SystemExit(f"{src}: pre statistics of another lick design than {fe.design_name()} ({fe.LICKS_ALL_ENV})")
     fp = out / "joint_fits.pkl"
     if not fp.exists():
         fits = {}
@@ -183,7 +185,7 @@ def main(argv=None) -> int:
             print(f"  {an}: joint pre fit, LOSO R2 {f['loso_r2']:.3f}", flush=True)
         fp.write_bytes(pickle.dumps(fits, protocol=pickle.HIGHEST_PROTOCOL))
     cur = set(ak.curated_labels())
-    labels = a.labels or [x for x in sorted(ce.sessions_available()) if x in cur and x[-4:] >= "0806"]
+    labels = a.labels or [x for x in sorted(ce.sessions_available()) if x in cur and not config.early_pre(x)]
     done = {js.stem for js in (out / "sessions").glob("*.json")}
     todo = [x for x in labels if x not in done]
     got, fail = ak.fan_sessions([(x, str(fp), str(src / "fit" / "templates.pkl")) for x in todo], relabel_job,

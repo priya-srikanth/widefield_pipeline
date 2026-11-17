@@ -23,7 +23,7 @@ post-stroke one.
 
 TWO ARMS, because the obvious one turns out to be unmeasurable:
 
-  MISS-WHILE-WORKING -- the exact analogue of the post-stroke miss. Pre-stroke it barely exists:
+  MISS-WHILE-WORKING -- the exact analog of the post-stroke miss. Pre-stroke it barely exists:
       these animals almost never tried and failed before the lesion, so nearly every pre-stroke
       no-lick trial belongs to the terminal sated tail. PS92 has no testable pair at all. The
       "NOT TESTABLE" branch prints the per-position counts, because the absence is itself the
@@ -102,7 +102,7 @@ for animal in ("PS92", "PS93", "PS94", "PS95"):
     print(f"   pre-stroke no-lick trials: {int(u_pre.sum())} total = "
           f"{int(p_work.sum())} miss-while-working + {int(p_stop.sum())} sated tail")
     UPPER = "DISENGAGED / sated tail (UPPER BOUND -- a larger state difference than a miss)"
-    for arm, mask in (("MISS-WHILE-WORKING (the exact analogue)", p_work), (UPPER, p_stop)):
+    for arm, mask in (("MISS-WHILE-WORKING (the exact analog)", p_work), (UPPER, p_stop)):
         print(f"   -- {arm}")
         vals = []
         for a, b in PAIRS:

@@ -7,7 +7,7 @@ of them is the one in production:
     re-run sweep    (2026-08-13)   strobedetrend         ROI, 16 sess   -- reversed both answers
     EVERYTHING WE RUN NOW          meegkit_hpfit         LocaNMF        -- never swept
 
-The 08-13 re-run found the asymmetry was an artefact (last1s-first1s went +0.245 -> -0.044),
+The 08-13 re-run found the asymmetry was an artifact (last1s-first1s went +0.245 -> -0.044),
 concluded position information is spread EVENLY across the pre-cue window, and kept
 `precue_post_s: 2.0` because shortening stopped helping (mean 1.0 s: -0.023, better in 3/16). Its own
 caveats say ROI not LocaNMF, 16 sessions not 36, and a variant we did not adopt -- "confirm all three

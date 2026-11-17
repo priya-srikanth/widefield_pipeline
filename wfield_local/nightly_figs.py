@@ -76,6 +76,11 @@ RUN_START: float = time.time()
 EPOCH_DRIFT: list[str] = []
 
 
+#: The imaging pre-stroke baseline start for cohort 1 in a plain (non-profile) run (Priya 11-03: August-only,
+#: `config.pre_from` semantics). A render profile sets WIDEFIELD_PRE_FROM itself.
+IMAGING_PRE_FROM = "0801"
+
+
 def cli(*a):
     log("CLI " + " ".join(a))
     if subprocess.call([PY, "-u", "-m", *a], cwd=str(REPO)):
@@ -131,7 +136,7 @@ def _cli_many(cmds, jobs=None):
 
 
 def _resolve_epochs():
-    """DERIVE tonight's epoch boundaries from behaviour, publish them, and log anything that moved.
+    """DERIVE tonight's epoch boundaries from behavior, publish them, and log anything that moved.
 
     MUST RUN BEFORE ANY FIGURE STEP. Every figure that stratifies by epoch reads `epochs.epoch_of`,
     so resolving after the figures would render the deck on last run's boundaries and then write
@@ -165,7 +170,7 @@ def _resolve_epochs():
         if not res["available"]:
             # NOT the same as "nothing changed", and must not read like it: without the cohort
             # table nothing was derived, and the stored spec is what the figures will use.
-            log("  !! epoch boundaries NOT DERIVED this run (no cohort behaviour table); "
+            log("  !! epoch boundaries NOT DERIVED this run (no cohort behavior table); "
                 "figures will use the LAST DERIVED epoch_boundaries.json, or animals.yaml if "
                 "there is none")
             return
@@ -216,8 +221,9 @@ def _epoch_boundaries_used():
         return None
 
 
-def _write_run_record(deck_out, date, tag):
-    """Leave this run's failed-step list on disk, beside the deck.
+def _write_run_record(deck_out, date, tag, sidecar_dir=None):
+    """Leave this run's failed-step list on disk, beside the deck (in ``sidecar_dir`` if given: the nightly keeps it in
+    cohort_out, since only the .pptx files live in decks_out -- 2026-11-06).
 
     WHY. On 2026-08-21 the deck refused to publish and the reason existed ONLY in the terminal
     scrollback of the window that launched the run. Reconstructing it afterwards took a full rebuild
@@ -241,7 +247,7 @@ def _write_run_record(deck_out, date, tag):
            "epoch_boundaries": _epoch_boundaries_used(),
            "deck_published": not FAILURES}
     try:
-        p = Path(deck_out).with_suffix(".run.json")
+        p = (Path(sidecar_dir) / Path(deck_out).name if sidecar_dir else Path(deck_out)).with_suffix(".run.json")
         writeguard.assert_writable(p)
         p.write_text(_json.dumps(rec, indent=1), encoding="utf-8")
         log(f"   run record: {p}")
@@ -249,14 +255,19 @@ def _write_run_record(deck_out, date, tag):
         log(f"  !! could not write run record: {type(ex).__name__} {str(ex)[:80]}")
 
 
-def _per_day_cmds(date, out, from_dates):
-    """The two CLI groups one date needs: the per-alignment decoders, then its encoder."""
-    dp = config.defaults()["decode"]   # aligns + per-align windows (configs/defaults.yaml decode.*_post_s)
+def _per_day_cmds(date, out, from_dates, pooled=True):
+    """The two CLI groups one date needs: the per-alignment decoders, then its encoder.
+
+    ``pooled=False`` adds ``--skip-pooled`` to the encoder: its cross-date pooled figures depend on
+    ``from_dates`` and ``out`` only, so they are drawn by ONE date's encoder (`_per_day_figs`)."""
+    # aligns + per-align windows: decode.*_post_s, the pre-cue one from the lick source (`lp_licks.post_s_for`, 11-04)
+    from wfield_local import lp_licks
+    dp = config.defaults()["decode"]
     dec = [("wfield_local.locanmf_position_decoder", "--date", date, "--align", al,
-            "--post-s", str(dp[f"{al}_post_s"]), "--per-session", "--output", str(out))
+            "--post-s", str(lp_licks.post_s_for(al)), "--per-session", "--output", str(out))
            for al in dp["aligns"]]
     enc = ("wfield_local.locanmf_position_encoder", "--date", date,
-           "--pool-dates", from_dates, "--output", str(out))
+           "--pool-dates", from_dates, "--output", str(out)) + (() if pooled else ("--skip-pooled",))
     return dec, enc
 
 
@@ -297,11 +308,35 @@ def _per_day_figs(per_day, out, from_dates, only):
     against the decoders' minutes, so threading it would buy nothing and risk a torn canvas. The
     encoders go last as their own group: they pool across dates, so they want every decoder done.
     """
-    groups = [_per_day_cmds(d, out, from_dates) for d in per_day]
+    # POOLED ENCODER FIGURES ONCE, not once per date (2026-11-06). Every date's encoder used to redraw
+    # the same FEVE / EV-matrix / per-animal figures from the same `from_dates` into the same `out`,
+    # concurrently -- identical content, N times the work, and racing writes on a backfill night.
+    # The last date draws them; the figures do not depend on which date that is.
+    groups = [_per_day_cmds(d, out, from_dates, pooled=(i == len(per_day) - 1))
+              for i, d in enumerate(per_day)]
     _cli_many([c for dec, _enc in groups for c in dec])       # every (date, alignment) at once
     for d in per_day:
         _per_day_inproc(d, out, only)
     _cli_many([enc for _dec, enc in groups])                  # then every date's encoder
+
+
+def _frozen_units(aligns, from_list, only):
+    """``{align: [(animal, align, labels), ...]}``, animals sorted: the frozen ROI step's units."""
+    animals = []
+    for a in sorted({s["label"].split("_")[0] for s in SESSIONS if s["label"][-4:] in set(from_list)}):
+        if only and a not in set(only):
+            continue
+        # POOLED = pre + post, never the raw date list. `from_list` is a cohort-wide DATE
+        # list and cannot express "8/17 is post-stroke for PS94 and PS95 but excluded for
+        # PS92 and PS93", so it carried PS92_0817 and PS93_0817 -- a post-lesion attempt
+        # that is neither phase. `pooled_frozen_loso` calls everything not pre-stroke
+        # "post", so those two were being scored by the frozen decoder and REPORTED as
+        # post-stroke days. See config.pooled_labels.
+        labs = [x for x in config.pooled_labels(a) if x[-4:] in set(from_list)]
+        if len(labs) < 2:
+            continue
+        animals.append((a, labs))
+    return {al: [(a, al, labs) for a, labs in animals] for al in aligns}
 
 
 def _perday_figs_incomplete(out, d) -> bool:
@@ -449,6 +484,10 @@ def _publish_json(out, rv, log=print) -> dict:
 
 
 def main():
+    from wfield_local import config as _cfg_m2
+    if _cfg_m2.locanmf_projection_on():   # review M2 (11-03): never refit into the adopted per-session folder
+        raise SystemExit("WIDEFIELD_LOCANMF_PROJECT=1: per-session LocaNMF is SERVED by projection; nightly_figs would fit "
+                         "the selected variant's SVTcorr into the adopted locanmf_* folder. Unset it to run nightly_figs.")
     # A subprocess inherits this, so every `cli(...)` step below is covered too. See
     # wfield_local/console.py: a cp1252 stdout turns a printed U+2212 into a lost figure.
     use_utf8_stdout()
@@ -492,7 +531,8 @@ def main():
                     help="skip the CD trajectory stage: the per-position coding directions "
                          "projected frame by frame, the trial-matched pre-to-pre null, and the "
                          "geometry, cross-animal delta and migration figures built from them. "
-                         "Covers BOTH gates: success only, and success + miss-while-working "
+                         "Covers BOTH gates: success only, and success + no-lick working trials (camera: class incomplete "
+                         "inside the working period; DAQ: outside the terminal quit period) "
                          "(pre-cue and cue; the lick alignment cannot take the second gate). "
                          "~90 min COLD for all four animals over three alignments, since every "
                          "session's projection has to be read off MICROSCOPE; minutes once the "
@@ -505,10 +545,22 @@ def main():
     # COHORT: SESSIONS was loaded at import, so the cohort must be chosen BEFORE this process starts --
     # `nightly` exports WIDEFIELD_COHORT; a hand run on cohort2 needs `$env:WIDEFIELD_COHORT="cohort2"` first.
     log(f"cohort: {config.cohort()} ({', '.join(config.animals())})")
-    out = args.output or _default_out()
+    # AUGUST-ONLY PRE-STROKE BASELINE for a plain (non-profile) cohort-1 run (Priya 11-03; DECISIONS 2026-11-03; kept
+    # at the rebuild -> main merge, Priya 11-05). Under a render profile (WIDEFIELD_REBUILD_ROOT set) the profile owns
+    # WIDEFIELD_PRE_FROM, including the blocks that deliberately unset it (june_august_drift, 12.1b, map_drift_prepre,
+    # restnl_mask), so it is NOT defaulted here. An explicit WIDEFIELD_PRE_FROM (or "" to disable) wins.
+    from wfield_local import rebuild_root
+    if config.cohort() == "cohort1" and not rebuild_root.active():
+        os.environ.setdefault("WIDEFIELD_PRE_FROM", IMAGING_PRE_FROM)
+    log(f"pre-stroke baseline: from {config.pre_from() or 'all pre (June + August)'}")
+    from wfield_local import run_mode
+    # review N4 (11-03): a tagged nightly writes (and passes --output) <fw>/<tag>, the folder the readers use; the
+    # default run is unchanged
+    out = str(run_mode.routed_output(args.output or _default_out()))
     Path(out).mkdir(parents=True, exist_ok=True)
     log(f"figure working dir: {out}")
-    registered = sorted({s["label"][-4:] for s in SESSIONS})
+    # sorted by FULL date (config.date8), never as MMDD strings: cohort2 runs across New Year ("0105" < "1029")
+    registered = sorted({s["label"][-4:] for s in SESSIONS}, key=config.date8)
     only = config.normalize_animals(args.only)   # None => all animals
     if only:
         os.environ["WIDEFIELD_ONLY_ANIMALS"] = ",".join(only)  # inherited by the subprocesses below
@@ -536,7 +588,7 @@ def main():
     backfill = [d for d in from_list if d not in per_day and _perday_figs_incomplete(out, d)]
     if backfill:
         log(f"backfilling per-day figs for curated dates missing them on disk: {backfill}")
-    per_day = sorted(set(per_day) | set(backfill))
+    per_day = sorted(set(per_day) | set(backfill), key=config.date8)
 
     # PREFLIGHT: DROP DATES WITH NO LocaNMF FIT AT ALL, and say which and why.
     #
@@ -600,7 +652,7 @@ def main():
             for lab in _avail(d):
                 by_animal.setdefault(lab.split("_")[0], []).append(lab)
         for a, labs in sorted(by_animal.items()):
-            log("wrote " + fig_rolling_cue_by_animal(a, sorted(labs, key=lambda x: x[-4:]), Path(out)).name)
+            log("wrote " + fig_rolling_cue_by_animal(a, sorted(labs, key=config.date8), Path(out)).name)
     except Exception as ex:
         log(f"  !! rolling_by_animal: {type(ex).__name__} {str(ex)[:70]}")
 
@@ -613,8 +665,7 @@ def main():
             from wfield_local.locanmf_frozen_decoder import (
                 _encoder_fig,
                 _loso_fig,
-                pooled_frozen_encoder,
-                pooled_frozen_loso,
+                frozen_pairs,
                 write_animal_confusion_grid,
                 write_session_confusions,
             )
@@ -626,24 +677,22 @@ def main():
             # a by-hand run whose output nothing regenerated and nothing read, so it sat two days
             # stale on an 11-session pre-stroke-only pool while cue and precue moved on. An arm worth
             # having is an arm the nightly maintains; otherwise it silently becomes an orphan.
-            for al in ("cue", "precue", "lick"):
+            aligns = ("cue", "precue", "lick")
+            units = _frozen_units(aligns, from_list, only)
+            # ONE POOL PER (animal, alignment), shared by the decoder and the encoder
+            # (`locanmf_frozen_decoder.frozen_pair`): each used to rebuild the identical ROI pool, and
+            # ROI features were not disk-cached before 11-07, so this step paid ~19 s a session twice over.
+            # WIDEFIELD_FROZEN_JOBS > 1 also fans the units over cores; serial (1) is the default
+            # because the workers' pinned BLAS can move an lbfgs fit -- see `frozen_pairs`.
+            jobs = int(os.environ.get("WIDEFIELD_FROZEN_JOBS", "1") or 1)
+            fanned = frozen_pairs([u for al in aligns for u in units[al]], jobs=jobs, log=log) if jobs > 1 else None
+            for al in aligns:
+                got = fanned if fanned is not None else frozen_pairs(units[al], jobs=1, log=log)
                 dec, enc = {}, {}
-                for a in sorted({s["label"].split("_")[0] for s in SESSIONS if s["label"][-4:] in set(from_list)}):
-                    if only and a not in set(only):
-                        continue
-                    # POOLED = pre + post, never the raw date list. `from_list` is a cohort-wide DATE
-                    # list and cannot express "8/17 is post-stroke for PS94 and PS95 but excluded for
-                    # PS92 and PS93", so it carried PS92_0817 and PS93_0817 -- a post-lesion attempt
-                    # that is neither phase. `pooled_frozen_loso` calls everything not pre-stroke
-                    # "post", so those two were being scored by the frozen decoder and REPORTED as
-                    # post-stroke days. See config.pooled_labels.
-                    labs = [x for x in config.pooled_labels(a) if x[-4:] in set(from_list)]
-                    if len(labs) < 2:
-                        continue
-                    r = pooled_frozen_loso(labs, source="roi", align=al, verbose=False)
+                for a, _al, _labs in units[al]:                          # sorted by animal, as before
+                    r, e = got[(a, al)]
                     if r:
                         dec[a] = r
-                    e = pooled_frozen_encoder(labs, source="roi", align=al, verbose=False)
                     if e:
                         enc[a] = e
                 if dec:
@@ -1018,10 +1067,15 @@ def main():
             except Exception as ex:                                    # noqa: BLE001
                 log(f"== sidecar staleness check failed: {type(ex).__name__} ==")
 
-    # build the refined ANALYSIS deck (animal -> type -> date, curated) at the labcams top level
+    # build the refined ANALYSIS deck (animal -> type -> date, curated) in <decks_out>/analysis (Priya 2026-11-06; it
+    # was the labcams top level). Its JSON sidecars (manifest, run record) stay in cohort_out.
     # Bound OUTSIDE the try: the run record below needs it even when the deck step dies early,
     # and that is exactly the run whose failure list is worth having on disk.
-    deck_out = Path(config.resolver().root("cohort_out")) / "spout_position_analysis_summary.pptx"
+    from wfield_local.paths import deck_dir
+    deck_out = deck_dir("analysis", config.resolver()) / "spout_position_analysis_summary.pptx"
+    # T5 (third review): a TAGGED nightly builds its deck in its own tag folder, never over the default deck
+    deck_out = run_mode.routed_output(deck_out.parent, guard=False) / deck_out.name
+    deck_side = run_mode.routed_output(Path(config.resolver().root("cohort_out")), guard=False)
     try:
         from wfield_local.locanmf_analysis_deck import (
             DeckFromFailedRun,
@@ -1033,7 +1087,7 @@ def main():
         # stale panels (its outputs are last run's), and RUN_START separates figures this run
         # refreshed from ones it did not touch. Neither is visible from the figure tree alone.
         d = build_analysis_deck(Path(out), deck_out, dates=from_list, tag=tag,
-                                failed_steps=sorted(set(FAILURES)), run_start=RUN_START)
+                                failed_steps=sorted(set(FAILURES)), run_start=RUN_START, sidecar_dir=deck_side)
         log(f"== analysis deck: {d['out']} ({d['slides']} slides, {d['figures_present']} figs, "
             f"{d['figures_missing']} missing) ==")
         _stale = d.get("stale_detail") or []
@@ -1100,7 +1154,7 @@ def main():
     log(f"== nightly figures complete: per-day {per_day}, cross-session tag {tag} ==")
     # The last per-day date, which is what this was when it was the loop variable left over
     # from `for date in per_day` -- named now that the loop is a phase.
-    _write_run_record(deck_out, per_day[-1] if per_day else None, tag)
+    _write_run_record(deck_out, per_day[-1] if per_day else None, tag, sidecar_dir=deck_side)
     # REPEATED AT THE END, because the audit runs ~20 h into the night and its lines are thousands
     # of log lines above this point. A drift notice nobody scrolls back far enough to see is the
     # same as no notice. Exit code is deliberately unaffected -- see `_epoch_audit`.
@@ -1109,8 +1163,8 @@ def main():
         for d in EPOCH_DRIFT:
             log(f"     {d}")
         log("   The epochs under this deck differ from the previous one; its pooled epoch panels "
-            "are not comparable. Boundaries used are recorded in epoch_boundaries.json beside the "
-            "deck, and WIDEFIELD_EPOCHS_PINNED=1 rebuilds under the stored EPOCH_SPEC.")
+            "are not comparable. Boundaries used are recorded in epoch_boundaries.json (cohort_out, "
+            "the labcams top level), and WIDEFIELD_EPOCHS_PINNED=1 rebuilds under the stored EPOCH_SPEC.")
     # A run whose figure steps all failed used to exit 0 and leave a deck with 0 figures and 287
     # missing -- indistinguishable from success to any caller or cron job. Report the truth.
     if FAILURES:

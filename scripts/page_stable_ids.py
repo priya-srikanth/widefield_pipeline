@@ -52,7 +52,9 @@ def main():
         num, src = num.group(1), img.group(1)
         seen[src] = seen.get(src, 0) + 1
         key = (src, seen[src])
-        fid = prev.get(key)
+        have = re.search(r'\sid="f-([^"]+)"', attrs)  # an id already on the page wins (image may have been renamed)
+        fid = have.group(1) if have else prev.get(key)
+        used.add(fid) if fid else None
         if fid is None:
             base = _fid(src)
             fid, k = base, 1
@@ -63,7 +65,7 @@ def main():
         numid = "fig" + num.replace(".", "-")
         num2fid[numid] = fid
         attrs = re.sub(r'\s(?:id|data-fid)="[^"]*"', "", attrs)
-        body = re.sub(r'^\s*<span id="fig[\d-]+" class="figanchor"></span>', "", body)
+        body = re.sub(r'^\s*<span id="fig[\w-]+" class="figanchor"></span>', "", body)
         lab = re.search(r'data-label="([^"]*)"', attrs)
         rows.append({"fid": fid, "number": num, "title": html.unescape(lab.group(1)) if lab else "", "src": src,
                      "occ": seen[src]})
@@ -71,14 +73,14 @@ def main():
                 f'</figure>')
 
     h = FIG.sub(fig, h)
-    h = re.sub(r'href="#(fig[\d-]+)"', lambda m: f'href="#f-{num2fid[m.group(1)]}"' if m.group(1) in num2fid
+    h = re.sub(r'href="#(fig[\w-]+)"', lambda m: f'href="#f-{num2fid[m.group(1)]}"' if m.group(1) in num2fid
                else m.group(0), h)
     page.write_text(h, encoding="utf-8")
     with open(reg, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, ["fid", "number", "title", "src", "occ"])
         w.writeheader()
         w.writerows(rows)
-    dead = sorted(set(re.findall(r'href="#(fig[\d-]+)"', h)))
+    dead = sorted(set(re.findall(r'href="#(fig[\w-]+)"', h)))
     print(f"{page}: {len(rows)} figures -> stable ids; registry {reg}; unresolved numeric links: {dead or 'none'}")
 
 

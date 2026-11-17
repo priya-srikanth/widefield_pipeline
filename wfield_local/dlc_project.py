@@ -1,8 +1,8 @@
-"""Assemble the DLC project so labelling is one command away.
+"""Assemble the DLC project so labeling is one command away.
 
 `dlc_frames` extracts frames and `dlc_prelabel` seeds them, but both write into a plain directory on
 the share; DeepLabCut needs a PROJECT around that -- a `config.yaml` naming the bodyparts, and
-`labeled-data/<video-stem>/` folders it recognises. This builds and refreshes it, idempotently, so
+`labeled-data/<video-stem>/` folders it recognizes. This builds and refreshes it, idempotently, so
 the answer to "what do I run to label?" is two commands rather than a recipe.
 
 **The project's `bodyparts` is the UNION across views; each view still only gets what it can see.**
@@ -23,7 +23,7 @@ CLI (from the ``dlc`` env)::
 
     python -m wfield_local.dlc_project --create        # build it, or refresh in place
     python -m wfield_local.dlc_project                 # refresh + repoint, no creation
-    python -m wfield_local.dlc_project --label         # ... and open the labelling GUI
+    python -m wfield_local.dlc_project --label         # ... and open the labeling GUI
 """
 from __future__ import annotations
 
@@ -55,7 +55,7 @@ _PROJECT_RE = re.compile(rf"^{re.escape(TASK)}-{re.escape(SCORER)}-\d{{4}}-\d{{2
 def project_dir(rv=None) -> Path:
     """``<dlc>/<Task>-<scorer>-<date>`` -- beside the frames it labels.
 
-    On the SHARE rather than a local disk: the labels are the expensive artefact in this pipeline,
+    On the SHARE rather than a local disk: the labels are the expensive artifact in this pipeline,
     they are produced interactively on whichever box someone is sitting at, and a project on one
     box's C: drive is invisible to the other and to any backup.
 
@@ -195,7 +195,7 @@ def run(create=False, cams=None, rv=None, label=False, folder=None) -> Path:
 
 
 def open_gui(cfg: Path, folder: str | None = None) -> None:
-    """Open DLC's labelling GUI and BLOCK until it is closed.
+    """Open DLC's labeling GUI and BLOCK until it is closed.
 
     ``deeplabcut.label_frames`` builds a napari viewer and returns it without starting a Qt event
     loop (``deeplabcut/gui/widgets.py::launch_napari``). From IPython that is fine -- the loop is
@@ -212,7 +212,7 @@ def open_gui(cfg: Path, folder: str | None = None) -> None:
     """
     import deeplabcut
 
-    print("\n[dlc_project] opening the labelling GUI (close the window to return) ...", flush=True)
+    print("\n[dlc_project] opening the labeling GUI (close the window to return) ...", flush=True)
     try:
         deeplabcut.label_frames(str(cfg), folder) if folder else deeplabcut.label_frames(str(cfg))
     except (AttributeError, ImportError) as exc:
@@ -232,7 +232,7 @@ def main(argv=None) -> int:
     ap.add_argument("--create", action="store_true", help="create the project if it does not exist")
     ap.add_argument("--cam", action="append", default=None,
                     help="restrict to these cameras (repeatable; default: all with frames)")
-    ap.add_argument("--label", action="store_true", help="open the DLC labelling GUI afterwards")
+    ap.add_argument("--label", action="store_true", help="open the DLC labeling GUI afterwards")
     ap.add_argument("--folder", default=None,
                     help="labeled-data folder to open first (default: the alphabetically first)")
     ap.add_argument("--machine", default=None)

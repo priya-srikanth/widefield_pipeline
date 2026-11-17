@@ -1,14 +1,14 @@
-"""Is the slow band that survives meegkit_hpfit behaviour (real slow signal) or drift? cohort2 10-29, 2026-10-30.
+"""Is the slow band that survives meegkit_hpfit behavior (real slow signal) or drift? cohort2 10-29, 2026-10-30.
 
 Replaces `slow_is_bleach.py`, whose raw-.dat bleach trajectories mixed 415 and 470 (see channel_drift.py).
-Corrected cortex mean (brain-masked U mean . hemo_meegkit_hpfit SVTcorr) in 2 s bins vs behaviour from the
+Corrected cortex mean (brain-masked U mean . hemo_meegkit_hpfit SVTcorr) in 2 s bins vs behavior from the
 GUI log (`Behavior_logs/Widefield/<animal>_20261029_*/trials.csv`, `events.csv`):
   position = one-hot of the current trial's spout position (6), engagement = hit indicator + lick-on count.
-Both sides projected on the same cosine band (period >= P), then OLS of the neural slow band on the behaviour
-slow band. The null is the same fit with the behaviour CIRCULARLY SHIFTED (>= 10 min, 200 shifts): it keeps
-the behaviour's own slow structure and the band's degrees of freedom, so chance R^2 is measured, not assumed.
+Both sides projected on the same cosine band (period >= P), then OLS of the neural slow band on the behavior
+slow band. The null is the same fit with the behavior CIRCULARLY SHIFTED (>= 10 min, 200 shifts): it keeps
+the behavior's own slow structure and the band's degrees of freedom, so chance R^2 is measured, not assumed.
 
-Clock: imaging frame 0 ~ DAQ start (dat_head_dropped_before_daq = 0); behaviour times are GUI unix times, put
+Clock: imaging frame 0 ~ DAQ start (dat_head_dropped_before_daq = 0); behavior times are GUI unix times, put
 on the DAQ clock by the DAQ file's timestamp (its name). A few seconds of offset is irrelevant at >= 121 s.
 
     conda activate locanmf

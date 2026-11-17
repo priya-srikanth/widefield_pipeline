@@ -5,10 +5,10 @@ whole `maps_by_epoch` pass; this module opens `epoch_15k_cohort_<align>.csv` and
 same separation `epoch_15h --replot` exists for, and for the same reason -- on 2026-09-17 two of
 the day's three full passes bought nothing but a change to how something was DRAWN.
 
-It REFUSES if the table is absent rather than computing one, so a colour change can never silently
+It REFUSES if the table is absent rather than computing one, so a color change can never silently
 cost half an hour.
 
-THE COLOUR SCALE IS PER FAMILY, DELIBERATELY. `raw`, `precue` and `restw` are not in the same
+THE COLOR SCALE IS PER FAMILY, DELIBERATELY. `raw`, `precue` and `restw` are not in the same
 units: `raw` has no subtrahend, `precue` is a cue-evoked INCREMENT over a per-trial baseline, and
 `restw` is activity above rest. A shared scale would invite reading one family's amplitude against
 another's, which is the one comparison these three cannot support. What IS comparable across them
@@ -23,6 +23,7 @@ not a threshold.
     python -m scripts.rest_migration.reference_family_figure [--align cue]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import csv
@@ -423,7 +424,7 @@ def _figure(rows, out_dir, align="cue", tag=""):
              "all three references agree -- the cell no single subtrahend explains.\n"
              "LAST COLUMN: blue = decrease, red = increase, darker = more references agreeing; "
              "x = the significant references DISAGREE in sign.\n"
-             "COLOUR SCALES DIFFER BETWEEN COLUMNS ON PURPOSE: raw has no subtrahend, precue is "
+             "COLOR SCALES DIFFER BETWEEN COLUMNS ON PURPOSE: raw has no subtrahend, precue is "
              "an increment over the per-trial pre-cue window, restw is activity above rest.\n"
              "Epochs within a column ARE comparable. The unit is a LocaNMF COMPONENT grouped by "
              "its Allen label, never a pixel mean over the area.\n"
@@ -434,7 +435,7 @@ def _figure(rows, out_dir, align="cue", tag=""):
                 "Cue-aligned, so every trial contributes whether or not the animal responded."),
              ha="center", va="top", fontsize=8.5)
     out = Path(out_dir) / f"epoch_15k_reference_families_{align}{tag}.png"
-    fig.savefig(out, dpi=150, bbox_inches="tight")
+    save_png_svg(fig, out, dpi=150, bbox_inches="tight")
     plt.close(fig)
     return out
 
@@ -445,15 +446,15 @@ def _ccf_figure(rows, out_dir, align="cue", tag="", family="restw", n_families=N
     Priya, 2026-09-17: *"can we make a version of the agree in all 3 that is on the Allen CCF
     picture?"* A 30-row region list is a table of names; the same result on a brain is an
     anatomical claim you can read at a glance, and the two SSp subdivisions that dominate every
-    chronic list are neighbours -- which the alphabetical row order actively hides.
+    chronic list are neighbors -- which the alphabetical row order actively hides.
 
-    ONE FAMILY SUPPLIES THE COLOUR (`restw` by default) AND THE OTHER TWO SUPPLY THE GATE. Only
+    ONE FAMILY SUPPLIES THE COLOR (`restw` by default) AND THE OTHER TWO SUPPLY THE GATE. Only
     cells whose CI clears zero in ALL THREE are painted, so the map is the agreed set; the number
     shown is one reference's, because the three are not in the same units and averaging them would
     invent a quantity none of them measures.
 
     A PAINTED REGION IS A LocaNMF-COMPONENT MEAN SPREAD OVER ITS ALLEN FOOTPRINT -- it is NOT a
-    pixel map, and the flat colour inside a region is the point rather than a rendering shortcut.
+    pixel map, and the flat color inside a region is the point rather than a rendering shortcut.
     The sharp edges are the parcellation's, not the data's.
     """
     import matplotlib
@@ -575,17 +576,17 @@ def _ccf_figure(rows, out_dir, align="cue", tag="", family="restw", n_families=N
     fig.text(0.5, 1 - 0.70 / fig_h,
              f"Painted only where the cohort CI excludes zero in ALL {n_families} references "
              f"({' AND '.join(present)}) -- the change no single subtrahend's failure mode "
-             f"explains. Colour is the {family} value.\n"
-             "FLAT COLOUR INSIDE A REGION IS THE RESULT, NOT A RENDERING SHORTCUT: the unit is a "
+             f"explains. Color is the {family} value.\n"
+             "FLAT COLOR INSIDE A REGION IS THE RESULT, NOT A RENDERING SHORTCUT: the unit is a "
              "LocaNMF component mean, spread over its Allen footprint. The edges are the "
              "parcellation's.\n"
-             "Dashed line = the analysed mask (olfactory bulbs and the glue/window edge "
-             "excluded). Pale grey = agreed on nothing there.\n"
+             "Dashed line = the analyzed mask (olfactory bulbs and the glue/window edge "
+             "excluded). Pale gray = agreed on nothing there.\n"
              "'_left' IS THE ANIMAL'S LEFT and every lesion is left-sided, so left = "
              "IPSILESIONAL, and it is also the hemisphere representing the impaired right side.",
              ha="center", va="top", fontsize=8.5)
     out = Path(out_dir) / f"epoch_15k_agreed_ccf_{align}{tag}.png"
-    fig.savefig(out, dpi=150, bbox_inches="tight")
+    save_png_svg(fig, out, dpi=150, bbox_inches="tight")
     plt.close(fig)
     return out
 
@@ -609,7 +610,8 @@ def main() -> int:
                     help="verify that atlas '_left' is the ANIMAL'S left and exit. Reads the "
                          "saved vectors; costs nothing.")
     a = ap.parse_args()
-    out_dir = a.out or (Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch")
+    from wfield_local import lp_licks              # run-mode routing (rebuild 11-03): identity for the default run
+    out_dir = a.out or lp_licks.output_dir(Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch")
 
     if a.hemisphere_check:
         return 0 if hemisphere_check(out_dir, a.align, a.tag) else 1

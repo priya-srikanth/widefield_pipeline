@@ -1,0 +1,39 @@
+slide,title,level,producing_script
+7,Mixed-model stars: first-lick aim by spout,CODE,"scripts/lmm_change_fig.py (run in widefield_pipeline at 1decbe53, e3) on the parent figure's session sidecar"
+14,"Mixed-model stars: LP-trained frozen decoder, pre-cue",CODE,"scripts/lmm_change_fig.py (widefield_pipeline 1decbe53, e3) on the pre-rebuild LPfinal sidecars"
+15,Refit decoder: spout decodable pre- and post-cue,CODE,M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-02/fig_decoding_sessions_campllick_stars_1103.py
+16,Mixed-model stars: refit decoder,CODE,"scripts/lmm_change_fig.py (widefield_pipeline 1decbe53, e3) on decoding_refit_sessions_campllick.csv"
+25,"Lick-aligned maps: far contra drops, near ipsi rises",LOG,"scripts/lp_final_render.py maps (step g5_lpfinal_maps_g, queue v20 glue re-run, code 8aed3a7b); crop by pideck/make_crop"
+26,Pre-cue maps: far contra falls acutely,LOG,"scripts/lp_final_render.py maps (step g5_lpfinal_maps_g, queue v20 glue re-run, code 8aed3a7b); crop by pideck/make_crop"
+33,Mixed-model stars: cam4 lick metrics,CODE,"scripts/lmm_change_fig.py (widefield_pipeline 1decbe53, e3) on the orofacial_cohort session sidecar"
+35,Far contra: acute trials end as incomplete licks,CODE,C:/Users/SabatiniLab/AppData/Local/Temp/claude/C--Users-SabatiniLab/782a4a7a-7855-40ed-b449-494e8aa4b6bc/scratchpad/tria
+37,Far contra: contact .96 → .05 acutely,LOG,scripts/trial_class_raw_share_fig.py --all-engaged <jaw_only_incomplete_figs dir> (steps k_jaw_only_figs -> k_tc_share_r
+38,Mixed-model stars: trial-class shares,CODE,scripts/lmm_change_fig.py on M:/MICROSCOPE/Priya/DeepLabCut/Widefield/session_poses/cam1_licks/trial_classes_working_110
+39,Trial classes: change vs pre,LOG,scripts/trial_class_raw_share_fig.py --all-engaged <dir> --change (step k_tc_share_raw_chg)
+45,Mixed-model stars: jaw steering FAR_DIR,CODE,scripts/lmm_change_fig.py (analysis_kit.epoch_change_lmm / lmm_stars; sabatinilab-e3 1decbe53) on orofacial_jaw_lateral 
+47,Mixed-model stars: 3-D lick angle,CODE,scripts/lmm_change_fig.py (epoch_change_lmm / lmm_stars; sabatinilab-e3 1decbe53)
+57,Mixed-model stars: 3-D far-spout midline error / approach / reach,CODE,scripts/lmm_change_fig.py (sabatinilab-e3 1decbe53)
+59,Mixed-model stars: within-lick correction,CODE,"scripts/lmm_hidden/rec_wlc_primary.py extractor + scripts/lmm_change_fig.py (branch lmm-hidden-20261103, wf_lmm_main)"
+63,"Compensation: hits return, normal licks do not",CODE,scripts/kinematic_normality.py
+64,Mixed-model stars: kinematic normality,CODE,scripts/lmm_hidden/rec_kn_epoch.py extractor + scripts/lmm_change_fig.py (branch lmm-hidden-20261103)
+65,"Normality recovers fast, stops short",CODE,scripts/kinematic_normality.py
+156,Holds at matched stillness; absent at 415 nm,CODE,"scripts/cohort2_qc/quiet_stillness.py --plot-only (left, quiet_stillness_nolines.png); scripts/cohort2_qc/quiet_hemo_che"
+159,PS120: no GCaMP signal (null),CODE,scripts/cohort2_qc/spout_maps.py 20261029 20261030 --uniform
+160,RiboL1-8s: 10–20x less signal than 6s,CODE,scripts/cohort2_qc/indicator_kinetics_spread.py
+161,"8s maps: spread, vessel-patterned",CODE,scripts/cohort2_qc/indicator_kinetics_spread.py
+174,2pRAM: H2B vs NES-mCherry labeling,CODE,"M:/MICROSCOPE/Priya/2p-RAM/grant_figs/grant_construct_row.py (via grant_figs/build_all.sh, --nes-cell 0) cropping constr"
+175,NES-mCherry review sheet (PS110),CODE,2pRAM_pipeline_multiacq scripts/red_detection_gallery.py (rev c59b16a) + build_inputs/twop/retile_red_detection_gallery.
+176,H2B-mCherry review sheet (PS104),CODE,2pRAM_pipeline_multiacq scripts/red_detection_gallery.py (rev 0f1de17) + build_inputs/twop/retile_red_detection_gallery.
+177,2pRAM mCherry call: 15-19 % of cells,CODE,"2pRAM_pipeline_multiacq scripts/run_session.py, roi_overlay step (refined call rev0f1de17, ram_local/mcherry_refined.py)"
+178,2pRAM: six spout coding directions,CODE,M:/MICROSCOPE/Priya/2p-RAM/grant_figs/grant_cd_proj.py --per-panel-y (build_all.sh) on PS110_20260925_position_cds_noise
+179,"2pRAM decoding: pre-cue .72, lick .95",CODE,"M:/MICROSCOPE/Priya/2p-RAM/grant_figs/grant_confusion.py (build_all.sh) reading position_decode_{enl_noise_enlw1.5_nobl,"
+180,2pRAM: ~10 % lick-direction selective,CODE,M:/MICROSCOPE/Priya/2p-RAM/grant_figs/grant_lickdir.py (build_all.sh) from PS110_20260925_lick_direction_noise.npz + lic
+181,2pRAM: lick-direction cells intermixed,CODE,M:/MICROSCOPE/Priya/2p-RAM/grant_figs/grant_selmap_pertile.py (colors from 2pRAM_pipeline scripts/lick_direction_cells.p
+182,2pRAM: mCh+ and mCh− equally selective,CODE,2pRAM_pipeline_multiacq scripts/selectivity.py (selectivity step of run_session.py)
+183,ROICaT: 64-86 % of cells re-found,CODE,2pRAM_pipeline_multiacq scripts/roicat_track.py --align full + scripts/crossday_review.py
+184,axon-GCaMP8s on 2pRAM,CODE,M:/MICROSCOPE/Priya/2p-RAM/grant_figs/grant_axon_panel.py (build_all.sh)
+186,Backup: pre-cue maps (LP),LOG,"scripts/lp_final_render.py maps (step g5_lpfinal_maps_g, queue v20 glue re-run)"
+195,Backup: raw trajectory matrices,CODE,scripts/lick_path_softmax.py (output path_softmax_matrices_w1.png)
+204,"Backup: cue-window maps, session-mean twin",LOG,"scripts/lp_final_render.py maps (step g5_lpfinal_maps_g, queue v20 glue re-run)"
+205,"Backup: lick-window maps, session-mean twin",LOG,"scripts/lp_final_render.py maps (step g5_lpfinal_maps_g, queue v20 glue re-run)"
+206,"Backup: pre-cue maps, session-mean twin",LOG,"scripts/lp_final_render.py maps (step g5_lpfinal_maps_g, queue v20 glue re-run)"

@@ -1,0 +1,31 @@
+label,run,i,spout,raw,cat,src,t_rel_cue_s
+PS93_0821,341-349,346,close_contra,jaw_only,i,cam4,"-5.48, -5.24, -5.10, -4.96, -4.80, -4.62, -4.44, -4.30, -4.08, -3.93, -3.74, -3.60, -3.37, -3.19, -2.98, -2.75"
+PS93_0821,341-349,346,close_contra,jaw_only,i,daq,"-5.50, -5.38, -5.26, -5.13, -4.99, -4.82, -4.65, -4.49, -4.33, -4.10, -3.95, -3.80, -3.64, -3.39, -3.20, -3.00"
+PS93_0821,341-349,347,close_contra,no_response,i,cam4,"-3.58, -3.44, -3.28, -3.08, -2.90, -2.67"
+PS93_0821,341-349,347,close_contra,no_response,i,daq,"-3.61, -3.47, -3.31, -3.13, -2.91"
+PS93_0821,341-349,348,close_contra,jaw_only,i,cam4,"-3.81, -3.65, -3.51, -3.33, -3.15, -2.91, -2.75, -2.54"
+PS93_0821,341-349,348,close_contra,jaw_only,i,daq,"-3.86, -3.68, -3.54, -3.36, -3.17, -2.98"
+PS92_0809,423-439,423,close_contra,no_response,i,cam4,"-2.56, -2.38"
+PS92_0809,423-439,423,close_contra,no_response,i,daq,-2.59
+PS92_0809,423-439,423,close_contra,no_response,v,cam4,+4.77
+PS92_0809,423-439,436,far_contra,no_response,v,cam4,+6.76
+PS92_0809,423-439,436,far_contra,no_response,v,daq,+6.76
+PS92_0809,423-439,437,close_ipsi,no_response,i,cam4,"-4.36, -4.16, -4.03, -3.91, -3.78, -3.65, -3.51, -3.36, -3.23, -3.09, -2.93, -2.78, -2.63, -2.44"
+PS92_0809,423-439,437,close_ipsi,no_response,i,daq,"-4.38, -4.28, -4.17, -4.05, -3.93, -3.80, -3.68, -3.54, -3.39, -3.26, -3.11, -2.96, -2.81, -2.66"
+PS92_0809,423-439,437,close_ipsi,no_response,v,cam4,"+3.73, +6.41"
+PS92_0809,423-439,438,close_ipsi,no_response,v,cam4,+3.78
+PS93_0822,440-511,440,close_contra,no_response,v,cam4,"+5.26, +5.97"
+PS93_0822,440-511,448,far_mid,jaw_only,i,cam4,-1.99
+PS93_0822,440-511,496,far_mid,no_response,i,cam4,-0.24
+PS93_0822,440-511,496,far_mid,no_response,ii,cam4,+0.00
+PS93_0822,440-511,503,far_contra,no_response,i,cam4,-0.43
+PS92_0820,443-552,480,close_ipsi,jaw_only,i,cam4,-2.31
+PS92_0820,443-552,480,close_ipsi,jaw_only,i,daq,-2.31
+PS92_0820,443-552,492,far_contra,no_response,v,cam4,"+4.94, +5.30, +6.17"
+PS92_0820,443-552,493,far_contra,jaw_only,i,cam4,"-2.04, -1.76"
+PS92_0820,443-552,498,close_contra,jaw_only,i,cam4,"-2.57, -2.41"
+PS92_0820,443-552,498,close_contra,jaw_only,i,daq,"-2.59, -2.43"
+PS92_0820,443-552,530,close_ipsi,no_response,i,cam4,-2.77
+PS92_0820,443-552,530,close_ipsi,no_response,i,daq,-2.77
+PS95_0806,470-522,486,far_contra,no_response,v,cam4,+5.45
+PS95_0806,470-522,507,far_ipsi,jaw_only,v,cam4,+4.90

@@ -35,7 +35,7 @@ def test_the_deck_is_built_after_the_epoch_figures():
 def test_a_subset_run_does_not_overwrite_the_pooled_deliverable():
     """`--only PS92` must not publish a one-animal figure over the four-animal one.
 
-    `grant_figures.ANIMALS` is a fixed four-tuple, but the collectors under it honour
+    `grant_figures.ANIMALS` is a fixed four-tuple, but the collectors under it honor
     WIDEFIELD_ONLY_ANIMALS -- so a subset run yields a correct figure of the WRONG THING at the
     path the deck reads.
     """

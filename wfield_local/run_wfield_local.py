@@ -13,9 +13,12 @@ from pathlib import Path
 
 import numpy as np
 
-from wfield.decomposition import approximate_svd
-from wfield.hemocorrection import hemodynamic_correction
-from wfield.io import mmap_dat
+from wfield_local.wfield_import import no_style_leak
+
+with no_style_leak():   # wfield restyles matplotlib at import (wfield_import docstring)
+    from wfield.decomposition import approximate_svd
+    from wfield.hemocorrection import hemodynamic_correction
+    from wfield.io import mmap_dat
 
 
 def _detrend_svt(svt: np.ndarray, order: int) -> np.ndarray:

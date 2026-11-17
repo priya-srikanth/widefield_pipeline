@@ -5,7 +5,7 @@ mask, native pixels.
 Per session:
   * DECODING at matched trials: N_PER trials per spout (the minimum available across the four sessions), cue-window
     feature = mean over 0-1 s minus -1-0 s of the first K_COMP SVTcorr components (the same K for everyone; U is each
-    session's own basis, so features are session-specific but equal in number). Standardised logistic regression
+    session's own basis, so features are session-specific but equal in number). Standardized logistic regression
     (C 0.5), 5-fold stratified CV, balanced accuracy, mean +- SD over N_REP random trial subsamples. Chance 1/6.
   * SPECIFICITY of the per-spout cue maps (0-1 s): spout-specific share = sum ||m_p - mean_p m||^2 / sum ||m_p||^2
     (0 = all spouts give the same map); L-R contrast = ||m_L - m_R|| / ||(m_L + m_R)/2||, close and far.
@@ -44,7 +44,7 @@ def load(animal):
     res = mc / "wfield_local_results"
     s = dict(label=f"{animal}_1029", mc=str(mc), h5=str(DAQ / h5), regime="B", fmdir=None)
     cue = _lc(s["h5"])
-    lk = _ll(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    lk = _ll(s["h5"], "lick_analog")
     cf, _lf, _cs = _frames(s, cue, lk)
     st = np.asarray(cue["strobe_samples"])
     pos = np.asarray(cue["strobe_codes"])[np.clip(np.searchsorted(st, cue["cue_samples"]) - 1, 0, None)]

@@ -5,7 +5,7 @@ pipeline overview: docs/FACE_RHYTHM_PIPELINE.md.
 The 2pRAM-cohort manuscript's FR analyses (FACE_RHYTHM_PLAN.md "What the 2pRAM-cohort manuscript does with FR"), here
 ACROSS animals (one mesh, one frozen pre-stroke basis):
   amplitudes     pre-stroke components refit to every session: mean factor amplitude per session -- as a SHARE of
-                 the frame's movement (amp_) and as ABSOLUTE expression (abs_ = weights x FR normaliser D) -- in the pre-cue
+                 the frame's movement (amp_) and as ABSOLUTE expression (abs_ = weights x FR normalizer D) -- in the pre-cue
                  (cue -2..0 s) and response (0..+4 s) windows of engaged trials (25 Hz), BETWEEN trials (5 Hz bins
                  outside cue -3..+6 s, LARGE MOVEMENT excluded; the MEDIAN, so rare large events cannot drive it) and in
                  LARGE MOVEMENT (`large_movement`, + large_frac) -- "non-task movements preserved?" is between vs
@@ -15,10 +15,10 @@ ACROSS animals (one mesh, one frozen pre-stroke basis):
   evr_gap        each session's OWN rank-R fit vs the frozen basis on the same rows (EVR own - frozen), and how far its
                  own factors have moved from the frozen ones (matched spatial / spectral cosine: factor "morphing").
   movement       per point and window, two measures: SPEED (absolute movement, px / s RMS of the 25 Hz points) and
-                 SHARE (normalised spectral power summed over xy and a band -- FR divides every frame by its mean
+                 SHARE (normalized spectral power summed over xy and a band -- FR divides every frame by its mean
                  power over the whole face, so this is how movement is DISTRIBUTED, not how much). Per animal x epoch
                  the per-point log2 change from its pre-stroke mean (maps on the master face, averageable across
-                 animals), and a CONTRA - IPSI asymmetry index per measure. Factor AMPLITUDES are on the normalised
+                 animals), and a CONTRA - IPSI asymmetry index per measure. Factor AMPLITUDES are on the normalized
                  spectrogram too: a change is a change in SHARE of the face's movement, not in its size. cam4: IPSILESIONAL = IMAGE RIGHT (Priya 10-21; all
                  lesions left), split at the face midline (MASTER_MIDLINE_X, the master's LP nose x, unless given).
 One row per SESSION (a two-video session, PS92_0812, is joined). Epoch statistics: `orofacial_cohort.epoch_tables`
@@ -41,12 +41,12 @@ MASTER_MIDLINE_X = 342.0
 
 def large_movement(ts: np.ndarray, D: np.ndarray, cues: np.ndarray, pct: float = 99.0, min_s: float = 0.4,
                    widen_s: float = 1.0) -> np.ndarray:
-    """Boolean per session bin: LARGE non-task MOVEMENT -- whole-face movement (FR normaliser D) above the session's
+    """Boolean per session bin: LARGE non-task MOVEMENT -- whole-face movement (FR normalizer D) above the session's
     ``pct`` percentile of response-window bins (cue 0..+4 s: the licking range), outside response windows, in runs of
     >= ``min_s``, widened by ``widen_s``. NOT a grooming detector (10-21, Priya's calls on PS92_0806 clips): it catches
     the big grooming bouts but also vigorous spontaneous licking, and misses small grooming; neither LP licks (LP
     reports licks during grooming) nor regional speed (upper face / nose vs mouth) separated them. A grooming label
-    needs the paws or hand-labelled bouts (factor clips --window large)."""
+    needs the paws or hand-labeled bouts (factor clips --window large)."""
     resp = np.zeros(len(ts), bool)
     for c in cues:
         resp |= (ts >= c + WINDOWS["response"][0]) & (ts < c + WINDOWS["response"][1])
@@ -88,7 +88,7 @@ def _day(label: str):
 
 def amplitudes(fdir: Path, names: list[str], absolute: bool = False) -> tuple[pd.DataFrame, pd.DataFrame]:
     """(per session: amp_<comp>_<precue|response|between>, per session x position x comp: response amplitude).
-    ``absolute``: weights x each bin's FR normaliser D -> the component's absolute expression (columns ``abs_``);
+    ``absolute``: weights x each bin's FR normalizer D -> the component's absolute expression (columns ``abs_``);
     default = its SHARE of the frame's movement."""
     pre_ = "abs" if absolute else "amp"
     sums, pos_rows = {}, []
@@ -188,7 +188,7 @@ def evr_gap(fdir: Path, names: list[str]) -> pd.DataFrame:
 
 
 def point_measure(fdir: Path, freqs: np.ndarray, measure: str = "speed", band: str = "all") -> tuple[list[str], dict]:
-    """Per session, per point: ``speed`` (RMS px / s) or ``share`` (normalised spectral power summed over xy and the
+    """Per session, per point: ``speed`` (RMS px / s) or ``share`` (normalized spectral power summed over xy and the
     band): {window: (n_sessions, P)} for between / precue / response (trial windows over positions, bin-weighted;
     speed averages speed^2 then roots)."""
     lo, hi = BANDS[band]

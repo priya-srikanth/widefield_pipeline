@@ -28,7 +28,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 def test_pin_blas_actually_changes_the_loaded_library():
-    """BEHAVIOURAL, because the structural version of this test passed while the fix did not work.
+    """BEHAVIORAL, because the structural version of this test passed while the fix did not work.
 
     The first attempt set OMP_NUM_THREADS and friends inside `main()`. A test asserting `_pin_blas`
     is *called* there passed; the render still produced the uncapped bytes, because OpenBLAS reads
@@ -63,7 +63,9 @@ def test_pin_blas_runs_on_the_serial_path_too():
 
 
 def test_pin_blas_covers_every_backend_numpy_might_use():
+    # pin_blas lives in parallel.py since 2b626e44 and loops over its _BLAS_VARS tuple, so the names are read there
     src = inspect.getsource(grant_figures._pin_blas)
+    src += repr(getattr(inspect.getmodule(grant_figures._pin_blas), "_BLAS_VARS", ()))
     for var in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS",
                 "NUMEXPR_NUM_THREADS", "VECLIB_MAXIMUM_THREADS"):
         assert var in src, f"{var} unpinned -- one uncapped backend is enough to move the bits"

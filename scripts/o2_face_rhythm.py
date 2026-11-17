@@ -198,7 +198,7 @@ def setup(task, threads, mode="r+", P=None, work=True):
         assert s.m >= settle, f"VQT margin {s.m} < notch settling {settle:.0f} frames"
     s.n_bins = s.n // s.DS
     s.n5 = s.n_bins // s.D5
-    # trial grid -> fractional source frames (bundle); 25 Hz bin j is centred on frame 10 j + 4.5
+    # trial grid -> fractional source frames (bundle); 25 Hz bin j is centered on frame 10 j + 4.5
     with np.load(B / "trials" / f"{s.key}.npz") as Z:
         s.Z = {k: Z[k] for k in Z.files}
     u = (s.Z["src_frame"] - (s.DS - 1) / 2) / s.DS
@@ -591,13 +591,13 @@ def trial_frames(w) -> dict:
 
 
 def engaged_only(tr: dict, animal: str, date: str, sd: Path) -> tuple[dict, str]:
-    """``tr`` cut to the engaged trials (`orofacial_cohort.engagement_keep`, the cohort tables' gate: the behaviour
+    """``tr`` cut to the engaged trials (`orofacial_cohort.engagement_keep`, the cohort tables' gate: the behavior
     pipeline's `engaged` flag, ids matched to ours by id / DAQ cue time / order). Ungated (all trials) when the session
     has no usable flag; the label says which."""
     from wfield_local import orofacial_cohort as oc
     keep, label = oc.engagement_keep(animal, date, sd)
     if "matched by" in label:                  # e.g. 08/06 (dead spout_bit1): behaviour table from the GUI log, 1-based
-        label = "reference (behaviour ids differ from ours; matched by " + label.split("(matched by ")[1].split(":")[0] + ")"
+        label = "reference (behavior ids differ from ours; matched by " + label.split("(matched by ")[1].split(":")[0] + ")"
     if keep is None:
         return tr, label
     m = np.isin(tr["trial_id"], sorted(keep))
@@ -608,11 +608,12 @@ def default_sessions(ro: Path, include_june: bool = False) -> list[tuple[str, st
     """Curated sessions with v36 cam4 windows. JUNE IS LEFT OUT by default: the camera changed after June, so June's
     registration to the master face fell back to a similarity fit and `face_rhythm_warp_rois.py` writes no June ROIs
     (pose/3-D window, 10-21); the orofacial baseline is August-only anyway (CLAUDE.md, 10-18)."""
+    from wfield_local import config
     from wfield_local import analysis_kit as ak
     cur = ak.curated_ids()
     return [(p.parent.name, p.name) for p in sorted((ro / V36 / "sessions").glob("*/*"))
             if (p / "windows.npz").exists() and f"{p.parent.name}_{p.name}" in cur
-            and (include_june or p.name[4:6] != "06")]
+            and (include_june or not config.early_pre(p.name))]
 
 
 def rois_dir(rv, cam: str = CAM) -> Path:
@@ -760,7 +761,7 @@ def cmd_bundle(name: str, user: str, sessions: list[tuple[str, str]] | None, seg
 # peak ~{E['ram']:.0f} GB. Resumable per segment: a task that hits the limit continues where it stopped when
 # resubmitted with the same --array index.
 set -eo pipefail
-module load conda/miniforge3/24.11.3-0
+module load conda/miniforge3/26.9.4-1
 conda activate fr
 export OMP_NUM_THREADS=4 MKL_NUM_THREADS=4 OPENBLAS_NUM_THREADS=4
 echo "task $SLURM_ARRAY_TASK_ID on $(hostname), $(python --version)"
@@ -777,7 +778,7 @@ up to 2x its outputs (work memmaps, removed once the npz are written).
 ## 0. Once: the env  (interactive job: srun --pty -p interactive -c 2 --mem 8G -t 1:00:00 bash)
 CPU-only torch (the default wheel pulls ~4 GB of CUDA libraries, and pip's cache filled /home on 10-21):
 ```bash
-module load conda/miniforge3/24.11.3-0
+module load conda/miniforge3/26.9.4-1
 conda create -y -n fr python=3.12 && conda activate fr
 export PIP_CACHE_DIR={s}/pip_cache TMPDIR={s}/tmp && mkdir -p $PIP_CACHE_DIR $TMPDIR
 pip install torch --index-url https://download.pytorch.org/whl/cpu
@@ -1113,7 +1114,7 @@ def cmd_paramtest(name: str, user: str, key: str, n_frames: int = 30000, only: l
           f"#SBATCH -t 0-02:00:00\n#SBATCH --array=1-{len(sets.split())}\n"
           f"#SBATCH -o {b}/logs/pt_%A_%a.out\n#SBATCH -e {b}/logs/pt_%A_%a.err\n"
           f"# Tracking-parameter test: task {task} ({key}), frames {start}-{start + n_frames} ({max(count)} trial cues)\n"
-          f"set -eo pipefail\nmodule load conda/miniforge3/24.11.3-0\nconda activate fr\n"
+          f"set -eo pipefail\nmodule load conda/miniforge3/26.9.4-1\nconda activate fr\n"
           f"SETS=({sets})\n"
           f"python {b}/fr_param_test.py {task} " + "${SETS[$SLURM_ARRAY_TASK_ID-1]}" + f" {start} {n_frames}\n")
     (d / "run_param_test.sbatch").write_text(sb, encoding="utf-8", newline="\n")
@@ -1308,6 +1309,10 @@ def cmd_paramscore(name: str, src: str | None = None) -> pd.DataFrame:
 
 
 def main(argv=None) -> int:
+    # the guard belongs HERE, in the desktop CLI -- not inside the RUNNER text shipped to O2 as fr_runner.py, where
+    # wfield_local is not importable (fourth review LOW)
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("o2_face_rhythm")   # unrouted share writer: refuses in a non-default run mode
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
     b = sub.add_parser("bundle")

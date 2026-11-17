@@ -11,7 +11,7 @@ def test_shifts_cover_every_pair_once():
 
 
 def test_all_areas_dsse_pools_parcels():
-    """Summed over areas, normalised by summed SST; the excluded whole-cortex trace does not enter."""
+    """Summed over areas, normalized by summed SST; the excluded whole-cortex trace does not enter."""
     import numpy as np
     sse_as, sse_true, sst = np.array([5.0, 3.0, 100.0]), np.array([4.0, 4.0, 0.0]), np.array([10.0, 10.0, 1.0])
     assert np.isclose(fr.all_areas_dsse(sse_as, sse_true, sst, [0, 1]), 0.0)

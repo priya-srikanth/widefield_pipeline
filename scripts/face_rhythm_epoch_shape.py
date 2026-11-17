@@ -8,7 +8,7 @@ the pre days (preA, preB); every fit has the same number of rows (11,000, ~2 ses
 
 Per animal and master factor k (every fit Hungarian-aligned to the master, `face_rhythm_matching.pairwise`, so factor k
 is the same factor in all fits):
-  floor   the angle between preA's and preB's factor k -- how different two fits of the SAME pre-stroke behaviour are
+  floor   the angle between preA's and preB's factor k -- how different two fits of the SAME pre-stroke behavior are
   change  the mean of the angles between the epoch's factor k and preA's / preB's
   beyond  the epoch's angle to BOTH halves exceeds the floor (a shape change beyond pre-stroke fit noise)
   loading asymmetry (contra - ipsi) / sum of |loading| (`face_rhythm_matching.loading_asymmetry`): the epoch's value
@@ -52,6 +52,46 @@ MATCH_ON = "spatial"
 # rows, LOAO-<animal> = the other three -- the per-animal check). A tag stands where an animal does in every readout;
 # `members` says whose pre-stroke spout templates it is compared with. Set by --own-dir.
 OWN = "own_epoch"
+# Matching rule (`--match-rule`). v1 = the settings above. v2 (Priya 11-07, after the 500-permutation null showed
+# duplicated readouts): spatial score with a SPECTRAL TIE-BREAK among columns within `face_rhythm_matching.TIE` of the
+# best spatial cosine; a factor is RECOVERED only if its pick has spatial cos >= .7 AND spectral cos >= .5 (spectral:
+# null fits, which hold every factor, 5th percentile .46; spatial .8 first, lowered to .7 by Priya 11-07 because it
+# dropped PS95 acute lick_right -- same column as pre, spectral .94, spatial .78: a CHANGED factor, not a lost one; no
+# null-fit cell with spectral >= .5 sits below .7, and .5 / .7 pick the same real cells); the two footprint twins that no rule
+# can separate and that are unstable even in null fits are MERGED into one unit each (master spatial cos .99).
+# Unrecovered cells leave the shape readouts; which factors are lost is its own readout (`face_rhythm_recovery.py`).
+MERGE = {"prelick_nose": ("sniff_prelick", "nose_prelick_slow"), "slow_jaw": ("run_onset_jaw", "prep_jaw")}
+MATCH_RULES = {"v1": dict(assign=ASSIGN, min_spatial=MIN_COS, min_spectral=None, merge={}),
+               "v2": dict(assign="tiebreak", min_spatial=0.7, min_spectral=0.5, merge=MERGE)}
+RULE = "v2"  # default since 11-07 (Priya: v2 + per-session tests are the main analysis); v1 = --match-rule v1
+
+
+def rule() -> dict:
+    return MATCH_RULES[RULE]
+
+
+def rule_suffix() -> str:
+    """Output folder suffix: v1 writes where it always did, other rules beside it (``<folder>_v2``)."""
+    return "" if RULE == "v1" else f"_{RULE}"
+
+
+def reference(fdir: Path):
+    """(master npz, A_ref (2P, R), B_ref (F, R), names) under the current rule (merged units for v2)."""
+    from wfield_local import face_rhythm_matching as fm
+    M = np.load(fdir / "master.npz")
+    A_ref, B_ref, names = M["spatial"].reshape(-1, M["spatial"].shape[-1]), M["spectral"], frc.factor_names(fdir)
+    if rule()["merge"]:
+        A_ref, B_ref, names = fm.merge_reference(A_ref, B_ref, names, rule()["merge"])
+    return M, A_ref, B_ref, names
+
+
+def pick(A_ref, B_ref, A, B):
+    """-> (match dict, column standing for each reference factor, recovered mask) under the current rule."""
+    from wfield_local import face_rhythm_matching as fm
+    m = fm.match(A_ref, B_ref, A, B, on=MATCH_ON)
+    r = rule()
+    cols = fm.columns(m, r["assign"])
+    return m, cols, fm.recovered(m, cols, r["min_spatial"], r["min_spectral"])
 
 
 def members(tag: str, animals) -> list[str]:
@@ -64,10 +104,15 @@ def members(tag: str, animals) -> list[str]:
     return [tag]
 
 
+def tag_label(tag: str) -> str:
+    """Display name of a fit tag: LOAO-<an> reads as "without <an>" (Priya 11-07: "LOAO-PS93" was read as PS93's fit)."""
+    return f"without {tag[len('LOAO-'):]}" if tag.startswith("LOAO-") else tag
+
+
 def tag_style(tag: str, acol: dict) -> dict:
     """Line style per fit tag (Priya 10-25: show the all-sessions-pooled fit, not one line per animal): COHORT = thick
-    black (the pooled fit); LOAO-<an> = thin, in the LEFT-OUT animal's colour, labelled "without <an>"; an animal =
-    its colour as before."""
+    black (the pooled fit); LOAO-<an> = thin, in the LEFT-OUT animal's color, labeled "without <an>"; an animal =
+    its color as before."""
     if tag == "COHORT":
         return {"color": "k", "lw": 2.4, "alpha": 1.0, "label": "all animals pooled", "zorder": 3}
     if tag.startswith("LOAO-"):
@@ -97,9 +142,9 @@ def tag_marker(tag: str) -> str:
 def draw_fit_points(ax, x, curves: dict, se, xcol: list, animals: list) -> None:
     """Priya 11-03 categorical-x rules for the per-epoch fit readouts: NO line joins the epochs. There is ONE fit per
     epoch (cohort) or per animal x epoch (own_epoch) -- no session level -- so the per-fit points are drawn instead of
-    session dots. COHORT = filled marker +- jackknife SE (colour = epoch) right of centre; LOAO-<an> = faded OPEN markers
-    (shape = the left-out animal, colour = epoch) left of centre; per-animal fits = filled markers, shape = animal,
-    colour = epoch, each animal at its own offset. ``xcol`` = colour per x position."""
+    session dots. COHORT = filled marker +- jackknife SE (color = epoch) right of center; LOAO-<an> = faded OPEN markers
+    (shape = the left-out animal, color = epoch) left of center; per-animal fits = filled markers, shape = animal,
+    color = epoch, each animal at its own offset. ``xcol`` = color per x position."""
     from wfield_local import cat_points as cp
     x = np.asarray(x, float)
     loao = [t for t in animals if t.startswith("LOAO-")]
@@ -123,7 +168,7 @@ def draw_fit_points(ax, x, curves: dict, se, xcol: list, animals: list) -> None:
 
 
 def fit_legend_handles(animals: list) -> list:
-    """Legend for `draw_fit_points` (grey stand-ins; colour = epoch in the panels)."""
+    """Legend for `draw_fit_points` (gray stand-ins; color = epoch in the panels)."""
     from matplotlib.lines import Line2D
 
     from wfield_local import cat_points as cp
@@ -147,8 +192,7 @@ def deg(c):
 def compute(fdir: Path) -> pd.DataFrame:
     from wfield_local import face_rhythm_matching as fm
     from wfield_local import face_rhythm_readouts as frr
-    M = np.load(fdir / "master.npz")
-    A_ref, B_ref = M["spatial"].reshape(-1, M["spatial"].shape[-1]), M["spectral"]
+    M, A_ref, B_ref, _names = reference(fdir)
     home, mid = M["home"], float(frr.MASTER_MIDLINE_X)
     rows = []
     animals = sorted({f.stem.split("_")[0] for f in (fdir / OWN).glob("*.npz")})
@@ -160,15 +204,13 @@ def compute(fdir: Path) -> pd.DataFrame:
                 z = np.load(f)
                 fits[g] = (z["A_own"].astype(float), z["B_own"].astype(float))
                 nrow[g] = int(z["n_rows"])
-        P = fm.pairwise(fits, A_ref, B_ref, on=MATCH_ON, assign=ASSIGN)       # every pair, aligned to the master's factor order
+        P = fm.pairwise(fits, A_ref, B_ref, on=MATCH_ON, assign=rule()["assign"])  # every pair, aligned to the master's factor order
         cos = {(r.key_a, r.key_b, r.factor): (r.cos_spatial, r.cos_spectral) for r in P.itertuples()}
         get = lambda a, b, k, cos=cos: cos.get((a, b, k), cos.get((b, a, k), (np.nan, np.nan)))  # noqa: E731
-        asym, mcos = {}, {}
+        asym, mcos, rec = {}, {}, {}
         for g, (A, _B) in fits.items():                          # loading asymmetry on the master-aligned columns
-            mm = fm.match(A_ref, B_ref, *fits[g], on=MATCH_ON)
-            order = fm.columns(mm, ASSIGN)
-            cs_g = fm.cosines(A_ref, B_ref, *fits[g])[0]
-            mcos[g] = cs_g[np.arange(len(order)), order]
+            mm, order, rec[g] = pick(A_ref, B_ref, *fits[g])
+            mcos[g] = mm["cs_all"][np.arange(len(order)), order]
             a = fm.loading_asymmetry(A, home, mid)
             asym[g] = np.array([a[o] if o >= 0 else np.nan for o in order])
         R = A_ref.shape[1]
@@ -179,7 +221,8 @@ def compute(fdir: Path) -> pd.DataFrame:
                     continue
                 ca, cb = get(ep, "preA", k), get(ep, "preB", k)
                 row = {"animal": an, "epoch": ep, "factor": k, "n_rows": nrow[ep],
-                       "cos_master": float(min(mcos[ep][k], mcos["preA"][k], mcos["preB"][k]))}
+                       "cos_master": float(min(mcos[ep][k], mcos["preA"][k], mcos["preB"][k])),
+                       "recovered": bool(rec[ep][k] and rec["preA"][k] and rec["preB"][k])}
                 for i, mode in enumerate(("spatial", "spectral")):
                     fa, ea, eb = deg(fl[i]), deg(ca[i]), deg(cb[i])
                     row.update({f"floor_{mode}": fa, f"angle_{mode}": (ea + eb) / 2,
@@ -204,8 +247,7 @@ def loadings_and_templates(fdir: Path, names: list[str], factors=LICK) -> dict:
                                          spout-SPECIFIC movement pattern
       corr[(animal, group, factor)]     (6,) Pearson r of the loading with each spout template"""
     from wfield_local import face_rhythm_matching as fm
-    M = np.load(fdir / "master.npz")
-    A_ref, B_ref = M["spatial"].reshape(-1, M["spatial"].shape[-1]), M["spectral"]
+    M, A_ref, B_ref, _names = reference(fdir)
     ks = [names.index(n) for n in factors if n in names]
     out = {"loading": {}, "template": {}, "corr": {}, "home": M["home"], "factors": ks, "positions": frc.POSITIONS}
     S = frc.sessions(fdir, "proj")
@@ -229,12 +271,10 @@ def loadings_and_templates(fdir: Path, names: list[str], factors=LICK) -> dict:
                 continue
             z = np.load(f)
             A, B = z["A_own"].astype(float), z["B_own"].astype(float)
-            mm = fm.match(A_ref, B_ref, A, B, on=MATCH_ON)
-            order = fm.columns(mm, ASSIGN)
-            cs_g = fm.cosines(A_ref, B_ref, A, B)[0]
+            _mm, order, rec = pick(A_ref, B_ref, A, B)
             mag = fm.spatial_view(A, "magnitude")
             for k in ks:
-                if cs_g[k, order[k]] < MIN_COS:                  # factor not recovered in this fit: leave the cell out
+                if not rec[k]:                                   # factor not recovered in this fit: leave the cell out
                     continue
                 v = mag[:, order[k]]
                 v = v / v.sum()
@@ -274,7 +314,7 @@ def loading_figures(D: dict, names: list[str], out: Path, set_name: str) -> None
                     ax.axvline(342.0, color="k", lw=0.4)
                     ax.invert_yaxis()
                     ax.set_aspect("equal")
-                    ax.set_title(f"{an}: {c}", fontsize=8)
+                    ax.set_title(f"{tag_label(an)}: {c}", fontsize=8)
             if sc is not None:
                 fig.colorbar(sc, ax=axs, shrink=0.3, extend="both", label="loading fraction, epoch - pre halves (one scale)")
             fig.suptitle(f"{set_name}: where did {names[k]}'s loading move? (pooled per-epoch fits; image left = "
@@ -282,8 +322,11 @@ def loading_figures(D: dict, names: list[str], out: Path, set_name: str) -> None
             frf.save(fig, out / f"epoch_shape_loading_{names[k]}.png", f"""
 {names[k]}'s spatial loading magnitude |(x, y)| per mesh point as a fraction of its total (shape only), each epoch's
 pooled fit minus the mean of the two pre-half fits; red = more of the factor's loading there after the stroke, blue
-= less. First column: preA - preB, what two fits of the same pre-stroke behaviour differ by (the noise to read the
-others against). One colour scale for all panels. cam4: image LEFT = contralesional; vertical line = face midline.""")
+= less. First column: preA - preB, what two fits of the same pre-stroke behavior differ by (the noise to read the
+others against). One color scale for all panels. cam4: image LEFT = contralesional; vertical line = face midline. "without <animal>" =
+the pooled fit redone without that animal (leave-one-animal-out). DESCRIPTIVE: one fit per row x epoch, no test; the
+tested versions are the permutation null maps (cohort_null_maps.png) and the per-session test
+(session_loading_<rule>/).""")
 
         fig, axs = frf.subplots(len(ks), len(animals), figsize=(3.4 * len(animals), 2.9 * len(ks)), squeeze=False)
         for r_i, k in enumerate(ks):
@@ -296,7 +339,7 @@ others against). One colour scale for all panels. cam4: image LEFT = contralesio
                 ax.set_yticks(range(len(rows)), rows, fontsize=8)
                 for (yy, xx), v in np.ndenumerate(C):
                     ax.text(xx, yy, f"{v:.2f}", ha="center", va="center", fontsize=6)
-                ax.set_title(f"{an}: {names[k]}", fontsize=9)
+                ax.set_title(f"{tag_label(an)}: {names[k]}", fontsize=9)
         fig.colorbar(im, ax=axs, shrink=0.5, label="r(loading, spout template)")
         fig.suptitle(f"{set_name}: which spout's pre-stroke movement does each lick factor look like?")
         frf.save(fig, out / "epoch_shape_templates.png", """
@@ -308,7 +351,7 @@ different MIX of licks rather than less contralesional recruitment. Descriptive,
 
 
 def pooled_loading_figure(D: dict, names: list[str], out: Path, set_name: str) -> pd.DataFrame:
-    """Cross-animal, WITHIN-ANIMAL-NORMALISED version of `epoch_shape_loading_<factor>.png` (Priya 10-25: "why don't we
+    """Cross-animal, WITHIN-ANIMAL-NORMALIZED version of `epoch_shape_loading_<factor>.png` (Priya 10-25: "why don't we
     have a cross-animal within-animal-normalized version of fig 7c"). Per animal, each epoch's loading change (epoch fit
     minus the mean of the pre-half fits) is divided by that animal's own pre-fit noise (SD over mesh points of preA -
     preB), then averaged over animals. Points are RINGED where >= 3 / 4 animals change in the same direction AND by more
@@ -359,12 +402,10 @@ def pooled_loading_figure(D: dict, names: list[str], out: Path, set_name: str) -
                 sgn = np.sign(m)
                 agree = ((np.sign(P) == sgn) & B).sum(0)
                 ring = agree >= 3 if c != "preA - preB" else np.zeros(len(m), bool)
-                fade = ~ring if c != "preA - preB" else np.zeros(len(m), bool)
-                show = ~fade
-                ax.scatter(home[fade, 0], home[fade, 1], c=m[fade], s=3, cmap="RdBu_r", vmin=-lim, vmax=lim, alpha=0.35,
-                           lw=0)
-                sc = ax.scatter(home[show, 0], home[show, 1], c=m[show], s=11 if c != "preA - preB" else 4, cmap="RdBu_r",
-                                vmin=-lim, vmax=lim, edgecolors="k" if c != "preA - preB" else "none", linewidths=0.25)
+                # Priya 11-07: drawn like the speed maps -- every point coloured, rings (red up / blue down) mark the
+                # points >= 3 animals agree on
+                sc = ax.scatter(home[:, 0], home[:, 1], c=m, s=4, cmap="RdBu_r", vmin=-lim, vmax=lim, lw=0)
+                frf.sign_rings(ax, home, ring, m)
                 ax.axvline(342.0, color="k", lw=0.4)
                 ax.invert_yaxis()
                 ax.set_aspect("equal")
@@ -389,7 +430,9 @@ the {len(animals)} animals (orange = more of the factor's loading there after th
 column: the pooled noise itself (preA - preB on the same scale). One fit per animal x epoch, so the animal count is the
 test -- no session bootstrap. Chance of a ring: the epoch-vs-pre-halves difference has ~0.87x the noise SD of
 preA - preB, so one animal passes 2 SD in one direction with p ~ .01 and >= 3 of 4 with p ~ 5e-6 per point (~0 of
-1,282 expected). PS93 (pre-existing right orofacial deficit) went the other way in the per-animal figure.""")
+1,282 expected). PS93 (pre-existing right orofacial deficit) went the other way in the per-animal figure. A
+CONSISTENCY map, not a family-wise test: the tested versions are the permutation null maps (cohort_null_maps.png) and
+the per-session test (session_loading_<rule>/).""")
     return pd.DataFrame(rows)
 
 
@@ -402,7 +445,9 @@ def pooled_summary_figures(T: pd.DataFrame, D: dict, names: list[str], out: Path
     from wfield_local import face_rhythm_figures as frf
     acol, ecol = frc.animal_colors(), frc.epoch_colors()
     animals = sorted(T.animal.unique())
-    if "cos_master" in T:                                   # cells whose factor the fit did not recover (MIN_COS)
+    if "recovered" in T:                                    # cells whose factor the fit did not recover
+        T = T[T.recovered.astype(bool)]
+    elif "cos_master" in T:                                 # tables written before 11-07
         T = T[T.cos_master >= MIN_COS]
     T = T.assign(ratio_spatial=T.angle_spatial / T.floor_spatial, ratio_spectral=T.angle_spectral / T.floor_spectral)
     eps = list(frc.POST_EPOCHS)
@@ -439,7 +484,7 @@ def pooled_summary_figures(T: pd.DataFrame, D: dict, names: list[str], out: Path
         frf.save(fig, out / "epoch_shape_angles_pooled.png", f"""
 Cross-animal version of epoch_shape_angles.png. Per animal and factor: the epoch fit's mean angle to the two pre-half
 fits divided by the angle between the two pre halves (the animal's own fit-noise floor), so 1 = as different as two
-fits of the same pre-stroke behaviour. Dots = animals ({', '.join(animals)}), bars = mean of animals per epoch; numbers on
+fits of the same pre-stroke behavior. Dots = animals ({', '.join(animals)}), bars = mean of animals per epoch; numbers on
 top = animals whose epoch fit is beyond the floor (angle to BOTH halves > floor). One fit per animal x epoch, so the
 animal count is the test; no bootstrap.""")
 
@@ -498,7 +543,7 @@ animal count is the test; no bootstrap.""")
         frf.save(fig, out / "epoch_shape_lick_pooled.png", """
 Cross-animal versions of epoch_shape_asymmetry.png and epoch_shape_templates.png. Left: each animal's loading-asymmetry
 change (contra - ipsi over sum; epoch fit minus the mean of its OWN pre halves; dimensionless, so the animals share
-units); bars = mean of animals; grey band = +- the animals' mean |preA - preB| (pre-fit noise); k/n = animals sharing
+units); bars = mean of animals; gray band = +- the animals' mean |preA - preB| (pre-fit noise); k/n = animals sharing
 the mean's sign. (Dividing by each animal's own floor blows up where it is ~0.) Right: change in r between the lick factor's loading and each spout's
 pre-stroke spout-specific movement pattern (epoch minus the mean of the two pre halves), mean of animals; cell text =
 change and animals sharing its sign. One fit per animal x epoch: the animal count is the test.""")
@@ -511,16 +556,15 @@ FITS = ("master", "preA", "preB", "acute", "subacute", "chronic")
 
 def matched_factor_gallery(fdir: Path, names: list[str], out: Path, factors=GALLERY, only=None) -> pd.DataFrame:
     """Priya 10-25: show the spatial loading and frequency profile of the MATCHED factor in every per-epoch fit, so a
-    shape change can be told from a matching artefact. One figure per master factor: rows = animals; columns = the master,
+    shape change can be told from a matching artifact. One figure per master factor: rows = animals; columns = the master,
     the two pre-half fits, acute / subacute / chronic -- each the own-fit column the Hungarian match assigns to that master
-    factor (`face_rhythm_matching.match`), drawn as loading magnitude per mesh point (fraction of total; one colour scale
+    factor (`face_rhythm_matching.match`), drawn as loading magnitude per mesh point (fraction of total; one color scale
     per row); last column = the spectra (frequency loading, fraction of total) of all fits overlaid. Panel titles give the
     matched spatial cosine to the master and the match margin; CONTESTED (red) = the fit's best unconstrained partner
     for this master factor is a column the assignment gave to ANOTHER master factor, or cosine < 0.8."""
     from wfield_local import face_rhythm_figures as frf
     from wfield_local import face_rhythm_matching as fm
-    M = np.load(fdir / "master.npz")
-    A_ref, B_ref = M["spatial"].reshape(-1, M["spatial"].shape[-1]), M["spectral"]
+    M, A_ref, B_ref, _names = reference(fdir)
     home, freqs = M["home"], M["freqs"]
     acol = frc.epoch_colors()
     fcol = {"master": "k", "preA": "0.55", "preB": "0.75", **{e: acol[e] for e in frc.POST_EPOCHS}}
@@ -538,7 +582,7 @@ def matched_factor_gallery(fdir: Path, names: list[str], out: Path, factors=GALL
     rows = []
     mag_ref = fm.spatial_view(A_ref, "magnitude")
     with frf.style():
-        for nm in factors:
+        for nm in [f for f in factors if f in names]:
             k = names.index(nm)
             fig, axs = frf.subplots(len(animals), len(FITS) + 1, figsize=(2.5 * len(FITS) + 3.6, 2.6 * len(animals)),
                                     squeeze=False)
@@ -549,7 +593,7 @@ def matched_factor_gallery(fdir: Path, names: list[str], out: Path, factors=GALL
                     if (an, g) not in fits:
                         continue
                     A, B, m = fits[(an, g)]
-                    cols = fm.columns(m, ASSIGN)
+                    cols = fm.columns(m, rule()["assign"])
                     j, jh = int(cols[k]), int(m["order"][k])
                     cs_g, cf_g = fm.cosines(A_ref, B_ref, A, B)
                     mag = fm.spatial_view(A, "magnitude")[:, j]
@@ -592,7 +636,7 @@ def matched_factor_gallery(fdir: Path, names: list[str], out: Path, factors=GALL
                          "red = differs from Hungarian, shared, or cos < .8")
             frf.save(fig, out / (f"matched_factor_gallery_{nm}" + (f"_{'_'.join(animals)}" if only else "") + ".png"), f"""
 {nm} in every pooled per-epoch fit (rows = animals). Columns 1-6: spatial loading magnitude per mesh point as a fraction
-of the factor's total (shape only), colour scale per row; image left = contralesional, vertical line = face midline;
+of the factor's total (shape only), color scale per row; image left = contralesional, vertical line = face midline;
 master = the frozen cohort factor. Last column: spectral (frequency) loading, fraction of total, all fits overlaid
 (dashed black = master). Each panel = the fit's BEST-matching own factor for {nm} (highest SPATIAL cosine, `MATCH_ON`;
 `ASSIGN` = best, so two master factors may share one own factor), titled with its spatial / frequency cosine with the
@@ -684,13 +728,17 @@ def main(argv=None) -> int:
     ap.add_argument("--factors", nargs="+", default=list(LICK),
                     help="factors for the loading maps / templates (default the lateralised lick pair); e.g. the "
                          "non-lateralised lick factors (Priya 10-25 'central lick version') -- use with --out")
+    ap.add_argument("--match-rule", choices=sorted(MATCH_RULES), default="v2",
+                    help="v1 = spatial best match (10-25); v2 = spectral tie-break + recovery threshold + merged twins "
+                         "(11-07, default); non-v1 output goes to <folder>_<rule>/")
     ap.add_argument("--own-dir", default="own_epoch", help="per-epoch fit folder: own_epoch (per animal) or own_epoch_cohort "
                     "(COHORT + LOAO-<animal> tags; output defaults to epoch_shape_cohort/)")
     a = ap.parse_args(argv)
-    global OWN
-    OWN = a.own_dir
+    global OWN, RULE
+    OWN, RULE = a.own_dir, a.match_rule
     fdir = a.fdir or frc.default_set_dir(set_name=a.set)
-    out = a.out or frc.readouts_dir(a.set) / ("epoch_shape" if OWN == "own_epoch" else f"epoch_shape_{OWN[len('own_epoch_'):] or OWN}")
+    out = a.out or frc.readouts_dir(a.set) / (("epoch_shape" if OWN == "own_epoch"
+                                               else f"epoch_shape_{OWN[len('own_epoch_'):] or OWN}") + rule_suffix())
     writeguard.assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
     if a.candidates:
@@ -698,7 +746,7 @@ def main(argv=None) -> int:
             print("->", candidates_figure(fdir, frc.factor_names(fdir), out, an, g, fac))
         return 0
     if a.gallery:
-        G = matched_factor_gallery(fdir, frc.factor_names(fdir), out, only=a.animals)
+        G = matched_factor_gallery(fdir, reference(fdir)[3], out, only=a.animals)
         G.to_csv(figure_layout.sidecar_for(out, "matched_factor_gallery", ".csv"), index=False, float_format="%.4g")
         print(G[G.contested].to_string(index=False))
         print("->", out)
@@ -707,7 +755,7 @@ def main(argv=None) -> int:
     T = pd.read_csv(csv) if a.plot_only else compute(fdir)
     if not a.plot_only:
         T.to_csv(csv, index=False, float_format="%.4g")
-    names = frc.factor_names(fdir)
+    names = reference(fdir)[3]
     T["name"] = [names[k] for k in T.factor]
     animals = sorted(T.animal.unique())
     pd.set_option("display.width", 220)
@@ -743,9 +791,7 @@ def main(argv=None) -> int:
                 for ep in frc.POST_EPOCHS:
                     nb = int(d[d.epoch == ep][f"beyond_{mode}"].sum())
                     labels.append(f"{ep[:5]}\n{nb}/{d[d.epoch == ep].animal.nunique()} >")
-                ax.set_xticks(x, labels, fontsize=6)
-                for e_i, ep in enumerate(frc.POST_EPOCHS, start=1):
-                    ax.axvspan(e_i - 0.4, e_i + 0.4, color=ecol[ep], alpha=0.06, lw=0)
+                ax.set_xticks(x, labels, fontsize=6)        # Priya 11-16: no epoch shading (as every other FR figure)
                 ax.set_title(f"{k} {nm}: {mode}", fontsize=8)
                 if c_i == 0:
                     ax.set_ylabel("angle (deg)")
@@ -759,7 +805,7 @@ def main(argv=None) -> int:
 One own fit per animal x epoch on the epoch's sessions pooled (`face_rhythm_factors.py fitepoch`, equal rows per fit),
 plus two pre fits on disjoint alternating halves of the pre days. Every fit Hungarian-aligned to the frozen master
 (factor k = the master's factor k). First point: the angle between the two pre halves' factor k (the FLOOR: two fits of
-the same pre-stroke behaviour); then each epoch's mean angle to the two halves. Points = fits, colour = epoch, shape =
+the same pre-stroke behavior); then each epoch's mean angle to the two halves. Points = fits, color = epoch, shape =
 animal (cohort run: filled = all animals pooled +- jackknife SE, open = leave-one-animal-out fits, shape = the animal
 left out); no line joins epochs (Priya 11-03; one fit per epoch, so there are no session values to show). Under
 each epoch: animals whose angle to BOTH pre halves exceeds their floor. Spatial = where on the face (x, y loadings),
@@ -793,11 +839,11 @@ spectral = which frequencies. One value per animal: descriptive, no interval (PS
         fig.suptitle(f"{fdir.name}: do the lick factors move across the face? (pooled per-epoch fits)"
                      + ("\nfilled = all animals pooled +- jackknife SE over animals; open = each animal left out"
                         if OWN != "own_epoch" else "\none fit per animal x epoch")
-                     + "; colour = epoch")
+                     + "; color = epoch")
         frf.save(fig, out / "epoch_shape_asymmetry.png", """
 Loading asymmetry (contra - ipsi) / (contra + ipsi) of |spatial loading| per factor (cam4: contralesional = image
 left), each epoch's pooled fit minus the mean of the two pre-half fits; < 0 = the factor moved towards the
-ipsilesional face. Bars at pre: +-|preA - preB| per fit, the pre-stroke noise of this number. Points = fits (colour =
+ipsilesional face. Bars at pre: +-|preA - preB| per fit, the pre-stroke noise of this number. Points = fits (color =
 epoch, shape = animal; cohort run: filled = all animals pooled +- jackknife SE, open = leave-one-animal-out, shape =
 the animal left out); no line joins epochs (Priya 11-03; one fit per epoch, no session values). Descriptive, n = 4.""")
     lc = figure_layout.sidecar_for(out, "epoch_shape_loadings", ".pkl")
@@ -813,7 +859,7 @@ the animal left out); no line joins epochs (Priya 11-03; one fit per epoch, no s
     loading_figures(D, names, out, fdir.name)
     P = pooled_summary_figures(T, D, names, out)
     P.to_csv(figure_layout.sidecar_for(out, "epoch_shape_pooled_summary", ".csv"), index=False, float_format="%.4g")
-    print("\npooled shape summaries (within-animal normalised)\n"
+    print("\npooled shape summaries (within-animal normalized)\n"
           + P[~P.measure.str.startswith("template")].to_string(index=False))
     S = pooled_loading_figure(D, names, out, fdir.name)
     S.to_csv(figure_layout.sidecar_for(out, "epoch_shape_loading_pooled", ".csv"), index=False)

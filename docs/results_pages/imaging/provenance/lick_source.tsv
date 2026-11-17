@@ -13,8 +13,8 @@ s_per_animal	3.3	DAQ	licks: DAQ spout contact	per_animal_fig.py from grant_figur
 d_recovery	4.1	DAQ	licks: DAQ spout contact	source grant_figures/epoch/ (default render = DAQ; LP renders go to grant_figures/LP_licks/)
 d_refitgap	4.2	DAQ	licks: DAQ spout contact	source grant_figures/epoch/ (default render = DAQ; LP renders go to grant_figures/LP_licks/)
 j_drift	4.3	DAQ	licks: DAQ spout contact	june_august_drift.py on grant_kit._collect_7 (default DAQ, writeguard-checked untagged folder); PS93_0813 present (it has no LP table)
-fig2_attempt_decoder	5.1	mixed	licks: mixed - LP video attempt classes / windows; frozen decoder trained on DAQ-contact trials	attempt_coding.py refuses to run unless WIDEFIELD_LICK_SOURCE=lp; uses DAQ-frozen decoder
-fig2b_attempt_decoder_epochs	5.2	mixed	licks: mixed - LP video attempt classes / windows; frozen decoder trained on DAQ-contact trials	attempt_coding.py (LP only); DAQ-frozen decoder
+fig2_attempt_decoder	5.1	LP	licks: LP video attempt classes / windows; LP-trained frozen decoder	attempt_coding.py refuses to run unless WIDEFIELD_LICK_SOURCE=lp; LP-trained frozen decoder (spec carries lick_source=lp; ids in docs/status/DELETED_FROZEN_SPOUT_AB_2026-11-09.md)
+fig2b_attempt_decoder_epochs	5.2	LP	licks: LP video attempt classes / windows; LP-trained frozen decoder	attempt_coding.py (LP only); LP-trained frozen decoder
 e_amp	6.1	DAQ	licks: DAQ spout contact	source grant_figures/epoch/ (default render = DAQ; LP renders go to grant_figures/LP_licks/)
 e_ceiling	6.2	DAQ	licks: DAQ spout contact	source grant_figures/epoch/ (default render = DAQ; LP renders go to grant_figures/LP_licks/)
 e_captured	6.3	DAQ	licks: DAQ spout contact	source grant_figures/epoch/ (default render = DAQ; LP renders go to grant_figures/LP_licks/)

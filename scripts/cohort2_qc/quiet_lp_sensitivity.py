@@ -26,7 +26,7 @@ MEASURES per session (engaged quiet, August pre):
   (2) raw v2 event rate, k = 4 (quiet_spikes_v2 session `pos` / `neg`, threshold 4 x August-pre median `sd_q`).
   (3) quiet robust SD (1.4826 x MAD of the 2-s-median-detrended dF/F %) and log10 1-4 Hz power (Welch, 4-s segments,
       linear detrend, on quiet runs >= 4 s; quiet_fluct (1)) of the orofacial traces, on the stricter frames.
-  (4) T20 synchronisation index log10(PSD 1-4 Hz / 8-15 Hz) (quiet_sync_index), orofacial and ipsi - contra.
+  (4) T20 synchronization index log10(PSD 1-4 Hz / 8-15 Hz) (quiet_sync_index), orofacial and ipsi - contra.
   Recount vs re-detection: an event is kept when its PEAK frame is in the stricter quiet set; the detector's only use of
   the quiet mask is exactly that test, except that a removed larger peak no longer suppresses a smaller one within
   0.3 s (merge) -- negligible, and conservative (the stricter count can only be lower).
@@ -52,6 +52,7 @@ from quiet_area_spikes import DETREND_S, EP, EVENTS, columns, mad, session_trace
 from quiet_spikes_fr import face_regressors, lagged  # noqa: E402
 from quiet_spikes_v2 import BUF_S, V2, busy_frames, detrend  # noqa: E402
 from quiet_spikes_v2_fr import FRV2  # noqa: E402
+from wfield_local import config  # noqa: E402
 
 OUT = V2 / "lp_quiet"
 K = 4.0
@@ -159,14 +160,14 @@ def session_table():
     D = {}
     for f in sorted((OUT / "sessions").glob("*.npz")):
         ep = epochs.epoch_of(f.stem)
-        if ep is None or (ep == "pre" and f.stem[-4:] < "0806"):
+        if ep is None or (ep == "pre" and config.early_pre(f.stem)):
             continue
         D[f.stem] = (dict(np.load(f)), ep)
     v2 = {k: dict(np.load(V2 / "sessions" / f"{k}.npz")) for k in D}
     fr = {k: dict(np.load(FRV2 / "sessions" / f"{k}.npz")) for k in D}
     # thresholds exactly as the published tables: animal median over August-pre sessions (ALL pre sessions on file)
-    pre_v2 = [f for f in (V2 / "sessions").glob("*.npz") if epochs.epoch_of(f.stem) == "pre" and f.stem[-4:] >= "0806"]
-    pre_fr = [f for f in (FRV2 / "sessions").glob("*.npz") if epochs.epoch_of(f.stem) == "pre" and f.stem[-4:] >= "0806"]
+    pre_v2 = [f for f in (V2 / "sessions").glob("*.npz") if epochs.epoch_of(f.stem) == "pre" and not config.early_pre(f.stem)]
+    pre_fr = [f for f in (FRV2 / "sessions").glob("*.npz") if epochs.epoch_of(f.stem) == "pre" and not config.early_pre(f.stem)]
     sd_v2 = {an: np.nanmedian([np.load(f)["sd_q"] for f in pre_v2 if f.stem.startswith(an)], 0) for an in
              sorted({k[:4] for k in D})}
     sd_fr = {an: np.nanmedian([np.load(f)["sd_res"] for f in pre_fr if f.stem.startswith(an)], 0) for an in
@@ -277,7 +278,7 @@ def figure(S, T):
     fig.legend(handles=handles, loc="center right", fontsize=7, frameon=False, bbox_to_anchor=(0.995, 0.5))
     fig.suptitle("Quiet-period orofacial measures with QUIET re-defined to also exclude video (LP) licks: columns = quiet "
                  "definition (each a subset of the previous; lpcov = video-tracked frames only).\nEngaged, August pre, "
-                 "k = 4 x animal pre SD (published thresholds). Open markers = sessions (shape = animal, colour = epoch); "
+                 "k = 4 x animal pre SD (published thresholds). Open markers = sessions (shape = animal, color = epoch); "
                  "bar = mean of animals; stars = LMM epoch vs pre, FDR.", fontsize=8)
     fig.tight_layout(rect=(0, 0, 0.87, 0.95))
     fig.savefig(OUT / "quiet_lp_sensitivity.png", dpi=110)

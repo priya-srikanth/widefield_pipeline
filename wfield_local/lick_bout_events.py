@@ -11,7 +11,7 @@ BOUT ONSETS, NOT EVERY LICK (Priya's call, 2026-08-17). Licks inside a bout are 
 correlated; treating each as an independent observation would multiply n by 5-15 while adding almost
 no independent information, and would make any cross-validated estimate anticonservative. A bout
 onset is the movement INITIATION, which is the event a motor readout is about. `segment_bouts` from
-spout_behavior does the splitting, so bouts here and bouts in the behaviour figures are the same
+spout_behavior does the splitting, so bouts here and bouts in the behavior figures are the same
 objects.
 
 TWO CORRECTIONS TO HOW LICKS GET A POSITION.
@@ -21,7 +21,7 @@ TWO CORRECTIONS TO HOW LICKS GET A POSITION.
    strobes BEFORE the cue, so a lick in the arrival window carries the PREVIOUS trial's label --
    precisely the case Priya described. Because positions run in ~6-trial blocks the label is usually
    still right by luck; measured 2026-08-17 the genuinely mislabelled fraction is PS93 7.3%,
-   PS94 5.0%, PS95 0.8% of all licks, concentrated at block transitions. Labelling by the most recent
+   PS94 5.0%, PS95 0.8% of all licks, concentrated at block transitions. Labeling by the most recent
    STROBE is correct by construction and needs no luck.
 
 2. NOTHING AFTER THE RESPONSE WINDOW. The spout starts moving once the window closes, so the
@@ -29,8 +29,8 @@ TWO CORRECTIONS TO HOW LICKS GET A POSITION.
    ENL period (where the leftover-water licks live) and the response window, and excludes the
    movement.
 
-PHASE IS KEPT, NOT COLLAPSED. Each bout onset is labelled `approach` (strobe -> cue) or `response`
-(cue -> window close). They are different behavioural contexts -- uncued and possibly consummatory
+PHASE IS KEPT, NOT COLLAPSED. Each bout onset is labeled `approach` (strobe -> cue) or `response`
+(cue -> window close). They are different behavioral contexts -- uncued and possibly consummatory
 versus cued and reward-directed -- and pooling them silently is the same mistake as pooling late with
 undetected. The caller decides; this module reports.
 """
@@ -48,7 +48,7 @@ def bout_onsets_with_position(cue_samples, strobe_samples, lick_samples, codes, 
                               response_window_s, max_ili_s=None, min_bout_licks=None):
     """Bout onsets (in SAMPLES) with the spout position that was actually present at the time.
 
-    ``codes`` is the per-CUE position code (the pipeline's repaired labels), so the behaviour log
+    ``codes`` is the per-CUE position code (the pipeline's repaired labels), so the behavior log
     still supplies the position VALUE; only the timing attribution changes -- a lick is assigned to
     the trial whose STROBE most recently preceded it, not the trial whose cue did.
 

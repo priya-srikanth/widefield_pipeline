@@ -1,4 +1,4 @@
-"""Pick the BETWEEN-TRIAL spout frames worth labelling: the spout in transit, and where the network is unsure.
+"""Pick the BETWEEN-TRIAL spout frames worth labeling: the spout in transit, and where the network is unsure.
 
     conda activate dlc
     python -m wfield_local.dlc_iti_frames --sessions PS95:20260907 PS93:20260824            # -> iti_rows.csv
@@ -19,7 +19,7 @@ are represented in every folder.
 
 THE 2026-09-26 RUN. Sessions PS95_20260907 (chronic) and PS93_20260824 (subacute), response window
 3.5 s, step 12, seed 92, two gaps per position, snapshot iteration-1/snapshot-best-060. It produced
-the 47 frames in `SPOUT_FRAMES_GUIDE.html` (23 + 24, alongside the 24 already-labelled frames in each
+the 47 frames in `SPOUT_FRAMES_GUIDE.html` (23 + 24, alongside the 24 already-labeled frames in each
 folder); the rows, with the spout likelihood and x-jump at each pick, are kept in
 `docs/dlc_iti_rows_20260926.csv`. The code ran from a scratch script that night and was recovered into
 this module on 2026-09-28 -- the selection logic is unchanged, the GPU inference is behind an
@@ -230,7 +230,7 @@ def dedupe(rows: list[dict]) -> pd.DataFrame:
 # --------------------------------------------------------------------------- CLI
 
 def _parse_session(spec: str, rv) -> tuple[str, str, str, str, str]:
-    """'PS95:20260907' -> (animal, date, sid, video_stem, epoch), from the behaviour outputs on the share."""
+    """'PS95:20260907' -> (animal, date, sid, video_stem, epoch), from the behavior outputs on the share."""
     from wfield_local import dlc_train
 
     animal, date = spec.split(":")

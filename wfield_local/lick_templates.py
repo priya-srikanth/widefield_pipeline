@@ -48,7 +48,7 @@ def params(overrides: dict | None = None) -> dict:
 
 def area_signals(Ydff: np.ndarray, reg: np.ndarray, clip_mad: float = 8.0):
     """(T, n_regions) mean dF/F per region label, clipped to median +- clip_mad * MAD per region (single-frame
-    artefacts), and the region labels."""
+    artifacts), and the region labels."""
     labs = np.unique(reg)
     S = np.column_stack([Ydff[:, reg == lab].mean(axis=1) for lab in labs])
     med = np.nanmedian(S, axis=0)
@@ -157,7 +157,7 @@ def paired_stats(d, n_boot: int = 5000, seed: int = 0) -> dict:
 
 def angle_bin_templates(pre: pd.DataFrame, Vpre: np.ndarray, n_bins: int = 8):
     """Pre-stroke templates per EXECUTED-angle bin (within-session quantiles of the executed licks' peak angles, all
-    positions pooled): (bin centre angles, templates (n_bins, n_features), bin edges)."""
+    positions pooled): (bin center angles, templates (n_bins, n_features), bin edges)."""
     a = pre.angle.to_numpy(float)
     edges = np.quantile(a, np.linspace(0, 1, n_bins + 1))
     b = np.clip(np.searchsorted(edges, a, side="right") - 1, 0, n_bins - 1)
@@ -167,8 +167,8 @@ def angle_bin_templates(pre: pd.DataFrame, Vpre: np.ndarray, n_bins: int = 8):
 
 
 def readout_angle(Vpost: np.ndarray, centres: np.ndarray, T: np.ndarray, mode: str = "weighted") -> np.ndarray:
-    """Cortical angle READOUT per lick: the centre of the best-correlated angle-bin template ('argmax') or the
-    centres weighted by the positive part of the correlations ('weighted', smoother)."""
+    """Cortical angle READOUT per lick: the center of the best-correlated angle-bin template ('argmax') or the
+    centers weighted by the positive part of the correlations ('weighted', smoother)."""
     R = np.array([[corr(v, t) for t in T] for v in Vpost])
     if mode == "argmax":
         return centres[np.nanargmax(R, axis=1)]

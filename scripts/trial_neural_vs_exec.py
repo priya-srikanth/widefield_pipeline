@@ -10,13 +10,14 @@ width 1 (`softmax_neural_vs_lick.lick_weights / path_weights`).
      P(far mid), P(far ipsi) per animal x epoch (n >= 8 trials), pre included as the control (pre far-contra trials
      that happened to land like far mid).
   2. within-session coupling: neural (P far mid - P far contra) regressed on executed (w far mid - w far contra), both
-     centred within session; slope and r per animal x epoch; null = executed values block-permuted within session (runs of consecutive far-contra trials, 1000x),
+     centered within session; slope and r per animal x epoch; null = executed values block-permuted within session (runs of consecutive far-contra trials, 1000x),
      p = share of shuffled |slopes| >= observed.
 
 Usage: python scripts/trial_neural_vs_exec.py
 Output: <E>/attempt_coding_pp/trial_neural_vs_exec_*.csv + figures/trial_neural_vs_exec*.png
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -26,8 +27,10 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from softmax_neural_vs_lick import SP, lick_weights, path_weights  # noqa: E402
+from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # noqa: E402 - rebuild root (11-03)
+from wfield_local.attempt_coding import trials_name as attempt_trials_name  # noqa: E402
 
-E = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding")
+E = _encoding_root()
 AN = ["PS92", "PS93", "PS94", "PS95"]
 EP = ["pre", "acute", "subacute", "chronic"]
 FAR = ["far_contra", "far_mid", "far_ipsi"]
@@ -65,13 +68,18 @@ def coupling(g: pd.DataFrame, x: str, y: str, rng, n_perm=1000):
 
 
 def main() -> int:
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    D = E / "attempt_coding_pp"
-    T = pd.concat([pd.read_csv(D / f"trials_lick_{an}.csv.gz") for an in AN])
+    from wfield_local import config
+    from wfield_local import run_mode
+    # attempt_coding --out attempt_coding_pp is routed as an LP family; read and write there (coordinator 11-04)
+    D = run_mode.routed_output(E / "attempt_coding_pp", guard=False, lp_family=True)
+    (D / "figures").mkdir(parents=True, exist_ok=True)
+    T = pd.concat([pd.read_csv(D / attempt_trials_name("lick", an)) for an in AN])
     T = T[(T.method == "dom") & (T.spout == "far_contra") & T.cls.isin(["pre_hit", "hit", "incomplete"])]
-    T = T[T.label.str[-4:] >= "0801"]          # AUGUST-ONLY pre baseline (primary, Priya 10-18); June was in landing only
+    T = T[~T.label.map(config.early_pre)]          # AUGUST-ONLY pre baseline (primary, Priya 10-18); June was in landing only
     T["neural_d"] = T.pp_far_mid - T.pp_far_contra
     rows, coup, sess_rows = [], [], []
     rng = np.random.default_rng(0)
@@ -139,7 +147,7 @@ def main() -> int:
                  "trajectory bin),\nbars = mean over animals of the frozen pre-stroke decoder's probability for far contra / far mid / far ipsi "
                  "(groups with >= 8 trials); pre = pre-stroke control", fontsize=10)
     fig.tight_layout(rect=(0, 0.06, 1, 0.9))
-    fig.savefig(D / "figures" / "trial_neural_vs_exec_by_landing.png", dpi=125)
+    save_png_svg(fig, D / "figures" / "trial_neural_vs_exec_by_landing.png", dpi=125)
     plt.close(fig)
 
     # figure 2: within-session coupling per animal x epoch. STATISTIC = CROSS-EPOCH (Priya 10-25: "shouldn't we have a
@@ -176,9 +184,9 @@ def main() -> int:
                AN + ["filled = epoch differs from the animal's own pre sessions (p < 0.05, Welch t over sessions)"],
                loc="lower center", ncol=5, fontsize=8.5, frameon=False)
     fig.suptitle("Trial-by-trial coupling on far-contra target trials: the more a trial's licks look like far mid rather than far contra, "
-                 "\nthe more its cortex is decoded as far mid rather than far contra? (both centred within session; line = mean of animals)", fontsize=10)
+                 "\nthe more its cortex is decoded as far mid rather than far contra? (both centered within session; line = mean of animals)", fontsize=10)
     fig.tight_layout(rect=(0, 0.08, 1, 0.88))
-    fig.savefig(D / "figures" / "trial_neural_vs_exec_coupling.png", dpi=125)
+    save_png_svg(fig, D / "figures" / "trial_neural_vs_exec_coupling.png", dpi=125)
     plt.close(fig)
 
     # figure 3: PER SESSION, r against days from stroke (Priya 10-25: "can we do this per session instead of per animal")
@@ -194,7 +202,7 @@ def main() -> int:
                 continue
             ax.plot(c.day, c.r, color=ACOL[an], lw=0.8, alpha=0.5)
             ax.scatter(c.day, c.r, marker=MK[an], s=32, color=ACOL[an], edgecolor="k", lw=0.5, zorder=5)
-        ax.set_xlabel("days from stroke (grey = pre-stroke)")
+        ax.set_xlabel("days from stroke (gray = pre-stroke)")
         ax.set_title(f"executed = {kind}", fontsize=10)
         for s_ in ("top", "right"):
             ax.spines[s_].set_visible(False)
@@ -204,9 +212,9 @@ def main() -> int:
     fig.legend(handles=h, loc="lower center", ncol=6, fontsize=8.5, frameon=False)
     fig.suptitle("Trial-by-trial coupling PER SESSION (far-contra target trials, sessions with >= 20 such trials): does cortex follow "
                  "where each lick went?\nr between the decoder's (P far mid - P far contra) and the lick's (far mid - far contra) "
-                 "weight, centred within session", fontsize=10)
+                 "weight, centered within session", fontsize=10)
     fig.tight_layout(rect=(0, 0.08, 1, 0.9))
-    fig.savefig(D / "figures" / "trial_neural_vs_exec_coupling_sessions.png", dpi=125)
+    save_png_svg(fig, D / "figures" / "trial_neural_vs_exec_coupling_sessions.png", dpi=125)
     plt.close(fig)
 
     # figure 4: POOLED PER EPOCH, one dot per session (Priya 10-25). Line = mean of animals' session means; epoch - pre
@@ -266,7 +274,7 @@ def main() -> int:
         fig.suptitle(f"Trial-by-trial coupling pooled per epoch, one dot per session (far-contra target trials; August pre){ttl}. Numbers = "
                      "epoch minus pre,\nmean of animals with 95% nested CI (animals > sessions; * excludes 0)", fontsize=10)
         fig.tight_layout(rect=(0, 0.08, 1, 0.9))
-        fig.savefig(D / "figures" / f"trial_neural_vs_exec_coupling_{ver}.png", dpi=125)
+        save_png_svg(fig, D / "figures" / f"trial_neural_vs_exec_coupling_{ver}.png", dpi=125)
         plt.close(fig)
     print(f"-> {D / 'figures'}")
     return 0

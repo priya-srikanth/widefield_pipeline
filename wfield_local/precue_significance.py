@@ -13,7 +13,7 @@ be tested rather than eyeballed. Two complementary statements, deliberately not 
       Permutes position labels BETWEEN BLOCKS, keeping each block's trials together and refitting the
       whole cross-validated decoder each time. Permuting individual trials would destroy the block
       structure and give a null that is far too tight, making everything look significant. The unit of
-      exchangeability is the block, because that is the unit the task randomises.
+      exchangeability is the block, because that is the unit the task randomizes.
 
 Both are run on the CORRECTED data (default `strobedetrend`) because the artifact-laden numbers are not
 worth testing.
@@ -130,7 +130,7 @@ def session_row(item):
 
 
 def _print_row(r):
-    """The per-session line `analyse` prints when serial, printed by the parent when fanned out."""
+    """The per-session line `analyze` prints when serial, printed by the parent when fanned out."""
     print(f"  {r['label']:12s} acc {r['accuracy']:.3f}  CI[{r['ci_lo']:.3f},{r['ci_hi']:.3f}]  "
           f"null {r['null_mean']:.3f} (p95 {r['null_p95']:.3f})  p={r['p_perm']:.4f}  "
           f"n={r['n_trials']} in {r['n_blocks']} blocks", flush=True)

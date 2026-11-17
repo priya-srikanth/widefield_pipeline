@@ -1,7 +1,7 @@
 """Drift vs reorganization, per animal.
 
 Is the still-rising chronic crossnobis-from-pre representational DRIFT (the ordinary week-scale
-turnover a behaviourally stable animal shows) or ongoing stroke REORGANIZATION?
+turnover a behaviorally stable animal shows) or ongoing stroke REORGANIZATION?
 
 A fixed pre-stroke template cannot separate the two: both grow distance-from-pre over time. So this
 instead measures the per-day RATE of session-to-session change in two windows, in the SAME
@@ -25,6 +25,7 @@ cue/working to match the deck's crossnobis readout (epoch_8diag_matrices_crossno
     python chronic_drift_vs_reorg.py [--out DIR] [--n-split N] [--n-boot N]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import warnings
@@ -196,18 +197,24 @@ def analyse(n_split, n_boot, log=print):
 
 
 def figure(df, curves, out_png):
+    """EPOCH-COLOUR CONVENTION (A13, Priya 11-07): pre pairs and chronic pairs in THE epoch palette
+    (orofacial_cohort.EPOCH_LINE; they were grey and tab:blue), OPEN markers; each window's fit line in its colour."""
+    from wfield_local.orofacial_cohort import EPOCH_LINE
+    cpre, cchr = EPOCH_LINE["pre"], EPOCH_LINE["chronic"]
     fig, axes = plt.subplots(1, 4, figsize=(17, 4.2), sharey=True)
     for ax, an in zip(axes, ANIMALS):
         if an not in curves:
             ax.set_visible(False); continue
         c = curves[an]
-        ax.scatter(c["gpre"], c["dpre"], s=14, c="0.6", label="pre-pre (drift floor)", zorder=2)
-        ax.scatter(c["gchr"], c["dchr"], s=16, c="tab:blue", label="chronic-chronic", zorder=3)
+        ax.scatter(c["gpre"], c["dpre"], s=16, facecolors="none", edgecolors=cpre, lw=0.8, alpha=0.7,
+                   label="pre-pre (drift floor)", zorder=2)
+        ax.scatter(c["gchr"], c["dchr"], s=18, facecolors="none", edgecolors=cchr, lw=0.9, label="chronic-chronic",
+                   zorder=3)
         xs = np.array([0, max([*c["gpre"], *c["gchr"], 1])])
         if np.isfinite(c["m_pre"]):
-            ax.plot(xs, c["c_pre"] + c["m_pre"] * xs, "-", color="0.4", lw=1.5)
+            ax.plot(xs, c["c_pre"] + c["m_pre"] * xs, "-", color=cpre, lw=1.5)
         if np.isfinite(c["m_chr"]):
-            ax.plot(xs, c["c_chr"] + c["m_chr"] * xs, "-", color="tab:blue", lw=1.5)
+            ax.plot(xs, c["c_chr"] + c["m_chr"] * xs, "-", color=cchr, lw=1.5)
         r = df[df.animal == an].iloc[0]
         ax.set_title(f"{an}\nm_pre={r.m_pre:.4f} [{r.m_pre_lo:.4f},{r.m_pre_hi:.4f}]\n"
                      f"m_chr={r.m_chronic:.4f} [{r.m_chr_lo:.4f},{r.m_chr_hi:.4f}]\n"
@@ -219,7 +226,7 @@ def figure(df, curves, out_png):
     fig.suptitle("Within-window representational change rate: pre-stroke drift floor vs within-chronic "
                  "(crossnobis per day-gap, cue/working)", fontsize=11)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
-    fig.savefig(out_png, dpi=150)
+    save_png_svg(fig, out_png, dpi=150)
     plt.close(fig)
 
 
@@ -232,8 +239,14 @@ def main(argv=None):
     if a.out:
         out_dir = Path(a.out)
     else:
+        from wfield_local import run_mode
         from wfield_local.paths import PathResolver
-        out_dir = Path(PathResolver().root("cohort_out")) / "chronic_stability"
+        # run-mode routing (rebuild 11-03; review 8B follow-up): chronic_stability/<tag>/ like chronic_stability.py and
+        # june_august_drift (a REDO row, MASTER_MANIFEST M00086); identity for the default run. It reads no epoch data
+        # file: its inputs are the pooled bundles (`grant_kit._collect_7`), routed by the run itself
+        out_dir = run_mode.subdir(Path(PathResolver().root("cohort_out")) / "chronic_stability")
+    from wfield_local.writeguard import assert_writable
+    assert_writable(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)

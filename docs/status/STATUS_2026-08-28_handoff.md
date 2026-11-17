@@ -10,7 +10,7 @@ Two things this document got WRONG, corrected in place below so nobody re-derive
   correct. The key omits the flag when false and carries it when true, which is unambiguous (two specs
   differing by the presence of a NAMED key cannot collide) and preserves ~1 MB per session-alignment
   at ~168 s each to rebuild. A bump would additionally have discarded every UNRELATED cached kind --
-  RSA, spatial reorganisation, the engagement tables -- for a change none of them can see.
+  RSA, spatial reorganization, the engagement tables -- for a change none of them can see.
   `CACHE_VERSION` is for when the COMPUTE CODE moves; this was a new key, not a moved one.
 * **#2's blocker was already clear.** `_pooled` built `phase_labels("pre") + phase_labels("post")`
   filtered by animal, which is what `config.pooled_labels` returns. It now CALLS that function rather

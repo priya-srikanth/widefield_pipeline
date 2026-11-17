@@ -105,7 +105,7 @@ def _discover(yyyymmdd: str, raw_root: str, daq_root: str) -> list[dict]:
         m = DAT_ANY_RE.search(p.name)
         if m and m.group(1) != "2":
             ch, h, w = m.groups()
-            print(f"[discover] WARNING: {p.name} is labelled {ch}-channel, not 2, and was SKIPPED. "
+            print(f"[discover] WARNING: {p.name} is labeled {ch}-channel, not 2, and was SKIPPED. "
                   f"A normal 415/470 session that labcams mis-saved as single-channel looks exactly "
                   f"like this; if its DAQ shows both LEDs alternating, rename the '_{ch}_{h}_{w}_' "
                   f"segment to '_2_{h}_{w}_' to rescue it. [{p}]", flush=True)
@@ -529,13 +529,16 @@ def _maps_commands(session: dict, params: dict, rv: PathResolver,
     mc = rv.resolve("labcams", f"{yyyymmdd}/{sess}/motion_corrected")
     res = f"{mc}/wfield_local_results"
     allen = f"{res}/allen_aligned_{tag}"
-    cue = f"{mc}/spout_trial_averages_{tag}"
-    lick = f"{mc}/lick_aligned_{tag}"
+    # SVTcorr-derived map dirs carry the hemo tag under a non-adopted variant (config.maps_dir_tag; rebuild 11-03):
+    # never overwrite the adopted maps in place. Default: exactly `<name>_<tag>` as before.
+    mtag = config.maps_dir_tag() if tag == str(config.defaults()["preprocess"]["maps"]["tag"]) else tag
+    cue = f"{mc}/spout_trial_averages_{mtag}"
+    lick = f"{mc}/lick_aligned_{mtag}"
     # THE VARIANT DIRECTORY, so a re-run under a changed definition lands beside the old masks
     # rather than over them (see `quiet_periods.quiet_frame_path`).
     from wfield_local.quiet_periods import quiet_dir as _quiet_dir
     quiet = _quiet_dir(mc, tag=tag)
-    running_act = f"{mc}/running_activity_{tag}"
+    running_act = f"{mc}/running_activity_{mtag}"
     events_npz = f"{rv.root('behavior_out')}/events/{animal}/{yyyymmdd}.npz"
 
     matches = sorted(glob.glob(f"{mc}/*cleanpairs_frame_map.npz"))
@@ -650,7 +653,7 @@ def preprocess_session(s: dict, params: dict, rv: PathResolver, dry_run: bool,
     thing to have to get right at midnight.
     """
     animal, mmdd, sess, dims = s["animal"], s["mmdd"], s["sess"], s["dims"]
-    yyyymmdd = s.get("yyyymmdd") or f"{config.cohort_year()}{mmdd}"   # from discovery (was hardcoded 2026)
+    yyyymmdd = s.get("yyyymmdd") or config.date8(mmdd)   # from discovery; date8 rolls the year at New Year (cohort2)
     mc = f"{s['sess_dir']}/motion_corrected"
     binp = f"{mc}/motioncorrect_{dims}_uint16.bin"
     results = f"{mc}/wfield_local_results"

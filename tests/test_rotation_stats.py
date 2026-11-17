@@ -78,7 +78,7 @@ def test_cohort_ci_brackets_the_observed_mean():
 
 def test_animal_without_bootstrap_contributes_its_point_estimate():
     """DROPPING IT WOULD CHANGE THE COHORT COMPOSITION between cells, and a cell whose animals
-    differ from its neighbour's is not comparable to it."""
+    differ from its neighbor's is not comparable to it."""
     cells = _cells(0.6, n_animals=3)
     cells.append({"cos_obs": 0.2, "cos_boot": np.zeros(0), "_z": 1.0})
     mean, _, _, n_an, _, _ = cohort_cosine(cells, n_boot=300)

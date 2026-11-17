@@ -54,6 +54,6 @@ and commit the regenerated CSV with the page.
 
 - Figs 6.1-6.3 and 10.1 PNGs date from 10-07 and use pre = 44 sessions (June + August); later tables use August pre.
 - Stale text inside some figure images (noted in their captions, not re-rendered): section-7 map subtitles say
-  "PER ROW" scale (one scale is used); Fig 0.1 note says only PS92 has stabilised; Fig 12.1 legend says
+  "PER ROW" scale (one scale is used); Fig 0.1 note says only PS92 has stabilized; Fig 12.1 legend says
   "circular-shift" (the null is a block permutation).
 - Caption numbers without a sidecar table to check against: Fig 1.1, 4.2, 9.4.

@@ -13,7 +13,9 @@ Images are scaled to FIT inside their layout box preserving aspect ratio (the pr
 deck overflowed the slide). PNG pixel dims are read straight from the IHDR header, so
 there is no Pillow/OpenCV dependency here.
 
-Run: ``python -m wfield_local.preprocess_deck --output <path.pptx>``.
+Run: ``python -m wfield_local.preprocess_deck --output <path.pptx>``. Default output:
+``<decks_out>/preprocessing/cross-session_preprocessing[_<animal>].pptx`` (``presentations/pipeline``, cohort-scoped;
+the ``labcams`` top level until 2026-11-06, Priya).
 """
 from __future__ import annotations
 
@@ -61,6 +63,13 @@ PER_DATE_TYPES = [
      "__PHOTOBLEACH__", "photobleach", "FIT"),
 ]
 
+# Types rendered as one trailing section covering ALL animals at the END of the deck, rather than
+# interleaved per-animal. In cohort1's single-animal decks photobleach was naturally the final block
+# (animal->type->date, photobleach last); with multiple animals per deck (cohort2, split by indicator)
+# the per-animal loop would otherwise drop a photobleach block at the end of EACH animal. Keep it as a
+# single "Photobleaching" section at the end for all animals (Priya 2026-11-08).
+TRAILING_TYPES = {"photobleach"}
+
 # Methodology for the speaker NOTES (how each figure is made). Common preprocessing prefix + per-type.
 _M_PRE = ("Widefield GCaMP: alternating 470 nm (GCaMP) + 415 nm (isosbestic) frames. Pipeline: sign-fixed "
           "2D rigid MOTION correction -> SVD -> hemodynamic correction (415 regressed out) -> Allen-CCF "
@@ -95,7 +104,7 @@ _M_LICK_GATE = (
 METHOD_NOTES = {
     "allen": "Mean 470/415 image with Allen CCF area outlines overlaid — the atlas-alignment QC. " + _M_PRE,
     "cue_maps": "Cue-aligned maps: mean dF/F in the pre and post windows (both 2 s, from configs/defaults.yaml "
-                "preprocess.maps.cue_pre_s / cue_post_s) and their difference, per spout position, shared colour "
+                "preprocess.maps.cue_pre_s / cue_post_s) and their difference, per spout position, shared color "
                 "scale. NB the '1s' in the filename is a legacy label kept only so the deck's glob still matches "
                 "historical sessions -- the pre window is 2 s, as recorded in the figure's *_summary.json. " + _M_PRE,
     "cue_pairwise": "Pairwise contrasts between spout positions (post-cue delta maps) — which cortex "
@@ -113,6 +122,16 @@ METHOD_NOTES = {
                    "separating cue/sensory from lick/motor contributions. THE TWO WINDOWS ARE "
                    "DIFFERENT LENGTHS and the alignments differ, so compare PATTERN, not amplitude."
                    + _M_LICK_GATE + " " + _M_PRE,
+    "spout_native": "Per-spout maps for sessions without an Allen registration yet (cohort2, from 2026-10-29), "
+                    "in each session's NATIVE pixels (scripts/cohort2_qc/spout_maps.py --per-session; adopted "
+                    "hemo_meegkit_hpfit). Cue map = mean over [cue, cue + 1 s] minus [cue - 1 s, cue]; lick map = "
+                    "mean over [first lick, + 0.5 s] minus the same PRE-CUE baseline (first DAQ lick within the "
+                    "3.5 s response window; a pre-lick baseline would contain the cue response). Columns close "
+                    "L / C / R, far L / C / R, the all-spout mean, and the spout-specific RMS (each spout minus the "
+                    "all-spout mean). One color scale per session, shared by its cue and lick rows. Trials with a "
+                    "detected epileptiform discharge within -1.5..+3.5 s of the cue are dropped (count in the "
+                    "title), and PS122 10-29 after 110 min. No cross-day pixel registration: compare patterns "
+                    "across days visually. " + _M_PRE,
     "quiet_running": "SVD activity averaged over QUIET periods vs RUNNING bouts (canonical behavior_events: "
                      "treadmill >3 mm/s sustained >=2 s = running; slow + not-near-lick/reward = quiet), plus "
                      "the running-minus-quiet contrast. Corrected frames mapped to DAQ samples via the "
@@ -250,6 +269,19 @@ def _yyyymmdd(mc):
 _animal_of = config.animal_of        # one extractor, in config
 
 
+def led_nm(session):
+    """Functional (GCaMP) LED of a session, from the folder's condition tag: ``PS121_490_<date>_*`` = 490 nm.
+
+    Every untagged session is 470 nm. On 2026-11-04 only PS121 / PS122 were imaged at 490 (PS118 stayed 470)."""
+    folder = os.path.basename(os.path.dirname(str(session["mc"]).replace("\\", "/").rstrip("/")))
+    return "490" if re.match(r"PS\d+_490_", folder) else "470"
+
+
+def with_led(text, led):
+    """Swap the 470 wording of a title / note for the session's functional LED (no-op at 470)."""
+    return text if led == "470" or not text else text.replace("470", led)
+
+
 def _mmdd_of(session):
     return session["label"].split("_")[1]
 
@@ -274,8 +306,31 @@ def _discover_figure(session, type_key, subdir, glob_suffix, labcams_root):
         animal, mmdd = _animal_of(session), _mmdd_of(session)
         pb = f"{labcams_root.rstrip('/')}/{ymd}/photobleach/photobleach_{animal}_{mmdd}.png"
         return pb if os.path.exists(pb) else None
+    if subdir == "__SPOUTMAPS_NATIVE__":
+        # cohort-level output (labcams/<cohort>/spout_maps_native/), not inside the read-only motion_corrected
+        animal, mmdd = _animal_of(session), _mmdd_of(session)
+        for pat in (f"{glob_suffix}/spout_maps_{animal}_{mmdd}.png", f"*/{glob_suffix}/spout_maps_{animal}_{mmdd}.png"):
+            hits = sorted(glob.glob(os.path.join(labcams_root, pat)))
+            if hits:
+                return hits[0].replace("\\", "/")
+        return None
+    subdir = _tagged_map_dir(subdir)
     hits = sorted(glob.glob(os.path.join(session["mc"], subdir, f"*{glob_suffix}")))
     return hits[0].replace("\\", "/") if hits else None
+
+
+_MAP_DIRS = ("spout_trial_averages_", "lick_aligned_", "running_activity_")
+
+
+def _tagged_map_dir(subdir: str) -> str:
+    """``<map dir>_affine8v1`` -> ``<map dir>_<config.maps_dir_tag()>`` (identity for the adopted variant; rebuild
+    11-03: a deck rebuilt under another hemo variant reads that variant's maps, never the adopted ones)."""
+    from wfield_local import config
+    base = str(config.defaults()["preprocess"]["maps"]["tag"])
+    for p in _MAP_DIRS:
+        if subdir == f"{p}{base}":
+            return f"{p}{config.maps_dir_tag()}"
+    return subdir
 
 
 def map_variant_of(session, subdir="spout_trial_averages_affine8v1"):
@@ -291,6 +346,7 @@ def map_variant_of(session, subdir="spout_trial_averages_affine8v1"):
     a bare SVTcorr.npy, the variant name for a `hemo_<variant>/` path, and None when the summary
     predates the field entirely (i.e. built before 2026-08-14, therefore zerophase in practice).
     """
+    subdir = _tagged_map_dir(subdir)
     # Scan EVERY summary, not just the alphabetically-first one. This directory holds several
     # (`..._extra_spout_position_overlay_summary.json`, `..._shared_scale_summary.json`, ...) and only
     # the ones written by the map STEPS record `svtcorr`. Reading hits[0] blindly picked an overlay
@@ -345,15 +401,20 @@ def _crossday_qc_for_animal(animal, xday_root):
 
 
 def _crossday_intensity(xday_root, labcams_root):
-    """Global cross-day raw ROI intensity summary PNG (xday first, then labcams), or None."""
-    for root in (xday_root, labcams_root):
+    """Global cross-day raw ROI intensity summary PNG (xday first, then labcams), or None.
+
+    Cohort-scoped (2026-11-05): for a cohort with an output_subdir only ``<xday>/<subdir>/`` is searched, so the
+    cohort2 decks never show cohort1's figure (or the old all-animals one)."""
+    from wfield_local.crossday_intensity import out_dir_for
+    scoped = out_dir_for(xday_root)
+    for root in ((xday_root, labcams_root) if scoped == str(xday_root) else (scoped,)):
         hits = sorted(glob.glob(os.path.join(root, "crossday_raw_intensity*.png")))
         if hits:
             return hits[0].replace("\\", "/")
     return None
 
 
-def _intensity_stale(xint, labcams_root):
+def _intensity_stale(xint, labcams_root, animals=None):
     """Sessions whose ``frames_average.npy`` is NEWER than the cross-day intensity figure.
 
     That figure is a ROLLUP: ``preprocess`` builds it once at the end of an invocation, over every
@@ -382,6 +443,8 @@ def _intensity_stale(xint, labcams_root):
         if not re.fullmatch(r"\d{8}", date):
             continue
         m = re.match(r"(PS\d+)", sess)
+        if m and animals is not None and m.group(1) not in animals:
+            continue                  # another cohort's session is not missing from this cohort's figure
         try:
             if m and os.path.getmtime(p) > fig_mtime + 1:
                 stale.append((m.group(1), date))
@@ -402,7 +465,8 @@ def _sessions_on_disk(labcams_root):
         if not re.fullmatch(r"\d{8}", d):
             continue
         for sd in sorted(glob.glob(os.path.join(datedir, "*"))):
-            m = re.match(r"(PS\d+)_" + d, os.path.basename(sd))
+            # allow an optional condition tag between animal and date, e.g. PS121_490_20261104_* (490 nm LED)
+            m = re.match(r"(PS\d+)_(?:[^_]+_)?" + d, os.path.basename(sd))
             mc = os.path.join(sd, "motion_corrected")
             if m and os.path.isdir(mc):
                 out.append({"label": f"{m.group(1)}_{d[4:]}", "mc": mc.replace("\\", "/")})
@@ -530,14 +594,19 @@ def build_deck(out_path, sessions=None, resolver=None, machine=None,
                      f"{len(a_sessions)} session(s) — preprocessing outputs")
 
         for key, title, subdir, suffix, layout_kind in PER_DATE_TYPES:
+            if key in TRAILING_TYPES:            # rendered once at the end, all animals (see below)
+                continue
             for s in a_sessions:
                 img = _discover_figure(s, key, subdir, suffix, labcams_root)
                 if not img:
                     continue
                 ymd = _yyyymmdd(s["mc"]) or ""
                 date_disp = f"{ymd[:4]}-{ymd[4:6]}-{ymd[6:8]}" if len(ymd) == 8 else _mmdd_of(s)
-                slide_title = f"{animal}  {date_disp}  |  {title}"
-                _add_content(prs, blank, slide_title, img, layout_kind, note=METHOD_NOTES.get(key))
+                led = led_nm(s)
+                slide_title = f"{animal}  {date_disp}  |  {with_led(title, led)}" + (
+                    f"  ({led} nm)" if led != "470" else "")
+                _add_content(prs, blank, slide_title, img, layout_kind,
+                             note=with_led(METHOD_NOTES.get(key), led))
                 type_counts[key] += 1
 
         qc = _crossday_qc_for_animal(animal, xday_root)
@@ -548,11 +617,35 @@ def build_deck(out_path, sessions=None, resolver=None, machine=None,
 
         per_animal[animal] = len(prs.slides) - before
 
+    # ---- Trailing photobleach section: ONE block at the end, all animals (not per-animal). ----
+    # cohort1's single-animal decks ended with photobleach naturally; keep that for multi-animal decks.
+    pb = next((t for t in PER_DATE_TYPES if t[0] in TRAILING_TYPES), None)
+    if pb:
+        key, title, subdir, suffix, layout_kind = pb
+        pb_slides = []
+        for animal in config.animals():
+            for s in _sessions_for_animal(sessions, animal):
+                img = _discover_figure(s, key, subdir, suffix, labcams_root)
+                if not img:
+                    continue
+                ymd = _yyyymmdd(s["mc"]) or ""
+                date_disp = f"{ymd[:4]}-{ymd[4:6]}-{ymd[6:8]}" if len(ymd) == 8 else _mmdd_of(s)
+                led = led_nm(s)
+                slide_title = f"{animal}  {date_disp}  |  {with_led(title, led)}" + (
+                    f"  ({led} nm)" if led != "470" else "")
+                pb_slides.append((slide_title, img, layout_kind, with_led(METHOD_NOTES.get(key), led)))
+        if pb_slides:
+            _add_divider(prs, blank, "Photobleaching — 415/470 ROI-median trend",
+                         "Within-session 415/470 fluorescence decay, all sessions (all animals).")
+            for slide_title, img, layout_kind, note in pb_slides:
+                _add_content(prs, blank, slide_title, img, layout_kind, note=note)
+                type_counts[key] += 1
+
     # ---- Global cross-day summary section (only on the last deck when split) ----
     xint = _crossday_intensity(xday_root, labcams_root) if include_global_summary else None
     crossday_section = False
     if xint:
-        stale = _intensity_stale(xint, labcams_root)
+        stale = _intensity_stale(xint, labcams_root, animals=set(config.animals()))
         sub = "Cross-day raw ROI fluorescence intensity across sessions."
         cap = "Cross-day raw ROI fluorescence intensity (per animal)"
         if stale:
@@ -684,7 +777,7 @@ def build_decks(out_base, sessions=None, resolver=None, machine=None, max_sessio
     buckets = partition_animals(sessions, list(config.animals()), max_sessions)
     single = len(buckets) <= 1
     written, summaries = [], []
-    for i, (animals, _n) in enumerate(buckets):
+    for animals, _n in buckets:
         subset = [s for s in sessions if _animal_of(s) in set(animals)]
         out = _deck_path(out_base, animals, single)
         written.append(os.path.abspath(out))
@@ -728,7 +821,7 @@ def build_decks(out_base, sessions=None, resolver=None, machine=None, max_sessio
 def _main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--output", default=None,
-                    help="Base .pptx path (default: labcams/cross-session_preprocessing.pptx). "
+                    help="Base .pptx path (default: <decks_out>/preprocessing/cross-session_preprocessing.pptx). "
                          "When split, files get an animal suffix (cross-session_preprocessing_<animal>.pptx).")
     ap.add_argument("--machine", default=None, help="Override machine (analysis|imaging).")
     ap.add_argument("--max-sessions", type=int, default=None,
@@ -736,7 +829,15 @@ def _main(argv=None):
                          "0 = single unified deck).")
     args = ap.parse_args(argv)
     rv = config.resolver(args.machine)
-    out = args.output or rv.resolve("labcams", "cross-session_preprocessing.pptx")
+    from wfield_local.paths import deck_dir
+    out = args.output or (deck_dir("preprocessing", rv) / "cross-session_preprocessing.pptx").as_posix()
+    if not args.output:
+        # a tagged run (another hemo variant: the deck reads that variant's maps) goes to
+        # <decks_out>/preprocessing/<tag>/..., never over the default deck (rebuild 11-03); identity for the default run
+        from pathlib import Path as _P
+
+        from wfield_local import lp_licks
+        out = str(lp_licks.output_dir(_P(out)))
     build_decks(out, resolver=rv, machine=args.machine, max_sessions=args.max_sessions)
 
 

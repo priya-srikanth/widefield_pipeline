@@ -43,7 +43,8 @@ def main(argv=None) -> int:
     from wfield_local import epoch_figures as ef
     from wfield_local.paths import PathResolver
 
-    d = a.dir or (Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch")
+    from wfield_local import lp_licks              # run-mode routing (rebuild 11-03): identity for the default run
+    d = a.dir or lp_licks.output_dir(Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch")
     bundles = sorted(d.glob("*_bundle.npz"))
     if a.only:
         bundles = [b for b in bundles if a.only in b.name]
@@ -113,7 +114,7 @@ def main(argv=None) -> int:
                 fixed = _COLOUR_RUN.sub(lambda m: "BLACK " + m.group("word"), sub)
                 if fixed != sub:
                     over["subtitle"] = fixed
-                    print(f"   .. {stem}: subtitle contour colour -> black", flush=True)
+                    print(f"   .. {stem}: subtitle contour color -> black", flush=True)
             ef.replot_map(b, **over)
             ok += 1
             print(f"   {stem}", flush=True)

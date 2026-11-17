@@ -86,7 +86,7 @@ def test_corrupt_record_is_skipped_not_fatal(tmp_path):
 def test_rebuild_summary_repairs_a_clobbered_aggregate(tmp_path):
     """THE REGRESSION TEST for the 2026-08-11 incident.
 
-    Simulate: box A analysed PS92/PS93, box B analysed PS94/PS95, and box B's run() replaced the
+    Simulate: box A analyzed PS92/PS93, box B analyzed PS94/PS95, and box B's run() replaced the
     aggregate with only its own two. Rebuilding from the per-session records on disk must restore
     all four -- with no raw .dat access and no recomputation.
     """

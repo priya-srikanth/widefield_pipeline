@@ -138,7 +138,7 @@ def _drop_window(fid, ts, gpio, t0, t1, p=0.4, seed=1):
     """Randomly delete a fraction of rows inside a time window, as a bandwidth-starved camera does.
 
     Rows VANISH while frame_id keeps counting -- that is what makes drops detectable at all -- so a
-    pulse's rising edge is still seen but its onset is quantised late by however many frames were
+    pulse's rising edge is still seen but its onset is quantized late by however many frames were
     lost just before it.
     """
     rng = np.random.default_rng(seed)

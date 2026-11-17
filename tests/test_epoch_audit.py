@@ -34,7 +34,7 @@ class _RV:
 
 
 def test_a_missing_table_is_not_agreement(tmp_path):
-    """THE FAILURE THIS WHOLE MODULE GUARDS AGAINST. A box that has not run the behaviour stage
+    """THE FAILURE THIS WHOLE MODULE GUARDS AGAINST. A box that has not run the behavior stage
     must report "not checked", never "no disagreement" -- those look identical in a log and mean
     opposite things."""
     rep = epoch_audit.audit(rv=_RV(tmp_path))
@@ -168,14 +168,14 @@ def test_resolution_is_skipped_when_pinned(monkeypatch):
 
 
 @pytest.mark.skipif(not epoch_audit._cohort_path().exists(),
-                    reason="no cohort behaviour table on this box")
+                    reason="no cohort behavior table on this box")
 def test_against_the_real_cohort_table_the_stored_spec_agrees():
-    """The live check: today's behaviour still matches what `EPOCH_SPEC` says.
+    """The live check: today's behavior still matches what `EPOCH_SPEC` says.
 
     This is expected to FAIL when an animal genuinely crosses a boundary, and that failure is the
     signal to edit `EPOCH_SPEC` -- deliberately not written as a tautology that can never fire."""
     rep = epoch_audit.audit()
     assert rep["available"] is True
     assert epoch_audit.disagreements(rep) == [], (
-        "behaviour has moved away from EPOCH_SPEC; update the spec and rerun -- see "
+        "behavior has moved away from EPOCH_SPEC; update the spec and rerun -- see "
         + "; ".join(epoch_audit.disagreements(rep)))

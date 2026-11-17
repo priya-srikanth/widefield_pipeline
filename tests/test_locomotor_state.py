@@ -1,13 +1,13 @@
-"""Behavioural-state segments: the spout-position-agnostic SPECIFICITY CONTROL.
+"""Behavioral-state segments: the spout-position-agnostic SPECIFICITY CONTROL.
 
 Priya, 2026-09-11: "we don't need position information for this at all -- spout position agnostic.
 I'm more looking for evidence that not *all* decoding/encoding degrades post-stroke, with running as
 an example", and then "should we try quiet vs running vs licking (all positions) frozen decoder?"
 
 The lesion is ventrolateral STRIATAL, so no cortex is damaged. If the same undamaged cortex, imaged
-through the same window on the same basis, still reports behavioural state normally while its report
+through the same window on the same basis, still reports behavioral state normally while its report
 of lick target has changed, then the target deficit is specific -- and the generic explanations
-(window clouding, haemodynamic drift, arousal, basis drift) all fail at once, because every one of
+(window clouding, hemodynamic drift, arousal, basis drift) all fail at once, because every one of
 them would degrade this readout too.
 
 These tests pin the two things that make the unit legitimate: the MUTUAL EXCLUSIVITY Priya
@@ -309,7 +309,7 @@ def test_two_cues_sharing_one_lick_train_enter_the_window_once():
 
 
 def test_the_licking_window_is_duration_matched_to_the_other_two_classes():
-    """A longer window is a smoother binned feature WHATEVER the behaviour.
+    """A longer window is a smoother binned feature WHATEVER the behavior.
 
     If licking windows were 2 s and running/quiet 1 s, a decoder could separate the classes on
     window length rather than on state -- which is the one thing this control must not allow.

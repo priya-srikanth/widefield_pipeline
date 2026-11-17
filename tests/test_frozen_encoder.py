@@ -167,7 +167,7 @@ def test_fit_animal_job_equals_direct_fits(tmp_path):
 
 
 def test_spout_split_recovers_templates_and_sums_back():
-    """Spout-locked templates = per spout x cue-relative bin mean of the centred columns; s + d = x exactly; in the
+    """Spout-locked templates = per spout x cue-relative bin mean of the centered columns; s + d = x exactly; in the
     sessions the template came from, d has zero mean per spout and bin (where the bin has enough trials)."""
     rng = np.random.default_rng(7)
     k0, K = fe._template_bins()

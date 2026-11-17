@@ -117,15 +117,28 @@ logical_roots:
     description: "Analysis component-figure store on MICROSCOPE: nightly_figs._publish_figs mirrors the
       local cue_lick PNGs and SVGs here each run (durable + accessible, matching how preprocessing figs
       persist under labcams/<date>/), preserving the svg/ and data/ shape figure_layout defines. Routed
-      JSON lands in json/. The CURRENT deck is spout_position_analysis_summary.pptx at the labcams top
-      level. RENAMED 2026-09-21 from labcams/locanmf_lick_pooled/cue_analysis: this is the live mirror of
-      every analysis figure and it was sitting inside a directory named after an abandoned June 2026
+      JSON lands in json/. The CURRENT deck is <decks_out>/analysis/spout_position_analysis_summary.pptx
+      (at the labcams top level until 2026-11-06). RENAMED 2026-09-21 from labcams/locanmf_lick_pooled/
+      cue_analysis: this is the live mirror of every analysis figure and it was sitting inside a directory named after an abandoned June 2026
       pooling experiment, whose own output now sits in labcams/retired/locanmf_lick_pooled_202606."
     mounts:
       analysis: "M:/MICROSCOPE/Priya/Widefield/labcams/analysis_figures"
       mac:      "/Volumes/Priya/Widefield/labcams/analysis_figures"
       imaging:  "N:/MICROSCOPE/Priya/Widefield/labcams/analysis_figures"
       analysis_desktop: ["M:/MICROSCOPE/Priya/Widefield/labcams/analysis_figures", "N:/MICROSCOPE/Priya/Widefield/labcams/analysis_figures"]
+
+  decks_out:
+    description: "Every AUTO-BUILT .pptx deck (wfield_local.paths.deck_dir): <this>/<kind>/ for kind = analysis,
+      preprocessing, behavior, orofacial, history (the previous copies keep_previous makes); cohort-scoped
+      (cohort2 -> <this>/cohort2/<kind>/). MOVED 2026-11-06 (Priya) from labcams/ (analysis + preprocessing
+      decks, deck_history/), labcams/cohort2/, behavior_summary/, LP_analysis/<run>/cohort/deck/ and
+      Behavior_Cameras/Widefield/example_clips/. Only the .pptx files moved: the figures and JSON sidecars stay
+      in their data roots. presentations/ itself also holds Priya's hand-made decks -- never written here."
+    mounts:
+      analysis: "M:/MICROSCOPE/Priya/Widefield/presentations/pipeline"
+      mac:      "/Volumes/Priya/Widefield/presentations/pipeline"
+      imaging:  "N:/MICROSCOPE/Priya/Widefield/presentations/pipeline"
+      analysis_desktop: ["M:/MICROSCOPE/Priya/Widefield/presentations/pipeline", "N:/MICROSCOPE/Priya/Widefield/presentations/pipeline"]
 
   xday_qc:
     description: "Cross-day registration/QC dir on MICROSCOPE (NOT under a per-date folder)"
@@ -188,3 +201,52 @@ logical_roots:
 staging:
   camera_local: "D:/camera"             # -> behavior_cameras/<YYYYMMDD>
   behavior_logs_local: "D:/behavior_logs"  # -> behavior_logs/<session>
+
+# REBUILD ROOT (coordinator 11-03, fourth review): a render profile with `rebuild_root` sets WIDEFIELD_REBUILD_ROOT, and
+# then EVERY derived-output root resolves into that one fresh folder (wfield_local/paths.py PathResolver, the read / write
+# fence in wfield_local/rebuild_root.py). Acquired / raw inputs and the hemo variant dirs stay where they are, read-only.
+# Inputs that live INSIDE a derived tree (epoch boundaries, the camera / behaviour QC tables) are COPIED in once by
+# `python -m wfield_local.rebuild_root init` (sha256 manifest), so readers never touch the default copies.
+rebuild:
+  env: WIDEFIELD_REBUILD_ROOT
+  # logical root -> folder under the rebuild root: the WHOLE root is derived output
+  derived_roots:
+    figures_working: figures_working
+    cue_analysis_out: analysis_figures
+    cohort_out: labcams
+    decks_out: presentations
+  # derived trees under an INPUT root: (root, glob of the first path segments) -> folder under the rebuild root, keeping
+  # the relative path (orofacial "<run>/imaging_encoding/..." -> <rebuild>/LP_analysis/<run>/imaging_encoding/...)
+  derived_subtrees:
+    orofacial: {dest: LP_analysis, patterns: ["*/imaging_encoding"]}
+  # read-only inputs inside a derived root's ORIGINAL location, read from there (never written): no copy is made
+  inputs_in_place:
+    cohort_out:
+      - joint_bases
+      # the HAND-PAINTED fiber-glue masks (painted 2026-09-12, paint_exclusion.py): hand-made INPUTS that happen to sit
+      # in grant_figures/. Read in place by `paint_exclusion.mask_dir` (PathResolver.input_root), never copied. Before
+      # 11-09 mask_dir followed the rebuild root, found nothing there, and beta_maps.painted_exclusion silently returned
+      # an empty mask: glue IN under cohort1_rebuild_20261103 (docs/status/RUNNING_LIST_2026-11-08_STATE_SPACE.md item 12)
+      - grant_figures/exclusion_mask_painted_*.npy
+  # inputs inside a derived tree that `init` COPIES into the rebuild root (logical root, relative path)
+  seed_inputs:
+    cohort_out: ["epoch_boundaries.json"]
+    orofacial:
+      - lp_r4_heatmap_20261013__clean_v36/imaging_encoding/qc/jaw_onsets.csv
+      - lp_r4_heatmap_20261013__clean_v36/imaging_encoding/qc/nose_onsets.csv
+      # qc/trial_attempts.csv is NOT a seed (coordinator 11-04): the pre-rebuild table has the old classes. The rebuild
+      # PRODUCES its own (scripts/trial_attempts.py under the profile -> run_mode.attempts_dir) before any reader runs
+      # behaviour inputs of the routed encoding family (coordinator 11-04; read via run_mode.behaviour_qc_dir)
+      - lp_r4_heatmap_20261013__clean_v36/imaging_encoding/qc/precue_contacts.csv
+      - lp_r4_heatmap_20261013__clean_v36/imaging_encoding/qc/first_lick_latency_late_licked_trials.csv
+      - lp_r4_heatmap_20261013__clean_v36/imaging_encoding/qc/position_block_summary.csv
+      # qc/camera_coverage.csv is NOT a seed (coordinator 11-04): it was never produced on the share. It is PRODUCED into
+      # the rebuild root before the camera-gated renders (render step G0b, log 8.38): WITHOUT the profile env,
+      #   python scripts/camera_coverage_tables.py --out <rebuild root>/<orofacial derived>/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/qc
+      # (its content does not depend on the hemo variant / projection / pre set; it forces the DAQ gate itself)
+  # top-level entries of the ORIGINAL labcams tree a rebuild run may still READ (session data + the inputs above); every
+  # other top-level entry (grant_figures, frozen_models, the deck, ...) is a default derived product: reads are refused
+  # an entry with a "/" is a glob over the path RELATIVE to labcams (exact files inside an otherwise refused folder)
+  labcams_inputs: ['re:^\d{8}$', "joint_bases", "xday", "grant_figures/exclusion_mask_painted_*.npy"]
+  # content-keyed stores placed under the rebuild root by the profile
+  stores: {frozen_models: frozen_models, session_cache: session_cache}

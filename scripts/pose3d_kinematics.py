@@ -47,6 +47,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from wfield_local.pose3d import pose3d_dir
 
 V36 = "lp_r4_heatmap_20261013__clean_v36"
 OPEN_MM = 1.5
@@ -167,11 +168,15 @@ def session_result(job) -> tuple:
     s, mode = job
     rv = PathResolver()
     animal, date = s.split(":")
-    d3 = Path(rv.root("dlc")) / "session_poses" / "pose3d"
+    d3 = pose3d_dir(rv)
     fr = d3 / f"{animal}_{date}_frames.csv.gz"
     lk = Path(rv.root("orofacial")) / V36 / "sessions" / animal / date / ("licks_all.csv" if mode == "all" else "licks.csv")
     ver = result_cache.code_version(sys.modules[__name__], pose3d, spout_world, extra=mode)
-    return result_cache.cached(d3 / "_cache" / f"kinematics_{mode}", f"{animal}_{date}", [fr, lk], ver,
+    # ROUTED like every other 3-D kinematics cache (`trial_classes.kin_cache_dir`): the old place without a rebuild root,
+    # <root>/session_poses_derived/<tag>/... under one. 11-06: the 10-26 entries went stale with pose3d.py (11-04), and the
+    # recompute's write to the unrouted session_poses/pose3d/_cache was refused by the rebuild fence (k_spout_error).
+    from wfield_local import trial_classes as tc
+    return result_cache.cached(tc.kin_cache_dir(d3, f"kinematics_{mode}"), f"{animal}_{date}", [fr, lk], ver,
                                lambda: _session_result(rv, s, mode, fr, lk))
 
 
@@ -228,7 +233,7 @@ def main(argv=None) -> int:
     ap.add_argument("--out", type=Path, default=None, help="output folder (checks)")
     a = ap.parse_args(argv)
     rv = PathResolver()
-    d3 = Path(rv.root("dlc")) / "session_poses" / "pose3d"
+    d3 = pose3d_dir(rv)
     cur = None if a.all else ak.curated_ids()
     sess = a.sessions or sorted(f.name.replace("_frames.csv.gz", "").replace("_", ":", 1) for f in d3.glob("PS*_frames.csv.gz")
                                 if cur is None or f.name.replace("_frames.csv.gz", "") in cur)

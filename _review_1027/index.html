@@ -1,0 +1,146 @@
+<title>Loose-end figures 10-27</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* layout: one reading column, each figure a numbered review item with its decision underneath */
+:root{--bg:#f6f7f9;--fg:#1c2230;--muted:#5c6575;--line:#d9dde4;--accent:#2f5d8a;--card:#ffffff;
+  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;--mono:"IBM Plex Mono",ui-monospace,Consolas,monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#13171e;--fg:#e4e8ef;--muted:#9aa3b2;--line:#2c3340;--accent:#8fb6e0;--card:#1a1f28;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#13171e;--fg:#e4e8ef;--muted:#9aa3b2;--line:#2c3340;--accent:#8fb6e0;--card:#1a1f28;color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 48px}
+main{max-width:1180px;margin:0 auto;display:grid;gap:30px}
+h1{font-size:1.6rem;margin:0;text-wrap:balance}
+.lede{color:var(--muted);max-width:68ch;margin:6px 0 0}
+section{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:18px;display:grid;gap:10px;min-width:0}
+h2{font-size:1.05rem;margin:0;text-wrap:balance}
+.tag{font-family:var(--mono);font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
+.fig{overflow-x:auto}
+.fig img{display:block;max-width:100%;height:auto;border:1px solid var(--line);background:#fff}
+p{margin:0;max-width:75ch}
+.ask{border-left:3px solid var(--accent);padding-left:10px}
+code{font-family:var(--mono);font-size:.85em}
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;600&display=swap">
+<main>
+<header>
+<h1>Loose-end figures, 10-27 (updated: ROI and basis items A-C)</h1>
+<p class="lede">Figures made today that are not on the goal page yet. Each item says what it shows and what to decide. All Allen-area / lick-scaled where noted; the primary versions will be redrawn on the SVD decoder.</p>
+</header>
+
+<section id="roi-v5">
+<span class="tag">Masks &middot; ALM shape &middot; decide</span>
+<h2>G. Final ROI candidate v8 (right) vs v7 (left), zoomed on the front</h2>
+<div class="fig"><img src="lick_roi_v7_v8_zoom.png" alt="ROI v7 vs v8, front zoom"></div>
+<div class="fig"><img src="lick_roi_v7_v8.png" alt="ROI v7 vs v8, whole brain"></div>
+<p>v8 = v7 with ALM's front boundary a single horizontal line (v7's most anterior ALM row) carried laterally until it meets the thin lateral rim: no zig-zag at the anterolateral corner. Lateral extent as v4 (tjM1 4,354 px, SSp-m 3,274 px); ALM 6,712 px, all MOs, &ge; 0.19 mm from FRP; one connected ALM / tjM1. The few lateral-rim pixels in front of the line (cyan, above ALM's corner) stay in the MOs area average, not in ALM.</p>
+<p class="ask">Decide: v8 as the final ROI set?</p>
+</section>
+
+<section id="rim">
+<span class="tag">Masks &middot; ROI rim (v4)</span>
+<h2>F. Excluded rim, the lateral-only expansion, and SSp-m / SSp-n over the pre lick response</h2>
+<div class="fig"><img src="lick_rim_overlay.png" alt="Pre lick response per pixel with rim, ROI additions, ALM, tjM1, SSp-m, SSp-n"></div>
+<p>Pre-stroke lick response per pixel (ITI bout starts, 2 s quiet), mean of animals. White dashed = 16-px rim excluded from ROI / area averages; cyan = pixels ROI v4 adds back (lateral edge only, anterior of AP &minus;0.5; no front-edge slivers); white = ALM, green = tjM1, magenta = SSp-m, orange = SSp-n. The largest lick response sits at AP &minus;0.1, ML 2.4&ndash;2.6, which our registration labels SSp-ul (89 % / 63 % of the top-2 % pixels, left / right) &mdash; just medial and posterior to the SSp-m strip.</p>
+</section>
+
+<section id="levels">
+<span class="tag">Maps &middot; candidate Key figure</span>
+<h2>E. Per-session Haufe LEVEL maps, amplitude kept (lateral; ITI / cued &times; all / first licks)</h2>
+<div class="fig"><img src="lick_session_levels_lat.png" alt="Per-session lateral Haufe level maps"></div>
+<p>Each session its own decoder (independent maps); / the animal's mean pre-session RMS (all-lick map). Solid = TFCE FWER 0.05 vs 0 (sign-flip of whole session maps within animal); dashed = also &ge; 3/4 animals. ITI first = no lick in the preceding 2 s; cued first = first post-cue lick. Title: sessions / animals, % cortex significant, global share.</p>
+<div class="fig"><img src="lick_session_change_amp_lat.png" alt="Per-session lateral change maps, amplitude kept"></div>
+<div class="fig"><img src="lick_cued_session_levels_spout.png" alt="Per-session per-spout level maps, cued"></div>
+<div class="fig"><img src="lick_iti_session_levels_spout.png" alt="Per-session per-spout level maps, ITI"></div>
+</section>
+
+<section id="roi-candidates">
+<span class="tag">Maps &middot; ALM / tjM1 &middot; decided</span>
+<h2>D. ALM / tjM1: ALM 40 % (unchanged), tjM1 50 % of MOp (chosen)</h2>
+<div class="fig"><img src="lick_roi_candidates.png" alt="ALM 40/40, 40/50, 45/50 candidates with literature centres"></div>
+<p>Circles = published centres: black ALM AP +2.5 ML 1.5 (Guo 2014; Esmaeili 2021), green tjM1 AP +1.8 ML 2.6 (Mayrhofer 2019), lime tjM1 AP +2.0 ML 2.0 (Esmaeili 2021 targeting), magenta tongue/jaw stimulation (Komiyama 2010), blue wM2 AP +2.0 ML 1.0 and yellow wM1 AP +1.0 ML 1.0 (Esmaeili 2021), cyan CFA forelimb M1. tjM1 50 %: centroid AP +1.60 ML 2.62, reaches back to AP +0.72, contains the Mayrhofer centre, clear of CFA. ALM 45 % would take in 25 % of the wM2 disc, so ALM stays at 40 %. Note: the Esmaeili tjM1 targeting point (AP +2.0, ML 2.0) falls in Allen MOs on our registration, inside our ALM.</p>
+</section>
+
+<section id="roi-foci">
+<span class="tag">Maps &middot; ALM / tjM1 decision</span>
+<h2>A. Pre-stroke map foci vs the ALM / tjM1 ROIs</h2>
+<div class="fig"><img src="lick_roi_foci.png" alt="Pre-stroke Haufe maps with ALM, tjM1 and map foci outlined"></div>
+<p>ALM (black) / tjM1 (green) = anterolateral 40 % of MOs / MOp; cyan = map foci (top 3 % |map| per hemisphere and sign); grey = Allen areas. The ITI sagittal anterior focus is 93 % inside ALM. The lateral foci (lateral maps and the close / far contra spout maps) sit in lateral SSp-n / SSp-m, 0 % inside tjM1, just lateral and posterior to the tjM1 box. Cued sagittal and the far-mid / close-mid central lobes sit in SSp-ul / SSp-ll.</p>
+<p class="ask">Decide: keep ALM; replace tjM1 with an anatomical "lateral orofacial (tjM1/S1)" ROI (SSp-m + SSp-n + adjacent lateral MOp edge)?</p>
+</section>
+
+<section id="roi-check">
+<span class="tag">Maps &middot; ALM / tjM1 decision</span>
+<h2>B. ROI placement on the pre lateral and sagittal maps</h2>
+<div class="fig"><img src="lick_roi_check.png" alt="ALM and tjM1 outlines over the pre lateral and sagittal maps"></div>
+<p>Titles: mean |map| in the anterolateral 40 % of MOs / MOp vs the rest of the area (ALM 1.4&ndash;2.5&times;; tjM1 0.7&ndash;2.7&times;).</p>
+</section>
+
+<section id="offset-map">
+<span class="tag">Decoder basis</span>
+<h2>C. Where the same-place offset comes from, per basis (ITI, cued)</h2>
+<div class="fig"><img src="lick_iti_offset_contrib_map.png" alt="ITI offset contribution maps per basis"></div>
+<div class="fig"><img src="lick_cued_offset_contrib_map.png" alt="Cued offset contribution maps per basis"></div>
+<p>Contribution per pixel = decoder weight &times; activity change vs pre licks landing at the same place; sums to the offset. First draft: small Allen areas look darker per pixel.</p>
+</section>
+
+<section id="aim">
+<span class="tag">Behaviour &middot; decided (axis switched)</span>
+<h2>1. Aim deficit per session: first-lick weighted vs first-lick far contra vs all licks</h2>
+<div class="fig"><img src="lick_cued_aim_deficit_compare.png" alt="Aim deficit vs days since stroke per animal"></div>
+<p>First-lick weighted aim (solid) is now the behaviour axis and the mixed-model deficit; far-contra first-lick aim (dashed) goes beside far-contra-specific neural measures. Split-half reliability 0.98 (weighted) and 0.96 (far contra). The all-lick version (dotted) hides about half of the chronic deficit.</p>
+<p class="ask">Decide: put this on the page next to the recovery-measure figure?</p>
+</section>
+
+<section id="tfce-cued">
+<span class="tag">Maps &middot; needs review</span>
+<h2>2. Per-spout change maps, cued licks, session-level TFCE</h2>
+<div class="fig"><img src="lick_cued_session_cluster_spout.png" alt="Per-spout TFCE change maps, cued"></div>
+<p>Per-session self-fit one-vs-rest maps (unit RMS, shape only). Solid contour = TFCE family-wise p &lt; 0.05 (session labels permuted within animal, 1000x); dashed = also &ge; 3/4 animals agree. The significant areas are large (e.g. close ipsi 62-85 %, cued lateral 78-87 % in the position figure): check whether that is a broad shape change or the global component.</p>
+<p class="ask">Decide: replace the per-pixel stats on the page (old 3.52 / 3.67 contours) with TFCE?</p>
+</section>
+
+<section id="tfce-iti">
+<span class="tag">Maps &middot; needs review</span>
+<h2>3. Per-spout change maps, ITI licks (by previous spout), TFCE</h2>
+<div class="fig"><img src="lick_iti_session_cluster_spout.png" alt="Per-spout TFCE change maps, ITI"></div>
+<p>As item 2 for ITI licks. Far contra changes over 81 % of cortex acutely, nothing chronically.</p>
+</section>
+
+<section id="tfce-pos">
+<span class="tag">Maps &middot; needs review</span>
+<h2>4. Lateral and sagittal position maps, TFCE</h2>
+<div class="fig"><img src="lick_session_cluster_position.png" alt="Position TFCE change maps"></div>
+<p>Cued lateral map changes in every epoch; ITI lateral mainly subacute.</p>
+</section>
+
+<section id="shape-d">
+<span class="tag">Maps &middot; shape as data</span>
+<h2>5. Whole-map shape distance per spout: animals as dots, drift floor dashed</h2>
+<div class="fig"><img src="lick_session_shape_d.png" alt="Shape distance per spout and epoch"></div>
+<p>The data behind the text-only heatmap on the page (whole-map test): d = 1 &minus; r(epoch map, pre map) per animal, the animal's own permutation p as a black edge, cohort mean as a bar, early-vs-late pre drift floor dashed.</p>
+<p class="ask">Decide: replace the heatmap figure with this?</p>
+</section>
+
+<section id="shape-days-cued">
+<span class="tag">Maps &middot; shape as data</span>
+<h2>6. Map similarity to pre over days, every spout, cued</h2>
+<div class="fig"><img src="lick_cued_session_shape_days.png" alt="Shape similarity over days, cued"></div>
+<p>Per-session r to the animal's pre map, pre sessions against the other pre sessions (dotted = each animal's noise floor). Shows the far-contra drop and recovery per animal.</p>
+</section>
+
+<section id="shape-days-iti">
+<span class="tag">Maps &middot; shape as data</span>
+<h2>7. Map similarity to pre over days, every spout, ITI</h2>
+<div class="fig"><img src="lick_iti_session_shape_days.png" alt="Shape similarity over days, ITI"></div>
+<p>As item 6 for ITI licks.</p>
+<p class="ask">Decide for 6 and 7: add to the page as Supporting figures?</p>
+</section>
+
+<section id="drift">
+<span class="tag">Statistics &middot; text only</span>
+<h2>8. Drift sensitivity of the time model</h2>
+<p>Adding a linear drift term: day-1 step z essentially unchanged (ITI read-out 6.5 to 7.2, ITI lateral r &minus;5.2 to &minus;5.3, key-ROI response 6.5 to 6.7); recovery terms trade off with the drift term (cued r 5.9 to 3.4). Pre-stroke-only drift: the ITI read-out trend has the opposite sign to the effect; the r trend has the same sign but a very wide CI.</p>
+<p class="ask">Decide: a short table in the 3.13 caption, or leave in the repo only?</p>
+</section>
+</main>

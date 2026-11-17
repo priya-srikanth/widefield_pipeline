@@ -19,7 +19,7 @@ O2_HANDOFF.md`. Imaging side: `ARCHITECTURE.md`, `BEHAVIOURAL_STATE_CONTROL.md`,
   (`plot_lick_aligned_averages`); events outside imaging coverage → −1.
 * **⚠ Two lick detectors.** The imaging / LocaNMF path calls `plot_lick_aligned_averages._load_daq_events(h5,
   "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)` — lower threshold 1.0 V, refractory 0.10 s — hard-coded in ~20
-  modules (canonical: `analysis_kit.lick_samples`), while `configs/defaults.yaml lick_detection` (behaviour side,
+  modules (canonical: `analysis_kit.lick_samples`), while `configs/defaults.yaml lick_detection` (behavior side,
   `behavior_events`, `dlc_frames.lick_onsets`) is 0.5 V / min ILI 40 ms. So imaging hits / RTs can already differ from
   `*_trials.csv`. **Decide before anything is joined** (§6, Q1).
 * **Engagement.** Per trial `locanmf_position_decoder.is_engaged`: 0 < first-lick RT ≤ `decode.max_rt_s` (3.5 s);
@@ -38,7 +38,7 @@ O2_HANDOFF.md`. Imaging side: `ARCHITECTURE.md`, `BEHAVIOURAL_STATE_CONTROL.md`,
 Everything below needs per-trial / per-lick orofacial events that imaging code can join and map to imaging frames
 the same way it maps DAQ licks. Proposed module `wfield_local/orofacial_events.py`, one output per session × model:
 
-* **Time base.** Pose frames → DAQ seconds with the behaviour camera's alignment template (inverse of
+* **Time base.** Pose frames → DAQ seconds with the behavior camera's alignment template (inverse of
   `dlc_frames.frame_of`; `camera_sync.cam_seconds_to_daq_seconds`, ~1.2 ms residual) → imaging frames with the
   existing `framemap` / `pco_exposure` mapping. Then a DLC lick onset is an event exactly like a DAQ lick.
 * **Per-lick rows:** trial_id, position, model; DAQ times of tongue ONSET (first visible, `on_frame`), PEAK, OFFSET;
@@ -87,7 +87,7 @@ residual position encoding follows the decoder's pre → acute → chronic cours
   (i) pre-stroke far_R activity (target / intention), or (ii) pre-stroke activity for licks that EXECUTED that
   trajectory (movement)?
 * *Why it is testable:* pre-stroke, executed direction varies within a position (trial-to-trial spread of the peak
-  angle) and overlaps between neighbouring positions — so target and executed direction are not perfectly collinear
+  angle) and overlaps between neighboring positions — so target and executed direction are not perfectly collinear
   pre-stroke, and a model can be fit with both.
 * *Approach 1 — frozen pre-stroke models, two labels.* Train on pre-stroke trials (a) a target decoder (exists) and (b)
   an executed-direction decoder / encoder (continuous peak angle, or angle bins pooled across positions). Apply both
@@ -101,21 +101,21 @@ residual position encoding follows the decoder's pre → acute → chronic cours
 * *Timing matters:* align to tongue onset (movement) and to cue (plan); a planning signal should follow the target,
   an execution signal the movement.
 * *Direction measure:* cam4 angles are compressed and carry head-pose / camera differences between sessions; use the
-  within-session deviation where possible, and switch to cam1 / 3-D direction when available (labelling under way).
+  within-session deviation where possible, and switch to cam1 / 3-D direction when available (labeling under way).
 
 **D. Incomplete-lick and tongue–jaw-mismatch trials** (Priya).
 * Activity on *attempted-but-failed* trials vs hits at the same position and epoch (same target, different outcome):
   does the target code survive on failures? Does a pre-stroke-frozen decoder read the intended position?
 * *Jaw-only* trials: a jaw movement with no tongue — orofacial motor command without tongue execution. Compare to hit
   trials aligned to jaw-movement onset, and to no-movement trials.
-* Their frequency changes with epoch (acute far-position attempts that miss), so they are also a behavioural readout
+* Their frequency changes with epoch (acute far-position attempts that miss), so they are also a behavioral readout
   and must be controlled for in any epoch contrast.
 
 **E. Movement regressors in the encoding models.** *(Framework BUILT 2026-10-02: `wfield_local/movement_encoding.py` +
 `movement_inputs.py`, config `movement_encoding`, synthetic tests; needs real inputs — see DECISIONS.)* Tongue protrusion / velocity, jaw position / velocity, lick
 events (onset, contact) as regressors in `grant_encoder` / `locanmf_encoding_model`: separate movement-execution
 variance from target coding, and test whether the post-stroke loss of position decoding survives controlling for
-the changed movements (the behavioural-state control already shows running is unaffected; this extends it to the
+the changed movements (the behavioral-state control already shows running is unaffected; this extends it to the
 orofacial movement itself).
 
 ## 4. Pitfalls to design around

@@ -128,7 +128,7 @@ def test_six_positions_in_a_row_are_one_cycle():
 
 
 def test_a_second_pass_through_the_positions_is_a_second_cycle():
-    """The scheduler re-randomises the order, so cycle 2 is a different permutation."""
+    """The scheduler re-randomizes the order, so cycle 2 is a different permutation."""
     ids = _cyc([p for p in (0, 1, 2, 3, 4, 5) for _ in range(4)]
                + [p for p in (3, 0, 1, 2, 4, 5) for _ in range(4)])
     assert set(ids[:24].tolist()) == {0}
@@ -167,7 +167,7 @@ def test_unusable_trials_do_not_break_a_cycle():
 
 
 def test_the_decoder_uses_this_rule_and_not_a_local_copy():
-    """A second copy of the rule is how the two normalisations diverged elsewhere in this project."""
+    """A second copy of the rule is how the two normalizations diverged elsewhere in this project."""
     import inspect
 
     from wfield_local import locanmf_position_decoder as d
@@ -190,7 +190,7 @@ def test_block_size_max_reads_a_behaviour_directory_directly(tmp_path):
     """`spout_behavior` holds the log directory, not a session mapping.
 
     Accepting both keeps `block_size_max_for` the single reader of `timing.block_size_max`. The
-    alternative was three lines of gui_config parsing in the behaviour path, which is how the block
+    alternative was three lines of gui_config parsing in the behavior path, which is how the block
     definition ends up with two homes that agree until one of them is edited.
     """
     import json
@@ -220,3 +220,72 @@ def test_a_run_of_nine_is_two_blocks():
     assert len(set(b[:9].tolist())) == 2, "a run of 9 stayed one block"
     assert len(set(b[13:].tolist())) == 1, "a run of exactly 8 was split"
     assert len(set(b.tolist())) == 4
+
+
+def _fake_logs(tmp_path, monkeypatch, sessions, dirs):
+    """A behavior-logs root with `dirs` ({name: block_size_max}) and a session table `sessions`."""
+    import json
+    from types import SimpleNamespace
+
+    from wfield_local import block_ids as b
+
+    root = tmp_path / "logs"
+    for name, bmax in dirs.items():
+        (root / name).mkdir(parents=True)
+        (root / name / "gui_config.json").write_text(json.dumps({"timing": {"block_size_max": bmax}}))
+    monkeypatch.setattr(b.config, "load_sessions", lambda *a, **k: sessions)
+    monkeypatch.setattr(b.config, "resolver", lambda: SimpleNamespace(root=lambda name: str(root)))
+    return b
+
+
+def test_block_size_max_resolves_a_bare_label_mapping(tmp_path, monkeypatch):
+    """11-16: `state_space_sim.spout_blocks` passes {"label": ...} only; the lookup found no behavior
+    directory for ANY session and every one silently got the default 8. A bare label is now completed
+    from the session table."""
+    s = {"label": "PS94_0812", "h5": "X:/DAQ/20260812/PS94_20260812_120000.h5",
+         "mc": "X:/labcams/20260812/PS94_20260812_115950/motion_corrected"}
+    b = _fake_logs(tmp_path, monkeypatch, [s], {"PS94_20260812_120004": 6})
+    assert b.block_size_max_for({"label": "PS94_0812"}) == 6
+    assert b.block_size_max_for(s) == 6
+
+
+def test_block_size_max_resolves_baseline_daq_names(tmp_path, monkeypatch):
+    """The June baselines' DAQ file is PS94_baseline_<date>_<time>.h5 (the old regex needed animal_date)."""
+    s = {"label": "PS94_0601", "h5": "X:/DAQ/PS94_baseline_20260601_141642.h5",
+         "mc": "X:/labcams/20260601/PS94_20260601_141614/motion_corrected"}
+    b = _fake_logs(tmp_path, monkeypatch, [s], {"PS94_20260601_141706": 5})
+    assert b.block_size_max_for({"label": "PS94_0601"}) == 5
+
+
+def test_block_size_max_picks_the_log_nearest_the_recording(tmp_path, monkeypatch):
+    """Several logs on one date: nearest start time, or the exact-name (stitched) one; never the first."""
+    s = {"label": "PS92_0602", "h5": "X:/DAQ/PS92_20260602_171500.h5", "mc": ""}
+    c = {"label": "PS92_0812", "h5": "X:/DAQ/20260812/PS92_20260812_concat.h5",
+         "mc": "X:/labcams/20260812/PS92_20260812_concat/motion_corrected"}
+    b = _fake_logs(tmp_path, monkeypatch, [s, c],
+                   {"PS92_20260602_152617": 8, "PS92_20260602_171443": 7, "PS92_20260602_172359": 6,
+                    "PS92_20260812_152647": 8, "PS92_20260812_concat": 5})
+    assert b.block_size_max_for({"label": "PS92_0602"}) == 7
+    assert b.block_size_max_for({"label": "PS92_0812"}) == 5
+
+
+def test_behavior_trials_without_config_falls_through(tmp_path, monkeypatch):
+    """PS93_0805's behavior_trials points at a reviewed CSV in a camera folder (no gui_config.json)."""
+    s = {"label": "PS93_0805", "h5": "X:/DAQ/20260805/PS93_20260805_202005.h5", "mc": "",
+         "behavior_trials": str(tmp_path / "cam" / "reviewed.csv")}
+    b = _fake_logs(tmp_path, monkeypatch, [s], {"PS93_20260805_202013": 6})
+    assert b.block_size_max_for({"label": "PS93_0805"}) == 6
+
+
+def test_every_registered_session_finds_its_log():
+    """On a box with the behavior-logs share mounted: no registered cohort-1 session falls back."""
+    from pathlib import Path
+
+    import pytest
+
+    from wfield_local import block_ids as b
+
+    if not Path(b.config.resolver().root("behavior_logs")).exists():
+        pytest.skip("behavior logs not mounted")
+    missing = [s["label"] for s in b.config.load_sessions() if b._behavior_dir({"label": s["label"]}) is None]
+    assert not missing, missing

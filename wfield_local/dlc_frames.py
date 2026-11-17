@@ -1,4 +1,4 @@
-"""Extract a stratified DeepLabCut LABELLING set from the widefield behavior cameras.
+"""Extract a stratified DeepLabCut LABELING set from the widefield behavior cameras.
 
 DLC's own ``extract_frames`` picks frames by k-means over appearance, which on a 1.5 M-frame
 recording of a head-fixed mouse returns mostly the resting posture: the animal spends most of its
@@ -7,8 +7,8 @@ This picks frames by EXPERIMENTAL DESIGN instead -- spout position x within-tria
 cue times and the camera alignment template that ``behavior_clips`` already established.
 
 **Coverage comes from spanning animals and EPOCHS, not from many frames of one session.** A network
-labelled only on pre-stroke frames degrades precisely where the result lives; the 2pRAM cohort saw
-post-stroke tongue tracking fall apart in its two severe animals, which is a tracking artefact
+labeled only on pre-stroke frames degrades precisely where the result lives; the 2pRAM cohort saw
+post-stroke tongue tracking fall apart in its two severe animals, which is a tracking artifact
 sitting on top of a real deficit and nearly impossible to separate afterwards. Hence a small
 ``per_session`` and a ``--cohort`` mode that walks one session per animal x epoch.
 
@@ -17,11 +17,11 @@ SOURCE VIDEOS ARE OPENED READ-ONLY AND NEVER WRITTEN, the same guarantee ``behav
 so a path bug lands as a refusal rather than as an edit to an irreplaceable recording.
 
 FRAMES ARE WRITTEN AS PNG, never JPEG. Labels are placed on these images and inference then runs on
-the raw video; a lossy intermediate would train the network on compression artefacts that the
+the raw video; a lossy intermediate would train the network on compression artifacts that the
 inference frames do not have.
 
 SELECTION IS DETERMINISTIC (``dlc.frames.seed``), keyed on animal+date+camera. Re-running extends
-nothing and re-picks the same frames, so a second run cannot quietly grow a divergent labelling set
+nothing and re-picks the same frames, so a second run cannot quietly grow a divergent labeling set
 beside the one somebody has already spent hours annotating.
 
 Layout, which is DLC's own so the project can adopt it without copying::
@@ -30,7 +30,7 @@ Layout, which is DLC's own so the project can adopt it without copying::
     <dlc>/labeled-data/frame_manifest.csv
 
 The manifest carries the provenance of every frame -- animal, date, camera, epoch, trial, spout
-position, trial category, phase, seconds from cue. A labelled frame whose provenance is unknown
+position, trial category, phase, seconds from cue. A labeled frame whose provenance is unknown
 cannot be audited later, and "which epochs is this network actually trained on?" is a question that
 gets asked the first time tracking looks worse after the stroke.
 
@@ -123,7 +123,7 @@ def lick_per_session() -> int:
 def target_per_session() -> int:
     """Frames KEPT per session per camera after appearance pruning, or 0 to keep everything.
 
-    The planner deliberately proposes more than this. Behaviour alignment decides which MOMENTS are
+    The planner deliberately proposes more than this. Behavior alignment decides which MOMENTS are
     eligible -- that is what guarantees a tongue-out frame exists at all, which appearance
     clustering on its own never does -- and the pruning below decides which of the eligible ones are
     worth a person's time. Neither half works alone.
@@ -150,7 +150,7 @@ def sessions_per_epoch() -> int:
     THE COST IS NOT UNIFORM, and it lands where this module's docstring already says the risk is.
     At 2 per epoch only 2 of 4 animals appear in each, so some animal is absent from some
     post-stroke epoch -- and "the 2pRAM cohort saw post-stroke tongue tracking fall apart in its two
-    severe animals" is exactly that failure, a tracking artefact on top of a real deficit and nearly
+    severe animals" is exactly that failure, a tracking artifact on top of a real deficit and nearly
     impossible to separate afterwards. So the sessions are chosen to ROTATE animals across epochs
     rather than taken in name order: every animal still appears, in as many distinct epochs as the
     quota allows. That mitigates the risk; it does not remove it. Cutting frames per session instead
@@ -257,9 +257,9 @@ def lick_onsets(animal: str, date: str, sid: str, rv=None) -> np.ndarray:
 def select_licks(trials: pd.DataFrame, licks: np.ndarray, n_per_pos: int, window_s: float, rng):
     """``[(trial_row, lick_time), ...]`` -- licks inside the response window, spread over positions.
 
-    Spread over spout POSITION for the same reason the cue-locked frames are: a tongue labelled only
+    Spread over spout POSITION for the same reason the cue-locked frames are: a tongue labeled only
     where the animal licks most would train a network that finds the tongue best exactly where the
-    behaviour is already easiest.
+    behavior is already easiest.
 
     The window is ``[cue, min(cue + window_s, next_cue)]`` -- bounded by the NEXT CUE, which is
     `daq_trials`' own rule. Without that bound a lick belonging to the following trial can be
@@ -295,7 +295,7 @@ def out_root(rv=None) -> Path:
     """The DLC tree: ``Priya/DeepLabCut/Widefield`` (logical root ``dlc``).
 
     MOVED 2026-09-16 (Priya) out of ``<behavior_cameras>/dlc``. It belongs with the lab's other
-    DeepLabCut work rather than inside the camera recordings, and the labelling set is not a
+    DeepLabCut work rather than inside the camera recordings, and the labeling set is not a
     recording -- it is derived from them and has a different lifetime.
 
     Falls back to the old location when the logical root is absent, so a checkout whose `paths.yaml`
@@ -316,10 +316,10 @@ def anchor_cam() -> str | None:
     **WHY THIS EXISTS.** The selection RNG was seeded per CAMERA, so each view drew its own trials
     and its own licks. Measured on the 2026-09-12 manifest that left 875 events sampled by cam1
     alone, 866 by cam4 alone, and **22 by all four** -- out of ~900 each. Nothing was wrong with any
-    individual view, but the four sets of labelled frames were of different MOMENTS.
+    individual view, but the four sets of labeled frames were of different MOMENTS.
 
     That does not hurt training, where each camera learns from its own frames, and it does not hurt
-    3D at inference, where the network predicts every frame of synchronised video. What it costs is
+    3D at inference, where the network predicts every frame of synchronized video. What it costs is
     the ability to TRIANGULATE THE LABELS THEMSELVES -- label two views, reconstruct in 3D, and
     reproject to seed the remaining two. With 27 usable cam4+cam1 pairs that was not worth running.
 
@@ -327,7 +327,7 @@ def anchor_cam() -> str | None:
     The frame NUMBER still differs per camera -- `frame_of` maps a DAQ time through that camera's own
     alignment template -- which is the point: same instant, each view's own frame.
 
-    **THE ANCHOR MUST BE THE MOST-LABELLED CAMERA, and it is cam4 (7,642 points over 13 folders).**
+    **THE ANCHOR MUST BE THE MOST-LABELED CAMERA, and it is cam4 (7,642 points over 13 folders).**
     Seeding on cam4 reproduces cam4's existing selection EXACTLY, so its labels stay valid and only
     the unlabelled views move. Changing the anchor later would re-pick cam4's frames and orphan that
     work; treat it as fixed unless you are prepared to re-label.
@@ -337,15 +337,15 @@ def anchor_cam() -> str | None:
 
 
 def staging_root(rv=None) -> Path:
-    """Where EXTRACTION writes, which is NOT where labelling happens.
+    """Where EXTRACTION writes, which is NOT where labeling happens.
 
     Named `_frame_staging` rather than `labeled-data` on purpose. The DLC project has its own
     `labeled-data/<video-stem>/` holding copies of the same images under the same names, and while
     both existed a person could open either. Opening the staging one WORKS -- images and seeds load
     -- and fails only at save, as a "associate with a DLC project?" prompt that reads like a plugin
-    fault. That cost a labelling session on 2026-09-16.
+    fault. That cost a labeling session on 2026-09-16.
 
-    `napari_deeplabcut` treats any folder with a `labeled-data` component in its path as a labelling
+    `napari_deeplabcut` treats any folder with a `labeled-data` component in its path as a labeling
     target, so the old name actively invited the mistake. This name is not a target, and a staging
     folder with no CollectedData in it is refused outright by the reader rather than opened and then
     found unsaveable.
@@ -356,7 +356,7 @@ def staging_root(rv=None) -> Path:
 def manifest_path(rv=None) -> Path:
     """``frame_manifest.csv``: the provenance of every extracted frame. ONE path, read by every module.
 
-    MOVED 2026-10-18 out of `staging_root`. Staging is scratch -- its frames are copies of the labelling
+    MOVED 2026-10-18 out of `staging_root`. Staging is scratch -- its frames are copies of the labeling
     project's -- so the 10-16 clean-up of `_frame_staging` took the manifest with it, and
     `dlc_train.session_epochs` then returned ``{}`` without a word: the session split stopped spreading
     across epochs, which is the per-epoch test the split exists for. The manifest is a RECORD, not
@@ -370,7 +370,7 @@ def _rng(animal: str, date: str, cam: str) -> np.random.Generator:
 
     Seeding once per run and drawing in iteration order would make every session's choice depend on
     which other sessions happened to be processed first -- so adding a date would silently re-pick
-    frames for dates already labelled.
+    frames for dates already labeled.
 
     With an `anchor_cam` configured the camera part of the key is replaced by the anchor, so all
     views share one stream and therefore one set of moments. See `anchor_cam`.
@@ -393,7 +393,7 @@ def select_trials(trials: pd.DataFrame, n_cells: int, rng) -> pd.DataFrame:
     ``behavior_clips.categorise``) is rotated rather than crossed: crossing would need 6 x 3 x
     n_phases frames per session, and the point of a small per-session budget is that breadth comes
     from epochs. Rotating still guarantees that failed and stopped trials -- where the mouth and
-    tongue look least like the training distribution -- are in the labelled set.
+    tongue look least like the training distribution -- are in the labeled set.
     """
     from wfield_local.behavior_clips import CATEGORIES
 
@@ -531,7 +531,7 @@ def farthest_first(F: np.ndarray, k: int) -> list[int]:
     Farthest-point sampling, not k-means. Three reasons, all of which matter here: it is
     deterministic without a seed, so a re-run re-picks the same frames the way the rest of this
     module promises; it has no convergence step to fail quietly on the small n a single stratum
-    gives; and it optimises the thing actually wanted -- spread -- whereas k-means optimises
+    gives; and it optimizes the thing actually wanted -- spread -- whereas k-means optimizes
     within-cluster variance and will happily return two near-identical frames from a dense region.
 
     Starts at the MEDOID so the first pick is a typical frame rather than an outlier, which matters
@@ -553,7 +553,7 @@ def _stratum(r: dict) -> tuple:
     Pruning globally would let the resting frames, which are many and mutually similar, out-vote the
     lick-locked ones, which are few; the guarantee that tongue-out frames survive has to be
     structural rather than hoped for. Position is in the key for the same reason it is in the
-    planner: a tongue labelled only where the animal licks best trains a network that finds it only
+    planner: a tongue labeled only where the animal licks best trains a network that finds it only
     there.
     """
     return ("lick" if str(r["phase"]).startswith("lick") else "phase", str(r["position"]))
@@ -564,7 +564,7 @@ def _decode_feats(grp: list[dict]):
 
     Split out as its own function so the pruning logic can be tested without a video file -- the
     decode is the only part of it that needs one, and the parts worth pinning are the parts that
-    decide what a person ends up labelling.
+    decide what a person ends up labeling.
     """
     import cv2
 
@@ -583,7 +583,7 @@ def _decode_feats(grp: list[dict]):
 
 
 def prune_by_appearance(rows: list[dict], rv=None, target: int | None = None) -> list[dict]:
-    """Keep the most visually DISTINCT ``target`` frames per session, within behaviour strata.
+    """Keep the most visually DISTINCT ``target`` frames per session, within behavior strata.
 
     Measured 2026-09-13, on the set this replaces: of the six offsets sampled around one lick onset,
     99-100% of the within-onset pairs are closer in appearance than the 5th percentile of pairs
@@ -707,7 +707,7 @@ def _by_video(rows):
 def write_manifest(rows: list[dict], rv=None, dest=None) -> Path:
     """Append to the manifest, de-duplicated on (video_stem, frame).
 
-    APPEND, not overwrite: the labelling set is built up over several runs -- a date at a time, and
+    APPEND, not overwrite: the labeling set is built up over several runs -- a date at a time, and
     a camera at a time -- and a manifest rewritten from one run's rows would drop the provenance of
     every frame extracted before it while the images stayed on disk.
     """
@@ -731,7 +731,7 @@ def write_manifest(rows: list[dict], rv=None, dest=None) -> Path:
 def usable(animal: str, date: str, cams, rv=None) -> bool:
     """Does every requested camera have a passing alignment template for this session?
 
-    ALL the requested cameras, not any: views that will be triangulated together have to be labelled
+    ALL the requested cameras, not any: views that will be triangulated together have to be labeled
     on the same sessions, and a session with a template on one camera only cannot contribute a
     matched pair.
     """
@@ -755,7 +755,7 @@ def _pick_middle(sessions, ok):
     Plain "middle of the list" is what this replaces, and it was wrong in a way that hid itself: the
     camera alignment templates only start at 2026-06-06, while the `pre` epoch runs from 2026-05-27,
     so the median pre-stroke session for EVERY animal was an untemplated June date. The cohort walk
-    duly skipped it and produced a labelling set with no pre-stroke frames at all -- the baseline the
+    duly skipped it and produced a labeling set with no pre-stroke frames at all -- the baseline the
     whole pre/post comparison rests on -- while reporting success. Falling back outward keeps the
     "representative of the epoch, not of its boundary" intent and still yields a session.
     """
@@ -772,9 +772,9 @@ def cohort_sessions(rv=None, animals=None, cams=None) -> list[tuple[str, str, st
 
     THE MIDDLE session of each epoch, not the first or last. A boundary session is the one most
     likely to be atypical of its epoch -- the first acute day is the animal at its worst, the last
-    subacute day is nearly chronic -- and a labelling set should be representative of the epoch it
+    subacute day is nearly chronic -- and a labeling set should be representative of the epoch it
     is drawn from, not of the transition into it. See :func:`_pick_middle` for the usability
-    fallback, which is not an optimisation.
+    fallback, which is not an optimization.
     """
     from wfield_local import epochs
 
@@ -799,7 +799,7 @@ def cohort_sessions(rv=None, animals=None, cams=None) -> list[tuple[str, str, st
         pick = _pick_middle(sess, lambda ds, _an=an: usable(_an, ds[0], cams, rv))
         if pick is None:
             print(f"[dlc_frames] {an} {ep}: no session with templates on {'+'.join(cams)} -> "
-                  f"THIS EPOCH WILL NOT BE LABELLED", flush=True)
+                  f"THIS EPOCH WILL NOT BE LABELED", flush=True)
             continue
         out.append((an, pick[0], pick[1], ep))
     return _thin_epochs(out, sessions_per_epoch())
@@ -810,7 +810,7 @@ def _thin_epochs(sessions, n_per_epoch: int):
 
     Sorting by name and truncating would hand every epoch to PS92 and PS93 and leave PS95 out of the
     set entirely. Picking the least-used animal at each step instead keeps all four present and
-    maximises the number of distinct epochs each one appears in -- which is the coverage that
+    maximizes the number of distinct epochs each one appears in -- which is the coverage that
     matters, since a network that never saw an animal after its stroke is the failure mode this
     module was written to avoid.
     """
@@ -853,18 +853,18 @@ def date_sessions(date: str, rv=None, animals=None) -> list[tuple[str, str, str,
 
 
 def labelled_sessions(rv=None) -> set:
-    """``{(animal, date)}`` already in the labelling set, from the manifest that recorded them.
+    """``{(animal, date)}`` already in the labeling set, from the manifest that recorded them.
 
     THE SESSION CHOICE DRIFTS, and that is the expensive kind of surprise. `cohort_sessions` takes
     the MIDDLE session of each animal x epoch, so it moves as sessions accumulate -- and the epoch
     boundaries move underneath it too (DECISIONS 2026-09-19 and 2026-09-21 both retuned
     `epochs.chronic`; the second shifted PS95's chronic start from day 15 to 11). Measured
     2026-09-22: re-running `--cohort` today plans 16 sessions of which only 11 are the ones already
-    labelled, and would additionally extract five sessions nobody has opened.
+    labeled, and would additionally extract five sessions nobody has opened.
 
     Nothing is LOST by that -- `extract` only writes new images and `write_manifest` appends,
     de-duplicated -- so the cost is scope, not data. But "add a few more frames to what she is
-    already labelling" is a different request from "re-decide which sessions the cohort uses", and
+    already labeling" is a different request from "re-decide which sessions the cohort uses", and
     only this flag expresses the first. `dlc.frames.seed` keeps the choice WITHIN a session stable;
     this keeps the choice OF sessions stable, which is the part the seed cannot protect.
     """
@@ -873,7 +873,7 @@ def labelled_sessions(rv=None) -> set:
     man = manifest_path(rv)
     if not man.is_file():
         raise SystemExit(f"No manifest at {man} -- nothing has been extracted yet, so there is no "
-                         f"labelling set to grow. Run without --only-labelled.")
+                         f"labeling set to grow. Run without --only-labeled.")
     with open(man, newline="", encoding="utf-8") as fh:
         return {(r["animal"], r["date"]) for r in csv.DictReader(fh)}
 
@@ -897,14 +897,14 @@ def run(date=None, cohort=False, cams=None, rv=None, animals=None, dry=False,
             if len(found) == 1:
                 by_pair[(an, d)] = found[0]
             else:
-                print(f"    WARNING {an} {d} is in the labelling set but resolves to "
+                print(f"    WARNING {an} {d} is in the labeling set but resolves to "
                       f"{len(found)} sessions -- skipped; add it by date instead", flush=True)
         dropped = sorted(planned - keep)
         sessions = [by_pair[k] for k in sorted(keep) if k in by_pair]
-        print(f"[dlc_frames] --only-labelled: {len(sessions)} session(s) pinned to the existing "
-              f"labelling set; {len(dropped)} newly-selected session(s) skipped", flush=True)
+        print(f"[dlc_frames] --only-labeled: {len(sessions)} session(s) pinned to the existing "
+              f"labeling set; {len(dropped)} newly-selected session(s) skipped", flush=True)
         for an, d in dropped:
-            print(f"    skip (not in the labelling set): {an} {d}", flush=True)
+            print(f"    skip (not in the labeling set): {an} {d}", flush=True)
     if not sessions:
         print("[dlc_frames] no sessions matched", flush=True)
         return []
@@ -946,7 +946,7 @@ def main(argv=None) -> int:
     ap.add_argument("--animals", default=None)
     ap.add_argument("--only-labelled", action="store_true",
                     help="restrict to sessions already in the manifest: GROW the existing "
-                         "labelling set instead of re-deciding which sessions to use")
+                         "labeling set instead of re-deciding which sessions to use")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--machine", default=None)
     args = ap.parse_args(argv)

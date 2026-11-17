@@ -1,4 +1,4 @@
-"""FaceRhythm factor identity vs independent behaviour: LP licks (executed direction, time in trial, bout position, spout
+"""FaceRhythm factor identity vs independent behavior: LP licks (executed direction, time in trial, bout position, spout
 position, lick frequency) and the treadmill (Priya 10-22; computation `wfield_local/face_rhythm_validation.py`).
 
     python scripts/face_rhythm_validate.py --set pilot_pre_PS92_PS93 [--epoch pre] [--jobs 3]
@@ -81,12 +81,12 @@ def main(argv=None) -> int:
     out.mkdir(parents=True, exist_ok=True)
     labs = ", ".join(f"{s['animal']}_{s['date'][4:]}" for s in S)
     common = (f"Set `{a.set}`; {len(S)} {a.epoch} sessions ({labs}). Expression = projected temporal weights x the FR "
-              f"normaliser D (ABSOLUTE; a.u. on the animal's scale), 25 Hz trial grid (engaged trials, cue -2..+4 s). "
+              f"normalizer D (ABSOLUTE; a.u. on the animal's scale), 25 Hz trial grid (engaged trials, cue -2..+4 s). "
               f"Licks: v36 LP `licks_all.csv`, every lick whose +-1 s window lies inside a projected trial window; "
               f"executed DIRECTION from the lick's own angle (`peak_angle_deg`, + = the animal's left): left > "
-              f"+{frv.ANGLE_DEG:.0f} deg, right < -{frv.ANGLE_DEG:.0f} deg, centre between (not the spout). Curves: mean "
+              f"+{frv.ANGLE_DEG:.0f} deg, right < -{frv.ANGLE_DEG:.0f} deg, center between (not the spout). Curves: mean "
               f"over a session's licks of a class (>= {MIN_LICKS} licks), then the mean over sessions; legend n = licks. "
-              f"Licks come in 6-8 Hz bouts, so a +-1 s window around one lick also holds its neighbours.")
+              f"Licks come in 6-8 Hz bouts, so a +-1 s window around one lick also holds its neighbors.")
 
     # ---------------------------------------------------------------- licks: 4 views per factor
     rows = {}
@@ -140,12 +140,12 @@ def main(argv=None) -> int:
         fig.suptitle(f"{a.set}: factor expression around licks ({len(S)} {a.epoch} sessions)")
         frf.save(fig, out / "factor_vs_licks.png", f"""
 {common}
-* **direction x time in trial**: licks by executed direction (colour) and by when they fall after the trial's cue:
+* **direction x time in trial**: licks by executed direction (color) and by when they fall after the trial's cue:
   EARLY = onset 0-1 s (solid), LATE = 1.5-3 s (dashed); licks at 1-1.5 s and before the cue are not in these curves.
 * **lick number in bout**: the lick's position in its bout (v36 `bout_idx` within the trial, ordered by onset): the
   bout's FIRST lick, the 2nd-3rd, the 4th and later -- separates lick INITIATION from ongoing licking.
-* **spout position**: the trial's spout position (all of its licks, any direction); left blue / right red / centre
-  grey, close solid / far dashed.
+* **spout position**: the trial's spout position (all of its licks, any direction); left blue / right red / center
+  gray, close solid / far dashed.
 * **at the lick vs lick frequency**: mean expression over 0..+0.2 s after onset, by the lick's instantaneous frequency
   (1 / interval to the next lick of the same trial, intervals < {frv.MAX_ILI_S} s; bins {FREQ_BINS} Hz), by direction.""")
 

@@ -3,7 +3,7 @@
 The gate was DOCUMENTED in four rest analyses and implemented in none of them until 2026-09-16
 (Priya: *"all only on working trials?"*). The failure was silent in both directions -- the prose
 asserted it, the stdout header printed "(working trials, ...)", and the only filter applied was
-position agreement. These tests assert the behaviour rather than the claim.
+position agreement. These tests assert the behavior rather than the claim.
 """
 from __future__ import annotations
 

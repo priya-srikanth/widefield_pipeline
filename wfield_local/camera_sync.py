@@ -87,7 +87,7 @@ def clean_edge_mask(fid, ts_ns, edge_frame_idx, bin_s=None, max_drop_pct=None,
     broken tail -- the frames there are genuinely gone -- it stops the tail from corrupting the 86% of
     the session that is perfect.
 
-    Drops are localised by binning ``frame_id`` discontinuities in TIME rather than by row, so the
+    Drops are localized by binning ``frame_id`` discontinuities in TIME rather than by row, so the
     bins mean the same thing whatever the drop rate. **Below ``min_clean_frac`` nothing is trimmed**:
     a short lever arm yields a confidently wrong slope, and a mostly-broken recording should fail the
     quality gate rather than be rescued into looking fine.
@@ -145,7 +145,7 @@ def drop_profile(fid, ts_ns, bin_s=None) -> tuple[float, np.ndarray, float]:
 def camera_healthy_at(template, cam_seconds, max_drop_pct=None) -> np.ndarray:
     """Was the camera actually capturing frames at these ABSOLUTE camera times?
 
-    The check every consumer of a template should make before cutting a clip or pulling a labelling
+    The check every consumer of a template should make before cutting a clip or pulling a labeling
     frame. Returns all-True for a template saved before ``drop_bin_pct`` existed, so an old file
     behaves as it always did rather than silently excluding everything.
     """
@@ -215,7 +215,7 @@ def build_template(h5_path, csv_path, sync_name: str = "sync", sync_bit: int = 0
     """Build a compact cam<->DAQ alignment template from a DAQ .h5 + a Bonsai cam CSV.
 
     ``daq_sec_range`` / ``cam_edge_slice`` (OURS, 2026-10-15, PS92 0812): restrict the match to one segment of a
-    CONCATENATED session -- the matcher normalises both edge trains to [0, 1] over their spans, so a camera file that
+    CONCATENATED session -- the matcher normalizes both edge trains to [0, 1] over their spans, so a camera file that
     covers only part of the DAQ timeline (or a DAQ with a zero-padded gap) must be cut to the overlapping stretch
     first. The fitted mapping still uses the full DAQ timeline's sample numbers. Default: whole recording."""
     m = CAM_RE.search(Path(csv_path).name)

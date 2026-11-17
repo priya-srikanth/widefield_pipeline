@@ -5,12 +5,14 @@ Same frozen where-decoder and per-lick predictions as 3.15-3.22 (`where_preds.cs
 scored leave-one-session-out). Per session: mean absolute error (MAE) and root-mean-square error (RMSE) of decoded vs
 actual lateral position, sagittal extension, and the 2-D distance. Unlike r, these include EVERYTHING that separates
 decoded from actual: worse lick-to-lick tracking, a constant offset (3.21 / 3.22) and the decoder's pull toward the
-middle (present before the stroke; it grows when licks land further from the centre, so part of a post-stroke error
+middle (present before the stroke; it grows when licks land further from the center, so part of a post-stroke error
 increase can come from where licks land rather than from cortex). One dot per session (all animals pooled), raw mm
 and divided by the animal's pre mean; black = mean +- SEM over sessions; * = paired nested bootstrap excluding 0.
-Outputs <E>/iti_licks/where_mae_{sessions,tests}.csv, figures/lick_where_mae.png. Usage: python scripts/iti_where_mae.py
+Outputs <E>/iti_licks/where_mae_{sessions,tests}.csv, figures/lick_where_mae.png; figure data <E>/iti_licks/figdata/lick_where_mae.pkl.
+Usage: python scripts/iti_where_mae.py [--plot-only]   (--plot-only: redraw from the figdata pickle alone, no bootstrap)
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -20,6 +22,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
+from figdata import load_fd, plot_only, save_fd  # noqa: E402
 
 from wfield_local import analysis_kit as ak  # noqa: E402
 
@@ -92,18 +95,32 @@ def plot(S: pd.DataFrame, T: pd.DataFrame) -> None:
                                                                      kind.endswith("norm") else "(mm)"), fontsize=8)
             for s_ in ("top", "right"):
                 ax.spines[s_].set_visible(False)
-    fig.suptitle("NEURAL: FROZEN pre-stroke lick-position decoder, ERROR in mm (mean absolute error per session; Allen "
+    fig.suptitle("NEURAL: FROZEN pre-stroke lick-position decoder, ERROR in mm (mean absolute error per session; ALM / tjM1 split, Allen "
                  "areas, lags 0..0.2 s;\nsame licks and predictions as 3.15-3.22). One dot per session, all animals "
                  "pooled; black = mean +- SEM; * = paired nested bootstrap (animals > sessions) excludes 0.\nUnlike r "
                  "(3.15), error INCLUDES the decoder's pull toward the middle and any constant offset,\nso it rises "
-                 "when licks land further from the centre even with unchanged cortex.", fontsize=9.5)
+                 "when licks land further from the center even with unchanged cortex.", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.91))
-    fig.savefig(il.OUT / "figures" / "lick_where_mae.png", dpi=95)
+    save_png_svg(fig, il.OUT / "figures" / "lick_where_mae.png", dpi=95)
     plt.close(fig)
 
 
+def trial_set_sentence() -> str:
+    """ITI + cued licks of where_preds (iti_where_scatter.py; Priya 11-09); the subset ITI filter only when il.pred_file
+    resolves to its filtered copy."""
+    import iti_where_decoder as wd
+    return wd.both_caption(wd.subset_in(il.pred_file("where_preds.csv")), tracked="lateral + sagittal + outward")
+
+
 def main() -> int:
-    S = sessions(pd.read_csv(il.OUT / "where_preds.csv"))
+    from wfield_local import trial_set_text as tst
+    il.split_only("iti_where_mae")   # outputs not basis-tagged: split basis only (10-27 late)
+    tst.declare(text=trial_set_sentence())
+    if plot_only():                       # redraw from figdata only: no data, no bootstrap
+        F = load_fd("lick_where_mae")
+        plot(F["S"], F["T"])
+        return 0
+    S = sessions(pd.read_csv(il.pred_file("where_preds.csv")))
     S.to_csv(il.OUT / "where_mae_sessions.csv", index=False)
     pd.set_option("display.width", 220)
     print("== per animal (rule 8): MAE (mm) by epoch")
@@ -112,6 +129,7 @@ def main() -> int:
     T = tests(S)
     T.to_csv(il.OUT / "where_mae_tests.csv", index=False)
     print(T[T.measure.isin(["mae_lat", "mae_sag", "mae_2d", "rmse_lat"])].round(3).to_string(index=False))
+    save_fd("lick_where_mae", dict(S=S, T=T))
     plot(S, T)
     return 0
 

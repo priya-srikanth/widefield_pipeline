@@ -7,14 +7,15 @@ Matched per trial (same session, trial id, position): cam4 ``lr_wide`` (px, side
 ``lr_wide_mm``; cam4 ``open_max`` (px) vs 3-D ``open_max_mm`` and its components (side / back / down). Per session: Pearson
 r and slope (px per mm), and FAR_DIR (far_L - far_R) / 2 from each. Windows differ slightly by design (cam4 cue + 70 ..
 3000 ms, 3-D cue + 70 .. trial stop), and the 3-D wide-opening threshold is 1.5 mm vs cam4's 50 px.
-Output `session_poses/pose3d/crosscheck/jaw_{per_trial.csv.gz, agreement.csv}`.
+Output `session_poses/pose3d/crosscheck/jaw_{per_trial.csv.gz, agreement.csv}` (`trial_classes.kin_out_dir`: routed under a
+rebuild root).
 """
 from __future__ import annotations
 
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from wfield_local.pose3d import pose3d_dir
 
 V36 = "lp_r4_heatmap_20261013__clean_v36"
 
@@ -29,10 +30,10 @@ def _r_slope(x, y):
 def main(argv=None) -> int:
     from wfield_local.paths import PathResolver
     rv = PathResolver()
-    d3 = Path(rv.root("dlc")) / "session_poses" / "pose3d"
+    d3 = pose3d_dir(rv)
     J3 = pd.read_csv(d3 / "kinematics" / "jaw_trials.csv.gz", dtype={"date": str})
-    J4 = pd.read_csv(Path(rv.root("orofacial")) / V36 / "cohort" / "tables" / "jaw_lateral" / "trials.csv",
-                     dtype={"date": str})
+    from wfield_local import orofacial_cohort as oc        # the cohort's gate-named jaw table (A27)
+    J4 = pd.read_csv(oc.cohort_dir("tables", "jaw_lateral", run=V36, rv=rv) / "trials.csv", dtype={"date": str})
     J4 = J4[J4.animal.isin(J3.animal.unique())]
     # trial ids: try as-is and +1 (0- vs 1-based); keep the shift that matches positions best per session
     out = []
@@ -50,7 +51,13 @@ def main(argv=None) -> int:
         out.append(m.assign(id_shift=sh, pos_agree=agree))
         print(f"{s}: {len(m)} matched trials (trial id shift {sh}, position agreement {agree:.2f})")
     M = pd.concat(out, ignore_index=True)
-    M.to_csv(d3 / "crosscheck" / "jaw_per_trial.csv.gz", index=False, float_format="%.4g")
+    # ROUTED (11-06): the cam4 side is the gate-named cohort table, so the output is gate-dependent too; under a rebuild root
+    # it goes to <root>/session_poses_derived/<tag>/pose3d_jaw_crosscheck (the session_poses tree is an input tree the
+    # rebuild fence never writes), else the old session_poses/pose3d/crosscheck. fig_pose_validation reads the same folder.
+    from wfield_local import trial_classes as tc
+    xdir = tc.kin_out_dir(d3, "crosscheck", script="pose3d_jaw_crosscheck")
+    xdir.mkdir(parents=True, exist_ok=True)
+    M.to_csv(xdir / "jaw_per_trial.csv.gz", index=False, float_format="%.4g")
     rows = []
     for s, g in M.groupby("session"):
         r1, s1, n1 = _r_slope(g.lr_wide_mm.to_numpy(float), g.lr_wide.to_numpy(float))
@@ -66,7 +73,7 @@ def main(argv=None) -> int:
             row["FAR_DIR_3d_mm"] = (f3["far_L"] - f3["far_R"]) / 2
         rows.append(row)
     A = pd.DataFrame(rows)
-    A.to_csv(d3 / "crosscheck" / "jaw_agreement.csv", index=False)
+    A.to_csv(xdir / "jaw_agreement.csv", index=False)
     pd.set_option("display.width", 220)
     print(A.round(2).to_string(index=False))
     ok = A.FAR_DIR_cam4_px.notna() & A.FAR_DIR_3d_mm.notna()

@@ -2,15 +2,16 @@
 item 4). spout_<pos> session maps = within-spout lateral slope (dF per deg) x 10 = dF per 10 deg of deviation TOWARD THE
 MOUSE'S LEFT (= ipsilesional; red = more activity for licks deviating left, blue = for licks deviating right /
 contralesional). Columns: far_ipsi pre / chronic / chronic-pre, close_contra pre / acute / acute-pre; rows = animals;
-per-column shared colour limit. ipsi = image LEFT.
+per-column shared color limit. ipsi = image LEFT.
 PER-POSITION DIRECTION, NOT TOWARD-MIDLINE (Priya 10-21 afternoon: "i don't know that i wanted the toward midline
 analysis, just the per-position analysis"). The 10-21 toward-midline version multiplied ipsi spouts by -1; its figures
 stay as spout_mid_maps_per_animal*.png for comparison, this one writes spout_dir_maps_per_animal*.png.
 --z (Priya 10-21 "show me the new standardized z-scored maps"): each animal x spout map x (its PRE-stroke median
-within-spout lateral SD) / (its PRE-stroke median within-spout cortex response SD) -- the map analogue of
+within-spout lateral SD) / (its PRE-stroke median within-spout cortex response SD) -- the map analog of
 within_spout_mixed.add_z (pre-stroke SD of activity per pre-stroke SD of deviation) -- plus a POOLED row (animals
 weighted equally)."""
 import sys
+from pathlib import Path
 
 import matplotlib
 
@@ -18,16 +19,20 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-sys.path.insert(0, "C:/Users/SabatiniLab/Github/widefield_pipeline")
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))   # THIS checkout (it used to pin the MAIN checkout)
 from wfield_local import analysis_kit as ak  # noqa: E402
 from wfield_local import epochs  # noqa: E402
+from wfield_local import run_mode as _rmode  # noqa: E402
+from wfield_local import config  # noqa: E402
 
-E = "M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding"
+# coordinator 11-04: routed (no longer refused in a tagged run): within_spout_deviation's (tagged) encoding tree is the
+# input, and the figure is written under it too
+E = str(_rmode.encoding_out_root())
 args = [x for x in sys.argv[1:] if x != "--z"]
 Z = "--z" in sys.argv
 folder = args[0] if args else "within_spout_deviation_lick_contact"
 src = f"{E}/qc/{folder}/sessions"
-labels = [x for x in ak.curated_labels() if x[-4:] >= "0806"]
+labels = [x for x in ak.curated_labels() if not config.early_pre(x)]
 zs = {}
 if Z:
     import pandas as pd

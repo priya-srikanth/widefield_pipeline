@@ -27,6 +27,7 @@ that downstream ``np.load`` / ``h5py`` callers already accept on Windows.
 """
 from __future__ import annotations
 
+import copy
 import os
 from pathlib import Path
 
@@ -67,23 +68,54 @@ _SIGNATURE = (("imaging", "E:/labcams_data"), ("analysis_desktop", "C:/Users/Sab
 COHORT_ENV = "WIDEFIELD_COHORT"
 
 #: Logical roots whose contents are COHORT-LEVEL outputs: the active cohort's `output_subdir` is appended.
-COHORT_SCOPED_ROOTS = ("figures_working", "cue_analysis_out", "behavior_out", "orofacial")
+COHORT_SCOPED_ROOTS = ("figures_working", "cue_analysis_out", "behavior_out", "orofacial", "decks_out")
 
 #: Virtual root for cohort-level outputs that historically sat at the TOP of the labcams tree (the deck,
 #: epoch_boundaries.json, frozen_models/, joint_bases/, grant_figures/). = `labcams` for cohort1 (unchanged),
 #: `labcams/<output_subdir>` otherwise. `labcams` itself stays unscoped: it is also the SESSION data root.
 COHORT_OUT = "cohort_out"
 
+#: Logical root of the AUTO-BUILT .pptx decks (Priya 2026-11-06: "move the ppt outputs from analysis to the
+#: 'presentations' folder"): ``<Widefield>/presentations/pipeline/<kind>/``, cohort-scoped like every cohort-level
+#: output (cohort2 -> ``pipeline/cohort2/<kind>/``). Only the .pptx files live there: the figures, the deck's JSON
+#: sidecars (manifest, run record) and epoch_boundaries.json stay in their data roots.
+DECKS_OUT = "decks_out"
+#: Subfolders of DECKS_OUT; ``history`` holds the copies `locanmf_analysis_deck.keep_previous` makes.
+DECK_KINDS = ("analysis", "preprocessing", "behavior", "orofacial", "history")
+
+
+#: Parsed cohorts.yaml, keyed on (path, st_mtime_ns, st_size). MEMOISED 2026-11-06 (Priya, A10): `date8`,
+#: `session_phase` and `_load` reach `cohort_spec` -> `cohorts()` thousands of times per animal, and re-parsing the
+#: YAML each time was ~2/3 of attempt_coding's warm runtime. Keyed on the file's stat so an edited cohorts.yaml is
+#: re-read in the same process. The parsed content does NOT depend on the environment (WIDEFIELD_COHORT is applied
+#: by `active_cohort` on top of it, per call, exactly as before). Internal readers use the shared parse
+#: (`_cohorts_shared`, never mutated); the public `cohorts()` / `cohort_spec()` hand out deep copies, so a caller
+#: that mutates its result cannot change the next caller's.
+_COHORTS_MEMO: dict = {}
+
+
+def _cohorts_shared() -> dict:
+    """The memoised parse of configs/cohorts.yaml. READ-ONLY: do not mutate (use `cohorts()` for a private copy)."""
+    path = CONFIG_DIR / "cohorts.yaml"
+    st = os.stat(path)
+    key = (str(path), st.st_mtime_ns, st.st_size)
+    hit = _COHORTS_MEMO.get(key)
+    if hit is None:
+        with open(path, encoding="utf-8") as fh:
+            hit = yaml.safe_load(fh)
+        _COHORTS_MEMO.clear()                 # one live entry: the file's current version
+        _COHORTS_MEMO[key] = hit
+    return hit
+
 
 def cohorts() -> dict:
-    """configs/cohorts.yaml as a dict (`default`, `cohorts`)."""
-    with open(CONFIG_DIR / "cohorts.yaml", encoding="utf-8") as fh:
-        return yaml.safe_load(fh)
+    """configs/cohorts.yaml as a dict (`default`, `cohorts`). A fresh deep copy of the memoised parse."""
+    return copy.deepcopy(_cohorts_shared())
 
 
 def active_cohort() -> str:
     """Name of the active cohort: ``WIDEFIELD_COHORT``, else cohorts.yaml `default` (cohort1)."""
-    cfg = cohorts()
+    cfg = _cohorts_shared()
     name = os.environ.get(COHORT_ENV, "").strip() or cfg["default"]
     if name not in cfg["cohorts"]:
         raise ValueError(f"{COHORT_ENV}={name!r} is not a cohort in configs/cohorts.yaml "
@@ -94,13 +126,13 @@ def active_cohort() -> str:
 def cohort_spec(name: str | None = None) -> dict:
     """One cohort's block from cohorts.yaml (the active one by default), with `name` added."""
     name = name or active_cohort()
-    return dict(cohorts()["cohorts"][name], name=name)
+    return dict(copy.deepcopy(_cohorts_shared()["cohorts"][name]), name=name)
 
 
 def cohort_for_date(yyyymmdd: str) -> str | None:
     """The cohort whose [first, last] acquisition range holds ``yyyymmdd`` (None if no cohort does)."""
     d = int(str(yyyymmdd))
-    hits = [n for n, c in cohorts()["cohorts"].items()
+    hits = [n for n, c in _cohorts_shared()["cohorts"].items()
             if int(c["first"]) <= d and (c.get("last") is None or d <= int(c["last"]))]
     if len(hits) > 1:
         raise ValueError(f"{yyyymmdd} is in more than one cohort's date range: {hits} (configs/cohorts.yaml)")
@@ -109,7 +141,7 @@ def cohort_for_date(yyyymmdd: str) -> str | None:
 
 def cohort_of_animal(animal: str) -> str | None:
     """The cohort an animal belongs to, from cohorts.yaml `animals` lists (None if in none)."""
-    for n, c in cohorts()["cohorts"].items():
+    for n, c in _cohorts_shared()["cohorts"].items():
         if animal in (c.get("animals") or []):
             return n
     return None
@@ -128,13 +160,27 @@ def detect_machine() -> str:
     return "analysis"
 
 
+#: Parsed YAML per (file, size, mtime_ns) -- `PathResolver.__init__` re-parsed paths.yaml 2847 times in one grant unit
+#: (profile 11-09, 72 s). A rewritten file reparses; every resolver gets its own deep copy.
+_YAML_MEMO: dict = {}
+
+
+def _parsed_yaml(path) -> dict:
+    p = os.path.normcase(os.path.abspath(os.fspath(path)))
+    st = os.stat(p)
+    key = (p, st.st_size, st.st_mtime_ns)
+    if key not in _YAML_MEMO:
+        with open(path, encoding="utf-8") as fh:
+            _YAML_MEMO[key] = yaml.safe_load(fh)
+    return copy.deepcopy(_YAML_MEMO[key])
+
+
 class PathResolver:
     """Resolve logical roots from ``configs/paths.yaml`` to this machine's mounts."""
 
     def __init__(self, config_path: str | Path | None = None, machine: str | None = None):
         path = Path(config_path) if config_path else CONFIG_DIR / "paths.yaml"
-        with open(path, encoding="utf-8") as fh:
-            self._cfg = yaml.safe_load(fh)
+        self._cfg = _parsed_yaml(path)
         self.machine = machine or detect_machine()
         if self.machine not in MACHINES:
             raise ValueError(f"machine must be one of {MACHINES}, got {self.machine!r}")
@@ -183,10 +229,34 @@ class PathResolver:
         env override is the supported way to correct it -- so it has to work everywhere, not in the
         orchestrator alone.
         """
+        # REBUILD ROOT (coordinator 11-03, fourth review; wfield_local/rebuild_root.py): with WIDEFIELD_REBUILD_ROOT set,
+        # a WHOLE derived root (paths.yaml rebuild.derived_roots) resolves into the rebuild root -- for readers and
+        # writers alike, so a reader sees the rebuild's own output or nothing. It wins over a WIDEFIELD_<ROOT> override.
+        if os.environ.get("WIDEFIELD_REBUILD_ROOT", "").strip():
+            from wfield_local import rebuild_root
+            d = rebuild_root.derived_root(name)
+            if d is not None:
+                return self._scoped(d) if (name in COHORT_SCOPED_ROOTS or name == COHORT_OUT) else d
+        return self.input_root(name)
+
+    def input_root(self, name: str) -> str:
+        """The ORIGINAL mount of logical root ``name`` (never remapped into a rebuild root): for read-only inputs that
+        sit inside a derived root (paths.yaml rebuild.inputs_in_place, e.g. the joint bases) and for the fence."""
         if name == COHORT_OUT:
-            return self._scoped(self.root("labcams"))
+            return self._scoped(self.input_root("labcams"))
         base = self._root_unscoped(name)
         return self._scoped(base) if name in COHORT_SCOPED_ROOTS else base
+
+    def derived(self, name: str, rel: str) -> str:
+        """``root(name)/rel`` for a DERIVED product: inside a rebuild root when ``rel`` falls in one of input root
+        ``name``'s derived subtrees (paths.yaml rebuild.derived_subtrees, e.g. orofacial ``<run>/imaging_encoding``);
+        otherwise exactly :meth:`resolve`."""
+        if os.environ.get("WIDEFIELD_REBUILD_ROOT", "").strip():
+            from wfield_local import rebuild_root
+            d = rebuild_root.derived_subtree(name, rel)
+            if d is not None:
+                return d
+        return self.resolve(name, rel)
 
     @staticmethod
     def _scoped(base: str) -> str:
@@ -230,6 +300,27 @@ class PathResolver:
         if val is None:
             raise KeyError(f"Unknown staging path {name!r}")
         return str(val)
+
+
+def deck_dir(kind: str, rv: PathResolver | None = None) -> Path:
+    """The default folder of one kind of auto-built deck: ``<decks_out>/<kind>`` (see DECKS_OUT)."""
+    if kind not in DECK_KINDS:
+        raise ValueError(f"unknown deck kind {kind!r} (known: {', '.join(DECK_KINDS)})")
+    return Path((rv or PathResolver()).root(DECKS_OUT)) / kind
+
+
+def deck_history_dir(deck_path, rv: PathResolver | None = None) -> Path:
+    """Where the deck about to be replaced at ``deck_path`` is kept: ``<decks_out>/history/<sub>`` for a deck in
+    ``<decks_out>/<kind>/<sub>`` (``<sub>`` = a tagged run's tag folder, so tags stay apart), else a
+    ``deck_history/`` beside the deck (an explicit ``--out`` elsewhere)."""
+    parent = Path(deck_path).parent
+    try:
+        rel = parent.relative_to(Path((rv or PathResolver()).root(DECKS_OUT)))
+    except (ValueError, OSError, RuntimeError, KeyError):   # not under the root / root unavailable here
+        rel = None
+    if rel is None or not rel.parts or rel.parts[0] not in DECK_KINDS or rel.parts[0] == "history":
+        return parent / "deck_history"
+    return Path((rv or PathResolver()).root(DECKS_OUT)) / "history" / Path(*rel.parts[1:])
 
 
 def is_absolute(p: str) -> bool:

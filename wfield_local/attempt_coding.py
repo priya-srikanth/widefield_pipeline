@@ -18,18 +18,20 @@ CLASSES (post-stroke, per spout; pre-stroke reference = video HITS at that spout
   late         attempted after max_rt (reported for n only)
 
 PRIMARY READOUT = p_true (the frozen decoder). The PS92 smoke run (10-24) showed `own` is unstable post-stroke (class
-means -8 .. +5 on a 0 / 1 pole scale): the 1.0 s ENL axes separate spouts weakly, so the pole normalisation divides by
+means -8 .. +5 on a 0 / 1 pole scale): the 1.0 s ENL axes separate spouts weakly, so the pole normalization divides by
 a small gap, and `pool_sessions` z-scores each session on its OWN engaged (attempted) trials, whose spout mix shifts
 acutely. `own` is kept for comparison with August; do not read its contrasts alone.
 
 READOUTS, per trial, from directions fitted on pre-stroke hits only (`position_coding_directions.direction`):
-  own          projection on ITS spout's axis, pole-normalised (0 = pre-stroke hits elsewhere, 1 = pre-stroke hits here)
+  own          projection on ITS spout's axis, pole-normalized (0 = pre-stroke hits elsewhere, 1 = pre-stroke hits here)
                -- the August number, kept for comparison. No "own minus other axes" index: the six one-vs-rest axes
                sum to ~0 (STATUS_2026-09-24_CD_TRAJECTORIES), so the other axes' mean is nearly a linear function of
                own and the index adds nothing (caught by the unit test, 10-24). A trial-wide state change is handled
                by the CONTRAST, not by the readout: every class is compared with `stopped` in the same sessions.
-  p_true, pred the STORED frozen pre-stroke position decoder (`locanmf_frozen_decoder.frozen_decoder_models`, the
-               DAQ-frozen model LP_licks reuses -- Priya 10-21): probability of the true spout and the decoded
+  p_true, pred the STORED LP-trained frozen pre-stroke position decoder (`locanmf_frozen_decoder.frozen_decoder_models`;
+               pre-stroke training trials chosen by LP video licks, pre-cue window 1.0 s, PS93_0813 not in the pool;
+               Priya 11-09: THE single LP frozen spout decoder, also loaded by the LP `joint_xsession` run, ids in
+               docs/status/DELETED_FROZEN_SPOUT_AB_2026-11-09.md): probability of the true spout and the decoded
                spout, per class (the "distance kept, side lost" confusion of the LP frozen decoders, now split by
                what the animal did). Pre-stroke rows use the stored leave-that-session-out model.
 Pre-stroke hits are scored LEAVE-ONE-SESSION-OUT (directions refitted without that day), so the 1.0 reference is not
@@ -54,6 +56,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from wfield_local import run_mode
+
 #: spout names: POSITION_NAMES (mouse-side L/R) -> lesion-side names (all lesions LEFT: contra = the mouse's RIGHT)
 LESION_NAME = {"close_L": "close_ipsi", "close_center": "close_mid", "close_R": "close_contra",
                "far_L": "far_ipsi", "far_center": "far_mid", "far_R": "far_contra"}
@@ -73,21 +77,41 @@ MIN_N = 5           # per class x spout x session to enter a contrast
 N_PERM = 2000
 
 
-def classify(cls_e, cls_u, eng_pre_e, eng_pre_u, not_eng_u):
+def classify(cls_e, cls_u, eng_pre_e, eng_pre_u, not_eng_u, camera_u=None):
     """Class per engaged (XE) row and per no-lick (XU) row.
 
     Under the LP source, XE = attempted within max_rt (hit / incomplete) and XU = everything else. ``cls_*`` are the
     attempts classes of those rows ("" = unmatched), ``eng_pre_*`` True on pre-stroke sessions, ``not_eng_u`` the
-    video engagement gate (True = after the session's final quit)."""
+    video engagement gate (True = after the session's final quit).
+
+    CAMERA TRIAL GATE (rebuild 11-03): ``camera_u`` = the `trial_classes` class per XU row (`pool_row_classes`); then
+    ``not_eng_u`` is not read, stopped = class in STOPPED_CLASSES and the working split = class in GATES["working"]
+    ("unknown" = neither). stopped = a SUSTAINED stop (Priya 11-03); "noattempt" = an ISOLATED LAPSE (camera no_response in the working period, not in a stop; decision 3)
+    under the camera gate and the noattempt-vs-stopped contrast cannot be formed (listed for Priya)."""
     ce = np.where(eng_pre_e, np.where(cls_e == "hit", "pre_hit", ""),
                   np.where(np.isin(cls_e, ("hit", "incomplete")), cls_e, ""))
     ce = ce.astype(object)
     cu = np.full(len(cls_u), "", dtype=object)
     post_u = ~eng_pre_u
-    cu[post_u & not_eng_u & ~np.isin(cls_u, ("", "unknown"))] = "stopped"
-    work = post_u & ~not_eng_u
-    cu[work & (cls_u == "no_try")] = "noattempt"
-    cu[work & (cls_u == "jaw_only")] = "reaction"
+    if camera_u is not None:
+        from wfield_local import trial_classes as _tc
+        cam = np.asarray(camera_u, dtype=object)
+        cu[post_u & np.isin(cam, list(_tc.STOPPED_CLASSES)) & ~np.isin(cls_u, ("", "unknown"))] = "stopped"
+        work = post_u & _tc.in_sel(cam, "working")
+        work_m = post_u & _tc.in_sel(cam, "miss_working")     # the no-lick miss split: no contact class (M6)
+        # DECISION 3 (Priya 11-03): "noattempt" = an ISOLATED LAPSE -- a camera no_response trial inside the working
+        # period that is not part of a sustained stop (class "no_response" after `classify_session`). Contrast with
+        # "stopped" = isolated lapse vs sustained stop.
+        cu[post_u & (cam == "no_response") & (cls_u == "no_try")] = "noattempt"
+        # JAW_ONLY its own class (Priya 11-03 late): a camera jaw_only trial inside the working period keeps its own
+        # label ("reaction"), never merged into noattempt; it is not in the production working set (in_sel)
+        cu[post_u & (cam == "jaw_only") & (cls_u == "jaw_only")] = "reaction"
+    else:
+        cu[post_u & not_eng_u & ~np.isin(cls_u, ("", "unknown"))] = "stopped"
+        work = post_u & ~not_eng_u
+        work_m = work
+    cu[work_m & (cls_u == "no_try")] = "noattempt"
+    cu[work_m & (cls_u == "jaw_only")] = "reaction"
     cu[work & np.isin(cls_u, ("hit", "incomplete"))] = "late"
     return ce, cu
 
@@ -105,8 +129,39 @@ def fit_axes(X, spout, method):
     return W
 
 
+#: STORED BY DEFAULT (11-02 pass 2; Priya: "yes cache all frozen decoders"; rule 10). The coding-direction axes fitted
+#: on pre-stroke video hits go through `frozen_models.load_or_fit`, kind `attempt_axes`; payload {method: {"full": W,
+#: "loso": {pre label: W}}}. OPT-OUT WIDEFIELD_ATTEMPT_FROZEN=0 refits in memory. LP-ONLY BY NATURE: the reference class
+#: (pre_hit) is a VIDEO attempt class, so there is no DAQ-trained version; the spec always carries lick_source=lp.
+ATTEMPT_FROZEN_ENV = "WIDEFIELD_ATTEMPT_FROZEN"
+
+
+def stored_axes(animal, align, post_s, X, G, sp, ref, kept, basis_id, verbose=True):
+    """{method: {"full", "loso"}} from the store, or None when opted out."""
+    from wfield_local import frozen_models
+    if not frozen_models.family_on(ATTEMPT_FROZEN_ENV):
+        if verbose:
+            print(f"[attempt_coding] {animal} {align}: {ATTEMPT_FROZEN_ENV}=0 -> axes fitted IN MEMORY", flush=True)
+        return None
+    pre_s = sorted(int(s) for s in np.unique(G[ref]))
+    spec = frozen_models.make_spec(animal, "attempt_axes", align=f"{align}-{'+'.join(METHODS)}", source="locanmf",
+                                   train_labels=[kept[s] for s in pre_s], post_s=post_s, basis_id=basis_id,
+                                   n_features=int(X.shape[1]), train_data=(X[ref], sp[ref], G[ref]),
+                                   lp_only=True)   # LP-only by nature (video hits): real-row fingerprint (review H1)
+
+    def _fit():
+        return {meth: {"full": fit_axes(X[ref], sp[ref], meth),
+                       "loso": {kept[s]: fit_axes(X[ref & (G != s)], sp[ref & (G != s)], meth) for s in pre_s}}
+                for meth in METHODS}
+
+    payload, status = frozen_models.load_or_fit(spec, _fit, meta={"n_pre_hit": int(ref.sum())})
+    if verbose:
+        print(f"[attempt_coding] {animal} {align}: attempt_axes {frozen_models._slug(spec)} {status}", flush=True)
+    return payload
+
+
 def score(X, spout, W):
-    """Pole-normalised projection of each row on its own spout's axis; NaN where that spout has no axis."""
+    """Pole-normalized projection of each row on its own spout's axis; NaN where that spout has no axis."""
     from wfield_local.position_coding_directions import project
     own = np.full(len(X), np.nan)
     for P, (w, p0, p1) in W.items():
@@ -142,24 +197,95 @@ def perm_test(vals, cls, sess, a, b, n_perm=N_PERM, seed=0):
         int(sum((~i).sum() for _, i in groups))
 
 
-def _cue_classes(labels, max_rt):
-    """{label: (cls per DAQ cue, trial_id per DAQ cue)} from the LP matcher (same matching the features use)."""
+def _cue_class_one(lab, max_rt):
+    """(cls per DAQ cue, trial_id per DAQ cue) of one session, or None when it is not registered."""
     from wfield_local import lp_licks
     from wfield_local.locanmf_cue_lick_analysis import SESSIONS
     from wfield_local.plot_spout_trial_averages import _load_daq_events as _load_cue_events
+    s = next((x for x in SESSIONS if x["label"] == lab), None)
+    if s is None:
+        return None
+    cue = _load_cue_events(s["h5"])
+    lp = lp_licks.session_lp(lab, cue["cue_samples"], cue["sample_rate_hz"], max_rt)
+    return np.asarray(lp["cls"], object).astype(str), np.asarray(lp["trial_id"], int)
+
+
+def _cue_classes(labels, max_rt, prefetched=None):
+    """{label: (cls per DAQ cue, trial_id per DAQ cue)} from the LP matcher (same matching the features use).
+
+    ``prefetched``: {label: value of `_cue_class_one`} from `_prefetch_sessions` (parallel workers); a label missing
+    from it is computed here, in ``labels`` order, so the dict and any error are the serial loop's."""
     out = {}
     for lab in labels:
-        s = next((x for x in SESSIONS if x["label"] == lab), None)
-        if s is None:
-            continue
-        cue = _load_cue_events(s["h5"])
-        lp = lp_licks.session_lp(lab, cue["cue_samples"], cue["sample_rate_hz"], max_rt)
-        out[lab] = (np.asarray(lp["cls"], object).astype(str), np.asarray(lp["trial_id"], int))
+        got = prefetched[lab] if prefetched is not None and lab in prefetched else _cue_class_one(lab, max_rt)
+        if got is not None:
+            out[lab] = got
     return out
 
 
-def run_animal(animal, align="precue", verbose=True):
-    """Trial table for one animal and window (None if unavailable)."""
+#: per-worker-process memo of the feature builder (one basis load per worker, not per session)
+_WARM_FEAT: dict = {}
+
+
+def _prefetch_one(item):
+    """FAN-OUT WORKER (module-level: spawn pickles by name) for one session of `run_animal`.
+
+    1. WARMS the on-disk feature cache (`trial_features_cached` via `features_with_indices`, the exact call
+       `pool_sessions` makes for this session), so the serial `pool_sessions` that follows reads it instead of
+       projecting U / SVT session by session. The serial code path is unchanged: this only fills a cache.
+    2. Returns this session's `_cue_class_one` (the DAQ cue h5 read + LP class match).
+    Either step's failure is returned, not raised: the serial path then recomputes the session and reports / raises
+    exactly as it always has."""
+    animal, lab, align, post_s, nolick_ref, max_rt, blas = item
+    if blas:
+        # THE PARENT'S ARITHMETIC: spawned workers are pinned to parallel.BLAS_THREADS; the serial path projects at the
+        # parent's count, and the cached features must be what the parent would have computed
+        import threadpoolctl
+        threadpoolctl.threadpool_limits(limits=blas, user_api="blas")
+    from wfield_local.locanmf_frozen_decoder import _args
+    from wfield_local.locanmf_cue_lick_analysis import SESSIONS
+    out = {"warm": None, "cue": None, "cue_err": None}
+    try:
+        key = (animal, nolick_ref)
+        if key not in _WARM_FEAT:
+            from wfield_local import joint_locanmf
+            from wfield_local.precue_engagement_states import features_with_indices
+            _WARM_FEAT[key] = features_with_indices(joint_locanmf.load(animal, sessions=SESSIONS), nolick_ref=nolick_ref)
+        s = next((x for x in SESSIONS if x["label"] == lab), None)
+        if s is not None:
+            _WARM_FEAT[key](s, _args("locanmf", align, post_s))
+        out["warm"] = "ok"
+    except Exception as ex:                              # noqa: BLE001 - the serial pass recomputes and reports
+        out["warm"] = f"{type(ex).__name__}: {ex}"
+    try:
+        out["cue"] = _cue_class_one(lab, max_rt)
+    except Exception as ex:                              # noqa: BLE001
+        out["cue_err"] = f"{type(ex).__name__}: {ex}"
+    return out
+
+
+def _prefetch_sessions(animal, labels, align, post_s, nolick_ref, max_rt, jobs):
+    """{label: cue classes} for the sessions whose class load succeeded in a worker; warms the feature cache.
+
+    PARALLEL (11-06): unit = one SESSION (`analysis_kit.fan_sessions`, sorted by label). Profiled on PS92 precue
+    (4 sessions, scratch frozen store): cold feature build ~23 s / session and the cue-class load ~4.7 s / session
+    (mostly the DAQ h5 read off MICROSCOPE), both serial per session before this. Workers hold one basis plus one
+    session's U / SVT projection (~1-1.5 GB each on a cold cache)."""
+    from wfield_local import analysis_kit as ak
+    from wfield_local import parallel
+    # the parent is NOT left pinned: everything after this runs serially at the parent's own BLAS count, exactly as
+    # before (a pinned parent moved the attempt-axes projection and minted a new frozen model; `parent_blas_kept`)
+    with parallel.parent_blas_kept() as nb:
+        items = [(animal, lab, align, post_s, nolick_ref, max_rt, nb) for lab in labels]
+        got, _fail = ak.fan_sessions(items, _prefetch_one, jobs=jobs, key=lambda it: it[1], label="attempt session")
+    return {it[1]: r["cue"] for it, r in got if r["cue_err"] is None}
+
+
+def run_animal(animal, align="precue", verbose=True, jobs=1):
+    """Trial table for one animal and window (None if unavailable).
+
+    ``jobs`` > 1 (the CLI's --jobs): the per-session loads run first over that many workers (`_prefetch_sessions`:
+    feature-cache warm + cue classes); everything after is the unchanged serial code, so the table is identical."""
     from wfield_local import config, joint_locanmf, lp_licks
     from wfield_local.locanmf_frozen_decoder import pool_sessions, _args
     from wfield_local.plot_lick_aligned_averages import POSITION_NAMES
@@ -167,14 +293,17 @@ def run_animal(animal, align="precue", verbose=True):
     from wfield_local.precue_engagement_states import features_with_indices
     if not lp_licks.is_lp():
         raise RuntimeError(f"set {lp_licks.LICK_SOURCE_ENV}=lp: the classes are video attempts")
-    post_s = float(config.defaults()["decode"].get(f"{align}_post_s", 2.0))
+    post_s = lp_licks.post_s_for(align)
     pre = [l for l in config.phase_labels("pre") if l.startswith(animal)]
     post = [l for l in config.phase_labels("post") if l.startswith(animal)]
     if not pre or not post:
         return None
     from wfield_local.locanmf_cue_lick_analysis import SESSIONS as _ALL
+    nolick_ref = "would_be_lick" if align == "lick" else "cue"
+    pre_cc = (_prefetch_sessions(animal, pre + post, align, post_s, nolick_ref, _args("locanmf", align, post_s).max_rt,
+                                 jobs) if jobs is not None and jobs > 1 else None)
     basis = joint_locanmf.load(animal, sessions=_ALL)
-    feat = features_with_indices(basis, nolick_ref=("would_be_lick" if align == "lick" else "cue"))
+    feat = features_with_indices(basis, nolick_ref=nolick_ref)
     pooled = pool_sessions(pre + post, source="locanmf", align=align, post_s=post_s, features=feat)
     if pooled is None:
         return None
@@ -186,7 +315,7 @@ def run_animal(animal, align="precue", verbose=True):
     not_eng, _fnl, _fe = g
 
     # attempts class + trial_id per feature row, through the trial (DAQ cue) indices the features kept
-    cc = _cue_classes(kept, _args("locanmf", align, post_s).max_rt)
+    cc = _cue_classes(kept, _args("locanmf", align, post_s).max_rt, prefetched=pre_cc)
     cls_e, cls_u, tid_e, tid_u = [], [], [], []
     for lab in kept:
         ie, inl = feat.indices[lab]
@@ -201,8 +330,19 @@ def run_animal(animal, align="precue", verbose=True):
 
     pre_set = set(pre)
     pre_i = np.array([lab in pre_set for lab in kept])
-    ce, cu = classify(cls_e, cls_u, pre_i[GE], pre_i[GU], not_eng)
-    X = np.vstack([XE, XU])
+    from wfield_local import trial_classes as _tc
+    cam_u = _tc.pool_row_classes(feat, kept, len(YE), len(YU))[1] if _tc.camera_gate_on() else None
+    ce, cu = classify(cls_e, cls_u, pre_i[GE], pre_i[GU], not_eng, camera_u=cam_u)
+    # THE PROJECTION FRAME for the attempt axes (main 26fd5b44 item C; identity when off, the default). The pool's
+    # working-row masks and engaged-row classes ARE passed (follow-on d, 11-04): main passes none, so its
+    # WIDEFIELD_PROJECTION_CENTRE=working raises here; in the rebuild every centre option works.
+    from wfield_local import spout_scaling as _ss
+    from wfield_local import working_trials as _wt
+    from wfield_local.locanmf_frozen_decoder import _pipe as _fpipe
+    _XEp, _XUp = _ss.projection_arrays(XE, YE, GE, XU, GU, [i for i in range(len(kept)) if pre_i[i]], _fpipe,
+                                       work=_wt.projection_work(kept, feat, GE, GU, align), YU=YU,
+                                       cls_e=_wt.projection_cls_e(kept, feat, GE, GU, align), labels=kept)
+    X = np.vstack([_XEp, _XUp])
     G = np.concatenate([GE, GU]).astype(int)
     C = np.concatenate([ce, cu]).astype(str)
     T = np.concatenate([tid_e, tid_u]).astype(int)
@@ -215,24 +355,35 @@ def run_animal(animal, align="precue", verbose=True):
     lab_row = np.array(kept, dtype=object)[G]
     rows = []
     ref = C == "pre_hit"
+    # STORED BY DEFAULT (11-02 pass 2): the per-spout axes (full + one leave-one-session-out set per pre session) come
+    # from `frozen_models` (kind `attempt_axes`); opt-out WIDEFIELD_ATTEMPT_FROZEN=0 fits them in memory as before.
+    axes = stored_axes(animal, align, post_s, X, G, sp, ref, kept, getattr(feat, "basis_id", None),
+                       verbose=verbose)
     for meth in METHODS:
-        W = fit_axes(X[ref], sp[ref], meth)
+        W = axes[meth]["full"] if axes else fit_axes(X[ref], sp[ref], meth)
         own = score(X, sp, W)
         # pre-stroke hits: leave-one-session-out, so the reference is not scored in-sample
         for s in np.unique(G[ref]):
             tr, te = ref & (G != s), ref & (G == s)
-            own[te] = score(X[te], sp[te], fit_axes(X[tr], sp[tr], meth))
+            own[te] = score(X[te], sp[te], axes[meth]["loso"][kept[s]] if axes else fit_axes(X[tr], sp[tr], meth))
         rows.append(pd.DataFrame({"method": meth, "own": own}))
-    from wfield_local.locanmf_frozen_decoder import frozen_decoder_models
+    from wfield_local.locanmf_frozen_decoder import frozen_decoder_models, pool_work
     pre_list = [i for i in range(len(kept)) if pre_i[i]]
-    models, status = frozen_decoder_models(XE, YE, GE, kept, pre_list, align=align, source="locanmf",
+    # trained on the pre-stroke CAMERA WORKING trials for cue / precue (Priya 11-03 late, main `pool_work`)
+    work = pool_work(XE, YE, GE, XU, YU, GU, kept, feat, align)
+    models, status = frozen_decoder_models(XE, YE, GE, kept, pre_list, work=work, align=align, source="locanmf",
                                            post_s=post_s, basis_id=getattr(feat, "basis_id", None))
     if verbose:
         print(f"[attempt_coding] {animal} {align}: frozen decoder {status}", flush=True)
     # THE FROZEN MODEL SCORES IN ITS OWN FRAME (`frozen_scored_frame`; bal_em since 2026-11-03, identity under
     # WIDEFIELD_SPOUT_SCALING=session_z). The attempt axes above stay on the production frame.
     from wfield_local.locanmf_frozen_decoder import frozen_scored_frame
-    XEf, XUf = frozen_scored_frame(models, XE, GE, XU, GU, kept, pre_list)
+    from wfield_local.locanmf_frozen_decoder import engaged_row_classes
+    XEf, XUf = frozen_scored_frame(models, XE, GE, XU, GU, kept, pre_list,
+                                   cls_e=(None if work is not None else
+                                          engaged_row_classes(kept, len(YE), features=feat, align=align,
+                                                              post_s=post_s)),
+                                   work=work)
     Xf = np.vstack([XEf, XUf])[keep]
     code = np.concatenate([YE, YU]).astype(int)[keep]
     p_true = np.full(len(X), np.nan)
@@ -315,7 +466,7 @@ def freeze_reference(animal, align):
     from wfield_local.precue_engagement_states import features_with_indices
     if lp_licks.is_lp():
         raise RuntimeError("--freeze runs the DAQ path: unset WIDEFIELD_LICK_SOURCE")
-    post_s = float(config.defaults()["decode"].get(f"{align}_post_s", 2.0))
+    post_s = lp_licks.post_s_for(align)
     # THE LP POOL'S SESSIONS, not the DAQ pool's: a session with no LP lick tables (PS93_0813 has no behaviour video)
     # is dropped by the LP run, so its training set -- and the spec id it asks for -- has one session fewer. Freezing on
     # the DAQ pool would store a model the LP run never finds (found 10-24 on PS93).
@@ -323,18 +474,29 @@ def freeze_reference(animal, align):
     post = [l for l in config.phase_labels("post") if l.startswith(animal) and _lp_available(l)]
     basis = joint_locanmf.load(animal, sessions=_ALL)
     feat = features_with_indices(basis)
-    XE, YE, GE, _BE, _XU, _YU, kept, _c, _GU = pool_sessions(pre + post, source="locanmf", align=align,
-                                                              post_s=post_s, features=feat)
+    from wfield_local.locanmf_frozen_decoder import pool_work
+    XE, YE, GE, _BE, XU, YU, kept, _c, GU = pool_sessions(pre + post, source="locanmf", align=align,
+                                                          post_s=post_s, features=feat)
     pre_list = [i for i, lab in enumerate(kept) if lab in set(pre)]
     _m, status = frozen_decoder_models(XE, YE, GE, kept, pre_list, align=align, source="locanmf", post_s=post_s,
+                                       work=pool_work(XE, YE, GE, XU, YU, GU, kept, feat, align),
                                        basis_id=getattr(feat, "basis_id", None))
     print(f"[attempt_coding] freeze {animal} {align} (ENL window {lp_licks.enl_window_s()}): {status}", flush=True)
     return status
 
 
+def trials_name(align: str, animal: str) -> str:
+    """THE file name of one per-trial table, as the writer keys it (coordinator 11-03): plain by default,
+    `run_mode.keyed_name(..., cache=True)` in a non-default mode (hemo / LocaNMF projection / selection / camera-
+    class signature), so a reader of the rebuild reads the rebuild files. Readers MUST use this."""
+    return run_mode.keyed_name(f"trials_{align}_{animal}.csv.gz", cache=True)
+
+
 def out_dir():
-    from wfield_local import lp_licks
-    return lp_licks._run_dir() / "imaging_encoding" / "attempt_coding"
+    from wfield_local import lp_licks, run_mode
+    # run-mode routing (rebuild 11-03): a tagged run (camera gate, hemo variant ...) writes attempt_coding/<tag>/
+    # LP-only family: routed on the mode tag minus the plain LP part (review N1) -> the default LP run keeps its folder
+    return run_mode.subdir(lp_licks._enc_dir() / "attempt_coding", lp_family=True)
 
 
 def main(argv=None) -> int:
@@ -343,21 +505,26 @@ def main(argv=None) -> int:
     ap.add_argument("--aligns", nargs="+", default=list(ALIGNS), choices=ALIGNS)
     ap.add_argument("--out", type=Path, default=None)
     ap.add_argument("--freeze", action="store_true", help="DAQ mode: store the frozen decoders the LP run reads, then exit")
+    ap.add_argument("--jobs", type=int, default=3,
+                    help="workers for the per-session loads of run_animal (feature-cache warm + cue classes); 1 = serial")
     a = ap.parse_args(argv)
     if a.freeze:
         for an in a.animals:
             for align in a.aligns:
                 freeze_reference(an, align)
         return 0
-    od = a.out or out_dir()
+    # an explicit --out (e.g. attempt_coding_pp) is routed like out_dir() (LP family; T1 / T6, third review)
+    od = run_mode.routed_output(a.out, guard=False, lp_family=True) if a.out else out_dir()
+    from wfield_local.writeguard import assert_writable
+    assert_writable(od / "_")   # review H3: a tagged run's share write must sit under its tag folder
     od.mkdir(parents=True, exist_ok=True)
     for align in a.aligns:
         parts = []
         for an in a.animals:
-            f = od / f"trials_{align}_{an}.csv.gz"
+            f = od / trials_name(align, an)
             if f.exists():
                 parts.append(pd.read_csv(f)); continue
-            T = run_animal(an, align)
+            T = run_animal(an, align, jobs=a.jobs)
             if T is None:
                 print(f"[attempt_coding] {an} {align}: unavailable", flush=True); continue
             T.to_csv(f, index=False); parts.append(T)

@@ -146,7 +146,7 @@ def normalize_consensus(cons):
         return cons                                       # {cut: {animal: verdict}}
     raise ValueError(
         "consensus is neither {animal: verdict} nor {cut: {animal: verdict}}; refusing to draw a "
-        f"figure from an unrecognised shape (top-level keys: {list(cons)[:6]}). If the schema "
+        f"figure from an unrecognized shape (top-level keys: {list(cons)[:6]}). If the schema "
         "changed deliberately, update normalize_consensus so the change is declared rather than "
         "silently mis-plotted.")
 
@@ -155,8 +155,8 @@ def figure_agreement(ref, out):
     """Do the two bases reach the same verdict, per animal and per engaged cut?
 
     Rendered as text, because the honest answer is a sentence and a bar chart of agreement would be
-    theatre. `consensus` is nested {cut: {animal: verdict}} -- an earlier version of this function
-    iterated it as {animal: verdict}, which did not crash: it drew two rows labelled "2.0s" and
+    theater. `consensus` is nested {cut: {animal: verdict}} -- an earlier version of this function
+    iterated it as {animal: verdict}, which did not crash: it drew two rows labeled "2.0s" and
     "respwin" as if they were animals, with an empty disagreement string. Wrong figures that render
     are worse than ones that fail, and this one is in the deck.
     """

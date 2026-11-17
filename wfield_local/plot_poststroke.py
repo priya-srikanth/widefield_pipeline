@@ -1,11 +1,12 @@
 """Figures for deck Section G — POST-STROKE, read from the saved JSON rather than recomputed.
 
-ORDER IS THE ARGUMENT. Behaviour comes first (G1), because on 8/17 both animals stopped attempting
+ORDER IS THE ARGUMENT. Behavior comes first (G1), because on 8/17 both animals stopped attempting
 the far positions -- PS94 has ZERO engaged trials at far_center and far_R -- and every decoding
 number after it is uninterpretable without that. Putting decoding first is exactly the error that
 produced a "PS94 neural deficit" headline which was mostly trial composition.
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import textwrap
 from pathlib import Path
@@ -81,7 +82,7 @@ def _fig_behaviour_one(counts, ans, out, name, suptitle, part):
             ax.set_ylabel("trials")
             if r == 0 and k == 0:
                 ax.legend(fontsize=7)
-    head = suptitle or ("POST-STROKE BEHAVIOUR FIRST: which positions the animal still attempts. "
+    head = suptitle or ("POST-STROKE BEHAVIOR FIRST: which positions the animal still attempts. "
                         "Zero engaged trials at a position means no decoding number for it can "
                         "exist.")
     if part[1] > 1:
@@ -89,7 +90,7 @@ def _fig_behaviour_one(counts, ans, out, name, suptitle, part):
     fig.suptitle(head, fontsize=10, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.94))
     p = Path(out) / name
-    fig.savefig(p, dpi=150)
+    save_png_svg(fig, p, dpi=150)
     plt.close(fig)
     return p
 
@@ -144,7 +145,7 @@ def fig_matched(matched, out, chance=0.25, name="poststroke_G2_matched.png", sup
     fig.tight_layout(rect=(0, 0, 1, 0.90))
     p = Path(out) / name
     _blank_unused(axes, len(ans), _rows, _cols)
-    fig.savefig(p, dpi=150)
+    save_png_svg(fig, p, dpi=150)
     plt.close(fig)
     return p
 
@@ -160,6 +161,16 @@ def _grid_shape(n, max_cols=4):
     few sessions (Priya, 2026-08-21); wrapping keeps each one readable."""
     cols = max(1, min(n, max_cols))
     return int(np.ceil(n / cols)), cols
+
+
+def _disc_train_txt(records) -> str:
+    """The G1-G3 discriminator's training classes in words, from the records' ``train_classes`` (11-08): camera
+    WORKING vs NO RESPONSE under section G's camera grouping (decision (f) 1; Priya 11-08: the raw no_response class,
+    unknown excluded, and the scored sets are camera-defined too), else the DAQ engaged-vs-undetected set."""
+    cam = any(((r or {}).get("train_classes") or {}).get("groups") == "camera" for r in records)
+    return ("PRE-stroke camera WORKING (contact + incomplete) vs NO RESPONSE (raw class; unknown, jaw-only, quit and "
+            "stopped trials never trained on). 'Engaged' = camera working trials, 'no-lick' / 'undetected' = camera "
+            "no-response trials (no lick seen on camera)" if cam else "PRE-stroke engaged-vs-undetected")
 
 
 def fig_identity(ident, out):
@@ -218,14 +229,14 @@ def fig_identity(ident, out):
     axes[0][0].legend(fontsize=7.5, ncol=4, loc="upper center", bbox_to_anchor=(0.5, 1.14),
               frameon=False)
     fig.suptitle("Do post-stroke NO-LICK trials look like pre-stroke LICKING trials?  "
-                 "Boundary trained on PRE-stroke engaged-vs-undetected, position-balanced so it "
+                 f"Boundary trained on {_disc_train_txt(ident.values())}, position-balanced so it "
                  "cannot simply answer 'far'.  READ THE CONTROL FIRST: post ENGAGED (green) must sit "
                  "ABOVE post UNDETECTED (red), or the boundary is tracking 'post-stroke' rather than "
                  "licking and the answer means nothing. The control gap and its bootstrap 95% CI are printed under each animal: the whole interval must clear zero, and an interval spanning zero means UNDETERMINED, not failed.", fontsize=9, wrap=True)
     fig.subplots_adjust(bottom=0.22)
     fig.tight_layout(rect=(0, 0.06, 1, 0.86))
     p = Path(out) / "poststroke_G4_identity.png"
-    fig.savefig(p, dpi=150)
+    save_png_svg(fig, p, dpi=150)
     plt.close(fig)
     return p
 
@@ -238,8 +249,8 @@ def fig_similarity(sim, out, name="poststroke_G5_similarity.png", suptitle=None)
     x 3 days is 10 series x 6 positions = 60 bars competing for one legend: the per-animal
     time course -- the thing the figure is for -- could not be read out of it (Priya, 2026-08-20).
 
-    Sessions are ordered in time within each animal and coloured by their position in that order,
-    so the same colour means the same day across panels.
+    Sessions are ordered in time within each animal and colored by their position in that order,
+    so the same color means the same day across panels.
     """
     by_animal = {}
     for lab in sorted(sim):
@@ -317,13 +328,13 @@ def fig_similarity(sim, out, name="poststroke_G5_similarity.png", suptitle=None)
     axes[0][0].set_ylabel("r (pre-stroke vs post-stroke mean pattern)")
     fig.suptitle((suptitle or "Per-position correlation between the pre- and post-stroke mean "
                   "activity patterns, one panel per animal, one series per post-stroke day.")
-                 + "  GREY LINE = the pre-stroke ceiling (each pre-stroke session against the pool "
+                 + "  GRAY LINE = the pre-stroke ceiling (each pre-stroke session against the pool "
                    "of the others). Read the bars against IT, never against 1.0: two pre-stroke "
                    "days already differ by ordinary drift.",
                  fontsize=9, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.90))
     p = Path(out) / name
-    fig.savefig(p, dpi=150)
+    save_png_svg(fig, p, dpi=150)
     plt.close(fig)
     return p
 
@@ -357,7 +368,7 @@ def fig_confusion(conf, out):
                  "which a scalar accuracy discards.", fontsize=10, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.96))
     p = Path(out) / "poststroke_G3_confusion.png"
-    fig.savefig(p, dpi=150)
+    save_png_svg(fig, p, dpi=150)
     plt.close(fig)
     return p
 
@@ -440,7 +451,7 @@ def fig_per_position(pp, out, name="poststroke_G2b_per_position.png"):
                  fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.93))
     q = Path(out) / name
-    fig.savefig(q, dpi=150)
+    save_png_svg(fig, q, dpi=150)
     plt.close(fig)
     return q
 
@@ -505,7 +516,7 @@ def fig_nolick_readout(rd, out):
     fig.tight_layout(rect=(0, 0, 1, 0.90))
     q = Path(out) / "poststroke_G6_nolick_readout.png"
     _blank_unused(axes, len(ans), _rows, _cols)
-    fig.savefig(q, dpi=150)
+    save_png_svg(fig, q, dpi=150)
     plt.close(fig)
     return q
 
@@ -533,7 +544,7 @@ def fig_confusion_alltrials(conf, out, align="cue", name=None, arm_name="ALL tri
     THE COLUMN BASELINE IS ON THE FIGURE FOR A REASON. Reading a diagonal against 1/6 is wrong here:
     the frozen decoder predicts far_R on ~35% of ALL PS94 post-stroke trials, so far_R "recall" is
     inflated by that bias before any position information is involved. Under a label permutation the
-    expected recall for a position is exactly its PREDICTION rate, which is what the grey bar under
+    expected recall for a position is exactly its PREDICTION rate, which is what the gray bar under
     each column shows. The finding is the OFF-diagonal pull, and the diagonal only counts where it
     exceeds that column's own baseline.
     """
@@ -616,9 +627,9 @@ def fig_confusion_alltrials(conf, out, align="cue", name=None, arm_name="ALL tri
             "PANEL 2 IS THE MATCHED CONTROL: "
             "pre-stroke NO-LICK trials scored by a decoder trained on the OTHER pre-stroke "
             "sessions' engaged trials, so it differs from the post panel in PHASE alone rather "
-            "than in phase and the absence of a movement together. BOTH NORMALISATIONS for the "
+            "than in phase and the absence of a movement together. BOTH NORMALIZATIONS for the "
             "post panel: ROW = P(pred|true) = RECALL, the question the hypothesis asks; COLUMN = "
-            "P(true|pred) = PRECISION, which exposes what row normalisation structurally hides "
+            "P(true|pred) = PRECISION, which exposes what row normalization structurally hides "
             "— a decoder predicting one position everywhere earns high recall there without "
             "carrying information. '(pred)' under each column is how often that position is "
             "predicted at all, which IS the recall expected under a label permutation; '(prec)' "
@@ -628,7 +639,7 @@ def fig_confusion_alltrials(conf, out, align="cue", name=None, arm_name="ALL tri
         fig.tight_layout(rect=(0, 0, 1, 0.88))
         stem = (name or f"poststroke_G3b_confusion_alltrials_{align}.png")[:-4]
         q = Path(out) / f"{stem}_{an}.png"
-        fig.savefig(q, dpi=150)
+        save_png_svg(fig, q, dpi=150)
         plt.close(fig)
         made.append(q)
     return made
@@ -707,11 +718,12 @@ def fig_fits_engaged(fits, out, align="precue", name=None):
         "so the spread IS the confidence interval — and it is the right one, because sessions differ "
         "from each other far more than trials within a session. Unlike the G4 control this makes NO "
         "assumption that the two post-stroke classes should differ, which is what the "
-        "execution-failure hypothesis denies.", fontsize=9, wrap=True)
+        f"execution-failure hypothesis denies. Boundary trained on {_disc_train_txt([v.get(align) for v in fits.values()])}.",
+        fontsize=9, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.86))
     q = Path(out) / (name or f"poststroke_G4b_fits_engaged_{align}.png")
     _blank_unused(axes, len(ans), _rows, _cols)
-    fig.savefig(q, dpi=150)
+    save_png_svg(fig, q, dpi=150)
     plt.close(fig)
     return q
 
@@ -727,7 +739,7 @@ def fig_grid(rec, out, arm="all", name=None):
     day 1 (8/18). That pairing is a within-animal before/after control -- same rig, one day apart --
     and it exists only because the excluded sessions were kept analysable rather than discarded.
 
-    DIRECTION IS COLOURED SEPARATELY, because it has to be. Colouring on `inside_pre_range` alone
+    DIRECTION IS COLORED SEPARATELY, because it has to be. Coloring on `inside_pre_range` alone
     paints a value ABOVE the pre-stroke band the same as a collapse, and PS95's post-lick sits at
     z=+1.7/+2.4 -- better than pre-stroke. That mistake was made twice before this figure existed.
     """
@@ -805,12 +817,12 @@ def fig_grid(rec, out, arm="all", name=None):
         "measure. Pre-cue and post-cue are two windows on the SAME TRIALS, so LED power, baseline F, "
         "amplitude, arousal, engagement and trial count act on both equally and cannot produce a "
         "difference between them.\n"
-        "GREY SQUARES are sessions after a laser that did NOT take -- nothing outside the band. The "
+        "GRAY SQUARES are sessions after a laser that did NOT take -- nothing outside the band. The "
         "same animals one day later, after the effective lesion, show the dissociation: a "
         "within-animal before/after control.", fontsize=8.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.83))
     p = Path(out) / (name or f"poststroke_grid_{arm}.png")
-    fig.savefig(p, dpi=150)
+    save_png_svg(fig, p, dpi=150)
     plt.close(fig)
     return p
 

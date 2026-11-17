@@ -2,7 +2,7 @@
 
 The donor network is confidently wrong in two specific ways on this rig -- eyes it cannot see, and a
 tongue it puts on the spout -- and neither is separable by likelihood. A blank cell is what the
-labelling GUI shows as "place this"; a wrong point invites being accepted rather than checked.
+labeling GUI shows as "place this"; a wrong point invites being accepted rather than checked.
 """
 from __future__ import annotations
 
@@ -223,10 +223,10 @@ def test_written_labels_carry_dlcs_three_level_row_index(tmp_path, monkeypatch):
 
 
 def test_a_missing_pytables_fails_before_anything_is_written(tmp_path, monkeypatch):
-    """A run that wrote CSVs then died on the first to_hdf leaves folders that LOOK labelled.
+    """A run that wrote CSVs then died on the first to_hdf leaves folders that LOOK labeled.
 
     pytables is in the `dlc` env and not in `locanmf`, so running this from the wrong env is the
-    likely mistake, and it has to be a refusal rather than a half-written labelling set.
+    likely mistake, and it has to be a refusal rather than a half-written labeling set.
     """
     import builtins
     real = builtins.__import__

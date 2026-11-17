@@ -48,7 +48,7 @@ def licks_for(r):
         s = dict(label=r["label"], mc=str(Path(r["res"]).parent), h5=str(DAQ2 / H5_C2[r["label"]]), regime="B",
                  fmdir=None)
     cue = _lc(s["h5"])
-    lk = _ll(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    lk = _ll(s["h5"], "lick_analog")
     _, lf, _ = _frames(s, cue, lk)
     return np.sort(np.asarray(lf, int))
 

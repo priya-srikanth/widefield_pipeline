@@ -16,7 +16,7 @@ comparisons with NO stroke, on figure 14's beta maps (cue / working by default):
 lick-aligned"): the same on family 15r's POSITION ACTIVITY maps (`position_reference_maps.maps_by_epoch`), one CSV per
 reference (raw / rest / restw / precue / mean); arms precue/working (ENL), cue/working, lick/lick.
 
-Each with the nested bootstrap and the cluster permutation, on RAW maps and on PRE-NORMALISED maps (each animal divided
+Each with the nested bootstrap and the cluster permutation, on RAW maps and on PRE-NORMALIZED maps (each animal divided
 by its own pre-group RMS, `beta_maps.NORMALISE_BY_PRE`). Reported: fraction of tested bins (nested) / in-mask pixels
 (cluster) flagged. A valid FWER test flags a non-empty set in <= 5 % of null comparisons; read N1 / N2 that way. N3
 measures how much "change" two months of drift alone produces.
@@ -98,13 +98,14 @@ def main(argv=None) -> int:
 
 
 def run(store, tag, a, CONF_LABELS, parallel, PathResolver, assert_writable) -> int:
+    from wfield_local import config
     print(f"\n#### {a.family} / {tag} / {a.align}_{a.variant}", flush=True)
     jobs = []
     for q in CONF_LABELS:
         pre = {an: (by.get("pre") or {}).get(q) or {} for an, by in store.items()}
         acute = {an: list(((by.get("acute") or {}).get(q) or {}).values()) for an, by in store.items()}
-        aug = {an: {k: v for k, v in d.items() if k[-4:] >= "0801"} for an, d in pre.items()}
-        jun = {an: {k: v for k, v in d.items() if k[-4:] < "0801"} for an, d in pre.items()}
+        aug = {an: {k: v for k, v in d.items() if not config.early_pre(k)} for an, d in pre.items()}
+        jun = {an: {k: v for k, v in d.items() if config.early_pre(k)} for an, d in pre.items()}
         comps = {}
         n1 = {an: _split(d) for an, d in aug.items() if len(d) >= 4}
         comps["N1 aug split"] = ({an: [aug[an][k] for k in s[0]] for an, s in n1.items()},

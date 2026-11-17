@@ -45,7 +45,10 @@ def test_training_is_restricted_to_prestroke():
     src = inspect.getsource(N.analyse_animal)
     code = "\n".join(ln.split("#", 1)[0] for ln in src.splitlines())
     assert "_pipe().fit(XE, YE)" not in code, "still trains on every pooled session"
-    assert "_pipe().fit(XE[m_pre], YE[m_pre])" in code, "the pre-stroke-only fit is missing"
+    # since 2026-11-03 the fit lives in `spout_scaling.FrozenFrame`, trained on the PRE sessions only (labs_pre); under
+    # WIDEFIELD_SPOUT_SCALING=session_z it is exactly `_pipe().fit(XE[m_pre], YE[m_pre])` (tests/test_spout_bal_em.py)
+    assert ("_pipe().fit(XE[m_pre], YE[m_pre])" in code
+            or "FrozenFrame(XE, YE, GEi, [_sid[lab] for lab in labs_pre], _pipe" in code),         "the pre-stroke-only fit is missing"
 
 
 def test_the_engaged_arm_is_the_prestroke_band():

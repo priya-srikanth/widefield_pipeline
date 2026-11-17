@@ -6,16 +6,22 @@ lick-free trials. If the face already differs by spout there (posture / orientin
 place ~3 s), part of that cortical code could be movement. This is the FR side of that question.
 
 Inputs: the frozen cohort factors (`master_pre_v1`, rank 12) projected on every session (`<set>/proj/*.npz`; absolute
-expression = trials * trials_D, 25 Hz bins on the DAQ clock, cue -2 to +4 s; ENGAGED trials only, the behaviour
+expression = trials * trials_D, 25 Hz bins on the DAQ clock, cue -2 to +4 s; ENGAGED trials only, the behavior
 gate `orofacial_cohort.engagement_keep`). Pre = August only (the FR bundle has no June).
 
-Trial selection: a trial is LICK-FREE for window W if neither an LP video lick (`lp_licks.lp_lick_times`, cam4; catches
-licks that miss the spout) nor a DAQ spout contact (`analysis_kit.lick_samples`) falls in [cue - W, cue). Fixed
-window ending at the cue (the FR grid starts at cue - 2 s, so the imaging decoder's slide-back is not possible).
+Trial selection: the window SLIDES (Priya 11-04 ~20:00: "the between-trial lick ENL family and fr_enl_decode also
+SLIDE, for consistency"): the imaging ENL decoders' own search (`enl_window.sliding_lags` -> `precue_window_start`) on
+the union of LP video licks (`lp_licks.lp_lick_times`, cam4; catches licks that miss the spout) and DAQ spout contacts
+(`analysis_kit.lick_samples`): [cue - W, cue) when it holds no lick, else the latest lick-free W-s gap after the trial's
+strobe (`enl_window.strobe_for_cues`), else the trial is dropped. Guard of the decision: a slid window must start
+>= strobe + 0.3 s (spout-arrival transient) and inside the FR grid (>= cue - 2 s), so the 2 s arms can never slide (they
+are the old fixed-window rule exactly); the 1 s arms gain the trials whose last second held a lick. Until 11-05 the
+window was fixed and such trials were dropped.
 
-Features: the 12 factors' mean in 0.5 s sub-bins of the window (W = 1 s -> 24 features, 2 s -> 48). CAVEAT: the FR
-spectrogram is acausal (VQT sigma ~0.3-1 s), so the last bins before the cue can carry post-cue licking. Each W is
-therefore also run with the features stopping 0.5 s before the cue ("end -0.5 s"; the trial selection is unchanged).
+Features: the 12 factors' mean in 0.5 s sub-bins of the trial's window (W = 1 s -> 24 features, 2 s -> 48). CAVEAT: the
+FR spectrogram is acausal (VQT sigma ~0.3-1 s), so the last bins before the cue can carry post-cue licking. Each W is
+therefore also run with the features stopping 0.5 s before the window's end ("end -0.5 s"; the trial selection is
+unchanged).
 
 Decoder = the imaging decoders' (`locanmf_frozen_decoder._pipe`: StandardScaler + multinomial logistic C 0.5), cross-
 validated with GroupKFold over position blocks (`block_ids`, the session's own block_size_max), positions with >= 5
@@ -28,6 +34,7 @@ animals -> sessions), per-animal table printed first (CLAUDE.md rule 8).
 Output: <dlc>/face_rhythm/cam4/readouts/master_pre_v1/enl_decode/ (fr_enl_decode_sessions.csv, _epochs.csv, figure).
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 from pathlib import Path
@@ -75,17 +82,23 @@ def one(task):
         return []
     lp, _ = lp_licks.lp_lick_times(label)
     daq = np.sort(ak.lick_samples(s) / ak.daq_rate(s))
+    from wfield_local import enl_window
+    licks = np.sort(np.concatenate([np.asarray(lp, float), daq]))
+    strobe = enl_window.strobe_for_cues(label, cue)
     # blocks from the FULL engaged trial sequence, then subset (a dropped trial does not merge two blocks)
     codes = pd.Categorical(pos).codes
     blocks = bi.block_ids(codes, bi.block_size_max_for(s))
     rows = []
     rng = np.random.default_rng(0)
     for w, end in ARMS:
-        def n_in(tr, w=w):
-            return np.searchsorted(tr, cue) - np.searchsorted(tr, cue - w)
-        free = (n_in(lp) == 0) & (n_in(daq) == 0)
-        edges = np.arange(-w, -end - 1e-9, SUB_S)
-        F = np.concatenate([np.nanmean(X[:, (t >= a) & (t < a + SUB_S), :], axis=1) for a in edges], axis=1)
+        # the trial's SLIDING lick-free window (11-04 ~20:00 decision; one search, `enl_window.sliding_lags`)
+        lo, _hi = enl_window.sliding_lags(cue, strobe, licks, w, span_lo=float(t[0]))
+        free = np.isfinite(lo)
+        nb = int(round((w - end) / SUB_S))
+        F = np.full((len(cue), nb * X.shape[2]), np.nan)
+        for i in np.flatnonzero(free):
+            F[i] = np.concatenate([np.nanmean(X[i, (t >= a) & (t < a + SUB_S), :], axis=0)
+                                   for a in lo[i] + SUB_S * np.arange(nb)])
         ok = free & np.isfinite(F).all(1)
         keep_pos = [p for p, n in pd.Series(pos[ok]).value_counts().items() if n >= MIN_PER_POS]
         m = ok & np.isin(pos, keep_pos)
@@ -138,7 +151,7 @@ def epoch_table(S: pd.DataFrame) -> pd.DataFrame:
 
 
 def figure(S: pd.DataFrame, path: Path) -> None:
-    """Priya 11-03 categorical-x rules: no line joins epochs; sessions = faded OPEN markers (shape = animal, colour =
+    """Priya 11-03 categorical-x rules: no line joins epochs; sessions = faded OPEN markers (shape = animal, color =
     epoch), each animal at its own offset with a short tick at its mean; the mean of animals = a filled marker +- SEM
     over the animal means, to the right of the epoch's dots."""
     import matplotlib
@@ -180,9 +193,9 @@ def figure(S: pd.DataFrame, path: Path) -> None:
           Line2D([], [], color="0.2", lw=2.0, label="animal mean"), *cp.animal_handles(animals)]
     np.atleast_1d(axs)[-1].legend(handles=hs, fontsize=7, frameon=False, loc="upper left", bbox_to_anchor=(1.01, 1.0))
     fig.suptitle("PRE-CUE (ENL, lick-free) window -- spout position from face movement (FaceRhythm master_pre_v1, "
-                 "12 factors, 0.5 s bins).\nOpen markers = sessions (shape = animal, colour = epoch), ticks = animal "
+                 "12 factors, 0.5 s bins).\nOpen markers = sessions (shape = animal, color = epoch), ticks = animal "
                  "means, squares = mean of animals +- SEM, dotted = chance (1 / positions decoded)", fontsize=8.5)
-    fig.savefig(path, dpi=160)
+    save_png_svg(fig, path, dpi=160)
     plt.close(fig)
 
 

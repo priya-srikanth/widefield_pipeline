@@ -1,4 +1,4 @@
-"""Regenerate EVERY per-session behaviour figure, for all registered dates.
+"""Regenerate EVERY per-session behavior figure, for all registered dates.
 
     PYTHONPATH=$(pwd) python scripts/rerun_behaviour_figures.py [--dates 20260805 ...] [--dry-run]
 
@@ -10,7 +10,7 @@ because a figure that exists is not re-made. Looping by hand is how that was don
 loop, kept, so the third time is a command rather than a paste.
 
 IT WRITES TO THE SHARE (`behavior_out`), one date at a time, and it is SAFE TO INTERRUPT: each date
-is independent and a re-run simply overwrites. It is NOT safe to run while the behaviour nightly is
+is independent and a re-run simply overwrites. It is NOT safe to run while the behavior nightly is
 running for one of the same dates — they would race on the same PNG paths.
 
 Failures are reported per date and do not stop the sweep: an aborted session that cannot be scored

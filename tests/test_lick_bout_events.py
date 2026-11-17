@@ -138,9 +138,9 @@ def test_legacy_flat_consensus_is_wrapped_not_rejected():
 
 def test_unrecognised_shape_raises_instead_of_plotting_nonsense():
     """The actual regression: cuts drawn as animals, empty strings, deck reporting 0 missing."""
-    with pytest.raises(ValueError, match="unrecognised shape"):
+    with pytest.raises(ValueError, match="unrecognized shape"):
         normalize_consensus({"2.0s": {"PS92": ["not", "a", "verdict"]}})
-    with pytest.raises(ValueError, match="unrecognised shape"):
+    with pytest.raises(ValueError, match="unrecognized shape"):
         normalize_consensus({"PS92": 42})
 
 

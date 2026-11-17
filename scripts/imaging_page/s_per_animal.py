@@ -1,6 +1,6 @@
-"""Imaging page Fig 3.3 (`s_per_animal`): the pre-stroke position TEMPLATE and the frozen BEHAVIOURAL-STATE decoder,
+"""Imaging page Fig 3.3 (`s_per_animal`): the pre-stroke position TEMPLATE and the frozen BEHAVIORAL-STATE decoder,
 per animal across epochs -- redrawn under Priya's 11-03 categorical-x rules (no lines across epochs; session values as
-faded open markers, shape = animal, colour = epoch; summary = mean of animals +- SEM over animals, marker + interval).
+faded open markers, shape = animal, color = epoch; summary = mean of animals +- SEM over animals, marker + interval).
 
 Brought into the repo from M:/MICROSCOPE/Priya/Widefield/imaging_page_src/s_per_animal_regen_20261102/per_animal_fig.py
 (and the session-c1a9581a `per_animal_tables.py` that built its tables). NOTHING IS REFITTED: every value is read from
@@ -17,6 +17,7 @@ so the redraw cannot silently show different numbers from the page's earlier ver
     python -m scripts.imaging_page.s_per_animal [--src DIR] [--out PNG]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 from pathlib import Path
@@ -94,7 +95,7 @@ def figure(tabs: dict[str, pd.DataFrame], out: Path) -> Path:
                  fontsize=10)
     fig.tight_layout(rect=(0, 0.11, 1, 0.92))
     out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, dpi=170)
+    save_png_svg(fig, out, dpi=170)
     plt.close(fig)
     return out
 

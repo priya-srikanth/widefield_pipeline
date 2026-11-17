@@ -56,5 +56,7 @@ def test_every_reference_dispatches(ref):
 def test_no_caption_without_a_reference():
     """The mirror: a caption for a name no longer in REFERENCES is a retired entry that will
     mislead the next reader into thinking the family is still produced."""
-    orphans = sorted(set(_REF_TEXT) - set(REFERENCES))
+    # DERIVED references (restnl, analysis/restnl-maps; attached after collection, `maps_by_epoch`) are captioned too
+    from wfield_local.position_reference_maps import DERIVED_REFERENCES
+    orphans = sorted(set(_REF_TEXT) - set(REFERENCES) - set(DERIVED_REFERENCES))
     assert not orphans, f"_REF_TEXT has entries for non-references: {orphans}"

@@ -1,10 +1,14 @@
 # Supersede queue: SVD-basis decoder + Gaussian same-place read-out as PRIMARY (Priya, 10-27 late)
 
+**SUPERSEDED for the basis (10-27 later): Priya chose Allen areas WITH the ALM / tjM1 split as the primary basis
+("use split bases, for consistency"); sections A / B are done on that basis (page v140). Gaussian reference = primary (kept).
+Parts C / D carry over -> docs/status/OVERNIGHT_20261027.md queue item 5.**
+
 Decision: every primary decoder result on the goal page uses the frozen pre-stroke decoder on the animal's pre-stroke
 200-component SVD basis (`WFIELD_LICK_DECODER=svd`; per-session refit decoders on the same basis), and every offset uses
 the Gaussian same-place like-for-like reference (`scripts/lick_matched_readout.py --ref gauss`; width chosen on
 held-out pre sessions, 0.1 mm on the Allen-area decoder, MSE flat 0.05-0.2 mm). Allen-area and binned versions move to
-Supplementary. Mixed models: time + behaviour (deficit = weighted signed aim) + epoch, on the same measures.
+Supplementary. Mixed models: time + behavior (deficit = weighted signed aim) + epoch, on the same measures.
 
 Page numbers below are v134 (stable ids in brackets). Status: Q = queued, R = running, D = done.
 
@@ -17,7 +21,7 @@ Page numbers below are v134 (stable ids in brackets). Status: Q = queued, R = ru
 | 3.11 / 3.12 | lick_order_iti_cued(_slope) | beyond-pull, Allen | first/later + order slope on gauss resid, SVD | Q |
 | 3.50 | cued_first_lick | beyond-pull, Allen | supplementary (superseded by 3.11 gauss) | Q |
 | 3.51 / 3.77 | cued_overcorrection(_angle) | beyond-pull | supplementary (superseded by 3.60) | Q |
-| 3.4 / 3.41 / 3.42 | iti_recovery_link_* | beyond-pull vs aim | redo on gauss resid vs aim (SVD); behaviour-model figs already = this regression | Q |
+| 3.4 / 3.41 / 3.42 | iti_recovery_link_* | beyond-pull vs aim | redo on gauss resid vs aim (SVD); behavior-model figs already = this regression | Q |
 | 3.5 / 3.6 | *_check_error_per_lick | per-lick error + pull triangles | per-lick gauss resid histograms (SVD) | Q |
 | 3.29 / 3.30 | iti_where_delta_z, iti_where_per_spout_z | raw error change / beyond-pull, Allen | supplementary; per-spout = 3.60 | Q |
 | 3.48 / 3.49 / 3.78 / 3.79-3.82 | 3-axis, polar, angle/xyz checks | beyond-pull, Allen | coordinate family on gauss same-place per coordinate (lateral, sagittal, angle, elevation, reach, x/y/z), SVD | Q |
@@ -55,13 +59,13 @@ Page numbers below are v134 (stable ids in brackets). Status: Q = queued, R = ru
   lateral ANGLE, ELEVATION (steepness), 3-D REACH; existing lateral / sagittal / within-spout / per-spout kept.
 - Views: pooled per epoch + epoch - pre (shape-only, TFCE contours), and per-spout (one-vs-rest) per epoch + epoch -
   pre, cued and ITI; whole-map distance vs drift floor; per-animal panels.
-- MIXED MODELS ON MAPS: per pixel, time model (day-1 step map, recovery-per-e-fold map) and behaviour model (aim-deficit
+- MIXED MODELS ON MAPS: per pixel, time model (day-1 step map, recovery-per-e-fold map) and behavior model (aim-deficit
   map), animal fixed intercepts solved for all pixels at once (descriptive per mixed_models.py), significance by
   session-label permutation (pre/post within animal for the step; post days within animal for recovery) + TFCE.
 - June no-stroke reference: project June sessions onto each animal's pre-stroke SVD basis (also needed for the drift
   figures 3.40 / 3.47); then a June-anchored drift-adjusted time model as a supplementary version of each LMM figure.
-- Behaviour axis: compute first-lick weighted signed aim + split-half reliability vs the all-lick version; if adopted,
-  switch the LMM behaviour deficit and the far-contra-angle figures (f0 sessions, recovery link, recovery marker) together.
+- Behavior axis: compute first-lick weighted signed aim + split-half reliability vs the all-lick version; if adopted,
+  switch the LMM behavior deficit and the far-contra-angle figures (f0 sessions, recovery link, recovery marker) together.
 - Per-animal change-vs-pre scatter (arrows from pre to epoch mean, landing + read-out, session 95% CIs) + CI markers on
   the 1-SD scatter ellipses (after the helper; `iti_where_scatter.py`).
 
@@ -78,8 +82,19 @@ Page numbers below are v134 (stable ids in brackets). Status: Q = queued, R = ru
 5. YES: time-model shape comparison (log vs linear vs piecewise) by AIC.
 6. LOW: 2-D (lateral + extension) matched sensitivity (3-D should be better).
 7. LOW: June no-stroke whole-map reference -- only if the June data are good enough.
-8. Behaviour-only decoder from FaceRhythm (+ 3-D kinematics): same targets, compare with the cortical decoder.
-9. Aim axis: FIRST-lick weighted aim = behaviour axis + LMM deficit (DONE in iti_lmm_figures); far-contra first-lick aim
+8. Behavior-only decoder from FaceRhythm (+ 3-D kinematics): same targets, compare with the cortical decoder.
+9. Aim axis: FIRST-lick weighted aim = behavior axis + LMM deficit (DONE in iti_lmm_figures); far-contra first-lick aim
    beside far-contra-specific neural measures.
 10. Offered: compensation check (first-lick contact rate, licks to first contact, latency vs hit rate; PS95 near-normal
     hit rate ~day 2 with aim still off) -- LOW priority, AFTER the non-linear decoder (Priya).
+
+## Added 10-27 ~16:30 (Priya): Haufe pre + change-map figures
+Every Haufe / pattern figure that shows the PRE map next to epoch - pre change maps: draw the PRE map in a DIFFERENT
+colormap from the change maps (signed pre map -> a second diverging map, e.g. PuOr_r, so 0 still means 0; change maps
+stay RdBu_r), main figure = pre + acute/subacute/chronic - pre; the absolute pre / acute / subacute / chronic maps go
+into a separate PNG shown in a collapsible <details> "Supplementary: epoch maps (not changes)" directly below the figure.
+Scripts (all currently being edited by the figdata helpers -- do after they report): iti_decoder_pattern_stats.py
+(lat, sag), iti_spout_pattern_stats.py (cued, --iti), iti_session_cluster_tests.py (spout cued / ITI, position),
+iti_session_pattern_tests.py, iti_pattern_area_stats.py, plus the new x/y/z / angle / elevation / reach maps (item 6).
+Shared helper in wfield_local (PRE_CMAP) so all map figures match. Page: <details> block after the figure (after the
+restructure helper reports).

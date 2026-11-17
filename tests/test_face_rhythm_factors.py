@@ -136,7 +136,7 @@ def test_draw_rows_balanced_and_seeded():
 
 def test_normaliser_inverts_fr_per_bin_normalisation():
     """FR (VQT_Analyzer): s_norm = s / (nf m + 1 - nf), m = mean over rows of the power summed over frequencies, then x
-    freqs^ex. `normaliser` must recover D = nf m + 1 - nf from the saved rows."""
+    freqs^ex. `normalizer` must recover D = nf m + 1 - nf from the saved rows."""
     rng = np.random.default_rng(3)
     freqs, nf, ex = np.geomspace(1, 60, F), 0.95, 0.5
     raw = rng.random((40, 2 * P, F)) * rng.uniform(0.05, 20, (40, 1, 1))      # bins with very different movement

@@ -233,10 +233,13 @@ def test_svtcorr_path_follows_the_configured_hemo_variant(monkeypatch):
     monkeypatch.setenv("WIDEFIELD_HEMO_VARIANT", "meegkit_hpfit")
     assert config.svtcorr_path(mc).endswith("wfield_local_results/hemo_meegkit_hpfit/SVTcorr.npy")
     # zerophase IS the bare file -- it is what the pipeline wrote, not a subdirectory
-    for name in ("zerophase", "none", ""):
+    for name in ("zerophase", "none"):
         monkeypatch.setenv("WIDEFIELD_HEMO_VARIANT", name)
         assert config.svtcorr_path(mc).endswith("wfield_local_results/SVTcorr.npy"), name
         assert config.hemo_variant() is None, name
+    # an EMPTY env var is UNSET (review L3, 11-03): defaults.yaml decides, it no longer means zerophase
+    monkeypatch.setenv("WIDEFIELD_HEMO_VARIANT", "")
+    assert config.hemo_variant() == config.default_hemo_variant()
     monkeypatch.delenv("WIDEFIELD_HEMO_VARIANT", raising=False)
     assert config.svtcorr_path(mc, "strobedetrend").endswith("hemo_strobedetrend/SVTcorr.npy")
 

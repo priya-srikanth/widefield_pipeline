@@ -19,6 +19,8 @@ Usage: python scripts/frozen_fr_compare.py
 Output: <E>/frozen_fr_compare/ (tables + figures)
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
+from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import glob
 import json
@@ -31,9 +33,9 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fr_musall import AN, E  # noqa: E402
 
-RUNS = {"noFR": ("frozen_encoder_gate-attempted_v7g3_t3d", "joint"),
-        "FR-B": ("frozen_encoder_gate-attempted_v7g3_t3d_frA", "no_fr_dir"),
-        "FR-A": ("frozen_encoder_gate-attempted_v7g3_t3d_frA", "joint")}
+RUNS = {"noFR": (_design_tag("frozen_encoder_gate-attempted_v7g3_t3d"), "joint"),
+        "FR-B": (_design_tag("frozen_encoder_gate-attempted_v7g3_t3d_frA"), "no_fr_dir"),
+        "FR-A": (_design_tag("frozen_encoder_gate-attempted_v7g3_t3d_frA"), "joint")}
 FR_VARIANTS = ("joint", "no_fr", "no_fr_dir", "no_fr_all")
 AREAS = ["cortex", "SSp-m_right", "SSp-m_left", "MOp_right", "MOp_left"]
 ALAB = {"cortex": "cortex", "SSp-m_right": "SSp-m contra", "SSp-m_left": "SSp-m ipsi", "MOp_right": "MOp contra",
@@ -41,18 +43,37 @@ ALAB = {"cortex": "cortex", "SSp-m_right": "SSp-m contra", "SSp-m_left": "SSp-m 
 EP4 = ["pre", "acute", "subacute", "chronic"]
 EPS = EP4[1:]
 WINDOWS = ["cue", "lick"]                                 # cue before lick (Priya 10-25)
-COL = {"noFR": "#999999", "FR-B": "#7570b3", "FR-A": "#e7298a"}
+#: model colours from THE shared model palette (`cat_points.MODEL_COLORS`, Priya 11-07: never an epoch / animal / class
+#: colour); noFR keeps the palette's grey (the baseline model)
+from wfield_local.cat_points import MODEL_COLORS as _MC  # noqa: E402
+
+COL = {"noFR": _MC[5], "FR-B": _MC[0], "FR-A": _MC[2]}
 
 
-def session_r2(folder: str, variant: str, measure: str = "frame") -> pd.DataFrame:
+def trial_set_sentence(w: str) -> str:
+    """The trials / frames of the two ``w``-window figures (Priya 11-09): every frame models the same trials
+    (`frozen_encoder.modeled_trials_text`); panels 1 + 3 = the frozen Musall ``w`` window, panel 2 = the far-contra
+    ``w``-aligned PETH (residual_trend sessions), panel 4 / row 4 = Layer 2 (allsession_encoder: all modeled frames)."""
+    from wfield_local import frozen_encoder as fe
+    tag = RUNS["noFR"][0]
+    trials = fe.modeled_trials_text(tag)
+
+    def part(x):                                         # the sentence minus the shared trials part
+        return x[len(trials) + 2:] if x.startswith(trials + "; ") else x
+    return (f"{trials}; panels 1 + 3: {part(fe.trial_set_sentence('musall', tag=tag, align=w))}; panel 2: "
+            f"{part(fe.trial_set_sentence('peth', tag=tag, align=w, spout='far_contra'))}; panel 4 (Layer 2): "
+            f"{part(fe.trial_set_sentence('all', tag=tag))}, every session")
+
+
+def session_r2(folder: str, variant: str, measure: str = "frame", areas=None) -> pd.DataFrame:
     """Per session x window x area frozen R2; measure = frame (all frames of the window) | trial (single-trial window
-    means) | avg (trial-averaged = PETH), as `frozen_encoder.musall_r2`."""
+    means) | avg (trial-averaged = PETH), as `frozen_encoder.musall_r2`. ``areas`` default AREAS."""
     rows = []
     for f in sorted(glob.glob(str(E / folder / variant / "sessions" / "*.json"))):
         m = json.loads(Path(f).read_text())
         for w in WINDOWS:
             fr = m["r2_musall"][w][measure]
-            for a in AREAS:
+            for a in (AREAS if areas is None else areas):
                 if a in m["areas"]:
                     rows.append({"label": m["label"], "animal": m["animal"], "epoch": m["epoch"], "window": w, "area": a,
                                  "r2": fr[m["areas"].index(a)]})
@@ -95,7 +116,10 @@ def boot(df: pd.DataFrame, val: str, ref_epoch: str = "pre", epochs=EPS, keys=("
 
 
 def bars(ax, B: pd.DataFrame, frames, area_list, ylabel, title, scale=1.0):
-    """Grouped bars: x = area x epoch, one bar per frame; whisker 95 % CI; * CI excludes 0; dots = animals."""
+    """Grouped bars: x = area x epoch, one bar per frame (color = `cat_points.MODEL_COLORS`, hatched past the 7th);
+    whisker 95 % CI; * CI excludes 0 (top band, `sig_marks.sig_star`: the caller runs `reserve_headroom(fig)` before
+    layout / savefig); dots = animals: OPEN markers, shape = animal, color = the bar's epoch (A13)."""
+    from wfield_local import cat_points as cp
     from wfield_local.sig_marks import sig_star
     nf = len(frames)
     xt, xl = [], []
@@ -116,10 +140,15 @@ def bars(ax, B: pd.DataFrame, frames, area_list, ylabel, title, scale=1.0):
                     continue
                 r = r.iloc[0]
                 x = x0 + (k - (nf - 1) / 2) * 0.8 / nf
-                ax.bar(x, r.point * scale, width=0.8 / nf, color=COL.get(fr, f"C{k}"), label=fr if (i == 0 and j == 0) else None)
+                ax.bar(x, r.point * scale, width=0.8 / nf, color=COL.get(fr, cp.model_color(k)),
+                       hatch="//" if k >= len(cp.MODEL_COLORS) else None, edgecolor="w", lw=0,
+                       label=fr if (i == 0 and j == 0) else None)
                 ax.plot([x, x], [r.lo * scale, r.hi * scale], color="k", lw=0.8)
                 dots = [r.get(an, np.nan) * scale for an in AN]
-                ax.scatter([x] * 4, dots, s=5, c="k", zorder=5)
+                for an, dv in zip(AN, dots):
+                    if np.isfinite(dv):
+                        ax.plot([x], [dv], ls="none", marker=cp.animal_marker(an), ms=3.2, mfc="none",
+                                mec=cp.epoch_color(ep), mew=0.8, zorder=5)
                 sig_star(ax, x, r.lo * scale, r.hi * scale, dots)
     ax.axhline(0, color="k", lw=0.6)
     ax.set_xticks(xt); ax.set_xticklabels(xl, fontsize=7)
@@ -129,10 +158,13 @@ def bars(ax, B: pd.DataFrame, frames, area_list, ylabel, title, scale=1.0):
 
 def epoch_lines(ax, B: pd.DataFrame, series, area: str, scale: float = 1.0, key: str = "frame"):
     """EPOCH LINES (Priya 10-25: "the partial lines is much better" than grouped bars): x = pre (0 by construction, a
-    change from pre) -> acute -> subacute -> chronic; per series a line (mean of animals), a shaded 95 % nested CI, faint
-    per-animal lines; FILLED marker = CI excludes 0, OPEN = includes 0. ``series`` = [(value of B[key], label, colour)];
-    B = ``boot`` output (columns area, epoch, point, lo, hi and one column per animal). Grey band = the pre-stroke
+    change from pre) -> acute -> subacute -> chronic; per series a line (mean of animals, the POOLED value: Priya 11-07
+    keeps one model-colored line per model), a shaded 95 % nested CI; FILLED marker = CI excludes 0, OPEN = includes 0.
+    Each animal's value is an OPEN marker, shape = animal, color = EPOCH (A13; no per-animal line across epochs; pre is
+    0 by construction, so no animal markers there). Series colors should come from `cat_points.MODEL_COLORS`. ``series`` = [(value of B[key], label, color)];
+    B = ``boot`` output (columns area, epoch, point, lo, hi and one column per animal). Gray band = the pre-stroke
     split-half range when B has `<ref>_split` rows."""
+    from wfield_local import cat_points as cp
     x = np.arange(len(EP4))
     ax.axhline(0, color="0.6", lw=0.8, zorder=0)
     nb = B[B.area.eq(area) & B.epoch.astype(str).str.endswith("_split") & B[key].isin([s[0] for s in series])]
@@ -148,7 +180,11 @@ def epoch_lines(ax, B: pd.DataFrame, series, area: str, scale: float = 1.0, key:
         lo, hi = np.r_[0, t.lo.to_numpy() * scale], np.r_[0, t.hi.to_numpy() * scale]
         for an in AN:
             if an in t:
-                ax.plot(xs, np.r_[0, t[an].to_numpy() * scale], color=col, lw=0.6, alpha=0.25)
+                for e_i, ep in enumerate(EPS, start=1):
+                    v = t[an].get(ep, np.nan) * scale
+                    if np.isfinite(v):
+                        ax.plot([xs[e_i]], [v], ls="none", marker=cp.animal_marker(an), ms=3.4, mfc="none",
+                                mec=cp.epoch_color(ep), mew=0.8, alpha=0.75, zorder=4)
         ax.fill_between(xs, lo, hi, color=col, alpha=0.15, lw=0)
         ax.plot(xs, pt, color=col, lw=2)
         sig = np.r_[False, ((t.lo > 0) | (t.hi < 0)).to_numpy()]
@@ -163,16 +199,23 @@ def epoch_lines(ax, B: pd.DataFrame, series, area: str, scale: float = 1.0, key:
 
 
 def lines_legend(fig, series, y: float = 0.01, split: bool = True):
-    """One legend row under the panels: series colours + filled / open marker key + animals (+ pre split-half band)."""
+    """One legend under the panels: series (model) colors + filled / open marker key + animal shapes and epoch colors
+    of the per-animal markers (+ pre split-half band)."""
     from matplotlib.lines import Line2D
     from matplotlib.patches import Patch
+
+    from wfield_local import cat_points as cp
     h = [Line2D([], [], color=c, lw=2, label=lab) for _q, lab, c in series]
     h += [Line2D([], [], marker="o", ls="", mfc="0.4", mec="k", label="95% nested CI excludes 0"),
-          Line2D([], [], marker="o", ls="", mfc="w", mec="0.4", mew=1.5, label="CI includes 0"),
-          Line2D([], [], color="0.4", lw=0.6, alpha=0.5, label="each animal")]
+          Line2D([], [], marker="o", ls="", mfc="w", mec="0.4", mew=1.5, label="CI includes 0")]
     if split:
         h.append(Patch(color="#bbbbbb", alpha=0.4, label="pre-stroke split-half range"))
-    fig.legend(handles=h, loc="lower center", bbox_to_anchor=(0.5, y), ncol=min(len(h), 6), frameon=False, fontsize=8.5)
+    h += cp.animal_handles(AN)
+    for hh in h[-len(AN):]:
+        hh.set_label(hh.get_label().replace(" sessions", " (animal)"))
+    h += cp.epoch_colour_handles(EPS, "{e} (animal color)")
+    fig.legend(handles=h, loc="lower center", bbox_to_anchor=(0.5, y), ncol=int(np.ceil(len(h) / 3)), frameon=False,
+               fontsize=8, columnspacing=1.2, handletextpad=0.4)
 
 
 def lines_figure(plt, w, B1, B2, B3, B4, lev, out):
@@ -207,7 +250,9 @@ def lines_figure(plt, w, B1, B2, B3, B4, lev, out):
                  "of animals' epoch - pre (row 4: - pre_late), band 95 % nested CI; title: pre R2 noFR / FR-B / FR-A.",
                  fontsize=10.5)
     fig.subplots_adjust(left=0.07, right=0.995, top=0.91, bottom=0.075, hspace=0.35, wspace=0.12)
-    fig.savefig(out / "figures" / f"frozen_fr_compare_lines_{w}.png", dpi=110)
+    from wfield_local import trial_set_text as tst
+    with tst.active(None, text=trial_set_sentence(w)):
+        save_png_svg(fig, out / "figures" / f"frozen_fr_compare_lines_{w}.png", dpi=110)
     plt.close(fig)
 
 
@@ -215,6 +260,8 @@ def main() -> int:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=tst.union(*(trial_set_sentence(w) for w in WINDOWS), unit="trials"))
     out = E / "frozen_fr_compare"
     (out / "figures").mkdir(parents=True, exist_ok=True)
     pd.set_option("display.width", 240)
@@ -257,7 +304,7 @@ def main() -> int:
 
     # 4. Layer 2
     l2 = []
-    for k, d in (("noFR", "allsession_encoder_v7g3_t3d_ref"), ("FR-A", "allsession_encoder_v7g3_t3d_frA")):
+    for k, d in (("noFR", _design_tag("allsession_encoder_v7g3_t3d_ref")), ("FR-A", _design_tag("allsession_encoder_v7g3_t3d_frA"))):
         t = pd.read_csv(E / d / "allsession_changes_by_session.csv")
         t = t[(t.fit == "combined") & t.area.isin(AREAS)].copy()
         for c in [c for c in t.columns if c.startswith("change")]:
@@ -276,7 +323,7 @@ def main() -> int:
 
     # 5. relabel
     rl = []
-    for k, d in (("noFR", "frozen_relabel_v7g3_t3d"), ("FR-A", "frozen_relabel_v7g3_t3d_frA")):
+    for k, d in (("noFR", _design_tag("frozen_relabel_v7g3_t3d")), ("FR-A", _design_tag("frozen_relabel_v7g3_t3d_frA"))):
         t = pd.read_csv(E / d / "relabel_by_animal.csv")
         rl.append(t[(t.spout == "far_contra") & (t.window == "lick") & t.area.isin(AREAS)].assign(frame=k))
     RL = pd.concat(rl)
@@ -300,7 +347,7 @@ def main() -> int:
                                                                "direction (joint - no_fr_dir)": "FR-A",
                                                                "all FR (joint - no_fr_all)": "noFR"}}),
              ["FR-B", "FR-A", "noFR"], AREAS, "change from pre (R2)",
-             "3. FR UNIQUE in the frozen frame, epoch - pre: purple = directionless, pink = direction, grey = all FR")
+             "3. FR UNIQUE in the frozen frame, epoch - pre: indigo = directionless, wine = direction, gray = all FR")
         bars(axs[1, 1], B4, ["noFR", "FR-A"], AREAS, "change_ref minus pre_late (R2)",
              "4. LAYER 2: how much each epoch's mapping changes beyond the pre-stroke drift (pre_late), all windows")
         h, lb = axs[0, 0].get_legend_handles_labels()
@@ -310,8 +357,11 @@ def main() -> int:
         fig.suptitle(f"NEURAL: FROZEN pre-stroke encoder with vs without FaceRhythm, {w} window (panel 4: all frames). Bars = "
                      "mean of animals' epoch - pre (panel 4: - pre_late); whisker 95 % nested CI; * excludes 0; dots = animals.",
                      fontsize=10)
+        from wfield_local.sig_marks import reserve_headroom
+        reserve_headroom(fig)                # the `bars` stars sit in the top band (10-30), no top spine (11-03)
         fig.subplots_adjust(left=0.045, right=0.995, top=0.86, bottom=0.07, hspace=0.42, wspace=0.14)
-        fig.savefig(out / "figures" / f"frozen_fr_compare_{w}.png", dpi=110)
+        with tst.active(None, text=trial_set_sentence(w)):                   # this figure's window
+            save_png_svg(fig, out / "figures" / f"frozen_fr_compare_{w}.png", dpi=110)
         plt.close(fig)
         lines_figure(plt, w, B1, B2, B3, B4, lev, out)
     print("->", out)

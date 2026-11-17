@@ -40,6 +40,7 @@ should not be made to carry both claims.
     python -m scripts.rest_migration.lick_bout_structure [--gate] [--horizon-min 90]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import csv
@@ -54,6 +55,7 @@ import numpy as np
 #: point-estimate convention DIFFERS between `boot_ci` (flat pool, for LEVELS) and
 #: `boot_delta` (animal-weighted, for CHANGES), and the difference has retracted a result.
 from wfield_local import analysis_kit as ak
+from wfield_local.daq_trials import CONTACT_FROM_CUE_S  # noqa: E402 - the ONE cue + 70 ms (fifth review (g))
 
 BOUT_GAP_S = 0.5            # longer than this starts a new bout, matching `quit_prodrome`
 MIN_BOUT_LICKS = 6          # to split a bout into thirds and still have >= 2 intervals each side
@@ -91,9 +93,10 @@ def session_bouts(item):
     rows, n = [], max(len(tt) - 1, 1)
     for i, r in enumerate(tt):
         k = int(r["order"])
-        if k + 1 >= cs.size:
-            continue
-        seg = lick_s[(lick_s >= cs[k]) & (lick_s < cs[k + 1])]
+        # the trial's licks: cue + 70 ms -> TRIAL STOP (Priya 11-03; was cue -> next cue, which also took in the ITI
+        # licks). The next cue is only a cap (the session end for the last trial, which is now included, fifth review)
+        nxt = cs[k + 1] if k + 1 < cs.size else np.inf
+        seg = lick_s[(lick_s >= cs[k] + CONTACT_FROM_CUE_S * sr) & (lick_s <= min(float(r["stop_sample"]), nxt))]
         if seg.size == 0:
             continue
         ts = seg / sr
@@ -493,7 +496,7 @@ def main(argv=None) -> int:
         fig.suptitle(title, fontsize=10)
         fig.tight_layout(rect=(0, 0, 1, 0.91))
         pf = out_dir / fname
-        fig.savefig(pf, dpi=170)
+        save_png_svg(fig, pf, dpi=170)
         plt.close(fig)
         print(f"  wrote {pf}")
 

@@ -224,19 +224,21 @@ def test_soft_exec_bins_sum_to_zero_and_weights(monkeypatch, tmp_path):
 
 @pytest.mark.parametrize("mode", ["shared", "split"])
 def test_licks_all_modes(monkeypatch, mode):
-    """Whole-session licks: shared = same kernels, more events; split = + one pre-cue and one ITI kernel."""
+    """Whole-session licks: shared = same kernels, more events; split = + one pre-cue and one ITI kernel, as their own
+    variables licks_pre / licks_iti since 11-04 (Priya: credited uninstructed)."""
     B0, ft = _behaviour()
     width = ce.raw_blocks(B0, ft)["licks"].shape[1]
     B, _ = _behaviour()
     cue = B.trials.cue_s.to_numpy()
     B.context_lick_on_s = {"pre_cue": cue[::2] - 1.0, "iti": cue[1::3] + 4.0}
     monkeypatch.setenv(ce.LICKS_ALL_ENV, mode)
-    X = ce.raw_blocks(B, ft)["licks"]
+    R = ce.raw_blocks(B, ft)
+    X = R["licks"]
     k = width // 2                                                   # lick + contact kernels, same width each
     if mode == "shared":
         assert X.shape[1] == width and not np.array_equal(X, ce.raw_blocks(B0, ft)["licks"])
     else:
-        assert X.shape[1] == width + 2 * k
+        assert X.shape[1] == width and R["licks_pre"].shape[1] == R["licks_iti"].shape[1] == k
 
 
 def test_licks_all_invalid_mode(monkeypatch):

@@ -34,7 +34,7 @@ The camlog labcams writes beside the DAT records a per-frame LED id (`#LED:<id>,
 is independent of the DAQ and shares the DAQ's alternation hiccups. Aligning the two sequences
 gives the head offset EXACTLY and doubles as a check on every session (agreement must be ~1.0).
 So: a DAT longer than the DAQ record is placed by the camlog, or by an explicit `--head-offset`,
-and is otherwise REFUSED -- the pre-1a68c7c behaviour, restored with a way out. Guessing is the
+and is otherwise REFUSED -- the pre-1a68c7c behavior, restored with a way out. Guessing is the
 one thing this step must never do again.
 """
 
@@ -169,7 +169,7 @@ def load_daq_labels(
     ``head_offset`` is the frame-side offset: DAT frames written BEFORE the DAQ began recording.
     When the DAT is longer than the DAQ record it is taken from ``head_offset`` if given, else read
     off the camlog (see `find_dat_head_offset`), else the call REFUSES. Frames before the head and
-    past the DAQ's coverage are labelled 0 and drop out of the pairing; their counts are reported in
+    past the DAQ's coverage are labeled 0 and drop out of the pairing; their counts are reported in
     ``meta['dat_head_dropped_before_daq']`` / ``['dat_tail_dropped_beyond_daq']``.
     """
     with h5py.File(h5_path, "r") as h5:

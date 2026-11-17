@@ -18,7 +18,7 @@ therefore drawn twice: over all sessions, and over CENSORED sessions only.
 the difference on the figure (2026-09-20: *"in 23 quit prodrome gated, top row acute 'sessions with
 NO quit' still looks like there's a step off in lick number"*). `engagement_gate` needs a sustained
 non-recovering run to confirm a quit, so an animal that stops near the END of a session leaves too
-little tail and the session is labelled censored -- and post-stroke sessions run to a fixed ~120
+little tail and the session is labeled censored -- and post-stroke sessions run to a fixed ~120
 min, so a quit at 110 min has ten minutes to prove itself. The TERMINAL DROP table measures how
 often that happens instead of assuming it does not.
 
@@ -28,7 +28,7 @@ mid-session rate: pre 0.77 (29 sessions, 21% below half), chronic 0.86 (18, 6%),
 "no quit" curve is about one clean session plus three quits the gate could not confirm, which is
 exactly the step Priya saw in it. Read the pre and chronic censored curves; do not read acute.
 
-Panel B is the artefact-free version. Each quitter is aligned to ITS OWN quit, and compared with
+Panel B is the artifact-free version. Each quitter is aligned to ITS OWN quit, and compared with
 sessions from the SAME ANIMAL that were still engaged at that same absolute session time, read in
 the same bins. Lick rate declines in every session, so a quit-aligned average alone always shows a
 ramp into the quit and proves nothing; the time-matched control is what makes the comparison mean
@@ -76,6 +76,7 @@ terminates the session.
     python -m scripts.rest_migration.quit_prodrome [--animals PS92 ...]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import csv
@@ -90,6 +91,7 @@ import numpy as np
 #: point-estimate convention DIFFERS between `boot_ci` (flat pool, for LEVELS) and
 #: `boot_delta` (animal-weighted, for CHANGES), and the difference has retracted a result.
 from wfield_local import analysis_kit as ak
+from wfield_local.daq_trials import CONTACT_FROM_CUE_S  # noqa: E402 - the ONE cue + 70 ms (fifth review (g))
 
 BOUT_MAX_S = 0.5                    # s; a longer gap is a new bout, not a slow lick
 MIN_LICKS = 4                       # per trial, so the median is over >= 3 intervals
@@ -152,11 +154,13 @@ def session_row(item):
     # on wall-clock, to match the session-quintile convention in `engagement_decomposition` and
     # because trial count is what a session is actually made of.
     per_pos = {"near": [], "far": []}
-    nt = max(len(tt) - 2, 1)
-    for i in range(len(tt) - 1):
-        dl = float(tt[i + 1]["cum_licks"]) - float(tt[i]["cum_licks"])
-        if dl < 0:
-            continue
+    # EVERY trial, the last one included (fifth review (h)): the window ends at the trial stop (TTL / task rule), so the
+    # next cue is no longer needed
+    nt = max(len(tt) - 1, 1)
+    for i in range(len(tt)):
+        # LICKS PER TRIAL = total licks from the cue to the TRIAL STOP (Priya 11-03; was cue -> next cue, which also
+        # counted the ITI licks): `n_licks_trial` from `engagement_decomposition.session_trials`
+        dl = float(tt[i]["n_licks_trial"])
         per_pos["near" if int(tt[i]["pos"]) in near else "far"].append(
             (float(tt[i]["elapsed_s"]), dl, i / nt))
 
@@ -166,9 +170,10 @@ def session_row(item):
     cs, lick_s, sr = bh.cue_samples, bh.lick_samples, bh.sample_rate
     for i_r, r in enumerate(tt):
         k = int(r["order"])
-        if k + 1 >= cs.size:
-            continue
-        seg = lick_s[(lick_s >= cs[k]) & (lick_s < cs[k + 1])]
+        # the same trial window as licks per trial: cue + 70 ms -> TRIAL STOP (Priya 11-03); the next cue is only a cap
+        # (the session end for the last trial)
+        nxt = cs[k + 1] if k + 1 < cs.size else np.inf
+        seg = lick_s[(lick_s >= cs[k] + CONTACT_FROM_CUE_S * sr) & (lick_s <= min(float(r["stop_sample"]), nxt))]
         if seg.size < MIN_LICKS:
             continue
         iv = np.diff(seg) / sr
@@ -687,7 +692,7 @@ def main(argv=None) -> int:
                   "ONLY. Y axes shared within each row.", fontsize=10)
     fig2.tight_layout(rect=(0, 0, 1, 0.91))
     p2 = out_dir / f"epoch_24_session_quintiles{tag}.png"
-    fig2.savefig(p2, dpi=170)
+    save_png_svg(fig2, p2, dpi=170)
     print(f"\n  wrote {p2}")
 
     # ---- WITHIN-ANIMAL DELTA FROM PRE (Priya, 2026-09-20) --------------------------------------
@@ -852,7 +857,7 @@ def main(argv=None) -> int:
                   "animal's own baseline decline? (own y scale)", fontsize=10)
     fig3.tight_layout(rect=(0, 0, 1, 0.90))
     p3 = out_dir / f"epoch_25_quintiles_delta_from_pre{tag}.png"
-    fig3.savefig(p3, dpi=170)
+    save_png_svg(fig3, p3, dpi=170)
     print(f"\n  wrote {p3}")
 
     # ---- FIGURE --------------------------------------------------------------------------------
@@ -962,7 +967,7 @@ def main(argv=None) -> int:
                  fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.92))
     p = out_dir / f"epoch_23_quit_prodrome{tag}.png"
-    fig.savefig(p, dpi=170)
+    save_png_svg(fig, p, dpi=170)
     print(f"  wrote {p}")
     return 0
 

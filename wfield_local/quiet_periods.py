@@ -97,17 +97,16 @@ def response_window_s(session_dir=None):
     """The session's real response window (s), or the configured default.
 
     READ PER SESSION, because it is a task setting that can be retuned -- `daq_trials` already does
-    this and the two must not disagree. Every session to date ran 3500 ms.
+    this and the two must not disagree. Every session to date ran 3500 ms. The fallback is THE configured one
+    (`daq_trials.fallback_response_window_s`, 3.5 s; it was decode.max_rt_s here until 11-05, the same value).
     """
-    from wfield_local import config as _cfg
+    from wfield_local import daq_trials
 
-    default = float(_cfg.defaults()["decode"]["max_rt_s"])
+    default = daq_trials.fallback_response_window_s()
     if session_dir is None:
         return default, "default"
     try:
-        from wfield_local.daq_trials import response_window_s as _rw
-
-        return _rw(session_dir, default)
+        return daq_trials.response_window_s(session_dir)
     except Exception:                                                  # noqa: BLE001
         return default, "default"
 
@@ -374,7 +373,7 @@ def main() -> int:
     ap.add_argument("--lick-thresh-upper-v", type=float, default=ld["thresh_upper"])
     ap.add_argument("--lick-thresh-lower-v", type=float, default=ld["thresh_lower"])
     ap.add_argument("--lockout-s", type=float, nargs=2, default=tuple(ld["lockout_falling_edge_s"]))
-    ap.add_argument("--refractory-s", type=float, default=0.10)
+    ap.add_argument("--refractory-s", type=float, default=config.lick_detector()["refractory_s"])   # REBUILD_CODE 8.53: no refractory (was 0.10)
     ap.add_argument("--lick-buffer", type=float, nargs=2, default=tuple(qd["lick_buffer_s"]))
     # reward
     ap.add_argument("--reward-channel", default=seg["reward"]["channel"])
@@ -420,7 +419,7 @@ def main() -> int:
     # licks (onsets) + reward
     lick = detect_licks(lick_v, fs, args.lick_thresh_upper_v, args.lick_thresh_lower_v,
                         tuple(args.lockout_s), args.refractory_s,
-                        min_ili_s=config.defaults()["lick_detection"]["min_ili_ms"] / 1000.0)
+                        min_ili_s=config.lick_min_ili_s())
     lick_onsets = np.asarray(lick["lick_onsets"], dtype=np.int64)
 
     # ONE DEFINITION, shared with `behavior_events` -- see `rest_mask`.

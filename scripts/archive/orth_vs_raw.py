@@ -4,7 +4,7 @@
 
 Projecting the engagement axis out of every position axis was treated as a neutral cleanup. It is
 not: measured 2026-08-24, position axes sit at |cos| 0.61-0.89 to that axis, so for the worst pairs
-the projection discards most of the position axis and renormalises a small residual. The two
+the projection discards most of the position axis and renormalizes a small residual. The two
 treatments are differently biased --
 
     ORTH   understates position structure, worst for CROSS-RING pairs, because the no-contact

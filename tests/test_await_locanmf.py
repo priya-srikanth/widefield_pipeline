@@ -233,7 +233,7 @@ def test_figs_do_not_start_on_a_partial_cohort(monkeypatch):
     """PS94 was ready at 21:00; PS95's U_atlas did not land until 22:56.
 
     Starting figs on PS94 alone burned a blocking multi-hour run on half the cohort AND stopped the
-    poller from ever noticing PS95. The date must be complete before it is analysed.
+    poller from ever noticing PS95. The date must be complete before it is analyzed.
     """
     assert _drive(monkeypatch, [{"PS94"}]) == []
 

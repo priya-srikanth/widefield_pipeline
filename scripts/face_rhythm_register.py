@@ -3,6 +3,7 @@
 
     <fr env python> scripts/face_rhythm_register.py [--root <dlc>/face_rhythm/cam4] [--jobs 4]
     <fr env python> scripts/face_rhythm_register.py --cam cam2 --stage templates      # then click, then without --stage
+    <fr env python> scripts/face_rhythm_register.py --june-only                        # re-register ONLY the June sessions
 
 OTHER CAMERAS (cam1 / cam2 / cam3, `wfield_local.face_rhythm_cams`; 10-22): no LP landmarks. ``--stage templates``
 picks the animal templates + master (master scored after an image-only ECC alignment) and writes
@@ -31,6 +32,19 @@ Inputs: ``<root>/frames/<a>_<d>.npz`` from `scripts.face_rhythm_prep frames` (me
    FALLBACK: when DeepFlow makes the face landmarks worse than the similarity (a June session diverged to ~60 px), the
    similarity field is kept (``method`` in qc_fields.csv). A field R (H, W, 2) maps OUTPUT (template) px to SOURCE px, so a master
    point p lands in a session at R_session(R_animal(p)) (`face_rhythm.helpers.remap_points` samples R at p).
+JUNE (``--june-only``, 11-08; Priya: the June meshes were "shifted image left (face right) and aren't scaled to be
+bigger with the face"): the landmark similarity cannot see the June face change -- nose-jaw distance and spout spacing
+are the same as August's (PS92 135 vs 135 px, 169 vs 171 px) while the face is ~1.10-1.14x wider and ~1.04-1.12x taller
+and sits ~50-70 px image-left (face ECC vs the master with the old June fields 0.63-0.72, August 0.87-0.95). So June's
+coarse start is a FACE-MASKED image affine (ECC, `face_affine_field`) June session -> the animal's AUGUST template
+(the template's face mask from its ROIs.h5; starts at scale 1.0 / 1.1 / 1.2; a fit outside SCALE_OK or with sx / sy
+apart by > ANISO_OK is rejected and retried from the median of the animal's accepted June fits; still implausible ->
+that median's scale with only the shift searched, `face_shift_field`: PS94_20260606), then DeepFlow + the
+shell smoothing + fallbacks as for every session (`register` with ``coarse``), chained onto the template's saved field
+(= template -> master). June LP landmarks are divided by JUNE_LP_SCALE first (run v36 June coordinates are x 0.8853;
+they are not image px -- the cause of the old June misfit). Only June ``fields/<s>.npy`` are written (the old ones moved to ``fields_june_superseded_<date>/``);
+August fields and every August ROI are untouched. QC -> ``register/qc_june_fields.csv`` (face ECC vs the master, old
+vs new field; affine parameters; landmark errors).
 QC (quantitative): the master session's LP landmarks (rest nose, rest jaw, per-position spout tips) pushed into every
 session through its composed field vs that session's OWN LP landmarks (px), next to the error with no registration.
 Outputs in ``<root>/register/``: ``fields/<s>.npy`` (composed master -> session field, float32 H x W x 2), ``master.npz``
@@ -79,6 +93,12 @@ LOCAL_WIN, LOCAL_MARGIN = 41, 0.05
 SMOOTH_PX, SHELL_PX, MOUTH_R, INNER_SMOOTH_PX = 25.0, 50.0, 80.0, 8.0
 FOLD_DET, FOLD_GROW_PX, FOLD_SMOOTH_PX = 0.6, 25, 20.0
 FACE_WEIGHT = 3
+#: June face-masked affine (`face_affine_field`): accepted scale range and max |sx / sy - 1|; ECC starts
+SCALE_OK, ANISO_OK, AFFINE_STARTS = (0.95, 1.30), 0.12, (1.0, 1.1, 1.2)
+#: June LP landmarks in ``frames/<s>.npz`` are run v36 coordinates, i.e. June pose x 0.8853 about (0, 0) (the June
+#: camera-scale correction, `wfield_local.orofacial_outputs` v36 / `orofacial_camera`), NOT June image px; `june_only`
+#: divides them back. The old landmark similarity used them as image px: June meshes 50-77 px off (found 11-08).
+JUNE_LP_SCALE = 0.8853
 
 
 def _shared(lm_t: dict, lm_m: dict) -> list:
@@ -124,6 +144,72 @@ def coarse_field(template, moving, lm_t: dict, lm_m: dict) -> tuple[np.ndarray, 
     return ecc_field(template, moving), "ecc"
 
 
+def _affine_grid(B: np.ndarray, shape) -> np.ndarray:
+    H, W = shape
+    gx, gy = np.meshgrid(np.arange(W, dtype=np.float32), np.arange(H, dtype=np.float32))
+    return np.stack([B[0, 0] * gx + B[0, 1] * gy + B[0, 2], B[1, 0] * gx + B[1, 1] * gy + B[1, 2]], -1).astype(np.float32)
+
+
+def affine_ok(B) -> bool:
+    """A June face affine is plausible: both axis scales in SCALE_OK and within ANISO_OK of each other."""
+    if B is None:
+        return False
+    sx, sy = np.hypot(*B[:, 0]), np.hypot(*B[:, 1])
+    return bool(SCALE_OK[0] <= sx <= SCALE_OK[1] and SCALE_OK[0] <= sy <= SCALE_OK[1] and abs(sx / sy - 1) <= ANISO_OK)
+
+
+def face_affine_field(template, moving, mask, starts=None, ds: int = 2):
+    """(field template px -> moving px, affine 2x3 at full size, ECC) from an image affine fit restricted to the face
+    ``mask`` (template px, uint8; dilated by the caller), best ECC over ``starts``: scales (centered on the face) or
+    2x3 matrices (full size). Only plausible fits (`affine_ok`) count; (None, None, nan) when none is."""
+    import cv2
+    a = cv2.resize(template, None, fx=1 / ds, fy=1 / ds, interpolation=cv2.INTER_AREA)
+    b = cv2.resize(moving, None, fx=1 / ds, fy=1 / ds, interpolation=cv2.INTER_AREA)
+    mk = cv2.resize(mask, None, fx=1 / ds, fy=1 / ds, interpolation=cv2.INTER_NEAREST)
+    ys, xs = np.nonzero(mk)
+    c = np.array([xs.mean(), ys.mean()], np.float32)
+    best = (None, None, np.nan)
+    for st in (AFFINE_STARTS if starts is None else starts):
+        if np.ndim(st) == 0:
+            A = np.array([[st, 0, 0], [0, st, 0]], np.float32)
+            A[:, 2] = c - st * c
+        else:
+            A = np.asarray(st, np.float32).copy()
+            A[:, 2] /= ds
+        try:
+            cc, B = cv2.findTransformECC(a, b, A, cv2.MOTION_AFFINE,
+                                         (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 500, 1e-6), mk, 5)
+        except cv2.error:
+            continue
+        B = B.copy()
+        B[:, 2] *= ds
+        if affine_ok(B) and not (cc <= best[2]):                      # first plausible fit, then the best ECC
+            best = (_affine_grid(B, template.shape), B, float(cc))
+    return best
+
+
+def face_shift_field(template, moving, mask, lin, t0, ds: int = 2, span: int = 60):
+    """Fallback when no plausible free affine exists (PS94_20260606, 11-08: ECC collapsed vertically from every start):
+    the 2x2 ``lin`` held fixed (the median of the animal's accepted June fits), the shift searched on a grid around
+    ``t0`` (+-``span`` px, then +-4 px at 1 px) for the best face-masked ECC. Returns as `face_affine_field`."""
+    import cv2
+    a = cv2.resize(template, None, fx=1 / ds, fy=1 / ds, interpolation=cv2.INTER_AREA)
+    b = cv2.resize(moving, None, fx=1 / ds, fy=1 / ds, interpolation=cv2.INTER_AREA)
+    mk = cv2.resize(mask, None, fx=1 / ds, fy=1 / ds, interpolation=cv2.INTER_NEAREST)
+
+    def score(t):
+        A = np.hstack([np.asarray(lin, np.float32), (np.asarray(t, np.float32) / ds)[:, None]])
+        w = cv2.warpAffine(b, A, a.shape[::-1], flags=cv2.INTER_LINEAR | cv2.WARP_INVERSE_MAP)
+        return cv2.computeECC(a, w, mk)
+    best = max(((score(t0 + np.array([dx, dy])), (dx, dy)) for dx in range(-span, span + 1, 8)
+                for dy in range(-span, span + 1, 8)), key=lambda z: z[0])
+    c = np.asarray(t0, float) + best[1]
+    best = max(((score(c + np.array([dx, dy])), (dx, dy)) for dx in range(-4, 5) for dy in range(-4, 5)),
+               key=lambda z: z[0])
+    B = np.hstack([np.asarray(lin, np.float32), (c + best[1]).astype(np.float32)[:, None]])
+    return _affine_grid(B, template.shape), B, float(best[0])
+
+
 def face_err(F: np.ndarray, lm_t: dict, lm_m: dict) -> float:
     e = [np.hypot(*(sample(F, lm_t[k])[0] - lm_m[k])) for k in FACE if k in _shared(lm_t, lm_m)]
     return float(np.max(e)) if e else np.nan
@@ -143,7 +229,7 @@ def raw_zones(shape, lm: dict) -> np.ndarray:
 
 
 def local_ncc(a: np.ndarray, b: np.ndarray, win: int = LOCAL_WIN) -> np.ndarray:
-    """Windowed normalised cross-correlation map of two images."""
+    """Windowed normalized cross-correlation map of two images."""
     import cv2
     k = (win, win)
     ma, mb = cv2.boxFilter(a, -1, k), cv2.boxFilter(b, -1, k)
@@ -165,7 +251,7 @@ def mouth_weight(shape, mouth) -> np.ndarray:
 def shell_weight(poly, shape, mouth=None) -> np.ndarray:
     """(H, W) weight of the RAW non-rigid field: 1 inside the face polygon deeper than SHELL_PX, ramping to 0 at the
     contour, 0 outside (the OUTER SHELL gets the smoothed field); EXCEPT within MOUTH_R of the resting jaw (``mouth``),
-    kept raw (Priya: keep the edge about the mouth, bottom centre)."""
+    kept raw (Priya: keep the edge about the mouth, bottom center)."""
     import cv2
     H, W = shape
     m = np.zeros((H, W), np.uint8)
@@ -178,14 +264,16 @@ def shell_weight(poly, shape, mouth=None) -> np.ndarray:
     return w.astype(np.float32)
 
 
-def register(template: np.ndarray, moving: np.ndarray, lm_t: dict, lm_m: dict, poly_t=None) -> tuple[np.ndarray, str]:
+def register(template: np.ndarray, moving: np.ndarray, lm_t: dict, lm_m: dict, poly_t=None,
+             coarse=None) -> tuple[np.ndarray, str]:
     """((H, W, 2) field template px -> moving px, method): landmark similarity (image-only ECC when the pair shares
     < 2 landmarks, `coarse_field`), then DeepFlow on the coarse-warped image, CHAINED here; the coarse field alone when
-    DeepFlow worsens the face landmarks or, with no landmarks, the whole-image correlation."""
+    DeepFlow worsens the face landmarks or, with no landmarks, the whole-image correlation. ``coarse`` (a field) replaces
+    the coarse start (June: `face_affine_field`, ``--june-only``)."""
     import cv2
 
     import face_rhythm as fr
-    S, how = coarse_field(template, moving, lm_t, lm_m)
+    S, how = coarse_field(template, moving, lm_t, lm_m) if coarse is None else (coarse, "face-affine")
     warped = cv2.remap(moving, S[..., 0], S[..., 1], cv2.INTER_LINEAR)
     al = fr.rois.Image_Aligner(verbose=False)
     D = np.asarray(al.fit_nonrigid(template=template, ims_moving=[warped], template_method="image",
@@ -239,8 +327,8 @@ def register(template: np.ndarray, moving: np.ndarray, lm_t: dict, lm_m: dict, p
 
 
 def _reg_job(args):
-    key, template, moving, lm_t, lm_m, poly_t = args
-    f, how = register(template, moving, lm_t, lm_m, poly_t)
+    key, template, moving, lm_t, lm_m, poly_t, *coarse = args
+    f, how = register(template, moving, lm_t, lm_m, poly_t, coarse[0] if coarse else None)
     return key, (f, how)
 
 
@@ -261,6 +349,93 @@ def landmarks(Z) -> dict:
     return lm
 
 
+def june_only(root: Path, jobs: int = 2) -> int:
+    """Re-register ONLY the June sessions (module docstring, JUNE): face-masked affine -> the animal's August template,
+    DeepFlow on top, chained onto the template's saved field. Old June fields moved aside; writes qc_june_fields.csv."""
+    import csv
+    import shutil
+    import time
+
+    import cv2
+
+    import face_rhythm as fr
+    reg = root / "register"
+    tj = json.loads((reg / "templates.json").read_text())
+    master, tmpl = tj["master"], tj["animal_templates"]
+    june = sorted(f.stem for f in (root / "frames").glob("PS*.npz") if f.stem[9:11] == "06")
+    Z = {s: np.load(root / "frames" / f"{s}.npz") for s in set(june) | set(tmpl.values()) | {master}}
+    ims = {s: prep(z["median"]) for s, z in Z.items()}
+    LM = {s: landmarks(z) for s, z in Z.items()}
+    for s in june:                                                       # v36 June coordinates -> June image px
+        LM[s] = {k: v / JUNE_LP_SCALE for k, v in LM[s].items()}
+    mmask = np.asarray(list(fr.rois.ROIs(select_mode="file", path_file=str(root / "rois" / master / "ROIs.h5"),
+                                         verbose=0).mask_images.values())[0])
+    mmask = cv2.dilate((mmask > 0).astype(np.uint8), np.ones((31, 31), np.uint8))
+    tmask, poly_t = {}, {}
+    for an, t in tmpl.items():
+        R = fr.rois.ROIs(select_mode="file", path_file=str(root / "rois" / t / "ROIs.h5"), verbose=0)
+        tmask[an] = cv2.dilate((np.asarray(list(R.mask_images.values())[0]) > 0).astype(np.uint8),
+                               np.ones((31, 31), np.uint8))
+        poly_t[an] = np.asarray(R.roi_points["face"], float)
+    # coarse: face affine, then a retry from the animal's accepted fits for any rejected session
+    aff = {s: face_affine_field(ims[tmpl[s[:4]]], ims[s], tmask[s[:4]]) for s in june}
+    for s in june:
+        if aff[s][1] is None:
+            ok = [aff[x][1] for x in june if x[:4] == s[:4] and aff[x][1] is not None]
+            if ok:
+                med = np.median(ok, axis=0)
+                aff[s] = face_affine_field(ims[tmpl[s[:4]]], ims[s], tmask[s[:4]], starts=[med])
+                if aff[s][1] is None:                                      # fixed scale, shift search
+                    aff[s] = face_shift_field(ims[tmpl[s[:4]]], ims[s], tmask[s[:4]], med[:, :2], med[:, 2])
+                    print(f"  {s}: free affine implausible -> the animal's median June scale, shift searched", flush=True)
+        B = aff[s][1]
+        print(f"  {s}: " + ("NO plausible face affine" if B is None else
+                            f"sx {np.hypot(*B[:, 0]):.3f} sy {np.hypot(*B[:, 1]):.3f} shift ({B[0, 2]:.0f}, "
+                            f"{B[1, 2]:.0f}) ecc {aff[s][2]:.3f}"), flush=True)
+    bad = [s for s in june if aff[s][1] is None]
+    if bad:
+        raise SystemExit(f"no plausible face affine for {bad}: nothing written")
+    work = [(("S", s), ims[tmpl[s[:4]]], ims[s], LM[tmpl[s[:4]]], LM[s], poly_t[s[:4]], aff[s][0]) for s in june]
+    F, HOW = {}, {}
+    with ProcessPoolExecutor(max_workers=jobs) as ex:
+        for k, (f, how) in ex.map(_reg_job, work):
+            F[k[1]], HOW[k[1]] = f, how
+    old_dir = reg / f"fields_june_superseded_{time.strftime('%Y%m%d')}"
+    old_dir.mkdir(exist_ok=True)
+    M, mlm = ims[master], LM[master]
+    rows = []
+    for s in june:
+        ft = np.load(reg / "fields" / f"{tmpl[s[:4]]}.npy")             # template -> master (the template's own field)
+        comp = cv2.remap(F[s], ft[..., 0], ft[..., 1], cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
+        dst = reg / "fields" / f"{s}.npy"
+        prev = old_dir / dst.name                                        # the ORIGINAL June field, kept from the 1st run
+        old = np.load(prev) if prev.exists() else (np.load(dst) if dst.exists() else None)
+        if dst.exists() and not prev.exists():
+            shutil.move(str(dst), str(old_dir / dst.name))
+        np.save(dst, comp.astype(np.float32))
+        e = {k: float(np.hypot(*(sample(comp, p)[0] - LM[s][k]))) for k, p in mlm.items()
+             if k in LM[s] and np.isfinite(p).all() and np.isfinite(LM[s][k]).all()}
+        B = aff[s][1]
+        rows.append({"session": s, "template": tmpl[s[:4]], "method": HOW[s], "affine_sx": np.hypot(*B[:, 0]),
+                     "affine_sy": np.hypot(*B[:, 1]), "affine_tx": B[0, 2], "affine_ty": B[1, 2],
+                     "affine_ecc_to_template": aff[s][2],
+                     "face_ecc_master_old": (np.nan if old is None else float(cv2.computeECC(
+                         M, cv2.remap(ims[s], old[..., 0], old[..., 1], cv2.INTER_LINEAR), mmask))),
+                     "face_ecc_master_new": float(cv2.computeECC(
+                         M, cv2.remap(ims[s], comp[..., 0], comp[..., 1], cv2.INTER_LINEAR), mmask)),
+                     "err_nose_px": e.get("nose", np.nan), "err_jaw_px": e.get("jaw", np.nan),
+                     "err_tips_med_px": float(np.median([v for k, v in e.items() if k.startswith("tip_")] or [np.nan]))})
+    with open(reg / "qc_june_fields.csv", "w", newline="") as fh:
+        w = csv.DictWriter(fh, fieldnames=list(rows[0]))
+        w.writeheader()
+        w.writerows(rows)
+    for r in rows:
+        print(f"  {r['session']}: face ECC vs master {r['face_ecc_master_old']:.3f} -> {r['face_ecc_master_new']:.3f}; "
+              f"nose {r['err_nose_px']:.1f} jaw {r['err_jaw_px']:.1f} tips {r['err_tips_med_px']:.1f} px; {r['method']}")
+    print(f"{len(rows)} June fields -> {reg / 'fields'} (old -> {old_dir})")
+    return 0
+
+
 def main(argv=None) -> int:
     import cv2
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -272,7 +447,11 @@ def main(argv=None) -> int:
     ap.add_argument("--stage", default="all", choices=("all", "templates"),
                     help="templates: pick the animal templates + master and write register_inputs/click_<s>.png "
                          "for the landmark clicks (cameras without LP), then stop")
+    ap.add_argument("--june-only", action="store_true",
+                    help="re-register ONLY the June sessions (face-masked affine start; module docstring, JUNE)")
     a = ap.parse_args(argv)
+    if a.june_only:
+        return june_only(a.root, a.jobs)
     if a.cam:
         import sys
         sys.path.insert(0, str(Path(__file__).resolve().parents[1]))       # the repo (fr env: not pip-installed)

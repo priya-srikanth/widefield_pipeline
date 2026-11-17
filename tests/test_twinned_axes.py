@@ -3,7 +3,7 @@
 Figure 10 puts a second y-scale (mean rank) on its trend panel. The axes-overlap check reported all
 four of them, on every window and class -- twenty fault lines describing a deliberate construction.
 A checker that cries wolf trains the reader to skim past it, which is worse than not checking; and
-these figures have already shipped real colour-bar-over-panel faults that a skimmed log would hide.
+these figures have already shipped real color-bar-over-panel faults that a skimmed log would hide.
 
 The exclusion has to be NARROW. Sharing an axis is not enough on its own: `plt.subplots(sharex=True)`
 puts every panel of figure 8g into one shared group, so a siblings-only test would silently disable
@@ -38,7 +38,7 @@ def test_a_twiny_pair_is_recognised(closefigs):
 def test_a_shared_grid_is_NOT_treated_as_twinned(closefigs):
     """THE FAILURE THIS GUARD EXISTS TO PREVENT. Figure 8g is built with sharex/sharey, so its
     panels are all siblings. If sharing alone counted, the axes-overlap check would go dark for the
-    whole figure and a colour bar drawn over a panel would pass silently."""
+    whole figure and a color bar drawn over a panel would pass silently."""
     _fig, axes = plt.subplots(2, 3, sharex=True, sharey=True)
     a, b = axes[0][0], axes[0][1]
     assert b in a.get_shared_x_axes().get_siblings(a), "precondition: they ARE siblings"
@@ -46,7 +46,7 @@ def test_a_shared_grid_is_NOT_treated_as_twinned(closefigs):
 
 
 def test_unrelated_axes_at_the_same_place_are_not_excused(closefigs):
-    """Two axes deliberately stacked at one rectangle, sharing nothing -- a colour bar dropped on
+    """Two axes deliberately stacked at one rectangle, sharing nothing -- a color bar dropped on
     top of a panel looks like this, and it must still be reported."""
     fig = plt.figure()
     a = fig.add_axes([0.1, 0.1, 0.5, 0.5])

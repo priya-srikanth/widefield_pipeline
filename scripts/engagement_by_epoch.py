@@ -11,7 +11,7 @@ for a spatial pattern that the design cannot produce. This draws the quantity th
 
     pre 0.96 -> acute 0.78 -> subacute 0.81 -> chronic 0.93
 
-THE SOURCE IS THE BEHAVIOUR PIPELINE'S OWN SESSION TABLE, `cohort_session_metrics.csv`, which
+THE SOURCE IS THE BEHAVIOR PIPELINE'S OWN SESSION TABLE, `cohort_session_metrics.csv`, which
 carries `n_engaged` and `n_disengaged` per session. That is the same gate every analysis figure
 and the epoch rule already use, so this figure cannot disagree with them about what "working"
 means. It also makes the figure auditable: the per-position version on the share is produced by
@@ -32,6 +32,7 @@ was averaged.
     python -m scripts.engagement_by_epoch [--out DIR]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import collections
@@ -149,12 +150,14 @@ def timecourse(out_dir):
                  "bars", fontsize=12)
     fig.tight_layout(rect=(0, 0, 1, 0.93))
     q = Path(out_dir) / "epoch_1g_engagement_timecourse.png"
-    fig.savefig(q, dpi=150)
+    save_png_svg(fig, q, dpi=150)
     plt.close(fig)
     return q
 
 
 def main(argv=None) -> int:
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("engagement_by_epoch")   # unrouted share writer: refuses in a non-default run mode
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--out", type=Path, default=None)
@@ -183,8 +186,11 @@ def main(argv=None) -> int:
         _point, draws = got
         marks[e][KEY] = ef.contrast_marks(draws, n_comparisons=len(post))
 
+    # stats_line wants {epoch: {animal: n}} and bar_row's legend {animal: n}; passing the per-epoch {KEY: n} printed
+    # "N=1 animals" and "PS92 (0)" (fixed 11-03, e3)
+    by_animal = {e: dict(collections.Counter(a for a, _v in points[e][KEY])) for e in points}
     sub = ef.stats_line(
-        counts, n_boot=N_BOOT,
+        by_animal, n_boot=N_BOOT,
         notes=[("bootstrap: animals -> sessions (a session is one number here, so there is no "
                 "block level)"),
                ("WORKING is judged ONLY at the spared reference positions, so a run of misses at "
@@ -196,7 +202,7 @@ def main(argv=None) -> int:
         values, out_dir, name="epoch_1f_engagement_by_epoch",
         title="Engagement: fraction of trials the animal was still working, by epoch "
               "(one dot per session)",
-        subtitle=sub, counts={e: counts[e][KEY] for e in counts}, marks=marks, points=points,
+        subtitle=sub, counts=dict(collections.Counter(a for e in points for a, _v in points[e][KEY])), marks=marks, points=points,
         ylabel="fraction of trials working", positions=[KEY], ylim=(0.0, 1.06))
     print(f"[1f] wrote {made}")
     print(f"[1g] wrote {timecourse(out_dir)}")

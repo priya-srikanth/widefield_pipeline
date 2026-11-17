@@ -5,7 +5,7 @@ lick arms and CANNOT resolve on the lick arm. That arm has no `Far Contra / acut
 because the 20-trial floor refuses the cell -- the animal does not lick far-contralateral acutely,
 and that refusal IS the deficit the family is describing. Before the fallback existed the published
 slide carried a literal `[[? ... has no row ...]]` marker and every deck build reported the same
-unresolved sidecar, which is a permanent warning for correct behaviour and trains its reader to
+unresolved sidecar, which is a permanent warning for correct behavior and trains its reader to
 ignore warnings.
 
 THE SCOPE IS THE DESIGN. `||` covers a missing ROW only. A missing FILE means a family was never
@@ -80,7 +80,7 @@ def test_a_format_spec_still_works_alongside_a_fallback(sidecar):
 
 
 def test_a_token_without_a_fallback_still_marks_and_counts(sidecar):
-    """Default behaviour unchanged: silence is still not an option."""
+    """Default behavior unchanged: silence is still not an option."""
     r = dv.Resolver([sidecar])
     out = r.resolve("{{SELF_stats: row=Far Middle, col=acute - pre -> amplitude_vs_pre}}",
                     self_stem="epoch_x_cue_lick")

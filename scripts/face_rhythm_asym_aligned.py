@@ -2,7 +2,7 @@
 
 Time-resolved contra- vs ipsilesional face movement: per 25 Hz frame, the mean SPEED of the tracked mesh points on each
 half of the face (split at the master's LP-nose midline; cam4 ipsilesional = IMAGE RIGHT, all lesions left),
-reconstructed from each session's frozen point PCs (`proj/` ``points_pc``, 20 PCs of the centred (x, y) displacement,
+reconstructed from each session's frozen point PCs (`proj/` ``points_pc``, 20 PCs of the centered (x, y) displacement,
 `master.npz` ``points_components``): velocity = d(PCs)/dt @ components -> per-point |v|. The 20 PCs carry most but not
 all point variance (fraction printed), so small movements are under-represented equally on both sides.
 
@@ -19,7 +19,7 @@ position, cached in data/aligned_point_maps.npz for `face_rhythm_aligned_maps.py
     python scripts/face_rhythm_asym_aligned.py [--set master_pre_v1] [--jobs 3] [--plot-only]
 -> ``<dlc>/face_rhythm/cam4/readouts/<set>/asym_aligned/``: asym_aligned_epochs.csv (per animal x epoch x position x
 alignment: window asymmetry, contra, ipsi), asym_aligned_traces.png (animal-mean traces, rows = positions, epochs as
-colours; each panel lists the change vs pre with its mark), asym_aligned_by_animal.png (window asymmetry, per animal:
+colors; each panel lists the change vs pre with its mark), asym_aligned_by_animal.png (window asymmetry, per animal:
 positions x epochs), asym_aligned_change.png + data/asym_aligned_stats.csv (Priya 10-24 statistics: per session the
 window asymmetry minus the animal's pre mean, `boot_delta` per alignment x position x epoch; * = 95 % interval
 excludes 0, ** = also Holm over the 6 positions of an alignment x epoch). data/asym_traces.pkl = the per-session
@@ -231,7 +231,7 @@ traces around engaged-trial CUES (left), LP LICK onsets within engaged trials (m
 the first lick of each bout, -0.5..+2 s), per spout position
 (rows; the animal's L = ipsilesional, R = contralesional spouts); per animal x epoch the mean over sessions; drawn: the
 mean over animals of (contra - ipsi) / (contra + ipsi). > 0 = more contralesional movement. Sessions with < {a.min_events}
-events at a position skipped there. Grey band: the summary window. Bottom right of each panel: change of the window
+events at a position skipped there. Gray band: the summary window. Bottom right of each panel: change of the window
 asymmetry vs pre (per session minus the animal's pre mean; `analysis_kit.boot_delta`, paired animals -> sessions);
 * = 95 % interval excludes 0, ** = also Holm over the 6 positions of that alignment x epoch. Per-animal values:
 asym_aligned_by_animal.png / data/asym_aligned_epochs.csv; statistics data/asym_aligned_stats.csv.""")
@@ -292,11 +292,11 @@ contralesional movement. Rule 8: read per animal.""")
         frf.save(fig, out / "asym_aligned_change.png", """
 Per session, the window asymmetry (contra - ipsi) / (contra + ipsi) of the mean point speed (cue 0..+2 s; each lick
 -0.1..+0.2 s; bout onset 0..+0.5 s), minus the mean of the animal's pre-stroke sessions. Faded open markers: the
-SESSIONS (shape = animal, colour = epoch, seeded jitter); filled squares: `analysis_kit.boot_delta` change vs pre and
-its 95 % interval (paired animals -> sessions, animal-weighted; FR epoch colours acute / subacute / chronic left to
+SESSIONS (shape = animal, color = epoch, seeded jitter); filled squares: `analysis_kit.boot_delta` change vs pre and
+its 95 % interval (paired animals -> sessions, animal-weighted; FR epoch colors acute / subacute / chronic left to
 right within each spout; no line joins spouts, Priya 11-03). Spouts in the canonical order close ipsi, close mid, close
 contra, far ipsi, far mid, far contra (the animal's L spouts are ipsilesional, R contralesional; all lesions left).
-Top band, in the epoch's colour: * = interval excludes 0; ** = also significant after Holm over the 6 positions of that
+Top band, in the epoch's color: * = interval excludes 0; ** = also significant after Holm over the 6 positions of that
 alignment x epoch. Negative = the face moves relatively less on the contralesional side than before the stroke.""")
     print("->", out)
     return 0

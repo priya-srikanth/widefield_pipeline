@@ -11,6 +11,8 @@ Usage: python scripts/frozen_posinfo.py --tag gate-attempted_v7g3_t3d_frA_pos   
 Output: <E>/frozen_fr_compare/posinfo_<tag>.csv, figures/frozen_posinfo_<tag>_{cue,lick}.png
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
+from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import argparse
 import sys
@@ -23,10 +25,18 @@ from fr_musall import E  # noqa: E402
 from frozen_fr_compare import ALAB, WINDOWS, bars, boot, session_r2  # noqa: E402
 
 KEY = ["label", "animal", "epoch", "window", "area"]
+
+
+def trial_set_sentence(tag: str, w: str) -> str:
+    """The trials / frames of the ``w``-window figure of run ``tag`` (Priya 11-09): the frozen Musall window."""
+    from wfield_local import frozen_encoder as fe
+    return fe.trial_set_sentence("musall", tag=tag, align=w)
 AREAS = ["cortex", "SSp-m_right", "SSp-m_left", "MOp_right", "MOp_left"]
 QS = [("posinfo unique", "no_posinfo", "unique"), ("noposinfo unique", "no_noposinfo", "unique"),
       ("posinfo alone", "posinfo_only", "alone"), ("noposinfo alone", "noposinfo_only", "alone")]
-COLS = {"posinfo unique": "#d95f02", "noposinfo unique": "#7570b3", "posinfo alone": "#fdb863", "noposinfo alone": "#b2abd2"}
+from wfield_local.cat_points import MODEL_COLORS as _MC  # noqa: E402 - the shared model palette (Priya 11-07)
+
+COLS = {"posinfo unique": _MC[2], "noposinfo unique": _MC[0], "posinfo alone": _MC[4], "noposinfo alone": _MC[1]}
 
 
 def main(argv=None) -> int:
@@ -36,8 +46,10 @@ def main(argv=None) -> int:
 
     import frozen_fr_compare as ffc
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--tag", default="gate-attempted_v7g3_t3d_frA_pos")
+    ap.add_argument("--tag", default=_design_tag("gate-attempted_v7g3_t3d_frA_pos"))
     a = ap.parse_args(argv)
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=tst.union(*(trial_set_sentence(a.tag, w) for w in WINDOWS), unit="trials"))
     folder = f"frozen_encoder_{a.tag}"
     out = E / "frozen_fr_compare"
     (out / "figures").mkdir(parents=True, exist_ok=True)
@@ -62,7 +74,7 @@ def main(argv=None) -> int:
         for ax, kind in zip(axs, ("unique", "alone")):
             qs = [q for q, _v, k in QS if k == kind and (B.q == q).any()]
             bars(ax, B[(B.window == w) & B.q.isin(qs)], qs, AREAS, "change from pre (R2)",
-                 f"{kind.upper()} R2, epoch - pre: orange = movement WITH lick-position information, purple = WITHOUT")
+                 f"{kind.upper()} R2, epoch - pre: wine = movement WITH lick-position information, indigo = WITHOUT (light = alone)")
             pre = B[(B.window == w) & B.q.isin(qs) & (B.epoch == "chronic")].set_index(["q", "area"]).ref
             ax.text(0.005, 0.03, "pre level: " + "; ".join(f"{q.split()[0]} {ALAB[ar]} {pre.get((q, ar), float('nan')):.3f}"
                                                          for q in qs for ar in ("SSp-m_right", "cortex")),
@@ -73,8 +85,11 @@ def main(argv=None) -> int:
         fig.suptitle(f"NEURAL: movement WITH vs WITHOUT lick-position information (pose + FaceRhythm), FROZEN frame, {w} window "
                      f"({note}).\nBars = mean of animals' epoch - pre; whisker 95 % nested CI; * excludes 0; dots = animals. "
                      "contra = right (lesion left).", fontsize=9.5)
+        from wfield_local.sig_marks import reserve_headroom
+        reserve_headroom(fig)                # the `bars` stars sit in the top band (10-30), no top spine (11-03)
         fig.subplots_adjust(left=0.05, right=0.995, top=0.88, bottom=0.07, hspace=0.45)
-        fig.savefig(out / "figures" / f"frozen_posinfo_{a.tag}_{w}.png", dpi=105)
+        with tst.active(None, text=trial_set_sentence(a.tag, w)):            # this figure's window
+            save_png_svg(fig, out / "figures" / f"frozen_posinfo_{a.tag}_{w}.png", dpi=105)
         plt.close(fig)
     print("->", out)
     return 0

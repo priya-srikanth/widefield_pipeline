@@ -1,10 +1,10 @@
-"""T9 (breathing artefact): is the post-stroke rise of quiet-period orofacial 1-4 Hz power (peak ~2-3 Hz) breathing?
+"""T9 (breathing artifact): is the post-stroke rise of quiet-period orofacial 1-4 Hz power (peak ~2-3 Hz) breathing?
 (cohort1 PS92-95 only, 2026-11-01; handoff STATUS_2026-11-01_QUIET_EVENTS_HANDOFF section 4, T9.)
 
 2-3 Hz is the resting respiration rate of a mouse, so brain motion / blood with each breath could put power there.
 FRAMES: exactly quiet_fluct's spectrum frames -- QUIET (quiet_spikes_v2.busy_frames: no DAQ contact lick / running bout
 within 1.5 s before or after, no swapped imaging pair within 0.5 s), ENGAGED (before the quit), finite cortex traces,
-AND finite face points (cam4 FaceRhythm own-session basis, QS_FR_BASIS=own). August sessions (pre = MMDD >= 0806).
+AND finite face points (cam4 FaceRhythm own-session basis, QS_FR_BASIS=own). August sessions (pre = not config.early_pre, cohort1 cut 0806).
 SEGMENTS: every quiet run >= 4 s cut into 4-s Hann segments with 50 % overlap, linear detrend per segment (= the Welch
 loop of quiet_fluct; each run contributes its segment count, i.e. the welch weighting); spectra / cross-spectra are
 averaged over ALL segments of the session, so the coherence is the segment-pooled magnitude-squared coherence
@@ -18,7 +18,7 @@ displacement spectrum above the 1/f trend (choose_proxy), chosen per session WIT
 max of the velocity spectrum in 1-5 Hz, landed on the 5 Hz band edge in most sessions -- not a peak -- and was
 dropped.) Its peak frequency, prominence and peak-band displacement power (+-0.5 Hz) are the breathing read-outs (b).
 Because a single PC may miss respiration, coh_max_pc = the best of all 20 PCs (upward-biased by the max). (A
-frequency-domain CV regression on all 20 PCs at once was tried and dropped: unregularised, it overfit -- CV explained
+frequency-domain CV regression on all 20 PCs at once was tried and dropped: unregularized, it overfit -- CV explained
 fractions down to -3.6.)
 
 MEASURES per session and trace (orofacial_left = ipsilesional, orofacial_right = contralesional, orofacial, limb, cortex):
@@ -47,6 +47,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from quiet_area_spikes import EP, columns, session_traces  # noqa: E402
 from quiet_spikes_v2 import V2, busy_frames  # noqa: E402
+from wfield_local import config  # noqa: E402
 
 OUTB = V2 / "breathing"
 COLS = ["orofacial_left", "orofacial_right", "orofacial", "limb", "cortex"]
@@ -227,7 +228,7 @@ def td_table():
     Z = {}
     for f in sorted((OUTB / "sessions_td").glob("*.npz")):
         ep = epochs.epoch_of(f.stem)
-        if ep is None or f.stem[:4] not in ("PS92", "PS93", "PS94", "PS95") or (ep == "pre" and f.stem[-4:] < "0806"):
+        if ep is None or f.stem[:4] not in ("PS92", "PS93", "PS94", "PS95") or (ep == "pre" and config.early_pre(f.stem)):
             continue
         Z[f.stem] = (ep, dict(np.load(f)))
     sd = {}
@@ -282,7 +283,7 @@ def load():
     for f in sorted((OUTB / "sessions").glob("*.npz")):
         lab = f.stem
         ep = epochs.epoch_of(lab)
-        if ep is None or lab[:4] not in ("PS92", "PS93", "PS94", "PS95") or (ep == "pre" and lab[-4:] < "0806"):
+        if ep is None or lab[:4] not in ("PS92", "PS93", "PS94", "PS95") or (ep == "pre" and config.early_pre(lab)):
             continue
         z = dict(np.load(f))
         j, z["proxy_freq"], z["proxy_prom"] = choose_proxy(z["freqs"], z["Pyy"])   # recomputed: one rule for all
@@ -463,7 +464,7 @@ def figure(D, S, T):
         a.legend(fontsize=6.5, loc="upper center", bbox_to_anchor=(0.5, -0.17), ncol=2, frameon=False)
 
     spectra(ax[0, 0], "coh", "magnitude-squared coherence", "(a) orofacial vs respiration proxy: coherence", null=True)
-    spectra(ax[0, 1], "vel", "velocity PSD / median 0.5-10 Hz", "(b) respiration-proxy velocity spectrum (chosen face-point PC, normalised)")
+    spectra(ax[0, 1], "vel", "velocity PSD / median 0.5-10 Hz", "(b) respiration-proxy velocity spectrum (chosen face-point PC, normalized)")
     spectra(ax[0, 2], "Pxx", "PSD (dF/F %)^2 / Hz", "orofacial quiet power spectrum (reference)")
     ax[0, 2].set_yscale("log")
     a = ax[0, 3]
@@ -534,8 +535,8 @@ def figure(D, S, T):
         f"regressed out; k=4 event rate {rr:+.2f} vs {rres:+.2f} log10. Coherence with the proxy is low (< 0.1) and "
         "does not rise after the stroke. Proxy = per-session face-point PC with the most prominent interior 1-5 Hz "
         "spectral peak above 1/f (no FaceRhythm factor is a resting-breathing factor).",
-        "Top: thin = animals (shape), thick = mean of animals, grey band = 1.5-4 Hz; dashed = coherence floor from "
-        "randomly re-paired segments. Lower rows: open markers = sessions (shape = animal, colour = epoch); filled = "
+        "Top: thin = animals (shape), thick = mean of animals, gray band = 1.5-4 Hz; dashed = coherence floor from "
+        "randomly re-paired segments. Lower rows: open markers = sessions (shape = animal, color = epoch); filled = "
         "pooled mean, nested animal -> session bootstrap 95% CI; stars = LMM epoch vs August pre, FDR q.",
     ]
     fig.suptitle("\n".join(textwrap.fill(t, 190) for t in paras), fontsize=9, y=0.995)
@@ -573,7 +574,7 @@ def main():
     if not a.summarise:
         from wfield_local.analysis_kit import fan_sessions  # fan_out + sort (rule 9)
         labels = a.only or sorted(f.stem for f in (V2 / "sessions").glob("*.npz")
-                                  if f.stem[:4] in ("PS92", "PS93", "PS94", "PS95") and f.stem[-4:] >= "0806")
+                                  if f.stem[:4] in ("PS92", "PS93", "PS94", "PS95") and not config.early_pre(f.stem))
         for worker in (extract, extract_td):           # pass 2 needs pass 1's proxy choice
             res, fail = fan_sessions(labels, worker, jobs=min(a.jobs, 5), label="session")
             print(f"{worker.__name__}: {len(res)} done, {len(fail)} failed")

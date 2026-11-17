@@ -3,7 +3,7 @@
     PYTHONPATH=$(pwd) python scripts/restructure_output_tree.py            # plan only, moves nothing
     PYTHONPATH=$(pwd) python scripts/restructure_output_tree.py --apply
 
-WHY THIS EXISTS AS A SCRIPT AND NOT A SESSION OF `mv`. It touches published artefacts on
+WHY THIS EXISTS AS A SCRIPT AND NOT A SESSION OF `mv`. It touches published artifacts on
 MICROSCOPE, so what moved and why has to be readable afterwards by someone who was not here. It is
 also IDEMPOTENT -- every step checks whether it has already run -- because the alternative is a
 half-applied layout nobody can reason about, and because the nightly may land between a plan and
@@ -99,7 +99,7 @@ class Plan:
             by_dest.setdefault(dst.parent, []).append((src, dst))
         for parent, items in sorted(by_dest.items(), key=lambda kv: str(kv[0])):
             print(f"\n  {parent}   <- {len(items)} item(s)")
-            for src, dst in items[:4]:
+            for src, _dst in items[:4]:
                 print(f"      {src.name}")
             if len(items) > 4:
                 print(f"      ... and {len(items) - 4} more")
@@ -133,7 +133,7 @@ reason in its name, and the four that predate this consolidation kept their own 
 | directory | what it holds |
 |---|---|
 | `QUIETref/` | the QUIET-reference family of `epoch_15r`, retired 2026-09-12 |
-| `INVALID_PRECUEref_on_precue_arm/` | PRECUE-referenced figures on the PRE-CUE arm, which normalises a window to itself |
+| `INVALID_PRECUEref_on_precue_arm/` | PRECUE-referenced figures on the PRE-CUE arm, which normalizes a window to itself |
 | `ORPHANED_pre_rename_20260913/` | figures whose names changed on 2026-09-13; the files are the pre-rename copies |
 | `superseded/` | `epoch_14` beta maps replaced by the reference-family versions |
 | `QC_scratch/` | ad-hoc `_QC_*` / `_mask_*` images dropped into the epoch directory; never deck material |
@@ -141,6 +141,8 @@ reason in its name, and the four that predate this consolidation kept their own 
 
 
 def main(argv=None) -> int:
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("restructure_output_tree")   # unrouted share writer: refuses in a non-default run mode
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--apply", action="store_true", help="actually move (default: plan only)")

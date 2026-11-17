@@ -45,7 +45,7 @@ def _stamp(msg):
 def stale_input(summary: Path, svt) -> float | None:
     """Seconds by which ``svt`` (the SVTcorr the fit read) post-dates ``summary``, or None if the
     fit is current. No ``svt`` in the manifest, or one that is not on disk, means nothing can be
-    compared and the fit is trusted -- the pre-2026-09-28 behaviour."""
+    compared and the fit is trusted -- the pre-2026-09-28 behavior."""
     if not svt:
         return None
     svt = Path(svt)
@@ -66,6 +66,10 @@ def set_aside_stale(outdir: Path) -> Path:
 
 
 def main() -> int:
+    from wfield_local import config as _cfg_m2
+    if _cfg_m2.locanmf_projection_on():   # review M2 (11-03): never refit into the adopted per-session folder
+        raise SystemExit("WIDEFIELD_LOCANMF_PROJECT=1: per-session LocaNMF is SERVED by projection; batch_locanmf would fit "
+                         "the selected variant's SVTcorr into the adopted locanmf_* folder. Unset it to run batch_locanmf.")
     lp = config.defaults()["locanmf"]     # r2/loc/maxrank single source of truth (configs/defaults.yaml)
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--manifest", required=True, type=Path, help="JSON list of {allen_dir,label,output[,svt]}")

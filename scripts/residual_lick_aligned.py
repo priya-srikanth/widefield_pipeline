@@ -15,7 +15,7 @@ response is smeared away in a cue-aligned average; if the far positions' respons
 "missing" post-cue transient was timing, not absence.
 Figure 2 (onset_kernels_position_vs_angle.png): the lick-onset kernels of part B's `position` model (one kernel per
 target position) and `angle` model (one per executed-angle bin at peak protrusion), per area, in dF/F PER LICK
-(the fitted weight divided by the regressor's SD -- the standardised weights in movement_encoding_kernels.png are
+(the fitted weight divided by the regressor's SD -- the standardized weights in movement_encoding_kernels.png are
 per SD of a sparse 0/1 column, hence their tiny scale), with each model's CV R^2 gain over one shared kernel.
 If cortex tracks the target, the position kernels separate and the angle-bin kernels look alike; if it tracks
 the executed direction, the reverse.

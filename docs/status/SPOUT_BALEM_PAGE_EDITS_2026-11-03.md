@@ -10,10 +10,10 @@ another window) lands on origin/main. Numbers marked *(render)* are filled from 
 given here are the verification run (cached production features, reproduced end to end through `_collect_5c`:
 `labcams/decoder_mix_checks/spout_balem_production/summarise_log.txt`).
 
-## 1. Method line for every affected caption / methods box (replace the normalisation sentence)
+## 1. Method line for every affected caption / methods box (replace the normalization sentence)
 
-> Frozen pre-stroke decoder; each pre-stroke training session centred on the equal-weight mean of its six true spout
-> means; each scored session centred, without labels, on the equal-weight mean of EM-estimated (Saerens et al. 2002)
+> Frozen pre-stroke decoder; each pre-stroke training session centered on the equal-weight mean of its six true spout
+> means; each scored session centered, without labels, on the equal-weight mean of EM-estimated (Saerens et al. 2002)
 > soft spout means of its engaged trials, engaged-trial SD (bal_em).
 
 Limit to state once on the page (decoding section intro): when a spout is nearly absent from the engaged set (acute far
@@ -60,3 +60,61 @@ Text that moves:
 
 FINDINGS 2 (acute decoder loss) and 3.x position-vs-state ratios are updated in `docs/FINDINGS.md` with the verification
 numbers; the page captions follow once the renders exist.
+
+## 5. Extension (later 11-03): bal_em on the other cross-session spout decoders
+
+Converted (DECISIONS 2026-11-03 "bal_em extended ..."; verification `spout_balem_production/summarise_extension_log.txt`):
+`precue_engagement_states` (position per state), `nolick_decoder.analyse_animal` (nightly no-lick reference),
+`position_coding_directions._class_confusions` (`coding_direction.json` -> grant 5b), section G's lick-only arm,
+`scripts/june_august_drift.py`, the T13 follow-up. Add to the re-render list: the nightly no-lick reference
+(`nolick_decoder.build_reference` + `plot_nolick_reference`), `position_coding_directions` (then grant 5b, which reads its
+JSON first), `scripts/june_august_drift.py`, `precue_engagement_states` (manual), the T13 follow-up (LP run).
+
+Numbers that move by more than .03 (animal means, old -> new; everything else within .03):
+
+| where | number | old -> new |
+|---|---|---|
+| coding-direction confusions (grant 5b) | post miss-while-working accuracy, cue / lick / precue | .270 -> .233 / .253 -> .213 / .261 -> .241 |
+| June / August drift figure (chronic_stability/june_august_drift) | acute_from_aug frozen accuracy (unmatched) | .666 -> .713 (3/4) |
+| precue states (A) | post no-lick engaged position accuracy | .261 -> .241 (2/4 animals > .03) |
+
+NOT changed, and why: the section G G4 readouts (looks_like_which / fits_engaged_distribution) and the precue-states
+discriminator stay on the engaged-trial z-score. The state-class bal_em was tried and breaks their pre-stroke reference
+(held-out pre engaged trials .92 -> .74 cue, .75 -> .40 precue); it is off pending Priya. Axis / CD figures (coding
+directions, position axes, attempt axes, pattern-similarity families) are unchanged pending Priya's decision.
+
+## 6. (SUPERSEDED by section 7) ON HOLD: epoch families' "working" = `trial_classes.in_working`
+
+Not implemented: a real conflict in the DAQ arm, reported to the coordinator instead of choosing. All 76 post-stroke
+sessions have camera classes (PS92_0908 17.5 % unknown cues), but 13 of the 44 PRE-stroke sessions have none (the June
+sessions 0606 / 0607 / 0608 of every animal, and PS93_0813, no behavior video). The frozen training set and the pre panel
+are pre-stroke ENGAGED trials today (the 5c rule: pre = licking trials for lick and working). in_working on the pre side
+needs a choice: (a) keep pre = DAQ-engaged licking trials (no conflict; only the post-stroke scored set changes); (b) pre =
+in_working, dropping the 13 camera-less sessions from training and the pre band (an August-only reference minus PS93_0813);
+(c) a mixed rule (in_working where a camera exists, DAQ-engaged otherwise).
+
+## 7. Working = trial_classes.in_working on both sides + August-only pre (Priya 11-03): ADOPTED; render NOT started
+
+Method line for every working-trial caption (replace the "lick + miss-while-working" wording; Priya 11-03 late, jaw-only
+out of working): *working trials = camera trial classes: a contact or incomplete lick between the cue and the trial stop,
+up to the session's last camera lick; jaw-only and no-response trials are reported separately. Pre-stroke baseline = the
+August pre sessions (8 / 7 / 8 / 8; PS93_0813 has no video).* Lick-aligned panels keep "lick trials". (Superseded wording,
+11-03 afternoon: "a lick or a jaw movement ...; at close mid licks only" -- jaw-only trials are no longer working, so the
+close-mid exception no longer needs stating.)
+
+Numbers with jaw-only OUT (production since 11-03 late; DECISIONS "Working excludes jaw-only (Priya 11-03 late)"; exact
+values from the render): cue/working frozen overall pre .856, acute .592, subacute .714, chronic .775; close ipsi acute
+.727 (PS92 / 93 / 94 / 95 .829 / .629 / .619 / .832), subacute .824, chronic .924; far contra acute .187; close mid acute
+.738; precue far contra acute .186, close ipsi acute .567. The afternoon (jaw-inclusive) numbers below are superseded.
+
+Numbers that will move (verification; exact values from the render): DECISIONS 2026-11-03 "Epoch families' working ..."
+-- cue/working frozen overall pre .882 -> .841, acute .539 -> .516; far contra acute .219 -> .191; close ipsi acute .789
+-> .631; close mid acute .635 -> .762; precue far contra acute .216 -> .179. Every pre band moves (August-only).
+
+Render status: STOPPED before D. Item C's check failed (precue engagement-axis projection changes on held-out pre
+sessions by 1.6-1.9x the between-session SD in PS92 / PS93), and item B misses the literal AUC criterion. Both frames are
+OFF; the render waits for Priya. When it runs (one pass: bal_em + extension + in_working + August-only [+ B / C if
+approved]): every family in section 2 and section 5, the pattern / CD families (6-11, 12b, 10e, coding directions,
+position axes), section D, section G, attempt_coding and its readers, with WIDEFIELD_PRE_FROM=0801. The per-session
+tables e3 needs for the hidden LMM slides will be the epoch families' `grant_figures/epoch/data/*_sessions.csv` sidecars
+(and the LP_licks / LPfinal arm equivalents).

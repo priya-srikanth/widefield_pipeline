@@ -9,7 +9,7 @@ and a stopped trial looks like a stopped trial -- the second example makes eithe
 `working` miss at the far contralateral or far middle spout IS the deficit and earns a run.
 
 EVERY POSITION KEEPS ITS SLOT. The grid is indexed by position, not by what a slide happens to show,
-so far middle and far contra sit bottom-centre and bottom-right on every slide. Packing the shown
+so far middle and far contra sit bottom-center and bottom-right on every slide. Packing the shown
 clips from the top-left would move a position between slides and the reader would compare different
 spouts in the same place without noticing. An unused slot says "-- none --" rather than going blank:
 a position with no working misses is a position the animal was not failing at, which is a result.
@@ -25,6 +25,9 @@ THE CODEC IS NOT A DETAIL. Until 2026-09-17 this wrote MPEG-4 Part 2 into a `.av
 `video/x-msvideo`; the bytes were embedded correctly and PowerPoint could not decode a single one of
 them, so every deck ever built showed "cannot play media". H.264 + yuv420p + MP4 is the combination
 PowerPoint plays on both Windows and Mac, and all three parts are load-bearing.
+
+The decks go to ``<decks_out>/behavior/<animal>_example_clips.pptx`` (``presentations/pipeline``; beside the clip
+library in ``Behavior_Cameras/Widefield/example_clips`` until 2026-11-06, Priya). The clips themselves stay there.
 """
 from __future__ import annotations
 
@@ -33,8 +36,8 @@ import re
 from pathlib import Path
 
 from wfield_local import config
-from wfield_local.behavior_clips import CAM, POST_S, PRE_S, out_root
-from wfield_local.paths import PathResolver
+from wfield_local.behavior_clips import POST_S, PRE_S, out_root
+from wfield_local.paths import PathResolver, deck_dir
 from wfield_local.writeguard import assert_writable
 
 DECK_PX = 240
@@ -186,7 +189,7 @@ def build(animal, rv=None, dest=None, tmp=None, dates=None):
         return None
     tmp = Path(tmp) if tmp else Path(rv.root("behavior_out")) / "_clip_deck_tmp" / animal
     tmp.mkdir(parents=True, exist_ok=True)
-    dest = Path(dest) if dest else out_root(rv) / ("%s_example_clips.pptx" % animal)
+    dest = Path(dest) if dest else deck_dir("behavior", rv) / ("%s_example_clips.pptx" % animal)
 
     navy, grey, faint = RGBColor(0x1F, 0x35, 0x64), RGBColor(0x66, 0x66, 0x66), \
         RGBColor(0xB0, 0xB0, 0xB0)
@@ -240,7 +243,7 @@ def build(animal, rv=None, dest=None, tmp=None, dates=None):
                 r.font.size, r.font.bold, r.font.color.rgb = Pt(21), True, navy
                 r2 = tf.add_paragraph().add_run()
                 r2.text = ("%.0f s pre-cue to %.1f s post-cue at 0.25x; ENL / Cue / Response "
-                           "labelled per frame. 'N of M' = clips cut of trials available."
+                           "labeled per frame. 'N of M' = clips cut of trials available."
                            % (PRE_S, POST_S))
                 r2.font.size, r2.font.color.rgb = Pt(10.5), grey
                 for i, pos in enumerate(POS_ORDER):
@@ -269,6 +272,7 @@ def build(animal, rv=None, dest=None, tmp=None, dates=None):
         print("[clip_deck] %s: nothing to place" % animal, flush=True)
         return None
     assert_writable(dest.parent)
+    dest.parent.mkdir(parents=True, exist_ok=True)
     prs.save(str(dest))
     mb = dest.stat().st_size / 1e6
     print("[clip_deck] %s: %d sessions, %d slides, %d clips, %d empty-class, %.0f MB -> %s"

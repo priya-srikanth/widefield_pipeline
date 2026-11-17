@@ -34,7 +34,7 @@ def out_dir(rd: Path, cam: str) -> Path:
 def session(job) -> dict:
     """Median rest face of one session in ``cam``. Rest = cam4 LP (tongue absent, ``PRE`` from the cue) for EVERY view:
     another camera reads the same moments through its own template (`face_rhythm_cams.frames_at`); trials at ``rest_exclude``
-    positions are dropped (cam1: the centre spout rod is in front of the face). LP landmarks only for cam4."""
+    positions are dropped (cam1: the center spout rod is in front of the face). LP landmarks only for cam4."""
     s, cam, ro, rd, root_vid = job
     import cv2
 

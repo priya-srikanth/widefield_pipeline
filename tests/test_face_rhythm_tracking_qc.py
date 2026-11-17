@@ -1,4 +1,4 @@
-"""o2_face_rhythm.tracking_qc: mesh folds are counted from the 25 Hz points output (a point pushed across its neighbour
+"""o2_face_rhythm.tracking_qc: mesh folds are counted from the 25 Hz points output (a point pushed across its neighbor
 flips the orientation of the triangles around it)."""
 import numpy as np
 

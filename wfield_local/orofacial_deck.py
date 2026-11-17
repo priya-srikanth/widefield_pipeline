@@ -5,8 +5,8 @@ build_stats_figure_deck.py`: title, sections, one figure per slide with title + 
     python -m wfield_local.orofacial_deck [--run lp_r4_heatmap_20261013__clean_v36]      (needs python-pptx: locanmf env)
 
 Reads the figures `orofacial_cohort` and `orofacial_jaw_lateral` wrote and the stats table
-(`cohort/tables/prepost/stats/change_vs_pre_stats.csv`); writes `<LP_analysis>/<run>/cohort/deck/
-orofacial_prepost_<YYYYMMDD>.pptx`. Run it AFTER the two producers (the deck shows whatever is on disk). Missing
+(`cohort/tables/prepost/stats/change_vs_pre_stats.csv`); writes `<decks_out>/orofacial/<run>/
+orofacial_prepost_<YYYYMMDD>.pptx` (`presentations/pipeline`; `<LP_analysis>/<run>/cohort/deck/` until 2026-11-06, Priya). Run it AFTER the two producers (the deck shows whatever is on disk). Missing
 figures are skipped and listed at the end.
 """
 from __future__ import annotations
@@ -99,7 +99,7 @@ SECTIONS = [
     ("Spatial distributions -- Wasserstein-2 vs own pre-stroke cloud", [
         ("w2/epochs_by_position.png", "W2 distance from the animal's own pre-stroke keypoint cloud, by epoch",
          "All keypoints in the mouth frame. Spout = the drift control (fixed apparatus; licking pushes it 2-5 px); nose = "
-         "head / snout posture (behaviour). Pre = leave-one-out noise floor. Spout-moved trials excluded."),
+         "head / snout posture (behavior). Pre = leave-one-out noise floor. Spout-moved trials excluded."),
         ("w2/timecourse_by_position.png", "W2 distance from own pre, day bins", ""),
     ]),
     ("Trial-aligned spatial heatmaps (stroke_orofacial proportion / proportion-diff)", [
@@ -153,9 +153,9 @@ SECTIONS = [
         ("prepost/lick_phase_angle.png", "Lick-peak-aligned tongue angle", "Dashed = spout angle."),
         ("prepost/lick_phase_protrusion_px_minus_pre.png", "Lick-peak-aligned protrusion, change vs pre", ""),
         ("prepost/lick_phase_angle_deg_minus_pre.png", "Lick-peak-aligned angle, change vs pre", ""),
-        ("prepost/phase_norm_protrusion_px_first_multi.png", "Protrusion vs normalised lick phase", ""),
-        ("prepost/phase_norm_angle_deg_first_multi.png", "Angle vs normalised lick phase (tongue out)", ""),
-        ("prepost/phase_norm_angle_mouth0_deg_first_multi.png", "Angle vs normalised lick phase (in-mouth = 0)",
+        ("prepost/phase_norm_protrusion_px_first_multi.png", "Protrusion vs normalized lick phase", ""),
+        ("prepost/phase_norm_angle_deg_first_multi.png", "Angle vs normalized lick phase (tongue out)", ""),
+        ("prepost/phase_norm_angle_mouth0_deg_first_multi.png", "Angle vs normalized lick phase (in-mouth = 0)",
          "stroke_orofacial's convention."),
         ("prepost/phase_portrait.png", "Lick phase portraits", ""),
         ("prepost/lick_xy_trajectory_first.png", "Tongue-tip paths: first post-cue lick", ""),
@@ -175,8 +175,8 @@ SECTIONS = [
          "All post-cue licks, lick-peak-aligned, tongue out (animal-weighted)", ""),
         ("prepost/cohort_lick_phase_all_minus_pre_inmouth_excl_animalw.png",
          "All post-cue licks, per-lick phase, tongue out (animal-weighted)", ""),
-        ("prepost/phase_norm_protrusion_px_all_multi.png", "Protrusion vs normalised phase, every multi-lick bout", ""),
-        ("prepost/phase_norm_angle_deg_all_multi.png", "Angle vs normalised phase, every multi-lick bout", ""),
+        ("prepost/phase_norm_protrusion_px_all_multi.png", "Protrusion vs normalized phase, every multi-lick bout", ""),
+        ("prepost/phase_norm_angle_deg_all_multi.png", "Angle vs normalized phase, every multi-lick bout", ""),
     ]),
 ]
 
@@ -257,7 +257,7 @@ def _provenance(run_dir: Path, S: pd.DataFrame, baseline: str) -> str:
     cam = config.defaults().get("orofacial_camera", {})
     S = S.assign(date=S.date.astype(str))
     pre = S[S.epoch == "pre"]
-    late = pre.date.str[4:8] >= oc.LATE_PRE_FROM
+    late = ~pre.date.map(config.early_pre)
     used = pre[late] if baseline == "late" else pre
     base_dates = "; ".join(f"{a}: " + ", ".join(sorted(g.date.str[4:8])) for a, g in used.groupby("animal"))
     cnt = S.groupby(["animal", "epoch"]).size().unstack("epoch").reindex(columns=list(oc.EPOCH_ORDER)).fillna(0)
@@ -265,7 +265,7 @@ def _provenance(run_dir: Path, S: pd.DataFrame, baseline: str) -> str:
     gate = ""
     if "engagement_gate" in S:
         g = S.engagement_gate.astype(str).str.split(" ").str[0].value_counts().to_dict()
-        gate = f"\n  engagement gate per session: {g}"
+        gate = f"\n  trial gate per session ({oc.trials_text()}): {g}"
     if {"n_trials_all", "n_trials_used"} <= set(S.columns):
         gate += (f"\n  trials kept by the gate: {int(S.n_trials_used.sum())} of {int(S.n_trials_all.sum())} "
                  f"({100 * S.n_trials_used.sum() / max(S.n_trials_all.sum(), 1):.1f} %)")
@@ -351,25 +351,28 @@ def main(argv=None) -> int:
     from wfield_local import writeguard
     from wfield_local import orofacial_cohort as oc
     from wfield_local.orofacial_cohort import LABEL, POS_ORDER, pos_disp
-    from wfield_local.paths import PathResolver
+    from wfield_local.paths import PathResolver, deck_dir
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--run", default=oc.RUN)
     ap.add_argument("--baseline", choices=("all", "late"), default="late",
                     help="AUGUST-ONLY pre baseline is PRIMARY (Priya 2026-10-18); 'all' = June-including sensitivity -> *_allpre")
     a = ap.parse_args(argv)
     sfx = "_allpre" if a.baseline == "all" else ""
-    rv = PathResolver()
-    base = oo.root(rv) / a.run / "cohort"
-    figs, tables = base / "figures", base / "tables"
-    out = base / "deck"
-    writeguard.assert_writable(out)
-    out.mkdir(parents=True, exist_ok=True)
-    S = pd.read_csv(tables / f"prepost{sfx}" / "session_metrics.csv")
     oc._apply_config()                                   # the thresholds the cohort run used (configs/defaults.yaml)
     oc.BASELINE = a.baseline                             # notes describe THIS deck's baseline
-    prov = _provenance(base.parent, S, a.baseline)
+    # the cohort's gate-named folders (A27): prepost / jaw_lateral carry the gate (prepost_working ...); w2 / heatmaps
+    # (other producers, not gated by `cohort_keep`) keep the baseline suffix only
+    gsfx = oc.table_suffix(baseline=a.baseline)
+    rv = PathResolver()
+    base = oc.cohort_base(a.run, rv)
+    figs, tables = base / "figures", base / "tables"
+    out = deck_dir("orofacial", rv) / a.run                # only the .pptx; figures + tables stay in LP_analysis
+    writeguard.assert_writable(out)
+    out.mkdir(parents=True, exist_ok=True)
+    S = pd.read_csv(tables / f"prepost{gsfx}" / "session_metrics.csv")
+    prov = _provenance(oo.root(rv) / a.run, S, a.baseline)          # run.json of the LP run (an input)
     stats_txt = oc.stats_methods()
-    ST = pd.read_csv(tables / f"prepost{sfx}" / "stats" / "change_vs_pre_stats.csv")
+    ST = pd.read_csv(tables / f"prepost{gsfx}" / "stats" / "change_vs_pre_stats.csv")
 
     prs = Presentation()
     prs.slide_width, prs.slide_height = Inches(W_IN), Inches(H_IN)
@@ -381,7 +384,7 @@ def main(argv=None) -> int:
     _text(s, "Orofacial kinematics, pre vs post VLS stroke -- widefield cohort"
           + (" -- SENSITIVITY: June-including pre baseline" if sfx else ""), 0.6, 2.2, 12, 1.0, 32, bold=True)
     base_txt = ("PRE BASELINE = all curated pre incl. June 0606-0608 (SUPERSEDED as primary; scale-free measures only)"
-                if sfx else "PRE BASELINE = August-onward pre sessions only (PRIMARY); ENGAGED trials only")
+                if sfx else "PRE BASELINE = August-onward pre sessions only (PRIMARY)") + chr(10) + f"Trials: {oc.trials_text()}"
     _text(s, f"Pose model LP r4 (cleaning {oo.CLEANING_VERSION}) -- run {a.run}\n{base_txt}\nCurated sessions: {len(S)} ({cnt})\n"
              f"Built {time.strftime('%Y-%m-%d %H:%M')} by wfield_local.orofacial_deck -- PRELIMINARY until every animal's "
              "sessions are in", 0.6, 3.4, 12, 2.0, 16, color=(60, 60, 60))
@@ -391,19 +394,19 @@ def main(argv=None) -> int:
     _text(s, "Data and statistics", 0.3, 0.1, 12.5, 0.6, 22, bold=True)
     methods = ("* Curated sessions (early June 6/1-6/5 and 8/5 excluded); PRE BASELINE = "
                + ("all curated pre sessions incl. June 0606-0608 (sensitivity only)" if sfx else
-                  "pre sessions from 0801 only (June 0606-0608 excluded: different camera geometry)")
-               + "; ENGAGED trials only (the behaviour pipeline's gate removes the sated tail; the ungated control in "
-               f"figures/prepost_alltrials is not in this deck); LP r4 pose, cleaning {oo.CLEANING_VERSION}; "
+                  f"pre sessions from {oc.LATE_PRE_FROM} only (June 0606-0608 excluded: different camera geometry)")
+               + f"; Trials: {oc.trials_text()} (the ungated control in figures/prepost_alltrials is not in this "
+               f"deck); LP r4 pose, cleaning {oo.CLEANING_VERSION}; "
                "LP-detected licks ('lick n' = the n-th detected post-cue lick, contact or not).\n"
-               "* Post-cue licks = cue + 70 ms .. DAQ trial stop; pre-cue = position strobe (spout arrived) .. cue + 70 ms; "
-               "ITI = the rest of each trial window. Kinematics use measured (not interpolated / imputed) peaks.\n"
+               "* Post-cue licks = lick peak in cue + 70 ms .. DAQ trial stop; pre-cue = peak in position strobe (spout arrived) "
+               ".. cue; peaks in cue .. cue + 70 ms count as neither (excluded); ITI = the rest of each trial window. Kinematics use measured (not interpolated / imputed) peaks.\n"
                "* Positions by the lesion: close / far x ipsi / mid / contra (all lesions left: L = ipsi). Angles + = image "
                "right = the L positions (or + = ipsi where marked).\n"
                "* Lick-phase kinematics exclude in-mouth frames (given the tongue is out, is its trajectory different).\n"
                "* Statistics (session = unit; each session minus its animal's own pre mean): headline = Mann-Whitney U, post vs "
                "pre sessions, BH-FDR within each metric; robustness = animal-weighted bootstrap (* both, (*) MWU only, "
                "b bootstrap only); per-animal marks = that animal's sessions vs its own pre; trajectories = cluster "
-               "permutation, labels permuted within animal. Full text: tables/prepost/stats/STATS_METHODS.md.")
+               f"permutation, labels permuted within animal. Full text: tables/prepost{gsfx}/stats/STATS_METHODS.md.")
     _text(s, methods, 0.4, 0.8, 12.5, 6.4, 14)
     s.notes_slide.notes_text_frame.text = _notes(prov, "STATISTICS\n" + stats_txt)
     # key results
@@ -418,7 +421,7 @@ def main(argv=None) -> int:
                             "q (FDR)": [f"{q:.2g}" for q in k.q_fdr],
                             "bootstrap 95% CI": [f"[{lo:+.3g}, {hi:+.3g}]" for lo, hi in zip(k.boot_lo, k.boot_hi)]})
         _table_slide(prs, "Key results: strongest changes significant by both tests", tab,
-                     "All cells: tables/prepost/stats/RESULTS.md and change_vs_pre_stats.csv. PRELIMINARY (PS93 thin).",
+                     f"All cells: tables/prepost{gsfx}/stats/RESULTS.md and change_vs_pre_stats.csv. PRELIMINARY (PS93 thin).",
                      notes=_notes(prov, "STATISTICS\n" + stats_txt))
     # significance grids per epoch (stroke_orofacial's on-slide grids)
     mk = {"both": "*", "MWU only": "(*)", "bootstrap only": "b", "neither": ""}
@@ -439,8 +442,8 @@ def main(argv=None) -> int:
         s = _blank(prs)
         _text(s, sec, 0.6, 3.0, 12, 1.2, 28, bold=True)
         for rel, title, cap in items:
-            png = figs / (rel.replace("prepost/", f"prepost{sfx}/").replace("w2/", f"w2{sfx}/").replace("heatmaps/", f"heatmaps{sfx}/")
-                          .replace("jaw_lateral/", f"jaw_lateral{sfx}/"))
+            png = figs / (rel.replace("prepost/", f"prepost{gsfx}/").replace("w2/", f"w2{sfx}/").replace("heatmaps/", f"heatmaps{sfx}/")
+                          .replace("jaw_lateral/", f"jaw_lateral{gsfx}/"))
             if not png.exists():
                 missing.append(rel)
                 continue
@@ -449,7 +452,7 @@ def main(argv=None) -> int:
                           _notes(f"{title}\n{cap}".strip(), prov, "HOW THE DATA WERE GENERATED\n" + gen,
                                  "STATISTICS\n" + st, f"Figure file: {png}"))
     # the June-including deck says what it is in its NAME (Priya 10-18: not at risk of being read as the primary result)
-    path = out / f"orofacial_prepost{'_allpre_SENSITIVITY' if sfx else ''}_{time.strftime('%Y%m%d')}.pptx"
+    path = out / f"orofacial_prepost{oc.COHORT_GATE_SFX[oc.cohort_gate()]}{'_allpre_SENSITIVITY' if sfx else ''}_{time.strftime('%Y%m%d')}.pptx"
     prs.save(path)
     print(f"{len(prs.slides)} slides -> {path}")
     if missing:

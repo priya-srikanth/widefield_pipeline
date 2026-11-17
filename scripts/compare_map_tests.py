@@ -1,4 +1,4 @@
-"""Old (raw-dF tests) vs new (pre-normalised tests) significant-bin counts, per figure x row x column (2026-10-21,
+"""Old (raw-dF tests) vs new (pre-normalized tests) significant-bin counts, per figure x row x column (2026-10-21,
 `beta_maps.NORMALISE_TESTS_BY_PRE`; Priya: "archive the existing results so we don't lose them and can compare them").
 
 Reads every `*_stats.csv` sidecar in the archive (`labcams/grant_figures/epoch/archive_rawdF_tests_20261021/data/`) and
@@ -14,9 +14,13 @@ import pandas as pd
 
 
 def main() -> int:
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     from wfield_local.paths import PathResolver
     from wfield_local.writeguard import assert_writable
-    root = Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch"
+    from wfield_local import lp_licks
+    # THIS run's epoch dir (grant_figures/<tag>/epoch; coordinator 11-04): the archived raw-dF tests are compared
+    # against the run's own data, and the result is written there
+    root = Path(lp_licks.output_dir(Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch"))
     old_dir, new_dir = root / "archive_rawdF_tests_20261021" / "data", root / "data"
     rows = []
     for f in sorted(old_dir.glob("*_stats.csv")):

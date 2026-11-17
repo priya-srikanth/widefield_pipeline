@@ -9,7 +9,7 @@ it. The LOSO and permutation references ran over all sessions too, so the "no-in
 this arm exists to establish was itself partly computed on post-stroke data.
 
 And it FIT ITS OWN MODEL. That defeats the purpose. This control's entire claim is "THIS decoder's
-confidence is not evidence" -- a control that fits a second decoder is characterising something other
+confidence is not evidence" -- a control that fits a second decoder is characterizing something other
 than the decoder being defended. Agreement between the two rested on both happening to call `_pipe()`
 with the same rows, which is exactly the kind of coincidence the frozen store exists to replace with
 an identity.
@@ -84,7 +84,7 @@ def test_post_stroke_sessions_do_not_enter_the_references():
 
 def test_the_nolick_arm_is_prestroke_too():
     """This function's own docstring calls the no-lick trials "the nearest available PRE-STROKE
-    analogue of a failed post-stroke attempt". Post-stroke no-lick trials are what it is the
+    analog of a failed post-stroke attempt". Post-stroke no-lick trials are what it is the
     reference FOR, so including them would make the reference partly the thing being measured."""
     XE, YE, GE = _synthetic(n_pre=3, n_post=2)
     pre_i = [0, 1, 2]

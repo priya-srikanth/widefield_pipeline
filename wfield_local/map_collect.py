@@ -5,16 +5,17 @@ MEASURED BEFORE CHANGING ANYTHING (10-21): the 15r / 14 collectors (`position_re
 `beta_maps.maps_by_epoch`) walked ~120 sessions ONE AT A TIME in one process, ~13 s per session per arm for the
 position maps alone (`session_raw_maps`, PS94_0820 lick: 13.3 s, 30 MB pickled), and kept the per-session maps only in
 an in-process lru_cache. A full `--only 15r 15e 14m` render ran ~5 h at ~12 % CPU on a 24-thread / 64 GB box, and
-it rebuilt every map even when only the SIGNIFICANCE TESTS had changed (the 10-21 normalised-test rerender).
+it rebuilt every map even when only the SIGNIFICANCE TESTS had changed (the 10-21 normalized-test rerender).
 
 TWO FIXES LIVE HERE (the third, concurrent arms, is `epoch_grant_figures --parallel-arms`):
 
   1. A DISK CACHE per session x arm (`session_cache`, kind ``<prefix>-<align>-<variant>-<digest>``). The digest covers
      the MAP-BUILDING code only -- the source of the functions that build a session's maps and of the modules they call
-     (`code_digest`), the arguments, a `MAPS_VERSION` constant, the whole of `defaults.yaml` and the effective ENL
+     (`code_digest`), the arguments, a `MAPS_VERSION` constant, the defaults.yaml keys the builders read (`MAP_YAML_KEYS`,
+     narrowed 11-03 from the whole file) and the effective ENL
      window -- so editing a significance test, a figure or a comment elsewhere keeps the cache warm, and editing the
      map code invalidates it without anyone remembering to bump a number. The session's DATA files are in the key via
-     `session_signature` (SVT, U, LocaNMF C, h5, behaviour trials) plus the extra inputs each caller passes
+     `session_signature` (SVT, U, LocaNMF C, h5, behavior trials) plus the extra inputs each caller passes
      (U_atlas, quiet-frame mask). Under WIDEFIELD_LICK_SOURCE=lp the session cache tags the kind itself.
   2. THE SESSION LOOP FANNED OVER CORES (`collect`, rule 6), results re-ordered by session label so nothing downstream
      sees completion order (rule 9). WIDEFIELD_MAP_JOBS sets the worker count (default min(4, default_jobs())); 1 =
@@ -42,15 +43,63 @@ def map_jobs() -> int:
 
 
 def code_digest(*objs) -> str:
-    """sha1 of the SOURCE of each function / module given (order-sensitive)."""
+    """sha1 of the SOURCE of each function / module given (order-sensitive).
+
+    Lines carrying `gate_source.HOOK_MARK` are dropped first: the WIDEFIELD_GATE_SOURCE hooks are the identity when the
+    switch is off, and under the switch the session-cache kind carries `gate_source.cache_tag()` instead -- so adding
+    them leaves every existing digest (and every warm map cache) unchanged. See the `gate_source` docstring."""
+    from wfield_local.gate_source import strip_hooks
     h = hashlib.sha1()
     for o in objs:
         try:
-            src = inspect.getsource(o)
+            src = strip_hooks(o.source() if isinstance(o, _Closure) else inspect.getsource(o))
         except (OSError, TypeError):
             src = repr(o)
         h.update(src.encode())
     return h.hexdigest()[:12]
+
+
+class _Closure:
+    """Source of a set of top-level definitions of ``module`` and, transitively, every top-level definition of the same
+    module they reference by name (functions, classes, constants), plus the module's import lines. What
+    `code_digest` hashes for a helper module the map builders call into (rebuild 2026-11-03), instead of the whole
+    module. Cross-module calls are followed only where the caller lists that module too (as before)."""
+
+    def __init__(self, module, roots):
+        self.module, self.roots = module, tuple(roots)
+
+    def source(self) -> str:
+        import ast
+        src = inspect.getsource(self.module)
+        tree = ast.parse(src)
+        defs, imports = {}, []
+        for node in tree.body:
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                defs[node.name] = node
+            elif isinstance(node, (ast.Assign, ast.AnnAssign)):
+                tg = node.targets if isinstance(node, ast.Assign) else [node.target]
+                for t in tg:
+                    for n in ast.walk(t):
+                        if isinstance(n, ast.Name):
+                            defs[n.id] = node
+            elif isinstance(node, (ast.Import, ast.ImportFrom)):
+                imports.append(ast.get_source_segment(src, node))
+        missing = [r for r in self.roots if r not in defs]
+        if missing:
+            raise KeyError(f"{self.module.__name__}: no top-level {missing} (map digest closure)")
+        seen, stack = set(), list(self.roots)
+        while stack:
+            n = stack.pop()
+            if n in seen or n not in defs:
+                continue
+            seen.add(n)
+            stack += [x.id for x in ast.walk(defs[n]) if isinstance(x, ast.Name)]
+        nodes = sorted({id(defs[n]): defs[n] for n in seen}.values(), key=lambda d: d.lineno)
+        return "\n".join(imports + [ast.get_source_segment(src, d) for d in nodes])
+
+
+def closure(module, *roots) -> _Closure:
+    return _Closure(module, roots)
 
 
 def stat_sig(path) -> str:
@@ -64,16 +113,87 @@ def stat_sig(path) -> str:
     return f"{p.name}:{st.st_size}:{st.st_mtime_ns}"
 
 
+#: THE defaults.yaml KEYS THE MAP BUILDERS READ (rebuild 2026-11-03, task 3). The digest used to hash the WHOLE of
+#: defaults.yaml, so any edit -- a deck option, a DLC parameter, the rebuild's own joint_basis / trial_selection blocks --
+#: cold-started every map cache. Found by reading every `config.defaults()` access in the modules the per-session map
+#: builders call (beta_maps / position_reference_maps -> locanmf_position_decoder trial features, locanmf_frozen_decoder
+#: _args, quiet_periods, rest_engagement, rest_by_position, precue_engagement_states, gate_source, behavior_events,
+#: daq_io, framemap_event_maps, plot_lick_aligned_averages, locanmf_lick_aligned, nolick_decoder, config's path
+#: helpers); tests/test_map_cache_key.py re-reads those modules and fails if a builder starts reading another section.
+#: NOT here, because the session-cache KIND already carries them (`run_mode.cache_tag`, `session_cache.effective_kind`):
+#: trial_selection.* (the selection tag) -- and hemo.variant is ALSO tagged there (non-default variants), kept here as
+#: the data path's own key. A key path is a tuple; a missing key hashes as absent.
+MAP_YAML_KEYS = (
+    ("decode",),                       # windows, max_rt, bins, lick-free pre-cue gate, prewindow lead
+    ("lick_detection",),               # thresholds, min ILI (trial features, rest gates, behaviour events)
+    ("segmentation",),                 # rest / quiet / treadmill masks
+    ("preprocess", "maps", "tag"),     # allen_aligned_<tag>, quiet_<tag>
+    ("hemo", "variant"),               # which SVTcorr the maps read (config.svtcorr_path)
+)
+_ABSENT = "<absent>"
+
+
+def map_yaml_subset(defaults: dict | None = None) -> dict:
+    """``{"a.b": value}`` for every MAP_YAML_KEYS path of ``defaults`` (default: `config.defaults()`)."""
+    if defaults is None:
+        from wfield_local import config
+        defaults = config.defaults()
+    out = {}
+    for path in MAP_YAML_KEYS:
+        v = defaults
+        for k in path:
+            v = v.get(k, _ABSENT) if isinstance(v, dict) else _ABSENT
+        out[".".join(path)] = v
+    return out
+
+
 def cache_kind(prefix: str, align: str, variant: str, spec: dict, code: str) -> str:
-    """``<prefix>-<align>-<variant>-<digest>``: digest of spec + code + MAPS_VERSION + defaults.yaml + ENL window."""
-    from wfield_local import config, lp_licks
+    """``<prefix>-<align>-<variant>-<digest>``: digest of spec + code + MAPS_VERSION + the defaults.yaml keys the map
+    builders read (`MAP_YAML_KEYS`) + ENL window."""
+    from wfield_local import lp_licks
     full = dict(spec)
     full["maps_version"] = MAPS_VERSION
     full["code"] = code
-    full["defaults"] = repr(config.defaults())
+    full["defaults"] = repr(sorted(map_yaml_subset().items()))
     full["enl_window_s"] = lp_licks.enl_window_s() if align == "precue" else None
     digest = hashlib.sha1(repr(sorted(full.items(), key=repr)).encode()).hexdigest()[:12]
     return f"{prefix}-{align}-{variant}-{digest}"
+
+
+VIDEO_GLOBS = ("*.avi", "*.mp4")
+
+
+def session_has_no_video(label: str) -> bool:
+    """True only when BOTH independent sources say the session was never filmed: no camera classes (the class source,
+    `trial_classes.session_trials` is None -> no camera working period) AND no raw recordings in
+    ``<behavior_cameras>/<date8>/<animal>/``. False when either has anything, or when the camera root cannot be read
+    (we cannot confirm "no video", so the caller must not skip). PS93_0813 (docs/EXPERIMENT_ERRORS.md) is the case."""
+    from wfield_local import trial_classes
+    from wfield_local.paths import PathResolver
+    animal, date = str(label).split("_")
+    date8 = date if len(date) == 8 else f"2026{date}"
+    try:
+        if trial_classes.session_trials(f"{animal}_{date8}") is not None:
+            return False
+        root = Path(PathResolver().root("behavior_cameras"))
+    except Exception:                                                   # noqa: BLE001 - unknown -> do not skip
+        return False
+    if not root.is_dir():
+        return False
+    sd = root / date8 / animal
+    return not (sd.is_dir() and any(any(sd.glob(g)) for g in VIDEO_GLOBS))
+
+
+def skip_lp_unavailable_no_video(label: str, ex: BaseException, empty):
+    """Job-wrapper guard for the LP lick source (2026-11-06, render g5_restnl_maps_lp): a session with NO LP lick tables
+    because it has NO behavior video contributes ``empty`` -- the result the builder gives under the contact arm, where
+    such a session has no camera working period -- instead of failing the whole collection under the camera gate
+    (review N9). Any other session re-raises ``ex``: LP tables missing by mistake on a FILMED session stay fatal.
+    Lives in the job wrappers, not in the builders, so no map cache digest changes."""
+    if not session_has_no_video(label):
+        raise ex
+    print(f"  .. {label}: skipped: no LP licks (no video) -- contributes nothing, as under the contact arm", flush=True)
+    return empty
 
 
 def collect(items, worker, *, label="session", jobs=None):
@@ -93,4 +213,10 @@ def collect(items, worker, *, label="session", jobs=None):
     else:
         res, fail = parallel.fan_out(items, worker, jobs=jobs, label=label,
                                      log=lambda m: print(m[:100], flush=True))
+    from wfield_local import trial_classes
+    if fail and trial_classes.camera_gate_on():
+        # review N9 (11-03): under the camera gate a failed session FAILS the collection (all failures listed), so a
+        # camera-class data error can never give a silently partial render; under daq the caller logs and continues
+        raise RuntimeError(f"camera trial gate: {len(fail)} {label} job(s) failed: "
+                           + "; ".join(f"{it[0]}: {err}" for it, err in fail[:20]))
     return {it[0]: r for it, r in sorted(res, key=lambda kv: kv[0][0])}, fail

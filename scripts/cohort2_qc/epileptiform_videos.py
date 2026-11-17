@@ -3,7 +3,7 @@
 Priya 10-31: "do any other recordings have this, and if so can you render them as well"; "real epileptiform events
 should have the narrow spike like ps 122, though 6s could be slower". Candidates = epileptiform_scan.json events
 with amp >= 5%, half-width 60-250 ms and 415 STRICTLY flat (|415| < 0.15 x 470 at the peak; the looser 0.35 let
-through vessel-centred events where 415 rises with 470, epileptiform_gallery.png). One 3-min window per session,
+through vessel-centered events where 415 rises with 470, epileptiform_gallery.png). One 3-min window per session,
 over its densest cluster. Cohort1 cam4 templates are the saved ones (alignment_templates/cam4/<animal>/<date>.npz).
 Same renderer as PS122 (seizure_events_video.render_cam).
 
@@ -46,7 +46,7 @@ def load(label, r):
     x = 100 * (um @ np.asarray(SVT[:, func::2], np.float64))
     y = 100 * (um @ np.asarray(SVT[:, 1 - func::2], np.float64))
     cue = _lc(s["h5"])
-    lk = _ll(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    lk = _ll(s["h5"], "lick_analog")
     cf, lf, csmp = _frames(s, cue, lk)
     return dict(U=U, SVT=SVT, br=br, x470=x, x415=y, func=func, ev=strict_flat(r), licks=np.asarray(lf)[np.asarray(lf) >= 0],
                 cues=np.asarray(cf)[np.asarray(cf) >= 0], csmp=np.asarray(csmp), h5=s["h5"])

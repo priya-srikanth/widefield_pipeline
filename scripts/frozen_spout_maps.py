@@ -6,13 +6,14 @@ part: data / spout (= target + spout-locked lick, the whole spout-specific respo
 Rows = spouts (contra = the mouse's right), one figure per animal + the animal mean (rule 8). ``--contrast`` subtracts
 the six-spout mean per part, removing the large response shared by all spouts: that is where laterality shows (contra
 spouts -> left hemisphere, ipsi -> right, in all four animals) and where the target / exec_locked SPLIT is seen to be
-unstable (close_mid: +13 vs -13, cancelling) while their SUM (spout) tracks the data -- target and the spout-locked lick
+unstable (close_mid: +13 vs -13, canceling) while their SUM (spout) tracks the data -- target and the spout-locked lick
 are the same variable on on-target licks; only strays separate them. dF/F x 1e3; ipsi (lesion LEFT) = image LEFT.
 
 Usage: python scripts/frozen_spout_maps.py --tag gate-attempted_v6basis [--variant joint] [--align lick] [--contrast]
 Output: <E>/frozen_encoder_<tag>/figures/pre_spout_{maps,contrast}_<variant>_<align>_<animal|mean>.png
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import json
@@ -22,19 +23,25 @@ from pathlib import Path
 
 import numpy as np
 
-SPOUTS = ("far_contra", "close_contra", "close_mid", "far_mid", "close_ipsi", "far_ipsi")
+from wfield_local.orofacial_cohort import POS_ORDER as SPOUTS  # canonical spout order (Priya 10-25; audit 11-08)
 PARTS = ("data", "spout", "target", "exec_locked", "lick")
 
 
+def trial_set_sentence(tag: str, align: str) -> str:
+    """The trials of the per-spout maps (Priya 11-09): each spout's own modeled trials, cue- or first-lick-aligned
+    evoked response (pre sessions only, by construction of the figure)."""
+    from wfield_local import frozen_encoder as fe
+    return fe.trial_set_sentence("peth", tag=tag, align=align, spout="each")
+
+
 def main(argv=None) -> int:
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
+    from wfield_local import config
     from wfield_local import combined_encoding as ce
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
     from wfield_local.writeguard import assert_writable
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from frozen_area_maps import area_image, outline
@@ -44,8 +51,11 @@ def main(argv=None) -> int:
     ap.add_argument("--align", default="lick", choices=("lick", "cue"))
     ap.add_argument("--contrast", action="store_true", help="subtract the six-spout mean per part")
     a = ap.parse_args(argv)
-    out = oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / f"frozen_encoder_{a.tag}"
-    sess = sorted(js for js in (out / a.variant / "sessions").glob("*.json") if js.stem[-4:] >= "0801")
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence(a.tag, a.align))
+    from wfield_local import frozen_encoder as _fe   # the encoder's (tagged) run root, coordinator 11-04
+    out = _fe.out_root() / f"frozen_encoder_{a.tag}"
+    sess = sorted(js for js in (out / a.variant / "sessions").glob("*.json") if not config.early_pre(js.stem))
     fd = out / "figures"
     assert_writable(fd)
     fd.mkdir(parents=True, exist_ok=True)
@@ -102,7 +112,7 @@ def main(argv=None) -> int:
         fig.suptitle(f"{an}: PRE-STROKE evoked ({a.align}-aligned) per spout{what}, by model part ({a.variant}, basis "
                      f"targets); dF/F x 1e3, scale +/-{lim:.0f}. ipsi (lesion) = image LEFT; contra spouts = mouse's "
                      "right", fontsize=8)
-        fig.savefig(fd / f"pre_spout_{kind}_{a.variant}_{a.align}_{an}.png", dpi=110, bbox_inches="tight")
+        save_png_svg(fig, fd / f"pre_spout_{kind}_{a.variant}_{a.align}_{an}.png", dpi=110, bbox_inches="tight")
         plt.close(fig)
     print(f"-> {fd} (pre_spout_{kind}_*)")
     return 0

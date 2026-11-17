@@ -3,22 +3,24 @@ be different for ipsi vs contra spouts" -> "try the per-spout decomposition"). N
 
 Per session x lick set (ITI by previous spout / cued by target), per spout s (>= MIN licks):
   dDec_s  = session mean decoded position at s - the animal's pre mean decoded position at s    (NEURAL)
-  dLand_s = session mean landing at s - the animal's pre mean landing at s                        (BEHAVIOUR)
+  dLand_s = session mean landing at s - the animal's pre mean landing at s                        (BEHAVIOR)
   x_s     = the animal's pre mean landing at s - the animal's pre mean over all licks             (spout's place, mm)
 OLS over the spouts:  dDec_s = SHIFT + GAIN * x_s + TRACK * dLand_s
   SHIFT  uniform read-out shift, the same at every spout (+ = contralesional) -- the "contralesional read-out" proper
-  GAIN   change in the read-out's lateral spread (- = compression toward the centre: ipsi spouts read more contra,
+  GAIN   change in the read-out's lateral spread (- = compression toward the center: ipsi spouts read more contra,
          contra spouts more ipsi; the map-level face of a lower lateral r)
   TRACK  how much of each spout's landing change the read-out follows (the within-session pull slope, estimated, not
          assumed)
 Variants: without TRACK (shift + gain only) and with TRACK fixed at the animal's pre within-spout slope, to show what the
 free TRACK term trades against. Pre sessions (decoded leave-one-session-out) give the noise level of each term; change vs
 pre = paired nested bootstrap (analysis_kit.boot_delta), per-animal table first (rule 8).
-Input: lick_order_preds.csv.gz (KEY-row lateral decoder per set, z-scored Allen areas). Outputs <E>/iti_licks/
+Input: iti_lick_order.preds_path() (KEY-row lateral decoder per set, z-scored Allen areas with the ALM / tjM1 split by
+default since 10-27 late; outputs tagged iti_lick_order.SRC_TAG, "" = split). Outputs <E>/iti_licks/
 decomposition_{sessions,tests}.csv, figures/lick_decoded_decomposition.png.
 Usage: python scripts/iti_decoded_decomposition.py
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -32,6 +34,7 @@ import iti_lick_order as lo  # noqa: E402
 
 from wfield_local import analysis_kit as ak  # noqa: E402
 
+WOUT = il.OUT_W if il.ITI_SUBSET else il.OUT     # subset runs (dock, ...) write to their own folder
 EP = ["acute", "subacute", "chronic"]
 EPS = ["pre", *EP]
 MIN = 8
@@ -68,6 +71,8 @@ def sessions(P: pd.DataFrame) -> pd.DataFrame:
             r["corr_x_dLand"] = float(np.corrcoef(xs, dl)[0, 1]) if dl.std() > 0 else np.nan
             for s_, v in dd.items():
                 r[f"dDec_{s_}"] = v
+            for s_, v in dl.items():                   # landing change per spout (drawn beside the decoded change)
+                r[f"dLand_{s_}"] = v
             rows.append(r)
     return pd.DataFrame(rows)
 
@@ -102,31 +107,43 @@ def plot(S: pd.DataFrame, T: pd.DataFrame) -> None:
     from wfield_local.orofacial_cohort import EPOCH_LINE
     col = {"pre": "k", **EPOCH_LINE}
     POS = lo.POS
-    fig, axs = plt.subplots(2, 4, figsize=(19, 8.4), squeeze=False)
+    fig, axs = plt.subplots(2, 4, figsize=(22, 8.4), squeeze=False, gridspec_kw={"width_ratios": [1.8, 1, 1, 1]})
     lab = {"shift": "SHIFT: uniform read-out shift (mm)", "gain": "GAIN: change in read-out spread (mm / mm)",
            "track": "TRACK: share of landing change followed"}
     for i, st in enumerate(SETS):
         g = S[S.set == st]
         ax = axs[i, 0]
-        A = g.groupby(["epoch", "animal"])[[f"dDec_{p}" for p in POS]].mean()
-        for ep in EPS:
+        # post epochs only (pre = 0 by construction); 13.7's convention (Priya 10-28): DECODED filled circles, ACTUAL
+        # landing open squares, both mean +/- SEM over animals; spouts separate (dividers, no connecting lines)
+        land = [f"dLand_{p}" for p in POS]
+        has_land = all(c_ in g.columns for c_ in land)
+        A = g.groupby(["epoch", "animal"])[[f"dDec_{p}" for p in POS] + (land if has_land else [])].mean()
+        for k, ep in enumerate(EP):
             if ep not in A.index.get_level_values(0):
                 continue
             q = A.loc[ep]
-            ax.errorbar(np.arange(6) + (EPS.index(ep) - 1.5) * 0.08, q.mean(), yerr=q.sem(), fmt="o-", color=col[ep],
-                        ms=4, lw=1.3, capsize=2)
+            base = np.arange(6) + (k - 1) * 0.26
+            ax.errorbar(base - 0.05, q[[f"dDec_{p}" for p in POS]].mean(), yerr=q[[f"dDec_{p}" for p in POS]].sem(),
+                        fmt="o", color=col[ep], ms=5, lw=1.2, capsize=1.5)
+            if has_land:
+                ax.errorbar(base + 0.05, q[land].mean(), yerr=q[land].sem(), fmt="s", color=col[ep], mfc="white",
+                            mew=1.3, ms=5, lw=1.0, capsize=1.5)
+        for b in np.arange(5) + 0.5:
+            ax.axvline(b, color="0.92", lw=0.8, zorder=0)
         ax.axhline(0, color="0.7", lw=0.6, ls=":")
         ax.set_xticks(range(6), [p.replace("_", "\n") for p in POS], fontsize=7.5)
-        ax.set_ylabel("decoded change vs pre (mm, + = contra)", fontsize=8)
-        ax.set_title(f"{SETS[st]}: decoded position change per spout\n(mean +/- SEM over animals; raw, no pull model)",
-                     fontsize=8.5)
+        ax.set_ylabel("change vs pre (mm, + = contra)", fontsize=8)
+        ax.set_title(f"{SETS[st]}: DECODED (filled) and ACTUAL landing (open) change\nper spout vs pre, mean +/- SEM of "
+                     "animals" + ("; ITI spout = previous trial's" if st == "iti" else ""), fontsize=8.5)
         for j, term in enumerate(TERMS):
             ax = axs[i, 1 + j]
             t = T[(T.set == st) & (T.measure == term)].set_index("epoch")
             for _a, h in g.groupby("animal"):
                 am = h.groupby("epoch")[term].mean().reindex(EPS)
                 ax.plot(range(4), am, "-", color="0.75", lw=0.8)
-            lv = g.groupby("epoch")[term].mean().reindex(EPS)
+            # MEAN OF ANIMALS (the quantity the printed change tests), not a flat mean over sessions (Priya 10-28 caught
+            # dots and text disagreeing)
+            lv = g.groupby(["epoch", "animal"])[term].mean().groupby("epoch").mean().reindex(EPS)
             ax.plot(range(4), lv, "o", color="k", ms=0)
             for k, ep in enumerate(EPS):
                 ax.plot(k, lv[ep], "o", color=col[ep], ms=7, mec="k", mew=0.5)
@@ -138,7 +155,7 @@ def plot(S: pd.DataFrame, T: pd.DataFrame) -> None:
             ax.axhline(0 if term != "track" else lv["pre"], color="0.7", lw=0.6, ls=":")
             ax.set_xticks(range(4), EPS)
             ax.set_ylabel(lab[term], fontsize=8)
-            ax.set_title(f"{SETS[st]}: {lab[term]}\nsession fits, grey = animals; text = change vs pre", fontsize=8.5)
+            ax.set_title(f"{SETS[st]}: {lab[term]}\nsession fits, gray = animals; text = change vs pre", fontsize=8.5)
             lo_, hi_ = ax.get_ylim()
             ax.set_ylim(lo_, hi_ + 0.25 * (hi_ - lo_))
         for ax in axs[i]:
@@ -147,19 +164,28 @@ def plot(S: pd.DataFrame, T: pd.DataFrame) -> None:
     fig.legend(handles=[Line2D([], [], color=col[e], marker="o", lw=1.3, label=e) for e in EPS], loc="lower center",
                ncol=4, fontsize=9, frameon=False)
     fig.suptitle("Per-spout DECOMPOSITION of the decoded lateral shift (no pull slope assumed): per session, over spouts, "
-                 "dDecoded_s = SHIFT + GAIN x (spout's pre landing - centre) + TRACK x dLanding_s.\nSHIFT = same at every "
-                 "spout (+ = contralesional); GAIN < 0 = read-out compressed toward the centre; TRACK = share of the "
+                 "dDecoded_s = SHIFT + GAIN x (spout's pre landing - center) + TRACK x dLanding_s.\nSHIFT = same at every "
+                 "spout (+ = contralesional); GAIN < 0 = read-out compressed toward the center; TRACK = share of the "
                  "landing change the read-out follows.\n95% paired nested bootstrap of the change vs pre, * = CI excludes "
                  "0 (bold), k/n animals. Frozen KEY-row decoder per set. PROVISIONAL", fontsize=9.5)
     fig.tight_layout(rect=(0, 0.05, 1, 0.87))
-    fig.savefig(il.OUT / "figures" / f"lick_decoded_decomposition{lo.SRC_TAG}.png", dpi=100)
+    save_png_svg(fig, WOUT / "figures" / f"lick_decoded_decomposition{lo.SRC_TAG}.png", dpi=100)
     plt.close(fig)
 
 
+def trial_set_sentence() -> str:
+    """The lick set of the decomposition figure: the lick-order prediction cache's licks (`iti_lick_order`), per spout
+    cell >= MIN licks."""
+    return lo.trial_set_sentence(extra=[f"spouts with >= {MIN} licks in the session, sessions with >= 4 such spouts"])
+
+
 def main() -> int:
-    P = pd.read_csv(lo.preds_path())
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence())          # Priya 11-09: every figure states its lick set
+    P = il.subset_preds(pd.read_csv(lo.preds_path()))
     S = sessions(P)
-    S.to_csv(il.OUT / f"decomposition_sessions{lo.SRC_TAG}.csv", index=False)
+    (WOUT / "figures").mkdir(parents=True, exist_ok=True)
+    S.to_csv(WOUT / f"decomposition_sessions{lo.SRC_TAG}.csv", index=False)
     pd.set_option("display.width", 230)
     print("== per animal (rule 8): shift / gain / track by epoch")
     for st in SETS:
@@ -170,7 +196,7 @@ def main() -> int:
     print("x vs dLand correlation (median per set x epoch):")
     print(S.groupby(["set", "epoch"]).corr_x_dLand.median().round(2).unstack().to_string())
     T = tests(S)
-    T.to_csv(il.OUT / f"decomposition_tests{lo.SRC_TAG}.csv", index=False)
+    T.to_csv(WOUT / f"decomposition_tests{lo.SRC_TAG}.csv", index=False)
     print(T[T.epoch != "pre"].round(3).to_string(index=False))
     plot(S, T)
     return 0

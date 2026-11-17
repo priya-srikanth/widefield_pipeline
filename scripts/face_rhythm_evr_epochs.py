@@ -4,7 +4,7 @@ sessions, with statistics across animals (Priya 10-24).
 Per session (`readouts/<set>/data/session_table.csv`, from `face_rhythm_readouts.py`): RATIO = EVR of the frozen
 pre-stroke factors / EVR of the session's own rank-R fit (own fits from ``own8/``; pre sessions' frozen EVR on their
 held-out leave-one-day-out basis). The ratio divides out what lowers BOTH fits (less movement against a fixed tracking
-noise floor, less stereotyped movement). Normalised to each animal's mean pre-stroke ratio (1 = that animal's pre
+noise floor, less stereotyped movement). Normalized to each animal's mean pre-stroke ratio (1 = that animal's pre
 level); per animal the mean of its sessions in each epoch; mean +- SEM across animals; the change vs pre by
 `analysis_kit.boot_delta` (paired animals -> sessions bootstrap, animal-weighted, 95 % interval). Same for the EVR GAP
 (own - frozen) and the frozen-basis reconstruction error, for comparison.
@@ -12,8 +12,8 @@ level); per animal the mean of its sessions in each epoch; mean +- SEM across an
     python scripts/face_rhythm_evr_epochs.py [--set master_pre_v1] [--plot-only]
 -> ``<dlc>/face_rhythm/cam4/readouts/<set>/evr_epochs.png`` + ``data/evr_epoch_stats.csv``. ``--plot-only`` redraws the
 figure from the STORED data/evr_epoch_stats.csv (no bootstrap, no CSV written); the session markers are the per-session
-normalised values from data/session_table.csv. Epochs are categories (Priya 11-03): no lines between them, summary =
-mean +- SEM over animals, faded OPEN markers = sessions (shape = animal, colour = epoch), * in the top band.
+normalized values from data/session_table.csv. Epochs are categories (Priya 11-03): no lines between them, summary =
+mean +- SEM over animals, faded OPEN markers = sessions (shape = animal, color = epoch), * in the top band.
 """
 from __future__ import annotations
 
@@ -132,7 +132,7 @@ fit), divided by the animal's mean pre-stroke ratio (1 = its pre level; the rati
 MIDDLE the EVR gap (own - frozen) minus the animal's pre-stroke mean; RIGHT the frozen basis' median relative
 reconstruction error / the animal's pre mean. Pre sessions are scored on their held-out (leave-one-day-out) basis.
 Each epoch is its own category (Priya 11-03: no lines between epochs): filled marker = mean +- SEM across the four
-animals' epoch means (epoch colours); faded OPEN markers = the individual SESSIONS (shape = animal, colour = epoch); grey band: +-1 SEM of the pre-stroke sessions around the pre level (per animal, then averaged over animals).
+animals' epoch means (epoch colors); faded OPEN markers = the individual SESSIONS (shape = animal, color = epoch); gray band: +-1 SEM of the pre-stroke sessions around the pre level (per animal, then averaged over animals).
 Numbers: change vs pre by `analysis_kit.boot_delta` (paired animals -> sessions bootstrap, animals weighted equally,
 95 % interval; * in the top band = excludes 0) and how many animals' epoch means are worse than their pre level. n = 4
 animals: read the per-animal values first (CLAUDE.md rule 8). Per-animal values: data/evr_epoch_stats.csv.""")

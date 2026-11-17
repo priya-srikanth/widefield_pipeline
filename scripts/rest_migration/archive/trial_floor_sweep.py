@@ -25,7 +25,7 @@ median over 5 draws:
 **THE CURVE IS NOT MONOTONE BELOW 20, AND THAT NON-MONOTONICITY IS THE FINDING.** PS94_0606 runs
 0.66 -> 0.82 -> 0.70 -> 0.86 -> 0.82 -> 0.94; PS92_0606 runs 0.69 -> -0.08 -> 0.65 -> 0.79 -> 0.68
 -> 0.81. A median over five draws that bounces like that is not "noisy but unbiased" -- it says the
-estimate is dominated by WHICH trials were drawn, so a single realisation (which is what a figure
+estimate is dominated by WHICH trials were drawn, so a single realization (which is what a figure
 shows) can land anywhere in that spread. PS92 at n=5 returned r = -0.08: a map ANTI-correlated with
 its own full-data version. Ten sits inside that regime, between the 8 and 12 columns.
 

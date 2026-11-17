@@ -81,8 +81,8 @@ def session_keys(fdir: Path, sub: str = "proj") -> list[str]:
 
 
 def position_groups(pos: np.ndarray, split: str) -> dict[str, np.ndarray]:
-    """Trial masks by spout: ``none`` -> {"all"}, ``side`` -> contra / centre / ipsi, ``position`` -> each spout
-    (close and far contralesional spouts are different behaviours, Priya 10-24)."""
+    """Trial masks by spout: ``none`` -> {"all"}, ``side`` -> contra / center / ipsi, ``position`` -> each spout
+    (close and far contralesional spouts are different behaviors, Priya 10-24)."""
     if split == "none":
         return {"all": np.ones(len(pos), bool)}
     if split == "side":
@@ -99,8 +99,8 @@ def animal_colors() -> dict[str, str]:
 
 
 def epoch_colors() -> dict[str, str]:
-    """Epoch colours of every FR figure: the orofacial / 3-D kinematics line palette (`orofacial_cohort.EPOCH_LINE`:
-    pre black, acute pink, subacute goldenrod, chronic teal). Priya 10-24: easier to tell apart than the grey ramp
+    """Epoch colors of every FR figure: the orofacial / 3-D kinematics line palette (`orofacial_cohort.EPOCH_LINE`:
+    pre black, acute pink, subacute goldenrod, chronic teal). Priya 10-24: easier to tell apart than the gray ramp
     (`epoch_figures.EPOCH_GREY`, used by FR until then), especially overlaid traces (FINDINGS 5e / 5f). Animals keep
     `animal_colors()`."""
     from wfield_local.orofacial_cohort import EPOCH_LINE

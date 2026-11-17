@@ -5,8 +5,13 @@ PS92 + PS93 only (ENCODING_FINDINGS status box).
 Writes into <out_dir> (a local working folder, not MICROSCOPE):
   pose3d_kin_licks_snapshot_<tag>.csv.gz   frozen copy of <dlc>/session_poses/pose3d/kinematics/licks.csv.gz (per-lick
                                            3-D, trial licks; COMBINED_ENCODING_EXEC3D_TABLE)
-  pose3d_spout_positions_<tag>.csv         per session x position, median measured 3-D spout (spout_ml / ap / dv) from the
-                                           per-frame tables (COMBINED_ENCODING_TARGET3D_TABLE)
+  pose3d_spout_positions_commanded_<tag>.csv  per session x position, the COMMANDED 3-D spout tip (spout_ml / ap / dv;
+                                           `scripts.pose3d_spout_commanded`), positions the session's 3-D frames contain
+                                           (COMBINED_ENCODING_TARGET3D_TABLE). 2026-11-04 (Priya: "make it now"): was the
+                                           median MEASURED per-frame spout, which before bddf02e7 blended cam1's inferior
+                                           and cam4's superior rod edge (1.02 mm behind the tip in ap) and pooled every
+                                           frame (incl. the spout lowered to safe z); the old file was deleted
+                                           (docs/status/DELETED_LOCAL_2026-11-04.txt).
   exec_bins_calib_<tag>.csv                landing-zone calibration (scripts/exec_bins_calibration.py;
                                            COMBINED_ENCODING_BINS_CALIB)
   labels_3d_<tag>.txt                      curated August+ sessions with >= 50 % of usable cam4 licks matched in 3-D and
@@ -22,35 +27,41 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from wfield_local.pose3d import pose3d_dir
 
-POSE3D = Path("M:/MICROSCOPE/Priya/DeepLabCut/Widefield/session_poses/pose3d")
+POSE3D = pose3d_dir()
 ANIMALS = ("PS92", "PS93", "PS94", "PS95")
-PRE_FROM = "20260806"          # August-only pre baseline (curated)
 MIN_FRAC_3D, MIN_SPOUTS = 0.5, 6
 
 
 def spout_table(dst: Path) -> pd.DataFrame:
+    """The COMMANDED spout tip per session x position (`scripts.pose3d_spout_commanded.build`), restricted to the
+    positions present in the session's 3-D frames (so ``spouts`` below still counts positions the session has)."""
+    from scripts.pose3d_spout_commanded import build
+    from wfield_local import config
     out = []
     for f in sorted(p for an in ANIMALS for p in POSE3D.glob(f"{an}_2026*_frames.csv.gz")):
-        if f.name[5:13] < PRE_FROM:
+        if config.early_pre(f.name[5:13]):
             continue
-        F = pd.read_csv(f, usecols=["position", "spout_ml", "spout_ap", "spout_dv"])
-        m = F.groupby("position")[["spout_ml", "spout_ap", "spout_dv"]].median().reset_index()
-        m.insert(0, "session", f.name[:13])
-        out.append(m)
-        print(f.name, len(F), flush=True)
+        have = set(pd.read_csv(f, usecols=["position"]).position.astype(str))
+        C = build([f.name[:13]])
+        out.append(C[C.position.isin(have)])
+        print(f.name, sorted(have), flush=True)
     S = pd.concat(out, ignore_index=True)
     S.to_csv(dst, index=False, float_format="%.4f")
     return S
 
 
 def main(argv=None) -> int:
+    from wfield_local import config
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("prep_3d_inputs")   # unrouted share writer: refuses in a non-default run mode
     argv = sys.argv[1:] if argv is None else argv
     W, tag = Path(argv[0]), argv[1]
     W.mkdir(parents=True, exist_ok=True)
     snap = W / f"pose3d_kin_licks_snapshot_{tag}.csv.gz"
     shutil.copy(POSE3D / "kinematics" / "licks.csv.gz", snap)
-    SP = spout_table(W / f"pose3d_spout_positions_{tag}.csv")
+    SP = spout_table(W / f"pose3d_spout_positions_commanded_{tag}.csv")
     cal = W / f"exec_bins_calib_{tag}.csv"
     subprocess.run([sys.executable, "scripts/exec_bins_calibration.py", str(snap), str(cal)], check=True)
     from wfield_local import analysis_kit as ak
@@ -65,7 +76,7 @@ def main(argv=None) -> int:
     for sess in sorted(K.session.unique()):
         a, d = sess.split("_")
         lab = f"{a}_{d[4:]}"
-        if d < PRE_FROM or lab not in cur or lab not in avail:
+        if config.early_pre(d) or lab not in cur or lab not in avail:
             continue
         L = pd.read_csv(oo.session_dir(rv, oc.RUN, a, d) / "licks.csv")
         ok = ((~L.peak_interp.astype(bool)) & (L.protrusion_px >= ce.MIN_REACH_PX)

@@ -24,7 +24,7 @@ Reasoning and numbers: `DECISIONS.md` 2026-10-19 (night) ... 2026-10-20. Scratch
 |---|---|
 | post-stroke rise of unique executed (cam4, 4/4; survives lick-matching) | STANDS |
 | chronic position-coding gain real in PS92 / PS93 / PS95 (matched); beyond the pre-stroke practice trend | STANDS |
-| chronic gain LAGS behavioural recovery ~1 week (PS92 9 vs 15, PS93 7 vs 15; PS94 recovers partly without it) | PROVISIONAL |
+| chronic gain LAGS behavioral recovery ~1 week (PS92 9 vs 15, PS93 7 vs 15; PS94 recovers partly without it) | PROVISIONAL |
 | pre-stroke "cortex tracks target, not tongue" | **SUSPENDED**: PS92 coordinate-matched 3-D (xyz2) cortex target 8.0 vs executed 11.7 (cam4 31.7 vs 10.8); MOs executed-leaning; trial-to-trial MOs executed 12.6 vs -1.7 |
 | trial-to-trial (cam4): no general post-stroke executed shift; PS94 chronic exception | STANDS (cam4-limited) |
 | drop-p per-spout: acute far contra -> ~0 in 4/4; chronic gain = PS92 / PS93 far mid | STANDS (PS92 chronic pending 0908 rerun) |
@@ -71,14 +71,14 @@ Reasoning and numbers: `DECISIONS.md` 2026-10-19 (night) ... 2026-10-20. Scratch
    `scratchpad\exec3d_readout.py` (add 'polar' to its mode lists) and `scripts/exec3d_pilot_figure.py` (swap 3dxyz for
    polar in MODES). (c) smoke-test `COMBINED_ENCODING_LICKS=combined|lips` on 1-2 sessions.
 2. **Cohort 3-D contest** when cam1 production + 3-D chain land: xyz2 + polar, strict executed, combined licks; needs a
-   spout-position table for all sessions (`scratchpad\spout3d_table.py` does PS92; generalise) and a fresh kinematics
+   spout-position table for all sessions (`scratchpad\spout3d_table.py` does PS92; generalize) and a fresh kinematics
    snapshot. The deciding analysis for target vs executed.
 3. Within-spout follow-ups (`scripts/within_spout_deviation.py --align lick`, `scripts/within_spout_mixed.py`):
    direction + toward-midline model for the bilateral component; split-half lick-angle reliability (dilution of the
    executed share); LocaNMF cross-check; 3-D rerun (`COMBINED_ENCODING_EXEC=polar` + tables) after Branch B;
    first-lick latency cam4 vs cam4+cam1 vs contact once cam1 events land. Binned contest: PS92 polar pilot, then cohort.
 4. Pre-cue -> lick-window carry-over decode: cross-window decode (train pre-cue, test lick window vs within-window),
-   built on the CD-trajectory code (`STATUS_2026-09-24_CD_TRAJECTORIES.md`; mind its one-vs-rest artefact).
+   built on the CD-trajectory code (`STATUS_2026-09-24_CD_TRAJECTORIES.md`; mind its one-vs-rest artifact).
 5. Move the main model's tongue traces to the 3-D track (adds forward; includes cam1 frames).
 6. Deferred: non-linear ceiling check. Older: orofacial findings rewrite on v36; touch-free contest.
 
@@ -97,7 +97,7 @@ Reasoning and numbers: `DECISIONS.md` 2026-10-19 (night) ... 2026-10-20. Scratch
 - **Never read licks.csv / pose3d tables while another window rewrites them** (truncated / mixed inputs).
 - **O2 memory per tag**: nokin / matched / trmodels 24 GB, shufpos 32 GB, **droppos 64 GB**; `-p short` only (< 12 h
   jobs; `medium` is rejected). Resubmit failures: `IDS=$(sacct -j <job> -X -n -o JobID%20,State | awk '$2 !~
-  /COMPLETED|RUNNING|PENDING/ {split($1,a,"_"); print a[2]}' | paste -sd, -)`. Scheduler-cancelled tasks (3 s) are not
+  /COMPLETED|RUNNING|PENDING/ {split($1,a,"_"); print a[2]}' | paste -sd, -)`. Scheduler-canceled tasks (3 s) are not
   failures: resubmit.
 - **Box RAM**: an encoding worker peaks ~20 GB (drop-p more); 4 + 4 + 2 workers paged the box to a halt on 10-19.
 - **O2 `collect` folder names keep the trailing dash** of `ONLY=shufpos-` / `droppos-` (`movement_first_subset-droppos-`);

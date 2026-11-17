@@ -1,6 +1,6 @@
 """Per-animal tables for two imaging readouts the results page reported pooled only (Priya 10-25, imaging page
 "pending"): the pre-stroke position TEMPLATE (epoch family 11 / 11amp / 11c, cue window, engaged trials) and the frozen
-BEHAVIOURAL-STATE decoder (family 13). Read from the existing per-session sidecars -- nothing is refitted; the frozen
+BEHAVIORAL-STATE decoder (family 13). Read from the existing per-session sidecars -- nothing is refitted; the frozen
 models are references (CLAUDE.md rule 10).
 
 Session means per animal x epoch; pre = the leave-one-session-out pre sessions the figures use (template: the 8
@@ -77,12 +77,15 @@ def figure(out: dict, path: Path) -> None:
 
 
 def main(argv=None) -> int:
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     from wfield_local.paths import PathResolver
     from wfield_local.writeguard import assert_writable
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--out", type=Path, default=None)
     a = ap.parse_args(argv)
-    epoch = Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch"
+    from wfield_local import lp_licks
+    # THIS run's epoch dir (grant_figures/<tag>/epoch): its data in, its per-animal tables out (coordinator 11-04)
+    epoch = Path(lp_licks.output_dir(Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch"))
     out_dir = a.out or epoch / "per_animal_tables"
     assert_writable(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)

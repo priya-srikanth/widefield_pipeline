@@ -15,7 +15,7 @@ imaging frames, each minus its own 2-s running median (same high-pass as the cor
 steps: cortex may lead or follow the movement).
 REGRESSION: ridge per session, fitted on ENGAGED + tail REST frames only, alpha by inner CV; the residual is OUT OF FOLD
 (10 contiguous time blocks: fit on the other blocks' rest frames, predict every frame of this block), so the model
-cannot remove a spike by memorising it. Frames with a missing regressor (FR gap) are excluded from rest for BOTH the raw
+cannot remove a spike by memorizing it. Frames with a missing regressor (FR gap) are excluded from rest for BOTH the raw
 and the residual count, so the two are compared on identical frames.
 SPIKES: as quiet_area_spikes (half-width 1.5 frames .. 0.5 s, peak in rest, prominence > 5 x the animal's August-pre
 engaged-rest robust SD), detected on the raw trace and on the residual, each with its OWN threshold (residual SD from
@@ -29,7 +29,7 @@ fraction at 3000 random engaged-rest frames (a window max passes the 90th percen
 STATISTICS: per-animal epoch means printed first (rule 8); then `mixed_models.lmm_table` (session rows, animal random
 effects ladder, August pre) -- `epoch` model (each epoch vs pre) and `time` model (day-1 step + log-day slope); rates on
 log10(rate + 0.2 /min). FDR within model x term x measure family. Pooled figure: epoch mean +/- nested animal->session
-bootstrap CI (`analysis_kit.boot_ci`), sessions as open markers (shape = animal, colour = epoch), stars in the top band.
+bootstrap CI (`analysis_kit.boot_ci`), sessions as open markers (shape = animal, color = epoch), stars in the top band.
 
     set WFIELD_INPUT_CACHE=C:/Users/SabatiniLab/wfield_cache
     python scripts/cohort2_qc/quiet_spikes_fr.py [--jobs 6] [--summarise]
@@ -46,6 +46,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))       # scripts/ (i
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))       # repo root
 from quiet_area_spikes import (CAND_SD, DETREND_S, EP, K_SD, MAX_HW_S, MIN_HW_FR, OUT,  # noqa: E402
                                columns, mad, session_traces)
+from wfield_local import config  # noqa: E402
 
 #: QS_FR_BASIS=frozen (default): the frozen master set's projections + its frozen point PCA, as above.
 #: QS_FR_BASIS=own (Priya 11-01: "we have the FR factors per-session - can we regress on those too?"): each session's OWN
@@ -187,7 +188,7 @@ def lagged(R, fs):
 
 
 def ridge_oof(X, Y, fit_rows, fold):
-    """Out-of-fold ridge prediction of Y (T x c) from X (T x p): per fold, standardise on the training rest rows, pick
+    """Out-of-fold ridge prediction of Y (T x c) from X (T x p): per fold, standardize on the training rest rows, pick
     alpha by an inner 5-block CV on those rows, predict every frame of the held-out block that has a full X row."""
     def solve(Xa, Ya, a):
         G = Xa.T @ Xa
@@ -294,7 +295,7 @@ def session_table():
     from wfield_local import epochs
     D = {f.stem: dict(np.load(f)) for f in sorted((FR_OUT / "sessions").glob("*.npz"))}
     cols = columns()
-    pre = {k: d for k, d in D.items() if epochs.epoch_of(k) == "pre" and k[-4:] >= "0806"}
+    pre = {k: d for k, d in D.items() if epochs.epoch_of(k) == "pre" and not config.early_pre(k)}
     thr = {}
     for an in sorted({k[:4] for k in D}):
         for kind in ("raw", "res"):
@@ -302,7 +303,7 @@ def session_table():
     rows = []
     for k, d in D.items():
         ep = epochs.epoch_of(k)
-        if ep is None or (ep == "pre" and k[-4:] < "0806"):
+        if ep is None or (ep == "pre" and config.early_pre(k)):
             continue
         an, fs, eng = k[:4], float(d["fs"]), d["engaged_frame"].astype(bool)
         mins = int(d["n_rest_eng"]) / fs / 60
@@ -397,7 +398,7 @@ def figure(S, T):
     sig_marks.reserve_headroom(fig)
     fig.suptitle("cohort1 ENGAGED-rest spikes (restdock05), raw vs after regressing out face movement (FaceRhythm cam4, "
                  "factors + point PCs + speed, lags +-0.3 s, out of fold).\nOpen markers = sessions (shape = animal, "
-                 "colour = epoch); black = pooled mean, nested animal->session bootstrap 95% CI; stars = LMM epoch vs "
+                 "color = epoch); black = pooled mean, nested animal->session bootstrap 95% CI; stars = LMM epoch vs "
                  "August pre, FDR", fontsize=8)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
     fig.savefig(FR_OUT / "rest_spikes_pooled_epochs.png", dpi=110)
@@ -430,7 +431,7 @@ def main():
     if not a.summarise:
         from wfield_local.analysis_kit import curated_labels
         from wfield_local.analysis_kit import fan_sessions  # fan_out + sort (rule 9)
-        labels = a.only or [k for k in sorted(curated_labels()) if k[-4:] >= "0806"]
+        labels = a.only or [k for k in sorted(curated_labels()) if not config.early_pre(k)]
         res, fail = fan_sessions(labels, extract, jobs=a.jobs, label="session")
         print(f"{len(res)} done, {len(fail)} failed")
         for x in fail:

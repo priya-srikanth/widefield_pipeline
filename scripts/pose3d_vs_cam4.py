@@ -3,12 +3,15 @@
     python -m scripts.pose3d_vs_cam4 [--animals PS92]      # after scripts.pose3d_kinematics (cam4 lick events)
 
 Licks = cam4 production lick events with a 3-D point at their peak (`kinematics/licks.csv.gz` joined to the v36
-`licks.csv`). Feature sets, each at the lick's own peak:
+`licks.csv`), of CAMERA-WORKING-PERIOD trials only (Priya 11-06, A20: `trial_classes.gate_kin_licks` -- first cue to
+the session's last camera lick, stopped runs (A2 + excise) out; a session with NO camera classes (no video) contributes
+NOTHING, as gain_bio; ``WFIELD_KIN_GATE=legacy`` = every post-cue lick, the pre-11-06 rule, output vs_cam4_legacygate).
+Feature sets, each at the lick's own peak:
   cam4 2-D : lateral ``lr_px``, vertical ('out') ``ap_px`` (+ ``protrusion_px``, ``peak_angle_deg``)
   3-D      : ``side_ml``, ``out_ap``, ``down_dv`` at the 3-D peak (mm, mouth-zero frame)
 1. DECODING the target spout (6 classes, chance 1/6) from each lick's endpoint: multinomial logistic regression on
-   standardised features, leave-one-SESSION-out over the animal's AUGUST pre sessions; balanced accuracy. Also per pair of
-   neighbouring positions (close vs far on each side, the depth contrast cam4 cannot see).
+   standardized features, leave-one-SESSION-out over the animal's AUGUST pre sessions; balanced accuracy. Also per pair of
+   neighboring positions (close vs far on each side, the depth contrast cam4 cannot see).
 2. EFFECT SIZE of each post session vs pre: (post median - mean of the August pre session medians) / SD of those
    medians, per position, for matched measures: lateral (cam4 lr_px vs 3-D side), protrusion vs 3-D reach, cam4 peak angle
    vs 3-D midline angle, plus 3-D only (out, down, miss). Larger |z| = the measure separates the epoch from day-to-day
@@ -21,12 +24,13 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from wfield_local.pose3d import pose3d_dir
 
 V36 = "lp_r4_heatmap_20261013__clean_v36"
 POS = ("close_L", "close_center", "close_R", "far_L", "far_center", "far_R")
 FEATS = {"cam4 2-D": ["lr_px", "ap_px"], "cam4 2-D + angle": ["lr_px", "ap_px", "peak_angle_deg"],
          "3-D": ["side_ml", "out_ap", "down_dv"]}
-PAIRS = {"L close vs far": ("close_L", "far_L"), "centre close vs far": ("close_center", "far_center"),
+PAIRS = {"L close vs far": ("close_L", "far_L"), "center close vs far": ("close_center", "far_center"),
          "R close vs far": ("close_R", "far_R")}
 MATCHED = (("lateral", "lr_px", "side_ml"), ("protrusion / reach", "protrusion_px", "reach_mm"),
            ("angle", "peak_angle_deg", "midline"), ("3-D only: out", None, "out_ap"),
@@ -34,8 +38,9 @@ MATCHED = (("lateral", "lr_px", "side_ml"), ("protrusion / reach", "protrusion_p
 
 
 def load(rv, animals) -> pd.DataFrame:
-    d3 = Path(rv.root("dlc")) / "session_poses" / "pose3d"
-    K = pd.read_csv(d3 / "kinematics" / "licks.csv.gz", dtype={"date": str})
+    d3 = pose3d_dir(rv)
+    from wfield_local import trial_classes as tc
+    K = tc.gate_kin_licks(pd.read_csv(d3 / "kinematics" / "licks.csv.gz", dtype={"date": str}))
     if animals:
         K = K[K.animal.isin(animals)]
     out = []
@@ -72,7 +77,8 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     rv = PathResolver()
     L = load(rv, a.animals)
-    out = Path(rv.root("dlc")) / "session_poses" / "pose3d" / "vs_cam4"
+    from wfield_local import trial_classes as tc
+    out = tc.kin_out_dir(pose3d_dir(rv), "vs_cam4")
     out.mkdir(exist_ok=True)
     pd.set_option("display.width", 220)
     dec, eff = [], []

@@ -56,6 +56,7 @@ from wfield_local.grant_kit import (  # noqa: F401
     _excludes_zero,
     _feed,
     _fig_root,
+    _mode_name,
     _fit_bottom,
     _fit_header,
     _footer,
@@ -94,13 +95,13 @@ from wfield_local.grant_kit import (  # noqa: F401
 def fig_confusion_prestroke(out_dir):
     """4: mean PRE-STROKE leave-one-session-out confusion, 2x2 animals, one file per window.
 
-    Counts are SUMMED over the held-out pre-stroke sessions and then row-normalised, so each row is
+    Counts are SUMMED over the held-out pre-stroke sessions and then row-normalized, so each row is
     P(predicted | true) over the whole baseline -- not the mean of per-session rates, which would
     weight a 200-trial session the same as a 500-trial one.
     """
     made = []
     for _disp, align, wname in _windows():
-        f = _fig_root() / f"joint_xsession_decoder_{align}.json"
+        f = _fig_root() / _mode_name(f"joint_xsession_decoder_{align}.json")
         if not f.exists():
             continue
         d = json.loads(f.read_text(encoding="utf-8"))
@@ -144,7 +145,7 @@ def fig_confusion_prestroke(out_dir):
         _suptitle(fig, f"Pre-stroke cross-session decoding — {wname} window\n"
                      "Frozen leave-one-session-out in the shared LocaNMF basis: every trial scored "
                      "by a decoder that never saw its session.\n"
-                     "Counts summed over held-out sessions, then row-normalised. Chance = 0.17.",
+                     "Counts summed over held-out sessions, then row-normalized. Chance = 0.17.",
                      fontsize=10)
         p = Path(out_dir) / f"grant_4_confusion_prestroke_{align}.png"
         _save(fig, p, dpi=200, bbox_inches="tight")
@@ -163,13 +164,13 @@ def fig_confusion_pre_post(out_dir):
     looks like normally, what it looks like without a lick but without a lesion, and what it looks
     like after the lesion.
 
-    Counts are reconstructed from the stored row-normalised matrices (matrix * n_per_true_position),
-    summed across post-stroke sessions, and re-normalised. The `pre` and `pre_nolick` panels are the
+    Counts are reconstructed from the stored row-normalized matrices (matrix * n_per_true_position),
+    summed across post-stroke sessions, and re-normalized. The `pre` and `pre_nolick` panels are the
     POOLED pre-stroke reference and are byte-identical in every session record -- summing them across
     sessions would multiply the same matrix by the session count and change nothing except to imply
     a sample size that does not exist.
     """
-    sg = _fig_root() / "section_g.json"
+    sg = _fig_root() / _mode_name("section_g.json")
     if not sg.exists():
         return None
     G = json.loads(sg.read_text(encoding="utf-8"))
@@ -257,6 +258,28 @@ def fig_confusion_pre_post(out_dir):
     return made[0] if len(made) == 1 else (made or None)
 class _Stored(Exception):
     """Raised to skip the LocaNMF recompute when the stored per-class confusions covered it."""
+
+
+def _5b_sidecar(side, path):
+    """Long table of 5b's counts: one row per (animal, session, panel, true position), one column per predicted
+    position, plus a `decoder` row per recomputed animal (store / memory). Data only; nothing reads it back."""
+    import pandas as pd
+
+    rows = []
+    for an, lab, panel, C in side:
+        if isinstance(C, str):
+            rows.append({"animal": an, "session": lab, "panel": panel, "true": C})
+            continue
+        if C is None:
+            continue
+        for i, t in enumerate(CONF_LABELS):
+            rows.append({"animal": an, "session": lab, "panel": panel, "true": t,
+                         **{q: float(C[i, j]) for j, q in enumerate(CONF_LABELS)}})
+    if not rows:
+        return None
+    path.parent.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame(rows).to_csv(path, index=False)
+    return path
 def fig_confusion_pre_post_working(out_dir):
     """5b: figure 5 with the post-stroke TERMINAL QUIT PERIOD removed.
 
@@ -280,9 +303,19 @@ def fig_confusion_pre_post_working(out_dir):
     STILL NOT VALIDATED, and the figure says so: nothing in the spout data proves the terminal run is
     satiety rather than a late motor collapse. It is reported BESIDE figure 5, never instead of it.
     """
-    PANELS = (("pre", "PRE-stroke\nLICK trials"),
-              ("post_all", "POST-stroke\nALL trials"),
-              ("post_working", "POST-stroke\nquit period REMOVED"))
+    from wfield_local import trial_classes as _tc5
+    from wfield_local import working_trials as _wt5
+    # CAMERA WORKING (Priya 11-03 late, review 7A B1): under the camera gate with a camera selection the panels are the
+    # working-trained frozen decoder's pre panel (held-out pre WORKING trials) and the post-stroke working trials
+    _cam5 = _tc5.camera_gate_on() and _wt5.is_camera(_tc5.working_selection())
+    _wc = ("c+i+jaw" if _cam5 and _tc5.working_selection() == _wt5.IN_WORKING_JAW else
+           "contact" if _cam5 and _tc5.working_selection() == _wt5.IN_WORKING_CONTACT else "c+i")   # review 8A NB-b
+    PANELS = (((("pre", f"PRE-stroke\nWORKING trials ({_wc})"),
+               ("post_all", "POST-stroke\nALL trials"),
+               ("post_working", f"POST-stroke\nWORKING trials ({_wc})"))) if _cam5 else
+              (("pre", "PRE-stroke\nLICK trials"),
+               ("post_all", "POST-stroke\nALL trials"),
+               ("post_working", "POST-stroke\nquit period REMOVED")))
 
     def _from_json(an, disp):
         """The three panels as SUMS of the stored per-class confusions, or None to recompute.
@@ -298,7 +331,12 @@ def fig_confusion_pre_post_working(out_dir):
         Returning None (missing file, missing block, missing class) falls through to the recompute
         path, so this is a shortcut and never a new source of truth.
         """
-        f = _fig_root() / "coding_direction.json"
+        # The stored classes are the QUIT-TAIL ones (`position_coding_directions`); under the camera working
+        # selection (Priya 11-03, `working_trials`) the panels are recomputed from the bundle instead.
+        from wfield_local import working_trials as _wt
+        if _wt.is_camera():
+            return None
+        f = _fig_root() / _mode_name("coding_direction.json")
         if not f.exists():
             return None
         try:
@@ -322,6 +360,7 @@ def fig_confusion_pre_post_working(out_dir):
                                  gridspec_kw={"hspace": 0.42})
         drew = False
         stored = []                # animals served from coding_direction.json rather than recomputed
+        side = []                  # (animal, session, panel, counts) for the data sidecar
         for ri, an in enumerate(ANIMALS):
             # STORED CLASSES FIRST; the LocaNMF recompute is the fallback, not the default.
             mats = _from_json(an, _disp)
@@ -343,9 +382,12 @@ def fig_confusion_pre_post_working(out_dir):
                 u_pre = np.isin(GU, list(pre_i)) if len(GU) else np.zeros(0, bool)
                 # THE FROZEN DECODER IN ITS SCORING FRAME (`_frozen_frame`; bal_em since 2026-11-03, identity
                 # under session_z): same models as before, applied to XEs / XUs.
-                _fr = _frozen_frame(bd)
+                # the WORKING model and frame (camera working trials, engaged + no-lick, on both sides: Priya 11-03
+                # late, main 48f2cc6d); the engaged model for the lick window and the DAQ gate
+                _fr = _frozen_frame(bd, an, align, sel="working")
                 clf = _fr["full"]
                 XE, XU = _fr["XEs"], _fr["XUs"]
+                _uw = _fr["sel"] == "working"
                 name = np.vectorize(lambda v: POSITION_NAMES.get(int(v), str(v)))
 
                 def conf(X, y, clf=clf, name=name):
@@ -368,27 +410,59 @@ def fig_confusion_pre_post_working(out_dir):
                 # collapse that is mostly overfitting. The POST panels need no such care: those
                 # trials are held out by construction.
                 Cpre = None
-                for i in sorted(pre_i):
-                    tr = e_pre & (GE != i)
-                    te = e_pre & (GE == i)
-                    if te.sum() < 5 or len(np.unique(YE[tr])) < 2:
-                        continue
-                    c1 = conf(XE[te], YE[te], clf=_fr["loso"][i])
+                for i in (_fr["train_sessions"] if _uw else sorted(pre_i)):
+                    if _uw:
+                        # the held-out pre session's WORKING trials (engaged + no-lick), as main 48f2cc6d
+                        me_, mu_ = _class_select("working", e_pre & (GE == i), (GU == i) if len(GU)
+                                                 else np.zeros(0, bool), not_eng, cls=bd["cls"])
+                        if me_.sum() + mu_.sum() < 5 or i not in _fr["loso"]:
+                            continue
+                        c1 = conf(np.vstack([XE[me_]] + ([XU[mu_]] if mu_.any() else [])),
+                                  np.concatenate([YE[me_]] + ([YU[mu_]] if mu_.any() else [])), clf=_fr["loso"][i])
+                    else:
+                        tr = e_pre & (GE != i)
+                        te = e_pre & (GE == i)
+                        if te.sum() < 5 or len(np.unique(YE[tr])) < 2:
+                            continue
+                        c1 = conf(XE[te], YE[te], clf=_fr["loso"][i])
                     Cpre = c1 if Cpre is None else Cpre + c1
                 mats["pre"] = Cpre
                 pe, pu = ~e_pre, (~u_pre if len(u_pre) else np.zeros(0, bool))
                 Xa = np.vstack([XE[pe]] + ([XU[pu]] if len(u_pre) and pu.any() else []))
                 ya = np.concatenate([YE[pe]] + ([YU[pu]] if len(u_pre) and pu.any() else []))
                 mats["post_all"] = conf(Xa, ya)
-                pw = pu & ~not_eng if len(u_pre) else np.zeros(0, bool)
+                if bd.get("cls") is not None:
+                    # CAMERA TRIAL GATE (rebuild 11-03): working through `_class_select` (camera classes), never
+                    # `~not_eng` (a RefusedMask under the camera gate). Default (daq): the line below, unchanged.
+                    pe, pw = _class_select("working", pe, pu, not_eng, cls=bd["cls"])
+                else:
+                    pw = pu & ~not_eng if len(u_pre) else np.zeros(0, bool)
                 Xw = np.vstack([XE[pe]] + ([XU[pw]] if len(u_pre) and pw.any() else []))
                 yw = np.concatenate([YE[pe]] + ([YU[pw]] if len(u_pre) and pw.any() else []))
                 mats["post_working"] = conf(Xw, yw)
+                # DATA SIDECAR ONLY (11-02): the post_working panel split by session, so a render can be compared cell
+                # by cell and read per epoch. Drawing is unchanged; these sum to `post_working`.
+                for i, lab in enumerate(bd["kept"]):
+                    if i in pre_i:
+                        continue
+                    if bd.get("cls") is not None:   # camera trial gate (rebuild 11-03), as post_working above
+                        me_s, mu_s = _class_select("working", GE == i, (GU == i) if len(GU) else np.zeros(0, bool),
+                                                   not_eng, cls=bd["cls"])
+                    else:
+                        me_s = GE == i
+                        mu_s = ((GU == i) & ~not_eng) if len(GU) else np.zeros(0, bool)
+                    Xs = np.vstack([XE[me_s]] + ([XU[mu_s]] if mu_s.any() else []))
+                    ys = np.concatenate([YE[me_s]] + ([YU[mu_s]] if mu_s.any() else []))
+                    side.append((an, lab, "post_working_session", conf(Xs, ys)))
+                side.append((an, "", "decoder", "store" if epoch_frozen_on() else "memory"))
             except _Stored:
                 pass                       # the stored per-class matrices are already in `mats`
             except Exception as ex:                                       # noqa: BLE001
+                from wfield_local import trial_classes as _tc
+                _tc.reraise_under_camera(ex, f"5b {an} {align}")           # review N9
                 print(f"  !! 5b {an} {align}: {type(ex).__name__} {str(ex)[:90]}", flush=True)
                 mats = mats or {}
+            side += [(an, "", key, mats.get(key)) for key, _t in PANELS]
             for ci, (key, ptitle) in enumerate(PANELS):
                 ax = axes[ri][ci]
                 C = mats.get(key)
@@ -426,15 +500,25 @@ def fig_confusion_pre_post_working(out_dir):
             plt.close(fig)
             continue
         fig.colorbar(im, ax=axes, fraction=0.02, pad=0.07, label="P(predicted | true)")
-        _suptitle(fig, f"Frozen pre-stroke decoder, with and without the terminal quit period — "
+        if _cam5:
+            # CAMERA WORKING (Priya 11-03 late): the working-trained frozen decoder; its pre panel is the held-out pre
+            # sessions' working trials
+            _suptitle(fig, f"Frozen pre-stroke decoder on camera WORKING trials — {wname} window\n"
+                         f"Rows = TRUE spout position, columns = predicted. Working = {_class_note('working')}; "
+                         "trained, centered and scored on working trials (engaged + no-lick) on BOTH sides.\n"
+                         "MIDDLE panel = every post-stroke trial. Post-stroke sessions pooled. Chance = 0.17. "
+                         "A session without video (PS93_0813) has no working trials and is not in this figure.",
+                      fontsize=9.5)
+        else:
+            _suptitle(fig, f"Frozen pre-stroke decoder, with and without the terminal quit period — "
                      f"{wname} window\n"
-                     "Rows = TRUE spout position, columns = predicted. RIGHT panel drops the "
-                     "post-stroke trials after a NON-RECOVERING collapse in responding at the "
-                     "positions the animal can still reach;\nlick and miss-while-working trials are "
-                     "kept, so the impaired rows still have trials. Post-stroke sessions pooled. "
-                     "Chance = 0.17.\nThe quit period is not independently validated as satiety "
-                     "rather than a late motor collapse — read this beside figure 5, not instead "
-                     "of it.", fontsize=9.5)
+                         "Rows = TRUE spout position, columns = predicted. RIGHT panel drops the "
+                         "post-stroke trials after a NON-RECOVERING collapse in responding at the "
+                         "positions the animal can still reach;\nlick and miss-while-working trials are "
+                         "kept, so the impaired rows still have trials. Post-stroke sessions pooled. "
+                         "Chance = 0.17.\nThe quit period is not independently validated as satiety "
+                         "rather than a late motor collapse — read this beside figure 5, not instead "
+                         "of it.", fontsize=9.5)
         # SAY WHERE THE NUMBERS CAME FROM, and whether that source lags. A figure served from
         # coding_direction.json is only as current as the last position_coding_directions run, and
         # this module already has the scar: on 2026-08-25 the JSONs predated both 8/24 sessions while
@@ -447,6 +531,7 @@ def fig_confusion_pre_post_working(out_dir):
                   + (f" -- coding_direction.json LAGS the config by {len(lag)} session(s): "
                      f"{', '.join(lag)}; re-run position_coding_directions" if lag else
                      " -- coding_direction.json is current"), flush=True)
+        _5b_sidecar(side, Path(out_dir) / "data" / f"grant_5b_confusion_working_{align}.csv")
         _footer(fig)
         p = Path(out_dir) / f"grant_5b_confusion_working_{align}.png"
         _save(fig, p, dpi=200, bbox_inches="tight")
@@ -501,8 +586,12 @@ def fig_confusion_per_session(out_dir):
 #: 10b already applies by scoring an absent position as nothing rather than as a wrong match.
 #: Missing data must not become evidence, least of all evidence in the direction that says the code
 #: is gone.
+#:
+#: RETIRED 11-08 (Priya, D7): "1/18 was arbitrary; 1/20 is just as arbitrary" -- every refit family (5r / 5rm / 5ro /
+#: 5rmo) uses the 10-TRIAL floor ONLY. The mix effect the share floor hid is now MEASURED instead, by the matched-pre
+#: control (`scripts/refit_matched_pre.py`: same position mix and size in the animal's own pre sessions), and the lick
+#: class is every camera-seen lick (LP source), which no longer leaves acute far-contra at 0-4 % of a session.
 MIN_REFIT_CLASS = 10
-MIN_REFIT_SHARE = 1.0 / 18.0
 #: Sentinel written into the refit column for a trial whose class the session could not train on.
 #: Both arms drop these trials together, so the refit-minus-frozen contrast stays paired.
 REFIT_UNAVAILABLE = -1
@@ -537,7 +626,13 @@ def _matched_frozen(pipe_of, Xp, Yp, Bp, n_target, rng):
     from wfield_local import spout_scaling
     fitted.spout_pi_train_ = spout_scaling.class_prior(Yp[keep])
     return fitted, int(keep.sum())
-def _refit_pred(pipe_of, X, y, blk, *, max_splits=5):
+#: When a list, `_collect_5c_cached` appends every session's REFIT inputs to it (dict animal, label, pre, X, y, blk) --
+#: exactly the arrays `_refit_pred` sees for the 5r figures. Read-only hook for `scripts/refit_matched_pre.py`
+#: (D6, Priya 11-08); None (the default) changes nothing.
+REFIT_CAPTURE = None
+
+
+def _refit_pred(pipe_of, X, y, blk, *, max_splits=5, mark_thin=True):
     """Within-session block-CV prediction on ONE session: what a decoder that SAW this session gets.
 
     The counterpart to the frozen decoder, and the control that separates the two readings of a
@@ -562,14 +657,145 @@ def _refit_pred(pipe_of, X, y, blk, *, max_splits=5):
     except Exception:                                                 # noqa: BLE001
         return None
     y = np.asarray(y)
+    if not mark_thin:      # the mix-matched control scores every class: its matched pre has the same counts (D6)
+        return pred
     cls, cnt = np.unique(y, return_counts=True)
-    thin = cls[(cnt < MIN_REFIT_CLASS) | (cnt / max(len(y), 1) < MIN_REFIT_SHARE)]
+    thin = cls[cnt < MIN_REFIT_CLASS]
     if thin.size:
         pred = pred.copy()
         pred[np.isin(y, thin)] = REFIT_UNAVAILABLE
     return pred
-@lru_cache(maxsize=24)
+
+
+#: THE DEFAULT since 11-02 (Priya: "we should cache frozen decoders as we always do"; CLAUDE.md rule 10). The epoch
+#: 5c / acc decoders (mode "frozen") go through `frozen_models` instead of being fitted in memory on every render; the
+#: lp-final branch introduced this as an opt-in (=1). OPT-OUT: WIDEFIELD_EPOCH_FROZEN=0 (also false / no / off) fits
+#: in memory exactly as before, for reproducing an old render. Under WIDEFIELD_LICK_SOURCE=lp the store serves
+#: the LP-TRAINED models (spec lick_source=lp; THE DEFAULT SINCE 11-03, Priya -- 11-02 it was DAQ-trained), or with
+#: WIDEFIELD_LP_FROZEN=daq the DAQ-TRAINED cross-check (fitted by a DAQ-source run at the same window and pre set; the
+#: LP run refuses to fit them, `frozen_models.load_or_fit`).
+#: WHY: the in-memory fit trains on the CURRENT arm's pre-stroke trials, so every LP-arm acc / 5c figure rendered
+#: before 11-02 was LP-trained -- `WIDEFIELD_LP_FROZEN` never reached this family. Kind "epoch_decoder" (never
+#: collides with `locanmf_frozen_decoder`'s "decoder" specs); payload {"full": all-pre model, "loso": {pre label:
+#: model}}, the same two fits as the in-memory path, so where the training set is the same a store-and-load run
+#: reproduces the in-memory one exactly (docs/status/FROZEN_DEFAULT_20261102.md). SINCE 11-02 (later; Priya: "yes cache
+#: all frozen decoders") the SAME stored model also serves the frozen column of `_collect_5c` mode "paired" (families 5r /
+#: 5ro, `recovery_trajectory`) and the 5b confusions (`fig_confusion_pre_post_working`), so all of them score with the
+#: model the acc family uses, DAQ- or LP-trained alike (docs/status/FROZEN_ALL_20261102.md). Still in memory, by design
+#: or as listed there: mode "refit" (no frozen column), mode "paired_matched" (a size-matched random pre subset per
+#: scored session, `_matched_frozen`).
+EPOCH_FROZEN_ENV = "WIDEFIELD_EPOCH_FROZEN"
+EPOCH_FROZEN_OFF = ("0", "false", "no", "off")
+
+
+def epoch_frozen_on() -> bool:
+    """True unless WIDEFIELD_EPOCH_FROZEN opts out (unset / empty / anything else = the stored default)."""
+    import os
+
+    return os.environ.get(EPOCH_FROZEN_ENV, "").strip().lower() not in EPOCH_FROZEN_OFF
+
+
+def _stored_epoch_decoder(an, align, bd, tag="5c", XT=None, scaling=None, R=None):
+    """{"full", "loso"} from the frozen store for this animal's pooled bundle, or None when opted out.
+
+    ``tag`` only labels the log line: every caller gets the same spec, hence the same stored model. Called by
+    `grant_kit._frozen_frame` (merge with main 11-03), which passes ``XT`` -- the bal_em TRAINING frame the models are
+    fitted on (= XE under session_z) -- and ``scaling``, which enters the spec (`spout_scaling.spec_kw`)."""
+    if not epoch_frozen_on():
+        print(f"  [{tag}] {an} {align}: {EPOCH_FROZEN_ENV}=0 -> pre-stroke decoder fitted IN MEMORY (not stored)",
+              flush=True)
+        return None
+    from wfield_local import frozen_models
+    from wfield_local.locanmf_frozen_decoder import _pipe
+
+    XE, YE, GE, kept = bd["XE"], bd["YE"], bd["GE"], bd["kept"]
+    pre_i = sorted(bd["pre_i"])
+    e_pre = bd["e_pre"]
+    trials = None
+    if R is not None:
+        # THE WORKING TRAINING ROWS (main 48f2cc6d / coordinator 11-04): engaged + no-lick camera working rows of the
+        # pre sessions that have them; the spec records the selection (``scaling_params["trials"]``)
+        from wfield_local import trial_classes as _tcs
+        XE, YE, GE, pre_i = R[0], R[1], np.asarray(R[2]), sorted(R[3])
+        e_pre = np.isin(GE, pre_i)
+        trials = _tcs.run_selection()
+    train = [kept[i] for i in pre_i]
+    from wfield_local import config
+    if frozen_models.daq_trained_in_lp():
+        # (11-03, Priya: the LP arm's DEFAULT is now LP-TRAINED; this DAQ-trained branch is the opt-in cross-check,
+        # WIDEFIELD_LP_FROZEN=daq.) DAQ-TRAINED model scored in the LP arm: its training set is the DAQ arm's (every pre session of the animal),
+        # not the LP-kept list -- a pre session without video (PS93_0813) is in the DAQ fit but cannot be pooled here.
+        train = [x for x in config.phase_labels("pre") if config.animal_of(x) == an]
+    from wfield_local import spout_scaling
+    XF = XE if XT is None else XT
+    spec = frozen_models.make_spec(an, "epoch_decoder", align=align, source="locanmf",
+                                   train_labels=train, post_s=2.0,
+                                   basis_id=bd.get("basis_id"), n_features=int(XE.shape[1]),
+                                   train_data=(XE[e_pre], YE[e_pre], GE[e_pre]),
+                                   **spout_scaling.spec_kw(scaling if XT is not None else None, trials))
+
+    def _fit():
+        loso = {}
+        for i in pre_i:
+            tr = e_pre & (GE != i)
+            if len(np.unique(YE[tr])) >= 2:
+                loso[kept[i]] = _pipe().fit(XF[tr], YE[tr])
+        return {"full": _pipe().fit(XF[e_pre], YE[e_pre]), "loso": loso}
+
+    payload, status = frozen_models.load_or_fit(
+        spec, _fit, meta={"n_engaged_pre": int(e_pre.sum()), "n_pre_sessions": len(pre_i)})
+    # review 7A NB3: name the lick source AND the trial selection the model was trained on
+    from wfield_local import lp_licks as _lpl
+    # review 8A NB-f: an engaged-trained model is the lick-arm (engaged) rows of THIS run's gate
+    from wfield_local import trial_classes as _tcl
+    _sel = trials or (f"engaged rows ({'camera gate' if _tcl.camera_gate_on() else 'DAQ gate'}: "
+                      f"{engaged_selection_label()})")
+    print(f"  [{tag}] {an} {align}: epoch_decoder {frozen_models._slug(spec)} {status} "
+          f"(trained on pre trials: lick source {'lp' if _lpl.is_lp() else 'daq'}, selection {_sel})", flush=True)
+    return payload
+
+
+def engaged_selection_label() -> str:
+    """What the "engaged" (lick-arm) training selection IS under this run's lick source, for logs / captions / figdata.
+
+    Computed, never hard-coded (redraw pass 11-09): the frozen-decoder log above used to print "DAQ lick-arm trials" on
+    LP runs too. Under the LP source the lick arm is every trial with a camera-seen lick; under DAQ it is the DAQ contact
+    trials. Kept here, not in `lp_licks`: that module's own source keys the LP lick-times sidecars."""
+    from wfield_local import lp_licks
+    return "LP-attempted trials: every camera-seen lick" if lp_licks.is_lp() else "DAQ contact trials"
+
+
+class PreRecords(list):
+    """The PRE entry of `_collect_5c` in ``refit`` / ``paired`` / ``paired_matched`` mode: the per-pre-session records
+    (a plain list to every existing reader) plus ``labels``, the session label each record scored, in the same order.
+
+    Added 2026-11-06 so the per-session recovery trajectory can place each pre session at its own (negative) day
+    (`recovery_trajectory.pre_series`). The records already were one per held-out pre session but carried no name, and
+    the loop that builds them SKIPS sessions (too few trials, no LOSO model), so the order alone cannot be mapped back
+    to a label from outside. A list subclass, not a new tuple member: every caller unpacks ``(pre, by_day)`` and
+    iterates ``pre`` as records, and none of that changes. ``frozen`` mode keeps its single concatenated record."""
+
+    def __init__(self, *a):
+        super().__init__(*a)
+        self.labels: list[str] = []
+
+
 def _collect_5c(align, variant="working", mode="frozen"):
+    """`_collect_5c_cached` keyed ALSO by the run (re-verify item 4): the full output tag (hemo / projection / selection /
+    LP / ENL ...) and the bal_em scaling + center, so a process that switches mode never gets another run's records."""
+    from wfield_local import lp_licks, spout_scaling
+    from wfield_local import trial_classes as _tc
+    from wfield_local import working_trials as _wt
+    sc = spout_scaling.spout_scaling()
+    # the working selection explicitly (a8 / main 48f2cc6d pitfall: the cache was keyed on (align, variant, mode) only),
+    # besides the output tag that already carries the run's selection tag
+    run = (lp_licks.output_tag() or "", sc or "z", spout_scaling.centre_rows() if sc else "",
+           _tc.run_selection(), _wt.selection())
+    return _collect_5c_cached(align, variant, mode, run)
+
+
+@lru_cache(maxsize=24)
+def _collect_5c_cached(align, variant="working", mode="frozen", _run=None):
     """{animal: (pre-stroke LOSO record, {day: record})} plus the sorted day list.
 
     A RECORD IS (y_true, y_pred, blocks), not a counts matrix. Counts are one reduction of it and a
@@ -629,15 +855,69 @@ def _collect_5c(align, variant="working", mode="frozen"):
             # WIDEFIELD_SPOUT_SCALING=session_z). The frozen predictions read the SCORING frame (XEs / XUs); the
             # within-session refit reads the production frame (XE / XU), as it always has -- it never meets the
             # frozen model. The matched arm trains on the TRAINING frame (XT) and scores in its own EM frame.
-            fr = _frozen_frame(bd)
-            XT, XEs, XUs = fr["XT"], fr["XEs"], fr["XUs"]
+            # MERGE (11-03): `_frozen_frame` serves the STORED epoch decoder (rule 10) in "frozen" / "paired" alike --
+            # the acc family's model; "refit" has no frozen column; "paired_matched" replaces both with matched draws.
+            # the stored model only where a frozen column is read ("refit" has none; "paired_matched" scores matched
+            # draws, stored under their own spec): both modes fit the frame's models in memory, as before the merge
+            # WORKING = THE CAMERA WORKING TRIALS ON BOTH SIDES (Priya 11-03 late, main 48f2cc6d): the frozen model of
+            # the working class is trained on pre-stroke working trials (engaged AND no-lick rows of class contact |
+            # incomplete), its pre panel is the held-out pre session's working trials and its centre set is each
+            # session's working rows. `lick` / `stopped` and the lick window keep the engaged (lick-gate) model.
+            fr = _frozen_frame(bd, an, align, store=mode in ("frozen", "paired"),
+                               sel="working" if variant == "working" else "engaged")
+            XEs, XUs = fr["XEs"], fr["XUs"]
             clf = fr["full"]
+            uw = fr["sel"] == "working"
+            RX, RY, RG = fr["R"]
+            RT = fr["RT"]
+            if uw:
+                _we, _wu = fr["work"]
+                RB = np.concatenate([BE_all[_we], BU_all[_wu]])
+            else:
+                RB = BE_all
+
+            # 5rm / "paired_matched" THROUGH THE STORE (cohort-1 rebuild 2026-11-03, rule 10): every size-matched draw of
+            # this animal x align x class lives in ONE spec (kind `matched_frozen`, align carries the class and the seed
+            # base `_seed`), keyed inside the payload by (pool, n_target, rng seed). Its training-data fingerprint covers
+            # the whole pooled bundle (and the spec the scaling, as the draws train on the bal_em frame), so the set of
+            # draws is a deterministic function of the spec: a hit replays every draw, a miss fits them in memory exactly
+            # as before and stores them. WIDEFIELD_EPOCH_FROZEN=0 = in memory.
+            mm_spec, mm_old, mm_new = None, None, {}
+            from wfield_local import frozen_models, spout_scaling
+            if mode == "paired_matched" and epoch_frozen_on() and frozen_models.daq_trained_in_lp():
+                # REVIEW M8 (11-03): the LP arm's DAQ-trained cross-check has no stored matched draws to load (their
+                # train_fp is DAQ_RUN_FP and load_or_fit refuses to fit one), which dropped whole animals (PS93 always)
+                # through the outer `except`. The draws are fitted IN MEMORY there, said loudly, never stored.
+                # LABEL (second pass): these draws are LP-ROW fits, NOT the DAQ-trained model -- say so wherever printed
+                print(f"  [5rm] {an} {align} {variant}: LP DAQ-trained cross-check -> the 5rm matched column is LP-ROW "
+                      "fits IN MEMORY (not the DAQ-trained model; not stored)", flush=True)
+            elif mode == "paired_matched" and epoch_frozen_on():
+                from wfield_local import trial_classes as _tcm
+                mm_spec = frozen_models.make_spec(
+                    an, "matched_frozen", align=f"{align}-{variant}-seed{abs(_seed(an, align, variant))}",
+                    source="locanmf", train_labels=[kept[i] for i in sorted(pre_i)], post_s=2.0,
+                    basis_id=bd.get("basis_id"), n_features=int(XE.shape[1]),
+                    train_data=(XE, YE, GE, XU, YU, GU, (not_eng if bd.get("cls") is None else None), BE_all, BU_all,
+                                sorted(pre_i), bd.get("cls")),
+                    **spout_scaling.spec_kw(None if fr["scaling"] == spout_scaling.SCALING_SESSION_Z else fr["scaling"],
+                                            _tcm.run_selection() if uw else None))   # working-row draws: own id
+                _d, _o = frozen_models.find(mm_spec)
+                if _d is not None:
+                    mm_old = frozen_models._read(_d)
+
+            def _mf(tag, pool, n_target, seed):
+                key = f"{tag}|{int(n_target)}|{int(seed)}"
+                if mm_old is not None and key in mm_old:
+                    return mm_old[key]
+                got = _matched_frozen(_pipe, *pool, n_target, np.random.default_rng(seed))
+                mm_new[key] = got
+                return got
 
             def _stack(i, me, mu, frozen_frame, XEs=XEs, XUs=XUs, XE=XE, XU=XU):
                 A, B = (XEs, XUs) if frozen_frame else (XE, XU)
                 return np.vstack([A[me]] + ([B[mu]] if mu.any() else []))
 
-            def rec(X, y, blk, model, pool=None, X_refit=None, sess=None, me=None, mu=None,
+            def rec(X, y, blk, model, pool=None, X_refit=None, sess=None, me=None, mu=None, pool_tag="post",
                     an=an, fr=fr, bd=bd, XE=XE, XU=XU):
                 # loop variables bound as defaults: rec is only called within this iteration, but a late-binding
                 # closure would silently read a later animal's bundle if it ever were not
@@ -649,6 +929,9 @@ def _collect_5c(align, variant="working", mode="frozen"):
                 same leave-one-session-out discipline as the unmatched one.
                 """
                 y, blk = np.asarray(y), np.asarray(blk)
+                if REFIT_CAPTURE is not None and X_refit is not None and sess is not None:
+                    REFIT_CAPTURE.append(dict(animal=an, label=bd["kept"][sess], pre=sess in bd["pre_i"],
+                                              X=np.asarray(X_refit), y=y, blk=blk))
                 if mode == "paired_matched":
                     if pool is None:
                         return None
@@ -659,8 +942,8 @@ def _collect_5c(align, variant="working", mode="frozen"):
                     # `rng.permutation` return the same block ORDER every time, so every session of
                     # that animal is scored by very nearly the SAME matched model -- one draw
                     # presented as many, and one unlucky subset would bias the whole animal.
-                    got = _matched_frozen(_pipe, *pool, n_target, np.random.default_rng(
-                        abs(_seed(an, align, variant)) + 1000003 * len(y) + int(blk[0])))
+                    got = _mf(pool_tag, pool, n_target,
+                              abs(_seed(an, align, variant)) + 1000003 * len(y) + int(blk[0]))
                     if got is None:
                         return None
                     model = got[0]
@@ -669,7 +952,8 @@ def _collect_5c(align, variant="working", mode="frozen"):
                     if fr["scaling"] != "session_z":
                         if [int(c) for c in model.classes_] == list(range(6)):
                             Xe_, Xu_ = _frozen_score_rows(bd, model, model.spout_pi_train_, sess,
-                                                          XE[me], XU[mu] if mu.any() else None)
+                                                          XE[me], XU[mu] if mu.any() else None,
+                                                          centre_rows=RX[RG == sess] if uw else None)
                             X = np.vstack([Xe_] + ([Xu_] if Xu_ is not None else []))
                         else:
                             X = X_refit        # a subset missing a spout: no 6-class EM; production frame
@@ -688,9 +972,9 @@ def _collect_5c(align, variant="working", mode="frozen"):
             # null contrast but the TRAINING-SET-SIZE effect measured on its own: ten sessions of
             # training data against one, with no lesion involved. Every post-stroke gap has to be
             # read against it, which is why pre is drawn rather than assumed to be zero.
-            pre_y, pre_p, pre_b, pre_recs = [], [], [], []
-            for i in sorted(pre_i):
-                tr = e_pre & (GE != i)
+            pre_y, pre_p, pre_b, pre_recs = [], [], [], PreRecords()
+            for i in (fr["train_sessions"] if uw else sorted(pre_i)):
+                rtr = np.isin(RG, fr["train_sessions"]) & (RG != i)      # the training rows without session i
                 # THE TRAINING SET IS ALWAYS THE ENGAGED PRE-STROKE ANIMAL -- that is what "frozen"
                 # means, and it does not depend on the class being SCORED. What the class changes is
                 # the trials the held-out pre-stroke session contributes, and for `stopped` that is
@@ -717,10 +1001,12 @@ def _collect_5c(align, variant="working", mode="frozen"):
                 # `_collect_7` states the rule the other collectors follow: a pre-stroke animal is
                 # not missing, so `working` adds nothing at pre except a different KIND of trial,
                 # and the reference then differs from itself.
-                if variant == "stopped":
+                if variant == "stopped" or uw:
+                    # `stopped`: the quit period; `working` under the working frame: the held-out session's WORKING
+                    # trials, engaged + no-lick (main 48f2cc6d)
                     me_te, mu_te = _class_select(variant, e_pre & (GE == i),
                                                  (GU == i) if len(GU) else np.zeros(0, bool),
-                                                 not_eng)
+                                                 not_eng, cls=bd.get("cls"))
                 else:
                     me_te = e_pre & (GE == i)
                     mu_te = np.zeros(len(GU), bool)
@@ -728,13 +1014,15 @@ def _collect_5c(align, variant="working", mode="frozen"):
                 Xte_r = _stack(i, me_te, mu_te, False)
                 yte = np.concatenate([YE[me_te]] + ([YU[mu_te]] if mu_te.any() else []))
                 bte = np.concatenate([BE_all[me_te]] + ([BU_all[mu_te]] if mu_te.any() else []))
-                if len(yte) < 5 or len(np.unique(YE[tr])) < 2:
+                if len(yte) < 5 or len(np.unique(RY[rtr])) < 2 or i not in fr["loso"]:
                     continue
                 r = rec(Xte, yte, bte, fr["loso"][i],
-                        pool=(XT[tr], YE[tr], BE_all[tr]), X_refit=Xte_r, sess=i, me=me_te, mu=mu_te)
+                        pool=(RT[rtr], RY[rtr], RB[rtr]), X_refit=Xte_r, sess=i, me=me_te, mu=mu_te,
+                        pool_tag=f"pre-{kept[i]}")
                 if r is None:
                     continue
                 pre_recs.append(r)
+                pre_recs.labels.append(kept[i])        # which held-out session this record scored (PreRecords)
                 pre_y.append(r[0]); pre_p.append(r[1]); pre_b.append(r[2])
             if mode == "frozen":
                 Cpre = ((np.concatenate(pre_y), np.concatenate(pre_p), np.concatenate(pre_b))
@@ -747,21 +1035,33 @@ def _collect_5c(align, variant="working", mode="frozen"):
                 if i in pre_i:
                     continue
                 day = _day(an, lab.split("_")[-1])
-                me, mu = _class_select(variant, (GE == i), (GU == i), not_eng)
+                me, mu = _class_select(variant, (GE == i), (GU == i), not_eng, cls=bd.get("cls"))
                 Xs = _stack(i, me, mu, True)
                 Xs_r = _stack(i, me, mu, False)
                 ys = np.concatenate([YE[me]] + ([YU[mu]] if mu.any() else []))
                 bs = np.concatenate([BE_all[me]] + ([BU_all[mu]] if mu.any() else []))
                 if not len(ys):
                     continue
-                r = rec(Xs, ys, bs, clf, pool=(XT[e_pre], YE[e_pre], BE_all[e_pre]), X_refit=Xs_r, sess=i,
+                _tm = np.isin(RG, fr["train_sessions"])
+                r = rec(Xs, ys, bs, clf, pool=(RT[_tm], RY[_tm], RB[_tm]), X_refit=Xs_r, sess=i,
                         me=me, mu=mu)
                 if r is None:
                     continue
                 by_day[day] = r
                 all_days.add(day)
+            if mm_spec is not None:
+                if mm_old is None:
+                    _p, _st = frozen_models.load_or_fit(mm_spec, lambda: dict(mm_new),
+                                                        meta={"n_draws": len(mm_new)})
+                    print(f"  [5rm] {an} {align} {variant}: matched_frozen {frozen_models._slug(mm_spec)} {_st} "
+                          f"({len(mm_new)} draws)", flush=True)
+                elif mm_new:
+                    print(f"  !! [5rm] {an} {align} {variant}: {len(mm_new)} draws missing from the stored "
+                          f"{frozen_models._slug(mm_spec)}; fitted in memory (not stored)", flush=True)
             per_animal[an] = (Cpre, by_day)
         except Exception as ex:                                       # noqa: BLE001
+            from wfield_local import trial_classes as _tcr
+            _tcr.reraise_under_camera(ex, f"5c {an} {align}/{variant}/{mode}")   # merge review N2: never thin silently
             print(f"  !! 5c {an} {align}/{variant}/{mode}: {type(ex).__name__} {str(ex)[:90]}",
                   flush=True)
     return per_animal, sorted(all_days)
@@ -860,7 +1160,7 @@ def fig_confusion_delta(out_dir):
     """5d: figure 5c as DIFFERENCES from the pre-stroke reference.
 
     The frozen decoder's per-session confusion minus the leave-one-session-out pre-stroke confusion,
-    cell by cell, in row-normalised probability. Zero means the decoder makes the same errors in the
+    cell by cell, in row-normalized probability. Zero means the decoder makes the same errors in the
     same proportions it made before the lesion.
 
     WHY THIS IS THE MOST INFORMATIVE OF THE THREE. The pre-stroke confusion is far from uniform --

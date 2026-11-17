@@ -25,6 +25,8 @@ SESSIONS = {"pre": [("PS92", "20260809"), ("PS94", "20260809"), ("PS93", "202608
 OFFSETS = (-2, -1, 0, 1, 2)                 # frames around the peak (4 ms each)
 CROP = (-110, 110, -40, 200)                # x0, x1, y0, y1 around the mouth (image px; the tongue goes DOWN)
 LK_THR = 0.4
+BAND_EDGES = (10.0, 20.0)                   # new-lick bands: [floor, 10), [10, 20) px (20 = the production floor)
+CTRL_BAND = (20.0, 30.0)                    # control sheet: production licks in this band
 
 
 def redetect(rv, animal: str, date: str, floor: float) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, np.ndarray]:
@@ -129,6 +131,19 @@ def _histogram(A: pd.DataFrame, floor: float, path: Path) -> None:
     plt.close(fig)
 
 
+def trial_set_sentence(floor: float, per_sheet: int, seed: int) -> str:
+    """The licks of the QC sheets / histogram (Priya 11-09): cam4 detector licks of the SESSIONS listed, re-detected with
+    the floor lowered; sheets = random draws per band (seed), control = production licks of CTRL_BAND px."""
+    from wfield_local import trial_set_text as tst
+    ses = "; ".join(f"{ep}: " + ", ".join(f"{a} {d[4:]}" for a, d in v) for ep, v in SESSIONS.items())
+    return tst.events(f"cam4 tongue-detector licks inside the trial windows (run {RUN}) of the sessions {ses}", keep=[
+        f"histogram + new-lick sheets: the SAME cleaning + v7 detector re-run with min_peak_y_abs = {floor:g} px",
+        f"new-lick sheets: peak protrusion {floor:g}-{BAND_EDGES[0]:g} px and {BAND_EDGES[0]:g}-{BAND_EDGES[1]:g} px; "
+        f"control sheet: production licks of {CTRL_BAND[0]:g}-{CTRL_BAND[1]:g} px",
+        f"each sheet: up to {per_sheet} licks per epoch, drawn at random per session (seed {seed})"],
+        excluded=["licks outside the trial windows", "sheet rows whose frame lies in another video of the session"])
+
+
 def main(argv=None) -> int:
     from wfield_local import orofacial_outputs as oo
     from wfield_local import writeguard
@@ -138,13 +153,15 @@ def main(argv=None) -> int:
     ap.add_argument("--per-sheet", type=int, default=24)
     ap.add_argument("--seed", type=int, default=0)
     a = ap.parse_args(argv)
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence(a.floor, a.per_sheet, a.seed))
     rv = PathResolver()
     out = oo.root(rv) / RUN / "qc" / "lick_floor"
     writeguard.assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(a.seed)
     summary, amps = [], []
-    bands = [(a.floor, 10.0), (10.0, 20.0)]
+    bands = [(a.floor, BAND_EDGES[0]), BAND_EDGES]
     for epoch, sess in SESSIONS.items():
         band_items = {bd: [] for bd in bands}
         ctrl_items = []
@@ -156,7 +173,7 @@ def main(argv=None) -> int:
             origin = tuple(c["tongue_origin"])
             parts = [str(x) for x in np.load(oo.session_dir(rv, RUN, animal, date) / "windows.npz")["parts"]]
             kt = parts.index("tongue")
-            ctrl = Lprod[(Lprod.protrusion_max_px >= 20.0) & (Lprod.protrusion_max_px < 30.0)]
+            ctrl = Lprod[(Lprod.protrusion_max_px >= CTRL_BAND[0]) & (Lprod.protrusion_max_px < CTRL_BAND[1])]
             amps.append(Lnew.assign(epoch=epoch, animal=animal)[["epoch", "animal", "protrusion_max_px", "contact"]])
             row = {"epoch": epoch, "animal": animal, "date": date, "n_licks_prod": len(Lprod),
                    "n_licks_lowfloor": len(Lnew), "n_ctrl_20_30": len(ctrl),

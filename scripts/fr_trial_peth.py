@@ -15,6 +15,7 @@ Usage: python scripts/fr_trial_peth.py
 Output: <E>/fr_encoding_summary/trial_peth/ (sessions.csv, per_animal.csv, bootstrap.csv, figures/)
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import json
 import sys
@@ -24,9 +25,9 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from fr_musall import AN, E  # noqa: E402
+from fr_musall import AN, E, _fg  # noqa: E402
 
-D = E / "movement_first_fr-master_pre_v1_frg-A_subset-fr_exec-polar_licks-combined_tr" / "sessions"
+D = _fg.run_folder(E, "A", tr=True) / "sessions"   # fr_A carries the tr outputs (rebuild code)
 WIN = {"cue": ("", 0.0, 1.5), "lick": ("_lick", -0.1, 1.0)}
 G = ["task", "instructed", "uninstructed", "position"]
 Q = ["full_fr", "alone_fr", "unique_fr"] + [f"uniquefr_{g}" for g in G]
@@ -40,7 +41,7 @@ def session_rows(jf: Path) -> list[dict]:
     from wfield_local import config, epochs
     m = json.loads(jf.read_text())
     lab = m["label"]
-    if lab[-4:] < "0801":
+    if config.early_pre(lab):
         return []
     z = np.load(jf.with_suffix(".npz"))
     off = z["peth_off_s"]
@@ -128,7 +129,7 @@ def main() -> int:
                  "(trial-averaged) R2.\nunique = fr:full minus the model without the group; FR unique = fr:full minus full. "
                  "Bars = mean of animals, dots = animals.", fontsize=9)
     fig.subplots_adjust(left=0.06, right=0.99, top=0.88, bottom=0.14, hspace=0.6, wspace=0.08)
-    fig.savefig(out / "figures" / "fr_trial_peth_pre_levels.png", dpi=115)
+    save_png_svg(fig, out / "figures" / "fr_trial_peth_pre_levels.png", dpi=115)
     plt.close(fig)
 
     # figure 2: chronic - pre, trial vs PETH, cortex / contra SSp-m / ipsi SSp-m
@@ -157,7 +158,7 @@ def main() -> int:
     fig.suptitle("NEURAL: chronic minus pre, per-session encoder WITH FaceRhythm: trial-to-trial (orange) vs PETH (green) "
                  "unique R2.\nBars = mean of animals [95% nested bootstrap CI], dots = animals.", fontsize=9)
     fig.subplots_adjust(left=0.06, right=0.99, top=0.88, bottom=0.1, hspace=0.45, wspace=0.08)
-    fig.savefig(out / "figures" / "fr_trial_peth_chronic.png", dpi=115)
+    save_png_svg(fig, out / "figures" / "fr_trial_peth_chronic.png", dpi=115)
     plt.close(fig)
     print("->", out)
     return 0

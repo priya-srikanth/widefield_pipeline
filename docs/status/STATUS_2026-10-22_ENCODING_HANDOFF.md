@@ -15,7 +15,7 @@ Other windows: pose / 3-D / cam1 = `sabatinilab-5b` (`STATUS_2026-10-21_POSE_CAM
 
 Page v84 https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d (source `S/goal_page/index.html`, S = `C:/Users/SABATI~1/AppData/Local/Temp/claude/C--Users-SabatiniLab/cdd1e016-6bb3-4346-8600-f08116ccf61d/scratchpad`; publish with the
 LONG path form `C:/Users/SabatiniLab/AppData/Local/Temp/...` -- the 8.3 `SABATI~1` path is blocked by a read rule for the image
-files). FINDINGS section 0 now has: point 4 (target vs executed reconciled), 4b (recovery = behavioural compensation with
+files). FINDINGS section 0 now has: point 4 (target vs executed reconciled), 4b (recovery = behavioral compensation with
 PARTIAL cortical recovery), 4c (early predictors, exploratory n=4, pre-registered predictions); direction-neutral wording
 throughout ("cortical activity consistent with the movement under the pre-stroke mapping; direction not determined").
 ENCODING_FINDINGS 8.14 (partial refit), 8.15 (coupling by class, nulls), 8.16 (per-spout lick kernels).
@@ -57,8 +57,8 @@ ENCODING_FINDINGS 8.14 (partial refit), 8.15 (coupling by class, nulls), 8.16 (p
   ROI (consider ROI minus cortex); calcium lag; whether the acute "later rise" is a ramp change or a baseline / kinetics
   change (the 1 s gap version had a decaying acute baseline -> 2 s made primary).
 - 10-26 ~06:15 KEY FIGURES (Priya: "3.7 frozen decoder and 3.8 are KEY results"): `iti_licks.py --key` -> frozen
-  decoder per lag for ITI and in-trial licks (page 3.8), per-session summaries raw + within-animal normalised with nested
-  tests (3.9), per-session PETH mean +- SEM raw + normalised (3.11), per-session post-onset / build-up summaries (3.12);
+  decoder per lag for ITI and in-trial licks (page 3.8), per-session summaries raw + within-animal normalized with nested
+  tests (3.9), per-session PETH mean +- SEM raw + normalized (3.11), per-session post-onset / build-up summaries (3.12);
   'Where things stand' row added (Key reconciliations). Page v96; GOAL_PAGE_FIG_MAP_2026-10-26.csv maps pre-10-26
   numbers to v96. Open checks: lick kinematics (reach / speed) of the ITI licks; pre-lick face movement (FaceRhythm).
 - PAGE RENUMBERED 10-26 ~06:00 (Priya: "why two letters"): every figure is now Fig SECTION.POSITION in page order (ids
@@ -67,7 +67,7 @@ ENCODING_FINDINGS 8.14 (partial refit), 8.15 (coupling by class, nulls), 8.16 (p
   rerun the script (it also sets the sidebar to one collapsible list per section). New figs: landing vs target (1.35),
   self-fit remap (1.36), FR lags (9.21), ITI decoding with frozen panel (3.7), ITI PETH (3.8), isolated licks (3.9).
   ITI 'within-spout' corrected to 'relative to the previous trial's spout' (spout retracted in the ITI); bout-length
-  control added. Epoch colours = orofacial_cohort.EPOCH_LINE on every new figure.
+  control added. Epoch colors = orofacial_cohort.EPOCH_LINE on every new figure.
 - TO-DOS B / C / D(self-fit) DONE 04:30 -> ENCODING_FINDINGS 8.19, FINDINGS point 4 (f). Landing kernels do not absorb
   the chronic target term (target unique +0.010 / +0.011 contra SSp-m, 4/4); FR lags: no shift toward cortex leading,
   acute face -> contra SSp-m rise; self-fit: target remap halves with lick kernels present, lick-kernel remap ~0, spout
@@ -91,7 +91,7 @@ ENCODING_FINDINGS 8.14 (partial refit), 8.15 (coupling by class, nulls), 8.16 (p
   target kernels too noisy. NEXT (decides it): drift-RATE test (within-chronic early vs late r per day vs the pre rate
   per day; as chronic_drift_vs_reorg). Matched fits drop PS95 (one acute session).
 - ITI FULL RUN DONE 00:10 (102 sessions) -> ENCODING_FINDINGS 8.17, FINDINGS 4d. t50 'later ramp' = AMPLITUDE
-  artefact (post-onset response ~2x acutely); amplitude-free early ramp (-0.6..-0.2 s / pre amplitude) weaker
+  artifact (post-onset response ~2x acutely); amplitude-free early ramp (-0.6..-0.2 s / pre amplitude) weaker
   CHRONICALLY in tjM1 / SSp-m (3/4); direction decoding intact within session, frozen pre decoder -0.13 every epoch
   (remapped). NEXT: page figures (iti_ramp_peth.png, iti_direction_decoding.png + a line panel of early_n / peak_n);
   regress pre-lick FaceRhythm out of the ramp; ROI minus cortex; per-animal PETH view.
@@ -111,9 +111,9 @@ ENCODING_FINDINGS 8.14 (partial refit), 8.15 (coupling by class, nulls), 8.16 (p
   with perm nulls (~10 h): relaunch at 5-6 when the box frees.
 
 ### Key results of the night (all PROVISIONAL, details in FINDINGS / ENCODING_FINDINGS)
-- KEY FIGURE (page, under the bottom line; = Fig 1i4): per-animal-normalised, hits-only. Behaviour chronic +0.01 (fully back);
+- KEY FIGURE (page, under the bottom line; = Fig 1i4): per-animal-normalized, hits-only. Behavior chronic +0.01 (fully back);
   cortical far-contra code on HITS chronic -0.30 [-0.46, -0.13]; per-session gap ~0 subacute -> -0.31 chronic. By day (1i3):
-  both climb to ~0.8 by day ~9, then behaviour completes and cortex plateaus at ~0.7.
+  both climb to ~0.8 by day ~9, then behavior completes and cortex plateaus at ~0.7.
 - Coupling (neural decoder fM - fC vs lick fM - fC, within session): absent on FAILED attempts (acute -0.26 vs pre hits, each
   animal; subacute -0.29), kept on hits (acute hits ~pre but 64 trials; chronic hits at pre). The old "acute r ~ 0" was
   composition (92 % of acute far-contra trials are failed attempts). Block-permutation null; cross-epoch statistics.
@@ -124,7 +124,7 @@ ENCODING_FINDINGS 8.14 (partial refit), 8.15 (coupling by class, nulls), 8.16 (p
   remapped; partial refit (single-shift nulls): target AND executed remapped chronically in contra SSp-m; per-spout lick
   kernels (frozen, `..._frA_ls`) absorb part of the old target term and only the executed spout-locked templates gain.
 - Recovery timing, hits only: no consistent order (every CI includes 0); neither predicts the other session to session.
-- Early predictors (n=4): lesion % perfectly orders behavioural recovery speed (one-sided p .042); acute retention orders
+- Early predictors (n=4): lesion % perfectly orders behavioral recovery speed (one-sided p .042); acute retention orders
   chronic code inversely but PS94 alone sets it.
 
 ### RUNNING (do not restart; check logs)
@@ -157,7 +157,7 @@ E. Queued, not started: within-trial lead / lag (pre-lick vs post-lick predictio
    coupling; template-similarity check of acute trials ("confident wrong spout" vs off-distribution); PS94 state x spout check
    -> block null; convert the remaining bar families to epoch-line figures (`ffc.epoch_lines`; Priya: lines "much better";
    2-3 lines per figure, bars as supplement, session dots where per-session values exist); session-level versions of other
-   per-animal figures (4f / 4g, behaviour 3-6).
+   per-animal figures (4f / 4g, behavior 3-6).
 F. O2 bundle for the frozen encoder (Priya: "we can run on o2"): code sync, inputs (3-D snapshot, FR master_pre_v1 proj,
    attempts table, templates / pre_stats / spatial pickles), submit wrapper; Priya runs transfer / submit. Best candidates:
    the lickspout partial refit with perm nulls, per-epoch pixel kernel fits (000y E).
@@ -167,14 +167,14 @@ G. From 000y still open: B (novar pixel maps; `frozen_pixel_musall.py --layout n
 
 ### New scripts tonight (repo)
 `frozen_pixel_musall.py` (pixel Musall layouts), `coupling_by_class.py`, `trial_neural_vs_exec.py` (block null, per session,
-pooled, normalised, cross-epoch stats), `decoder_retention_sessions.py`, `precue_class_matched.py`, `recovery_timing.py`
+pooled, normalized, cross-epoch stats), `decoder_retention_sessions.py`, `precue_class_matched.py`, `recovery_timing.py`
 (hits-only timing + pooled by day / epoch = key figure), `early_predictors.py`; `wfield_local/sig_marks.py` (haloed stars);
 `frozen_fr_compare.epoch_lines / lines_legend` (line panels); `partial_refit.py` (per-session save / resume, contrasts,
 exec_shuf, block-perm nulls, --add); `frozen_encoder.py` FROZEN_LICKLAND / FROZEN_FR_LAGS (opt-in; tests pass).
 
 ### PITFALLS (tonight, in addition to 000y)
 - HEREDOCS AND sed STILL EAT `\n` (hit 4 more times): write patch scripts with the Write tool, always.
-- `build_design` MEAN-CENTRES event amplitudes: an amplitude-weighted kernel needs + mean(amp) x the plain kernel added back.
+- `build_design` MEAN-CENTERS event amplitudes: an amplitude-weighted kernel needs + mean(amp) x the plain kernel added back.
 - `df.align` is a DataFrame method: use df["align"].
 - Retention units ((P - 1/6) / (pre - 1/6)) explode when the pre code is near chance (pre-cue PS92): use raw P as primary there.
 - One half-session circular shift is a noisy null (spouts in ~6-trial runs): use block permutation, several draws, average
@@ -236,7 +236,7 @@ the day: ENCODING_FINDINGS 8.11-8.13, FINDINGS section 0 (synthesis) + 4.2 / 4.3
 A. Area run (a): unique R2 of target vs lickspout (frozen), per spout, epoch changes; compare with the current frame
    (does adding lick-locked spout kernels absorb the target-unique term? that is the target-vs-executed question with
    both terms lick-aligned). Script: extend `frozen_fr_musall.py` / `frozen_claims.py` QS with no_lickspout, or a small
-   new script. Per-animal table first; PS94 normalisation for any mean map.
+   new script. Per-animal table first; PS94 normalization for any mean map.
 B. Musall bottom row (single-VARIABLE unique dR2): area maps from the novar_* variants (`frozen_peth_trial_maps.py`
    style, painted Allen areas) and PIXEL maps from the basis run -- `frozen_pixel_unique_sig.py` reads resid_mom per
    variant: add the novar_* / no_lickspout / *_only quantities to its QS (or a sibling script). Pre level row (=
@@ -254,7 +254,7 @@ D. Per-spout target vs EXECUTED unique maps in the FR frame: rerun `spout_unique
 E. Per-epoch pooled PIXEL KERNEL fits (approved, NOT written): per animal pool sessions by epoch (early pre / late pre
    / acute / subacute / chronic; match session counts), fit in the basis with the frozen penalties, save target and
    per-spout lick kernels; compare map correlation with the early-pre kernel per spout x lag, late-pre = drift
-   reference. Use `frozen_kernel_maps.py` for plotting (canonical spout order, NO vessel mask, NO grey bar).
+   reference. Use `frozen_kernel_maps.py` for plotting (canonical spout order, NO vessel mask, NO gray bar).
 F. Second pass of the self-fit: narrow every-lick window (+/-0.2 s around each lick peak; secondary, Priya to confirm
    first-lick primary) for frozen and self-fit, + design-space distance diagnostic (Mahalanobis of post design rows
    vs the pre Gram). Needs lick-peak times (not returned by session_design -- load via combined_encoding.load_behaviour).
@@ -281,8 +281,8 @@ fits) -- write it O2-ready (per-animal x epoch tasks) from the start.
 - ffc.bars needs a `frame` column and labels in ffc.ALAB (KeyError otherwise); ffc.boot adds `<ref>_split` rows -- filter
   epochs before painting maps (a map once painted the noise-band rows).
 - Smoke tests: use a REAL session label (PS92_0912 does not exist -> StopIteration in load_imaging).
-- R2 is already normalised per area / pixel: PS94's ~10x target-unique is NOT a data-scale issue (8.13); mean target
-  maps must be animal-normalised.
+- R2 is already normalized per area / pixel: PS94's ~10x target-unique is NOT a data-scale issue (8.13); mean target
+  maps must be animal-normalized.
 - "Control" areas are a comparison set, not a null; cortex-wide != drift / not stroke.
 - Canonical spout order everywhere; Musall citations: alone = top row, single-variable unique dR2 = bottom row.
 - Push pushes from a temp worktree (pre-push tests ~25 min); origin may already contain rebased copies of local commits.
@@ -301,12 +301,12 @@ dropped; no "control areas" as a null.
 **RUNNING at ~18:00 (worktree wf_attempt):**
 - partial refit (`scripts/partial_refit.py`, S/run_partial.sh, log S/partial_full.log): refit ONLY target / exec / exec+FR
   dir / target+exec / target+exec+FR / target with shifted labels (null), per session, frozen everything else; per-spout
-  scores (check 5) included. 24/107 at 17:50. Then: summarise (prints per animal + boot + by-spout), page figure.
+  scores (check 5) included. 24/107 at 17:50. Then: summarize (prints per animal + boot + by-spout), page figure.
 - free push current frame chain (S/run_frA_pushfree.sh, log S/frA_pushfree_chain.log): frozen + spec done; residual_roi +
   matched residual finishing.
 - `scripts/state_spout_check.py` (log S/state_spout.log): PS94 dominance check (state x spout eta2 + tracking).
 - `scripts/spout_unique_maps.py` (logs S/spout_unique*.log): per-spout target vs executed unique maps (levels / changes /
-  per animal with own colour bars + within-animal tests); builds a cache then redraws.
+  per animal with own color bars + within-animal tests); builds a cache then redraws.
 - halo redraw chain (b4f92tuv8): spec / remap figure redraws with haloed outlines.
 
 **QUEUED / NEXT (Priya approved):**
@@ -336,7 +336,7 @@ DONE (ENCODING_FINDINGS 8.11; both frames; page v56 Figs 1n-1s + revised status 
   (contrast 3/4 FR / 4/4 no-FR), partly global in the lick window. Gain correction tried and DROPPED (Priya: not needed).
 - 2 recovery (`scripts/remap_lmm.py`, figures in remap_lmm/<tag>/figures): residual largest at day 1, declines, persists
   at full recovery (cue orofacial - control +0.73 / +1.09 pre-SD); the deficit slope is carried by PS94 (PS92 opposite).
-- 4 matched (`scripts/matched_residual.py`): residual unchanged on trials inside the pre behavioural envelope -> not
+- 4 matched (`scripts/matched_residual.py`): residual unchanged on trials inside the pre behavioral envelope -> not
   extrapolation. Design-space distance diagnostic still to do (fold into the self-fit second pass).
 STILL RUNNING: session_vs_frozen (S/svf_full.log), split run, maps chain (frA maps now). NEXT: when svf lands -> remapping
 + scoring-caveat verdict; second pass = narrow every-lick window (both frames) + design-space distance; frA / split maps to page;
@@ -346,7 +346,7 @@ posinfo split -> page; then analyses 3 / 5 / 6 / 7 if Priya picks them.
 
 - Page v55: noise bands on Figs 1-1k; frozen noFR PIXEL maps added (Fig 1l nested test, Fig 1m per-animal view; status row).
 - SCORING CAVEAT (Priya asked 10-25): refit and frozen R2 are scored differently (refit cue 0-1 s, lick +/-0.2 s around EVERY
-  lick peak, offset penalised; frozen cue 0-1.5 s, lick -0.1..+1.0 s around the FIRST lick, data / prediction centred
+  lick peak, offset penalized; frozen cue 0-1.5 s, lick -0.1..+1.0 s around the FIRST lick, data / prediction centered
   separately). Within-frame changes are fine; the cross-frame "not reproduced" revisions (FINDINGS 4.11, 4.12a) mix frame
   and scoring -> flagged "check pending" on the page and in FINDINGS.
 - RUNNING: `S/run_svf.sh` -> `scripts/session_vs_frozen.py` (log `S/svf_full.log`): each session refit on ITSELF in the
@@ -354,10 +354,10 @@ posinfo split -> page; then analyses 3 / 5 / 6 / 7 if Priya picks them.
   Answers both NEXT 3 (remapping) and the caveat: if the self-fit's target unique rises chronically, "not reproduced" is a
   frame effect; if not, the refit gain came from refit scoring / design. Smoke (PS92_0806): pre gap +0.10 SSp-m.
   Output `frozen_encoder_gate-attempted_v7g3_t3d_frA/session_vs_frozen/` (gap.csv, remap_boot.csv, figures/).
-- Synthesis given to Priya 10-25 (acute = movement + transient decoupling; chronic = same behaviour, different cortical
-  solution). Proposed next analyses, priority: (1) specificity control -- residual / Layer 2 in VIS / RSP + normalise by a
-  task-independent response (total variance rose globally); (2) residual / Layer 2 vs behavioural deficit, session mixed
-  model; (3) target-free execution test from ITI 3-D licks; (4) behaviour-matched residual + frozen extrapolation
+- Synthesis given to Priya 10-25 (acute = movement + transient decoupling; chronic = same behavior, different cortical
+  solution). Proposed next analyses, priority: (1) specificity control -- residual / Layer 2 in VIS / RSP + normalize by a
+  task-independent response (total variance rose globally); (2) residual / Layer 2 vs behavioral deficit, session mixed
+  model; (3) target-free execution test from ITI 3-D licks; (4) behavior-matched residual + frozen extrapolation
   diagnostic; (5) pre-lick ramp timing in ALM / tongue-jaw motor; (6) June -> August reduced-model drift ceiling;
   (7) lesion burden / leave-PS93-out. Not started -- wait for Priya's pick.
 
@@ -438,7 +438,7 @@ leaves new images missing -- happened once, "16g/h broken"). ALL R2 now a FRACTI
 
 **RUNNING at ~03:30:**
 - `scripts/fr_direction_mechanism.py` (log `S/fr_mech.log`) -> `E/fr_encoding_summary/direction_mechanism/`: WHY FR direction factors
-  explain less SSp-m post-stroke -- (a) behaviour: spout-specificity (eta2) of the FR side / distance index and of the 3-D tongue ml;
+  explain less SSp-m post-stroke -- (a) behavior: spout-specificity (eta2) of the FR side / distance index and of the 3-D tongue ml;
   sd of side; (c) measurement: within-spout r(FR side, tongue ml); (b) neural: within-spout partial r(SSp-m R / L / c-i, MOp; FR side /
   distance | lick). Per animal + bootstrap. Priya: "could be critical to interpretation". Report (a) vs (b) vs (c), add figure to page
   after 16o, update FINDINGS 4.12.
@@ -448,11 +448,11 @@ leaves new images missing -- happened once, "16g/h broken"). ALL R2 now a FRACTI
   window's transcript: sum trial_sse per session x class, % worse than the fC label).
 
 **AGREED PLAN AFTER COMPACTION (Priya 10-25 ~03:45: "update handoff with these tasks then will do after compacting"):**
-1. Read the mechanism result (`direction_mechanism/bootstrap.csv`): (a) behaviour (eta2 side / dist / tongue, sd_side fall?) vs
+1. Read the mechanism result (`direction_mechanism/bootstrap.csv`): (a) behavior (eta2 side / dist / tongue, sd_side fall?) vs
    (c) measurement (r_side_tongue falls?) vs (b) neural (partial r SSp-m vs side / distance falls with (a) intact?). Page figure after
    16o; FINDINGS 4.12. Also check the refgate relabel (stalled at 20/107 since ~03:20 -- disk contention with the mechanism run?
    restart if dead) and finish the far-contra class table incl. no_try / jaw_only (cue window).
-2. BUILD the FROZEN pre-stroke encoder WITH FaceRhythm -- main purpose: every frozen result (residual maps, Layer 2 "behaviour ->
+2. BUILD the FROZEN pre-stroke encoder WITH FaceRhythm -- main purpose: every frozen result (residual maps, Layer 2 "behavior ->
    cortex mapping changes chronically 4/4", relabel) has NO face movement, while FR explains ~0.12-0.13 extra and absorbs the broad
    chronic position rise in the refit frame -> are the chronic residual / Layer 2 change partly unmodelled face movement? Secondary:
    decoupling test (pre-stroke face -> cortex weights applied post-stroke: frozen FR contribution collapses while refit does not ->
@@ -480,14 +480,14 @@ bins and by area, Layer 2 random-split null, pooled figures, FR in the encoder, 
 RENUMBERED 10-25 into page order (1 .. 16c; pooled versions are letters now, no "p"); one-pass renumber script
 `S/renumber_figs.py` (rewrites caption labels, ids and every "Fig N" cross-reference). Click-to-zoom viewer added
 (`S/add_zoom.py`; wheel / pinch / drag / dblclick reset / Esc) — UNTESTED in a browser, ask Priya. Conventions in
-memory `results-page-conventions` (now incl. page order, matrix colours viridis 0-1 / RdBu +-0.6, colorbars on maps,
+memory `results-page-conventions` (now incl. page order, matrix colors viridis 0-1 / RdBu +-0.6, colorbars on maps,
 no overlaps). Figure scripts: repo `scripts/` for analyses; page-only figure scripts in `S/fig_*.py`
 (fig_pooled.py = all pooled panels, fig_resid16.py / fig_resid_spout.py = residual maps, fig_goal_traj2.py = paths,
 fig_landing.py, fig_softmax.py, fig_layer2.py, fig_rsplit.py).
 
 **FINDINGS CONSOLIDATION (Priya 10-25, all windows):** ONE new top-level `docs/FINDINGS.md`, skeleton by
 `sabatinilab-e3` (FR window), status tags STANDS / PROVISIONAL / CORRECTED / WITHDRAWN / NOT ESTABLISHED. Sections:
-1 behaviour + orofacial (5b), 2 pose / 3-D (5b), 3 imaging decode / state / anatomy (ME to draft from 5b's imaging
+1 behavior + orofacial (5b), 2 pose / 3-D (5b), 3 imaging decode / state / anatomy (ME to draft from 5b's imaging
 page https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV + its corrections, 5b then corrects), 4 encoding + goal
 question (ME), 5 FaceRhythm (e3), 6 histology, 7 open / withdrawn. Family docs stay (no deletions) with a header
 pointing to FINDINGS.md; VLS_STROKE_SYNTHESIS / PRELIM_DATA get "superseded for current conclusions" banners after
@@ -569,11 +569,11 @@ frozen_residual_significance colorbars, layer2_random_splits resume, combined_en
 -- source `goal_page/index.html` + figure scripts `fig_*.py` in the session scratchpad (S); a copy of the page is
 `docs/templates/results_page_example.html`. CONVENTIONS (Priya, memory `results-pages-as-artifacts`): hidable left
 contents panel, EVERY figure numbered in caption + contents, sections tagged neural / lick, per-animal first then
-within-animal-normalised pooled with stats. Other windows told.
+within-animal-normalized pooled with stats. Other windows told.
 
 **O2 batch `enc_v36_full_20261024` DONE + ALL 14 RUNS COLLECTED** (bins_w1 / w05 / w2, main, droppos, shufpos, nodir, drop,
 trmodels, musall_shuf, fr_A / B / S / D). OOMs resubmitted with `resubmit_failed.sh` (on the share + scratch; now catches
-any session without output that is not running). droppos needed 128 GB. NOT YET ANALYSED: fr_* (does FaceRhythm absorb
+any session without output that is not running). droppos needed 128 GB. NOT YET ANALYZED: fr_* (does FaceRhythm absorb
 the chronic residual / spout coding?), droppos (per-spout unique maps), main / drop / nodir / trmodels / musall_shuf
 tables (run `scripts/combined_encoding_figures.py --order <folder>`).
 
@@ -633,7 +633,7 @@ Running / queued (session scratchpad `S`):
 - QUEUED (audit gaps): within-spout in the final frame (attempted gate + combined licks; cue + ENL variants;
   mixed model / per-position direction maps / reliability chained); destination vs landing (fix `CONTEST_3D` in
   `scripts/best_match_destination.py` -- its folder was deleted); lick templates 4 animals; O2 variants not in the
-  batch (nokin_matched / tr / win, drop_win); behaviour figures + lick_contact_by_epoch; LMMs after the O2 collect.
+  batch (nokin_matched / tr / win, drop_win); behavior figures + lick_contact_by_epoch; LMMs after the O2 collect.
 - Next analysis for the goal question: movement-matched control for 2.8 (failed far-contra attempts vs licks with the
   same 3-D landing), and the frozen encoder's touch / lick split on the attempt classes.
 
@@ -711,7 +711,7 @@ contact + lick joint drop; Layer 2 bootstrap; Git Bash SSH connection sharing so
   of trials** (cam1 jaw 74 / 80 / 29 / 0 %; jaw_onsets now 76 / 81 / 73 / 71 %). Missing cam1 files were silently
   cam4-only. It feeds (a) the `attempted` engagement gate of every `gate-attempted` run (frozen Layer 1, Layer 2,
   relabel, basis), (b) the deficit index of all LMMs (attempt / completion / ttc / latency), (c) the LP-lick source
-  (3.3), (d) the "PS94 / PS95 also fail to INITIATE" behavioural claim. Old tables copied to
+  (3.3), (d) the "PS94 / PS95 also fail to INITIATE" behavioral claim. Old tables copied to
   `qc/superseded_attempts_cam1incomplete_20261021/`; REBUILD queued (bj09r90b1, waits for 8 GB).
 - 3-D tongue frozen run `_v7g3_t3d` STOPPED at its template pass (would have used the stale gate); relaunch after the
   attempts rebuild. Basis g3 run stopped earlier (maps go in the final frame).
@@ -720,10 +720,10 @@ contact + lick joint drop; Layer 2 bootstrap; Git Bash SSH connection sharing so
   Layer 2, relabel in that frame; (2) LMMs (`imaging_lmm.py`, `encoding_mixed.py`) on the new attempts; (3) LP-lick
   position maps (3.3); (4) cam4-lick-timing O2-era runs (10-19/20, 119 sessions, reference gate): per-spout unique maps
   3.1 (`droppos`), signed 3.2 (`shufpos`), main `movement_first`, contests 2.1 / 2.2 / 2.3 (`nokin`, `_matched`, `_tr`),
-  `nokin_win`, `trmodels` -> with combined licks (3.1 is a headline); 2.1 may be retired in favour of 2.4b;
+  `nokin_win`, `trmodels` -> with combined licks (3.1 is a headline); 2.1 may be retired in favor of 2.4b;
   (5) destination vs landing 2.4c (2 animals) -> 4; (6) cam4-timing cells of the 3-D 2x2.
 - RUNNING: xyz2 x combined 4 animals (`_3d4`, reference gate), within-spout 3-D 4 animals (reference gate).
-- Already on complete data: polar `_3d4`, stray test, push behaviour; v7g3 / v7pushfree / Layer 2 / relabel used
+- Already on complete data: polar `_3d4`, stray test, push behavior; v7g3 / v7pushfree / Layer 2 / relabel used
   complete cam1 LICK TIMING but the STALE GATE (PS94 / PS95).
 
 ## 000l. STATE 10-24 ~early morning -- READ FIRST (then 000k)
@@ -797,7 +797,7 @@ contact + lick joint drop; Layer 2 bootstrap; Git Bash SSH connection sharing so
 - **Answered / decided 10-23 evening (DECISIONS 2026-10-23 late):** nose x -> "other" (only 4-29 % spout-locked);
   "direction" / "magnitude" columns are POSITIONS (tongue x / y / protrusion vs speed; jaw x vs y + speed; nose x vs
   y); contact stays a separate group (own-category option offered, not decided); Layer 2 moved up; relabel + stray
-  tests approved; push behaviour finding (FINDINGS 4.4).
+  tests approved; push behavior finding (FINDINGS 4.4).
 - **Decided (Priya, after pros / cons):** (1) contact = ITS OWN CATEGORY -> grouping v3 (out of "nontask"; task_first /
   movement_first order task vs movement only; r2 maps' last column relabelled "non-task+contact"); (2) no separate
   model-free contact-vs-miss script -- the stray-lick test now gives contact licks their own kernel per aimed spout
@@ -827,7 +827,7 @@ contact + lick joint drop; Layer 2 bootstrap; Git Bash SSH connection sharing so
   pre_spout_*); contact kernel NEGATIVE in 4/4 (frontal), so the acute far-contra contact part's + sign = fewer contacts
   x negative kernel (per-contact amplification would sit in the residual); PS93 unique contact ~0 although it has the
   most misses (0.74 contact) -- hypothesis: contact shared with direction (exec_within brightest in PS93). FINDINGS 3.4.
-- **Push behaviour DONE (FINDINGS 4.4):** pushes / cue-locked push collapse acutely with the deficit and overshoot after
+- **Push behavior DONE (FINDINGS 4.4):** pushes / cue-locked push collapse acutely with the deficit and overshoot after
   recovery. 3-D job RELAUNCHED 18:55 with 4 workers (`--skip-done`; nothing had finished). Runaway transcript grep
   (14:17, 250 CPU-min) killed -- never grep the session .jsonl with an unbounded regex.
 - **jaw_onsets.csv will be rewritten again** (pose window appends 3-D jaw / nose onset columns; existing unchanged) --
@@ -899,7 +899,7 @@ contact + lick joint drop; Layer 2 bootstrap; Git Bash SSH connection sharing so
   drop-spout and saves resid / data moments incl. whole-spout swaps) -> `scripts/frozen_r2_maps.py --tag <basis tag>`
   and `scripts/frozen_spout_maps.py --tag <basis tag> [--contrast]`; ~1.5-2 h + maps.
 - **THEN (queue, 000d / 000e):** 2b lick-level strays vs on-target (pre + post); 3 all-session shared + per-epoch model;
-  4 FR inside frozen; 6 session-level competition LMM; 7 frozen parts onto the TIME / BEHAVIOUR LMMs; no_running /
+  4 FR inside frozen; 6 session-level competition LMM; 7 frozen parts onto the TIME / BEHAVIOR LMMs; no_running /
   no_nose variants if PS95 windows still need it.
 - **10-23 afternoon results** (FINDINGS 3.4 running paragraph): running sublinear (~on / off), forward-only from 1-1.5
   mm/s beats linear everywhere, signed linear treated backward pushes as negative running; side-camera clips: bout-end
@@ -930,8 +930,8 @@ contact + lick joint drop; Layer 2 bootstrap; Git Bash SSH connection sharing so
     -> per-position maps: add the whole-spout version; target vs executed only via STRAYS (queue 2b) and the bracket.
   - Lick-direction dR2 exists only as exec_within unique dR2 (whole-cortex ~1 % pre; PS94 post negative in windows,
     possibly out-of-range direction deviations); per-lick version = queue 2b.
-  - Stray census (good 3-D, August): thousands of no-contact licks nearer another calibrated centre, pre included
-    (PS92 1129, PS93 6679 pre); close-spout centres overlap -> continuous error, not zones. Spontaneous ITI licks =
+  - Stray census (good 3-D, August): thousands of no-contact licks nearer another calibrated center, pre included
+    (PS92 1129, PS93 6679 pre); close-spout centers overlap -> continuous error, not zones. Spontaneous ITI licks =
     execution-only reference once whole-session 3-D exists.
   - LMM with 2 animals: animal FIXED (a random-effect variance cannot be estimated from 2 levels); per animal first.
   - PS95 post-stroke window R2 ~0 with "other" in: running vs nose NOT separable with the current variants (they drop
@@ -952,7 +952,7 @@ contact + lick joint drop; Layer 2 bootstrap; Git Bash SSH connection sharing so
   and PS92_0908 rerun in FR run A (old outputs `_superseded_linear_fr_timing/`; note `RESOLVED_PS92_0908_fr_timing.txt`):
   PS92_0908 fr:full cortex R2 0.506 -> 0.618 (FR alone +0.26); PS92_0812 unchanged (mistimed bins were after the DAQ
   recording). Both sessions back IN. Any FR set projected before 10-23 without the timing field: check the same way.
-- **FR run A done** (50/50 PS92 + PS93 sessions; `S/fr_runA.log`) -- summarise how much grouped FR adds; the cam4
+- **FR run A done** (50/50 PS92 + PS93 sessions; `S/fr_runA.log`) -- summarize how much grouped FR adds; the cam4
   pass exited instantly with an empty log (check it is "all done", not a skip by error).
 - **Still open:** PS95 subacute / chronic cue / lick-window R2 ~0 (no_other better: nose y?); contact kernel sign; test
   on data - model; PS95 1 acute session. **3-D 2x2 still paused** at 16/41 (`run_3d_2x2.sh`, `--skip-done`, 2 workers).
@@ -964,8 +964,8 @@ contact + lick joint drop; Layer 2 bootstrap; Git Bash SSH connection sharing so
   the winning running model; (2b) **LICK-LEVEL STRAYS vs ON-TARGET, within spout -- the decisive target-vs-executed
   test** (Priya: "don't we want to be comparing LICK stray response vs on-target response"; target and the spout-locked
   lick are the same variable on on-target licks, only strays separate them): per lick, continuous 3-D error from the
-  aimed spout's CALIBRATED centre (pre contact licks; nominal angles are biased ~21 deg) in within-spout SD units +
-  direction toward the nearest other centre + contact; per-lick regressor sets (on-target at q; strays from q toward j)
+  aimed spout's CALIBRATED center (pre contact licks; nominal angles are biased ~21 deg) in within-spout SD units +
+  direction toward the nearest other center + contact; per-lick regressor sets (on-target at q; strays from q toward j)
   so overlapping corrective licks are separated by the model (raw stray averages are contaminated toward target);
   compare stray kernels' maps with pre on-target maps of q and j, controlling pre q-j similarity = competition LMM at
   LICK level, pre AND post. **The PRE-STROKE arm is a result in itself** (Priya: "pre-stroke variation can also be useful
@@ -974,9 +974,9 @@ contact + lick joint drop; Layer 2 bootstrap; Git Bash SSH connection sharing so
   than by coordinate choice; pre sessions scored leave-one-session-out; lick-level check of the within-spout crossed
   SSp-m direction code (pre 4/4); PS93's high pre stray rate (21 % vs PS92 5 %) may reflect its known right orofacial
   deficit -> per animal first. Census 10-23 (good 3-D, August pre, PS92 / PS93): no-contact licks nearer another spout's
-  centre PS92 1129 / 1054 / 665 / 2645, PS93 6679 / 1783 / 2320 / 5429 (pre / acute / sub / chronic); far contra acute
-  564 / 537 -- thousands, vs ~6 sessions in the session-level test. Close-spout centres overlap (3-10 deg apart vs
-  within-spout SD 6-9 deg: 5-13k CONTACT licks sit nearer another centre) -> use the continuous error, categorical zones
+  center PS92 1129 / 1054 / 665 / 2645, PS93 6679 / 1783 / 2320 / 5429 (pre / acute / sub / chronic); far contra acute
+  564 / 537 -- thousands, vs ~6 sessions in the session-level test. Close-spout centers overlap (3-10 deg apart vs
+  within-spout SD 6-9 deg: 5-13k CONTACT licks sit nearer another center) -> use the continuous error, categorical zones
   only for well-separated spouts. Spontaneous (ITI) licks = an EXECUTION-ONLY reference (no target) once whole-session
   3-D exists (ask the pose window); pre-cue licks are still targeted (spout already in place).
   (3) **ALL-SESSION model: shared kernels + per-epoch deltas** (Priya: "i like the shared kernels with per-epoch
@@ -987,7 +987,7 @@ contact + lick joint drop; Layer 2 bootstrap; Git Bash SSH connection sharing so
   (4) FR inside frozen; (5) [folded into 2b]; (6) SESSION-level competition LMM for destination vs landing
   (secondary to 2b; per (session, aimed, candidate) pattern correlation ~ target + 3-D landing weight + pre-stroke
   spout similarity, x log days / deficit; animal FIXED with 2 animals); (7) frozen v6 per-session parts onto the
-  TIME / BEHAVIOUR LMMs (FINDINGS 4.3 item 7).
+  TIME / BEHAVIOR LMMs (FINDINGS 4.3 item 7).
   **Target-vs-executed headline under verification (Priya 10-23):** FINDINGS 2.4c destination % were inflated (see the
   correction there); lick-aligned arm running; 2x2 decides the coordinate frame.
 - **RE-ADDRESS WHEN 3-D TRACKING COVERS ALL SESSIONS (Priya 10-23).** 3-D tables exist for PS92 + PS93 only
@@ -995,7 +995,7 @@ contact + lick joint drop; Layer 2 bootstrap; Git Bash SSH connection sharing so
   depends on lick DIRECTION must be re-run then and compared: exec_within / exec_locked groups and their unique dR2
   (incl. PS94's negative post-stroke exec_within dR2 -- possible out-of-range extrapolation of direction deviations),
   the strayed-lick direction test (planned 10-23: per-lick SSE gain from direction vs a within-spout shuffle of
-  direction deviations, gated on tracking quality, matched on vigour / contact, per animal), the 3-D target-vs-executed
+  direction deviations, gated on tracking quality, matched on vigor / contact, per animal), the 3-D target-vs-executed
   contests and 2x2, within-spout per-position direction, and the direction pixel maps. LP results stay provisional
   until cam1 finishes.
 
@@ -1009,7 +1009,7 @@ contact + lick joint drop; Layer 2 bootstrap; Git Bash SSH connection sharing so
   the first post-cue lick, lick-locked after; POOLED over its pre sessions -- Priya "let's do pooled") + the deviation.
   Groups timing / target / exec_locked / exec_within / lick / other / contact; super-groups task / spout / movement.
   Variants: joint, target_first / exec_first (target vs executed bracket), task_first / movement_first, no_<g>,
-  <g>_only, task_only. Fit dir has `templates.pkl` (pass 1, behaviour only) + `pre_stats.pkl` (stats_version 4).
+  <g>_only, task_only. Fit dir has `templates.pkl` (pass 1, behavior only) + `pre_stats.pkl` (stats_version 4).
 - **Ordered-projection fix**: thresholded pseudo-inverse, PROJ_RCOND = 1e-3 (1e-6 ridge and then 1e-8 both blew up on
   PS95 post sessions: task_first -1.06, target_first -163). After the fix every ordered variant matches joint within
   0.003 on all frames, every session.
@@ -1046,7 +1046,7 @@ contact + lick joint drop; Layer 2 bootstrap; Git Bash SSH connection sharing so
 **FaceRhythm in the encoder (Priya approved each step):**
 - `wfield_local/fr_groups.py` + an opt-in hook in `face_rhythm_outputs.fr_signals` (env `COMBINED_ENCODING_FR_GROUPS=
   pilot_v1:A|B`, default off; keyed to set `pilot_pre_PS92_PS93`, refuses others). pilot_v1: lick amplitude = f0 + f4 +
-  f5 + f9 (lick-locked in every check); direction left f0 + f5, centre f4, right f9; other f1 f2 f3 f6 f7 f8 (f2 tonic
+  f5 + f9 (lick-locked in every check); direction left f0 + f5, center f4, right f9; other f1 f2 f3 f6 f7 f8 (f2 tonic
   with licking but not lick-locked -- the FR window's share-based r -0.24 vs absolute +0.04-.24 is a units difference;
   f1 / f3 / f6 = lick INITIATION, so "other" is not "non-lick"). labels.json now written by the FR window (named
   columns; harmless: the hook re-keys by position).
@@ -1091,7 +1091,7 @@ at a time and check `freegb.py` + per-process private bytes, not working set.
    BEFORE the protrusion move (STATS_VERSION 3) -> stale; the restart recomputes them (no `--reuse-stats`).
    `<variant>/sessions/` hold 6 sessions from that stale run; they get overwritten.
 3. **Efficiency audit (Priya: "are things parallelized and using cache/sidecars appropriately?"):**
-   - Input cache works (hits: imaging 5 s + behaviour 5 s per session). One frozen `session_design` = **27 s** (the
+   - Input cache works (hits: imaging 5 s + behavior 5 s per session). One frozen `session_design` = **27 s** (the
      uncached remainder is `raw_blocks`, 14 s). A per-session design sidecar was REJECTED: X is 170k x 507 (0.35-0.7 GB
      / session, 35-70 GB for 107) to save ~10 min / run.
    - **Fits were serial in the main process** (4 animals x (8 variants + 18 drop-spout fits)) with the pool idle ->
@@ -1158,13 +1158,13 @@ at a time and check `freegb.py` + per-process private bytes, not working set.
 
 - **LP_licks results are PROVISIONAL until cam1 finishes** (74 / 108 curated sessions have cam1; PS95 none, PS94_1005
   none -> cam4-only LP licks there). Rerun `scripts/trial_attempts.py` first when cam1 lands.
-- **Outline reading rule (ENCODING_FINDINGS 3.3):** nested-bootstrap outlines localise (bin-level FWER); their extent is
+- **Outline reading rule (ENCODING_FINDINGS 3.3):** nested-bootstrap outlines localize (bin-level FWER); their extent is
   a power-dependent LOWER BOUND, not an area, and "x % vs y % of bins" is descriptive. Cluster outlines = yes / no only.
 - **Per-session encoder "movement" includes spout CONTACT and lick DIRECTION** (both inside its `licks` / `instructed`
   terms); do not read a per-session movement share as "movement" -- use the frozen encoder's FGROUP split.
-- **Directionless movement = timing + vigour only** (lick onsets, tongue speed, jaw opening / speed, nose y, running);
+- **Directionless movement = timing + vigor only** (lick onsets, tongue speed, jaw opening / speed, nose y, running);
   tongue PROTRUSION is spatial (scales with spout distance) and sits with direction (10-22 audit).
-- **FR carries position** (lick factors are left / right / centre): never headline "does position survive FR";
+- **FR carries position** (lick factors are left / right / center): never headline "does position survive FR";
   bracket it (FR first vs position first) and use the within-spout test.
 - Memory on this box: the FR window runs `face_rhythm_factors.py` locally (3-6 GB, growing); keep my runs at 4 workers
   and check free RAM (`python S/freegb.py`) before adding jobs. Pausing a run = stop the bash wrapper FIRST, then kill

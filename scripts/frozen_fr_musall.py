@@ -13,6 +13,8 @@ Usage: python scripts/frozen_fr_musall.py
 Output: <E>/frozen_fr_compare/musall_{sessions,change}.csv, figures/frozen_musall_{cue,lick}.png
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
+from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import sys
 from pathlib import Path
@@ -23,7 +25,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fr_musall import E  # noqa: E402
 from frozen_fr_compare import ALAB, WINDOWS, bars, boot, session_r2  # noqa: E402
 
-RUNS = {"noFR": "frozen_encoder_gate-attempted_v7g3_t3d", "FR-A": "frozen_encoder_gate-attempted_v7g3_t3d_frA"}
+RUNS = {"noFR": _design_tag("frozen_encoder_gate-attempted_v7g3_t3d"), "FR-A": _design_tag("frozen_encoder_gate-attempted_v7g3_t3d_frA")}
 Q = [("target", "no_target", "position unique (target)"), ("spout", "no_spout", "spout unique (target + executed spout part)"),
      ("task", "no_task", "task unique (timing + target)"), ("movement", "no_movement", "movement unique (all movement)"),
      ("fr", "no_fr_all", "FaceRhythm unique (all)"), ("fr_dir", "no_fr_dir", "FaceRhythm direction unique")]
@@ -31,10 +33,20 @@ AREAS2 = ["cortex", "SSp-m_right", "SSp-m_left", "SSp-m_c-i", "MOp_right", "MOp_
 ALAB.update({"SSp-m_c-i": "SSp-m contra-ipsi", "MOp_c-i": "MOp contra-ipsi"})
 
 
+def trial_set_sentence(w: str) -> str:
+    """The trials / frames of the ``w``-window figure (Priya 11-09): the frozen Musall window of both frames (noFR and
+    FR-A model the same trials)."""
+    from wfield_local import frozen_encoder as fe
+    return fe.trial_set_sentence("musall", tag=RUNS["noFR"], align=w)
+
+
 def main() -> int:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=tst.union(*(trial_set_sentence(w) for w in WINDOWS), unit="trials"))
     out = E / "frozen_fr_compare"
     (out / "figures").mkdir(parents=True, exist_ok=True)
     pd.set_option("display.width", 240)
@@ -76,8 +88,11 @@ def main() -> int:
         fig.suptitle(f"NEURAL: Musall-style UNIQUE R2 in the FROZEN frame (pre-stroke model applied unchanged), {w} window. Bars = "
                      "mean of animals' epoch - pre; whisker 95 % nested CI; * excludes 0; dots = animals. contra = right "
                      "(lesion left).", fontsize=10)
+        from wfield_local.sig_marks import reserve_headroom
+        reserve_headroom(fig)                # the `bars` stars sit in the top band (10-30), no top spine (11-03)
         fig.subplots_adjust(left=0.05, right=0.995, top=0.92, bottom=0.04, hspace=0.6)
-        fig.savefig(out / "figures" / f"frozen_musall_{w}.png", dpi=105)
+        with tst.active(None, text=trial_set_sentence(w)):                   # this figure's window
+            save_png_svg(fig, out / "figures" / f"frozen_musall_{w}.png", dpi=105)
         plt.close(fig)
     print("->", out)
     return 0

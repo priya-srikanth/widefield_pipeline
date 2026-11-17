@@ -5,13 +5,14 @@ but not spout contact?" -- the kinematics page's Fig 6.1 (jaw_only_incomplete_fi
 own August pre; this is the same data as plain fractions, so the pre level is visible. Reads only
 session_poses/cam1_licks/trial_classes/{sessions.csv, tests.csv} (nothing re-run).
 
-Plot: one open marker per session (shape = animal, colour = epoch); black bar = mean of animal means +/- SEM over
+Plot: one open marker per session (shape = animal, color = epoch); black bar = mean of animal means +/- SEM over
 animals. Stars = the Fig 6.1 tests (paired nested bootstrap of the change vs own pre; * CI excludes 0, ** Bonferroni
 over 18), drawn in the top band.
 
     python scripts/trial_class_raw_share_fig.py [--out <png>]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import sys
@@ -105,16 +106,18 @@ def main(argv=None) -> int:
     fig.legend(handles=hs, loc="lower center", ncol=8, frameon=False, fontsize=9)
     den = ("ALL engaged trials (one class per trial, shares sum to 1)" if a.all_engaged
            else "engaged trials on which the jaw moved (jaw_pass_qc)")
+    if a.all_engaged and (Path(a.all_engaged) / "denominator.txt").exists():   # a --trials run of jaw_only_incomplete_figs
+        den = (Path(a.all_engaged) / "denominator.txt").read_text(encoding="utf-8").strip()
     what = ("CHANGE vs each animal's own August pre mean in the fraction of trials per class" if a.change
             else "Fraction of trials per class")
     fig.suptitle(what + ", per session x spout, by epoch (pre = August); denominator = " + den +
-                 ";\nopen markers = sessions (shape = animal, colour = epoch); black bar = mean of animals +/- SEM; stars = "
+                 ";\nopen markers = sessions (shape = animal, color = epoch); black bar = mean of animals +/- SEM; stars = "
                  "paired nested bootstrap of the change vs own pre: * CI excludes 0, ** Bonferroni over 18 (per row)",
                  fontsize=9.5)
     reserve_headroom(fig)
     fig.tight_layout(rect=(0, 0.03, 1, 0.93))
     out = Path(a.out)
-    fig.savefig(out, dpi=100)
+    save_png_svg(fig, out, dpi=100)
     pd.DataFrame(rows_out).to_csv(out.with_suffix(".csv"), index=False, float_format="%.4g")
     print(out)
     return 0

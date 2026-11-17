@@ -126,7 +126,7 @@ def test_build_finds_no_transfer_when_the_code_is_scrambled():
 
 
 def test_the_diagonal_holds_out_its_own_test_session():
-    """Otherwise the ceiling is a memorised score and every off-diagonal ratio is deflated."""
+    """Otherwise the ceiling is a memorized score and every off-diagonal ratio is deflated."""
     rng = np.random.default_rng(2)
     data = _sep_data(rng, epoch="pre")
     rows = tm.build(data, _pipe, n_perm=10, seed_ns="t", log=lambda *_a: None)

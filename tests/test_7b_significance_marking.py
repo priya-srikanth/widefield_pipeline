@@ -1,7 +1,7 @@
 """7b's disattenuated panel marks significance with a BOX, not a printed interval.
 
 The interval used to be drawn under the value as "[lo,hi]" at 6.2pt. Twelve day columns in a
-~3.5in panel is a ~0.29in cell and that string needs about twice that, so neighbours overlapped
+~3.5in panel is a ~0.29in cell and that string needs about twice that, so neighbors overlapped
 into unreadable runs like "[0.21,0.0948,0.0873,...]" -- numbers present on the figure and not
 readable off it (Priya, 2026-09-08).
 """

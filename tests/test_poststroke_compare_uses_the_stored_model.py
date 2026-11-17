@@ -57,7 +57,7 @@ def pool():
 
 def _train_X(pool):
     """The rows the frozen models are fitted on: the production frame under session_z, the bal_em TRAINING frame (each
-    pre session centred on its true class means) under session_bal_em (production since 2026-11-03)."""
+    pre session centered on its true class means) under session_bal_em (production since 2026-11-03)."""
     if not ss.spout_scaling():
         return pool["XE"]
     return ss.train_frame(pool["XE"], pool["YE"], pool["GE"], sorted(pool["pre_i"]))

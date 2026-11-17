@@ -1,4 +1,4 @@
-# Handoff — 2026-10-14 (late morning): cam4 pose-model selection (DLC / LP x round 3 / 4, temporal-context LP, EKS, human lick review), side-camera labelling plan, WSL GPU safety
+# Handoff — 2026-10-14 (late morning): cam4 pose-model selection (DLC / LP x round 3 / 4, temporal-context LP, EKS, human lick review), side-camera labeling plan, WSL GPU safety
 
 **START HERE.** Supersedes `STATUS_2026-10-13_ENL_TRAJECTORY_TRACKING_R4_HANDOFF.md` (still the reference for the
 movement-removed ENL trajectory result and the null/potent closure). **The model register is `docs/POSE_MODELS.md`**
@@ -33,12 +33,12 @@ Anything meant for Priya goes on the server, not `C:\Users\SabatiniLab\lp_stage`
 
 ## 0b. THE EKS FIX (2026-10-14) — read before using any EKS output
 * **The bug.** Lightning Pose never leaves a hidden point blank: when it decides a keypoint is not visible it reports
-  a LOW-LIKELIHOOD POINT PARKED AT THE IMAGE CENTRE (~340, 338 px). The first two-model ensemble (LP r4 + temporal
+  a LOW-LIKELIHOOD POINT PARKED AT THE IMAGE CENTER (~340, 338 px). The first two-model ensemble (LP r4 + temporal
   context, `lp_stage/r3_vs_r4_lp/eks_r4_heat_ctx*`) passed those parked points to EKS and relied on its occlusion
-  variance floor to ignore them. It did not: the parked point still pulled the smoothed track toward the centre, and the
+  variance floor to ignore them. It did not: the parked point still pulled the smoothed track toward the center, and the
   EKS likelihood came out ~0.5 (the mean of 1.0 and 0.0). Faint real licks fell below the lick detector, some false
-  ones were suppressed, and the jaw side-flips vanished — so its 98 % review precision and 0 jaw flips were ARTEFACTS.
-  Found from Priya's sheets (EKS tongue points sat up-right of LP r4's, toward the centre).
+  ones were suppressed, and the jaw side-flips vanished — so its 98 % review precision and 0 jaw flips were ARTIFACTS.
+  Found from Priya's sheets (EKS tongue points sat up-right of LP r4's, toward the center).
 * **The fix** (`scripts/eks_two_model.py`, commit ef79a3f): per keypoint and frame, a member whose likelihood is below
   the cut (0.4, the cleaning threshold) takes the MEAN POSITION OF THE CONFIDENT MEMBERS before smoothing, so it neither
   pulls the track nor vetoes it; its likelihood stays low (the occlusion floor still applies); frames where no member is
@@ -72,7 +72,7 @@ Anything meant for Priya goes on the server, not `C:\Users\SabatiniLab\lp_stage`
   missing some is acceptable; and **several LP r4 "false positives" are defensible as teeny licks** (so LP r4's true
   precision is likely ~90 %). Review page: claude.ai artifact `UURfzx99WnTxUEAbegZhsy` (answers in its `lick_review`
   collection); sheets + scores on the server: `inference_check_20261012_round4/lick_review/`.
-* **CORRECTION — the first EKS ensemble's advantage was an artefact** (see §2). Fixed EKS (LP r4 + ctx-sup) ~ LP r4:
+* **CORRECTION — the first EKS ensemble's advantage was an artifact** (see §2). Fixed EKS (LP r4 + ctx-sup) ~ LP r4:
   recall 98.8 / 99.2 %, review precision 88 % / real found 98 %, kinematics intact at smooth_param 100 (peak vy 5988 vs
   6011 px/s), jaw flips 17 vs 30 (partial: when both models are confident on opposite sides of the rod EKS splits it).
 * **Cleaned-trace figures:** the cleaned plots hide the baseline fill by default (`x_masked`: only measured /
@@ -92,20 +92,20 @@ Anything meant for Priya goes on the server, not `C:\Users\SabatiniLab\lp_stage`
   lick counts / incomplete licks is reported both ways. Final choice waits for the ctx-semi models and >= 4 more
   sessions (chronic + other animals: PS93 0908, PS94 0818, PS95 0821, PS94 0921).
 * **The EKS fix** (`scripts/eks_two_model.py`): LP reports "not visible" as a low-likelihood point PARKED AT THE IMAGE
-  CENTRE (~340, 338). The first ensemble passed those points to EKS relying on the occlusion variance floor; they still
-  pulled the smoothed track toward the centre (EKS tongue up-right of LP r4's, likelihood ~0.5 = mean of 1.0 and 0.0),
+  CENTER (~340, 338). The first ensemble passed those points to EKS relying on the occlusion variance floor; they still
+  pulled the smoothed track toward the center (EKS tongue up-right of LP r4's, likelihood ~0.5 = mean of 1.0 and 0.0),
   losing faint licks and suppressing others. Now, per keypoint and frame, a member below the cut (0.4) takes the MEAN
   POSITION OF THE CONFIDENT MEMBERS (so it neither pulls nor vetoes); its likelihood stays low; frames with no confident
   member are untouched. EKS's output "likelihood" (~0.5 when one member says hidden) is its averaged score, above the 0.4
   cleaning cut.
 * **Temporal-loss epsilon per keypoint** [10, 10, 35, 10] (Priya asked to raise the penalty threshold): genuine tongue
-  motion p99 23-34 px/frame, jaw 4-6, nose / spout 1-3; 10 px penalised ~the fastest quarter of real licks.
-* **Side cameras (cam2 + cam3):** one SHARED model, cam3 flipped left-right at training / inference (labelling on raw
-  images; the four parts are midline so no L/R swap); each moment labelled in ONE side camera, every 5th in both
+  motion p99 23-34 px/frame, jaw 4-6, nose / spout 1-3; 10 px penalized ~the fastest quarter of real licks.
+* **Side cameras (cam2 + cam3):** one SHARED model, cam3 flipped left-right at training / inference (labeling on raw
+  images; the four parts are midline so no L/R swap); each moment labeled in ONE side camera, every 5th in both
   (332 frames vs 602 doubled); same moments as cam4 (anchor) incl. the 61 cam4 round-4 moments; context frames stay
   blank. Worksheet `DeepLabCut/Widefield/SIDECAM_GUIDE.html` (Part A pilot 8 sessions / 144 frames, B round-4 62,
   C rest 126), separate from the student's CAM1_GUIDE. Crop side views to the face at training (~2-3x faster).
-* **Camera templates** exist for every analysed session with video (built 14; PS92 0605 cam4 fails quality; PS93 0813
+* **Camera templates** exist for every analyzed session with video (built 14; PS92 0605 cam4 fails quality; PS93 0813
   has no video — EXPERIMENT_ERRORS.md).
 * **ENL summaries:** curated set, >= 60 trials, never a session with an incomplete movement model.
 
@@ -136,7 +136,7 @@ tongue_frames_all_models.py, render_models_grid.py}` on the DLC share; WSL / Win
 6. Jaw x side-flip rule in cleaning (proposed; Priya wants visual QC before adopting) — may be unnecessary if the
    context model / EKS handle the jaw.
 7. Pixel-vs-LocaNMF decoding gap (non-motor control area); FaceRhythm proposal.
-8. cam1 labelling Parts 2 / 3 only if a model comparison says labels, not architecture, are the limit.
+8. cam1 labeling Parts 2 / 3 only if a model comparison says labels, not architecture, are the limit.
 9. **Retune the jaw x ceiling** (`orofacial_clean.jaw.v34.x_ceiling_px`, **40** px, "OLD RIG -- retune").
    **STARTED 10-14 afternoon (b730dfe), awaiting Priya's QC.** `scripts/jaw_lateral.py ceiling` ->
    `session_poses/jaw_lateral/jaw_ceiling_rules.csv` + `jaw_ceiling_qc.png`. Measured (DLC r3, 9 sessions, 4 animals):
@@ -174,11 +174,11 @@ tongue_frames_all_models.py, render_models_grid.py}` on the DLC share; WSL / Win
     jaw_lateral_{trials,summary}_<rule>.csv`, `jaw_lateral_<rule>.png`):
     * Orientation CONFIRMED from data: the 10-11 3-D stage fit showed *_L = mouse's left (DECISIONS), and on cam4 the *_L
       spouts sit image-RIGHT (close_L x 385 vs close_R 300) -> image-right = MOUSE'S LEFT. PS93 deviates to its LEFT.
-    * Measured in the SPOUT frame (lr across the apparatus centre line, so head / camera tilt cannot fake a sideways
+    * Measured in the SPOUT frame (lr across the apparatus center line, so head / camera tilt cannot fake a sideways
       shift), two forms: `lr_wide` (px, median over frames opening > 50 px, 70-3000 ms post-cue) and `angle` (jaw opening
       direction, deg; independent of how wide an animal opens).
-    * **OCCLUSION CONFOUND**: close and centre spouts cover part of the chin and the model marks the jaw on the visible
-      edge, AWAY from the spout (PS93 0814 close_R +45 px vs close_L +7; centre positions largest). The far_L / far_R
+    * **OCCLUSION CONFOUND**: close and center spouts cover part of the chin and the model marks the jaw on the visible
+      edge, AWAY from the spout (PS93 0814 close_R +45 px vs close_L +7; center positions largest). The far_L / far_R
       spouts leave the chin clear, so the PRIMARY readout is the far pair: `FAR_BIAS` = mean(far_L, far_R) (side bias,
       cancels spout-directed movement), `FAR_DIR` = half the difference (jaw steering toward the spout).
     * PS93 (10 trials / position): FAR_BIAS +14.7 px / 16.6 deg pre (0814) -> +7.8 / 14.3 acute (0821) -> +9.7 / 9.9
@@ -194,8 +194,8 @@ tongue_frames_all_models.py, render_models_grid.py}` on the DLC share; WSL / Win
 1. **WSL GPU = hypervisor crash on overshoot** (bugcheck 0x20001; 09-30 x2, 10-13). Measure peak memory natively first
    (OOM is clean there); run WSL GPU jobs via `lp_capped.py` + guard; temporal-context models need batch 1 (and 512 px
    semi-supervised); prediction in 16-frame chunks; never start an untested WSL config unattended.
-2. **LP's "not visible" = a point parked at the image centre** at low likelihood. Never use LP positions without a
-   likelihood filter, and never hand them unmasked to a smoother (the EKS artefact).
+2. **LP's "not visible" = a point parked at the image center** at low likelihood. Never use LP positions without a
+   likelihood filter, and never hand them unmasked to a smoother (the EKS artifact).
 3. **Windows-native LP**: inference and supervised training only (no DALI); inference copies of WSL models need
    `losses_to_use: []` and `data_dir` repointed (`lp_stage/lp_models_win/`).
 4. **DLC 3 takes the project root from the config's folder**; `analyze_images` writes `image_predictions_*.h5` into

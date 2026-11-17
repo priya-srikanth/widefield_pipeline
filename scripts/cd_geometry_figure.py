@@ -27,7 +27,7 @@ READ A AND B TOGETHER OR NEITHER:
 
     overlap ~1, scale ~1     nothing moved
     overlap ~1, scale < 1    same geometry, weaker drive
-    overlap < 1, scale ~1    REORGANISATION -- the code went somewhere else
+    overlap < 1, scale ~1    REORGANIZATION -- the code went somewhere else
     both < 1                 mixed, and neither number alone would have said so
 
 A decoder score conflates all four, because every one of them lowers accuracy. That is what the
@@ -36,6 +36,7 @@ subspace view adds over "can position still be read out".
     python -m scripts.cd_geometry_figure --dir "<the --out dir of cd_trajectories>"
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 from pathlib import Path
@@ -218,7 +219,7 @@ def _legend(ax, normalise, nulls):
 
     h = [Line2D([], [], ls="none", marker=cp.animal_marker(a), mfc="none", mec="0.35", mew=1.2, ms=6)
          for a in ANIMALS]
-    lab = [f"{a} (colour = epoch)" for a in ANIMALS]
+    lab = [f"{a} (color = epoch)" for a in ANIMALS]
     if nulls and not normalise:
         h = [*h, Line2D([], [], color="0.35", ls="--", lw=1.0)]
         lab = [*lab, "that animal's pre-to-pre ceiling\n(what this reads at NO CHANGE)"]
@@ -249,7 +250,7 @@ EP_COL = {"pre": "0.45", "acute": "#d01c8b", "subacute": "#b8860b", "chronic": "
 
 
 def _animal_points(ax, x, vals, animal, k, n_animals, label=None):
-    """One animal's per-epoch values as OPEN markers (shape = animal, colour = epoch), NO line across epochs
+    """One animal's per-epoch values as OPEN markers (shape = animal, color = epoch), NO line across epochs
     (Priya 11-03). Measured once per animal x epoch, so there are no session values to draw; animals sit at small
     fixed lateral offsets so the four do not overlap."""
     from wfield_local import cat_points as cp
@@ -274,7 +275,7 @@ def _ceiling_ticks(ax, x, cl, k, n_animals):
 
 
 def figure(got, out, nulls=None, normalise=False):
-    """`normalise=True` divides every quantity by its pre-to-pre ceiling (1.0 = no change)."""
+    """`normalize=True` divides every quantity by its pre-to-pre ceiling (1.0 = no change)."""
     nulls = nulls or {}
     aligns = [al for al in ALIGNS if any(k[1] == al for k in got)]
     animals = [a for a in ANIMALS if any(k[0] == a for k in got)]
@@ -366,11 +367,11 @@ def figure(got, out, nulls=None, normalise=False):
         ax.set_xlim(-0.5, len(POST) - 0.5)
     have = "with" if nulls else "WITHOUT"
     fig.suptitle(_wrap(
-        ("The CONDITION-INDEPENDENT MODE after stroke, NORMALISED TO THE PRE-TO-PRE CEILING\n"
+        ("The CONDITION-INDEPENDENT MODE after stroke, NORMALIZED TO THE PRE-TO-PRE CEILING\n"
          "Every quantity divided by its trial-matched pre-stroke-vs-pre-stroke value, so 1.0 means "
          "INDISTINGUISHABLE FROM NO CHANGE and the dotted line is the null, not perfection.\n"
          "A ratio hides whether a small value came from a low numerator or a high denominator, so "
-         "read this beside the unnormalised figure, never instead of it."
+         "read this beside the unnormalized figure, never instead of it."
          if normalise else
          "The CONDITION-INDEPENDENT MODE after stroke - orientation, magnitude, and what `--orth` "
          "leaves behind\n"
@@ -380,13 +381,19 @@ def figure(got, out, nulls=None, normalise=False):
          "sessions do not fully overlap even when nothing changed, and a mean over fewer trials has "
          "a larger norm, so the ceiling is what these read at NO CHANGE and it is not 1.0")
         + "\nA alone says the mode is CONSERVED (far above chance); B says it is LARGER; only C "
-          "bounds the artefact left in a post-stroke CD panel", fig),
+          "bounds the artifact left in a post-stroke CD panel", fig),
         fontsize=8.5)
     out = Path(out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, dpi=160)
+    save_png_svg(fig, out, dpi=160)
     plt.close(fig)
     return out
+
+
+def trial_set_sentence(aligns, gate="lick") -> str:
+    """The trial set of the geometry figures: `cd_trajectories.trial_set_sentence` over the drawn alignments (the
+    lick-aligned arm is lick trials only whatever the gate)."""
+    return cdt.trial_set_sentence(list(aligns), gate)
 
 
 def main(argv=None) -> int:
@@ -411,6 +418,10 @@ def main(argv=None) -> int:
                             reference=args.reference,
                             mask_occluded=args.occluded == "drop")
     nulls = load_nulls(d, aligns=tuple(args.align), gate=args.gate)
+    # THE TRIAL SET on both figures (Priya 11-09): the alignments actually drawn, under this gate
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence([al for al in ALIGNS if any(k[1] == al for k in got)] or list(args.align),
+                                        args.gate))
     print(table(got, nulls))
     for p in problems:
         print(f"!! {p}")

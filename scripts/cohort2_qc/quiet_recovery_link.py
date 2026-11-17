@@ -1,10 +1,10 @@
-"""Do quiet-period measures track behavioural recovery? (cohort1, 2026-11-01)
+"""Do quiet-period measures track behavioral recovery? (cohort1, 2026-11-01)
 
 Priya 11-01: "does synchronization change / fluctuation event rate / 1-4 Hz (or other) power correlate with recovery?"
 Within animal, over post-stroke sessions, each quiet measure (change vs the animal's August pre) against far-contra hit
-rate / pre (recovery_timing.series, the T14 behaviour measure), raw and with log(day) removed from both (the shared
+rate / pre (recovery_timing.series, the T14 behavior measure), raw and with log(day) removed from both (the shared
 recovery time course); permutation p (session values shuffled within animal, 5000 draws) on the mean of the four animals'
-r. Measures: face-regressed orofacial event rate (log ratio to pre), synchronisation index (log10 PSD 1-4 / 8-15 Hz) for
+r. Measures: face-regressed orofacial event rate (log ratio to pre), synchronization index (log10 PSD 1-4 / 8-15 Hz) for
 orofacial and its ipsi - contra difference, 1-4 Hz and 8-15 Hz power (log10, orofacial ipsi / contra), 0.5-1 Hz power.
 
     python scripts/cohort2_qc/quiet_recovery_link.py
@@ -89,7 +89,7 @@ def main():
     T = pd.DataFrame(out)
     T.to_csv(OUT / "recovery_link.csv", index=False)
     G.to_csv(OUT / "recovery_link_sessions.csv", index=False)
-    print("within-animal r vs far-contra hit rate / pre (post sessions); negative = measure falls as behaviour recovers\n",
+    print("within-animal r vs far-contra hit rate / pre (post sessions); negative = measure falls as behavior recovers\n",
           T.round(3).to_string())
     figure(G, T, meas)
     (OUT / "README.txt").write_text(__doc__)
@@ -101,8 +101,8 @@ def figure(G, T, meas):
     import matplotlib.pyplot as plt
     from wfield_local.orofacial_cohort import ANIMAL_MARKER
     show = ["log_rate", "sync_oro", "sync_oro_ipsi_minus_contra", "p14_oro_ipsi", "p815_oro_ipsi", "p051_oro"]
-    names = {"log_rate": "event rate (log10, face-regressed)", "sync_oro": "synchronisation, orofacial",
-             "sync_oro_ipsi_minus_contra": "synchronisation, orofacial ipsi - contra",
+    names = {"log_rate": "event rate (log10, face-regressed)", "sync_oro": "synchronization, orofacial",
+             "sync_oro_ipsi_minus_contra": "synchronization, orofacial ipsi - contra",
              "p14_oro_ipsi": "1-4 Hz power, orofacial ipsi (log10)", "p815_oro_ipsi": "8-15 Hz power, orofacial ipsi",
              "p051_oro": "0.5-1 Hz power, orofacial"}
     fig, ax = plt.subplots(2, 3, figsize=(15, 9))
@@ -117,7 +117,7 @@ def figure(G, T, meas):
                     f"(p {t.loc[(m, 'raw'), 'p_perm']:.3f}); log-day removed {t.loc[(m, 'detrended'), 'mean_r']:+.2f} "
                     f"(p {t.loc[(m, 'detrended'), 'p_perm']:.3f})", fontsize=8)
     ax[0, 2].legend(fontsize=7, loc="upper left", bbox_to_anchor=(1.01, 1.0), frameon=False)
-    fig.suptitle("Do quiet-period measures track behavioural recovery? Post-stroke sessions, change vs each animal's pre "
+    fig.suptitle("Do quiet-period measures track behavioral recovery? Post-stroke sessions, change vs each animal's pre "
                  "against far-contra hit rate / pre (markers = animals)", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.94), w_pad=2.5, h_pad=2.5)
     fig.savefig(OUT / "quiet_recovery_link.png", dpi=110)

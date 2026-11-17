@@ -39,7 +39,7 @@ register: **`docs/POSE_MODELS.md`** (read before touching tracking). Reasoning: 
    (image-right; what the labels mark) and a smaller local one on the mouse's right (image-left). When the true one is
    unclear, models (DLC most) pick the other = PS93's jaw side-flips. Attributed to PS93's pre-existing right deficit.
 3. **cam4 image-right = the mouse's LEFT** (3-D stage fit: *_L = mouse's left; *_L spouts image-right).
-4. **Jaw lateral readout (to-do 10), all four animals.** Close / centre spouts cover the chin (jaw point lands on the
+4. **Jaw lateral readout (to-do 10), all four animals.** Close / center spouts cover the chin (jaw point lands on the
    visible edge, away from the spout), so read only far_L / far_R trials. `FAR_DIR` = half the far_L - far_R
    difference = how far the jaw moves TOWARD the target (px, opening > 50 px, spout frame); `FAR_BIAS` = their mean.
    FAR_DIR (DLC r3, cleaning v35, 4-10 trials per far position):
@@ -82,7 +82,7 @@ register: **`docs/POSE_MODELS.md`** (read before touching tracking). Reasoning: 
   models), `deviation` (per-trial lr / angle, far-pair FAR_BIAS / FAR_DIR, figure). Outputs `session_poses/jaw_lateral/`.
 * `scripts/model_lick_compare.py`: `--review` (precision / share vs Priya's review), jump counts, `--tag`.
 * `scripts/pose_cue_traces.py compare --trials N`.
-* `scripts/cleaned_label_clips.py`: labelled video of the CLEANED tongue / jaw (measured / interpolated / mouth fill /
+* `scripts/cleaned_label_clips.py`: labeled video of the CLEANED tongue / jaw (measured / interpolated / mouth fill /
   hidden) -> `session_poses/<s>/r4_eval/cleaned_labels_<model>.mp4`.
 
 ## 4. Pending / to-do
@@ -97,7 +97,7 @@ register: **`docs/POSE_MODELS.md`** (read before touching tracking). Reasoning: 
    tongue-protrusion control for the acute FAR_DIR drop); then the production run -> executed-angle readout (MUST
    REVISIT).
 4. Score LP r3 ctx-semi when it finishes (low priority).
-5. Labelling (Priya's call): label the jaw's inferable position when it is mostly visible beside the rod, blank only
+5. Labeling (Priya's call): label the jaw's inferable position when it is mostly visible beside the rod, blank only
    when truly hidden -- would let LP keep the jaw on wide openings.
 6. Earlier to-dos still open (10-14 handoff §4): side cameras (student, SIDECAM Part A), pixel-vs-LocaNMF gap,
    FaceRhythm, cam1 Parts 2 / 3.

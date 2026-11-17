@@ -3,7 +3,7 @@
 Rule: 2-D and 3-D path figures (x-y tongue / jaw paths, front and top views, closest-approach front views) are drawn
 as the cam1 / cam4 face videos show them -- ipsilesional = image RIGHT, so contralesional (mouse right; every lesion in
 PS92-95 is LEFT) = image LEFT. The SIGN convention stays + = contralesional in labels and numbers, so the lateral axis
-is INVERTED: + = contra values sit on the left, and the axis ends are labelled "contra" (left) and "ipsi" (right).
+is INVERTED: + = contra values sit on the left, and the axis ends are labeled "contra" (left) and "ipsi" (right).
 
 Scalar change-vs-pre plots, angle traces and dot plots are NOT path views: they keep + = contra on the y axis and do
 not use this module.

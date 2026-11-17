@@ -11,12 +11,13 @@ fr:alone, fr:drop:<g>). Groups g: task, instructed, uninstructed, position (+ FR
 Figures: (1) per window, rows = [stacked task-independent (unique | FR) + task-aligned, per group; unique without vs
 with FR], columns = epochs, bars = mean of animals, dots = animals; (2) area maps (Allen areas painted with each area's
 value): pre level and chronic minus pre of full R2 with FR, FR unique, position unique without / with FR, task and
-uninstructed unique | FR; one colour scale and colorbar per column.
+uninstructed unique | FR; one color scale and colorbar per column.
 
 Usage: python scripts/fr_musall.py [--mode A] [--windows lick cue]
 Output: <E>/fr_encoding_summary/figures/fr_musall_*.png, fr_area_maps_*.png, fr_musall_by_animal.csv
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import sys
@@ -25,7 +26,14 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-E = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding")
+from wfield_local import fr_groups as _fg  # noqa: E402  -- the collected FR run folder per mode
+from wfield_local import frozen_encoder as _fe  # noqa: E402
+
+# THE encoder root of THIS run mode (coordinator 11-03): `frozen_encoder.out_root()` = the old literal by default,
+# imaging_encoding/<tag>/ in a tagged run -- the ~36 scripts that import E read the encoder runs of their own mode
+E = _fe.out_root()
+#: the UNROUTED root, for scripts that route their own outputs with `run_mode.subdir(E_BASE / ...)` (never twice)
+E_BASE = _fe.base_root()
 MAIN = E / "movement_first_exec-polar_licks-combined" / "sessions"
 AN = ["PS92", "PS93", "PS94", "PS95"]
 EP = ["pre", "acute", "subacute", "chronic"]
@@ -36,12 +44,12 @@ MK = {"PS92": "o", "PS93": "s", "PS94": "^", "PS95": "D"}
 
 def table(mode: str, windows) -> pd.DataFrame:
     from wfield_local import config, epochs
-    frd = E / f"movement_first_fr-master_pre_v1_subset-fr_exec-polar_licks-combined_frg-{mode}" / "sessions"
+    frd = _fg.run_folder(E, mode) / "sessions"
     rows = []
     for f in sorted(MAIN.glob("*_regions.csv")):
         lab = f.stem.replace("_regions", "")
         g = frd / f.name
-        if lab[-4:] < "0801" or not g.exists():
+        if config.early_pre(lab) or not g.exists():
             continue
         m = pd.read_csv(f)
         r = pd.read_csv(g)
@@ -69,7 +77,7 @@ PIX = [("full_fr", "full R2 (with FR)"), ("alone_fr", "FaceRhythm alone"), ("uni
 def session_pixels(lab: str, mode: str, windows) -> dict:
     """{(quantity, window): (H, W) block R2 (fraction, 0-1)} for one session from the stored 2 x 2-block SSE maps of the main
     (no-FR) and FR runs (same grid; R2 = 1 - SSE / SST per block, as combined_encoding_figures._grid_from)."""
-    frd = E / f"movement_first_fr-master_pre_v1_subset-fr_exec-polar_licks-combined_frg-{mode}" / "sessions"
+    frd = _fg.run_folder(E, mode) / "sessions"
     zm, zf = np.load(MAIN / f"{lab}.npz"), np.load(frd / f"{lab}.npz")
     assert np.array_equal(zm["flat"], zf["flat"])
     H, W = (int(x) for x in zm["shape"])
@@ -144,12 +152,13 @@ def pixel_maps(mode: str, windows, T: pd.DataFrame, out: Path) -> None:
                      "full minus the model without the group; | FR = FaceRhythm in the model. Image left = ipsilesional.",
                      fontsize=9)
         fig.subplots_adjust(left=0.03, right=0.995, top=0.88, bottom=0.03, wspace=0.08, hspace=0.12)
-        fig.savefig(out / "figures" / f"fr_pixel_maps_{w}_mode{mode}.png", dpi=110)
+        save_png_svg(fig, out / "figures" / f"fr_pixel_maps_{w}_mode{mode}.png", dpi=110)
         plt.close(fig)
         print("->", out / "figures" / f"fr_pixel_maps_{w}_mode{mode}.png", flush=True)
 
 
 def main(argv=None) -> int:
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -198,11 +207,11 @@ def main(argv=None) -> int:
         axs[0, 0].set_ylabel(f"{a.area}, {w} window\nheld-out R2 (fraction, 0-1)"); axs[1, 0].set_ylabel("unique R2 (fraction, 0-1)\nwithout vs with FaceRhythm")
         axs[0, 0].legend(fontsize=7, frameon=False, loc="upper left"); axs[1, 0].legend(fontsize=7, frameon=False, loc="upper left")
         fig.suptitle(f"NEURAL: Musall-style variance with FaceRhythm (master_pre_v1, mode {a.mode}) in the per-session encoder, {a.area}, {w} window.\n"
-                     "Top: stacked task-independent (unique R2 with FR in the model; coloured) + task-aligned (alone - unique; grey); filled dots = unique, "
+                     "Top: stacked task-independent (unique R2 with FR in the model; colored) + task-aligned (alone - unique; gray); filled dots = unique, "
                      "open = alone, per animal (position has no alone model).\nBottom: each group's unique R2 without vs with FaceRhythm (what FR takes).",
                      fontsize=9)
         fig.tight_layout(rect=(0, 0, 1, 0.9))
-        fig.savefig(out / "figures" / f"fr_musall_{a.area}_{w}_mode{a.mode}.png", dpi=120)
+        save_png_svg(fig, out / "figures" / f"fr_musall_{a.area}_{w}_mode{a.mode}.png", dpi=120)
         plt.close(fig)
 
     # area maps
@@ -245,7 +254,7 @@ def main(argv=None) -> int:
                      "(each area painted with its value).\nRow 1: pre-stroke level; rows 2-3: epoch minus pre within animal, then mean. "
                      "Image left = ipsilesional.", fontsize=9)
         fig.tight_layout(rect=(0, 0, 1, 0.92))
-        fig.savefig(out / "figures" / f"fr_area_maps_{w}_mode{a.mode}.png", dpi=115)
+        save_png_svg(fig, out / "figures" / f"fr_area_maps_{w}_mode{a.mode}.png", dpi=115)
         plt.close(fig)
     pixel_maps(a.mode, a.windows, T, out)
     show = A[(A.area == a.area)].groupby(["window", "epoch"])[["alone_fr", "unique_fr", "unique_position", "uniquefr_position",

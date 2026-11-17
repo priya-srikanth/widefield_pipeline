@@ -15,7 +15,7 @@ on the docked interval (dock .. next trial_start), d = min(N / 2, 20).
 STAGE 1 (`me`): per camera, per-frame motion energy (99th-percentile pixel |median next 3 - median previous 3|,
 ds 4) over the WHOLE video, parallel frame ranges; cached at <labcams>/null_potent/<label>/me_<cam>.npz; then the
 imaging-clock max, the automatic threshold, and me_thresholds.png (histogram of log ME per camera, threshold line).
-STAGE 2 (`analyze`): moving / stationary labels; subspaces fit on ALL labelled frames of the session (label-free,
+STAGE 2 (`analyze`): moving / stationary labels; subspaces fit on ALL labeled frames of the session (label-free,
 so not circular for position decoding -- the paper fits on all trials); normVE; parallel-analysis dimensionality
 (reported); two-stage-PCA control; then the project's position decoder (`locanmf_position_decoder._trial_features`
 -- ENL = precue lick-free 2 s; post-cue = cue-aligned 2 s; engaged trials; block CV; logistic C 0.5; label-shuffle
@@ -35,7 +35,8 @@ CAMS = ("cam1", "cam2", "cam3", "cam4")
 
 
 def _out(rv, label=None) -> Path:
-    d = Path(rv.root("cohort_out")) / "null_potent"
+    from wfield_local import lp_licks              # run-mode routing (rebuild 11-03): identity for the default run
+    d = lp_licks.output_dir(Path(rv.root("cohort_out")) / "null_potent")
     if label:
         d = d / label
     d.mkdir(parents=True, exist_ok=True)
@@ -58,7 +59,7 @@ def _animal_date(s):
 
 def _spout_still(animal, date, rv, ft, buffer_s=0.3) -> tuple[np.ndarray, str]:
     """``(mask, source)``: imaging frames in which the MOTORISED spout is NOT moving. Spout travel is apparatus
-    motion, not mouse, so it is left out of the thresholds and labelled excluded, as is ``buffer_s`` after each move
+    motion, not mouse, so it is left out of the thresholds and labeled excluded, as is ``buffer_s`` after each move
     (the same GCaMP-decay buffer as after mouse movement: the moving spout can evoke activity). Priya, 2026-10-08:
     exclude only the spout-moving frames -- the logged ``dock_start -> dock`` and ``trial_start -> position``
     (`trial_windows.spout_motion_spans`, source 'log'). If the log's clock will not align, fall back to the
@@ -141,8 +142,8 @@ def _svd_activity(s, n_frames: int, base: np.ndarray, k_area: int = 40):
     * "SSp", "MO": PER-AREA PIXEL PCA -- the same reconstruction restricted to the area's pixels (both
       hemispheres, atlas names as for the LocaNMF groups), then the area's own top ``k_area`` PCs (fit on all
       frames). Free of LocaNMF's non-negativity / locality constraints, and with room for selective subspaces.
-    PIXEL UNITS, centred on the docked-baseline mean, NOT z-scored (z-scoring 100 SVD components would inflate
-    the noise components to unit variance); the decoder standardises its features anyway."""
+    PIXEL UNITS, centered on the docked-baseline mean, NOT z-scored (z-scoring 100 SVD components would inflate
+    the noise components to unit variance); the decoder standardizes its features anyway."""
     import json
 
     from wfield_local import config
@@ -269,7 +270,8 @@ def stage_analyze(label, rv, n_perm=1000, n_rand=5, basis="locanmf", log=print) 
             for k in range(n_rand):
                 Qr, _ = np.linalg.qr(rng.standard_normal((len(idx), dd)))
                 signals[f"random{dd}_{k}"] = NP.reconstruct(Zg, Qr, c)
-        for win, align, post in [("ENL", "precue", dp["precue_post_s"]), ("postcue", "cue", dp["cue_post_s"])]:
+        from wfield_local import lp_licks      # THE ENL window of the lick source (Priya 11-04)
+        for win, align, post in [("ENL", "precue", lp_licks.enl_post_s()), ("postcue", "cue", dp["cue_post_s"])]:
             args = argparse.Namespace(align=align, baseline="none", fs=31.23, pre_s=1.0, post_s=post,
                                       max_rt=dp["max_rt_s"], source="locanmf", bins=None, cv="block")
             for nm, sig in signals.items():

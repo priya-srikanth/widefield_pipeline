@@ -18,7 +18,7 @@ fitting a model or pooling sessions itself.
 
 | figure | source | pooling |
 |---|---|---|
-| 1b behaviour by position | `_position_metrics` | session-weighted; trials sum |
+| 1b behavior by position | `_position_metrics` | session-weighted; trials sum |
 | 1c time course + epoch boundaries | `_position_metrics` | one dot per animal per day |
 | per-position decoding accuracy | `_collect_5c` | trials sum (raw counts add) |
 | 5c/5d frozen confusion + deltas | `_collect_5c` | trials sum |
@@ -64,7 +64,7 @@ claim that the unit of parallelism had to be the figure FAMILY — it is the FIG
 **The bootstrap cache works**: one 7b unit, 18 min 38 s cold → **21 s warm**, keyed on the input
 BYTES rather than a session name.
 
-**The behaviour engagement gate was circular.** `flag_engagement` judged the trailing response rate
+**The behavior engagement gate was circular.** `flag_engagement` judged the trailing response rate
 over ALL positions, so post-stroke it called the animal disengaged precisely because it could not
 reach the far spouts — and dropped those trials from the hit rate meant to measure the deficit. It
 excluded 380 of PS94_0817's 643 trials; the reference-judged gate excludes 0.
@@ -89,7 +89,7 @@ silently, both times. Falsy results are no longer persisted.
 
 ## Decisions
 
-**Engagement (behaviour only).** `reference_engagement` = the imaging gate's sustained-collapse arm
+**Engagement (behavior only).** `reference_engagement` = the imaging gate's sustained-collapse arm
 UNIONed with a terminal-tail arm, both counting REFERENCE trials (close_L, close_center) only.
 Measured: old 7181 excluded (17.9%), imaging-only 4043 (10.1%), union 4274 (10.6%). The union costs
 231 trials over the imaging gate and recovers sated tails it was too slow to see (PS95_0811:
@@ -97,7 +97,7 @@ collapse 21, tail 66).
 
 **The imaging gate is NOT changed.** Adopting the union there would move **111 trials, 0.81% of the
 working class**, with 20 of 26 post-stroke sessions unchanged — against re-deriving every published
-imaging number. Behaviour and imaging now differ on ~0.5% of trials, documented rather than silent.
+imaging number. Behavior and imaging now differ on ~0.5% of trials, documented rather than silent.
 
 **Deltas are measured against PRE-STROKE**, not against the previous epoch. `subacute − acute`
 answers "did it recover from its worst point"; `subacute − pre` answers "has it returned to
@@ -128,7 +128,7 @@ partial section G figures and reports **0 missing**, because a partially-written
    yet. Registering an imaging-less session would put it in `phase_labels("post")` where the
    imaging collectors would try to pool a session with no `motion_corrected`; those loops catch per
    ANIMAL, so the likely result is PS92 and PS93 vanishing from the imaging epoch figures. Wait for
-   the upload. Their behaviour has already been re-scored under the new gate.
+   the upload. Their behavior has already been re-scored under the new gate.
 4. ~~**Bootstrap cache** for `_rdm_ci`~~ **DONE.** Cached per ANIMAL, which is what makes it
    sound: the loop runs draws-outer/days-inner so an animal's days share each draw's reference
    resample, and the per-DAY split I had feared is exactly the one that breaks it. `_asymmetry_ci`

@@ -1,10 +1,10 @@
-"""Does the frozen STATE decoder read BEHAVIOUR, or does it read WHEN IN THE SESSION?
+"""Does the frozen STATE decoder read BEHAVIOR, or does it read WHEN IN THE SESSION?
 
 THE QUESTION, and why a count could not answer it. `state_time_bins` measured the confound's
 INPUT: the three classes are not distributed alike over session time, and post-stroke the imbalance
 is much steeper than pre (licking falls 60-64% from the first fifth of a session to the last, while
 rest and running rise). Cortex drifts over the same axis -- rest early vs late differs at RMS
-0.00282 with no behavioural difference at all. Those two facts together mean the decoder COULD be
+0.00282 with no behavioral difference at all. Those two facts together mean the decoder COULD be
 separating classes on time. They do not show that it DOES.
 
 THE TEST. Score the frozen decoder SEPARATELY WITHIN EACH FIFTH of the session, on exactly the

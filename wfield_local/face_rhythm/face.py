@@ -1,6 +1,6 @@
 """Face movement from the frozen point PCs, independent of the factors.
 
-Each projected session (`proj/` ``points_pc``) carries 20 PCs of the centred (x, y) displacement of the tracked mesh
+Each projected session (`proj/` ``points_pc``) carries 20 PCs of the centered (x, y) displacement of the tracked mesh
 points (components in the set's `master.npz` ``points_components``, INTERLEAVED x0, y0, x1, y1, ...). Velocity =
 d(PCs)/dt @ components -> per-point speed |v| (px / s). The 20 PCs carry most but not all point variance (~95 %,
 `master.npz` ``points_explained``), so small movements are under-represented equally on both face halves.

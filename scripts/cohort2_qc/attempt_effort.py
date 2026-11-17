@@ -26,9 +26,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from quiet_area_spikes import EVENTS, columns, session_traces  # noqa: E402
 from quiet_spikes_v2 import V2  # noqa: E402
+from wfield_local import lp_licks as _lp_licks  # noqa: E402  (coordinator 11-04: the run's attempts table)
+from wfield_local import config  # noqa: E402
 
 OUTE = V2.parent / "attempt_effort"
-TA = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/qc/trial_attempts.csv")
+TA = _lp_licks.attempts_path()      # THIS run's attempts table (coordinator 11-04)
 WIN_S, BASE_S, CTX_S, CTX_BASE_S = 3.5, 2.0, 1.5, 1.0
 CLS = ["hit", "incomplete", "jaw_only", "no_try"]
 EP = ["pre", "acute", "subacute", "chronic"]
@@ -84,7 +86,7 @@ def summarise():
     import pandas as pd
     pd.set_option("display.width", 220)
     S = pd.concat([pd.read_csv(f) for f in sorted((OUTE / "sessions").glob("*.csv"))], ignore_index=True)
-    S = S[S.label.str[-4:] >= "0806"]
+    S = S[~S.label.map(config.early_pre)]
     S["run_delta"] = S.run_win - S.run_base
     S.to_csv(OUTE / "attempt_effort_trials.csv", index=False)
     for sub, G in (("ALL spouts", S), ("FAR CONTRA", S[S.pos == "far_contra"])):
@@ -117,7 +119,7 @@ def contrasts(S):
 
 def figure(S, out=None):
     """Priya 11-03 rules: no lines; per epoch, the four trial classes side by side; each class's SESSION means (mean over
-    that session's trials) as faded open markers (shape = animal, colour = class), the animal means (mean over the
+    that session's trials) as faded open markers (shape = animal, color = class), the animal means (mean over the
     animal's trials, as before) small filled, and the mean of animals as a large marker +- SEM across animals.
     Returns {(subset, measure, epoch, class): (animal means, mean of animals)} for the --plot-only check."""
     import matplotlib
@@ -182,7 +184,7 @@ def figure(S, out=None):
                fontsize=8, ncol=8, loc="upper center", bbox_to_anchor=(0.5, 0.935), frameon=False)
     fig.suptitle("Do animals recruit the body when they cannot lick? Running and limb cortex by trial outcome (hit / "
                  "lick-no-contact / jaw-only / no try). Large = mean of animals +- SEM across animals; small filled = "
-                 "animal (shape; mean over its trials); faded open = sessions (shape = animal, colour = class)",
+                 "animal (shape; mean over its trials); faded open = sessions (shape = animal, color = class)",
                  fontsize=9, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
     out = OUTE / "attempt_effort.png" if out is None else out
@@ -218,7 +220,7 @@ def main():
     if not a.summarise:
         import pandas as pd
         from wfield_local.analysis_kit import fan_sessions  # fan_out + sort (rule 9)
-        labels = sorted(x for x in pd.read_csv(TA, usecols=["label"]).label.unique() if x[-4:] >= "0806")
+        labels = sorted(x for x in pd.read_csv(TA, usecols=["label"]).label.unique() if not config.early_pre(x))
         if a.reverse:
             fan_sessions(labels[::-1], extract, jobs=a.jobs, label="session")
             return

@@ -1,12 +1,12 @@
-"""BEHAVIOUR-MATCHED RESIDUAL (Priya 10-25, analysis 4 of the synthesis): is the chronic residual (cortex responding more
-than the frozen pre-stroke mapping predicts) a frozen-model EXTRAPOLATION artefact -- post trials whose movements lie
+"""BEHAVIOR-MATCHED RESIDUAL (Priya 10-25, analysis 4 of the synthesis): is the chronic residual (cortex responding more
+than the frozen pre-stroke mapping predicts) a frozen-model EXTRAPOLATION artifact -- post trials whose movements lie
 outside anything the pre-stroke model saw -- or present for movements inside the pre-stroke range?
 
 Per trial (the frozen run's saved per-trial parts, `trial_parts`: data and full prediction averaged over each trial's
 Musall window, cue 0..1.5 s / lick -0.1..+1.0 s around the first lick; per Allen area) the residual = data - full.
-Behaviour per trial: first lick's 3-D endpoint (side_ml, out_ap, down_dv mm), reach_mm, speed_peak, its 3-D peak time
+Behavior per trial: first lick's 3-D endpoint (side_ml, out_ap, down_dv mm), reach_mm, speed_peak, its 3-D peak time
 (latency proxy), and the trial's lick count (trial_attempts.csv). ENVELOPE, per animal x spout: the pre-stroke trials'
-features standardised by the pre mean / SD; a trial is INSIDE when its Mahalanobis distance to the pre trials (pooled pre
+features standardized by the pre mean / SD; a trial is INSIDE when its Mahalanobis distance to the pre trials (pooled pre
 covariance, ridge 1e-3) is <= the 95th percentile of the pre trials' own leave-one-session-out distances. Residual
 change vs pre (within animal, nested bootstrap) for ALL attempted trials vs INSIDE-envelope trials only; per-animal
 table first. If the residual survives on inside-envelope trials, extrapolation does not explain it.
@@ -16,6 +16,8 @@ Usage: python scripts/matched_residual.py [--tag gate-attempted_v7g3_t3d_frA]
 Output: <E>/matched_residual/<tag>/{trials.csv, boot.csv, figures/matched_residual.png}
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
+from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import argparse
 import json
@@ -27,6 +29,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fr_musall import E  # noqa: E402
+from wfield_local import lp_licks as _lp_licks  # noqa: E402  (coordinator 11-04: the run's attempts table)
 
 KIN = Path("C:/Users/SabatiniLab/wfield_cache/pose3d_inputs/pose3d_kin_licks_snapshot_20261023.csv.gz")
 FEATS = ["side_ml", "out_ap", "down_dv", "reach_mm", "speed_peak", "t_peak_3d", "n_licks"]
@@ -36,10 +39,11 @@ POSMAP = {"close_L": "close_ipsi", "close_R": "close_contra", "close_C": "close_
 
 
 def trial_residuals(run: Path) -> pd.DataFrame:
+    from wfield_local import config
     rows = []
     for js in sorted((run / "joint" / "sessions").glob("*.json")):
         m = json.loads(js.read_text(encoding="utf-8"))
-        if m["label"][-4:] < "0801":
+        if config.early_pre(m["label"]):
             continue
         z = np.load(js.with_suffix(".npz"))
         if "trial_parts" not in z.files:
@@ -61,7 +65,7 @@ def trial_behaviour() -> pd.DataFrame:
     K = pd.read_csv(KIN)
     K = K[K.lick_idx == 0].copy()
     K["label"] = K.animal + "_" + K.date.astype(str).str[-4:]
-    A = pd.read_csv(E / "qc" / "trial_attempts.csv", usecols=["label", "trial_id", "n_licks", "attempted"])
+    A = pd.read_csv(_lp_licks.attempts_path(), usecols=["label", "trial_id", "n_licks", "attempted"])
     return K[["label", "trial_id", *FEATS[:-1]]].merge(A, on=["label", "trial_id"], how="inner")
 
 
@@ -97,7 +101,7 @@ def main(argv=None) -> int:
 
     import frozen_fr_compare as ffc
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--tag", default="gate-attempted_v7g3_t3d_frA")
+    ap.add_argument("--tag", default=_design_tag("gate-attempted_v7g3_t3d_frA"))
     a = ap.parse_args(argv)
     run = E / f"frozen_encoder_{a.tag}"
     out = E / "matched_residual" / a.tag
@@ -110,7 +114,7 @@ def main(argv=None) -> int:
     Env.to_csv(out / "trials.csv", index=False)
     pd.set_option("display.width", 220)
     share = Env.groupby(["animal", "epoch"]).inside.mean().unstack("epoch").reindex(columns=ffc.EP4)
-    print("== share of 3-D-tracked trials INSIDE the pre-stroke behavioural envelope (per animal)\n" + share.round(2).to_string())
+    print("== share of 3-D-tracked trials INSIDE the pre-stroke behavioral envelope (per animal)\n" + share.round(2).to_string())
     fc = Env[Env.pos.str.contains("far_contra|far_R")].groupby(["animal", "epoch"]).inside.mean().unstack("epoch")
     print("== far contra only\n" + fc.reindex(columns=ffc.EP4).round(2).to_string())
     M = R.merge(Env[["label", "trial_id", "inside", "maha"]], on=["label", "trial_id"], how="left")
@@ -129,7 +133,8 @@ def main(argv=None) -> int:
           [["frame", "window", "area", "epoch", "point", "lo", "hi", "n_up", "n"]].round(2).to_string(index=False))
     sels = ["all trials", "3-D tracked", "inside envelope"]
     ffc.ALAB.update({"MOs_right": "MOs contra", "MOs_left": "MOs ipsi"})
-    ffc.COL.update(dict(zip(sels, ["#999999", "#66a61e", "#d95f02"])))
+    from wfield_local.cat_points import MODEL_COLORS as _MC      # the shared model palette (Priya 11-07)
+    ffc.COL.update(dict(zip(sels, [_MC[5], _MC[0], _MC[2]])))
     fig, axs = plt.subplots(2, 1, figsize=(15, 8.5))
     for ax, w in zip(axs, ffc.WINDOWS):
         ffc.bars(ax, Bt[Bt.window == w], sels, AREAS, "residual change from pre (x1e3 dF/F)",
@@ -138,9 +143,11 @@ def main(argv=None) -> int:
     fig.suptitle(f"NEURAL: is the chronic residual a frozen-model extrapolation? ({a.tag}). Envelope = per animal x spout, "
                  "Mahalanobis distance on first-lick 3-D endpoint, reach, peak speed, latency and lick count <= the\npre "
                  "trials' leave-one-session-out 95th percentile. Bars = mean of animals; whisker 95 % nested CI; * excludes "
-                 "0; dots = animals; grey band = pre split-half range. contra = right.", fontsize=9)
+                 "0; dots = animals; gray band = pre split-half range. contra = right.", fontsize=9)
+    from wfield_local.sig_marks import reserve_headroom
+    reserve_headroom(fig)                # the `bars` stars sit in the top band (10-30), no top spine (11-03)
     fig.subplots_adjust(left=0.05, right=0.88, top=0.88, bottom=0.07, hspace=0.4)
-    fig.savefig(out / "figures" / "matched_residual.png", dpi=105)
+    save_png_svg(fig, out / "figures" / "matched_residual.png", dpi=105)
     plt.close(fig)
     print("->", out)
     return 0

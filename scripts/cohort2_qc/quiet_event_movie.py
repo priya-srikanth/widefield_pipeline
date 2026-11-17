@@ -5,13 +5,13 @@ For the PI deck (Priya 11-02: "a video clip of pre vs acute as an example" of th
 (quiet_spikes_v2_examples.py, encoding page Fig 23.6), windows chosen by the same rule (see --window): the CLIP_S of the
 session's middle third with the most engaged quiet frames is shown.
 
-What is drawn (both panels on ONE colour scale):
+What is drawn (both panels on ONE color scale):
   * movie = the adopted hemo-corrected SVD (`combined_encoding.load_imaging`: SVTcorr of hemo_<ADOPTED>, U_atlas on the
     Allen-aligned 540 x 640 grid, imaging-map brain mask), reconstructed U . SVT for the window, dF/F %, minus a 2-s
     moving average (high-pass on the temporal components, linear so identical per pixel; the detector itself uses a
     2-s running MEDIAN on the area traces); light Gaussian smoothing (sigma 1.5 px) for display only;
-  * Allen area outlines (grey), off-brain = white; ipsilesional = image LEFT (all four lesions are left);
-  * under each map: orofacial ipsi / contra traces exactly as the detector sees them (quiet_spikes_v2_examples.one), grey =
+  * Allen area outlines (gray), off-brain = white; ipsilesional = image LEFT (all four lesions are left);
+  * under each map: orofacial ipsi / contra traces exactly as the detector sees them (quiet_spikes_v2_examples.one), gray =
     quiet frames (no DAQ contact or LP video lick, no running within 1.5 s), black triangles = events beyond +/-4 x the
     animal's August-pre robust SD, a moving cursor; red / orange ticks = DAQ / LP licks, blue = cues;
   * "EVENT" flag beside the map title for +/-0.15 s around each orofacial event.
@@ -46,7 +46,7 @@ OROF = ("orofacial_left", "orofacial_right")
 
 
 def movavg_highpass(V, w):
-    """V (T, K) minus its centred w-frame moving average (edges: shrinking window)."""
+    """V (T, K) minus its centered w-frame moving average (edges: shrinking window)."""
     c = np.cumsum(np.r_[np.zeros((1, V.shape[1])), V.astype(np.float64)], 0)
     T, h = len(V), w // 2
     lo, hi = np.clip(np.arange(T) - h, 0, T), np.clip(np.arange(T) + h + 1, 0, T)
@@ -163,8 +163,8 @@ def render(P, Q, path, play, lim, poster):
     cb.set_label("dF/F %  (2-s high-pass)", fontsize=10)
     lg = fig.add_subplot(gs[2, :2])
     lg.axis("off")
-    lg.text(0.0, 0.5, "grey = quiet (no lick / running within 1.5 s)   triangles = events > 4 x pre SD   "
-            "red / orange = DAQ / video licks   blue = cue   same colour scale in both panels", fontsize=9,
+    lg.text(0.0, 0.5, "gray = quiet (no lick / running within 1.5 s)   triangles = events > 4 x pre SD   "
+            "red / orange = DAQ / video licks   blue = cue   same color scale in both panels", fontsize=9,
             color="0.3", va="center")
     ttl = fig.suptitle("", fontsize=13, y=0.975)
     fps = P["fs"] * play
@@ -194,7 +194,7 @@ def main():
     ap.add_argument("--play", type=float, default=0.5)
     ap.add_argument("--window", choices=["example", "session", "intask"], default="example",
                     help="example = inside the Fig 23.6 60-s windows; session = most-quiet CLIP_S of the middle third")
-    ap.add_argument("--lim", type=float, default=None, help="colour limit, dF/F %% (default: 99.5th pct of |both|)")
+    ap.add_argument("--lim", type=float, default=None, help="color limit, dF/F %% (default: 99.5th pct of |both|)")
     a = ap.parse_args()
     import pandas as pd
     OUTD.mkdir(parents=True, exist_ok=True)

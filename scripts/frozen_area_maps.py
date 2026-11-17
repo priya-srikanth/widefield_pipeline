@@ -7,7 +7,7 @@ model part, per spout x area): evoked = mean over the response window minus the 
 `scripts/lp_encoder_decompose.py` (lick: 0 .. 1 s vs -0.3 .. -0.1 s from the first post-cue lick; cue: 0.5 .. 1.5 s
 vs -0.5 .. 0 s). Change = mean over the epoch's sessions minus mean over the pre sessions, PER ANIMAL (rule 8), then
 the mean over animals. Columns: data, full prediction, each part, data - full (what the frozen pre-stroke mapping does
-not predict from the behaviour actually made). Units dF/F x 1e3. ipsi (lesioned, LEFT hemisphere) = image LEFT
+not predict from the behavior actually made). Units dF/F x 1e3. ipsi (lesioned, LEFT hemisphere) = image LEFT
 (checked against the atlas area names). Areas absent in an animal are blank.
 
 Usage: python scripts/frozen_area_maps.py [--tag gate-attempted_v4] [--variant joint] [--spout far_contra]
@@ -26,6 +26,13 @@ WINDOWS = {"lick": ((0.0, 1.0), (-0.3, -0.1)), "cue": ((0.5, 1.5), (-0.5, 0.0))}
 EPOCHS = ("acute", "subacute", "chronic")
 SHOW = ("data", "full", "lick", "spout", "target", "exec_locked", "exec_within", "contact", "other", "timing",
         "residual")
+
+
+def trial_set_sentence(tag: str, spout: str, align: str) -> str:
+    """The trials of one area-map figure (Priya 11-09): the frozen run's modeled trials at ``spout``, cue- or
+    first-lick-aligned PETH (`frozen_encoder.trial_set_sentence`)."""
+    from wfield_local import frozen_encoder as fe
+    return fe.trial_set_sentence("peth", tag=tag, align=align, spout=spout)
 
 
 def session_rows(js: Path, align: str) -> list[dict]:
@@ -85,22 +92,24 @@ def outline(img) -> np.ndarray:
 
 
 def main(argv=None) -> int:
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
+    from wfield_local import config
     from wfield_local.writeguard import assert_writable
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--tag", default="gate-attempted_v4")
     ap.add_argument("--variant", default="joint")
     ap.add_argument("--spout", default="far_contra")
     a = ap.parse_args(argv)
-    out = oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / f"frozen_encoder_{a.tag}"
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=tst.union(*(trial_set_sentence(a.tag, a.spout, al) for al in ("lick", "cue")), unit="trials"))
+    from wfield_local import frozen_encoder as _fe   # the encoder's (tagged) run root, coordinator 11-04
+    out = _fe.out_root() / f"frozen_encoder_{a.tag}"
     sess = sorted((out / a.variant / "sessions").glob("*.json"))
-    sess = [js for js in sess if js.stem[-4:] >= "0801"]
+    sess = [js for js in sess if not config.early_pre(js.stem)]
     fd = out / "figures"
     assert_writable(fd)
     fd.mkdir(parents=True, exist_ok=True)
@@ -146,7 +155,8 @@ def main(argv=None) -> int:
             fig.suptitle(f"Frozen encoder ({a.variant}) AREA maps: {a.spout}, {ep} minus pre, {align}-aligned evoked "
                          f"response, per animal then mean. residual = data - full. ipsi (lesion) = image LEFT. "
                          f"Coarse (42 Allen areas); PROVISIONAL", fontsize=8)
-            fig.savefig(fd / f"area_maps_{a.variant}_{a.spout}_{ep}_{align}.png", dpi=120, bbox_inches="tight")
+            with tst.active(None, text=trial_set_sentence(a.tag, a.spout, align)):     # this figure's alignment
+                fig.savefig(fd / f"area_maps_{a.variant}_{a.spout}_{ep}_{align}.png", dpi=120, bbox_inches="tight")
             plt.close(fig)
     pd.concat(allrows).to_csv(fd / f"area_maps_{a.variant}.csv", index=False, float_format="%.5g")
     print(f"-> {fd} (area_maps_{a.variant}_{a.spout}_*.png)")

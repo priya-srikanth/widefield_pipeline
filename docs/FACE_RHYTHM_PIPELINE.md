@@ -1,6 +1,6 @@
 # FaceRhythm pipeline (cam4; cam1 / cam2 / cam3 prepped) — stages, files, run order
 
-**New here? Start with [`FACE_RHYTHM_GUIDE.md`](FACE_RHYTHM_GUIDE.md)** (concepts, the analysis catalogue `python -m wfield_local.face_rhythm list`, adding an analysis). The reference for HOW the FaceRhythm (FR) analysis works and how to run it. WHY each choice was made:
+**New here? Start with [`FACE_RHYTHM_GUIDE.md`](FACE_RHYTHM_GUIDE.md)** (concepts, the analysis catalog `python -m wfield_local.face_rhythm list`, adding an analysis). The reference for HOW the FaceRhythm (FR) analysis works and how to run it. WHY each choice was made:
 [`FACE_RHYTHM_PLAN.md`](FACE_RHYTHM_PLAN.md) + `DECISIONS.md` (2026-10-21 evening entries). Current status / running jobs:
 the newest `docs/status/STATUS_*_FACE_RHYTHM_*` handoff. Paper: Hakim et al., bioRxiv 10.1101/2025.09.10.675423 v4.
 
@@ -30,11 +30,11 @@ Same chain per camera, root `<dlc>/face_rhythm/<cam>/`, one O2 bundle per camera
 |---|---|---|
 | cam2 = animal's LEFT side (IPSILESIONAL; all lesions left), 450 x 600 | eye, ear, side of nose / mouth / chin, whisker pad from the side | face polygon = HEAD only; mask off body, forepaws, treadmill and the spout rod (crosses just below the mouth in the rest face) |
 | cam3 = animal's RIGHT side (CONTRALESIONAL; PS93's deficit side), 450 x 600 | as cam2, other side | as cam2 |
-| cam1 = from below, 600 x 600 | nose tip, lips, chin, whiskers both sides (ipsi = image RIGHT) | the CENTRE spout rod hangs through the middle of the face |
+| cam1 = from below, 600 x 600 | nose tip, lips, chin, whiskers both sides (ipsi = image RIGHT) | the CENTER spout rod hangs through the middle of the face |
 
 1. **Rest faces**: `python -m scripts.face_rhythm_prep frames --cam <cam>` (locanmf). Rest moments come from cam4's LP
    (tongue absent, -1.5 .. -0.5 s), mapped to the camera's frames through ITS alignment template
-   (`face_rhythm_cams.frame_daq_seconds` / `frames_at`); cam1 skips centre-spout trials. No LP landmarks on these views.
+   (`face_rhythm_cams.frame_daq_seconds` / `frames_at`); cam1 skips center-spout trials. No LP landmarks on these views.
 2. **Templates, then clicks**: `<fr> scripts/face_rhythm_register.py --cam <cam> --stage templates` picks each animal's
    template + the master and writes `register_inputs/click_<s>.png`; Priya clicks the camera's landmarks in
    `notebooks/face_rhythm_click_landmarks.ipynb` -> `register_inputs/landmarks.json`.
@@ -57,10 +57,10 @@ Same chain per camera, root `<dlc>/face_rhythm/<cam>/`, one O2 bundle per camera
    `ViewStack` stands in for the spectrogram memmap, `face_rhythm_factors.spec_of`). Rows: trial rows match by index
    (same cam4 DAQ grid; cue times checked to 20 ms), session 5 Hz bins by nearest DAQ time (<= 0.1 s, else NaN ->
    dropped). Balance: per animal, each view divided by RMS x sqrt(its elements / mean) -> equal energy per view
-   (`view_scales.json`, in master.npz). Absolute expression: D = mean of the views' own FR normalisers (provisional).
+   (`view_scales.json`, in master.npz). Absolute expression: D = mean of the views' own FR normalizers (provisional).
    master.npz gains `view_cams`, `view_P`; the gallery draws the reference view and lists each factor's weight share
    per view. Why not a mosaic: independent camera clocks + frame drops (a mosaic needs every video resampled to one
-   clock), ~3.7x cam4's pixels per run, and ONE FR normaliser across all views. Tasks lacking any view are left out
+   clock), ~3.7x cam4's pixels per run, and ONE FR normalizer across all views. Tasks lacking any view are left out
    (listed by `plan`). Needs the other cameras' O2 runs first (steps 2-5). Tests: `tests/test_face_rhythm_multiview.py`.
 
 ## Files
@@ -73,8 +73,8 @@ Same chain per camera, root `<dlc>/face_rhythm/<cam>/`, one O2 bundle per camera
   trials balanced over positions + between-trial bins, equal per animal); each task's own-fit rows. Seeded.
 * **master.npz** (`select`, FROZEN): `spatial` (2, P, R), `spectral` (F, R), `freqs`, `home`, `scales_json` (one scalar
   per animal), `spec_hash`; plus the dense-POSITION basis `points_components` (K, 2P) / `points_explained` (PCA of the
-  25 Hz displacements, each session centred on its own mean, equal pre-stroke bins per animal). Never refitted once used (rule 10); `select` refuses a different spec.
-* **proj/<key>.npz**: `trials` (trial, 151, R), `session` (bin, R) + `session_t_daq_s`, per-bin FR normaliser
+  25 Hz displacements, each session centered on its own mean, equal pre-stroke bins per animal). Never refitted once used (rule 10); `select` refuses a different spec.
+* **proj/<key>.npz**: `trials` (trial, 151, R), `session` (bin, R) + `session_t_daq_s`, per-bin FR normalizer
   `trials_D` / `session_D` (absolute expression = weights x D), per-bin `trials_err` /
   `session_err` (relative reconstruction error), per-point movement power `power_between` (2, P, F),
   `power_precue` / `power_response` (position, 2, P, F) + `power_positions`, `power_n_bins`; `points_pc` (25 Hz bins, K)
@@ -96,7 +96,7 @@ camera's DAQ segment are excluded everywhere (NaN in projections; never drawn fo
 | TRIAL grid | cue -2 .. +4 s | 25 Hz (151 bins) | `<key>_trials.npz` (computed on O2) | trial rows of the fit (every 5th-bin block -> 200 ms rows); projections; readouts (pre-cue -2..0, response 0..4) |
 | PRE-CUE rows | [position strobe -1, strobe +2] UNION [cue -4, cue -2), cut at cue -2 s | 5 Hz | session spectrogram | fit rows drawn WITH their trial: spout arrival (the strobe; its lead to the cue varies, 2.4 s to > 10 s) + anticipation / ENL licks; each bin once, never inside the 25 Hz grid |
 | BUSY (no between rows) | from min(strobe -1, cue -4, cue -3) to cue +6 s | -- | -- | keeps trial tails, arrival and anticipation out of the between pool |
-| BETWEEN | everything else (2 s trimmed at each recording end) | 5 Hz | session spectrogram | between rows of the fit, labelled from the CANONICAL per-session events on the server (`behavior_events`, `behavior_summary/events/<animal>/<date>.npz`; no DAQ read): RUN = inside a running bout (> 3 mm/s, gaps < 0.3 s merged, >= 2 s), STILL = inside a REST period (the lab's quiet definition: spout docked between trials, not running, not near licks / rewards), other = not drawn |
+| BETWEEN | everything else (2 s trimmed at each recording end) | 5 Hz | session spectrogram | between rows of the fit, labeled from the CANONICAL per-session events on the server (`behavior_events`, `behavior_summary/events/<animal>/<date>.npz`; no DAQ read): RUN = inside a running bout (> 3 mm/s, gaps < 0.3 s merged, >= 2 s), STILL = inside a REST period (the lab's quiet definition: spout docked between trials, not running, not near licks / rewards), other = not drawn |
 
 Projections cover WHOLE sessions (25 Hz in trial windows, 5 Hz everywhere else); only the FIT uses a sample.
 
@@ -139,8 +139,8 @@ no pre-cue rows, linear stamps (its two affected tasks re-projected with true ti
 * **Figures** (10-22, Priya): every FR figure goes through `wfield_local/face_rhythm_figures.py` -- readable fonts
   (`style()`), constrained layout with legends outside the axes (`subplots`, `legend_outside`: no title / legend
   overlap), SHORT titles, and `save(fig, path, methods)`, which writes the figure's METHODS (data, selection, units,
-  normalisation, caveats) as a section of the output folder's `README.md`. Tables in `data/` (`figure_layout`).
-  Factor identity vs behaviour: `scripts/face_rhythm_validate.py` (licks by executed direction x time in trial, by lick
+  normalization, caveats) as a section of the output folder's `README.md`. Tables in `data/` (`figure_layout`).
+  Factor identity vs behavior: `scripts/face_rhythm_validate.py` (licks by executed direction x time in trial, by lick
   number in bout, by spout position, vs lick frequency; running onsets; correlations).
   Fewer licks or different licks by epoch: `scripts/face_rhythm_lick_epochs.py` (licks / trial by direction; each
   factor's expression AT a lick, relative to pre; total = licks x per lick for the factor's preferred direction).
@@ -150,10 +150,10 @@ no pre-cue rows, linear stamps (its two affected tasks re-projected with true ti
 * **Scaling:** one scalar per animal (RMS of its pre-stroke fit rows), applied to every session of that animal -- removes
   face size, keeps post-stroke amplitude changes.
 * **EVR** is uncentred, 1 - |S - S^|^2 / |S|^2 (the paper's definition).
-* **FR spectrograms are normalised per frame** by the mean power over the whole face (VQT `normalization_factor`
+* **FR spectrograms are normalized per frame** by the mean power over the whole face (VQT `normalization_factor`
   0.95): the pattern across points and frequencies is kept, overall amplitude over time is not (found in the 10-21
-  dry run). Factors are FITTED on the normalised data (the paper's choice: shape, not a few huge events). For HOW MUCH
-  a component is expressed, `project` recovers each bin's normaliser D from the saved spectrogram (exact formula;
+  dry run). Factors are FITTED on the normalized data (the paper's choice: shape, not a few huge events). For HOW MUCH
+  a component is expressed, `project` recovers each bin's normalizer D from the saved spectrogram (exact formula;
   0.01 % median error per 25 Hz bin) and the absolute expression is weights x D (`trials_D` / `session_D`; readout
   columns `abs_*` next to the share `amp_*`; loader `absolute=True`; `report --absolute`). Per-point movement: SPEED
   from the 25 Hz points (absolute) and SHARE from the spectrogram (`--measure`).
@@ -184,7 +184,7 @@ python scripts/o2_encoding.py bundle --name enc_fr_<date> --user ps150 --fr mast
 ```
 Factor CLIPS for naming (fr env): `python scripts/face_rhythm_factor_clips.py --fdir <set> [--key K] [--comps ...]` ->
 `<dlc>/face_rhythm/cam4/factor_clips/<set>/<key>_f<k>.mp4`: each factor's strongest moments (absolute expression), the
-tracked mesh coloured by the direction the factor moves each point (blue lateral, red vertical; Rich's convention),
+tracked mesh colored by the direction the factor moves each point (blue lateral, red vertical; Rich's convention),
 size = weight x expression, with an expression strip and time from cue.
 
 Name the components: the readouts write `<set>/labels_suggested.json` (rules in `face_rhythm_readouts.describe_components`:
@@ -197,7 +197,7 @@ readouts; names only, no effect on numbers).
 | question | readout |
 |---|---|
 | do pre-stroke components (licking, sniffing, whisking) lose amplitude after stroke and recover? | `amp_<comp>_<precue/response/between>` by epoch |
-| is post-stroke behaviour still described by the pre-stroke repertoire? | `recon_err_*`, `evr_gap` (own - frozen) |
+| is post-stroke behavior still described by the pre-stroke repertoire? | `recon_err_*`, `evr_gap` (own - frozen) |
 | do the components themselves change shape ("morphing")? | `cos_spatial_*`, `cos_spectral_*` |
 | where on the face does movement change, and is it lateralised? | `movement_maps_<window>.png`, `asym_<window>` |
 | are non-task movements preserved? | `between` vs `response` amplitudes |
@@ -205,7 +205,7 @@ readouts; names only, no effect on numbers).
 | does dense face POSITION add to FR (the paper's points + FR)? | encoding `--fr-points K`: `frpts:*`, `frboth:raw:full` |
 
 Encoding uses ABSOLUTE FR expression by default (Priya 10-21; a share drops whenever any other movement grows);
-`--fr-share` = the paper's normalised regressors (folder `..._fr-<set>share`). Check the absolute regressors' tails on
+`--fr-share` = the paper's normalized regressors (folder `..._fr-<set>share`). Check the absolute regressors' tails on
 the first real session (log-transform if a few outliers dominate after z-scoring).
 
 ## Tests

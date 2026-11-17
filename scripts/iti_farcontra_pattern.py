@@ -2,14 +2,14 @@
 another spout's pattern? (Priya 10-26: "how can we make sense of the chronic far-contra ipsi reading for cued trials,
 biologically?"; handoff 00d proposed test.)
 
-Features = Allen-area activity at lags 0..0.2 s from the lick peak (the where-decoder's features), every area divided
-by its within-session frame SD (z-scored, `iti_zscore_check.py` session_sd.csv). Cued licks by TARGET spout. Per animal
+Features = Allen-area activity at lags 0..0.2 s from the lick peak (the where-decoder's features: ALM / tjM1 split basis
+since 10-27 late, iti_where_decoder.area_basis), every area divided by its within-session frame SD (z-scored). Cued licks by TARGET spout. Per animal
 x epoch: spout pattern P[s] = mean over the epoch's sessions of (session mean of the spout's licks) minus the mean over
 the six spouts (removes any epoch-wide change, so only the SPATIAL arrangement across spouts remains).
 For far contra (and far ipsi as the mirror control):
   gain    = <P_ep, P_pre> / |P_pre|^2     (1 = same strength along the pre pattern; < 1 = weaker copy)
   cos     = cosine(P_ep, P_pre)          (1 = same pattern up to scale)
-  cos_to  = cosine(P_ep, P_pre[other spout]) for every spout (drift toward a neighbour shows as a rise here)
+  cos_to  = cosine(P_ep, P_pre[other spout]) for every spout (drift toward a neighbor shows as a rise here)
 Noise floor: pre sessions split in two halves (alternating by date), the same numbers between halves.
 "usual" rows repeat it on licks landing within 0.25 mm (lateral x sagittal) of that spout's pre landing mean.
 Output <E>/iti_licks/farcontra_pattern.csv; usage: python scripts/iti_farcontra_pattern.py
@@ -34,12 +34,10 @@ USUAL_MM = 0.25
 
 def licks() -> dict:
     """{animal: list of (label, epoch, X (n, areas) z-scored, lat, sag, pos)} for cued licks."""
-    from iti_decoder_contrib import feature_names
 
     from wfield_local import orofacial_cohort as oc
-    S = pd.read_csv(il.OUT / "zscore_check" / "session_sd.csv", index_col=0)
-    names = feature_names()
-    D = wd.load("areas")
+    # Allen areas in the basis (split by default, Priya 10-27 late) + frame SDs: the shared loader
+    D, names, S = wd.area_basis()
     out: dict = {}
     for x, d in sorted(D.items()):
         X, C = d["trial"]
@@ -52,7 +50,7 @@ def licks() -> dict:
 
 
 def patterns(rows: list, usual: dict | None = None) -> dict | None:
-    """{spout: centred pattern} from a list of session tuples (session means first, then mean of sessions)."""
+    """{spout: centered pattern} from a list of session tuples (session means first, then mean of sessions)."""
     per = {p: [] for p in POS}
     for _x, _ep, X, lat, sag, P in rows:
         for p in POS:
@@ -73,6 +71,7 @@ def _cos(u, v):
 
 
 def main() -> int:
+    il.split_only("iti_farcontra_pattern")   # outputs not basis-tagged: split basis only (10-27 late)
     L = licks()
     rows = []
     for a in AN:

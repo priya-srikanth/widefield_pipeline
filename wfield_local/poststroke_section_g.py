@@ -17,7 +17,7 @@ WHY BOTH ARMS.
             the phenotype, so it is also the arm that can see the abandoned positions at all.
   LICK-ONLY that session's preserved positions, chance 1/n. Forced, not chosen: a position with no
             engaged trials cannot be decoded from engaged trials. Its chance level moves with the
-            animal's behaviour (PS95: 4 positions on 8/17, 6 on 8/18), so its accuracies must NEVER
+            animal's behavior (PS95: 4 positions on 8/17, 6 on 8/18), so its accuracies must NEVER
             be laid side by side across sessions.
 The DIFFERENCE between the arms is the point: it separates "the code degraded" from "the code is
 fine whenever the animal manages to lick". Post-lick has one arm by construction -- it aligns to the
@@ -49,6 +49,13 @@ from wfield_local.plot_lick_aligned_averages import DISPLAY_ORDER, POSITION_NAME
 #: (alignment key, the condition name the figures use)
 CONDITIONS = (("cue", "post-cue"), ("lick", "post-lick"), ("precue", "pre-cue"))
 ARMS = ("all", "lickonly")
+#: ``--only`` selectors (Priya 11-09, "only rerun what needs to be rerun"): "g4" recomputes the G4 camera-class
+#: discriminator only and merges it into the run's existing section_g.json (`merge_only`)
+ONLY = ("g4",)
+#: the alignments each selector pools (G4 reads cue and precue only)
+ONLY_ALIGNS = {"g4": ("cue", "precue")}
+#: the section_g.json record keys each selector owns: exactly these are replaced in the existing file
+ONLY_KEYS = {"g4": ("g4_primary", "g4_camclass_precue", "g4_camclass_cue")}
 
 
 def post_animals(animals=None):
@@ -61,7 +68,7 @@ def post_animals(animals=None):
 def _counts(d, session):
     """Engaged / undetected trials per position: this SESSION against the pre-session mean.
 
-    Behaviour is reported before any decoding number because it bounds what one can mean: a position
+    Behavior is reported before any decoding number because it bounds what one can mean: a position
     with zero engaged trials has no lick-only decoding number at all, and the first pass at this
     analysis reported a PS94 "neural deficit" whose larger part was that fact.
     """
@@ -72,11 +79,33 @@ def _counts(d, session):
         for c, p in zip(DISPLAY_ORDER, pos):
             out["pre"][arm][p] = float((np.isin(G, list(d["pre_i"])) & (Y == c)).sum()) / npre
             out["post"][arm][p] = int((np.isin(G, [session]) & (Y == c)).sum())
+    # THE CAMERA GROUPS (main 4a37cbc8, Priya 11-04, item G; `poststroke_compare._camera_groups`): per group and
+    # position, the pre per-session mean over the pre sessions WITH camera classes, and this session's count; absent
+    # under the DAQ grouping, and an empty post block for a session without camera classes
+    from wfield_local import poststroke_compare as pc
+    cg = pc._camera_groups(d)
+    if cg is not None:
+        from wfield_local import working_trials as wt
+        pre_c = [i for i in d["pre_i"] if i in cg["have"]]
+        bc = {"pre": {}, "post": {}, "post_has_camera_classes": session in cg["have"],
+              "n_jaw_unjudged_post": int(np.sum(~cg["jj_e"][d["GE"] == session])
+                                         + np.sum(~cg["jj_u"][d["GU"] == session]))}
+        for g in wt.G_ALL:
+            bc["pre"][g], bc["post"][g] = {}, {}
+            for c, p in zip(DISPLAY_ORDER, pos):
+                npre = (np.sum(np.isin(d["GE"], pre_c) & (d["YE"] == c) & (cg["grp_e"] == g))
+                        + np.sum(np.isin(d["GU"], pre_c) & (d["YU"] == c) & (cg["grp_u"] == g)))
+                bc["pre"][g][p] = float(npre) / max(len(pre_c), 1)
+                bc["post"][g][p] = int(np.sum((d["GE"] == session) & (d["YE"] == c) & (cg["grp_e"] == g))
+                                       + np.sum((d["GU"] == session) & (d["YU"] == c) & (cg["grp_u"] == g)))
+        out["by_class"] = bc
     return out
 
 
-def _one_arm(d_by_align, session, keep, arm_all):
-    """The arm-dependent half: matched decoding, recoding, similarity, confusion."""
+def _one_arm(d_by_align, session, keep, arm_all, keep_lick=None):
+    """The arm-dependent half: matched decoding, recoding, similarity, confusion. ``keep_lick`` = the lick-only arm's
+    positions at the LICK alignment (`lick_keep`; default ``keep``)."""
+    keep_lick = keep if keep_lick is None else keep_lick
     rec = {"arm": "ALL trials" if arm_all else "lick-only",
            "n_positions_scored": len(DISPLAY_ORDER) if arm_all else len(keep),
            "chance": (1.0 / len(DISPLAY_ORDER)) if arm_all else (1.0 / max(len(keep), 1))}
@@ -90,9 +119,14 @@ def _one_arm(d_by_align, session, keep, arm_all):
             continue
         dd = dict(d)
         dd["post_i"] = {session}
+        kp = keep_lick if align == "lick" else keep
+        if align == "lick" and len(kp) < 2:
+            rec[f"{cond} note"] = (f"only {len(kp)} position(s) with >= {pc.MIN_POST} DAQ-lick trials: no lick-aligned "
+                                   "lick-only arm")
+            continue
         for fn, key in ((pc.decode_matched, cond), (pc.recoding_test, f"{cond} within-session")):
             try:
-                r = fn(dd, keep, post_all_trials=arm_all)
+                r = fn(dd, kp, post_all_trials=arm_all)
             except Exception as ex:                                       # noqa: BLE001
                 print(f"      {key}: {fn.__name__} failed ({str(ex)[:60]})", flush=True)
                 continue
@@ -151,6 +185,7 @@ def _nolick_readouts(d_by_align, session, keep):
             out[key] = pc.fits_engaged_distribution(dd, keep)
         except Exception as ex:                                           # noqa: BLE001
             print(f"      {key} failed ({str(ex)[:60]})", flush=True)
+    out.update(_g4_readouts(d_by_align, session, keep))
     for align in ("precue", "cue"):
         d = d_by_align.get(align)
         if d is None:
@@ -165,18 +200,66 @@ def _nolick_readouts(d_by_align, session, keep):
     return out
 
 
-def run_session(d_by_align, animal, session, label, phase_tag):
-    """Everything Section G shows for ONE session: both arms plus the arm-independent readouts."""
+def _g4_readouts(d_by_align, session, keep):
+    """G4 CAMERA-CLASS DISCRIMINATOR (Priya 11-04, follow-on a): the PRIMARY G4 readout under the camera grouping
+    (`poststroke_compare.g4_camclass`: working vs raw no_response (Priya 11-09, as G1-G3; unknown never trained),
+    position-balanced, jaw_only / quit / no_response / unknown scored separately, z frame on contact rows by default);
+    the DAQ readouts stay as the labelled robustness arm (WIDEFIELD_G4_DISC=daq makes them primary again). Keys =
+    ``ONLY_KEYS["g4"]`` (a camera-class key is absent when that alignment produced nothing)."""
+    out = {"g4_primary": pc.g4_disc()}
+    for align in ("precue", "cue"):
+        d = d_by_align.get(align)
+        if d is None or pc.g4_disc() != "camera":
+            continue
+        dd = dict(d)
+        dd["post_i"] = {session}
+        try:
+            got = pc.g4_camclass(dd, keep)
+            if got is not None:
+                out[f"g4_camclass_{align}"] = got
+        except Exception as ex:                                           # noqa: BLE001
+            from wfield_local import trial_classes as _tcx
+            _tcx.reraise_under_camera(ex, f"g4_camclass[{align}]")
+            print(f"      g4_camclass[{align}] failed ({str(ex)[:60]})", flush=True)
+    return out
+
+
+def lick_keep(d_by_align, session, pres):
+    """The lick-only arm's positions at the LICK alignment. Post-lick aligns to a DAQ lick, so it has engaged rows
+    only: when the camera-working rule chose ``pres["keep"]`` (Priya 11-07), a position also needs >= MIN_POST
+    DAQ-engaged rows of this session in the lick pool (else the cue pool) -- never scored on positions without
+    lick-aligned rows. Under the DAQ rule ``keep`` is already that count: unchanged."""
+    keep = pres["keep"]
+    if pres["rule"] != "camera_working":
+        return list(keep)
+    dl = d_by_align.get("lick") or d_by_align.get("cue")
+    n = pc._engaged_counts(dl, [session])
+    return [c for c in keep if n[c] >= pc.MIN_POST]
+
+
+def run_session(d_by_align, animal, session, label, phase_tag, only=None):
+    """Everything Section G shows for ONE session: both arms plus the arm-independent readouts. ``only="g4"``: the
+    G4 keys only (`_g4_readouts`, on the same preserved positions), plus the record's identity."""
     d0 = d_by_align.get("cue")
     if d0 is None:
         return None
-    keep = pc.preserved_positions(d0, session=session)
+    pres = pc.preserved_detail(d0, session)
+    keep = pres["keep"]
+    if only == "g4":
+        rec = {"animal": animal, "label": label, "phase_tag": phase_tag}
+        rec.update(_g4_readouts(d_by_align, session, keep))
+        return rec
+    keep_lick = lick_keep(d_by_align, session, pres)
+    # Priya 11-07: which rule chose the positions and the counts it used (camera WORKING rows, not successful licks,
+    # under the camera grouping); the post-lick arm's own (DAQ-lick) set beside it
     rec = {"animal": animal, "label": label, "phase_tag": phase_tag,
            "preserved_positions": [POSITION_NAMES[c] for c in keep],
+           "preserved_rule": pres["rule"], "preserved_counts": pres["counts"], "preserved_min_n": pres["min_post"],
+           "preserved_positions_lick": [POSITION_NAMES[c] for c in keep_lick],
            "counts": _counts(d0, session), "arms": {}}
     for arm in ARMS:
         print(f"    {label} [{arm}]", flush=True)
-        rec["arms"][arm] = _one_arm(d_by_align, session, keep, arm_all=(arm == "all"))
+        rec["arms"][arm] = _one_arm(d_by_align, session, keep, arm_all=(arm == "all"), keep_lick=keep_lick)
     rec.update(_nolick_readouts(d_by_align, session, keep))
     return rec
 
@@ -200,11 +283,13 @@ def collect_animal(an, include_excluded=True):
     return out
 
 
-def _pool_all(an, labels):
-    """The three pooled bundles one session needs. Disk-cached, so a worker re-reads rather than
-    recomputes -- which is what makes the SESSION affordable as a unit."""
+def _pool_all(an, labels, aligns=None):
+    """The three pooled bundles one session needs (``aligns``: only those). Disk-cached, so a worker re-reads rather
+    than recomputes -- which is what makes the SESSION affordable as a unit."""
     d = {}
     for align, _ in CONDITIONS:
+        if aligns is not None and align not in aligns:
+            continue
         try:
             d[align] = pc._pooled(an, align, post_labels=labels)
         except Exception as ex:                                   # noqa: BLE001
@@ -219,12 +304,15 @@ def _session_worker(spec):
     hundreds of features; shipping three of those to each of ~30 workers would cost more than the
     analysis. `pool_sessions` is `session_cache`-backed, so the worker pays a read instead.
     """
-    an, tag, labels, i = spec
-    d_by_align = _pool_all(an, labels)
+    an, tag, labels, i, *rest = spec
+    only = rest[0] if rest else None
+    d_by_align = _pool_all(an, labels, ONLY_ALIGNS.get(only))
     d0 = d_by_align.get("cue")
     if d0 is None:
         return None
-    return run_session(d_by_align, an, i, d0["kept"][i], tag)
+    if only is None:
+        return run_session(d_by_align, an, i, d0["kept"][i], tag)
+    return run_session(d_by_align, an, i, d0["kept"][i], tag, only=only)
 
 
 def _warm_one(spec):
@@ -263,7 +351,7 @@ def _warm_one(spec):
     return out
 
 
-def collect(animals=None, include_excluded=True, jobs=None):
+def collect(animals=None, include_excluded=True, jobs=None, only=None):
     """Every post-stroke session, plus the excluded ones tagged as such. Two parallel phases.
 
     PHASE 1 -- (animal, alignment), both tags inside each unit. Pools, and forces the frozen decoder
@@ -276,12 +364,16 @@ def collect(animals=None, include_excluded=True, jobs=None):
 
     A failed unit RAISES rather than yielding a short file: a `section_g.json` missing a session is
     indistinguishable from a session that legitimately produced nothing.
+
+    ``only`` (`ONLY`): pool only that selector's alignments and compute only its keys (`run_session`).
     """
     from wfield_local import parallel
 
+    aligns = ONLY_ALIGNS.get(only)
     warm_units = [(an, align, include_excluded)
-                  for an in post_animals(animals) for align, _ in CONDITIONS]
+                  for an in post_animals(animals) for align, _ in CONDITIONS if aligns is None or align in aligns]
     warmed, wfail = parallel.fan_out(warm_units, _warm_one, jobs=jobs, label="pool")
+    warmed = sorted(warmed, key=lambda kv: repr(kv[0]))  # completion order -> unit order (T10)
     if wfail:
         raise RuntimeError(f"section G phase 1 failed for {[u for u, _ in wfail]}: {wfail[0][1]}")
 
@@ -290,7 +382,7 @@ def collect(animals=None, include_excluded=True, jobs=None):
         if align != "cue":
             continue
         for tag, (_kept, post_i, labels) in sorted(res.items()):
-            units += [(an, tag, labels, i) for i in post_i]
+            units += [(an, tag, labels, i) if only is None else (an, tag, labels, i, only) for i in post_i]
     units.sort()
 
     print(f"\n  phase 1: {len(warm_units)} (animal, alignment) pool(s) warmed; "
@@ -310,6 +402,53 @@ def collect(animals=None, include_excluded=True, jobs=None):
     return out
 
 
+def _code_sha():
+    """The checkout's HEAD sha, or None."""
+    import subprocess
+    try:
+        return subprocess.run(["git", "rev-parse", "HEAD"], cwd=Path(__file__).resolve().parent, capture_output=True,
+                              text=True, timeout=20).stdout.strip() or None
+    except Exception:                                                     # noqa: BLE001
+        return None
+
+
+def merge_only(path, new, only, *, provenance=None, now=None):
+    """Merge an ``--only`` run's records into the run's EXISTING section_g.json at ``path``: the session labels must
+    be identical (else ValueError, nothing written); in each record exactly the ``ONLY_KEYS[only]`` keys are replaced
+    (an old key the new run did not produce is removed) and a ``<only>_rerun`` provenance key is set; every other key
+    is left as it was. The old file is first copied to ``<stem>.bak_pre_<only>_<YYYYMMDD-HHMM>.json`` beside it
+    (never over an existing backup), then the merged file is written atomically (temp file + replace). Returns the
+    backup path."""
+    import datetime as _dt
+    import os
+    import shutil
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(f"--only {only}: no existing {path.name} for this run tag at {path} -- run the full "
+                                "section G first")
+    old = json.loads(path.read_text())
+    if set(old) != set(new):
+        raise ValueError(f"--only {only}: session labels differ from {path.name} (only in the file: "
+                         f"{sorted(set(old) - set(new))}; only in this run: {sorted(set(new) - set(old))}); "
+                         "refusing to merge")
+    now = now or _dt.datetime.now()
+    keys = ONLY_KEYS[only]
+    for lab, rec in old.items():
+        for k in keys:
+            rec.pop(k, None)
+        rec.update({k: new[lab][k] for k in keys if k in new[lab]})
+        rec[f"{only}_rerun"] = dict(provenance or {}, date=now.strftime("%Y-%m-%d %H:%M"), keys=list(keys))
+    bak = path.with_name(f"{path.stem}.bak_pre_{only}_{now.strftime('%Y%m%d-%H%M')}.json")
+    if bak.exists():
+        raise FileExistsError(f"--only {only}: backup {bak} exists; refusing to overwrite it")
+    shutil.copy2(path, bak)
+    tmp = path.with_name(path.name + f".tmp_{only}_{os.getpid()}")
+    with open(tmp, "w") as f:
+        json.dump(old, f, indent=1, default=float)
+    os.replace(tmp, path)
+    return bak
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -320,11 +459,41 @@ def main(argv=None) -> int:
     ap.add_argument("--jobs", "-j", type=int, default=None, metavar="N",
                     help="animals to process in parallel (default: cores-2 capped at 8, and at "
                          "the cohort size; pass 1 for the serial path)")
+    ap.add_argument("--only", choices=ONLY, default=None,
+                    help="recompute only these keys and merge them into this run's existing section_g.json "
+                         "(identical session labels required; the old file is backed up beside it)")
     args = ap.parse_args(argv)
-    out = args.output or Path(PathResolver().root("figures_working"))
+    from wfield_local import run_mode  # tagged runs never overwrite default figures (review H2)
+    out = run_mode.routed_output(args.output or Path(PathResolver().root("figures_working")))
+    if args.only:
+        p = Path(out) / run_mode.keyed_name("section_g.json")
+        if not p.exists():                       # refuse before hours of work, not after
+            raise SystemExit(f"--only {args.only}: no existing {p} -- run the full section G first")
+        rec = collect(args.animals, include_excluded=not args.skip_excluded, jobs=args.jobs, only=args.only)
+        prov = {"code_sha": _code_sha(), "run_tag": p.stem, "g4_frame": pc.g4_frame_tag(),
+                "train_classes": {"positive": list(pc.G4_POS), "negative": list(pc.G4_NEG)}}
+        bak = merge_only(p, rec, args.only, provenance=prov)
+        print(f"\nmerged --only {args.only} into {p}  ({len(rec)} sessions; backup {bak.name})")
+        return 0
     rec = collect(args.animals, include_excluded=not args.skip_excluded, jobs=args.jobs)
-    p = Path(out) / "section_g.json"
+    from wfield_local import run_mode   # mode-tagged name (rebuild 11-03, trap T21): read by grant 3b / 5
+    p = Path(out) / run_mode.keyed_name("section_g.json")
     json.dump(rec, open(p, "w"), indent=1, default=float)
+    # review 7A: the design sidecar (scored = engaged / all trials, model = working-trained under the camera gate)
+    from wfield_local import trial_classes as _tcg
+    if _tcg.camera_gate_on():
+        from wfield_local import poststroke_compare as _pcg
+        from wfield_local import spout_scaling as _ssg
+        json.dump({"scored_rows": (f"camera WORKING rows ({_tcg.sel_class_text()}) for the pre panel / pre band and the "
+                                   "engaged-only post arm, all trials for the all-trials arm; by_class panels per "
+                                   "camera group (Priya 11-04, main 4a37cbc8)"
+                                   if _pcg.section_g_groups() == "camera" else
+                                   "engaged / all trials (DAQ grouping, WIDEFIELD_SECTION_G_GROUPS=daq)"),
+                   "groups": _pcg.section_g_groups(), "scored_centre": _ssg.score_centre_tag(),
+                   "state_disc_frame": _pcg._state_frame_tag(),
+                   "model_trials": _tcg.run_selection(), "design": _tcg.design_note(),
+                   "working_excluded_sessions": _tcg.working_excluded_sessions()},
+                  open(Path(out) / run_mode.keyed_name("section_g_design.json"), "w"), indent=1)
     n_post = sum(1 for r in rec.values() if r["phase_tag"] == "post")
     print(f"\nwrote {p}  ({len(rec)} sessions: {n_post} post, {len(rec) - n_post} excluded)")
     return 0

@@ -5,7 +5,7 @@ mapped back to pixels through its basis P (stat pixels x 200, orthonormal): pixe
 scale[col]), dF/F per unit of the raw regressor. Event kernels use a raised-cosine basis (0.1 s spacing; the cue / target
 kernels 0.4 s after 2 s), so column k is the kernel's value at lag = start + k * spacing. Mean of the 4 animals (same
 Allen grid). VENOUS CONTAMINATION: the sagittal sinus runs along the midline; a band of MIDLINE_PX pixels either side of
-the hemispheric boundary is masked (grey) -- crude (the transverse sinus and other vessels stay). Image left = ipsilesional.
+the hemispheric boundary is masked (gray) -- crude (the transverse sinus and other vessels stay). Image left = ipsilesional.
 
 Figures: kernel_maps.png (selected kernels), kernel_maps_target_6spouts.png (the target kernel of every spout = its
 DEVIATION from the shared cue kernel, at several lags). Spout-specific LICK kernels are not in this model (one shared lick
@@ -13,6 +13,8 @@ kernel; spout shape enters through the templates) -> they come from the per-epoc
 Usage: python scripts/frozen_kernel_maps.py [--tag gate-attempted_v7g3_t3d_frA_basis]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
+from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import argparse
 import pickle
@@ -79,7 +81,7 @@ def vessel_mask(shape) -> np.ndarray:
         z = np.load(cache)
         if tuple(z["mask"].shape) == tuple(shape):
             return z["mask"]
-    sess = [s for s in config.load_sessions() if epochs.epoch_of(s["label"]) == "pre" and s["label"][-4:] >= "0806"]
+    sess = [s for s in config.load_sessions() if epochs.epoch_of(s["label"]) == "pre" and not config.early_pre(s["label"])]
     out = np.zeros(shape, bool)
     for an in AN:
         ts = [t for t in (vessel_template(s) for s in sess if s["label"].startswith(an)) if t is not None]
@@ -148,9 +150,16 @@ def draw(maps, titles, path, suptitle, ol, mask, ncol=4, shared_rows=False, mask
     import textwrap
     fig.suptitle(textwrap.fill(suptitle, 40 * ncol), fontsize=9)
     fig.subplots_adjust(left=0.01, right=0.96, top=0.88, bottom=0.02, wspace=0.12, hspace=0.25)
-    fig.savefig(path, dpi=110)
+    save_png_svg(fig, path, dpi=110)
     plt.close(fig)
     print("->", path)
+
+
+def trial_set_sentence(tag: str) -> str:
+    """The trials / frames behind the kernel maps (Priya 11-09): the frozen weights = the fit on the modeled frames of
+    each animal's pre sessions."""
+    from wfield_local import frozen_encoder as fe
+    return fe.trial_set_sentence("fit", tag=tag)
 
 
 def main(argv=None) -> int:
@@ -159,8 +168,10 @@ def main(argv=None) -> int:
 
     from frozen_area_maps import area_image, outline
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--tag", default="gate-attempted_v7g3_t3d_frA_basis")
+    ap.add_argument("--tag", default=_design_tag("gate-attempted_v7g3_t3d_frA_basis"))
     a = ap.parse_args(argv)
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence(a.tag))
     run = E / f"frozen_encoder_{a.tag}"
     maps, shape = kernel_maps(run, PANELS + TARGET)
     img, nm = area_image(sorted(p.stem for p in (run / "joint" / "sessions").glob("PS92_*.json"))[0])
@@ -174,7 +185,7 @@ def main(argv=None) -> int:
          "them with that caution.", ol, None)
     draw(maps, [t for t, _v, _k in TARGET if t in maps], run / "figures" / "kernel_maps_target_6spouts.png",
          base + " TARGET kernels of all six spouts (canonical order: close ipsi, mid, contra, then far ipsi, mid, contra): each spout's deviation from the shared "
-         "cue kernel, at 0.3 / 0.6 / 1.0 / 2.0 s after the cue; one colour scale per row.", ol, None, ncol=6, shared_rows=True)
+         "cue kernel, at 0.3 / 0.6 / 1.0 / 2.0 s after the cue; one color scale per row.", ol, None, ncol=6, shared_rows=True)
     print("grid", shape)
     return 0
 

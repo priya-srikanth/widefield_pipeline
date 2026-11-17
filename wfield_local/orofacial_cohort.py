@@ -16,6 +16,14 @@ June 6/1-6/5 and 8/5 excluded) that has a processed session folder, reduces each
                                                 accuracy), by_position, angle_tuning, lick_phase, phase_portrait,
                                                 mismatch (.png)
 
+FOLDERS CARRY THE TRIAL GATE (Priya 11-06, A27; `cohort_dir`): ``prepost`` above is written ``prepost_working`` (the
+default gate = the CAMERA WORKING PERIOD, `trial_classes.working_period_ids`; sessions without camera classes drop out),
+``prepost_legacygate`` (``WFIELD_KIN_GATE=legacy``: the pre-11-06 behaviour engaged gate, `engagement_keep`) or
+``prepost_alltrials`` (``--all-trials``), + ``_allpre`` for the June-including baseline. The plain ``prepost`` folders on
+the share are the pre-11-06 legacy-gate tables and are never written again. Under a rebuild root / tagged run the
+cohort tree is routed (`cohort_base`). data_line.txt (the standard Data: line, `data_line`) sits beside the tables and
+figures; every title carries the "Trials:" text.
+
 Re-run as sessions arrive; every number is recomputed from the session folders (nothing cached here).
 
 POSITIONS are named and ordered by the lesion: close ipsi / close mid / close contra, far ipsi / far mid / far contra
@@ -47,7 +55,9 @@ WHAT EACH METRIC IS (per session; post-cue = cue + 70 ms .. DAQ trial stop, `lic
   angle_gain_far     executed-angle vs target from the far side positions: (angle far L - far R) / (spout far L - far R)
   ipsi_bias_deg      mean over positions of the median executed peak angle, signed + = toward the IPSILESIONAL side --
                      a target-independent turn of the tongue
-  precue_rate_hz     spontaneous licks, position strobe (spout arrived) .. cue + 70 ms, per second (`licks_precue.csv`)
+  precue_rate_hz     spontaneous licks, position strobe (spout arrived) .. the CUE, by lick peak, per second
+                     (`licks_precue.csv`; peaks in cue .. cue + 70 ms are excluded = neither pre- nor post-cue,
+                     Priya 11-04 -- `pose_kinematics_demo.split_precue_by_peak`, also on the pre-11-04 tables)
   precue_trial_frac  fraction of trials with >= 1 pre-cue lick
   iti_rate_hz        inter-trial licks per second (`licks_iti.csv`)
   peak_interp_frac   fraction of post-cue licks whose peak is interpolated / imputed (tracking-quality context)
@@ -142,15 +152,19 @@ def raw_position(key: str, laterality: str) -> str:
 
 
 def _windows(sd: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """(per-trial durations: pre-cue, response, ITI seconds; per-trial first row + first t_ms, for frame lookups)."""
+    """(per-trial durations: pre-cue, response, ITI seconds; per-trial first row + first t_ms, for frame lookups).
+
+    pre-cue = strobe .. the CUE (`PRECUE_END_AFTER_CUE_MS`, Priya 11-04: the 70 ms after the cue are neither pre- nor
+    post-cue, so they are in neither denominator); response = cue + 70 ms .. stop."""
+    from wfield_local.trial_classes import POSTCUE_START_MS, PRECUE_END_AFTER_CUE_MS
     w = np.load(sd / "windows.npz")
     ix = pd.DataFrame({k: w[f"ix_{k}"] for k in ("trial_id", "t_ms", "strobe_ms", "stop_ms")})
     ix["row"] = np.arange(len(ix))
     g = ix.groupby("trial_id", sort=True).agg(t0=("t_ms", "min"), t1=("t_ms", "max"), strobe=("strobe_ms", "first"),
                                                stop=("stop_ms", "first"), row0=("row", "min"))
     t1 = g.t1 + FRAME_MS
-    pre = (70.0 - g.strobe).where(np.isfinite(g.strobe), np.nan).clip(lower=0)
-    resp = (g.stop.clip(upper=t1) - 70.0).clip(lower=0)
+    pre = (PRECUE_END_AFTER_CUE_MS - g.strobe).where(np.isfinite(g.strobe), np.nan).clip(lower=0)
+    resp = (g.stop.clip(upper=t1) - POSTCUE_START_MS).clip(lower=0)
     iti = (g.strobe - g.t0).clip(lower=0).fillna(0) + (t1 - g.stop).clip(lower=0).fillna(0)
     rows = g[["row0", "t0"]].copy()
     # (trial, t_ms) -> row by LOOKUP, not row0 + (t - t0) / 4 ms (10-20): windows are cut on the alignment templates'
@@ -181,6 +195,7 @@ def _row_of(rows: pd.DataFrame, trial_id, t_ms) -> np.ndarray:
 def _first_contacts(animal: str, date: str) -> pd.Series:
     """{trial_id: first DAQ spout-contact time, ms from the cue, inside cue + 70 ms .. trial stop}."""
     from scripts import pose_kinematics_demo as D
+    from wfield_local.trial_classes import CONTACT_FROM_CUE_S
     from wfield_local import trial_windows as TW
     from wfield_local.paths import PathResolver
     rv = PathResolver()
@@ -189,7 +204,7 @@ def _first_contacts(animal: str, date: str) -> pd.Series:
     out = {}
     for t, c, s in zip(b.trial_id, b.cue_s, b.stop_s):
         if np.isfinite(c):
-            k = np.searchsorted(lick, c + 0.07)
+            k = np.searchsorted(lick, c + CONTACT_FROM_CUE_S)
             if k < len(lick) and (not np.isfinite(s) or lick[k] <= s):
                 out[t] = (lick[k] - c) * 1000.0
     return pd.Series(out, dtype=float)
@@ -475,14 +490,18 @@ def session_metrics(job):
         rd("tongue_jaw_mismatch.csv")
     if not len(T) or "t_ms" not in L:
         return None
+    # PRE-CUE = peak before the CUE (Priya 11-04): a pre-11-04 licks_precue.csv still holds the cue .. cue + 70 ms peaks
+    from scripts.pose_kinematics_demo import split_precue_by_peak
+    P, X = split_precue_by_peak(P)
     dur, rows = _windows(sd)
-    # ENGAGEMENT GATE (Priya 10-17): every table below, the per-trial window durations (rate denominators) and the
-    # cue-aligned frames keep ENGAGED trials only; `--all-trials` is the control
+    # TRIAL GATE (Priya 10-17; camera working period since 11-06, A27 -- `cohort_keep`): every table below, the
+    # per-trial window durations (rate denominators) and the cue-aligned frames keep the gated trials only;
+    # `--all-trials` is the control
     n_tr_all = len(T)
-    keep, gate = engagement_keep(animal, date, sd)
+    keep, gate = cohort_keep(animal, date, sd)
     if keep is not None:
-        L, P, Q, T, M = (d[d.trial_id.astype(int).isin(keep)] if len(d) and "trial_id" in d else d
-                         for d in (L, P, Q, T, M))
+        L, P, Q, T, M, X = (d[d.trial_id.astype(int).isin(keep)] if len(d) and "trial_id" in d else d
+                            for d in (L, P, Q, T, M, X))
         dur = dur[dur.index.astype(int).isin(keep)]
         if not len(T) or not len(L):
             return None
@@ -519,6 +538,7 @@ def session_metrics(job):
     row = {"animal": animal, "date": date, "label": f"{animal}_{date[4:]}", "epoch": epoch, "day": day,
            "n_trials_all": n_tr_all, "n_trials_used": len(T), "engagement_gate": gate,
            "n_trials": n_tr, "n_licks": int(len(L)), "n_precue_licks": int(len(P)), "n_iti_licks": int(len(Q)),
+           "n_excluded_0_70_licks": int(len(X)),
            "resp_rate": len(resp_trials) / n_tr,
            "licks_per_resp": float(resp_trials.mean()) if len(resp_trials) else np.nan,
            "post_rate_hz": len(L) / dur.resp_s.sum() if dur.resp_s.sum() > 0 else np.nan,
@@ -764,12 +784,10 @@ def _tidy(fig) -> None:
 
 def save_png_svg(fig, path: Path, dpi: int = 130) -> None:
     """PNG at `path` + an editable SVG copy in `<dir>/svg/<stem>.svg` (Priya 10-17: grant / paper figures)."""
-    path = Path(path)
-    fig.savefig(path, dpi=dpi)
-    (path.parent / "svg").mkdir(exist_ok=True)
-    import matplotlib as mpl
-    with mpl.rc_context({"svg.fonttype": "none"}):              # text stays text in Illustrator
-        fig.savefig(path.parent / "svg" / (path.stem + ".svg"))
+    # One shared helper since 2026-11-06 (`figure_layout.save_png_svg`): same PNG, same `svg/<stem>.svg`,
+    # text stays text in Illustrator, and an SVG failure now warns instead of raising after the PNG.
+    from wfield_local import figure_layout
+    figure_layout.save_png_svg(fig, Path(path), dpi=dpi)
 
 
 def _save(plt, fig, path: Path) -> None:
@@ -781,15 +799,27 @@ def _save(plt, fig, path: Path) -> None:
     plt.close(fig)
 
 
+def _cv_handles(animals):
+    """Legend for the epoch-colour convention (A13): animal shapes + epoch colours."""
+    from wfield_local import cat_points as cp
+    return cp.legend_handles(sorted(animals), EPOCH_ORDER, sessions_label="{a}", epoch_label="{e}")
+
+
 def fig_epochs(A: pd.DataFrame, D: pd.DataFrame, path: Path, title: str) -> None:
-    col, _ = _palettes()
+    """Per metric, x = epoch: each animal's epoch mean (+- SEM over its sessions) as an OPEN marker, shape = animal,
+    colour = epoch, NO line across epochs; filled dot = mean +- SEM over animals in the epoch colour (A13, Priya 11-07)."""
+    from wfield_local import cat_points as cp
     plt, fig, axs = _grid(len(METRICS), 5, 3.5, 2.8)
     xi = {e: i for i, e in enumerate(EPOCH_ORDER)}
     for ax, m in zip(axs.flat, METRICS):
         for k, (a, g) in enumerate(A.groupby("animal")):
             g = g[g.epoch.isin(xi)].assign(x=lambda d: d.epoch.map(xi)).sort_values("x")
-            ax.errorbar(g.x + (k - 1.5) * 0.06, g[m], yerr=g[f"{m}_sem"], fmt="o-", color=col.get(a, "k"), ms=4,
-                        lw=1.2, capsize=2, elinewidth=0.8, label=a)
+            for _, r in g.iterrows():
+                ax.errorbar(r.x + (k - 1.5) * 0.07 - 0.12, r[m], yerr=r[f"{m}_sem"], fmt=cp.animal_marker(a), ms=4,
+                            mfc="none", mec=cp.epoch_color(r.epoch), ecolor=cp.epoch_color(r.epoch), mew=0.9,
+                            capsize=1.5, elinewidth=0.6, alpha=0.8, zorder=3)
+        for e in EPOCH_ORDER:
+            cp.epoch_mean_sem(ax, xi[e] + 0.2, A[A.epoch == e][m].to_numpy(float), e, ms=5.5)
         lab = []
         for e in EPOCH_ORDER[1:]:
             r = D[(D.metric == m) & (D.epoch == e)]
@@ -800,29 +830,32 @@ def fig_epochs(A: pd.DataFrame, D: pd.DataFrame, path: Path, title: str) -> None
         ax.set_title(LABEL[m] + ("\n" + "; ".join(lab) if lab else "\n"), fontsize=7.5)
         ax.set_ylabel(LABEL[m], fontsize=6.5)
         ax.tick_params(labelsize=7)
-    axs.flat[0].legend(fontsize=7, frameon=False)
-    fig.suptitle(title + "\nlicks: ALL POST-CUE licks (cue + 70 ms .. trial stop; measured peaks for kinematics) unless "
-                 "the metric names pre-cue / ITI; per-animal epoch mean +- SEM over sessions; title: paired change vs pre "
-                 "(animal-weighted "
-                 "bootstrap, * = 95% CI excludes 0; only epochs with >= 2 animals)", fontsize=9)
+    axs.flat[0].legend(handles=_cv_handles(A.animal.unique()), fontsize=7, frameon=False)
+    note = ("licks: ALL POST-CUE licks (cue + 70 ms .. trial stop; measured peaks for kinematics) unless "
+            "the metric names pre-cue / ITI; open = per-animal epoch mean +- SEM over sessions (shape = animal, "
+            "colour = epoch), filled = mean +- SEM over animals, no lines across epochs; title: paired change vs pre "
+            "(animal-weighted bootstrap, * = 95% CI excludes 0; only epochs with >= 2 animals)")
+    fig.suptitle(title + "\n" + "\n".join(textwrap.wrap(note, 150)), fontsize=9)
     _save(plt, fig, path)
 
 
 def fig_timecourse(S: pd.DataFrame, path: Path, title: str) -> None:
-    col, _ = _palettes()
+    """One point per session over days (A13, Priya 11-07): open marker, shape = animal, colour = epoch, no line;
+    filled = epoch mean +- SEM over animals (`cat_points.day_dots`)."""
+    from wfield_local import cat_points as cp
     plt, fig, axs = _grid(len(METRICS), 5, 3.5, 2.6)
     for ax, m in zip(axs.flat, METRICS):
-        for a, g in S.sort_values("day").groupby("animal"):
-            ax.plot(g.day, g[m], "o-", ms=2.5, lw=0.9, color=col.get(a, "k"), label=a)
+        cp.day_dots(ax, S.day, S[m], S.animal, S.epoch, ms=3.2, summary_ms=5)
         ax.axvline(0.5, color="0.4", ls="--", lw=0.8, zorder=0)
         ax.set_title(LABEL[m], fontsize=8)
         ax.set_ylabel(LABEL[m], fontsize=6.5)
         ax.tick_params(labelsize=7)
-    axs.flat[0].legend(fontsize=7, frameon=False)
+    axs.flat[0].legend(handles=_cv_handles(S.animal.unique()), fontsize=7, frameon=False)
     for ax in axs[-1]:
         ax.set_xlabel("days since stroke", fontsize=8)
-    fig.suptitle(title + "\nlicks: ALL POST-CUE licks unless the metric names pre-cue / ITI; one point per session; "
-                 "dashed = lesion", fontsize=9)
+    note = ("licks: ALL POST-CUE licks unless the metric names pre-cue / ITI; one open point per session "
+            "(shape = animal, colour = epoch), filled = epoch mean +- SEM over animals; dashed = lesion")
+    fig.suptitle(title + "\n" + "\n".join(textwrap.wrap(note, 150)), fontsize=9)
     _save(plt, fig, path)
 
 
@@ -997,8 +1030,9 @@ def _phase_fig(PH: pd.DataFrame, lat: dict, path: Path, title: str, portrait: bo
 
 
 def fig_epochs_by_position(Pm: pd.DataFrame, lat: dict, metrics: tuple, path: Path, title: str) -> None:
-    """Rows = metric, columns = the six positions; x = epoch; one line per animal, mean +- SEM over sessions."""
-    col, _ = _palettes()
+    """Rows = metric, columns = the six positions; x = epoch; per animal its epoch mean +- SEM over sessions as an OPEN
+    marker (shape = animal, colour = epoch), NO line across epochs; filled = mean +- SEM over animals (A13, 11-07)."""
+    from wfield_local import cat_points as cp
     plt = _plt()
     fig, axs = plt.subplots(len(metrics), len(POS_ORDER), figsize=(2.5 * len(POS_ORDER), 2.2 * len(metrics)),
                             squeeze=False, sharey="row")
@@ -1007,19 +1041,24 @@ def fig_epochs_by_position(Pm: pd.DataFrame, lat: dict, metrics: tuple, path: Pa
     for j, p in enumerate(POS_ORDER):
         for i, m in enumerate(metrics):
             ax = axs[i][j]
+            am = {}
             for k, (a, g) in enumerate(Pm[Pm.pos == p].groupby("animal")):
                 mu = g.groupby("epoch")[m].mean().reindex(EPOCH_ORDER)
                 se = g.groupby("epoch")[m].agg(_sem).reindex(EPOCH_ORDER)
-                x = np.arange(len(EPOCH_ORDER)) + (k - 1.5) * 0.07
-                ok = mu.notna().to_numpy()
-                ax.errorbar(x[ok], mu[ok], yerr=se[ok], fmt="o-", color=col.get(a, "k"), ms=3.5, lw=1.1, capsize=2,
-                            elinewidth=0.7, label=a)
+                am[a] = mu
+                for e_i, e in enumerate(EPOCH_ORDER):
+                    if np.isfinite(mu[e]):
+                        ax.errorbar(e_i + (k - 1.5) * 0.07 - 0.12, mu[e], yerr=se[e] if np.isfinite(se[e]) else None,
+                                    fmt=cp.animal_marker(a), ms=3.5, mfc="none", mec=cp.epoch_color(e),
+                                    ecolor=cp.epoch_color(e), mew=0.9, capsize=1.5, elinewidth=0.6, zorder=3)
                 _mark_rows(ax, 4)
                 sig = W[(W.metric == m) & (W.pos == p) & (W.animal == a) & W.sig]
-                for e in sig.epoch:                      # * in the animal's colour above its significant epochs
-                    xe = EPOCH_ORDER.index(e) + (k - 1.5) * 0.07
-                    ax.text(xe, 0.985 - 0.065 * k, "*", color=col.get(a, "k"), ha="center", va="top", fontsize=10,
-                            fontweight="bold", transform=ax.get_xaxis_transform())
+                for e in sig.epoch:                      # the ANIMAL'S marker (row k = its row) in the epoch colour
+                    xe = EPOCH_ORDER.index(e) + (k - 1.5) * 0.07 - 0.12
+                    ax.plot([xe], [0.985 - 0.065 * k - 0.025], ls="none", marker=cp.animal_marker(a), ms=4.5,
+                            color=cp.epoch_color(e), transform=ax.get_xaxis_transform(), clip_on=False, zorder=6)
+            for e_i, e in enumerate(EPOCH_ORDER):
+                cp.epoch_mean_sem(ax, e_i + 0.2, [am[a][e] for a in am], e, ms=4.5)
             if m == "peak_angle_deg":
                 ax.axhline(Pm[Pm.pos == p].spout_angle_deg.mean(), color="0.55", ls="--", lw=1.0, zorder=0)
             ax.set_xticks(range(len(EPOCH_ORDER)), [e[:3] for e in EPOCH_ORDER], fontsize=6.5)
@@ -1028,26 +1067,29 @@ def fig_epochs_by_position(Pm: pd.DataFrame, lat: dict, metrics: tuple, path: Pa
                 ax.set_title(pos_disp(p), fontsize=9, color=_pos_color(p, "L"))
             if j == 0:
                 ax.set_ylabel(LABEL[m], fontsize=7)
-    axs[0][0].legend(fontsize=6, frameon=False)
-    note = ("by spout position: per-animal epoch mean +- SEM over sessions; licks: ALL POST-CUE licks (cue + 70 ms .. "
-            "trial stop), measured peaks for kinematics; dashed = spout angle. * (animal colour, one row per animal) = "
-            "that animal's sessions in the epoch differ from ITS OWN pre-stroke sessions: two-sided Mann-Whitney on "
+    axs[0][0].legend(handles=_cv_handles(Pm.animal.unique()), fontsize=6, frameon=False)
+    note = ("by spout position: open = per-animal epoch mean +- SEM over sessions (shape = animal, colour = epoch), filled = "
+            "mean +- SEM over animals, no lines across epochs; licks: ALL POST-CUE licks (cue + 70 ms .. "
+            "trial stop), measured peaks for kinematics; dashed = spout angle. Top-band filled marker (the animal's shape, "
+            "epoch colour, one row per animal) = that animal's sessions in the epoch differ from ITS OWN pre-stroke "
+            "sessions: two-sided Mann-Whitney on "
             "sessions, BH-FDR within each metric (all animals x positions x epochs), q < 0.05")
     fig.suptitle(title + "\n" + "\n".join(textwrap.wrap(note, 150)), fontsize=9)
     _save(plt, fig, path)
 
 
 def fig_timecourse_by_position(Pm: pd.DataFrame, metrics: tuple, path: Path, title: str) -> None:
-    """Rows = metric, columns = the six positions; x = days since stroke; one line per animal (one point per session)."""
-    col, _ = _palettes()
+    """Rows = metric, columns = the six positions; x = days since stroke; one OPEN point per session (shape = animal,
+    colour = epoch), no line; filled = epoch mean +- SEM over animals (A13, Priya 11-07)."""
+    from wfield_local import cat_points as cp
     plt = _plt()
     fig, axs = plt.subplots(len(metrics), len(POS_ORDER), figsize=(2.6 * len(POS_ORDER), 2.1 * len(metrics)),
                             squeeze=False, sharey="row", sharex=True)
     for j, p in enumerate(POS_ORDER):
         for i, m in enumerate(metrics):
             ax = axs[i][j]
-            for a, g in Pm[Pm.pos == p].sort_values("day").groupby("animal"):
-                ax.plot(g.day, g[m], "o-", ms=2.2, lw=0.8, color=col.get(a, "k"), label=a)
+            g = Pm[Pm.pos == p]
+            cp.day_dots(ax, g.day, g[m], g.animal, g.epoch, ms=2.8, summary_ms=4.5)
             ax.axvline(0.5, color="0.6", ls="--", lw=0.7, zorder=0)
             ax.tick_params(labelsize=6.5)
             if i == 0:
@@ -1056,9 +1098,10 @@ def fig_timecourse_by_position(Pm: pd.DataFrame, metrics: tuple, path: Path, tit
                 ax.set_ylabel(LABEL[m], fontsize=7)
     for ax in axs[-1]:
         ax.set_xlabel("days since stroke", fontsize=7)
-    axs[0][0].legend(fontsize=6, frameon=False)
-    fig.suptitle(title + "\nby spout position; licks: ALL POST-CUE licks (measured peaks for kinematics); one point per "
-                 "session; dashed = lesion", fontsize=9)
+    axs[0][0].legend(handles=_cv_handles(Pm.animal.unique()), fontsize=6, frameon=False)
+    fig.suptitle(title + "\nby spout position; licks: ALL POST-CUE licks (measured peaks for kinematics); one open point per "
+                 "session (shape = animal, colour = epoch), filled = epoch mean +- SEM over animals; dashed = lesion",
+                 fontsize=9)
     _save(plt, fig, path)
 
 
@@ -1140,47 +1183,35 @@ DAY_BINS = ((1, 3), (4, 7), (8, 14), (15, 28), (29, 60))
 
 
 def fig_cohort_timecourse_by_position(Pm: pd.DataFrame, metrics: tuple, path: Path, title: str) -> None:
-    """COHORT version of `fig_timecourse_by_position` (Priya 10-17): within-animal change vs pre, mean +- SEM over
-    sessions per day bin (pre-stroke sessions = one bin), faint = each animal's bin means."""
-    col, _ = _palettes()
+    """COHORT version of `fig_timecourse_by_position` (Priya 10-17): within-animal change vs pre per session.
+    EPOCH-COLOUR CONVENTION (A13, Priya 11-07; before: black day-bin means joined by a line, faint animal-coloured bin
+    lines): one OPEN point per session at its day (shape = animal, colour = epoch), no line; filled = epoch mean +- SEM
+    over animals. `DAY_BINS` is no longer drawn here (kept for its other readers)."""
+    from wfield_local import cat_points as cp
     plt = _plt()
     fig, axs = plt.subplots(len(metrics), len(POS_ORDER), figsize=(2.6 * len(POS_ORDER), 2.1 * len(metrics)),
                             squeeze=False, sharey="row", sharex=True)
-    xs = [-6.0] + [float(np.mean(b)) for b in DAY_BINS]
-    labs = ["pre"] + [f"{a}-{b}" for a, b in DAY_BINS]
     for i, m in enumerate(metrics):
         if m not in Pm:
             continue
         d = _within_change(Pm, m)
-        d["bin"] = np.nan
-        d.loc[d.epoch == "pre", "bin"] = 0
-        for k, (a, b) in enumerate(DAY_BINS, start=1):
-            d.loc[(d.epoch != "pre") & d.day.between(a, b), "bin"] = k
-        d = d.dropna(subset=["bin"])
         for j, p in enumerate(POS_ORDER):
             ax = axs[i][j]
             g = d[d.pos == p]
             ax.axhline(0, color="0.8", lw=0.8, zorder=0)
             ax.axvline(0.0, color="0.6", ls="--", lw=0.7, zorder=0)
-            for a, ga in g.groupby("animal"):
-                am = ga.groupby("bin").chg.mean().reindex(range(len(xs)))
-                ax.plot(xs, am.to_numpy(float), "o-", ms=2.2, lw=0.7, color=col.get(a, "k"), alpha=0.4, zorder=1,
-                        label=a if (i == 0 and j == 0) else None)
-            mu = g.groupby("bin").chg.mean().reindex(range(len(xs)))
-            se = g.groupby("bin").chg.agg(_sem).reindex(range(len(xs)))
-            ax.errorbar(xs, mu.to_numpy(float), yerr=se.to_numpy(float), fmt="o-", ms=4, color="k", lw=1.4,
-                        capsize=2.5, elinewidth=0.9, zorder=3)
-            ax.set_xticks(xs, labs, fontsize=6, rotation=45)
+            cp.day_dots(ax, g.day, g.chg, g.animal, g.epoch, ms=2.8, summary_ms=4.5)
             if i == 0:
                 ax.set_title(pos_disp(p), fontsize=9, color=_pos_color(p, "L"))
             if j == 0:
                 ax.set_ylabel(f"{LABEL[m]}, change vs pre", fontsize=7)
     for ax in axs[-1]:
-        ax.set_xlabel("days since stroke (bins)", fontsize=7)
-    axs[0][0].legend(fontsize=6, frameon=False)
-    note = ("COHORT timecourse by spout position: each session's change from its animal's OWN pre-stroke mean; black = "
-            "mean +- SEM over SESSIONS per day bin (all pre-stroke sessions = 'pre'), faint = each animal's bin mean; "
-            "licks: ALL POST-CUE licks; dashed = lesion. Significance by epoch: see cohort_epochs_by_position_*")
+        ax.set_xlabel("days since stroke", fontsize=7)
+    axs[0][0].legend(handles=_cv_handles(Pm.animal.unique()), fontsize=6, frameon=False)
+    note = ("COHORT timecourse by spout position: each session's change from its animal's OWN pre-stroke mean, one open "
+            "point per session (shape = animal, colour = epoch), no lines; filled = epoch mean +- SEM over ANIMALS (each "
+            "animal's sessions averaged first); licks: ALL POST-CUE licks; dashed = lesion. Significance by epoch: see "
+            "cohort_epochs_by_position_*")
     fig.suptitle(title + "\n" + "\n".join(textwrap.wrap(note, 150)), fontsize=9)
     _save(plt, fig, path)
 
@@ -1529,7 +1560,7 @@ MIN_COVER_N = 3
 MIN_LICKS_SESSION_POS = 20
 ENGAGED_ONLY = True
 #: BASELINE (Priya 10-18, "both, side by side"): "all" = every curated pre session (June 0606-0608 + August); "late" =
-#: only pre sessions dated >= LATE_PRE_FROM (MMDD), i.e. August, the sessions immediately before the stroke. Measured
+#: only pre sessions dated >= LATE_PRE_FROM (MMDD, = `config.baseline_pre_from()`), i.e. August, the sessions immediately before the stroke. Measured
 #: 10-18: June -> August pre drift is as large as many stroke effects (close-spout contact +0.40-0.47, protrusion -14
 #: to -36 px, peak speed -550 to -1,140 px/s, all 4 animals) -- learning / framing, not stroke.
 BASELINE = "late"                     # AUGUST-ONLY pre baseline is PRIMARY (Priya 2026-10-18); 'all' = June-including sensitivity -> *_allpre
@@ -1540,7 +1571,9 @@ def baseline_filter(df: pd.DataFrame) -> pd.DataFrame:
     """Drop the early (June) pre sessions when BASELINE == 'late'; no-op otherwise."""
     if BASELINE != "late" or df is None or not len(df) or "epoch" not in df or "date" not in df:
         return df
-    return df[~((df.epoch == "pre") & (df.date.astype(str).str[4:8] < LATE_PRE_FROM))]
+    from wfield_local import config
+    early = df.date.astype(str).map(lambda d: config.date_key(d) < config.date_key(LATE_PRE_FROM))
+    return df[~((df.epoch == "pre") & early)]
 
 
 def _apply_config() -> None:
@@ -1560,7 +1593,11 @@ def _apply_config() -> None:
     MIN_PHASE_POINTS = int(c.get("min_phase_intervals_per_bin", MIN_PHASE_POINTS))
     WALK_MIN_LICKS = int(c.get("walk_min_licks", WALK_MIN_LICKS))
     global LATE_PRE_FROM, BASELINE
-    LATE_PRE_FROM = str(c.get("late_pre_from", LATE_PRE_FROM))
+    try:                                                        # the cohort's ONE baseline cut (cohorts.yaml)
+        from wfield_local import config
+        LATE_PRE_FROM = config.baseline_pre_from() or LATE_PRE_FROM
+    except Exception:                                           # tests / no config: keep the default above
+        pass
     # env var so spawned workers follow `--baseline` (options travel to workers; CLAUDE.md rule 6)
     BASELINE = os.environ.get("OROFACIAL_BASELINE", BASELINE)
     global U_SHOW
@@ -1622,9 +1659,10 @@ _ATTEMPTS: dict = {}
 def _attempts_table() -> pd.DataFrame:
     """trial_attempts.csv once per process (label, trial_id, attempted, canonical)."""
     if "T" not in _ATTEMPTS:
-        from wfield_local import orofacial_outputs as oo
-        from wfield_local.paths import PathResolver
-        f = oo.root(PathResolver()) / RUN / "imaging_encoding" / "qc" / "trial_attempts.csv"
+        from wfield_local import lp_licks
+        # THIS run's attempts table (coordinator 11-04): the routed one in a tagged run (camera classes: canonical =
+        # the run's working period), the untagged qc by default
+        f = lp_licks.attempts_path()
         if not f.exists():
             raise FileNotFoundError(f"{f} -- run `PYTHONPATH=. python scripts/trial_attempts.py` first")
         T = pd.read_csv(f, usecols=["label", "trial_id", "attempted", "canonical"])
@@ -1715,6 +1753,93 @@ def engaged_trial_ids(animal: str, date: str) -> set | None:
     if "engaged" not in t or "trial_id" not in t:
         return None
     return set(t.loc[t["engaged"].astype(bool), "trial_id"].astype(int))
+
+
+# --------------------------------------------------------------------------------------------------------------------
+# THE COHORT'S TRIAL GATE (Priya 11-06, A27): the whole cam4 cohort (every table under `cohort_dir`, the cue traces,
+# `orofacial_jaw_lateral`) runs on the CAMERA WORKING PERIOD -- `trial_classes.working_period_ids`, one definition with
+# Fig 0.2 / 1b and the 3-D kinematics (rule 9). A session with NO camera classes (no video) has no working period and
+# contributes nothing (never a DAQ fallback). Before 11-06 the gate was the behaviour pipeline's engaged gate
+# (`engagement_keep`, OROFACIAL_GATE); that is ``WFIELD_KIN_GATE=legacy`` (the same switch as the 3-D kinematics),
+# kept as a robustness run only. The table / figure folders carry the gate name (`table_suffix`): ``prepost_working``
+# vs ``prepost_legacygate`` -- the plain ``prepost`` folders on the share hold the pre-11-06 (legacy-gate) tables and
+# are never written again, so old and new tables cannot mix. `engagement_keep` itself is unchanged (the encoders and
+# trial_attempts.py read it).
+COHORT_GATE_SFX = {"working": "_working", "legacy": "_legacygate", "alltrials": "_alltrials"}
+
+
+def cohort_gate() -> str:
+    """"working" (default, Priya 11-06), "legacy" (``WFIELD_KIN_GATE=legacy``: the pre-11-06 behaviour gate) or
+    "alltrials" (``--all-trials`` / OROFACIAL_ALL_TRIALS: the ungated control, whatever the gate)."""
+    from wfield_local import trial_classes as tc
+    return tc.kin_gate() if ENGAGED_ONLY else "alltrials"
+
+
+def cohort_keep(animal: str, date: str, sd: Path) -> tuple[set | None, str]:
+    """(kept orofacial trial_ids or None = ungated, gate label) for one session folder under `cohort_gate`: the camera
+    working period (`trial_classes.working_period_ids`; an EMPTY set when the session has no camera classes, so it
+    drops out), the legacy behaviour gate (`engagement_keep`, unchanged), or None (all trials)."""
+    g = cohort_gate()
+    if g == "alltrials":
+        return None, "off (all trials)"
+    if g == "legacy":
+        return engagement_keep(animal, date, sd)
+    from wfield_local import trial_classes as tc
+    ids = tc.working_period_ids(f"{animal}_{date}")
+    return ids, ("working (camera working period)" if ids else "none (no camera working period: no camera classes)")
+
+
+def table_suffix(gate: str | None = None, baseline: str | None = None) -> str:
+    """Folder suffix of this run's tables / figures: the gate (`COHORT_GATE_SFX`) + ``_allpre`` for the June-including
+    baseline. E.g. ``_working`` (-> prepost_working), ``_legacygate_allpre``, ``_alltrials``."""
+    g = gate or cohort_gate()
+    b = baseline or BASELINE
+    return COHORT_GATE_SFX[g] + ("_allpre" if b == "all" else "")
+
+
+def cohort_base(run: str = RUN, rv=None) -> Path:
+    """``<LP_analysis>/<run>/cohort`` -- routed: under a rebuild root ``<rebuild>/LP_analysis/<run>/cohort`` (the share
+    tree is an input there), and in a tagged run the run tag as a subfolder (`run_mode.subdir`), so a camera-selection
+    run's working period never lands in another run's folder. The default run: exactly the old place."""
+    from wfield_local import orofacial_outputs as oo
+    from wfield_local import rebuild_root, run_mode
+    from wfield_local.paths import PathResolver
+    r = rebuild_root.root()
+    b = (Path(r) / "LP_analysis" / run / "cohort") if r is not None else oo.root(rv or PathResolver()) / run / "cohort"
+    return run_mode.subdir(b)
+
+
+COHORT_KINDS = ("tables", "figures", "qc", "deck")
+
+
+def cohort_dir(kind: str, name: str = "prepost", run: str = RUN, gate: str | None = None,
+               baseline: str | None = None, rv=None) -> Path:
+    """THE folder of one cohort product: ``cohort_base / kind / (name + table_suffix)``; ``kind`` in `COHORT_KINDS`,
+    ``name`` = "prepost" / "jaw_lateral" / "robustness" / ... Writers and readers both call this, so they meet and one
+    gate's tables are never read as another's."""
+    if kind not in COHORT_KINDS:
+        raise ValueError(f"kind must be one of {COHORT_KINDS}, not {kind!r}")
+    return cohort_base(run, rv) / kind / f"{name}{table_suffix(gate, baseline)}"
+
+
+def trials_text(gate: str | None = None) -> str:
+    """The "Trials:" wording of the standard Data: block: `trial_classes.KIN_TRIALS_TEXT` (working / legacy) or the
+    ungated control."""
+    from wfield_local import trial_classes as tc
+    g = gate or cohort_gate()
+    return "ALL trials (no gate -- control)" if g == "alltrials" else tc.KIN_TRIALS_TEXT[g]
+
+
+def data_line(gate: str | None = None) -> str:
+    """The standard "Data:" provenance line (FIGURE_PROVENANCE_20261106 section 4) of the cam4 cohort tables / figures
+    (data_line.txt beside them; the "Trials:" part also goes into every figure title)."""
+    g = gate or cohort_gate()
+    pre = ("all curated pre sessions (June + August)" if BASELINE == "all"
+           else f"August pre-stroke sessions only (>= {LATE_PRE_FROM}; June excluded)")
+    return ("Data: Window: post-cue = cue + 70 ms .. DAQ trial stop (pre-cue = strobe .. cue; ITI). Licks: cam4 LP v36 "
+            "lick events; trials classed from DAQ spout contact + video licks (cam4 LP + cam1). "
+            f"Trials: {trials_text(g)}. Pre: {pre}. Sessions: curated, PS92-PS95, with a cam4 v36 session folder"
+            + (" and camera classes" if g == "working" else "") + ". Signal: cam4 2-D tongue / jaw (px).")
 
 
 _apply_config()
@@ -1955,9 +2080,11 @@ def main(argv=None) -> int:
     ap.add_argument("--run", default=RUN)
     ap.add_argument("--jobs", type=int, default=None)
     ap.add_argument("--all-trials", action="store_true",
-                    help="control: no engagement gate; writes tables/prepost_alltrials, figures/prepost_alltrials")
+                    help="control: no trial gate; writes tables/prepost_alltrials, figures/prepost_alltrials. The gate "
+                         "otherwise = the camera working period (default; prepost_working) or, with "
+                         "WFIELD_KIN_GATE=legacy, the pre-11-06 behaviour engaged gate (prepost_legacygate)")
     ap.add_argument("--baseline", choices=("all", "late"), default="late",
-                    help="pre-stroke baseline: all curated pre sessions, or only those >= late_pre_from (August); "
+                    help="pre-stroke baseline: all curated pre sessions, or only those >= the cohort's baseline_pre_from (August); "
                          "default 'late' (August-only, PRIMARY) writes the plain folders; 'all' (June-including "
                          "sensitivity) writes *_allpre")
     ap.add_argument("--replot-contra", action="store_true",
@@ -1975,11 +2102,13 @@ def main(argv=None) -> int:
         os.environ["OROFACIAL_ALL_TRIALS"] = "1"
         ENGAGED_ONLY = False
     rv = PathResolver()
-    base = oo.root(rv) / a.run / "cohort"
-    sfx = ("" if ENGAGED_ONLY else "_alltrials") + ("_allpre" if BASELINE == "all" else "")
+    # routed + gate-named folders (A27): cohort_base / {tables,figures} / prepost<table_suffix>
+    base = cohort_base(a.run, rv)
+    sfx = table_suffix()
     if a.replot_contra:
         return replot_contra(a.run, sfx)
-    tables, figs = base / "tables" / f"prepost{sfx}", base / "figures" / f"prepost{sfx}"
+    tables, figs = cohort_dir("tables", run=a.run, rv=rv), cohort_dir("figures", run=a.run, rv=rv)
+    print(f"cohort gate: {cohort_gate()} -- {trials_text()}; tables -> {tables}", flush=True)
     writeguard.assert_writable(base)
     tables.mkdir(parents=True, exist_ok=True)
     figs.mkdir(parents=True, exist_ok=True)
@@ -2017,13 +2146,15 @@ def main(argv=None) -> int:
     if any(v != "L" for v in lat.values()):
         print("WARNING: an animal has a non-left lesion -- lick-aligned angle / lateral traces are in image coordinates "
               "(+ = image right = L) and their '+ = ipsi' labels are wrong for it; sign-flip them before using")
-    gate_txt = (("ENGAGED trials only (behaviour pipeline's reference-position gate)" if ENGAGED_ONLY else
-                 "ALL trials (no engagement gate -- control)")
+    gate_txt = (f"Trials: {trials_text()}"
                 + (f" -- baseline: LATE pre only (>= {LATE_PRE_FROM})" if BASELINE == "late" else
                    " -- baseline: all curated pre"))
+    (tables / "data_line.txt").write_text(data_line() + chr(10), encoding="utf-8")
+    (figs / "data_line.txt").write_text(data_line() + chr(10), encoding="utf-8")
     if ENGAGED_ONLY and "engagement_gate" in S:
-        print(f"engagement gate: {int(S.n_trials_used.sum())} of {int(S.n_trials_all.sum())} trials kept")
-        for _, r_ in S[S.engagement_gate != "reference"].iterrows():
+        print(f"trial gate ({cohort_gate()}): {int(S.n_trials_used.sum())} of {int(S.n_trials_all.sum())} trials kept")
+        usual = "working (camera working period)" if cohort_gate() == "working" else "reference"
+        for _, r_ in S[S.engagement_gate != usual].iterrows():
             print(f"  {r_.label}: {r_.engagement_gate}")
     t = f"Orofacial kinematics, pre vs post stroke -- {a.run} -- {gate_txt} -- sessions: {animals}"
     fig_epochs(A, D, figs / "epochs.png", t)
@@ -2133,6 +2264,7 @@ def main(argv=None) -> int:
     for wgt, suf in (("session", ""), ("animal", "_animalw")):
         _cohort_figs(CTw, PHa, PHN, Pm, base, figs, t, wgt, suf, PH=PH, stats=ST)
     (tables / "provenance.json").write_text(json.dumps({"run": a.run, "n_sessions": int(len(S)),
+                                                        "gate": cohort_gate(), "data_line": data_line(),
                                                         "code_commit": oo.code_commit(),
                                                         "sessions": S.label.tolist()}, indent=1), encoding="utf-8")
     print(f"\ntables -> {tables}\nfigures -> {figs}")
@@ -2523,10 +2655,9 @@ def replot_contra(run: str = RUN, sfx: str = "") -> int:
     accuracy`; tests replayed by `contra_stats`). Called by `main` after every cohort run (the default since 11-03)."""
     global _RELABEL, _CAMERA
     from wfield_local import config
-    from wfield_local import orofacial_outputs as oo
     from wfield_local import writeguard
     from wfield_local.paths import PathResolver
-    base = oo.root(PathResolver()) / run / "cohort"
+    base = cohort_base(run, PathResolver())
     tables, figs = base / "tables" / f"prepost{sfx}", base / "figures" / f"prepost{sfx}"
     writeguard.assert_writable(figs)
     lat = {a: str((v or {}).get("stroke_laterality", "L")) for a, v in config.animals().items()}
@@ -2536,13 +2667,12 @@ def replot_contra(run: str = RUN, sfx: str = "") -> int:
     Pm_ipsi = Pm
     Pm, PH, LS, CT = to_contra(Pm, lat), to_contra(PH, lat), to_contra(LS, lat), to_contra(CT, lat, long_var="var")
     STc = contra_stats(Pm_ipsi, Pm, tables)
-    jaw_csv = base / "tables" / (("jaw_lateral" if "alltrials" not in sfx else "jaw_lateral_alltrials")
-                                 + ("_allpre" if "allpre" in sfx else "")) / "sessions.csv"
+    jaw_csv = base / "tables" / f"jaw_lateral{sfx}" / "sessions.csv"         # the same gate + baseline (A27)
     jaw = baseline_filter(pd.read_csv(jaw_csv, dtype={"date": str})) if jaw_csv.exists() else None
     PHa = PH[PH.set == "postcue"]
     CTw = CT.pivot_table(index=["animal", "date", "epoch", "pos", "t_ms"], columns="var", values="value").reset_index()
-    gate = (("ENGAGED trials only (behaviour pipeline's reference-position gate)" if "alltrials" not in sfx else
-             "ALL trials (no engagement gate -- control)")
+    g_ = next((g for g, x in COHORT_GATE_SFX.items() if sfx.startswith(x)), None)
+    gate = ((f"Trials: {trials_text(g_)}" if g_ else f"tables prepost{sfx}")
             + (" -- baseline: all curated pre" if "allpre" in sfx else f" -- baseline: LATE pre only (>= {LATE_PRE_FROM})"))
     animals = ", ".join(f"{x} {int((S.animal == x).sum())}" for x in sorted(S.animal.unique()))
     t = f"Orofacial kinematics, pre vs post stroke -- {run} -- {gate} -- sessions: {animals}"
@@ -2680,8 +2810,7 @@ def cohort_stats(Pm: pd.DataFrame, base: Path, tables: Path) -> pd.DataFrame:
     plain-language RESULTS.md of the significant cells."""
     ms_ = list(dict.fromkeys([*COHORT_SCALARS, *(m for g in POS_GROUPS.values() for m in g)]))
     ST = session_change_tests(Pm, ms_)          # every metric drawn in a cohort figure gets its own test
-    jaw_csv = base / "tables" / (("jaw_lateral" if ENGAGED_ONLY else "jaw_lateral_alltrials")
-                                 + ("_allpre" if BASELINE == "all" else "")) / "sessions.csv"
+    jaw_csv = base / "tables" / f"jaw_lateral{table_suffix()}" / "sessions.csv"     # same gate + baseline (A27)
     if jaw_csv.exists():
         J = baseline_filter(pd.read_csv(jaw_csv, dtype={"date": str})).assign(pos="far_pair")
         ST = pd.concat([ST, session_change_tests(J, ["lr_wide_far_dir", "angle_far_dir"])], ignore_index=True)
@@ -2794,8 +2923,7 @@ def _cohort_figs(CTw, PHa, PHN, Pm, base: Path, figs: Path, t: str, wgt: str, su
             fig_cohort_delta_paths(PHa, figs / "cohort_jaw_trajectory_xy_delta.png", t, part="jaw")
             fig_cohort_delta_paths(PHa, figs / "cohort_jaw_phase_portrait_delta.png", t, portrait=True, part="jaw")
             fig_animal_paths(PHa, Pm, figs / "cohort_jaw_trajectory_xy_by_animal.png", t, part="jaw")
-    jaw_csv = base / "tables" / (("jaw_lateral" if ENGAGED_ONLY else "jaw_lateral_alltrials")
-                                 + ("_allpre" if BASELINE == "all" else "")) / "sessions.csv"
+    jaw_csv = base / "tables" / f"jaw_lateral{table_suffix()}" / "sessions.csv"     # same gate + baseline (A27)
     jaw = baseline_filter(pd.read_csv(jaw_csv, dtype={"date": str})) if jaw_csv.exists() else None
     fig_cohort_scalars(Pm, figs / f"cohort_metrics_minus_pre{suf}.png",
                        t + "\nCOHORT, change vs pre: per-position lick metrics", jaw, wgt,

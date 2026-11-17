@@ -5,22 +5,22 @@ Priya, 2026-10-02: "start building the movement regression code as a framework" 
 before any O2 whole-session run, so this is built and tested on synthetic data first; real inputs plug in through
 `MovementInputs`). Design: `docs/DLC_IN_WIDEFIELD_ANALYSES.md` §3E.
 
-WHAT IT GENERALISES. `locanmf_encoding_model` regresses each LocaNMF component's continuous dF/F on time-lagged CUE and
+WHAT IT GENERALIZES. `locanmf_encoding_model` regresses each LocaNMF component's continuous dF/F on time-lagged CUE and
 DAQ-LICK indicators (ridge, lags -0.5 .. +1.5 s) -> a cue kernel and a lick kernel. Here any number of regressors, of
 three kinds, each in a named GROUP:
   * EventRegressor       an event train (DAQ seconds) -> one kernel over its lags (an FIR: one column per lag).
                          Optional per-event `amplitude` -> a MODULATED kernel (e.g. tongue-onset kernel scaled by the
-                         lick's executed angle), centred so it carries only the modulation.
+                         lick's executed angle), centered so it carries only the modulation.
   * ContinuousRegressor  a sampled signal (e.g. tongue protrusion at 250 fps, DAQ-second timestamps) -> averaged into
                          each imaging frame, z-scored with TRAINING statistics, plus copies at a few lags.
-  * the intercept        always fitted, never penalised.
+  * the intercept        always fitted, never penalized.
 Typical groups: "task" (cue kernels per spout position, reward), "lick_events" (tongue onset, contact, jaw onset),
 "tongue" / "jaw" (continuous), "state" (running).
 
 FITTING. Ridge per output with a SEPARATE penalty per group, implemented by column scaling (X_g / sqrt(alpha_g) with a
 unit penalty == penalty alpha_g on group g). Penalties chosen by cross-validation over a log grid, one group at a time
 (coordinate search). Cross-validation folds are contiguous BLOCKS OF TRIALS (frames are assigned to the trial whose
-start precedes them), so autocorrelated neighbouring frames never straddle train and test.
+start precedes them), so autocorrelated neighboring frames never straddle train and test.
 
 WHAT IT REPORTS.
   * cross-validated R^2 per output (component / area), from held-out predictions concatenated over folds;
@@ -132,8 +132,8 @@ def bin_to_frames(t_s, values, frame_times_s) -> np.ndarray:
 
 
 def raised_cosine_basis(lags_s: np.ndarray, spacing_s: float) -> np.ndarray:
-    """(n_lags, n_basis) raised-cosine bumps on the kernel's frame lags: centres every ~``spacing_s`` from the first
-    to the last lag, each bump reaching zero at its neighbours' centres, so neighbours overlap by half and the bumps
+    """(n_lags, n_basis) raised-cosine bumps on the kernel's frame lags: centers every ~``spacing_s`` from the first
+    to the last lag, each bump reaching zero at its neighbors' centers, so neighbors overlap by half and the bumps
     sum to 1 across the support (a flat kernel stays representable). Priya, 2026-10-06: the per-frame kernels are
     jagged -- one free weight per 32 ms lag, and rhythmic licks (~156 ms, ~5 frames) plus tongue onset / contact
     ~1 frame apart let the fit trade weight between lags; GCaMP is smooth at this scale, so the bumps constrain the
@@ -228,7 +228,7 @@ def select_rows(design: Design, mask) -> Design:
 
 
 def standardise(X: np.ndarray, mu=None, sd=None):
-    """Column z-scoring with given (training) statistics; NaN -> 0 AFTER centring (= 'unknown contributes nothing').
+    """Column z-scoring with given (training) statistics; NaN -> 0 AFTER centering (= 'unknown contributes nothing').
     Constant columns get sd 1."""
     if mu is None:
         mu = np.nanmean(X, axis=0) if len(X) else np.zeros(X.shape[1])
@@ -247,7 +247,7 @@ def _penalty_scale(group: np.ndarray, alphas: dict) -> np.ndarray:
 
 
 def ridge_fit(Z: np.ndarray, Y: np.ndarray, group: np.ndarray, alphas: dict):
-    """(beta in Z units, intercept). Penalty alpha_g on group g via column scaling; intercept unpenalised."""
+    """(beta in Z units, intercept). Penalty alpha_g on group g via column scaling; intercept unpenalized."""
     if Z.shape[1] == 0:
         return np.zeros((0, Y.shape[1])), Y.mean(axis=0)
     s = _penalty_scale(group, alphas)
@@ -284,8 +284,8 @@ def trial_block_folds(frame_times_s, trial_starts_s, n_folds: int = 5) -> np.nda
 
 
 def cv_predict(Z, Y, group, alphas, folds) -> np.ndarray:
-    """Held-out predictions, each fold fit on the others (standardisation is already global-safe: Z must come from
-    `standardise` on the same session; for cross-SESSION use `fit` + `predict`)."""
+    """Held-out predictions, each fold fit on the others (standardization is already global-safe: Z must come from
+    `standardize` on the same session; for cross-SESSION use `fit` + `predict`)."""
     P = np.full(Y.shape, np.nan)
     for k in np.unique(folds):
         tr, te = folds != k, folds == k
@@ -296,7 +296,7 @@ def cv_predict(Z, Y, group, alphas, folds) -> np.ndarray:
 
 def choose_alphas(Z, Y, group, folds, grid=(0.1, 1.0, 10.0, 100.0, 1000.0, 1e4), n_sweeps: int = 2,
                   init: float = 10.0) -> dict:
-    """Per-group penalties by coordinate search over ``grid``, maximising the mean CV R^2 over outputs."""
+    """Per-group penalties by coordinate search over ``grid``, maximizing the mean CV R^2 over outputs."""
     groups = list(dict.fromkeys(group.tolist()))
     alphas = {g: float(init) for g in groups}
 
@@ -335,7 +335,7 @@ def _check_same_columns(model: MovementModel, design: Design) -> None:
 
 
 def predict(model: MovementModel, design: Design, groups: list[str] | None = None, intercept: bool = True):
-    """Prediction on a (possibly NEW) session with the model's TRAINING standardisation. ``groups`` restricts the
+    """Prediction on a (possibly NEW) session with the model's TRAINING standardization. ``groups`` restricts the
     prediction to those groups' columns (e.g. only movement)."""
     _check_same_columns(model, design)
     Z, _, _ = standardise(design.X, model.mu, model.sd)
@@ -359,9 +359,9 @@ def cv_residual(design: Design, Y: np.ndarray, folds, alphas: dict) -> np.ndarra
 
 
 def kernels(model: MovementModel, per_event: bool = False) -> dict:
-    """{regressor: (lags_s, weights (n_lags, n_out))}. Default: standardised-column units (per SD of the column).
+    """{regressor: (lags_s, weights (n_lags, n_out))}. Default: standardized-column units (per SD of the column).
     ``per_event``: output units per unit of the raw regressor -- dF/F per event for an event kernel (the weight
-    divided by the column SD; a sparse 0/1 column's SD is tiny, so standardised weights look negligible). Smooth
+    divided by the column SD; a sparse 0/1 column's SD is tiny, so standardized weights look negligible). Smooth
     (raised-cosine) kernels are returned on the per-frame lag grid (basis @ weights); with ``per_event=False`` their
     scale mixes the bumps' SDs, so read them for shape only."""
     out = {}

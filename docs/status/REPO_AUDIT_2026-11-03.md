@@ -8,7 +8,7 @@
 
 **Sources.** Four read-only sub-audits ran in parallel, plus my own pass. The sub-audits covered:
 - epochs, curation and the engagement gate;
-- spout order, signs, colours and stars;
+- spout order, signs, colors and stars;
 - licks, trial classes, jaw, 3-D pose and FaceRhythm loaders;
 - bootstrap, corrections, LMMs and paths.
 
@@ -28,16 +28,16 @@
 | 1 | two copies of the shared package | ATT's `wfield_local/` lags main (no cohort-year support, no `cat_points`) and adds `gate_source` hooks; 60 shared files differ. Worktree scripts can silently import main's package. | **Yes.** The engagement gate differs by checkout and env var. Cohort2 breaks on ATT. |
 | 2 | trial classes | Two classifiers with different contact source, lick window, jaw cameras, masks and gate (`trial_attempts.py` vs `jaw_only_incomplete_figs.classify`). | **Yes.** Class shares differ. |
 | 3 | `jaw_pass_qc` | Three places still use it as a gate and convert NaN to True via `.astype(bool)`. | **Yes.** The jaw-only fraction has the wrong denominator, and unknown-jaw trials count as jaw-only. |
-| 4 | change-vs-pre bootstrap weighting | `epoch_figures.scalar_contrast_draws` / `contrast_draws`, `matrix_bootstrap.delta_draws` and `epoch_behaviour` weight by session or trial. `analysis_kit.boot_delta` (rule 9) weights by animal. | **Yes.** Point estimates and CIs on the epoch families (8g/10/10b/11, accuracy, behaviour) differ from `boot_delta` whenever session counts differ between animals. |
+| 4 | change-vs-pre bootstrap weighting | `epoch_figures.scalar_contrast_draws` / `contrast_draws`, `matrix_bootstrap.delta_draws` and `epoch_behaviour` weight by session or trial. `analysis_kit.boot_delta` (rule 9) weights by animal. | **Yes.** Point estimates and CIs on the epoch families (8g/10/10b/11, accuracy, behavior) differ from `boot_delta` whenever session counts differ between animals. |
 | 5 | DAQ lick identity | Imaging path uses `thresh_lower 1.0, refractory 0.10` (48 copies). Config and `behavior_events` use `0.5` with no refractory. CLI modules use `0.5 + 0.10`. | **Yes, small.** Onset sets differ, so hits, RTs and lick-aligned trials differ at the margins. |
 | 6 | response window and "hit" | Three values: 2.0 s (`analysis_kit.RESP_S`, the S28 quit family, the imaging "engaged" cut in `decoder_weights` / `position_encoder`), 3.5 s (`decode.max_rt_s`, the task window), and the trial-stop TTL (`trial_windows`). | **Yes.** "Hit" means different things in different families. |
 | 7 | multiple comparisons | Five hand-written BH implementations, one of which counts NaN p-values in m. Bonferroni m is chosen ad hoc (x3, x8, x12, x18, x36, per figure). FDR families differ per `lmm_table` caller. | **Yes.** Significance calls are not comparable across figures. |
 | 8 | mixed models | About 17 ad-hoc `smf.mixedlm` calls fit by ML on post-only `log(day)`. Canonical `fit_lmm` uses REML, a random-effects ladder, and `log(clip(day,1))` with pre sessions included. | **Yes.** Recovery-slope p-values come from different models. |
 | 9 | sign conventions | Three meanings of "image right". `to_contra` would double-flip for a right-lesioned animal. About 25 `pos_key(p, "L")` literals. One script infers the sign from the data. | Not today (all 8 animals are left-lesioned). **Latent** for any R-lesion animal. |
 | 10 | August-only pre baseline | Cut-off is "0801" in about 45 sites and "0806" in about 25-38, alongside `config.pre_from()` and `oc.LATE_PRE_FROM`. | **Not today.** No 0805 or June files on disk in the globbed folders (§3). Breaks for cohort2 because of MMDD string compares. |
-| 11 | spout order, colours, markers, stars | At least 7 spout orders, 4 position palettes, about 12 epoch palettes, 5+ animal palettes (some reuse another animal's colour), and 6+ meanings of `*` / `**`. | Numbers unaffected, but figures can be misread (e.g. PS94 drawn in PS93's red). |
+| 11 | spout order, colors, markers, stars | At least 7 spout orders, 4 position palettes, about 12 epoch palettes, 5+ animal palettes (some reuse another animal's color), and 6+ meanings of `*` / `**`. | Numbers unaffected, but figures can be misread (e.g. PS94 drawn in PS93's red). |
 | 12 | paths | The v36 run root is hard-coded in about 20-23 files. Two hard-coded `N:` paths survive the M/N swap; one is a write destination. | `publish_cache` would write to standby. |
-| 13 | clarity | No "where is X defined" map. ARCHITECTURE.md omits every behavioural and orofacial definition. Several misleading names. | n/a |
+| 13 | clarity | No "where is X defined" map. ARCHITECTURE.md omits every behavioral and orofacial definition. Several misleading names. | n/a |
 
 ---
 
@@ -193,7 +193,7 @@ Neither truncates the window at the next cue.
 
 **`nolick_decoder` vs the other two: nearly the same trials, but not by construction.** Four differences:
 - **(a) Different lick train.** thresh_lower is 1.0 and there is a 100 ms refractory. A lick within 100 ms of a preceding lick is dropped, so a cue preceded by an ITI lick can lose its first post-cue lick. The next lick (~150 ms later) usually still falls inside the window.
-- **(b) Frame units.** RT is computed in imaging frames, so the window edge is quantised to a frame. A lick in the same frame as the cue (rt = 0) is classed "undetected".
+- **(b) Frame units.** RT is computed in imaging frames, so the window edge is quantized to a frame. A lick in the same frame as the cue (rt = 0) is classed "undetected".
 - **(c) Position codes.** Cues with no usable position code get `cat = ""` and count as not responded.
 - **(d) Env switches.** Under `WIDEFIELD_LICK_SOURCE=lp` it uses the LP lick train. On ATT under `WIDEFIELD_GATE_SOURCE=lp` it also counts LP attempts.
 
@@ -222,11 +222,11 @@ Its config fallback also misfires: it reads `defaults()["behavior"]["response_wi
 ## 5. Licks
 
 ### Two (really three) DAQ lick identities [verified config values]
-- **Config / behaviour path** (`behavior_events`, `daq_trials`, `spout_behavior`, `rest_by_position`): `thresh_upper 2.5, thresh_lower 0.5, lockout [0.001, 0.020], min_ili 40 ms`, no refractory (`defaults.yaml:158-162`).
+- **Config / behavior path** (`behavior_events`, `daq_trials`, `spout_behavior`, `rest_by_position`): `thresh_upper 2.5, thresh_lower 0.5, lockout [0.001, 0.020], min_ili 40 ms`, no refractory (`defaults.yaml:158-162`).
 - **Imaging path:** `_load_daq_events(h5, "lick_analog", 2.5, 1.0, (0.001,0.020), 0.10)`, i.e. **thresh_lower 1.0 and refractory 0.10 s**. It appears 48 times in 40 MAIN files and 37 times in 29 ATT files, with the same numbers in every copy. `analysis_kit.lick_samples` (:324) wraps it.
 - **CLI modules** (`plot_lick_aligned_averages:226`, `locanmf_lick_aligned:244`, `roi_activity:117`, `framemap_event_maps:451`, `quiet_periods:377`): thresh_lower 0.5 with `--refractory-s 0.10`.
 
-CLAUDE.md says behaviour and imaging share one lick identity; on these paths they do not.
+CLAUDE.md says behavior and imaging share one lick identity; on these paths they do not.
 
 Two related traps:
 - Two different functions are both named `_load_daq_events`: one loads licks (`plot_lick_aligned_averages`), the other cues (`plot_spout_trial_averages`).
@@ -250,7 +250,7 @@ Canonical: `jaw_kinematics` (baseline mean/sd over −500..0, threshold max(4·s
 | where | opening / baseline | thresholds | masks |
 |---|---|---|---|
 | `jaw_onsets.py:63-71,111-161` | `open_px` vs the pre-cue **median**; 3-D uses the 95th percentile | cam1 floor 15 px, likelihood < 0.6 → NaN; 3-D 0.10 mm; at least 20 pre frames and 50% coverage | close_center (2-D) and far_center (3-D) |
-| `jaw_only_incomplete_figs.py:115-120` | 3-D `jaw_open` vs the per-trial pre median, −500..3000 | at least 5 frames, at least 2 trials | **no** centre blanking, **no** coverage gate |
+| `jaw_only_incomplete_figs.py:115-120` | 3-D `jaw_open` vs the per-trial pre median, −500..3000 | at least 5 frames, at least 2 trials | **no** center blanking, **no** coverage gate |
 | `orofacial_jaw_lateral.py:35-87` | **no per-trial baseline**; projected on the AP axis, 70..3000 | `OPEN_PX 50`, `OPEN_FIT_PX 15` | filled frames dropped |
 
 About 30 other files touch raw jaw coordinates; their thresholds are UNVERIFIED.
@@ -352,7 +352,7 @@ These may be deliberate (the docstrings argue that a session is the unit), but t
 
 ---
 
-## 8. Spout order, sign conventions, colours, markers, stars
+## 8. Spout order, sign conventions, colors, markers, stars
 
 ### Spout order
 - **Canonical:** `orofacial_cohort.POS_ORDER` (:69): close ipsi / mid / contra, then far ipsi / mid / contra.
@@ -364,12 +364,12 @@ These may be deliberate (the docstrings argue that a session is the unit), but t
   - left to right: `face_rhythm/common.py:18`, which calls itself "the one canonical order" even though the same file defines the real canonical order at :23
   - left to right with the mid ring swapped: `lick_templates:37`, `tongue_jaw_mismatch:101`, `jaw_lateral:263`
   - alphabetical: `epoch_kernels:48`, `frozen_kernel_maps:27`
-  - centre first: `spout_world:62`
-- The same spout is called "near middle" (`epoch_figures._ANATOMICAL`), "close mid" or "centre" depending on the file.
+  - center first: `spout_world:62`
+- The same spout is called "near middle" (`epoch_figures._ANATOMICAL`), "close mid" or "centre" (code label) depending on the file.
 
 ### Sign conventions
 All of these agree today, because all 8 animals have `stroke_laterality: "L"`.
-- "Image right" means **ipsi** in face video but the **contra hemisphere** in brain maps (consistent with the user's memory note on image sides). This is a labelling hazard.
+- "Image right" means **ipsi** in face video but the **contra hemisphere** in brain maps (consistent with the user's memory note on image sides). This is a labeling hazard.
 - **Latent double flip.** `orofacial_cohort._cue_traces:433` and `session_metrics:500` already flip to + = ipsi. `to_contra` then flips the same "image-signed" columns again. For a non-left lesion the code prints a warning instead of fixing it.
 - **Hard-coded "L":**
   - `pos_key(p, "L")` in about 25 sites (`stray_licks:63`, `orofacial_heatmaps:449`, `iti_first_lick:83`, `imaging_lmm:92`, …)
@@ -380,19 +380,19 @@ All of these agree today, because all 8 animals have `stroke_laterality: "L"`.
 - `kinematics_pooled_figs._sg` flips the 3-D measures by −1 without reading laterality, while `fig_angle` in the same file does read it.
 - **ATT `lick_balance_target_model.py:129-130` infers the sign from the data** (`np.sign` of the pre far-contra mean).
 
-### Colours
-- **Epoch colours.**
+### Colors
+- **Epoch colors.**
   - Canonical: `orofacial_cohort.EPOCH_LINE` (:113).
   - A second sanctioned palette, `epoch_figures.EPOCH_GREY`, plus the new `epoch_dot_color`.
-  - About 12 other palettes. Several collide with animal colours: `cam1_lick_aim:35`, `session_lick_summary:90`, `reembedding_test:71`, `gate_lp_check:458`, and the seaborn sets.
-- **Animal colours.**
+  - About 12 other palettes. Several collide with animal colors: `cam1_lick_aim:35`, `session_lick_summary:90`, `reembedding_test:71`, `gate_lp_check:458`, and the seaborn sets.
+- **Animal colors.**
   - Canonical: `config.animal_color()`, reading `animals.yaml` (CLAUDE.md rule 3).
   - A Dark2 palette appears in about 16 places, including `mixed_models.py:218`.
   - Wrong mappings: `locanmf_decoder_weights.py:175` draws **PS94 in PS93's red**; also `quiet_area_spikes:211`, `sm_coherence_cca:723`, `restnl_rescue:501`, `restw_strict_check:505`.
   - Six retired `ANIMAL_COLOR` dicts are still in the code.
-- **Position colours.**
+- **Position colors.**
   - Canonical: `spout_behavior.position_style`.
-  - Reversed-lightness or green-centre palettes in `pose3d_figures:25`, `pose3d_phase`, `iti_where_scatter:36`, `lick_trajectories_3d:112`, `spout_reference_frame:37`.
+  - Reversed-lightness or green-center palettes in `pose3d_figures:25`, `pose3d_phase`, `iti_where_scatter:36`, `lick_trajectories_3d:112`, `spout_reference_frame:37`.
 
 ### Markers
 `ANIMAL_MARKER` is defined in both `cat_points:25` and `orofacial_cohort:115`, and re-typed in about 28 scripts. The values agree.
@@ -411,7 +411,7 @@ Placement:
 
 ### Single home
 - A small `wfield_local/spouts.py` (or a section of `position_axes`) owns `POS_ORDER`, the code↔name maps, `pos_key`, `to_contra` and `ipsi_sign(animal)`, all reading `stroke_laterality`. Move these out of `orofacial_cohort`.
-- `cat_points` owns the epoch, animal and position colours and the markers.
+- `cat_points` owns the epoch, animal and position colors and the markers.
 - `sig_marks` owns star placement and one documented legend: "`*` = 95% CI excludes 0; `**` = survives <named correction>". Each figure states its correction.
 
 ---
@@ -436,11 +436,11 @@ Canonical: `PathResolver` / `config.resolver()`.
   - `docs/ARCHITECTURE.md`'s Foundation table lists config, paths, writeguard, epochs, parallel and analysis_kit.
   - None of `POS_ORDER`, the trial classes, `jaw_pass_qc`, `lp_licks`, `gate_source`, `sig_marks`, `cat_points` or `mixed_models` appears in ARCHITECTURE.md, README.md, wfield_local/README.md or scripts/README.md (grep).
   - CLAUDE.md rule 9 lists only `analysis_kit`'s contents.
-- **Definitions live in large modules with unrelated names.** Spout order and epoch colours sit in `orofacial_cohort` (~2,600 lines). The recovery axis sits in `mixed_models`. The trial classifier is a *script*.
+- **Definitions live in large modules with unrelated names.** Spout order and epoch colors sit in `orofacial_cohort` (~2,600 lines). The recovery axis sits in `mixed_models`. The trial classifier is a *script*.
 - **Misleading names:**
   - `jaw_pass_qc` (it means "jaw moved")
   - `docs/WHERE_THE_CODE_MOVES.md` (it is about cortex, not code layout)
-  - `face_rhythm/common.POSITIONS`, labelled "the one canonical order" but not canonical
+  - `face_rhythm/common.POSITIONS`, labeled "the one canonical order" but not canonical
   - two different functions named `_load_daq_events`
   - `scripts/README.md` calls `scripts/` "one-off utilities … not imported". In fact it holds about 280-390 primary analyses, and scripts import each other (e.g. `iti_licks.pred_file`).
 - **Stale comments and docstrings:** `orofacial_cohort:~1580`; `jaw_onsets:59`; the comment at `epochs.py:104` contradicts its docstring; the `config.stroke_date` docstring says "last pre-stroke session".
@@ -462,7 +462,7 @@ Canonical: `PathResolver` / `config.resolver()`.
 | 3-D frame loader | `pose3d` | ~18 direct readers |
 | FaceRhythm factors and groups | `face_rhythm_outputs` + `fr_groups` | ~10 direct `np.load` / glob readers |
 | spout order, names, ipsi/contra, sign | `position_axes` (or a new `spouts.py`) | ~40 literal lists, ~25 `pos_key(p,"L")`, `to_contra`, `kinematics_pooled_figs._sg` |
-| colours and markers | `cat_points` | `EPOCH_LINE` / `EPOCH_GREY`, ~12 epoch and ~16 animal palettes, 28 marker dicts |
+| colors and markers | `cat_points` | `EPOCH_LINE` / `EPOCH_GREY`, ~12 epoch and ~16 animal palettes, 28 marker dicts |
 | stars | `sig_marks` | the ATT `within_lick_correction` fallback, ~37 ad-hoc `ax.text("*")` |
 | LMMs and the deficit axis | `mixed_models` | ~17 ad-hoc `smf.mixedlm` calls |
 | output roots | `orofacial_outputs.encoding_root()` + `PathResolver` | ~23 v36 literals, the `publish_cache` `N:` path |

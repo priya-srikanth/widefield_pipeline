@@ -5,11 +5,11 @@
 
 ``maps``: one column per session; rows = TOP (ml x ap, looking down, mouse facing up the page), SIDE (ap x dv, mouse's right
 side) and FRONT (ml x dv, as seen from the spouts: mouse RIGHT on image LEFT). Thin lines = individual licks (up to 30 per
-position, >= 5 frames, onset -> end), thick = their time-normalised mean; filled circles = commanded spout tips (= the
-fitted frame), + = the mouth set point (origin), grey = nose and resting jaw medians.
+position, >= 5 frames, onset -> end), thick = their time-normalized mean; filled circles = commanded spout tips (= the
+fitted frame), + = the mouth set point (origin), gray = nose and resting jaw medians.
 ``video`` (2 x 2): per position the most typical lick (miss distance nearest that position's median, 15-45 frames); panels = cam1
 and cam4 crops around the apparatus mouth (raw video; green circle = that camera's 2-D tongue, red x = the TRIANGULATED
-point projected back -- red from both cameras, orange from one camera + neighbouring 3-D frames; yellow ring = the
+point projected back -- red from both cameras, orange from one camera + neighboring 3-D frames; yellow ring = the
 target spout projected) and, below, the 3-D path so far from an OBLIQUE viewpoint (front-right, above: shows depth) and from cam4's real position (``--view cam4 | cam1 | hybrid``,
 from the calibration). 250 fps shown at 10 fps (25x slow).
 dlc env (aniposelib). Output: `session_poses/pose3d/figures/`.
@@ -21,6 +21,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from wfield_local.pose3d import pose3d_dir
 
 COL = {"far_L": "#1f77b4", "close_L": "#6baed6", "close_center": "#999999", "far_center": "#333333",
        "close_R": "#fc9272", "far_R": "#d62728"}
@@ -31,7 +32,7 @@ VIEWS = (("top", "ml", "ap", "ml (mm)  mouse left <-> mouse right", "ap (mm)  ou
 
 
 def _out(rv) -> Path:
-    d = Path(rv.root("dlc")) / "session_poses" / "pose3d" / "figures"
+    d = pose3d_dir(rv) / "figures"
     d.mkdir(parents=True, exist_ok=True)
     return d
 
@@ -63,7 +64,7 @@ def cmd_maps(rv, sessions: list[str]) -> Path:
 
     from scripts.apparatus_mouth import _rig
     from wfield_local import spout_world as SW
-    d = Path(rv.root("dlc")) / "session_poses" / "pose3d"
+    d = pose3d_dir(rv)
     fig, axes = plt.subplots(3, len(sessions), figsize=(5.2 * len(sessions), 14), squeeze=False)
     rng = np.random.default_rng(0)
     for j, s in enumerate(sessions):
@@ -119,7 +120,7 @@ def _frame(cap, i: int) -> np.ndarray:
 def view_angles(cg, world, which: str = "cam4") -> tuple[float, float]:
     """matplotlib (elev, azim) that puts the 3-D panel's viewer where a REAL camera sits (calibration extrinsics mapped
     into the session's world frame), so the panel matches that camera's image: ``cam4`` (front), ``cam1`` (below) or
-    ``hybrid`` (the normalised mean of the two directions). Priya 10-19: a generic angle was confusing."""
+    ``hybrid`` (the normalized mean of the two directions). Priya 10-19: a generic angle was confusing."""
     X0 = (world.R.T @ (-world.t)) / world.scale                              # the mouth (origin) in calibration space
     dirs = {}
     for c in cg.cameras:

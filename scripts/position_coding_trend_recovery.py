@@ -1,23 +1,23 @@
 """Is the chronic gain in cortical position coding beyond the pre-stroke practice trend, and does it lead or follow
-behavioural recovery? (Priya 2026-10-19: tests 1 and 4 of the "what does this reveal about the biology" list.)
+behavioral recovery? (Priya 2026-10-19: tests 1 and 4 of the "what does this reveal about the biology" list.)
 
 Position coding per session (cortex, lick window unless noted), from the outputs already on the share:
   ceiling   nokin:category - nokin:none        (6-category ceiling; `movement_first_subset-nokin`)
   spread    RMS over the six spouts of the signed position deviation (respdev, cue 0.5-1.5 s; main run)
   spread_enl  the same in the pre-cue window (spout arrival .. cue)
-Behaviour per session (engaged trials, licks 0 .. 3.5 s after the cue, LP run licks.csv):
+Behavior per session (engaged trials, licks 0 .. 3.5 s after the cue, LP run licks.csv):
   contact_far_contra   fraction of licks at far contra (far_R; lesions LEFT) that touch the spout
   contact_all          the same over all six spouts
 
 TEST 1 (practice trend): per animal, a line through the PRE sessions (August-only, primary; June + August as the
 long-span sensitivity -- June is otherwise superseded, here it only lengthens the pre-stroke time axis), extrapolated to
 each chronic session's day; the chronic excess = observed - predicted, with the prediction's t-interval. Also the
-within-chronic slope against the pre slope (the F18 drift-vs-reorganisation logic: a gain that merely continues the
+within-chronic slope against the pre slope (the F18 drift-vs-reorganization logic: a gain that merely continues the
 pre-stroke rate is practice / drift, not recovery).
 
 TEST 4 (lead / lag): per animal, each measure's post-stroke course as the fraction of its acute -> chronic change
 (acute = mean of the acute sessions, plateau = mean of the last 4 chronic sessions), on a 2-session running mean; the
-day it first crosses 50 %. Neural earlier than behaviour = cortical gain could support recovery; later = it follows it.
+day it first crosses 50 %. Neural earlier than behavior = cortical gain could support recovery; later = it follows it.
 Undefined when the measure does not change (|plateau - acute| below its pre-stroke session SD).
 
 Output: <imaging_encoding>/qc/position_coding_trend_recovery.csv (+ the printed per-animal tables; rule 8).
@@ -40,10 +40,8 @@ MAIN_RUN = "movement_first_exec-polar_licks-combined"
 
 
 def _enc_root():
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
-    return oo.root(PathResolver()) / oc.RUN / "imaging_encoding"
+    from wfield_local import run_mode
+    return run_mode.encoding_out_root()          # the run's (tagged) encoding tree (coordinator 11-04)
 
 
 def neural(E: Path, nokin: str = NOKIN_RUN, main: str = MAIN_RUN) -> pd.DataFrame:
@@ -54,6 +52,8 @@ def neural(E: Path, nokin: str = NOKIN_RUN, main: str = MAIN_RUN) -> pd.DataFram
         if {"nokin:category", "nokin:none"} <= set(R.index):
             rows.setdefault(Path(f).stem[:-8], {})["ceiling"] = float(R["nokin:category"] - R["nokin:none"])
     for f in glob.glob(str(E / main / "sessions" / "*.npz")):
+        if f.endswith("_trials.npz"):              # per-trial SSE files (frozen / combined encoders) carry no maps
+            continue
         z = np.load(f)
         mk = [str(k) for k in z["map_keys"]]
         for w, col in (("c0.5-1.5", "spread"), ("enl", "spread_enl")):
@@ -111,7 +111,8 @@ def trend_test(D: pd.DataFrame, col: str, pre_mask) -> dict:
 
 
 def half_recovery_day(D: pd.DataFrame, col: str) -> float:
-    pre = D[(D.epoch == "pre") & (D.label.str[-4:] >= "0806")][col].dropna()
+    from wfield_local import config
+    pre = D[(D.epoch == "pre") & (~D.label.map(config.early_pre))][col].dropna()
     post = D[(D.day > 0) & D[col].notna()].sort_values("day")
     ac = post[post.epoch == "acute"][col]
     ch = post[post.epoch == "chronic"][col].tail(4)
@@ -127,8 +128,10 @@ def half_recovery_day(D: pd.DataFrame, col: str) -> float:
 
 
 def main(argv=None) -> int:
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import argparse
 
+    from wfield_local import config
     from wfield_local import epochs, writeguard
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--nokin", default=NOKIN_RUN, help="encoder run with nokin:category / nokin:none (ceiling)")
@@ -145,7 +148,7 @@ def main(argv=None) -> int:
     pd.set_option("display.width", 220)
     rows = []
     for col in ("ceiling", "spread", "spread_enl"):
-        for base, pre_mask in (("August pre", (D.epoch == "pre") & (D.label.str[-4:] >= "0806")),
+        for base, pre_mask in (("August pre", (D.epoch == "pre") & (~D.label.map(config.early_pre))),
                                ("June+August pre", D.epoch == "pre")):
             for a, g in D.groupby("animal"):
                 r = trend_test(g, col, pre_mask.loc[g.index])
@@ -170,7 +173,7 @@ def main(argv=None) -> int:
           .to_string(index=False, float_format=lambda x: f"{x:.3f}"))
     out = E / "qc"
     writeguard.assert_writable(out)
-    out.mkdir(exist_ok=True)
+    out.mkdir(parents=True, exist_ok=True)
     D.to_csv(out / "position_coding_trend_recovery_sessions.csv", index=False, float_format="%.5g")
     T.to_csv(out / "position_coding_trend_recovery.csv", index=False, float_format="%.5g")
     H.to_csv(out / "position_coding_half_recovery.csv", index=False, float_format="%.5g")

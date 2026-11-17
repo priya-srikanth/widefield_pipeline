@@ -24,13 +24,9 @@ point estimate per cell. Folding them in would mean one function with two reduct
 is how a shared helper starts growing flags until the copies come back. They stay separate and
 say so here so the next reader does not think they were missed.
 
-ONE KNOWN WART, RECORDED RATHER THAN HIDDEN. `session_behavior` reaches UP into
-`scripts/rest_migration/` for `session_trials`, `session_quit` and `near_codes` -- a library
-importing from the scripts tree, which is backwards. It is done inside the function, so there is
-no import cycle and nothing breaks, and it is not NEW coupling: the two worker functions this
-replaces each imported those same three names across the tree already. Fixing it properly means
-moving those three definitions down into `wfield_local`, which touches the modules that own them
-and their callers, and that is a separate change with its own verification.
+`session_behavior` takes `session_trials`, `session_quit` and `near_codes` from `wfield_local.engagement`. Until
+2026-11-05 it reached UP into `scripts/rest_migration/` for them; they were moved down verbatim (code review 11-04),
+and the two scripts re-export the names.
 
 READ `DECISIONS.md` -- "FANNING THE ANALYSIS LOOPS OVER CORES, AND THE THREE THINGS IT CHANGED"
 (2026-09-20) -- before changing anything below about ORDER. Half of this module exists to make an
@@ -50,6 +46,19 @@ N_BOOT = 4000
 #: 2.5/97.5 and a derived version invites a caller to pass alpha=0.1 into a table whose other rows
 #: are 95%.
 PCTL = (2.5, 97.5)
+
+#: HIT-GATED MINIMUM (Priya 11-07, decision A11: "for analyses gated on hits, > 20 hits would be reasonable").
+#: An epoch value / recovered fraction built from HIT-trial decoder retention ("code on hits", cls2 == "hit") needs at
+#: least this many hit trials summed over the animal x epoch's contributing sessions; below it the value is NaN and
+#: figures say ``HIT_GATE_NA``. Prompted by Fig 0.12's PS94 acute code resting on ONE session with 8 hits.
+MIN_HITS = 20
+HIT_GATE_NA = f"n.a. (<{MIN_HITS} hits)"
+
+
+def hits_ok(n_hits) -> bool:
+    """True when the summed hit count of an animal x epoch cell (one entry per contributing session) is >= MIN_HITS."""
+    n = np.asarray(n_hits, dtype=float)
+    return bool(n.size) and float(np.nansum(n)) >= MIN_HITS
 
 #: Response window for scoring a trial as a hit: NOT a constant. ``None`` = read THIS session's window from its
 #: behaviour log (`response_window_s`). Until 2026-11-03 this was 2.0 s, which was never the task's window (3.5 s in
@@ -381,6 +390,109 @@ def lmm_stars(p) -> np.ndarray:
     return np.where(np.isfinite(p) & (h < 0.05), "**", np.where(np.isfinite(p) & (p < 0.05), "*", ""))
 
 
+class EpochChange(NamedTuple):
+    """One epoch's change vs pre from `epoch_change`: the `boot_delta` interval plus its per-animal table (rule 8)."""
+
+    point: float
+    lo: float
+    hi: float
+    n_up: int              # animals whose mean in the epoch is above their own pre mean
+    n_animals: int         # animals with sessions in BOTH the epoch and pre
+    per_animal: dict       # {animal: own epoch mean - own pre mean}, unrounded
+
+    @property
+    def excludes_zero(self) -> bool:
+        return bool((self.lo > 0.0) or (self.hi < 0.0))
+
+
+def epoch_change(df, value: str, rng, epochs=EPOCH_LMM_ORDER, *, animal: str = "animal", epoch: str = "epoch",
+                 base: str = "pre", n_boot: int = N_BOOT) -> dict:
+    """``{epoch: EpochChange}`` for a session table (one row per session, columns ``animal`` / ``epoch`` / ``value``):
+    the animal-weighted `boot_delta` of each post epoch against each animal's own ``base`` sessions, NaN values dropped.
+
+    THE table form of the change-vs-pre that the state-space arm had written out nine times (11-13 cleanup). Draw
+    sequence: one `boot_delta` per epoch, in ``epochs`` order, on the shared ``rng`` -- a caller that interleaves
+    other draws between epochs passes one epoch at a time (``epochs=[ep]``) to keep its sequence. An epoch with no
+    animal in both arms (no draw taken), or too few valid draws, gives NaN with n_up = n_animals = 0."""
+    pre = {a: g.loc[g[epoch] == base, value].dropna().tolist() for a, g in df.groupby(animal)}
+    out = {}
+    for ep in epochs:
+        post = {a: g.loc[g[epoch] == ep, value].dropna().tolist() for a, g in df.groupby(animal)}
+        post = {a: v for a, v in post.items() if v and pre.get(a)}
+        iv = boot_delta(post, pre, rng, n_boot) if post else None
+        per = {a: float(np.mean(v) - np.mean(pre[a])) for a, v in post.items()}
+        up = sum(d > 0 for d in per.values())
+        out[ep] = (EpochChange(iv.point, iv.lo, iv.hi, up, len(per), per) if iv is not None
+                   else EpochChange(np.nan, np.nan, np.nan, 0, 0, per))
+    return out
+
+
+def permute_within(x, groups, rng) -> np.ndarray:
+    """``x`` with its values shuffled WITHIN each group (groups visited in sorted order, one ``rng.permutation`` each).
+
+    The draw is identical to ``df.groupby(groups)[x].transform(lambda v: rng.permutation(v.to_numpy()))`` (pinned in
+    tests/test_epoch_change.py), the form the state-space arm used in six places before 11-13."""
+    x, groups = np.asarray(x), np.asarray(groups)
+    out = x.copy()
+    for g in np.unique(groups):
+        m = groups == g
+        out[m] = rng.permutation(x[m])
+    return out
+
+
+def within_shuffle_p(stat, x, groups, rng, n: int = 2000, *, order=None, mode: str = "permute"):
+    """``(observed, p)`` of ``stat(x)`` against ``n`` within-group null draws of ``x``, where p = share of draws with
+    ``|null| >= |observed|`` -- two-sided, WITHOUT the +1 correction (the convention of every within-animal shuffle
+    published from the state-space arm; `lick_templates.perm_p` is the one-sided +1 form and is a different number).
+    Use it for "does the session-to-session co-variation hold within animals" (rule 8: the between-animal spread is
+    removed by drawing inside each animal only).
+
+    ``mode="permute"`` (default; the draws are bit-identical to before 11-16, pinned in tests/test_epoch_change.py):
+    each draw is `permute_within`, a free shuffle of ``x`` inside each group. Valid only when the elements of a group
+    are EXCHANGEABLE.
+
+    ``mode="circular"`` (Priya 11-16, "block permutation everywhere it makes sense"): each draw is
+    `circular_shift_within` -- inside each group, ``x`` sorted by ``order`` (e.g. the session's day) is rotated by a
+    random non-zero lag 1..n_g-1. Use it when ``x`` and the series ``stat`` pairs it with BOTH trend over ``order``
+    (session-level readout vs recovery aim, both moving with days since stroke): a free shuffle breaks each series'
+    trend, so two unrelated trending series look coupled far more often than p says. The rotation keeps each group's
+    values and their serial (autocorrelation) structure and only breaks the alignment between the two series. A group
+    with one element is left unchanged. Coarser null: with n_g sessions a group has only n_g - 1 distinct draws, so
+    with four animals the smallest attainable p is bounded away from 0 (draws repeat; p is still the share of draws).
+    ``order`` is required for this mode (ties broken by input position, stable).
+    WHAT IT DOES NOT FIX (measured 11-16, tests/test_epoch_change.py): it holds size for independent AUTOCORRELATED
+    series (AR(1) phi 0.8, 15 sessions x 4 animals: false-positive rate 0.06 vs 0.17 for the free shuffle), but two
+    independent MONOTONE trends (a ramp + noise each) reject ~100 % under BOTH nulls -- a ramp rotated by a small lag is
+    still mostly a ramp. "Coupled beyond the shared time course" needs both series detrended on ``order`` first.
+    """
+    if mode not in ("permute", "circular"):
+        raise ValueError(f"within_shuffle_p: mode={mode!r} (permute | circular)")
+    if mode == "circular" and order is None:
+        raise ValueError("within_shuffle_p: mode='circular' needs order= (e.g. the session day)")
+    obs = float(stat(np.asarray(x)))
+    if mode == "permute":
+        null = np.array([stat(permute_within(x, groups, rng)) for _ in range(n)], float)
+    else:
+        null = np.array([stat(circular_shift_within(x, groups, order, rng)) for _ in range(n)], float)
+    return obs, float((np.abs(null) >= abs(obs)).mean())
+
+
+def circular_shift_within(x, groups, order, rng) -> np.ndarray:
+    """``x`` with its values ROTATED within each group along ``order`` (the `within_shuffle_p` ``mode="circular"``
+    draw). Groups visited in sorted order; per group of n_g >= 2 elements one ``rng.integers(1, n_g)`` lag k, and the
+    element at sorted rank i receives the value at rank (i - k) mod n_g. Groups of one element are unchanged and draw
+    nothing. Element positions in the output are the input positions (only the values move)."""
+    x, groups, order = np.asarray(x), np.asarray(groups), np.asarray(order)
+    out = x.copy()
+    for g in np.unique(groups):
+        idx = np.flatnonzero(groups == g)
+        if len(idx) < 2:
+            continue
+        srt = idx[np.argsort(order[idx], kind="stable")]
+        out[srt] = np.roll(x[srt], int(rng.integers(1, len(idx))))
+    return out
+
+
 def boot_delta_pairs(pairs, rng, n_boot: int = N_BOOT):
     """`boot_delta` for callers holding ``{animal: (post_values, pre_values)}``.
 
@@ -433,9 +545,12 @@ def curated_labels(animals=None, **kw):
 
 def curated_ids() -> set:
     """The curated cohort as ``{"PSxx_YYYYMMDD", ...}`` -- the id the pose / video outputs use (Priya 10-20: "we can stop
-    processing sessions that will not be part of analysis"; scripts default to it, ``--all`` overrides)."""
+    processing sessions that will not be part of analysis"; scripts default to it, ``--all`` overrides).
+
+    A SET, for membership tests: never iterate it into a pool without `sorted` (rule 9). The date is the label's part
+    after the underscore, not ``lab[5:]``, which cut cohort2's 5-character animals (``PS118_1105``) one digit late."""
     from wfield_local import config
-    return {f"{lab.split('_')[0]}_{config._to8(lab[5:])}" for lab in curated_labels()}
+    return {f"{lab.split('_')[0]}_{config.date8(lab)}" for lab in curated_labels()}
 
 
 # ---------------------------------------------------------------------------------------------
@@ -456,17 +571,38 @@ def daq_rate(s) -> float:
 
 
 def lick_samples(s):
-    """Lick onset samples for one session, with the discriminator settings the deck uses.
+    """Lick onset samples for one session: THE DAQ lick detector, `config.lick_detector` (the yaml ``lick_detection``
+    profile: 2.5 V onset, 0.5 V offset, the falling-edge lockout, the 40 ms physiological floor, NO refractory).
 
-    THE FIVE MAGIC NUMBERS ARE THE POINT. ``(2.5, 1.0, (0.001, 0.020), 0.10)`` appears verbatim in
-    thirty-seven places; they are a Schmitt trigger's high and low thresholds, an accepted pulse
-    width, and a refractory period. This repo has already had to collapse three copies of a lick
-    discriminator. Anyone tempted to tune them should change them HERE and re-run everything, not
-    locally in one analysis.
+    Priya 11-04/05 (REBUILD_CODE 8.53, LICK_DETECTOR_COMPARE_2026-11-04.md on main a69fb9c3): imaging uses the BEHAVIOUR
+    detector everywhere. Until then this was ``(2.5, 1.0, (0.001, 0.020), 0.10)``, verbatim in ~40 places; its 0.10 s
+    refractory dropped 0.58 % of licks (1.4 % in PS95), mostly real 10-11 Hz camera licks, and the 1.0 V offset moved
+    no onset. Every imaging call site now passes only ``(h5, "lick_analog")`` and gets this profile; change the profile
+    in `configs/defaults.yaml` (and bump the cache versions + run-tag token, `config.LICK_DETECTOR_TAG`), never at a
+    call site. Under WIDEFIELD_LICK_SOURCE=lp the train is the LP one (`_load_daq_events`).
     """
     from wfield_local.plot_lick_aligned_averages import _load_daq_events
 
-    return _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)["lick_samples"]
+    return _load_daq_events(s["h5"], "lick_analog")["lick_samples"]
+
+
+def lick_count_samples(s):
+    """Lick onset samples for LICK COUNTS (licks per trial, licks per bout, ILIs, quit / engagement measures): THE
+    behaviour detector (coordinator 11-03, CLAUDE.md rule 9: one definition per quantity) -- `lick_detection.detect_licks`
+    with the yaml ``lick_detection`` params (0.5 V lower threshold, 40 ms physiological floor), the one the DAQ trial
+    table, the trial stops and the camera contacts use (`daq_trials.decode`). Since 11-05 (REBUILD_CODE 8.53) `lick_samples`
+    uses the same detector, so the two agree on the DAQ train; this one stays the DAQ train under an LP lick source."""
+    import pathlib
+
+    from wfield_local import config, daq_trials
+    key = str(s["h5"])
+    if key not in _COUNT_LICKS:
+        dec = daq_trials.decode(pathlib.Path(s["h5"]), config.defaults()["lick_detection"])
+        _COUNT_LICKS[key] = np.round(np.asarray(dec["lick_s"], float) * float(dec["fs"])).astype(np.int64)
+    return _COUNT_LICKS[key]
+
+
+_COUNT_LICKS: dict = {}
 
 
 class Behavior(NamedTuple):
@@ -510,9 +646,8 @@ def session_behavior(lab, *, gate=False, horizon_min=None, resp_s=RESP_S,
     module fresh and never sees a global the parent assigned at runtime -- a gate set that way
     silently does nothing in every worker while working perfectly in a serial run.
     """
-    from scripts.rest_migration.engagement_decomposition import near_codes, session_trials
-    from scripts.rest_migration.quit_point import session_quit
     from wfield_local import config
+    from wfield_local.engagement import near_codes, session_quit, session_trials
     from wfield_local.locanmf_cue_lick_analysis import _load_cue_events
 
     s = next((x for x in config.load_sessions() if x["label"] == lab), None)
@@ -537,7 +672,7 @@ def session_behavior(lab, *, gate=False, horizon_min=None, resp_s=RESP_S,
     # per-session cost; a session that cannot contribute should not pay for them.
     cs = np.asarray(_load_cue_events(s["h5"])["cue_samples"], np.int64)
     return Behavior(session=s, trials=tr, gated=tt, quit=q, cue_samples=cs,
-                    lick_samples=np.asarray(lick_samples(s), np.int64),
+                    lick_samples=np.asarray(lick_count_samples(s), np.int64),   # counts / ILIs: detector A
                     sample_rate=float(daq_rate(s)), near=near_codes())
 
 

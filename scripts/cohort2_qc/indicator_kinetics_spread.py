@@ -1,4 +1,4 @@
-"""GCaMP6s vs jGCaMP8s with the SENSOR KINETICS equalised, and how far the responses SPREAD over cortex (2026-10-31).
+"""GCaMP6s vs jGCaMP8s with the SENSOR KINETICS equalized, and how far the responses SPREAD over cortex (2026-10-31).
 
 Priya 10-31: "do the 6s 8s comparison including adjusting for sensor kinetics and looking at regional spread".
 Supersedes the provisional §0j table (one session per mouse, no kinetics adjustment).
@@ -100,7 +100,7 @@ def events(s, n):
     from wfield_local.plot_lick_aligned_averages import _load_daq_events as _ll
     from wfield_local.plot_spout_trial_averages import _load_daq_events as _lc
     cue = _lc(s["h5"])
-    lk = _ll(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    lk = _ll(s["h5"], "lick_analog")
     cf, lf, _ = _frames(s, cue, lk)
     cf = np.asarray(cf)
     lf = np.sort(np.asarray(lf)[np.asarray(lf) >= 0])
@@ -117,7 +117,7 @@ def events(s, n):
 
 
 def halfdist(r, edges):
-    """Distance (px, linear interpolation between bin centres) where the profile first falls below 0.5."""
+    """Distance (px, linear interpolation between bin centers) where the profile first falls below 0.5."""
     c = 0.5 * (edges[:-1] + edges[1:])
     r = np.asarray(r, float)
     k = np.flatnonzero(r < 0.5)
@@ -324,8 +324,8 @@ def figure(R):
                 ax.plot(t, w2 / w2.max(), color="tab:red", lw=1.2)
         ax.axvline(0, color="k", lw=0.4)
         ax.axhline(0, color="k", lw=0.4)
-        ax.set_title(f"first-lick {nm} waveform, peak-normalised: green = 6s (dotted cohort1), orange dashed = 8s raw, "
-                     "red = 8s -> 6s kinetics, grey = PS120 null (x0.3 of its own max)", fontsize=8)
+        ax.set_title(f"first-lick {nm} waveform, peak-normalized: green = 6s (dotted cohort1), orange dashed = 8s raw, "
+                     "red = 8s -> 6s kinetics, gray = PS120 null (x0.3 of its own max)", fontsize=8)
         ax.set_xlabel("s from first lick")
     # rows 2-3: lick maps normalised to hotspot, raw and to6s for 8s
     c2 = [r for r in R if r["cohort"] == "cohort2"] + [r for r in R if r["cohort"] == "cohort1"][:0]

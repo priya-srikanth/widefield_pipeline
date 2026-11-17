@@ -125,10 +125,11 @@ def test_a_deferred_signal_without_a_key_is_not_cached_either(monkeypatch):
 
 def test_a_non_locanmf_source_is_not_cached(monkeypatch):
     """`_build_signal` then reads `U_atlas.npy` and the SVTcorr, and `session_signature` stats
-    neither, so a re-preprocess would not invalidate the entry. Those sources are diagnostics, so
-    leaving them uncached is honest where widening a shared signature would not be."""
+    neither, so a re-preprocess would not invalidate the entry. The diagnostic sources (``svt`` ...)
+    stay uncached; ``roi`` is cached since 11-07 on a key of exactly those files
+    (tests/test_roi_feature_cache.py)."""
     calls = _spy(monkeypatch)
-    D.trial_features_cached({"label": "PS99_0101", "mc": "x"}, args(source="roi"))
+    D.trial_features_cached({"label": "PS99_0101", "mc": "x"}, args(source="svt"))
     assert calls["cached"] == 0 and calls["compute"] == 1
 
 

@@ -50,8 +50,9 @@ def session_spread(rv, run: str, animal: str, date: str) -> dict:
 
 
 def main(argv=None) -> int:
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
+    from wfield_local import config
     from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
     from wfield_local import writeguard
     from wfield_local.paths import PathResolver
     oc._repo_on_path()
@@ -59,14 +60,15 @@ def main(argv=None) -> int:
     ap.add_argument("--run", default=oc.RUN)
     a = ap.parse_args(argv)
     rv = PathResolver()
-    base = oo.root(rv) / a.run / "imaging_encoding"
+    from wfield_local import run_mode
+    base = run_mode.encoding_out_root(a.run)             # the encoder runs' (tagged) tree, coordinator 11-04
     out = base / "qc"
     writeguard.assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
     rows = []
     for jf in sorted((base / "movement_first" / "sessions").glob("PS*_*.json")):
         m = json.loads(jf.read_text(encoding="utf-8"))
-        if m["epoch"] not in EPOCHS or (m["epoch"] == "pre" and m["date"][4:8] < oc.LATE_PRE_FROM):
+        if m["epoch"] not in EPOCHS or (m["epoch"] == "pre" and config.early_pre(m["date"])):
             continue
         lab = m["label"]
         R = pd.read_csv(jf.with_name(f"{lab}_regions.csv"))

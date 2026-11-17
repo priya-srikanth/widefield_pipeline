@@ -28,8 +28,8 @@ def record_path(out_dir, label):
     """Per-session record: a SELF-CONTAINED json next to the session's PNG.
 
     Why this exists: ``summary()`` needs each session's ``_norm`` traces, which used to live only
-    in the analysing process's memory (they were stripped from the aggregate json). A machine that
-    had not analysed a session therefore could not include it, so whichever box ran ``run()`` LAST
+    in the analyzing process's memory (they were stripped from the aggregate json). A machine that
+    had not analyzed a session therefore could not include it, so whichever box ran ``run()`` LAST
     overwrote the shared summary with only ITS OWN animals. With two boxes splitting a date the
     aggregate could never be complete. Persisting the full record makes the aggregate a pure
     function of what is on disk: order-independent, and rebuildable without re-reading the raw .dat.
@@ -123,7 +123,12 @@ def analyze(label, dat, daq, out_dir):
            "dat_bytes": int(_st.st_size), "dat_mtime": float(_st.st_mtime),
            "dur_min": float(dur_min), "roi_px": int(P.sum()), "channels": {}}
     norm = {}
+    # The functional LED shares the led470_ttl line and the "470" record key; only the LEGEND names the LED
+    # actually fitted. A `_490_` session folder (PS121 / PS122 on 2026-11-04) was imaged at 490 nm.
+    func_nm = "490" if re.search(r"[\\/]PS\d+_490_", dat) else "470"
+    res["functional_led_nm"] = int(func_nm)
     for c, name in [(415, "415"), (470, "470")]:
+        disp = func_nm if name == "470" else name
         msk = lab == c
         if msk.sum() < 30: continue
         tt, vv = t[msk], roi[msk]
@@ -137,11 +142,11 @@ def analyze(label, dat, daq, out_dir):
                                       per_min=float(p[0] * 60), start=float(start), end=float(end))
         ax[0].plot(tt, vv, ".", ms=2, color=COL[name], alpha=0.15)
         ax[0].plot(ctr[good], bmed[good], "-o", ms=4, lw=2, color=COL[name],
-                   label=f"{name}  ({pct:+.1f}%)")
+                   label=f"{disp}  ({pct:+.1f}%)")
         nrm = bmed[good] / bmed[good][0]
         norm[name] = (ctr[good] - ctr[good][0], nrm)
-        ax[1].plot(ctr[good] - ctr[good][0], nrm, "-o", ms=4, lw=2, color=COL[name], label=name)
-        print(f"[{label}] {name}: median={np.median(vv):.0f} drift={pct:+.1f}% ({p[0]*60:+.1f}/min)")
+        ax[1].plot(ctr[good] - ctr[good][0], nrm, "-o", ms=4, lw=2, color=COL[name], label=disp)
+        print(f"[{label}] {disp}: median={np.median(vv):.0f} drift={pct:+.1f}% ({p[0]*60:+.1f}/min)")
     ax[0].set_xlabel("session time (s)"); ax[0].set_ylabel("brain-ROI mean"); ax[0].legend()
     ax[0].set_title(f"{label}  ROI intensity (binned median + fit)")
     ax[1].axhline(1.0, color="k", lw=0.6)
@@ -238,12 +243,12 @@ def run(sessions, out_dir, merge=True):
     """`sessions` = iterable of (label, dat, daq); analyze each, then rebuild the date's summary.
 
     MERGE BY DEFAULT. The summary and the aggregate json are rebuilt from the UNION of every
-    session record on disk and the ones just analysed -- not from this run's list alone. That makes
+    session record on disk and the ones just analyzed -- not from this run's list alone. That makes
     the shared outputs order-independent when two machines split a date: previously whichever box
     called ``run()`` last replaced ``photobleach_SUMMARY.png`` / ``photobleach_results.json`` with
     only its own animals, silently dropping the other box's (observed 2026-08-11: the 8/11 summary
     ended up containing a single animal). Pass ``merge=False`` for the old replace-everything
-    behaviour, e.g. to rebuild a date from scratch after deliberately clearing it.
+    behavior, e.g. to rebuild a date from scratch after deliberately clearing it.
     """
     out = [analyze(lbl, dat, daq, out_dir) for (lbl, dat, daq) in sessions]
     fresh = {r["label"]: r for r in out if r}

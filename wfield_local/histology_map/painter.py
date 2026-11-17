@@ -1,13 +1,13 @@
 """The Stroke Painter: a claude.ai artifact page where Priya paints / corrects each section's stroke mask.
 
-The page (``painter_template.html``) shows each standardised section (lesion left) as three switchable colour
+The page (``painter_template.html``) shows each standardized section (lesion left) as three switchable color
 layers (NeuN red, GFAP green, DAPI blue) + outlines (her surviving-striatum outline, the mirrored normal striatum),
 Claude's suggestion (yellow, read-only) and HER mask (magenta; paint / erase / undo / start-from-Claude), with a
 progress bar of her mask against the absent striatal area. Saving writes ``masks/<animal>_s<n>`` to the artifact's
 database ({mask: PNG data-URL, note, w, h, saved_at}); those documents, copied into
 ``configs/histology_map/<cohort>/masks/``, are the published masks.
 
-Painter pixel (px, py) -> standardised section px: ``x = crop_x0 + px / scale``, ``y = crop_y0 + py / scale``
+Painter pixel (px, py) -> standardized section px: ``x = crop_x0 + px / scale``, ``y = crop_y0 + py / scale``
 (crop + scale stored per section in sections.json).
 """
 from __future__ import annotations
@@ -68,7 +68,7 @@ def build_page(payloads, cohort, out_html):
 
 
 def mask_polygons_px(mask_doc, rec):
-    """A saved painter mask -> shapely polygons in the standardised section frame."""
+    """A saved painter mask -> shapely polygons in the standardized section frame."""
     from shapely.geometry import Polygon
     from skimage import measure
     m = decode_mask(mask_doc["mask"])

@@ -28,11 +28,13 @@ the maps stacked over a window (target 0.2-1.5 s after the cue, lick -0.1..+0.5 
 relative to early pre; split-half r. A stroke-specific change = r vs early pre below late_pre's (drift) and below the
 group's own split-half reliability.
 Figures: epoch_kernels_r.png (lines; main), epoch_kernel_maps_<kernel>.png (rows = groups, cols = spouts, canonical
-order, one colour scale per figure, mean of animals; image left = ipsilesional).
+order, one color scale per figure, mean of animals; image left = ipsilesional).
 Usage: python scripts/epoch_kernels.py [--tag ...] [--jobs 3] [--stats-only] [--plot-only] [--labels L ...]
 Output: <E>/frozen_encoder_<tag>/epoch_kernels/
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
+from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import argparse
 import pickle
@@ -83,9 +85,11 @@ def stats_worker(item):
     label, tp, spath, sdir = item
     f = Path(sdir) / f"{label}.pkl"
     if f.exists():
+        fe.check_saved_masks([pickle.loads(f.read_bytes())], f)   # stale-read guard (11-09)
         return label
     s = fe.stats_job((label, tp, spath))
     s["stats_version"], s["run_mode"] = fe.STATS_VERSION, fe._run_tag()
+    fe._stamp_masks(s)                                            # the masks the targets were built on (11-09)
     tmp = f.with_name(f.name + ".tmp")
     tmp.write_bytes(pickle.dumps(s, protocol=pickle.HIGHEST_PROTOCOL))
     tmp.replace(f)
@@ -144,6 +148,7 @@ def _r(a: np.ndarray, b: np.ndarray) -> float:
 def fit_all(run: Path, out: Path, labels_by_an: dict) -> pd.DataFrame:
     from wfield_local import frozen_encoder as fe
     pre_stats = pickle.loads((run / "fit" / "pre_stats.pkl").read_bytes())
+    fe.check_saved_masks(pre_stats, run / "fit" / "pre_stats.pkl")
     pre_by = {s["label"]: s for s in pre_stats}
     rows, kern = [], {}
     for an in AN:
@@ -152,6 +157,7 @@ def fit_all(run: Path, out: Path, labels_by_an: dict) -> pd.DataFrame:
             continue
         st = {x: pre_by[x] if x in pre_by else pickle.loads((out / "stats" / f"{x}.pkl").read_bytes())
               for x in labs if x in pre_by or (out / "stats" / f"{x}.pkl").exists()}
+        fe.check_saved_masks(st.values(), out / "stats")
         ref = fe.fit_animal(sorted((pre_by[x] for x in labs if x in pre_by), key=lambda s: s["label"]), variant="joint")
         z = np.load(run / "fit" / f"{an}_joint.npz", allow_pickle=True)
         dev = float(np.abs(ref["beta_all"] - z["beta_all"]).max() / (np.abs(z["beta_all"]).max() or 1))
@@ -159,7 +165,7 @@ def fit_all(run: Path, out: Path, labels_by_an: dict) -> pd.DataFrame:
               flush=True)
         if dev > 1e-3:
             raise RuntimeError(f"{an}: re-derived frozen fit differs from the saved one ({dev:.2e})")
-        P = pickle.loads((run / "fit" / f"spatial_{an}.pkl").read_bytes())["P"].astype(np.float64)
+        P = fe._spatial_of(str(run / "fit"), an)["P"].astype(np.float64)       # mask-checked (11-09)
         cols = kernel_cols(ref["vcol"])
         allg = groups_of(list(st))
         for mode, (by, _n) in (("matched", matched(allg)), ("all", (allg, None))):
@@ -249,7 +255,7 @@ def figures(run: Path, out: Path, R: pd.DataFrame, labels_by_an: dict) -> None:
                  "(no stroke); dashed = the group's own split-half reliability. Thick = mean of animals, faint = animals.",
                  fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.94))
-    fig.savefig(out / "epoch_kernels_r.png", dpi=110)
+    save_png_svg(fig, out / "epoch_kernels_r.png", dpi=110)
     plt.close(fig)
     # (2) maps: rows = groups, cols = spouts, at SHOW_LAG; mean of animals
     kern = pickle.loads((out / "kernels.pkl").read_bytes())
@@ -295,8 +301,8 @@ def figures(run: Path, out: Path, R: pd.DataFrame, labels_by_an: dict) -> None:
         cb = fig.colorbar(im, ax=axs, fraction=0.02, pad=0.01)
         cb.set_label("beta x1e3 (dF/F per unit)", fontsize=8)
         fig.suptitle(f"NEURAL: {kname} kernel at {lags[li]:+.1f} s, per-epoch pooled fits (matched sessions), mean of "
-                     "animals; one colour scale. Image left = ipsilesional.", fontsize=9.5)
-        fig.savefig(out / f"epoch_kernel_maps_{kname}.png", dpi=110)
+                     "animals; one color scale. Image left = ipsilesional.", fontsize=9.5)
+        save_png_svg(fig, out / f"epoch_kernel_maps_{kname}.png", dpi=110)
         plt.close(fig)
     print("->", out)
 
@@ -307,23 +313,25 @@ def main(argv=None) -> int:
     from wfield_local import frozen_encoder as fe
     from wfield_local.writeguard import assert_writable
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--tag", default="gate-attempted_v7g3_t3d_frA_ls_basis")
+    ap.add_argument("--tag", default=_design_tag("gate-attempted_v7g3_t3d_frA_ls_basis"))
     ap.add_argument("--jobs", type=int, default=3)
     ap.add_argument("--labels", nargs="*")
     ap.add_argument("--stats-only", action="store_true")
     ap.add_argument("--plot-only", action="store_true")
     a = ap.parse_args(argv)
+    __import__("wfield_local.frozen_encoder", fromlist=["check_tag"]).check_tag(a.tag)   # refits: design = env (8.51)
     run = E / f"frozen_encoder_{a.tag}"
     out = run / OUT
     assert_writable(out)
     (out / "stats").mkdir(parents=True, exist_ok=True)
     pre_stats = pickle.loads((run / "fit" / "pre_stats.pkl").read_bytes())
+    fe.check_saved_masks(pre_stats, run / "fit" / "pre_stats.pkl")         # stale-read guard (11-09)
     if pre_stats[0]["run_mode"] != fe._run_tag():
         raise RuntimeError(f"environment run tag {fe._run_tag()} != the frame's {pre_stats[0]['run_mode']}: set the "
                            "frame's environment (frA + FROZEN_LICKSPOUT=1)")
     pre = {s["label"] for s in pre_stats}
     labels = sorted(a.labels or (p.stem for p in (run / "joint" / "sessions").glob("*.json")))
-    labels = [x for x in labels if x[-4:] >= "0801"]
+    labels = [x for x in labels if not config.early_pre(x)]
     by_an: dict = {}
     for x in labels:
         by_an.setdefault(config.animal_of(x), []).append(x)

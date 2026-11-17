@@ -52,7 +52,7 @@ def _fig_14pa_beta_maps_by_animal(out_dir, align, variant, wname):
 
     ONE POSITION PER FIGURE, far-contralateral by default: six positions x four animals x five
     epochs is 120 panels, which is a contact sheet rather than a figure. Far-contra is where the
-    deficit is, and its neighbours are on the pooled panel.
+    deficit is, and its neighbors are on the pooled panel.
 
     A ROW THAT LOOKS UNLIKE THE OTHER THREE IS THE POINT, not noise to be averaged away: PS94 and
     PS95 took 3 mW and show overt deficits while PS92 and PS93 were milder, so a severity-graded
@@ -106,7 +106,7 @@ def _fig_14pa_beta_maps_by_animal(out_dir, align, variant, wname):
         delta_label="change vs pre-stroke\n(orange-blue; expands if larger)",
         subtitle=("The pooled figure averages these four rows and the permutation test rests on "
                   "them, so neither can show REPLICATION -- which at n=4 is the stronger evidence. "
-                  "Method identical to the pooled figure. Colour scale is per ANIMAL, so each row "
+                  "Method identical to the pooled figure. Color scale is per ANIMAL, so each row "
                   "is comparable across its own epochs and rows are not comparable to each other. "
                   "PS94 and PS95 took 3 mW and show overt deficits; PS92 and PS93 were milder, so a "
                   "severity-graded difference between rows is a finding and a random one is a "
@@ -128,7 +128,7 @@ _REF_TEXT = {
               "*increase* in ss-ul/ll activity compared to pre-stroke.\" This is figure 14's "
               "reference rendered as a plain trial average, so the coupling can be seen without "
               "the decoder, the folds and the Haufe transform in the way. READ IT AGAINST THE "
-              "QUIET-REFERENCED FIGURE: a rise that appears here and NOT there is the artefact."),
+              "QUIET-REFERENCED FIGURE: a rise that appears here and NOT there is the artifact."),
     ),
     # ADDED 2026-09-13. `precue` was put into `position_reference_maps.REFERENCES` when the pre-cue
     # reference moved onto the deck's own window, and this table was not extended with it -- so
@@ -177,7 +177,7 @@ _REF_TEXT = {
               "\n\nIT VIOLATES F12 AND THAT IS THE POINT OF HAVING IT. The pre-cue window carries "
               "genuine anticipatory position signal (LOSO 0.510), so subtracting it removes real "
               "code and measures the cue-evoked INCREMENT. Read it as a third reference whose "
-              "disagreements with REST localise what the pre-cue window contains, not as the "
+              "disagreements with REST localize what the pre-cue window contains, not as the "
               "position map."),
     ),
     "rest": dict(
@@ -296,6 +296,31 @@ _REF_TEXT = {
               "definition every one of the 94 curated sessions clears six, so no session currently "
               "loses the column."),
     ),
+    # ADDED 2026-11-01 with the derived reference (`position_reference_maps.DERIVED_REFERENCES`) and its builder
+    # (`restnl_mask`) -- registry, builder and caption land together, per the note above.
+    "restnl": dict(
+        short="one vs RESTnl (lick-free rest, flat; rest licks DAQ contact + cam4 LP)",
+        title="Position maps referenced to RESTnl (lick-free rest, flat; rest licks excluded: DAQ contact + cam4 LP "
+              "video)",
+        cbar="activity minus RESTnl\n(lick-free rest, flat)",
+        note=("RESTnl = the PRIMARY rest reference since 11-01 (the goal page's RESTnl). REST FRAMES: the restdock05 "
+              "rest mask (docked, not running) minus EVERY DAQ spout-contact lick AND EVERY cam4 Lightning-Pose video "
+              "lick (licks_all.csv, contact or not) with a buffer of 0.5 s before / 2.0 s after each lick, the "
+              "min-rest floor re-applied, engagement-gated (rest between two engaged trials at the same position). "
+              "LEVEL: per position the median of each SVD component over that position's lick-free rest frames, then "
+              "the equal-weight mean over the positions with >= 50 frames (>= 4 of 6 required, rule wr) -- ONE FLAT "
+              "map per session, identical for all six positions, so it cannot couple them. Formed exactly as "
+              "raw[q] - U @ b_nl from the cached raw maps. FLAT, NOT TIME-LOCAL: over 119 sessions a 12-bin "
+              "time-local version changes the far-contra map by a median 2.8% (pre) / 5.2% (acute) of its RMS, with "
+              "no pre/acute difference, and lick-free bins are too thin to be time-local; CAVEAT: PS94 subacute / "
+              "chronic sessions drift upward within session and there flat vs time-local is a COMMON level offset of "
+              "20-40% of the map (median; position contrasts unaffected) -- read PS94 late-epoch amplitudes, and the "
+              "pooled chronic ratios they enter, with that caveat (RESTNL_MAP_SHORTCUT_CHECK_20261101, addendum). "
+              "Sessions without a cam4 lick table (PS93_0813) have no RESTnl "
+              "column. Differs from the page's old REST in two ways: the lick-free mask (old REST excluded only DAQ "
+              "contact licks, [0.5, 1.0] s) and the flat position-weighted estimator (old REST was time-local, "
+              "frame-weighted); old REST is kept as a supplement. Pre = AUGUST-ONLY pre-stroke sessions."),
+    ),
 }
 def _fig_15rpa_reference_by_animal(out_dir, align, variant, wname):
     """15rpa: the quiet- and mean-referenced position maps PER ANIMAL, at far-contralateral.
@@ -317,7 +342,8 @@ def _fig_15rpa_reference_by_animal(out_dir, align, variant, wname):
     position-specific and much noisier; a row that is dramatic there and flat under quiet is the
     one-vs-rest coupling showing itself in a single animal.
     """
-    if not ((variant == "working" and align in ("precue", "cue"))
+    # JAW-ONLY CLASS (Priya 11-09): the same per-animal maps on camera jaw_only trials (`jaw_only_panels`)
+    if not ((variant in ("working", "working_period") and align in ("precue", "cue"))
             or (variant == "lick" and align == "lick")):
         return None
     from wfield_local import beta_maps as bm
@@ -331,7 +357,8 @@ def _fig_15rpa_reference_by_animal(out_dir, align, variant, wname):
     DCOLS = [f"{e} - pre" for e in POST]
     edges, out = bm.atlas_edges(), []
 
-    for reference in prm.REFERENCES:
+    # `render_references()` = REFERENCES unless WIDEFIELD_MAP_REFS names a subset / a derived reference (RESTnl).
+    for reference in prm.render_references():
         # THE PRE-CUE REFERENCE IS DEGENERATE ON THE PRE-CUE ARM, and it is not merely redundant:
         # this arm's FEATURE window is [cue - 2 s, cue] while the pre-cue baseline is
         # [cue - 1 s, cue] -- the baseline is the SECOND HALF OF THE WINDOW ITSELF. Subtracting it
@@ -373,7 +400,7 @@ def _fig_15rpa_reference_by_animal(out_dir, align, variant, wname):
             row_labels=rows, col_labels=EPO + DCOLS, panel_titles=titles,
             delta_cols=tuple(DCOLS), edges=edges, blank=bm.excluded_mask(),
             cbar_label=txt["cbar"], delta_label="change vs pre-stroke\n(same scale unless larger)",
-            subtitle=(
+            subtitle=(_SUPPLEMENT_NOTE.get(variant, "")) + (
                 f"ONE OF A PAIR ({txt['short']}), at the animal level. The pooled 15r figures "
                 f"average these rows and every significance test here estimates its spread from "
                 f"four animals, so neither can show REPLICATION -- which at n=4 is the stronger "
@@ -382,7 +409,7 @@ def _fig_15rpa_reference_by_animal(out_dir, align, variant, wname):
                 f"differs between them differs BECAUSE of the reference. NO significance is drawn "
                 f"here: a per-animal panel has no between-animal spread to test, and a "
                 f"within-animal test would be answering a different question from the pooled "
-                f"figures. Colour scale is per ANIMAL, so each row is comparable across its own "
+                f"figures. Color scale is per ANIMAL, so each row is comparable across its own "
                 f"epochs and rows are not comparable to each other. PS94 and PS95 took 3 mW and "
                 f"show overt deficits; PS92 and PS93 were milder, so a severity-graded difference "
                 f"between rows is a finding and a random one is a warning. {txt['note']}")))
@@ -390,14 +417,14 @@ def _fig_15rpa_reference_by_animal(out_dir, align, variant, wname):
 #: How each correction reads in a figure's methods line. Keyed by `beta_maps.CORRECTION`.
 _CORRECTION_TEXT = {
     "maxstat": ("family-wise corrected by the BOOTSTRAP MAX-STATISTIC over {n} in-mask bins of an "
-                "8x downsampled grid -- each draw is centred on the observed and studentised by "
+                "8x downsampled grid -- each draw is centered on the observed and studentised by "
                 "the bootstrap SE, the maximum |z| across bins is taken, and the threshold is the "
                 "95th percentile of those maxima, so THE DATA'S OWN SPATIAL COVARIANCE PERFORMS "
                 "THE CORRECTION and no independence or smoothness is assumed"),
     "resel": ("Bonferroni over the {n} RESOLUTION ELEMENTS the map actually carries (in-mask area "
               "/ FWHM^2), not over its bins"),
     "bonferroni": ("Bonferroni over {n} in-mask bins of an 8x downsampled grid -- CONSERVATIVE, "
-                   "because neighbouring bins are not independent at this smoothness"),
+                   "because neighboring bins are not independent at this smoothness"),
     "none": "UNCORRECTED across bins",
 }
 def _n_stat_bins():
@@ -442,12 +469,12 @@ def _stats_sentence(stat_rows):
     if any(int(r.get("suppressed") or 0) for r in rows):
         tail = (" PANELS WHOSE FLAGGED PIXELS WERE MORE THAN "
                 f"{bm.EDGE_ENRICHMENT_MAX:.0f}x CONCENTRATED IN THE MASK RIM ARE SUPPRESSED and "
-                "draw no contour -- that pattern is an imaging-window artefact, and because it is "
-                "the same artefact in every animal a between-animal test cannot reject it.")
+                "draw no contour -- that pattern is an imaging-window artifact, and because it is "
+                "the same artifact in every animal a between-animal test cannot reject it.")
     return ("BLACK contours are bins significant under the NESTED animals->sessions bootstrap "
             f"(2,000 draws, resampled with replacement at both levels), {txt}. The test runs on "
             f"the brain mask ERODED {bm.STAT_ERODE_PX} px, with the olfactory bulbs and the "
-            f"hand-painted fibre-glue occlusion removed.{tail}")
+            f"hand-painted fiber-glue occlusion removed.{tail}")
 def _fig_15r_reference_maps(out_dir, align, variant, wname):
     """15r: the SAME position maps under two different references -- the reference IS the claim.
 
@@ -470,12 +497,12 @@ def _fig_15r_reference_maps(out_dir, align, variant, wname):
         quiet  here     minus the session's quiet baseline -- positions INDEPENDENT
         self   fig 15   minus that position's own pre-cue window -- positions INDEPENDENT
 
-    Two independent references that disagree would localise the problem to what sits between them,
+    Two independent references that disagree would localize the problem to what sits between them,
     which is the pre-cue window's own content: anticipation and locomotor state.
     """
     # SAME THREE ARMS AS FIGURE 14, which is what "the only difference is the reference" requires.
     # `stopped` is excluded for figure 14's reason: too few trials per position to fill six rows.
-    if not ((variant == "working" and align in ("precue", "cue"))
+    if not ((variant in ("working", "working_period") and align in ("precue", "cue"))
             or (variant == "lick" and align == "lick")):
         return None
     from wfield_local import beta_maps as bm
@@ -490,7 +517,8 @@ def _fig_15r_reference_maps(out_dir, align, variant, wname):
     DCOLS = [f"{e} - pre" for e in POST]
     edges, out = bm.atlas_edges(), []
 
-    for reference in prm.REFERENCES:
+    # `render_references()` = REFERENCES unless WIDEFIELD_MAP_REFS names a subset / a derived reference (RESTnl).
+    for reference in prm.render_references():
         # THE PRE-CUE REFERENCE IS DEGENERATE ON THE PRE-CUE ARM, and it is not merely redundant:
         # this arm's FEATURE window is [cue - 2 s, cue] while the pre-cue baseline is
         # [cue - 1 s, cue] -- the baseline is the SECOND HALF OF THE WINDOW ITSELF. Subtracting it
@@ -566,23 +594,216 @@ def _fig_15r_reference_maps(out_dir, align, variant, wname):
             cbar_label=txt["cbar"], delta_label="change vs pre-stroke\n(SAME scale as the maps)",
             row_scaled=False,
         stat_rows=_stats,
-        subtitle=(
+        subtitle=_SUPPLEMENT_NOTE.get(variant, "") + (
                 f"ONE OF A PAIR ({txt['short']}). Both figures use the SAME trials, the same "
                 f"window, the same class definition and the same 20-trial floor as figure 14; the "
                 f"only thing that differs is what is subtracted, so a difference between them is "
                 f"the reference and nothing else. These are TRIAL AVERAGES -- no decoder, no "
                 f"folds, no Haufe transform. {txt['note']} "
-                "Colour scale is PER ROW, so a position is comparable across its own epochs and "
-                "rows are not comparable to each other; the difference columns share their row's "
+                # ONE COLOUR SCALE FOR ALL ROWS (row_scaled=False below; maps are on each animal's own
+                # pre-stroke scale). This sentence said "PER ROW" until 11-01 (imaging page prov_s7: stale).
+                "Color scale is SHARED by all rows (row_scaled=False; each animal's maps are on its own "
+                "pre-stroke scale before pooling); the difference columns share it. "
                 # NO COLOUR WORD HERE -- `_stats_sentence` supplies it. This line used to add
                 # its own, so the caption read "GREEN GREEN contours" on every panel of this
                 # family, and naming the colour in two places is how they come to disagree.
-                "scale. THE THIN DARK OUTLINES ARE ALLEN CCF BOUNDARIES, not statistics. "
+                "THE THIN DARK OUTLINES ARE ALLEN CCF BOUNDARIES, not statistics. "
                 f"{_stats_sentence(_stats)} This is the same statistical object every bar "
                 "family in this deck uses. "
                 "r = split-half reliability of that epoch's mean map. "
                 f"Acute amplitude relative to each position's own pre-stroke value: {a_txt}.")))
     return [p for p in out if p]
+#: What the jaw-only panels are, said on each of them (Priya 11-09).
+_JAW_NOTE = ("JAW-ONLY CLASS: camera jaw_only trials (jaw moved, no camera lick) inside the working period -- trials the "
+             "working maps EXCLUDE, shown as their own group. POOLED PER EPOCH: each animal's jaw-only trials of all "
+             "sessions of an epoch are averaged at the trial level (each trial against its own session's reference), "
+             "and a cell is drawn only when that animal x epoch x position holds >= {floor} jaw-only trials; n on every "
+             "panel, cells under the floor left blank with their n. Same windows and references as the working maps; "
+             "the jaw is never judged at close center / close mid.")
+
+
+def _jaw_note() -> str:
+    from wfield_local import position_reference_maps as prm
+    return _JAW_NOTE.format(floor=prm.JAW_EPOCH_FLOOR)
+
+
+#: The supplement figures say what they are, first (Priya 11-09); the primary (working) figures carry no prefix.
+_SUPPLEMENT_NOTE = {
+    "working_period": ("PERIOD SUPPLEMENT: EVERY judged trial in the working period (first to last camera lick) -- "
+                       "contact + incomplete + jaw-only + no response; stopped runs, stopped-licking, the quit tail "
+                       "and unknown excluded. The PRIMARY figures use working trials (contact + incomplete) only. "),
+}
+
+
+def _n_text(ns, kept, floor) -> str:
+    """Panel n line: kept animals' trials, plus the animals under the floor with their n."""
+    out = f"{len(kept)} an, n={sum(ns[a] for a in kept)}" if kept else "no cell"
+    low = [f"{a} {ns[a]}" for a in sorted(ns) if a not in kept]
+    return out + (f"\nn < {floor}: " + ", ".join(low) if low else "")
+
+
+def jaw_epoch_cells(store, ntr, work, reference, positions, epochs, *, floor=None):
+    """THE EPOCH-POOLED JAW-ONLY CELLS (Priya 11-09), as data: ``(cells, titles, rows, delta_cols)`` for the pooled
+    figure. Per animal x epoch x position: `position_reference_maps.pooled_by_epoch` (trial-level pool of the epoch's
+    sessions, kept at >= ``floor`` trials), divided by that animal's WORKING pre-stroke scale (`beta_maps.pre_scale` of
+    its working pre maps -- the constant the working 15r figure divides by, so the panel reads in the working figure's
+    units); the cell = mean over the animals kept. "<epoch> - pre" = within-animal (animals kept in BOTH), only where
+    one exists. A cell under the floor is absent and its title says "n < floor" with each animal's n."""
+    from wfield_local import beta_maps as bm
+    from wfield_local import position_reference_maps as prm
+    floor = prm.JAW_EPOCH_FLOOR if floor is None else floor
+    post = [e for e in epochs if e != "pre"]
+    cells, titles, rows, dcols = {}, {}, [], []
+    for q in positions:
+        row = _long_of(q)
+        sc = bm.pre_scale(prm.by_animal(work, reference, q, "pre"))
+        per = {}
+        any_n = False
+        for e in epochs:
+            maps, ns = prm.pooled_by_epoch(store, ntr, reference, q, e, floor=floor)
+            maps = {a: m for a, m in maps.items() if a in sc}
+            any_n = any_n or bool(ns)
+            per[e] = maps
+            if maps:
+                cells[(row, e)] = np.mean([maps[a] / sc[a] for a in sorted(maps)], axis=0)
+            if ns:
+                titles[(row, e)] = f"{e}\n" + _n_text(ns, sorted(maps), floor)
+        for e in post:
+            both = sorted(set(per.get("pre") or {}) & set(per.get(e) or {}))
+            if both:
+                c = f"{e} - pre"
+                cells[(row, c)] = np.mean([(per[e][a] - per["pre"][a]) / sc[a] for a in both], axis=0)
+                titles[(row, c)] = f"{e.upper()} - PRE\n{len(both)} an, within-animal"
+                if c not in dcols:
+                    dcols.append(c)
+        if any_n:
+            rows.append(row)
+    dcols = [f"{e} - pre" for e in post if f"{e} - pre" in dcols]
+    return cells, titles, rows, dcols
+
+
+def _fig_15r_jaw_only(out_dir, align, wname):
+    """15r on the JAW-ONLY class (Priya 11-09), POOLED PER EPOCH per animal (`jaw_epoch_cells`), then over animals.
+
+    WHY NOT `_fig_15r_reference_maps` ITSELF: that figure keeps a session x position only at >= 20 trials, and only 6
+    of 259 jaw-only session x position cells reach it (none pre-stroke; 11-09 census), so the class would vanish.
+    Priya 11-09: pool the epoch's sessions per animal and apply the floor to the pooled cell instead. NO significance
+    contours: a few animals per cell cannot carry the nested bootstrap."""
+    from wfield_local import beta_maps as bm
+    from wfield_local import position_reference_maps as prm
+    from wfield_local.grant_figures import CONF_LABELS
+
+    store, _rel, ntr = prm.maps_by_epoch(align, prm.JAW_ONLY)
+    if not store:
+        print(f"  .. 15r jaw-only {align}: no jaw-only trials", flush=True)
+        return None
+    work, _rel_w, _ntr_w = prm.maps_by_epoch(align, "working")
+    EPO = list(ef.PANELS)
+    edges, out = bm.atlas_edges(), []
+    for reference in prm.render_references():
+        if reference == "precue" and align == "precue":
+            continue
+        txt = _REF_TEXT[reference]
+        cells, titles, rows, dcols = jaw_epoch_cells(store, ntr, work, reference, CONF_LABELS, EPO)
+        if not rows:
+            continue
+        out.append(ef.map_grid(
+            cells, out_dir,
+            name=f"epoch_15r_position_{prm.reference_tag(reference)}ref_{align}_{prm.JAW_ONLY}",
+            title=f"{txt['title']} -- {wname}",
+            row_labels=rows, col_labels=EPO + dcols, panel_titles=titles,
+            delta_cols=tuple(dcols), edges=edges, blank=bm.excluded_mask(),
+            cbar_label=txt["cbar"] + "\n(/ animal's WORKING pre scale)",
+            delta_label="change vs jaw-only pre\n(same scale)", row_scaled=False,
+            subtitle=(f"{_jaw_note()} Each animal's epoch map is divided by the RMS of its WORKING pre-stroke map at "
+                      f"that position (the working figure's scale), then averaged over the animals that pass the "
+                      f"floor. NO significance is drawn. {txt['note']}")))
+    return [p for p in out if p]
+
+
+def _fig_15rpa_jaw_only(out_dir, align, wname, q="far_R"):
+    """15rpa on the JAW-ONLY class (Priya 11-09), PER ANIMAL at ``q``: each animal's epoch-pooled jaw-only map
+    (`pooled_by_epoch`, floor on the pooled cell), row-scaled per animal as 15rpa is; n on every panel."""
+    from wfield_local import beta_maps as bm
+    from wfield_local import position_reference_maps as prm
+
+    store, _rel, ntr = prm.maps_by_epoch(align, prm.JAW_ONLY)
+    if not store:
+        return None
+    EPO = list(ef.PANELS)
+    POST = [e for e in EPO if e != "pre"]
+    edges, out = bm.atlas_edges(), []
+    for reference in prm.render_references():
+        if reference == "precue" and align == "precue":
+            continue
+        txt = _REF_TEXT[reference]
+        cells, titles, dcols = {}, {}, []
+        per = {e: prm.pooled_by_epoch(store, ntr, reference, q, e) for e in EPO}
+        rows = sorted({a for _m, ns in per.values() for a in ns})
+        for an in rows:
+            for e in EPO:
+                maps, ns = per[e]
+                if an in ns:
+                    titles[(an, e)] = f"{e}\nn={ns[an]}" + ("" if an in maps else f" < {prm.JAW_EPOCH_FLOOR}")
+                if an in maps:
+                    cells[(an, e)] = maps[an]
+            for e in POST:
+                if an in per["pre"][0] and an in per[e][0]:
+                    c = f"{e} - pre"
+                    cells[(an, c)] = per[e][0][an] - per["pre"][0][an]
+                    titles[(an, c)] = f"{e.upper()} - PRE"
+                    if c not in dcols:
+                        dcols.append(c)
+        if not rows:
+            continue
+        dcols = [f"{e} - pre" for e in POST if f"{e} - pre" in dcols]
+        out.append(ef.map_grid(
+            cells, out_dir,
+            name=f"epoch_15rpa_position_{prm.reference_tag(reference)}ref_by_animal_{align}_{prm.JAW_ONLY}",
+            title=f"Far-CONTRALATERAL, {txt['short']}, PER ANIMAL -- {wname}",
+            row_labels=rows, col_labels=EPO + dcols, panel_titles=titles,
+            delta_cols=tuple(dcols), edges=edges, blank=bm.excluded_mask(),
+            cbar_label=txt["cbar"], delta_label="change vs jaw-only pre",
+            subtitle=(f"{_jaw_note()} Color scale is per ANIMAL (rows not comparable). NO significance is drawn. "
+                      f"{txt['note']}")))
+    return [p for p in out if p]
+
+
+def supplement_panels(out_dir, align, caption):
+    """THE SUPPLEMENTS of the working-map families (Priya 11-09, option c), drawn in the same render as the primary
+    (working) figures: the PERIOD SUPPLEMENT (pooled 15r + per-animal 15rpa on every judged working-period trial, the
+    same figures as the primary with their own pre) and the JAW-ONLY panels (`jaw_only_panels`). ``caption(variant)``
+    -> the figure caption of that class. Precue / cue arms under the camera gate only (else nothing). Each draws under
+    its own trial set (`trial_set_text`). Returns the figure paths."""
+    from wfield_local import position_reference_maps as prm
+    from wfield_local import trial_classes as tc
+    from wfield_local import trial_set_text as tst
+    if align not in ("precue", "cue") or not tc.camera_gate_on():
+        return []
+    made = []
+    with tst.active(prm.WORKING_PERIOD, align):
+        wname = caption(prm.WORKING_PERIOD)
+        made += _fig_15r_reference_maps(out_dir, align, prm.WORKING_PERIOD, wname) or []
+        made += _fig_15rpa_reference_by_animal(out_dir, align, prm.WORKING_PERIOD, wname) or []
+    made += jaw_only_panels(out_dir, align, caption(prm.JAW_ONLY))
+    return made
+
+
+def jaw_only_panels(out_dir, align, wname):
+    """THE JAW-ONLY CLASS PANELS (Priya 11-09) of the working-map families, POOLED PER EPOCH per animal: pooled 15r
+    (`_fig_15r_jaw_only`) + per-animal 15rpa (`_fig_15rpa_jaw_only`) on camera jaw_only trials, for the precue / cue arms under the camera gate (else nothing). Draws under the
+    jaw-only trial set (`trial_set_text`), so every figure says which trials it holds. Returns the figure paths."""
+    from wfield_local import trial_classes as tc
+    from wfield_local import trial_set_text as tst
+    if align not in ("precue", "cue") or not tc.camera_gate_on():
+        return []
+    made = []
+    with tst.active(tst.JAW_ONLY_CLASS, align):
+        made += _fig_15r_jaw_only(out_dir, align, wname) or []
+        made += _fig_15rpa_jaw_only(out_dir, align, wname) or []
+    return made
+
+
 def _fig_15pa_evoked_maps_by_animal(out_dir, align, variant, wname):
     """15pa: figure 15's per-position evoked maps, PER ANIMAL, at the position that carries it.
 
@@ -600,7 +821,7 @@ def _fig_15pa_evoked_maps_by_animal(out_dir, align, variant, wname):
     averaged away: PS94 and PS95 took 3 mW and show overt deficits while PS92 and PS93 were milder.
 
     ONE POSITION PER FIGURE. Six positions x four animals x five epochs is a contact sheet; this
-    draws far-contralateral, where the deficit lives, and the pooled figure carries its neighbours.
+    draws far-contralateral, where the deficit lives, and the pooled figure carries its neighbors.
     """
     if align != "cue" or variant != "working":
         return None
@@ -646,7 +867,7 @@ def _fig_15pa_evoked_maps_by_animal(out_dir, align, variant, wname):
             "that position's OWN post-cue minus pre-cue, so the six positions are independent and "
             "a change cannot be inherited from another position's loss. Four animals is the "
             "ceiling on the permutation test and the pooled figure averages these rows, so "
-            "neither can show REPLICATION -- which at n=4 is the stronger evidence. Colour scale "
+            "neither can show REPLICATION -- which at n=4 is the stronger evidence. Color scale "
             "is per ANIMAL: each row is comparable across its own epochs, rows are not comparable "
             "to each other. PS94 and PS95 took 3 mW and show overt deficits; PS92 and PS93 were "
             "milder, so a severity-graded difference between rows is a finding and a random one "
@@ -773,7 +994,7 @@ def _fig_15_evoked_maps(out_dir, align, variant, wname):
         row_scaled=False,
         stat_rows=_stats,
         subtitle=(
-            "READ THIS BEFORE FIGURE 14. Figure 14's decoder maps are one-vs-rest, centred on the "
+            "READ THIS BEFORE FIGURE 14. Figure 14's decoder maps are one-vs-rest, centered on the "
             "mean over all six positions, so a position that loses drive lowers the reference and "
             "hands every other position an increase it did not earn -- four of its six rows cannot "
             "be read as written. Here each map is that position's OWN post-cue minus pre-cue, a "
@@ -782,7 +1003,7 @@ def _fig_15_evoked_maps(out_dir, align, variant, wname):
             "arousal -- not only the part that carries target identity, which is what figure 14 "
             "isolates. A change visible here and absent there is a change in DRIVE without "
             "position information; the reverse is a change in TUNING without a change in drive. "
-            "Maps from `framemap_event_maps`; nothing recomputed. Colour scale per ROW; the "
+            "Maps from `framemap_event_maps`; nothing recomputed. Color scale per ROW; the "
             "difference columns share their row's scale. THE THIN DARK OUTLINES ARE ALLEN CCF "
             "BOUNDARIES, not statistics. BLACK contours are bins where the change differs from "
             f"zero. {_stats_sentence(_stats)} "
@@ -883,7 +1104,7 @@ def _fig_14z_beta_vs_zero(out_dir, align, variant, wname):
         row_scaled=False,
         stat_rows=_stats,
         subtitle=(
-            ("PRE-NORMALISED: each animal divided by its own pre-stroke RMS for this position before pooling AND "
+            ("PRE-NORMALIZED: each animal divided by its own pre-stroke RMS for this position before pooling AND "
              "before testing (one constant per animal x position, pre-stroke sessions only). " if norm else "")
             + "A DIFFERENT QUESTION FROM EVERY OTHER MAP FIGURE HERE: not where the code CHANGED, but "
             "where it IS in each epoch. Each panel is tested on its own against zero, so it is "
@@ -901,7 +1122,7 @@ def _fig_14z_beta_vs_zero(out_dir, align, variant, wname):
             "is far more powerful and treats two sessions from one animal as independent -- that "
             "number is printed in the render log beside ours. Contours are drawn on an ERODED mask "
             "and any result concentrated more than 2x in the rim is suppressed, because the edge of "
-            "the imaging window produces artefacts that are consistent ACROSS animals and so cannot "
+            "the imaging window produces artifacts that are consistent ACROSS animals and so cannot "
             "be rejected by a between-animal test. Since the maps are one-vs-rest, a significant "
             "bin means this position's trials differ from the average trial THERE -- read it with "
             "the coupling caveat that applies to every mean-referenced figure."))
@@ -915,7 +1136,7 @@ def _fig_14_beta_maps(out_dir, align, variant, wname):
     EVERY OTHER FAMILY IN THIS SECTION ANSWERS "MOVED TOWARD WHAT", NOT "MOVED WHERE". Best-match
     destination collapses 380 features into one correlation per position pair and takes an argmax --
     a representational destination, not a location. Per component the joint basis gives 2-4
-    components per Allen area, too thin to localise. This is the anatomical arm.
+    components per Allen area, too thin to localize. This is the anatomical arm.
 
     METHOD, and the three departures from the paper are each measured -- see `wfield_local/beta_maps.py`:
 
@@ -926,7 +1147,7 @@ def _fig_14_beta_maps(out_dir, align, variant, wname):
                  choice among correlated predictors is free to change between days. Split-half of
                  the pre-stroke mean map: L1 0.688, L2 0.715, L2+Haufe 0.960.
       TRANSFORM  HAUFE, which the paper does not do and which is the single biggest factor above.
-                 A decoder weight is a FILTER whose job includes cancelling correlated noise, so a
+                 A decoder weight is a FILTER whose job includes canceling correlated noise, so a
                  channel with NO signal can carry a large weight as a suppressor. `A = Cov(X) @ b`
                  makes it a PATTERN -- cov(channel, decoder output) -- which is the anatomical
                  question. Pattern and filter correlate at only r = 0.245 here.
@@ -934,7 +1155,7 @@ def _fig_14_beta_maps(out_dir, align, variant, wname):
                  (16.1-17.2% each) so pre-cue and post-cue need none; `lick` runs far-contra at
                  9.2-14.2% against ~19% near, and that skew IS the deficit.
 
-    THE COLOUR SCALE IS PER ROW so each position is comparable across ITS OWN epochs, which is the
+    THE COLOR SCALE IS PER ROW so each position is comparable across ITS OWN epochs, which is the
     comparison being made. Rows are not comparable to each other.
 
     `r` IN EACH PANEL IS THE SPLIT-HALF RELIABILITY of that epoch's mean map -- the ceiling any
@@ -1083,7 +1304,7 @@ def _fig_14_beta_maps(out_dir, align, variant, wname):
             "USES, is a different map (they correlate at r = 0.245). "
             "Allen CCF boundaries overlaid. "
             f"{_stats_sentence(_stats)} "
-            "Colour scale is PER ROW, so a position is comparable across its own epochs and rows "
+            "Color scale is PER ROW, so a position is comparable across its own epochs and rows "
             "are not comparable to each other. "
             "r = split-half reliability of that epoch's mean map, the ceiling a difference can "
             "reach -- and where a map is near-absent, low r IS the result rather than a reason to "

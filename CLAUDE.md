@@ -1,7 +1,10 @@
 # CLAUDE.md
 
+> **New here? Start with [`docs/START_HERE.md`](docs/START_HERE.md)**: findings first, one current handoff per arm,
+> where to change each analysis, and which computer uses which env and drive letters.
+
 > **NEW COHORT, 2026-10-29: cohort2 = PS118, PS120, PS121, PS122 (PS118/120 Thy1-GCaMP6s, PS121/122 RiboL1-jGCaMP8s).**
-> Analysed separately from PS92-95 (cohort1) and never pooled with them. Read
+> Analyzed separately from PS92-95 (cohort1) and never pooled with them. Read
 > [`docs/NEW_COHORT_2026-10-29.md`](docs/NEW_COHORT_2026-10-29.md) before running anything: the nightly picks the cohort from
 > the date, hand runs need `WIDEFIELD_COHORT=cohort2`, and cross-registration waits for a reference session.
 
@@ -39,9 +42,12 @@ camera acquisition). See `README.md` for setup, `docs/archive/MIGRATION.md` for 
    colors/date-policy in `configs/animals.yaml`, params in `configs/defaults.yaml`, mounts in
    `configs/paths.yaml`. The hardcoded `SESSIONS`/`ANIMAL_COLOR`/`L`/`D` are RETIRED — do not re-add them.
    MMDD dates are QUOTED strings (`0606` unquoted parses as octal 390).
-4. **Rig commit procedure:** `export CONDA_PREFIX=C:/Users/sabatini/.conda/envs/locanmf`; `git add -A` →
-   commit → `git fetch origin` → `git rebase origin/main` → `git push`. NEVER force-push; re-fetch/rebase if
-   rejected. Both machines push `main`, so always fetch/rebase first.
+4. **Rig commit procedure:** point `CONDA_PREFIX` at this box's env (analysis desktop:
+   `export CONDA_PREFIX=C:/Users/SabatiniLab/miniconda3/envs/locanmf`; analysis / behavior box:
+   `C:/Users/sabatini/.conda/envs/locanmf`; imaging box: `C:/ProgramData/anaconda3/envs/wfield`); `git add -A` →
+   commit → `git fetch origin` → `git merge origin/main` → `git push`. NEVER force-push; re-fetch/merge if
+   rejected. Both machines and several windows push `main`, so always fetch/merge first. MERGE, not rebase
+   (Priya, 2026-11-06): a rebase rewrites commits another window may already have seen or built on.
 5. **Cross-day caching:** per-session results are memoized (`wfield_local/session_cache.py`). **Bump
    `CACHE_VERSION` whenever you change a cached function's logic** (mtimes don't see code changes).
 6. **FAN A PER-SESSION LOOP OVER CORES. `wfield_local/parallel.py` ALREADY EXISTS — USE IT.**
@@ -49,13 +55,14 @@ camera acquisition). See `README.md` for setup, `docs/archive/MIGRATION.md` for 
    parallelization of jobs on the cpu"*.) `parallel.fan_out(items, worker, jobs=...)` spawns a
    process pool, `default_jobs()` picks the worker count (`cpu_count - 2`, capped at 8; this box has
    24 logical CPUs), and `pin_blas()` fixes BLAS threading so a figure does not depend on how many
-   cores drew it. Eight modules in `wfield_local/` use it.
-   **Prefer `analysis_kit.fan_sessions`, which is `fan_out` PLUS the sort** (rule 9). Four of the
-   eleven per-session loops in `scripts/rest_migration/` are converted; the other seven are still
-   serial, and on 2026-09-19 that cost about five hours: `rest_coupling` 96 sessions at ~53 s each,
-   `evoked_hrf_latency` 98, `channel_position_maps --late` 97, `quit_prodrome` 96 at ~22 s each —
-   every one a serial `for s in config.load_sessions()` over independent sessions.
-   - **The unit is the CALLER'S judgement, not a mechanical one** (see the module docstring). For
+   cores drew it. About 25 modules in `wfield_local/` call it (2026-11-04).
+   **Prefer `analysis_kit.fan_sessions`, which is `fan_out` PLUS the sort** (rule 9). Eight scripts in
+   `scripts/rest_migration/` use it (2026-11-04), including the four expensive loops that were still
+   serial on 2026-09-19 and cost about five hours that day: `rest_coupling` 96 sessions at ~53 s each,
+   `evoked_hrf_latency` 98, `channel_position_maps --late` 97, `quit_prodrome` 96 at ~22 s each. A few
+   lighter loops there are still serial (`channel_evoked_sign`, `rest_baseline_epoch_drift`); fan out
+   any new per-session loop from the start.
+   - **The unit is the CALLER'S judgment, not a mechanical one** (see the module docstring). For
      these scripts it is the SESSION; for `poststroke_section_g` it is the animal, because tags
      share a frozen-decoder spec.
    - `worker` must be **module-level** — spawn pickles by name, so a closure or a local function
@@ -106,12 +113,12 @@ camera acquisition). See `README.md` for setup, `docs/archive/MIGRATION.md` for 
      `python -c "from wfield_local import frozen_models as m; print(m.local_dir(), m.local_dir().exists())"`.
    - **An ABSENT store and an EMPTY store are different facts.** `warn_if_store_moved` now says so.
    - **`spec_id` hashes the INPUTS, not the fitted model.** Bitwise reproducible within a machine;
-     across machines only to the optimiser's tolerance (measured: 0.54% of the largest coefficient,
+     across machines only to the optimizer's tolerance (measured: 0.54% of the largest coefficient,
      `n_iter_` 589 vs 620, and no change to any prediction on real trials). So **publish from ONE
      box** — a second box's upload reports MISMATCH and is right to — and **delete neither local
      store**; publishing copies, it does not move.
    - **EVERY PRE-STROKE DECODER IS FROZEN, for this and future cohorts** (Priya, 2026-10-15): position AND the
-     behavioural-state decoder (`locomotor_decoder.frozen_state_models`, kind `state`) go through
+     behavioral-state decoder (`locomotor_decoder.frozen_state_models`, kind `state`) go through
      `frozen_models.load_or_fit`; never refit a pre-stroke reference in memory per render. `docs/FROZEN_MODELS.md` §7.
 
 ## The three commands (end of day)
@@ -153,7 +160,7 @@ took 8–10 h; it takes 1 h 51 m. That estimate was made before the parallel ren
 | non-epoch `grant_figures -j 5` + `10cs` + `recovery_trajectory` | **42 min** | 2026-09-12 |
 | deck build + `deck_split` | **~1.5 min** | 2026-09-12 (the split alone is 14 s) |
 | one per-day date + cross-session + deck rebuild | **1 h 30 m** | 2026-09-09, `nightly_figs 0908 --skip-grant --skip-poststroke --skip-frozen --skip-nolick` |
-| epoch `--only 15r 15e 14m`, serial arms, no map cache | **3 h 41 m** at ~12 % CPU | 2026-10-21 (normalised-test rerender) |
+| epoch `--only 15r 15e 14m`, serial arms, no map cache | **3 h 41 m** at ~12 % CPU | 2026-10-21 (normalized-test rerender) |
 | per-session pixel maps, 15r collector | **13 s** serial; **6.2 s** effective with 4 workers (cold); **0.13 s** warm | 2026-10-21, `map_collect` |
 
 So a full stage 2 DOES fit in a night, and `--skip-grant` is no longer the routine choice it was —
@@ -238,7 +245,7 @@ their side as belonging to the OLD cohort; ours land under `Widefield/…` per `
 
 Target = that repo's mature config-driven layout. **DONE:** `configs/{animals,sessions,paths,defaults}.yaml`
 (animals now carries full cohort metadata: sex/DOB/genotype/stroke_laterality/reference_landmarks);
-config loader (`wfield_local/config.py` ≈ their `config_loader.py`+`animals.py`); `tests/` (22);
+config loader (`wfield_local/config.py` ≈ their `config_loader.py`+`animals.py`); `tests/` (242 test files, 2026-11-04);
 **PathResolver** (`wfield_local/paths.py`, machine-aware analysis=M: / imaging=N:/E:) + `sessions.yaml`
 migrated to root-relative resolving on both boxes (was roadmap #2); **config-driven preprocessing
 orchestrator** `wfield_local/preprocess.py` (was roadmap #4 — retires the per-date `_nightly_*`/`_mc_svd_*`/
@@ -328,7 +335,7 @@ packaging; `README`; `runbooks/`; incremental per-session caching; `docs/archive
   (`<sid>_task_raster.png`, `plot_cumulative_raster`) mirroring the rig GUI's own live display:
   session time (min) on x, the six positions as rows in the GUI's order, one dot per trial —
   GREEN = hit (a lick inside the session's real response window), RED = miss. **The dot is the
-  animal's behaviour, not whether water arrived**: `reward_mode: auto_after_delay` delivers reward
+  animal's behavior, not whether water arrived**: `reward_mode: auto_after_delay` delivers reward
   on most trials regardless of the lick (withheld only by `auto_hold_after_miss`), so "hit" and
   "rewarded" are different facts — PS92 8/21 ran 397 rewards against 310 hits. Reward provenance is
   deliberately not drawn; it cannot be split into free/auto/manual in any case, since the GUI infers
@@ -340,9 +347,12 @@ packaging; `README`; `runbooks/`; incremental per-session caching; `docs/archive
   (40 ms) is a mandatory min-inter-lick-interval applied in `detect_licks` as `max(min_ili, refractory)`.
   These mice lick 5-7 Hz (peak ~9-11 Hz); 40 ms (25 Hz) removes only 0-3 physiologically-impossible
   sub-40 ms doubles/session (a single contact split by a 1-sample voltage glitch — the true onset is kept;
-  QC: `behavior_summary/qc/`), and is a **no-op for imaging** (its 0.1 s bout-collapse refractory subsumes
-  the floor, so lick-aligned maps are unchanged). Wired into every lick consumer (behavior + imaging) via
-  config, so lick identification stays consistent across the pipeline.
+  QC: `behavior_summary/qc/`). **Since 11-05 imaging uses the SAME detector** (Priya 11-04/05, REBUILD_CODE 8.53):
+  `config.lick_detector()` = the yaml profile (2.5 / 0.5 V, 40 ms floor, NO refractory); the old imaging
+  `(2.5, 1.0, (0.001, 0.020), 0.10)` literal is gone from every call site (`_load_daq_events(h5, "lick_analog")`
+  takes the accessor's default). Its 0.10 s refractory had dropped 0.58 % of licks (PS95 1.4 %), mostly real 10-11 Hz
+  licks. Tagged runs carry the run-tag part `daqlk`; session_cache v14. Wired into every lick consumer (behavior +
+  imaging) via config, so lick identification stays consistent across the pipeline.
 
 - **Canonical DAQ behavior events — DONE** (`wfield_local/behavior_events.py`): one `.npz` per session
   (`behavior_summary/events/<animal>/<date>.npz`) of licks/reward/running-bouts/quiet-periods on the DAQ
@@ -420,13 +430,13 @@ of 10-21 still apply.
 — Superseded by the 10-22 encoding handoff above; record of 10-21. Attempt-based deficit (time to contact), target vs execution
 vs neither (3-D contest, templates, destination), within-spout per spout + contact control (pooled toward-midline NOT
 robust), one-load variants + local input cache (`WFIELD_INPUT_CACHE`), running jobs, to-dos, pitfalls; evening (§1d): map
-tests on the pre-normalised scale + calibration (merged), LP_licks video-lick family (`WIDEFIELD_LICK_SOURCE=lp`,
+tests on the pre-normalized scale + calibration (merged), LP_licks video-lick family (`WIDEFIELD_LICK_SOURCE=lp`,
 branch `lick/lp-source`), ENL lick-free census.
 
 **[`docs/status/STATUS_2026-10-20_EVENING_ENCODING_HANDOFF.md`](docs/status/STATUS_2026-10-20_EVENING_ENCODING_HANDOFF.md)**
 — superseded by 10-21; still the reference for the 3-D contest set-up (within-spout check, mixed model, soft calibrated bins, lick-template test, 3-D contest queued, PS92_0908 rerun). Morning: [`STATUS_2026-10-20_ENCODING_HANDOFF.md`](docs/status/STATUS_2026-10-20_ENCODING_HANDOFF.md). Results summary: **[`docs/ENCODING_FINDINGS.md`](docs/ENCODING_FINDINGS.md)**
 (living, status-tagged). 3-D executed sets (pre-stroke target advantage SUSPENDED after the coordinate-matched PS92 contest),
-drop-p per-spout maps, chronic gain beyond the practice trend and lagging behaviour, slow-band by-epoch check, curated
+drop-p per-spout maps, chronic gain beyond the practice trend and lagging behavior, slow-band by-epoch check, curated
 sessions only; running jobs, to-dos, pitfalls.
 
 **[`docs/status/STATUS_2026-10-19_EVENING_ENCODING_HANDOFF.md`](docs/status/STATUS_2026-10-19_EVENING_ENCODING_HANDOFF.md)**
@@ -452,7 +462,7 @@ baselines; leave-PS93-out), W2 spatial readout, pre-v47 log-shift fix, imaging A
 what is running, pitfalls.
 
 **[`docs/status/STATUS_2026-10-16_O2_PRODUCTION_OUTPUTS_HANDOFF.md`](docs/status/STATUS_2026-10-16_O2_PRODUCTION_OUTPUTS_HANDOFF.md)**
-— superseded by 10-18 (to-do list still there). LP r4 production running on O2 (array 56464442), organised orofacial outputs on the share
+— superseded by 10-18 (to-do list still there). LP r4 production running on O2 (array 56464442), organized orofacial outputs on the share
 (`Priya/Widefield/LP_analysis`, `wfield_local/orofacial_outputs.py`), PS92 0812 / 0604 split-session fixes, frozen state
 decoder, pitfalls of this desktop's machine profile.
 
@@ -462,7 +472,7 @@ animals (jaw steering toward the target drops acutely in all four), LP r4 ctx-se
 
 **[`docs/status/STATUS_2026-10-14_POSE_MODELS_HANDOFF.md`](docs/status/STATUS_2026-10-14_POSE_MODELS_HANDOFF.md)**
 — superseded by 10-15; cam4 pose-model selection (five models, human lick review, the EKS correction), what is
-training in WSL, side-camera labelling plan, WSL GPU safety, pitfalls.
+training in WSL, side-camera labeling plan, WSL GPU safety, pitfalls.
 
 **[`docs/HISTOLOGY.md`](docs/HISTOLOGY.md)** — post-stroke lesion burden (ipsi/contra caudoputamen % area, PS92-95), read straight from the QuPath project (`wfield_local/qupath_io.py`, `scripts/import_histology_areas.py`, `wfield_local/histology_area.py`). Ipsi = the smaller outline (flipped mounts). Also the **stroke-extent schematic** on Paxinos plates (`wfield_local/histology_map/`, data `configs/histology_map/<cohort>/`): lesion left, midline = interhemispheric fissure, contra-only scaling, lesioned side never rescaled.
 
@@ -483,7 +493,7 @@ the multi-view LP pilot (arm a done, arm b training), cohort registration throug
 investigation with what is running, pending and to-do.
 
 **[`docs/status/STATUS_2026-10-07_CHRONIC_STABILITY_COHORT_COMPLETE.md`](docs/status/STATUS_2026-10-07_CHRONIC_STABILITY_COHORT_COMPLETE.md)**
-— **COHORT IMAGING COMPLETE (Priya, 2026-10-07).** Behaviour + every neural performance/decode readout
+— **COHORT IMAGING COMPLETE (Priya, 2026-10-07).** Behavior + every neural performance/decode readout
 plateaued in all four animals; the one still-rising readout (crossnobis distance-from-pre) is shown by the
 new `chronic_drift_vs_reorg` analysis to be representational DRIFT, not stroke reorganization (within-chronic
 change rate not above each animal's pre-stroke drift floor). Last sessions day ~50. Durable record:
@@ -498,7 +508,7 @@ and the next steps (model comparison with video, contact survey, pilot multi-vie
 
 **[`docs/status/STATUS_2026-10-05_CAM1_LP_EKS_O2_HANDOFF.md`](docs/status/STATUS_2026-10-05_CAM1_LP_EKS_O2_HANDOFF.md)**
 — Superseded by the 10-21 pose handoff (10-05 record): tracking, 3-D and O2. cam1 DLC + single-view LP (LP not better on cam1; the tongue
-"jitter" is the tip definition from below), cam1 labelling round 2, the 3-D spout world frame (`spout_world`;
+"jitter" is the tip definition from below), cam1 labeling round 2, the 3-D spout world frame (`spout_world`;
 June via per-session scale), multi-camera EKS plumbing, calibration plans, and the first O2 run
 (`runbooks/o2_pose_inference.md`).
 
@@ -520,7 +530,7 @@ mouth, first QC on our data. Its open decisions are settled (cutoff 0.4, offset 
 
 **[`docs/status/STATUS_2026-09-30_LP_OCCLUSION_ROUND4_HANDOFF.md`](docs/status/STATUS_2026-09-30_LP_OCCLUSION_ROUND4_HANDOFF.md)**
 — Superseded by the 10-21 pose handoff (09-30 record): cam4/cam1 tracking. LP now trained with blank = occluded (fixes the jaw riding
-the tongue); labelling round 4 (incomplete licks, with consecutive context frames) and cam1 context frames;
+the tongue); labeling round 4 (incomplete licks, with consecutive context frames) and cam1 context frames;
 the target-vs-context rule and what a blank means to DLC / LP / multi-view LP. **Never run `litpose predict`
 in WSL with the default 96-frame DALI chunk — it blue-screened this machine twice; use 16.** Drive letters
 moved after that reboot (M: = MICROSCOPE, N: = standby): take paths from `PathResolver`.
@@ -573,18 +583,20 @@ sensory response from a held intention, which CLAUDE.md otherwise records as ins
 measured trial counts (pre-stroke PS92 has TEN stopped trials in total), the decision to pool
 positions pre-stroke, and four errors caught before they reached data — including two classes that
 are temporally disjoint by construction and a ratio that returned 100 for an arm at chance.
-`enl_states` / `enl_decode` are built and unit-tested; their session loops are not yet wired.
+`enl_decode` is built, unit-tested (`tests/test_enl_decode.py`) and fans its session loop out;
+`enl_states` has no test, and its CLI only raises "analysis driver not wired yet" (2026-11-04).
 
 **[`docs/status/STATUS_2026-09-21_ENGINEERING.md`](docs/status/STATUS_2026-09-21_ENGINEERING.md)** — **START
-HERE if you are working on the CODE rather than the science.** Priya's current focus: efficient,
-modular, readable, editable. Holds the measured inventory (9 duplicate bootstrap helpers, 70
-repeats of the session filter, 8 of 11 loops still serial, `build_analysis_deck` at ~3,900 lines
-in one function, 25 unregistered figures) and a dependency-ordered plan. **Refactors must carry
+HERE if you are working on the CODE rather than the science, together with the newer
+[`docs/status/CODE_REVIEW_2026-11-04.md`](docs/status/CODE_REVIEW_2026-11-04.md)** (verified findings, what to
+consolidate, and the proposed order of work; read it first). Priya's focus: efficient, modular, readable,
+editable. The 09-21 doc holds the 09-20 inventory and a dependency-ordered plan; its "State on 2026-11-04"
+table at the top has the re-measured counts (`build_analysis_deck` is now 1,776 lines, not ~3,900). **Refactors must carry
 the reasoning forward** — most long comments in this repo name a bug a simplification would
 reintroduce.
 
-**[`docs/status/STATUS_2026-09-20.md`](docs/status/STATUS_2026-09-20.md)** — **START HERE for the HAEMODYNAMIC
-and ENGAGEMENT arms.** Haemodynamics is CLOSED with a negative answer: four routes through 470/415
+**[`docs/status/STATUS_2026-09-20.md`](docs/status/STATUS_2026-09-20.md)** — **START HERE for the HEMODYNAMIC
+and ENGAGEMENT arms.** Hemodynamics is CLOSED with a negative answer: four routes through 470/415
 each fail differently, the information is not in the data, and the 530 nm reflectance fix is
 DEFERRED hardware — do not spend analysis effort there. Engagement has four findings that survived:
 an acute orofacial motor deficit (ILI +12.5 ms, flat across the session, recovered by subacute), NO
@@ -596,7 +608,7 @@ entry in `DECISIONS.md`.
 ("where does the displaced code move"). **THE REFERENCE IS THE CLAIM**, and three of them are in
 play; a filename now says which (`_MEANref_`, `_PRECUEref_`, `_QUIETref_`):
 
-* **MEAN** (figure 14's decoder betas, and `15r _MEANref_`) — centred on the mean over all trials,
+* **MEAN** (figure 14's decoder betas, and `15r _MEANref_`) — centered on the mean over all trials,
   so the six positions are **COUPLED**: one losing drive hands the other five an unearned increase.
   Its amplitudes also INVERTED once the engaged-only bug was fixed (far-contra 0.47 → **2.08**),
   because acute far-contra is then dominated by non-responded trials. **Not a deficit measure.**
@@ -605,7 +617,7 @@ play; a filename now says which (`_MEANref_`, `_PRECUEref_`, `_QUIETref_`):
   and measures the **cue-evoked increment**, not the position map. Inherited from the npz's `delta`
   field, not chosen. Relabelled, not primary.
 * **QUIET** (`15r _QUIETref_`) — minus the session's quiet baseline. Positions independent, no
-  position information in the subtrahend; the map-space analogue of what F12 endorses. **LEAD WITH
+  position information in the subtrahend; the map-space analog of what F12 endorses. **LEAD WITH
   THIS.** Caveat: the quiet baseline itself drifts (+0.0026 at chronic against a ~0.005 signal), so
   across-epoch amplitude ratios carry that confound while between-position contrasts do not.
 
@@ -617,7 +629,7 @@ far contra — and all four animals replicate the acute far-contra drop. Converg
 earlier cluster-permutation test was broken four ways (off-brain pixels, zero-variance denominator,
 a t=2.0 threshold that is p=0.14 at df=3, merged polarities) and is fixed. Contours are drawn on an
 eroded mask and any result more than 2× concentrated in the rim is SUPPRESSED — measured, because
-some panels were pure edge artefact. Science in `docs/WHERE_THE_CODE_MOVES.md`.
+some panels were pure edge artifact. Science in `docs/WHERE_THE_CODE_MOVES.md`.
 
 **[`docs/REST_ENGAGEMENT_AUDIT.md`](docs/REST_ENGAGEMENT_AUDIT.md)** — **READ BEFORE QUOTING ANY
 REST NUMBER.** Found 2026-09-16: four rest analyses DOCUMENTED an engagement gate and none applied
@@ -635,7 +647,7 @@ control (2026-09-11), and the answer to "does everything degrade after the lesio
 target?" The lesion is ventrolateral STRIATAL, so no cortex is damaged: same window, same basis,
 same estimator, same frozen-model discipline, only the LABEL changes. Frozen pre-stroke decoders,
 as the fraction of above-chance performance retained — **position 0.86 → 0.43 acutely (loses 50%),
-behavioural state 0.97 → 0.88 (loses 10%), RUNNING alone 0.99 → 0.96 (loses 3%)**.
+behavioral state 0.97 → 0.88 (loses 10%), RUNNING alone 0.99 → 0.96 (loses 3%)**.
 **RE-MEASURED 2026-09-13 on the REST definition** (state was 0.92 → 0.81): POSITION is unchanged to
 three decimals because that decoder never reads the rest mask, STATE moved because rest is one of
 its three classes — both directions are confirmations, not coincidences. **ALL THREE FALL**; state
@@ -646,13 +658,13 @@ so the classes are deliberately NOT balanced across time bins. Read it before
 touching `wfield_local/locomotor_{state,features,decoder}.py`: it records the four measurements that
 set the design (the unit is a 1 s SEGMENT not a trial; the window length is set by quiet's 1.10 s
 median; licking is onset-anchored because its bouts median 0.37 s; PS92 8/12 is excluded as a
-crash+concat artefact), the two confounds checked before anything was plotted, and five stated
+crash+concat artifact), the two confounds checked before anything was plotted, and five stated
 limits. Figures `epoch_12b*` and `epoch_13*`, deck section I.
 
 ## Three things that bite when rendering or building the deck
 
 **`--only <ANIMAL>` IS A RENDER SCOPE, NOT A COHORT DEFINITION.** `nightly_figs --only PS92`
-exports `WIDEFIELD_ONLY_ANIMALS` to every subprocess, and `config.load_sessions` honours it. On
+exports `WIDEFIELD_ONLY_ANIMALS` to every subprocess, and `config.load_sessions` honors it. On
 2026-09-28 the epoch derivation ran under it, saw no series for the other three animals, and wrote
 `chronic_from: None` for PS93 and PS95 into the SHARED `epoch_boundaries.json`. `epoch_audit.audit`
 now runs under `full_cohort()`, which suspends the subset. Anything else defined over all four
@@ -670,14 +682,14 @@ read that line.
 `figures_working` (`E:/cue_lick` on the analysis box), not `labcams/analysis_figures`, and its
 completeness guard refuses to publish a deck missing figures. On 2026-09-11 that guard blocked a
 rebuild over eleven 0910 figures that existed on the share and had never reached this box's E: —
-0910 had been analysed on the OTHER machine. "Missing" from the guard means missing FROM THAT
+0910 had been analyzed on the OTHER machine. "Missing" from the guard means missing FROM THAT
 MACHINE. Either pass `--src` pointing at the share or let that box's nightly catch its working dir
 up.
 
 ## Acquisition incidents
 
 **[`docs/EXPERIMENT_ERRORS.md`](docs/EXPERIMENT_ERRORS.md)** — running log of rig/acquisition
-problems that constrain what can be analysed (PS92 8/12 crash+concat; PS95 8/13 blue-LED-only
+problems that constrain what can be analyzed (PS92 8/12 crash+concat; PS95 8/13 blue-LED-only
 first ~32 min; PS93 8/13 no behavior video). Read it before trusting a session's figures, and
 add to it when something goes wrong at the rig. Analysis/method errors go in DECISIONS.md.
 
@@ -719,7 +731,7 @@ on a variant must carry the variant string so two of them can never be silently 
 mislabelled single-channel; the rescue relabel locked exposure offset 1 — see
 `configs/session_overrides.yaml`), and it is in the curated post set.
 
-**Production honours this end to end** — override → `local_wfield_summary.json` →
+**Production honors this end to end** — override → `local_wfield_summary.json` →
 `hemo_<variant>/manifest.json` all read 0 — so `SVTcorr`, and every figure built on it, is correct.
 **The trap is code that slices RAW `SVT` by the module constant.** A 2026-09-19 audit found ten such
 call sites, including `hemo_map_control._iso_slice`, whose own comment explains that getting this
@@ -727,13 +739,13 @@ backwards *"would compare the map against itself and return a reassuring r = 1.0
 cleanliness"* — and which was reading the constant. All ten now call `functional_channel(session)`.
 
 **Do not try to DERIVE the slot by correlating a half against `SVTcorr`.** It looks principled and it
-is unsound: `SVTcorr = blue − T @ other`, so wherever the haemodynamic term dominates component 0 the
+is unsound: `SVTcorr = blue − T @ other`, so wherever the hemodynamic term dominates component 0 the
 corrected trace resembles the **control** half more. Measured margins ran from 0.030 (a coin flip that
 landed wrong) to a confident 0.071-vs-0.370 disagreement. The answer is in the config; read it.
 
 ### 415 vs 470 vs corrected, by spout position — `scripts/rest_migration/channel_position_maps.py`
 
-Six positions × three channels, one shared colour scale, Allen overlay, plus `r(415, raw)`,
+Six positions × three channels, one shared color scale, Allen overlay, plus `r(415, raw)`,
 `r(415, corr)` and the amplitude ratios per position. `--epochs` runs the across-epoch
 neurovascular-coupling contrast.
 
@@ -745,7 +757,7 @@ deck reads that directory. `--out` alone still sends both to one place.
 
 Its ancestor `_compare_415_470_corr.py` was a repo-root one-off deleted 2026-08-08 as dead scratch,
 and the figures it left behind outlived the code that made them — which is why this one is a module
-with a docstring rather than scratch. **Two bugs in the rebuild (a colour scale set by pixels outside
+with a docstring rather than scratch. **Two bugs in the rebuild (a color scale set by pixels outside
 the brain, and a swapped channel assignment) are written up in `DECISIONS.md`, 2026-09-19. Read them
 before trusting a figure of this kind; both produced output that was wrong AND plausible.** Neither
 reaches the deck's results path — that was checked, not assumed.
@@ -753,16 +765,21 @@ reaches the deck's results path — that was checked, not assumed.
 ## Reference
 - `configs/` — source of truth. `wfield_local/config.py` — loader. `wfield_local/nightly_figs.py` — orchestrator.
 - `runbooks/` — the per-machine nightly prompts (Priya's canonical prompts + notes).
-- Env: `C:/Users/sabatini/.conda/envs/locanmf/python.exe`; repo is `pip install -e .` (no PYTHONPATH).
+- Env: analysis desktop (this box) `C:/Users/SabatiniLab/miniconda3/envs/locanmf/python.exe`; analysis / behavior
+  box `C:/Users/sabatini/.conda/envs/locanmf/python.exe`; imaging box `C:/ProgramData/anaconda3/envs/wfield`. Repo is
+  `pip install -e .` (no PYTHONPATH). Per-box table (drive letters, torch build): `docs/START_HERE.md` section 3.
 - Deck: the CURRENT analysis deck is `locanmf_analysis_deck.py` → auto-built by `nightly_figs` into
-  `<labcams>/spout_position_analysis_summary.pptx`. Sections: **A–C within-day** (decode, encode,
+  `<decks_out>/analysis/spout_position_analysis_summary.pptx`. **Every auto-built deck (analysis, preprocessing,
+  behavior, example clips, orofacial, the `history/` copies) moved 2026-11-06 (Priya) to `Widefield/presentations/
+  pipeline/<kind>/`** (`paths.yaml` root `decks_out`, `paths.deck_dir`; cohort2 -> `pipeline/cohort2/<kind>/`); only the
+  .pptx moved -- figures, the deck manifest / run record and `epoch_boundaries.json` stay in `labcams`. Sections: **A–C within-day** (decode, encode,
   pre-cue lick-free control), grouped animal→type→date; **D cross-session/frozen**, grouped
   basis→alignment→animal and run in TWO bases (Allen-ROI and the shared joint-LocaNMF basis, see
   `joint_xsession.py`); **E–F** cohort summary + RSA. The curated date set is DERIVED
   (`config.curated_dates()` = registered minus `cross_session_exclude`) — the static
   `date_policy.cross_session` list was deleted 2026-08-13 because it lagged five nights and silently
   shrank hand-run decks;
-  analysis PNGs land in `…\labcamsnalysis_figures\` (RENAMED 2026-09-21 from
+  analysis PNGs land in `<labcams>/analysis_figures/` (`paths.yaml` root `cue_analysis_out`; RENAMED 2026-09-21 from
   `locanmf_lick_pooled\cue_analysis` -- the live mirror of every analysis figure had been sitting
   inside a directory named after an abandoned June 2026 pooling experiment). The superseded
   `locanmf_decoder_ppt.py` / `locanmf_xsession_deck.py` builders were DELETED on 2026-08-13 (707 lines,

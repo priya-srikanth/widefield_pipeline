@@ -78,7 +78,8 @@ def test_clip_mask_flags_persistent_saturation_only(tmp_path):
 
 
 def test_approximate_svd_runs_on_repaired_view():
-    from wfield.decomposition import approximate_svd
+    from wfield_local.wfield_import import import_wfield
+    approximate_svd = import_wfield("wfield.decomposition").approximate_svd   # no matplotlib style leak
     mov, truth, fa = _movie(2.0, T=500, H=128, W=128)
     plan = sr.detect(mov, fa, func=1, verbose=False)
     rep = sr.RepairedDat(mov, plan)

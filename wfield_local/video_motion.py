@@ -7,11 +7,11 @@ UNINSTRUCTED movements explained the most single-trial variance). Our DLC regres
 cam2 / cam3 see the body (paws, posture, wheel) and cam1 / cam4 the whole face (whiskers, nose), so motion energy
 from all four captures what the keypoints miss.
 
-Per camera, ONE decoding pass (`binned_motion_energy`): every video frame -> grey, downsampled ``ds``x by area
+Per camera, ONE decoding pass (`binned_motion_energy`): every video frame -> gray, downsampled ``ds``x by area
 averaging -> motion energy |f_t - f_(t-1)| -> averaged into IMAGING-frame bins on the DAQ clock (camera alignment
 template; bin edges = midpoints between imaging frames, `movement_encoding.bin_to_frames`'s rule) -> one row per
 imaging frame in a float16 memmap. Then (`motion_svd`) the spatial components from a row subsample (randomized SVD,
-column-centred) and every row projected onto them -> time courses (n_imaging_frames, k), the regressors. Facemap's
+column-centered) and every row projected onto them -> time courses (n_imaging_frames, k), the regressors. Facemap's
 "motion SVD", binned before rather than after the projection so the memmap is imaging-frame sized (~275 k rows per
 session instead of 2.2 M).
 """
@@ -32,7 +32,7 @@ def frame_bins(cam_t_s: np.ndarray, frame_times_s: np.ndarray) -> np.ndarray:
 
 
 def downsample(im: np.ndarray, ds: int) -> np.ndarray:
-    """Grey frame (first channel of a grey-as-BGR video) area-averaged by ``ds`` in each axis, float32."""
+    """Gray frame (first channel of a gray-as-BGR video) area-averaged by ``ds`` in each axis, float32."""
     g = im[..., 0] if im.ndim == 3 else im
     h, w = (g.shape[0] // ds) * ds, (g.shape[1] // ds) * ds
     return g[:h, :w].reshape(h // ds, ds, w // ds, ds).mean(axis=(1, 3), dtype=np.float32)
@@ -85,7 +85,7 @@ def pixel_mask(shape_full: tuple[int, int], ds: int, polygons: list | None) -> n
 
 def motion_svd(mm: np.ndarray, filled: np.ndarray, k: int = 50, n_fit: int = 60_000, seed: int = 0,
                chunk: int = 20_000, keep: np.ndarray | None = None) -> dict:
-    """Spatial components from ``n_fit`` evenly spaced filled rows (column-centred, randomized SVD) and every
+    """Spatial components from ``n_fit`` evenly spaced filled rows (column-centered, randomized SVD) and every
     filled row's projection. Returns {"timecourses" (n_bins, k) NaN where not filled, "components" (k, n_px),
     "mean" (n_px,), "explained" (k,) fraction of the fitted rows' variance}. ``keep`` (bool, n_px or the image
     shape): pixels used; masked pixels get zero weight in every component."""

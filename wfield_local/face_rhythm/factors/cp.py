@@ -1,4 +1,4 @@
-"""The maths: non-negative CP by HALS (numpy, chunked), projection with spatial + spectral fixed, the FR normaliser, pooled EVR, and factor matching / similarity."""
+"""The maths: non-negative CP by HALS (numpy, chunked), projection with spatial + spectral fixed, the FR normalizer, pooled EVR, and factor matching / similarity."""
 from __future__ import annotations
 
 import numpy as np
@@ -87,7 +87,7 @@ def ncp_hals(X: np.ndarray, rank: int, seed: int, n_iter: int = 300, tol: float 
 
 def normaliser(rows: np.ndarray, freqs: np.ndarray, f: float, one_over_f: float) -> np.ndarray:
     """FR's per-bin divisor D = f m + (1 - f) (VQT_Analyzer: m = mean over xy x points of the power summed over
-    frequencies, before the 1/f weighting) recovered from SAVED normalised rows (n, 2P, F), unscaled: their summed
+    frequencies, before the 1/f weighting) recovered from SAVED normalized rows (n, 2P, F), unscaled: their summed
     power n = m / D, so m = (1 - f) n / (1 - f n)."""
     n = (np.asarray(rows, np.float64) / freqs[None, None, :] ** one_over_f).sum(-1).mean(-1)
     m = (1 - f) * n / np.maximum(1 - f * n, 1e-9)

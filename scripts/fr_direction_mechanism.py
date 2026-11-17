@@ -3,11 +3,11 @@ into this ... it could be critical to interpretation".)
 
 Fig 16n-16o: chronically the side / distance FR factors add ~0 to the per-session encoder in SSp-m (pre +0.011-0.016) and
 take less of the position code, while position | directionless FR rises contralesionally. Three explanations:
-  (a) BEHAVIOUR  the face's side-specific movement itself shrinks / stops differing by spout (e.g. lateral jaw / tongue
+  (a) BEHAVIOR  the face's side-specific movement itself shrinks / stops differing by spout (e.g. lateral jaw / tongue
                  steering lost; jaw FAR_DIR collapses acutely, OROFACIAL_FINDINGS);
   (c) MEASUREMENT the frozen pre-stroke FR vocabulary (master_pre_v1) no longer captures the post-stroke lateral movement;
   (b) NEURAL     the face moves as before, but orofacial cortex stops covarying with it.
-Per session (O2 bundle inputs: the encoder's own imaging, behaviour and raw FR factors), engaged trials, cue window
+Per session (O2 bundle inputs: the encoder's own imaging, behavior and raw FR factors), engaged trials, cue window
 0 .. 1.5 s (FR / cortex = window mean; cortex minus the 0.5 s pre-cue mean):
   side index   fr_lick_left - fr_lick_right;  distance index  fr_lick_far_nose - fr_lick_fast_close;  lick = sum of the
                six lick-locked factors (master_v1 "lick")
@@ -23,8 +23,10 @@ Usage: python scripts/fr_direction_mechanism.py [--jobs 6]
 Output: <E>/fr_encoding_summary/direction_mechanism/ (sessions.csv, bootstrap.csv, figures/fr_direction_mechanism.png)
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
+import os
 import pickle
 import sys
 from pathlib import Path
@@ -33,7 +35,7 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from fr_musall import AN, E  # noqa: E402
+from fr_musall import AN, E  # noqa: E402  -- E = fe.out_root(): the encoder's TAGGED root (routed, coordinator 11-04)
 
 BUNDLE = Path("M:/MICROSCOPE/Priya/DeepLabCut/Widefield/o2/enc_v36_full_20261024/inputs")
 LICK = ("fr_lick_ongoing_7Hz", "fr_lick_right", "fr_lick_left", "fr_lick_fast_close", "fr_lick_far_nose", "fr_lick_slow_late")
@@ -77,7 +79,7 @@ def pcorr(x, y, z):
 def session(pk: Path) -> dict | None:
     from wfield_local import config, epochs
     lab = pk.stem
-    if lab[-4:] < "0801":
+    if config.early_pre(lab):
         return None
     d = pickle.loads(pk.read_bytes())
     fr = d.get("fr")
@@ -126,6 +128,7 @@ def session(pk: Path) -> dict | None:
 
 
 def main(argv=None) -> int:
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -134,6 +137,9 @@ def main(argv=None) -> int:
     from wfield_local import analysis_kit as ak
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--jobs", type=int, default=6)
+    ap.add_argument("--bundle", type=Path, default=None,
+                    help="O2 bundle inputs/ folder (default: enc_v36_full_20261024/inputs; REQUIRED under a rebuild root, "
+                         "whose encoder runs come from its own bundle)")
     ap.add_argument("--plot-only", action="store_true", help="redraw the summary figure from sessions.csv / bootstrap.csv")
     a = ap.parse_args(argv)
     out = E / "fr_encoding_summary" / "direction_mechanism"
@@ -141,7 +147,12 @@ def main(argv=None) -> int:
     if a.plot_only:
         summary_figure(pd.read_csv(out / "sessions.csv"), pd.read_csv(out / "bootstrap.csv"), out)
         return 0
-    got = Parallel(n_jobs=a.jobs)(delayed(session)(pk) for pk in sorted(BUNDLE.glob("PS*_*.pkl")))
+    if a.bundle is None and os.environ.get("WIDEFIELD_REBUILD_ROOT", "").strip():
+        raise SystemExit("under a rebuild root pass --bundle <this run's O2 bundle>/inputs (the default is the adopted "
+                         "enc_v36_full_20261024 bundle)")
+    bundle = a.bundle or BUNDLE
+    print(f"inputs: {bundle}", flush=True)
+    got = Parallel(n_jobs=a.jobs)(delayed(session)(pk) for pk in sorted(bundle.glob("PS*_*.pkl")))
     S = pd.DataFrame([g for g in got if g is not None])
     S.to_csv(out / "sessions.csv", index=False)
     print(f"{len(S)} sessions", flush=True)
@@ -166,7 +177,7 @@ def main(argv=None) -> int:
     print("== epoch - pre (pre level, change [95% nested CI], p, animals down)")
     print(B.round(3).to_string(index=False))
 
-    groups = [("(a) behaviour: spout-specificity", ["eta2_side", "eta2_dist", "eta2_tongue"]),
+    groups = [("(a) behavior: spout-specificity", ["eta2_side", "eta2_dist", "eta2_tongue"]),
               ("(a) amount of side-specific face movement", ["sd_side"]),
               ("(c) FR side index tracks the tongue", ["r_side_tongue"]),
               ("(b) cortex covaries with the FR side index", ["r_SSp-m_right_side", "r_SSp-m_left_side", "r_SSp-m_c-i_side",
@@ -190,7 +201,7 @@ def main(argv=None) -> int:
                  "correlations (spout means removed); cortex partial correlations control lick amount. Table + bootstrap: "
                  "direction_mechanism/bootstrap.csv", fontsize=9)
     fig.subplots_adjust(left=0.04, right=0.99, top=0.82, bottom=0.08, wspace=0.25)
-    fig.savefig(out / "figures" / "fr_direction_mechanism.png", dpi=115)
+    save_png_svg(fig, out / "figures" / "fr_direction_mechanism.png", dpi=115)
     plt.close(fig)
     summary_figure(S, B, out)
     print("->", out)
@@ -242,7 +253,7 @@ def summary_figure(S: pd.DataFrame, B: pd.DataFrame, out: Path) -> None:
                  "nested bootstrap (animals > sessions); whisker 95 % CI; * CI excludes 0 (red = decrease, blue = increase); "
                  "dots = per-animal change. Lesion left: right SSp-m = contralesional.", fontsize=9.5)
     fig.subplots_adjust(left=0.05, right=0.99, top=0.88, bottom=0.06, wspace=0.32, hspace=0.38)
-    fig.savefig(out / "figures" / "fr_direction_mechanism_summary.png", dpi=120)
+    save_png_svg(fig, out / "figures" / "fr_direction_mechanism_summary.png", dpi=120)
     plt.close(fig)
 
 

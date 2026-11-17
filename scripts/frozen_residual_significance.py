@@ -2,13 +2,13 @@
 maps in each epoch?").
 
 The residual (data - full) of one session = the part of its evoked response the frozen pre-stroke model does not
-predict from that session's behaviour. Pre-stroke sessions are scored leave-one-session-out, so THEY HAVE A RESIDUAL
+predict from that session's behavior. Pre-stroke sessions are scored leave-one-session-out, so THEY HAVE A RESIDUAL
 TOO, and it drifts (FINDINGS 3.4: late pre - early pre +5..+12 x1e3 in SSp-m, 3/4 animals). So the test is NOT
 "residual != 0" but "this epoch's residual maps differ from the pre-stroke sessions' residual maps":
 
     post_by_animal = that epoch's per-session residual maps;  pre_by_animal = the pre sessions' residual maps
     tests = the repo's map tests (`beta_maps.significance_contour`): "nested" (animals -> sessions bootstrap on the 8 x 8
-            grid, Bonferroni over bins, pre-normalised -- PRIMARY) and "cluster" (cluster mass, within-animal
+            grid, max-statistic over bins = family-wise per panel, pre-normalized -- PRIMARY) and "cluster" (cluster mass, within-animal
             relabelling, animal = unit)
     REFERENCE = ALL the pre sessions, each scored leave-one-session-out (Priya 10-24: "i don't want to use early vs late
             pre - just all loso pre"). The late-vs-early-pre calibration is optional (--drift), off by default.
@@ -23,9 +23,11 @@ per animal the bin test is the repo's "musall" method (sessions as the unit, Wel
 Rule 8: per animal first.
 
 Usage: python scripts/frozen_residual_significance.py --tag gate-attempted_v7g3_t3d_basis [--spout far_contra] [--per-animal]
+       [--bin 16]   (block size of the bin tests; default 8 px, other sizes write *_<bin>px outputs)
 Output: <E>/frozen_encoder_<tag>/figures/residual_significance_<variant>_<spout>_<align>.png + residual_significance.csv
 """
 from __future__ import annotations
+from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import argparse
 import json
@@ -41,9 +43,10 @@ EPOCHS = ("acute", "subacute", "chronic")
 
 def session_residual_maps(out: Path, variant: str, spout: str, align: str):
     """{animal: [(label, epoch, day, (H, W) residual map, NaN off the stat mask)]}, H, W."""
+    from wfield_local import config
     from wfield_local import combined_encoding as ce
     from wfield_local import epochs
-    sess = sorted(js for js in (out / variant / "sessions").glob("*.json") if js.stem[-4:] >= "0801")
+    sess = sorted(js for js in (out / variant / "sessions").glob("*.json") if not config.early_pre(js.stem))
     _V, _ft, _Ub, flat, _parea, _names, shape, pstat = ce.load_imaging(sess[0].stem)
     H, W = (int(x) for x in shape)
     pix = flat[pstat]
@@ -78,11 +81,12 @@ def session_residual_maps(out: Path, variant: str, spout: str, align: str):
     return by, H, W
 
 
-def run_tests(pre_by, post_by, n_boot=2000, n_perm=500, methods=("nested", "cluster")):
+def run_tests(pre_by, post_by, n_boot=2000, n_perm=500, methods=("nested", "cluster"), factor=8):
     from wfield_local import beta_maps as bm
     out = {}
     for method in methods:
-        keep, lab = bm.significance_contour(pre_by, post_by, method=method, n_boot=n_boot, n_perm=n_perm)
+        keep, lab = bm.significance_contour(pre_by, post_by, method=method, n_boot=n_boot, n_perm=n_perm,
+                                            factor=factor)
         m_ = re.search(r"(\d+) of (\d+) bins", lab or "")
         out[method] = {"mask": keep, "label": lab,
                        "sig_bins": int(m_.group(1)) if m_ else (0 if method != "cluster" else None),
@@ -91,19 +95,24 @@ def run_tests(pre_by, post_by, n_boot=2000, n_perm=500, methods=("nested", "clus
     return out
 
 
+def trial_set_sentence(tag: str, spout: str, align: str) -> str:
+    """The trials of one residual-significance figure (Priya 11-09): the frozen run's modeled trials at ``spout`` (or
+    the mean over the session's spouts, "all"), cue- or first-lick-aligned evoked response."""
+    from wfield_local import frozen_encoder as fe
+    return fe.trial_set_sentence("peth", tag=tag, align=align, spout=spout)
+
+
 def main(argv=None) -> int:
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import pandas as pd
 
     from wfield_local import beta_maps as bm
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
     from wfield_local.writeguard import assert_writable
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--tag", default="gate-attempted_v7g3_t3d_basis")
+    ap.add_argument("--tag", default=_design_tag("gate-attempted_v7g3_t3d_basis"))
     ap.add_argument("--variant", default="joint")
     ap.add_argument("--spout", default="far_contra", help="a spout, or 'all' = mean over the session's spouts")
     ap.add_argument("--aligns", nargs="+", default=["lick", "cue"])
@@ -111,8 +120,14 @@ def main(argv=None) -> int:
     ap.add_argument("--n-perm", type=int, default=500)
     ap.add_argument("--per-animal", action="store_true", help="one test per animal (sessions as the resampled unit)")
     ap.add_argument("--drift", action="store_true", help="also test late vs early pre (off by default)")
+    ap.add_argument("--bin", type=int, default=8, help="block size in px for the nested / per-animal bin tests (default 8; "
+                    "Priya 11-05). Outputs of a non-default size carry _<bin>px; the cluster test is full resolution")
     a = ap.parse_args(argv)
-    out = oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / f"frozen_encoder_{a.tag}"
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=tst.union(*(trial_set_sentence(a.tag, a.spout, al) for al in a.aligns), unit="trials"))
+    bx = "" if a.bin == 8 else f"_{a.bin}px"           # default 8 px keeps the original file names
+    from wfield_local import frozen_encoder as _fe   # the encoder's (tagged) run root, coordinator 11-04
+    out = _fe.out_root() / f"frozen_encoder_{a.tag}"
     fd = out / "figures"
     assert_writable(fd)
     fd.mkdir(parents=True, exist_ok=True)
@@ -139,7 +154,8 @@ def main(argv=None) -> int:
                     if len(pb.get(an, [])) < 2 or len(qb[an]) < 2:
                         rows.append({"align": al, "comparison": name, "animal": an, "note": "< 2 sessions in a group"})
                         continue
-                    r = run_tests({an: pb[an]}, {an: qb[an]}, a.n_boot, a.n_perm, methods=("musall", "cluster"))
+                    r = run_tests({an: pb[an]}, {an: qb[an]}, a.n_boot, a.n_perm, methods=("musall", "cluster"),
+                                  factor=a.bin)
                     rows.append({"align": al, "comparison": name, "animal": an, "n_pre": len(pb[an]),
                                  "n_post": len(qb[an]), "musall_sig_bins": r["musall"]["sig_bins"],
                                  "musall_n_bins": r["musall"]["n_bins"], "cluster_px": r["cluster"]["px"],
@@ -151,7 +167,7 @@ def main(argv=None) -> int:
         for name, (pb, qb) in comps.items():
             print(f"[residual sig] {al} {name}: animals {sorted(qb)}, sessions {[len(qb[x]) for x in sorted(qb)]}",
                   flush=True)
-            r = run_tests(pb, qb, a.n_boot, a.n_perm)
+            r = run_tests(pb, qb, a.n_boot, a.n_perm, factor=a.bin)
             res[name] = (pb, qb, r)
             rows.append({"align": al, "comparison": name, "n_animals": len(qb),
                          "nested_sig_bins": r["nested"]["sig_bins"], "nested_n_bins": r["nested"]["n_bins"],
@@ -179,12 +195,13 @@ def main(argv=None) -> int:
                          fontsize=8)
             ax.set_xticks([]); ax.set_yticks([])
         fig.suptitle(f"Frozen-encoder RESIDUAL (data - full), {a.spout}, {al} window: epoch residual minus pre-stroke "
-                     f"residual,\npre-normalised, mean of animals. Contours: black = nested bootstrap (primary), purple "
+                     f"residual,\npre-normalized, mean of animals. Contours: black = nested bootstrap on {a.bin} px blocks (primary), purple "
                      f"dashed = cluster.\nReference = all pre sessions (LOSO). Image left = ipsilesional.", fontsize=8)
         fig.tight_layout(rect=(0, 0, 1, 0.86))
-        fig.savefig(fd / f"residual_significance_{a.variant}_{a.spout}_{al}.png", dpi=130)
+        with tst.active(None, text=trial_set_sentence(a.tag, a.spout, al)):     # this figure's alignment
+            fig.savefig(fd / f"residual_significance_{a.variant}_{a.spout}_{al}{bx}.png", dpi=130)
         plt.close(fig)
-    pd.DataFrame(rows).to_csv(out / f"residual_significance{'_per_animal' if a.per_animal else ''}.csv", index=False)
+    pd.DataFrame(rows).to_csv(out / f"residual_significance{'_per_animal' if a.per_animal else ''}{bx}.csv", index=False)
     print(f"-> {fd} (residual_significance_*.png), {out / 'residual_significance.csv'}")
     return 0
 

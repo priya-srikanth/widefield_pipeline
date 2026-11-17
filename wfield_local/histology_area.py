@@ -4,7 +4,7 @@ The widefield-cohort (PS92-95) version of the VLS stroke methods paper's Figure 
 ipsi/contra % area"). Same quantity and the same drawing as the paper's notebook
 (`Documents/data/Immuno/Stroke area quantification plots.ipynb`): per section,
 100 * ipsi / contra area; faded points = sections, black = animal mean +/- SEM across sections.
-Two deliberate differences: points take the animal's colour from `configs/animals.yaml` (the paper
+Two deliberate differences: points take the animal's color from `configs/animals.yaml` (the paper
 used matplotlib's cycle), and the jitter is seeded so a re-render does not move the points.
 
 Data = `configs/histology_striatum_area.csv`, imported from the QuPath project by

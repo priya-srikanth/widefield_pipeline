@@ -45,17 +45,16 @@ def one(label):
 
 
 def main(argv=None) -> int:
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     from scripts import within_spout_mixed as wm
     from wfield_local import analysis_kit as ak
     from wfield_local import epochs
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--folder", default="within_spout_deviation_lick_contact")
     ap.add_argument("--jobs", type=int, default=4)
     a = ap.parse_args(argv)
-    folder = oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / "qc" / a.folder
+    from wfield_local import run_mode
+    folder = run_mode.encoding_out_root() / "qc" / a.folder   # within_spout_deviation's (tagged) output
     S = pd.read_csv(folder / "within_spout_deviation.csv")
     labels = sorted(S.label.unique())
     got, fail = ak.fan_sessions(labels, one, jobs=a.jobs)

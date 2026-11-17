@@ -1,8 +1,8 @@
-"""WHICH WAY DOES 415 MOVE AFTER A CUE, AND WHEN? The sign of the haemodynamic term, measured.
+"""WHICH WAY DOES 415 MOVE AFTER A CUE, AND WHEN? The sign of the hemodynamic term, measured.
 
 Priya, 2026-09-19: *"we're not measuring the Hgb absorbance, we're measuring the Ca-independent
 (ish) fluorescence of GCaMP ... which will increase with increased blood"*, against my claim that
-blood enters both dF/F traces NEGATIVELY because haemoglobin absorbs.
+blood enters both dF/F traces NEGATIVELY because hemoglobin absorbs.
 
 **THE WHOLE TROUGH-VERSUS-PEAK CHOICE IN `rest_coupling` RESTS ON THIS SIGN**, so it is worth one
 measurement rather than an argument from spectra. A cue-aligned brain-mean average settles it,
@@ -38,6 +38,7 @@ The late plateau may be partly trial-structure rather than physiology.
     python -m scripts.rest_migration.channel_evoked_sign [--animals PS92 ...] [--per-animal 3]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 from pathlib import Path
@@ -86,7 +87,7 @@ def session_segments(s):
 
 
 def _bin(t, seg, bin_s=BIN_S):
-    """Bin to `bin_s`, returning ``(centres, mean, sem)`` with the SEM taken ACROSS CUES."""
+    """Bin to `bin_s`, returning ``(centers, mean, sem)`` with the SEM taken ACROSS CUES."""
     edges = np.arange(-PRE, POST + 1e-9, bin_s)
     idx = np.digitize(t, edges) - 1
     keep = [k for k in range(edges.size - 1) if (idx == k).any()]
@@ -112,7 +113,8 @@ def main(argv=None) -> int:
     from wfield_local import config, epochs
     from wfield_local.paths import PathResolver
 
-    out_dir = a.out or (Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch")
+    from wfield_local import lp_licks              # run-mode routing (rebuild 11-03): identity for the default run
+    out_dir = a.out or lp_licks.output_dir(Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch")
     want = set(config.phase_labels("pre") + config.phase_labels("post"))
     by_animal: dict[str, list] = {}
     for s in config.load_sessions():
@@ -181,7 +183,7 @@ def main(argv=None) -> int:
                  "across cues, 3 pre-stroke sessions pooled per animal.", fontsize=9.0)
     fig.tight_layout(rect=(0, 0, 1, 0.87))
     q = out_dir / "epoch_20_channel_evoked_sign.png"
-    fig.savefig(q, dpi=180)
+    save_png_svg(fig, q, dpi=180)
     print(f"\nwrote {q}")
 
     bar = "=" * 92

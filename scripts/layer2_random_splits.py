@@ -12,12 +12,12 @@ Usage: python scripts/layer2_random_splits.py PS92 [--max-splits 70]   (resumes 
 Output: <E>/allsession_encoder_v7g3_t3d_ref/random_splits_<animal>.csv (one row per split x epoch)
 """
 from __future__ import annotations
+from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import argparse
 import itertools
 import json
 import pickle
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -25,13 +25,16 @@ import pandas as pd
 from wfield_local import allsession_encoder as ae
 from wfield_local import epochs
 from wfield_local import frozen_encoder as fe
+from wfield_local import run_mode as _rmode
 
-E = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding")
-SRC = E / "frozen_encoder_gate-attempted_v7g3_t3d"
-L2 = E / "allsession_encoder_v7g3_t3d_ref"
+# coordinator 11-04: routed -- the run's (tagged) encoding tree (frozen encoder + allsession runs, and the output)
+E = _rmode.encoding_out_root()
+SRC = fe.out_root() / _design_tag("frozen_encoder_gate-attempted_v7g3_t3d")
+L2 = E / _design_tag("allsession_encoder_v7g3_t3d_ref")
 
 
 def main(argv=None) -> int:
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("animal")
     ap.add_argument("--max-splits", type=int, default=70)

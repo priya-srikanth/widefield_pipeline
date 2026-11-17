@@ -23,8 +23,11 @@ import numpy as np
 import cv2
 from tqdm import tqdm
 
-from wfield.utils import runpar, chunk_indices
-from wfield.registration import registration_ecc, _xy_rot_from_affine
+from wfield_local.wfield_import import no_style_leak
+
+with no_style_leak():   # wfield restyles matplotlib at import (wfield_import docstring)
+    from wfield.utils import runpar, chunk_indices
+    from wfield.registration import registration_ecc, _xy_rot_from_affine
 
 
 def registration_upsample(frame, template):

@@ -14,7 +14,7 @@ WHAT IS ALREADY KNOWN, and it sets the prior:
   * the composition imbalance is 17.5% and STABLE across epochs, so it is a FIXED bias, not one that
     tracks the deficit. The stronger half of the case for `restw` was withdrawn on 2026-09-14.
   * split-half reliability makes `restw` ~3% NOISIER than `rest` (relRMS 0.1577 vs 0.1551, worse in
-    55/91 sessions), because equal weighting maximises the influence of the thinnest estimates.
+    55/91 sessions), because equal weighting maximizes the influence of the thinnest estimates.
   * the real limit is PER-ANIMAL, not per-estimator: PS92 median relRMS 0.228 against PS94's 0.113
     on comparable frame counts.
 

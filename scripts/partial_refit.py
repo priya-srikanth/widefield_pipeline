@@ -24,7 +24,7 @@ Readout: gain = R2[variant] - R2[frozen], epoch - pre within animal (nested boot
 FROZEN_DESIGN=te runs (DECISIONS 2026-10-26: target vs execution kernels) use their own sets and nulls (TE_SETS):
   target / target_spout (pos_enl, pos_cue) / target_lick (lick_onset@tgt:*) / execution / exec_land
   (lick_onset@land:*) / contact / target_land; nulls target_perm + target_lick_perm (ONE block permutation of the trial
-  spouts fed to BOTH raw_blocks and te_lick_parts, so the arrival / cue kernels and the target-labelled lick kernels see
+  spouts fed to BOTH raw_blocks and te_lick_parts, so the arrival / cue kernels and the target-labeled lick kernels see
   the same shuffled labels), exec_land_perm + execution_perm (landing weights circularly shifted along the session's
   landed licks by a random 10-90 % of their number; kinematics / FR stay real -> conservative). N_PERM draws each.
 Run with the SAME env as the frozen run (run_frozen_fr.sh for the frA frame; run_te.sh for the te frame).
@@ -32,8 +32,12 @@ Usage: python scripts/partial_refit.py --tag gate-attempted_v7g3_t3d_frA [--jobs
 Output: <run>/partial_refit/{fits.pkl, sessions/<label>.json, gain.csv, boot.csv, figures/partial_refit_<window>.png}
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
+from wfield_local.frozen_encoder import design_tag as _design_tag, tag_is_spont as _tag_is_spont  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import argparse
+import os
+from contextlib import contextmanager
 import json
 import pickle
 import sys
@@ -91,9 +95,11 @@ def model_label(run: Path) -> str:
     parts = ["frozen pre-stroke encoder (August pre, attempted trials, 3-D tongue)"]
     if "_frA" in tag:
         parts.append("+ FaceRhythm (mode A)")
+    if _tag_is_spont(tag):
+        parts.append("+ spontaneous lick kernels (pre-cue / ITI licks, uninstructed: in other; cued licks = post-cue)")
     if tag.endswith("_te"):
-        design = ("NEW target-vs-execution design: target = spout identity + target-labelled lick kernels, execution = "
-                  "3-D tongue / jaw + FaceRhythm + landing-labelled lick kernels; ITI frames included")
+        design = ("NEW target-vs-execution design: target = spout identity + target-labeled lick kernels, execution = "
+                  "3-D tongue / jaw + FaceRhythm + landing-labeled lick kernels; ITI frames included")
     elif tag.endswith("_ls"):
         design = "OLD design + per-spout lick kernels (target vs executed spout-locked templates vs lick kernels)"
     else:
@@ -111,9 +117,12 @@ def frozen_fits(run: Path) -> Path:
     statistics; cached in partial_refit/fits.pkl."""
     from wfield_local import frozen_encoder as fe
     p = run / "partial_refit" / "fits.pkl"
+    from wfield_local import mask_keys
     if p.exists():
+        mask_keys.check_sidecar(p)               # stale-read guard (11-09)
         return p
     st = pickle.loads((run / "fit" / "pre_stats.pkl").read_bytes())
+    fe.check_saved_masks(st, run / "fit" / "pre_stats.pkl")
     fits = {}
     for an in sorted({s["animal"] for s in st}):
         f = fe.fit_animal(sorted((s for s in st if s["animal"] == an), key=lambda s: s["label"]), variant="joint")
@@ -121,6 +130,7 @@ def frozen_fits(run: Path) -> Path:
         print(f"  frozen fit {an}: {len(f['beta_loso'])} pre sessions", flush=True)
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_bytes(pickle.dumps(fits, protocol=pickle.HIGHEST_PROTOCOL))
+    mask_keys.write_sidecar(p)
     return p
 
 
@@ -290,7 +300,50 @@ def _null_preds(fe, label, tpl, F, Zv, beta, grp, R, lam_all, fold, which):
     return out
 
 
+@contextmanager
+def _reuse_inputs(fe):
+    """Load each session input ONCE per job (11-08 profile: one session = 13 `session_design` builds -- the fit + 12
+    nulls -- and 91 % of its 21.6 min was re-reading the same imaging, behavior, FaceRhythm columns and session list,
+    ~23,600 file checks on M:; the ridge refits are 5 %). The nulls patch only `raw_blocks` / `spout_split` /
+    `te_lick_parts`, which stay live; the loaders below do not depend on any patched function. `load_sessions` hands
+    back a deep copy (callers may edit the dicts). Pinned by an exact-equality check against finished session jsons."""
+    import copy
+    from wfield_local import config
+    ce = fe._ce()
+    memo = {}
+    orig = {"load_imaging": ce.load_imaging, "load_behaviour": fe.load_behaviour, "_fr_columns": fe._fr_columns,
+            "load_sessions": config.load_sessions}
+
+    def cached(name, key_of, copy_out=False):
+        f = orig[name]
+
+        def g(*a, **k):
+            key = (name, key_of(*a, **k))
+            if key not in memo:
+                memo[key] = f(*a, **k)
+            return copy.deepcopy(memo[key]) if copy_out else memo[key]
+        return g
+
+    ce.load_imaging = cached("load_imaging", lambda label: label)
+    fe.load_behaviour = cached("load_behaviour",                    # the cam1-fallback path pops the licks env
+                               lambda animal, date, rv: (animal, date, os.environ.get(ce.LICKS_ENV)))
+    fe._fr_columns = cached("_fr_columns", lambda animal, date, rv, ft: (animal, date, len(ft), float(ft[0]),
+                                                                         float(ft[-1])))
+    config.load_sessions = cached("load_sessions", lambda *a, **k: repr((a, sorted(k.items()))), copy_out=True)
+    try:
+        yield
+    finally:
+        ce.load_imaging, fe.load_behaviour, fe._fr_columns = orig["load_imaging"], orig["load_behaviour"], orig["_fr_columns"]
+        config.load_sessions = orig["load_sessions"]
+
+
 def job(item):
+    from wfield_local import frozen_encoder as fe
+    with _reuse_inputs(fe):
+        return _job(item)
+
+
+def _job(item):
     label, run_dir, fits_path, *rest = item
     add = tuple(rest[0]) if rest and rest[0] else None     # add-only mode: compute these nulls, merge into the saved json
     from wfield_local import config
@@ -373,12 +426,13 @@ def table(sdir: Path, measure: str = "frame", areas=AREAS) -> pd.DataFrame:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--tag", default="gate-attempted_v7g3_t3d_frA")
+    ap.add_argument("--tag", default=_design_tag("gate-attempted_v7g3_t3d_frA"))
     ap.add_argument("--jobs", type=int, default=2)
     ap.add_argument("--labels", nargs="*")
     ap.add_argument("--plot-only", action="store_true")
     ap.add_argument("--add", nargs="+", choices=NULLS, help="compute only these nulls for sessions already scored")
     a = ap.parse_args(argv)
+    __import__("wfield_local.frozen_encoder", fromlist=["check_tag"]).check_tag(a.tag)   # refits: design = env (8.51)
     run = E / f"frozen_encoder_{a.tag}"
     out = run / "partial_refit"
     sdir = out / "sessions"
@@ -446,45 +500,43 @@ def summarise(run: Path, out: Path) -> None:
     Bs.to_csv(out / "boot_by_spout.csv", index=False)
     print("== by spout, SSp-m contra, chronic\n" + Bs[(Bs.area == "SSp-m_right") & (Bs.epoch == "chronic")]
           [["q", "window", "spout", "point", "lo", "hi", "n_up", "n"]].round(4).to_string(index=False))
-    cols = dict(zip(VARIANTS, ["#e41a1c", "#377eb8", "#4daf4a", "#984ea3", "#ff7f00", "#a65628", "#f781bf", "#66c2a5", "#999999",
-                               "#bdd7e7"]))
-    cols.update({"target - null": "#b2182b", "exec - null": "#6baed6", "exec - target": "#2166ac",
-                 "lickspout - target": "#8c510a"})
-    if TE:
-        cols = dict(zip(VARIANTS, ["#e41a1c", "#fb9a99", "#b2182b", "#377eb8", "#1f78b4", "#4daf4a", "#984ea3", "#999999",
-                                   "#cccccc", "#9ecae1", "#c6dbef"]))
-        cols.update({"target - null": "#b2182b", "target lick - null": "#e7298a", "landing lick - null": "#2166ac",
-                     "execution - null": "#6baed6", "landing lick - target lick": "#8c510a",
-                     "execution - target": "#01665e"})
+    # THE shared model palette (cat_points.MODEL_COLORS, Priya 11-07: never an epoch / animal / class colour), in
+    # VARIANTS order (bars past the 7th cycle the palette and are hatched by ffc.bars); the contrasts drawn as lines
+    from wfield_local import cat_points as cp
+    cols = {v: cp.model_color(i) for i, v in enumerate(VARIANTS)}
+    con = (("target - null", "exec - null", "exec - target", "lickspout - target") if not TE else
+           ("target - null", "execution - null", "target lick - null", "landing lick - null",
+            "landing lick - target lick", "execution - target"))
+    cols.update({q: cp.model_color(i) for i, q in enumerate(con)})
     ffc.COL.update(cols)
     (out / "figures").mkdir(exist_ok=True)
     for w in ffc.WINDOWS:
         fig, (ax, ax2) = plt.subplots(2, 1, figsize=(15, 8.6))
         ffc.bars(ax, B[B.window == w], [v for v in VARIANTS if (B.q == v).any()], AREAS, "R2 gain over frozen, epoch - pre",
-                 "refit ONLY one set (legend); greys / light blues = the label-shuffled nulls" if TE else
-                 "refit ONLY: red = target, blue = executed position, green = executed + FR side / distance, purple = "
-                 "target + executed, orange = target + executed + FR, grey = target with shuffled labels (null)")
+                 "refit ONLY one set (legend; the label-shuffled nulls are the *_perm / *_shuf sets)")
         ax.legend(fontsize=8, frameon=False, loc="upper left", bbox_to_anchor=(1.0, 1.0))
         ffc.bars(ax2, B[B.window == w], [v for v in CONTRASTS if (B.q == v).any()], AREAS, "difference of gains, epoch - pre",
-                 "CONTRASTS (legend): each set minus its label-shuffled null; landing vs target-labelled lick kernels; "
+                 "CONTRASTS (legend): each set minus its label-shuffled null; landing vs target-labeled lick kernels; "
                  "execution vs target" if TE else
-                 "CONTRASTS: dark red = target minus its shuffled-label null; light blue = executed minus its shuffled-"
-                 "label null; dark blue = executed minus target (whose refit helps more)")
+                 "CONTRASTS (legend): target and executed each minus its shuffled-label null; executed minus target "
+                 "(whose refit helps more)")
         ax2.legend(fontsize=8, frameon=False, loc="upper left", bbox_to_anchor=(1.0, 1.0))
         fig.suptitle(f"NEURAL: PARTIAL REFIT, {w} window: one group refit per session (cross-validated), all else frozen;\n"
                      f"{model_label(run)}\ngain in held-out R2 over the frozen model, as a change from pre "
                      "(within animal). Bars = mean of animals; whisker 95 % nested CI; * excludes 0; dots = animals.",
                      fontsize=9)
+        from wfield_local.sig_marks import reserve_headroom
+        reserve_headroom(fig)                # the `bars` stars sit in the top band (10-30), no top spine (11-03)
         fig.subplots_adjust(left=0.05, right=0.83, top=0.86, bottom=0.07, hspace=0.35)
-        fig.savefig(out / "figures" / f"partial_refit_bars_{w}.png", dpi=105)            # supplementary (all sets)
+        save_png_svg(fig, out / "figures" / f"partial_refit_bars_{w}.png", dpi=105)            # supplementary (all sets)
         plt.close(fig)
     # MAIN: epoch lines of the contrasts that carry the claim (Priya 10-25: bars too many to read)
     ser = [(q, lab, cols[q]) for q, lab in (("target - null", "target (vs its null)"),
                                             ("exec - null", "executed movement (vs its null)"),
                                             ("lickspout - target", "per-spout lick kernels minus target"),
-                                            ("target lick - null", "target-labelled lick kernels (vs null)"),
-                                            ("landing lick - null", "landing-labelled lick kernels (vs null)"),
-                                            ("landing lick - target lick", "landing- minus target-labelled lick kernels"),
+                                            ("target lick - null", "target-labeled lick kernels (vs null)"),
+                                            ("landing lick - null", "landing-labeled lick kernels (vs null)"),
+                                            ("landing lick - target lick", "landing- minus target-labeled lick kernels"),
                                             ("execution - target", "execution minus target"))
            if (B.q == q).any()]
     areas = ["SSp-m_right", "SSp-m_left", "MOp_right", "MOp_left", "cortex"]
@@ -507,7 +559,7 @@ def summarise(run: Path, out: Path) -> None:
                  "(within animal; line = mean of animals, band = 95% nested CI animals > sessions). "
                  "All refit sets: partial_refit_bars_<window>.png.", fontsize=9.5)
     fig.subplots_adjust(left=0.09, right=0.99, top=0.76, bottom=0.15, wspace=0.08, hspace=0.25)
-    fig.savefig(out / "figures" / "partial_refit_lines.png", dpi=110)
+    save_png_svg(fig, out / "figures" / "partial_refit_lines.png", dpi=110)
     plt.close(fig)
     print("->", out)
 

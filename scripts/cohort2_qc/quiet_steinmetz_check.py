@@ -21,6 +21,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from quiet_spikes_v2 import MERGE_S, V2  # noqa: E402
+from wfield_local import config  # noqa: E402
 
 OUT = V2 / "steinmetz_check"
 K = 4.0
@@ -39,7 +40,7 @@ def main():
     rows = []
     for f in sorted((V2 / "sessions").glob("*.npz")):
         lab, ep = f.stem, epochs.epoch_of(f.stem)
-        if ep is None or lab[-4:] < "0806" or lab[:4] not in sd:
+        if ep is None or config.early_pre(lab) or lab[:4] not in sd:
             continue
         z = np.load(f)
         fs = float(z["fs"])

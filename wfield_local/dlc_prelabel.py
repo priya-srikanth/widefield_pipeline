@@ -1,4 +1,4 @@
-"""Seed DLC's labels with the 2pRAM network's predictions, so labelling is CORRECTION not blank-page.
+"""Seed DLC's labels with the 2pRAM network's predictions, so labeling is CORRECTION not blank-page.
 
 The donor network (``MICROSCOPE/Priya/DeepLabCut/DLC_train_config``, iteration-5 shuffle5, test RMSE
 2.70 px) was trained on a view this rig does not have — the old ``video2`` framed the whole head at
@@ -29,7 +29,7 @@ does, monotonically across the sweep (1.00 > 0.60 > 0.45 > 0.35), so it is predi
 and everything else at 0.45. One inference pass per distinct scale; 312 frames is seconds on the
 local GPU, so there is no reason to make the parts compete for one number.
 
-That measurement also showed the labelling set was the real constraint: only 8 of 96 ground-truthed
+That measurement also showed the labeling set was the real constraint: only 8 of 96 ground-truthed
 frames landed within 40 ms of a lick, because a mouse licking at 5-7 Hz has its tongue out for ~15
 frames in 40. ``dlc_frames`` now adds LICK-LOCKED frames for exactly this reason.
 
@@ -232,7 +232,7 @@ def to_labels(pred: pd.DataFrame, scale_x: float, scale_y: float, only=None,
     """Donor predictions -> this project's bodyparts, in ORIGINAL pixels, blanked below threshold.
 
     Returns one column pair per entry of ``dlc.bodyparts``, NaN where nothing is written -- NaN is
-    what the labelling GUI reads as "unplaced", and every withheld cell is deliberate.
+    what the labeling GUI reads as "unplaced", and every withheld cell is deliberate.
 
     ``only`` restricts which bodyparts are filled; the rest come back NaN so the frames from several
     scale passes can be merged column-wise without one pass overwriting another's work.

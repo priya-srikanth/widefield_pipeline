@@ -1,0 +1,129 @@
+1p contest lick acute: +0.0125 [-0.0061, +0.0312]
+1p contest lick subacute: +0.0019 [-0.0038, +0.0071]
+1p contest lick chronic: +0.0090 [+0.0036, +0.0160]
+1p contest cue acute: +0.0057 [-0.0004, +0.0126]
+1p contest cue subacute: -0.0001 [-0.0065, +0.0059]
+1p contest cue chronic: +0.0098 [+0.0039, +0.0162]
+2c lick acute hit: mean +0.40 (n animals 3)
+2c lick acute incomplete: mean +0.09 (n animals 4)
+2c lick acute noattempt: mean -0.01 (n animals 4)
+2c lick acute reaction: mean +0.03 (n animals 4)
+2c lick acute stopped: mean -0.02 (n animals 3)
+2c lick subacute hit: mean +0.71 (n animals 4)
+2c lick subacute incomplete: mean +0.10 (n animals 4)
+2c lick subacute noattempt: mean -0.03 (n animals 2)
+2c lick subacute reaction: mean +0.12 (n animals 4)
+2c lick subacute stopped: mean +0.10 (n animals 3)
+2c lick chronic hit: mean +0.71 (n animals 4)
+2c lick chronic incomplete: mean +0.10 (n animals 4)
+2c lick chronic reaction: mean +0.16 (n animals 2)
+2c lick chronic stopped: mean +0.05 (n animals 3)
+2c cue acute hit: mean +0.43 (n animals 3)
+2c cue acute incomplete: mean +0.12 (n animals 4)
+2c cue acute noattempt: mean +0.16 (n animals 4)
+2c cue acute reaction: mean +0.14 (n animals 4)
+2c cue acute stopped: mean +0.04 (n animals 3)
+2c cue subacute hit: mean +0.70 (n animals 4)
+2c cue subacute incomplete: mean +0.13 (n animals 4)
+2c cue subacute noattempt: mean +0.14 (n animals 2)
+2c cue subacute reaction: mean +0.32 (n animals 4)
+2c cue subacute stopped: mean +0.13 (n animals 3)
+2c cue chronic hit: mean +0.76 (n animals 4)
+2c cue chronic incomplete: mean +0.15 (n animals 4)
+2c cue chronic reaction: mean +0.31 (n animals 2)
+2c cue chronic stopped: mean +0.22 (n animals 3)
+4p SSp-m_left acute measured: -0.53 of pre (4/4 same sign)
+4p SSp-m_left acute predicted: -0.62 of pre (4/4 same sign)
+4p SSp-m_left acute residual: +0.09 of pre (3/4 same sign)
+4p SSp-m_left subacute measured: +0.05 of pre (2/4 same sign)
+4p SSp-m_left subacute predicted: -0.20 of pre (4/4 same sign)
+4p SSp-m_left subacute residual: +0.25 of pre (4/4 same sign)
+4p SSp-m_left chronic measured: +0.24 of pre (4/4 same sign)
+4p SSp-m_left chronic predicted: -0.07 of pre (2/4 same sign)
+4p SSp-m_left chronic residual: +0.32 of pre (4/4 same sign)
+4p SSp-m_right acute measured: -0.30 of pre (3/4 same sign)
+4p SSp-m_right acute predicted: -0.62 of pre (4/4 same sign)
+4p SSp-m_right acute residual: +0.31 of pre (4/4 same sign)
+4p SSp-m_right subacute measured: +0.24 of pre (3/4 same sign)
+4p SSp-m_right subacute predicted: -0.09 of pre (2/4 same sign)
+4p SSp-m_right subacute residual: +0.33 of pre (4/4 same sign)
+4p SSp-m_right chronic measured: +0.43 of pre (4/4 same sign)
+4p SSp-m_right chronic predicted: +0.01 of pre (2/4 same sign)
+4p SSp-m_right chronic residual: +0.43 of pre (4/4 same sign)
+5p cortex acute - pre_late: +0.0103 [-0.0165, +0.0386] n=4
+5p cortex subacute - pre_late: +0.0208 [-0.0042, +0.0440] n=4
+5p cortex chronic - pre_late: +0.0548 [+0.0220, +0.0874] n=4
+5p SSp-m_left acute - pre_late: +0.0462 [-0.0105, +0.1040] n=4
+5p SSp-m_left subacute - pre_late: +0.0252 [+0.0077, +0.0403] n=4
+5p SSp-m_left chronic - pre_late: +0.0525 [+0.0268, +0.0782] n=4
+5p SSp-m_right acute - pre_late: +0.0358 [-0.0103, +0.0833] n=4
+5p SSp-m_right subacute - pre_late: +0.0304 [+0.0137, +0.0515] n=4
+5p SSp-m_right chronic - pre_late: +0.0516 [+0.0267, +0.0773] n=4
+5c cortex acute: pooled z median 4.8, P=0.00
+5c cortex subacute: pooled z median 3.7, P=0.00
+5c cortex chronic: pooled z median 8.2, P=0.00
+5c SSp-m_left acute: pooled z median 11.3, P=0.00
+5c SSp-m_left subacute: pooled z median 4.7, P=0.00
+5c SSp-m_left chronic: pooled z median 8.4, P=0.00
+5c SSp-m_right acute: pooled z median 7.8, P=0.00
+5c SSp-m_right subacute: pooled z median 3.6, P=0.00
+5c SSp-m_right chronic: pooled z median 6.0, P=0.00
+6p lick acute - pre_late: -0.0017 [-0.0041, +0.0011]
+6p contact acute - pre_late: +0.0003 [-0.0005, +0.0010]
+6p target acute - pre_late: -0.0014 [-0.0056, +0.0024]
+6p exec_within acute - pre_late: +0.0027 [+0.0005, +0.0055]
+6p exec_locked acute - pre_late: -0.0003 [-0.0015, +0.0014]
+6p timing acute - pre_late: -0.0004 [-0.0010, +0.0002]
+6p other acute - pre_late: -0.0023 [-0.0099, +0.0044]
+6p lick chronic - pre_late: -0.0014 [-0.0044, +0.0009]
+6p contact chronic - pre_late: -0.0003 [-0.0012, +0.0003]
+6p target chronic - pre_late: -0.0017 [-0.0054, +0.0010]
+6p exec_within chronic - pre_late: +0.0004 [-0.0009, +0.0019]
+6p exec_locked chronic - pre_late: -0.0006 [-0.0015, +0.0006]
+6p timing chronic - pre_late: -0.0008 [-0.0019, +0.0000]
+6p other chronic - pre_late: -0.0027 [-0.0104, +0.0060]
+10p lick width 0.5 acute: +0.0136 [-0.0017, +0.0305]
+10p lick width 0.5 subacute: +0.0020 [-0.0042, +0.0074]
+10p lick width 0.5 chronic: +0.0106 [+0.0046, +0.0189]
+10p lick width 1 acute: +0.0125 [-0.0061, +0.0312]
+10p lick width 1 subacute: +0.0019 [-0.0038, +0.0071]
+10p lick width 1 chronic: +0.0090 [+0.0036, +0.0160]
+10p lick width 2 acute: +0.0079 [-0.0084, +0.0232]
+10p lick width 2 subacute: -0.0021 [-0.0087, +0.0038]
+10p lick width 2 chronic: +0.0081 [+0.0019, +0.0165]
+10p cue width 0.5 acute: +0.0058 [-0.0015, +0.0130]
+10p cue width 0.5 subacute: -0.0001 [-0.0067, +0.0059]
+10p cue width 0.5 chronic: +0.0105 [+0.0044, +0.0159]
+10p cue width 1 acute: +0.0057 [-0.0004, +0.0126]
+10p cue width 1 subacute: -0.0001 [-0.0065, +0.0059]
+10p cue width 1 chronic: +0.0098 [+0.0039, +0.0162]
+10p cue width 2 acute: +0.0027 [-0.0040, +0.0089]
+10p cue width 2 subacute: -0.0033 [-0.0099, +0.0022]
+10p cue width 2 chronic: +0.0085 [+0.0015, +0.0154]
+12p cortex acute: +0.76 pre-SD [+0.09, +1.38]
+12p cortex subacute: +1.41 pre-SD [+0.60, +2.26]
+12p cortex chronic: +1.32 pre-SD [+0.42, +2.53]
+12p MOs_left acute: +0.73 pre-SD [-0.06, +1.58]
+12p MOs_left subacute: +1.24 pre-SD [+0.41, +2.00]
+12p MOs_left chronic: +0.74 pre-SD [-0.28, +1.87]
+12p MOs_right acute: +1.21 pre-SD [+0.18, +2.32]
+12p MOs_right subacute: +1.32 pre-SD [+0.41, +2.13]
+12p MOs_right chronic: +1.38 pre-SD [+0.48, +2.22]
+12p MOp_left acute: +0.67 pre-SD [+0.01, +1.32]
+12p MOp_left subacute: +1.35 pre-SD [+0.66, +2.06]
+12p MOp_left chronic: +1.80 pre-SD [+0.35, +3.47]
+12p MOp_right acute: +2.03 pre-SD [+0.35, +4.57]
+12p MOp_right subacute: +1.86 pre-SD [+0.84, +2.97]
+12p MOp_right chronic: +2.28 pre-SD [+1.53, +3.17]
+12p SSp-m_left acute: +0.48 pre-SD [-0.16, +1.10]
+12p SSp-m_left subacute: +1.45 pre-SD [+0.60, +2.23]
+12p SSp-m_left chronic: +2.07 pre-SD [+0.70, +3.47]
+12p SSp-m_right acute: +1.63 pre-SD [+0.64, +2.61]
+12p SSp-m_right subacute: +1.78 pre-SD [+1.08, +2.46]
+12p SSp-m_right chronic: +2.47 pre-SD [+1.13, +3.57]
+12p SSp-n_left acute: +0.67 pre-SD [+0.11, +1.24]
+12p SSp-n_left subacute: +0.93 pre-SD [+0.14, +1.57]
+12p SSp-n_left chronic: +0.90 pre-SD [-0.24, +2.58]
+12p SSp-n_right acute: +3.46 pre-SD [+1.88, +5.10]
+12p SSp-n_right subacute: +2.59 pre-SD [+1.76, +3.42]
+12p SSp-n_right chronic: +2.47 pre-SD [+1.68, +3.30]

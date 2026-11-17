@@ -26,7 +26,7 @@ subsequent bin stays inside `--k` MADs of the stable median -- "first bin that i
 quiet", not "first bin that dips", which noise alone satisfies early.
 
 INDEXED FROM START OF RECORDING, not from the first trial (Priya, 2026-09-14): the cause is hardware,
-so it is anchored to acquisition start. Behaviour begins inside it -- median first cue 12.8 s, and
+so it is anchored to acquisition start. Behavior begins inside it -- median first cue 12.8 s, and
 87/100 sessions have their first cue inside 30 s -- so any discard costs trials (0.33% at 30 s).
 
     python -m scripts.rest_migration.archive.settling_transient [--bin-s 2] [--k 4]

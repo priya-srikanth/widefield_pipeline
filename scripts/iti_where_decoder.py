@@ -9,7 +9,9 @@ licks_all.csv row = lick_uid via the exact DAQ peak time stored by `iti_licks.py
             positions after scaling each axis by the animal's pre-stroke SD (1 = perfect, 0 = none)
   angle / reach   polar cross-check: atan2(side_ml, out_ap) (deg) and reach_mm
 Same features and decoder as page 3.9 (per animal ridge trained on AUGUST pre licks, pre leave-one-session-out, lags
-0..0.2 s averaged), in each feature basis available: Allen areas (`<E>/iti_licks/sessions`), joint LocaNMF and the
+0..0.2 s averaged), in each feature basis available: Allen areas (`<E>/iti_licks/<SESS_NAME>`; WITH the ALM / tjM1 split by
+default since 10-27 late -- `area_basis` / iti_licks.area_features; WFIELD_AREA_BASIS=plain = the earlier set, outputs
+tagged _plain), joint LocaNMF and the
 pre-stroke SVD basis (`iti_basis_decoder.py` outputs, when present). Reach spread per epoch is printed too (r is
 blind to a mean shift, not to a change in spread).
 Outputs <E>/iti_licks/where_decoder.csv, where_decoder_tests.csv, figures/lick_where_decoder.png (Allen areas, every
@@ -18,6 +20,7 @@ Usage: python scripts/iti_where_decoder.py [--plot-only | --z]   (--plot-only re
 lick_where_decoder_z.png + zscore_check/where_decoder_tests_z.csv from the z-scored run of iti_zscore_check.py)
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
 from pathlib import Path
@@ -28,12 +31,112 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
 
+from wfield_local import mask_keys  # noqa: E402
+
 AN = ["PS92", "PS93", "PS94", "PS95"]
 EP = ["pre", "acute", "subacute", "chronic"]
 TARGETS = ("lateral", "sagittal", "2-D", "angle", "reach")         # outward is also scored (where_decoder.csv)
-SOURCES = ("areas", "locanmf", "svdbasis")
-LAB = {"areas": "Allen areas", "locanmf": "joint LocaNMF", "svdbasis": "pre-stroke SVD basis"}
+SOURCES = ("areas", "locanmfM", "svdbasis")
+# LocaNMF robustness row = MASKED joint LocaNMF (Priya 10-27 late "swap masked locanmf"): components with > half their
+# |footprint| outside the glue / olfactory-bulb brain mask dropped (locanmf_keep); same basis files as "locanmf"
+# "areas" = Allen areas in the AREA BASIS (il.AREA_BASIS: split by default, Priya 10-27 late "use split bases, for
+# consistency"; plain with WFIELD_AREA_BASIS=plain -> every output tagged il.BASIS_TAG). "areas_split" / "areas_plain"
+# name a basis explicitly (iti_lick_order SOURCE, the basis summary). The source column of where_decoder*.csv stays
+# "areas", so its readers (mixed models, recovery link, z check) follow the basis of the run.
+LAB = {"areas": il.basis_label(), "locanmf": "joint LocaNMF (unmasked)",
+       "locanmfM": "joint LocaNMF, glue / MOB comps dropped", "svdbasis": "pre-stroke SVD basis",
+       "areas_split": il.basis_label("split"), "areas_plain": il.basis_label("plain")}
+AREA_SOURCES = {"areas": None, "areas_split": "split", "areas_plain": "plain"}     # source -> basis (None = il.AREA_BASIS)
 ZHEAD = "Z-SCORED FEATURES (each area / its frame-wise SD in the session, pre and post alike; iti_zscore_check.py)\n"
+#: a session enters a decoder of a lick set with >= this many scored licks of the set (decode, iti_where_scatter)
+MIN_SESSION_LICKS = 20
+
+
+# ------------------------------------------------------------------------------------------------ trial-set captions
+# Priya 11-09: "EVERY figure must state EXACTLY which trials were included / excluded". The decoders of this family draw
+# LICK EVENTS of the ITI session files (`iti_licks.extract`): ITI licks (3-D table context iti) and post-cue licks (context
+# post_cue, capped at il.N_TRIAL_MAX per session), each with its peak >= il.LAGS_D[-1] s inside the imaging. ONE
+# wording for every driver of the family, built from those constants (wfield_local.trial_set_text holds the words).
+def _edge() -> str:
+    return f"lick peak >= {max(abs(float(il.LAGS_D[0])), float(il.LAGS_D[-1])):g} s inside the imaging"
+
+
+def _keep(tracked: str, min_n: int | None, unit: str) -> list[str]:
+    out = [f"3-D tip tracked ({tracked})" if tracked else "", _edge()]
+    if min_n:
+        out.append(f"sessions with >= {int(min_n)} such licks{unit}")
+    return [k for k in out if k]
+
+
+def iti_caption(filt: str = "", *, tracked: str = "lateral + sagittal", min_n: int | None = MIN_SESSION_LICKS,
+                unit: str = "", spout: str = "spout = the previous trial's spout", extra=()) -> str:
+    """The ITI licks of the session files as a driver of this family uses them. ``filt`` = the ITI filter that ACTUALLY
+    applies to this driver's rows ("" = none; never read from the env here: most drivers do not apply one)."""
+    from wfield_local import trial_set_text as tst
+    return tst.iti_licks(filt=filt, extra=[*_keep(tracked, min_n, unit), spout, *extra])
+
+
+def cued_caption(*, first_only: bool = False, tracked: str = "lateral + sagittal",
+                 min_n: int | None = MIN_SESSION_LICKS, unit: str = "", spout: str = "spout = the trial's target spout",
+                 extra=()) -> str:
+    """The post-cue licks of the session files (every trial, no engagement / camera-class gate; random cap per session)."""
+    from wfield_local import trial_set_text as tst
+    keep = ["every trial (no engagement / camera-class gate)",
+            f"at most {int(il.N_TRIAL_MAX)} per session (random draw, seed 0)", *_keep(tracked, min_n, unit), spout,
+            *extra]
+    return tst.cued_licks(first_only=first_only, extra=keep)
+
+
+def both_caption(filt: str = "", *, iti_extra=(), cued_extra=(), **kw) -> str:
+    """ITI AND cued licks drawn together (one decoder per set)."""
+    from wfield_local import trial_set_text as tst
+    ck = {k: v for k, v in kw.items() if k != "spout"}
+    return tst.union(iti_caption(filt, extra=iti_extra, **kw), cued_caption(extra=cued_extra, **ck))
+
+
+def subset_in(path) -> str:
+    """The SUBSET ITI filter (il.ITI_SUBSET) when ``path`` -- a table the driver reads -- is the filtered copy under
+    il.OUT_W (iti_dock_where_preds.py / il.pred_file), else "" (the driver then draws every ITI lick)."""
+    if not il.ITI_SUBSET or Path(il.OUT_W) == Path(il.OUT):
+        return ""
+    try:
+        Path(path).resolve().relative_to(Path(il.OUT_W).resolve())
+    except ValueError:
+        return ""
+    return il.ITI_SUBSET
+
+
+def subset_guard(z: bool = False) -> Path | None:
+    """Under a SUBSET ITI filter (il.ITI_SUBSET, WFIELD_ITI_FILTER), refuse any draw whose data are not the filtered
+    copy: main / --plot-only decode / read EVERY ITI lick (where_decoder.csv under OUT; no subset copy of that table
+    exists), and used to save that unfiltered figure into the subset folder (bug B1, Priya 11-09). --z reads the
+    subset r table of iti_dock_where_preds.py (<OUT_W>/zscore_check/where_decoder_z.csv) and is allowed only when that
+    copy exists under OUT_W. Returns the --z r-table path (None without a subset filter)."""
+    if not il.ITI_SUBSET:
+        return None
+    if not z:
+        raise SystemExit(f"iti_where_decoder: WFIELD_ITI_FILTER={il.ITI_SUBSET} is active, but main / --plot-only "
+                         "decode EVERY ITI lick (no subset copy of where_decoder.csv exists). Refusing to save an "
+                         "unfiltered figure into the subset folder. Run iti_dock_where_preds.py, then this script with "
+                         "--z (the subset r table), or unset WFIELD_ITI_FILTER.")
+    f = Path(il.OUT_W) / "zscore_check" / il.tagged("where_decoder_z.csv")
+    if not subset_in(f) or not f.exists():
+        raise SystemExit(f"iti_where_decoder --z: WFIELD_ITI_FILTER={il.ITI_SUBSET} is active but the subset r table "
+                         f"{f} is missing or not under the subset folder; run iti_dock_where_preds.py first.")
+    return f
+
+
+def trial_set_sentence(z: bool = False) -> str:
+    """This driver's lick set: ITI + cued licks, every ITI lick (main / --plot-only: no filter; refused under a subset
+    filter, `subset_guard`), or under --z the subset copy of the r table (iti_dock_where_preds.py) when a subset filter
+    is active."""
+    filt = subset_in((il.OUT_W if il.ITI_SUBSET else il.OUT) / "zscore_check" / "x") if z else ""
+    return both_caption(filt, tracked="lateral + sagittal + outward + reach")
+
+
+def declare_trial_set(z: bool = False) -> None:
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence(z))
 
 
 def coords(label: str, t: np.ndarray) -> np.ndarray:
@@ -82,6 +185,57 @@ def _frame_range(x: str, ce) -> np.ndarray:
     return r
 
 
+SPLIT_PAIRS = il.SPLIT_PAIRS          # the split itself lives in iti_licks (with_rest / area_features): one definition
+
+
+def split_names(cols: list[str]) -> list[str]:
+    """Feature names of the split basis (= il.area_names(cols, "split"))."""
+    return il.area_names(cols, "split")
+
+
+def sess_labels(sess_dir: Path | None = None) -> list[str]:
+    """Session labels of an ITI session folder (default: the current ROI version's, il.SESS_NAME)."""
+    return sorted(p.stem for p in (Path(sess_dir) if sess_dir else il.XOUT / il.SESS_NAME).glob("*.npz"))
+
+
+def area_basis(sess_dir: Path | None = None, jobs: int | None = None, basis: str | None = None):
+    """THE shared loader of the Allen-area decoders (Priya 10-27 late: split basis everywhere). Returns (D, names, SD):
+    D      `load` of the basis -- per session: iti / trial = (X lags 0..0.2 s mean, coords), epoch, animal, *_pos
+    names  the basis's feature names (il.area_names; split: ALM, tjM1 + MOs_rest / MOp_rest per hemisphere)
+    SD     frame-level SD per session x feature, columns = names (il.area_sd: zscore_check/<SD_NAME> + <SPLIT_NAME>; for a
+           reference folder its parent's tables, e.g. june_ref/). X / SD.loc[label] = the KEY-row z-scored features.
+    basis None = il.AREA_BASIS (env WFIELD_AREA_BASIS)."""
+    src = {None: "areas", "split": "areas_split", "plain": "areas_plain"}[basis]
+    return (load(src, sess_dir, jobs), *area_meta(sess_dir, basis))
+
+
+def area_meta(sess_dir: Path | None = None, basis: str | None = None) -> tuple[list[str], pd.DataFrame]:
+    """(names, SD) of `area_basis` without loading the sessions."""
+    names = il.area_names(il._load(sess_labels(sess_dir)[0], sess_dir)["cols"], basis)
+    return names, il.area_sd(sess_dir, basis)[names]
+
+
+MASK_OUT_MAX = 0.5
+_KEEP = {}
+
+
+def basis_dir(source: str) -> str:
+    """Basis-file folder name of a decoder source (the masked LocaNMF reuses the LocaNMF projections)."""
+    return "locanmf" if source == "locanmfM" else source
+
+
+def locanmf_keep(animal: str) -> np.ndarray:
+    """Boolean per joint-LocaNMF component: <= MASK_OUT_MAX of its |footprint| outside `beta_maps.brain_mask()` (the
+    imaging-map mask that excludes fiber glue and the olfactory bulbs). Shared by every masked-LocaNMF decoder."""
+    if animal not in _KEEP:
+        from wfield_local import beta_maps
+        from wfield_local import joint_locanmf as jl
+        b = jl.load(animal, warn_stale=False)
+        A = np.abs(np.nan_to_num(np.asarray(b.A, float))).reshape(-1, b.ncomp)
+        _KEEP[animal] = A[~beta_maps.brain_mask().ravel()].sum(0) / A.sum(0) <= MASK_OUT_MAX
+    return _KEEP[animal]
+
+
 def _load_one(item):
     """One session -> (label, record | None). Module-level so `analysis_kit.fan_sessions` can spawn it (the basis
     branch reads the session's imaging for its frame times, which is the slow part)."""
@@ -90,16 +244,19 @@ def _load_one(item):
     W_d = (il.LAGS_D >= 0.0) & (il.LAGS_D <= 0.2)
     z = il._load(x, sess_dir)
     rec = {"epoch": str(z["epoch"]), "animal": str(z["animal"])}
-    if source == "areas":
-        feat = [i for i, c in enumerate(z["cols"]) if c != "cortex" and not str(c).startswith(("ALM", "tjM1"))]
+    if source in AREA_SOURCES:                          # Allen areas: lag-average, then the basis (il.area_features)
         for st, kx, kt in (("iti", "iti_X", "iti_t"), ("trial", "tr_X", "tr_t")):
-            rec[st] = (z[kx].astype(float)[:, W_d][:, :, feat].mean(1), z[kt].astype(float))
+            Xa = z[kx].astype(float)[:, W_d].mean(1)
+            rec[st] = (il.area_features(Xa, z["cols"], x, sess_dir, AREA_SOURCES[source]), z[kt].astype(float))
             rec[f"{st}_pos"] = z["iti_pos" if st == "iti" else "tr_pos"].astype(str)
     else:
-        f = il.OUT / f"basis_{source}" / "sessions" / f"{x}.npz"
+        f = il.OUT / f"basis_{basis_dir(source)}" / "sessions" / f"{x}.npz"
         if not f.exists():
             return x, None
+        keepc = locanmf_keep(str(z["animal"])) if source == "locanmfM" else None
         b = np.load(f)
+        if basis_dir(source) == "svdbasis":
+            mask_keys.check_obj(b, f)             # stale-read guard (11-09)
         from iti_basis_decoder import LAGS as LB
         from wfield_local import combined_encoding as ce
         ft = _frame_range(x, ce)                                # same edge rule as iti_basis_decoder.extract
@@ -110,7 +267,7 @@ def _load_one(item):
             Xb = b[f"{st}_X"].astype(float)[:, wb].mean(1)
             if Xb.shape[0] != keep.sum() or not np.allclose(b[f"{st}_y"], y[keep]):
                 raise ValueError(f"{x} {source} {st}: basis licks do not line up with the ITI session file")
-            rec[st] = (Xb, t[keep])
+            rec[st] = (Xb if keepc is None else Xb[:, keepc], t[keep])
             rec[f"{st}_pos"] = z["iti_pos" if st == "iti" else "tr_pos"].astype(str)[keep]   # spout per lick
     for st in ("iti", "trial"):
         X, t = rec[st]
@@ -123,7 +280,7 @@ def load(source: str, sess_dir: Path | None = None, jobs: int | None = None) -> 
     sess_dir: another folder of `iti_licks.extract` session files (e.g. the June reference, `iti_june_ref.py`).
     Sessions load in PARALLEL (analysis_kit.fan_sessions: fan_out + sort, CLAUDE.md rule 6); returned in label order."""
     from wfield_local import analysis_kit as ak
-    labels = sorted(p.stem for p in (sess_dir or il.OUT / "sessions").glob("*.npz"))
+    labels = sess_labels(sess_dir)
     items = [(x, source, str(sess_dir) if sess_dir else "") for x in labels]
     res, fails = ak.fan_sessions(items, _load_one, jobs=jobs, key=lambda it: it[0], label=f"load {source}",
                                  log=lambda m: None)
@@ -138,8 +295,7 @@ def _vec_r(P: np.ndarray, Y: np.ndarray) -> float:
 
 
 def decode(source: str) -> pd.DataFrame:
-    from sklearn.linear_model import RidgeCV
-    from sklearn.preprocessing import StandardScaler
+    from wfield_local import frozen_readouts
     D = load(source)
     rows = []
     for st in ("iti", "trial"):
@@ -150,7 +306,7 @@ def decode(source: str) -> pd.DataFrame:
                     continue
                 X, C = d[st]
                 ok = np.isfinite(C).all(1)
-                if ok.sum() >= 20:
+                if ok.sum() >= MIN_SESSION_LICKS:
                     # columns: lateral, SAGITTAL, angle = atan2(lateral, sagittal) (the encoder's exec_angle; the old
                     # horizontal atan2(lateral, outward) wraps when outward ~ 0, licks running mostly down), reach,
                     # outward (kept for continuity with the 10-26 outward version)
@@ -161,13 +317,9 @@ def decode(source: str) -> pd.DataFrame:
                 continue
             Ypre = np.vstack([S[q][2] for q in pre])
             sd = Ypre[:, :2].std(0)                                    # per-axis pre SD for the 2-D score
-            fits = {}
-            for held in [*pre, None]:
-                trn = [q for q in pre if q != held]
-                Xt = np.vstack([S[q][1] for q in trn])
-                Yt = np.vstack([S[q][2] for q in trn])
-                sc = StandardScaler().fit(Xt)
-                fits[held] = (sc, [RidgeCV(alphas=np.logspace(-1, 5, 13)).fit(sc.transform(Xt), Yt[:, k]) for k in range(5)])
+            # STORED BY DEFAULT (11-02 pass 2, `frozen_readouts`, opt-out WIDEFIELD_ITI_FROZEN=0)
+            fits = frozen_readouts.pre_loso_ridge(a, f"iti_where_decoder-{source}-{st}", pre, {q: S[q][1] for q in pre},
+                                                  {q: S[q][2] for q in pre}, np.logspace(-1, 5, 13), k=5)
             for x, (ep, X, Y) in S.items():
                 sc, ms = fits[x if x in pre else None]
                 Pr = np.column_stack([m.predict(sc.transform(X)) for m in ms])
@@ -183,12 +335,13 @@ def decode(source: str) -> pd.DataFrame:
 
 
 def main() -> int:
+    subset_guard(False)
     import matplotlib
     matplotlib.use("Agg")
 
-    srcs =[s for s in SOURCES if s == "areas" or (il.OUT / f"basis_{s}" / "sessions").exists()]
+    srcs =[s for s in SOURCES if s == "areas" or (il.OUT / f"basis_{basis_dir(s)}" / "sessions").exists()]
     R = pd.concat([decode(s) for s in srcs], ignore_index=True)
-    R.to_csv(il.OUT / "where_decoder.csv", index=False)
+    R.to_csv(il.OUT / il.tagged("where_decoder.csv"), index=False)
     pre = R[R.epoch == "pre"].groupby(["source", "set", "target", "animal"]).r.mean()
     R["r_norm"] = R.r / [pre.get(k, np.nan) for k in zip(R.source, R.set, R.target, R.animal)]
     pd.set_option("display.width", 220)
@@ -196,7 +349,7 @@ def main() -> int:
         .median().unstack("epoch")
     print("== lick spread per session (median over sessions, mm)\n" + sp.round(3).to_string())
     T = tests(R)
-    T.to_csv(il.OUT / "where_decoder_tests.csv", index=False)
+    T.to_csv(il.OUT / il.tagged("where_decoder_tests.csv"), index=False)
     print(T[(T.value == "r_norm")].round(3).to_string(index=False))
     plot(R, T)
     return 0
@@ -250,7 +403,9 @@ def _panel(ax, g, tt, colors, rng, title):
 
 def plot(R: pd.DataFrame, T: pd.DataFrame, tag: str = "") -> None:
     """tag "_z": within-session z-scored features (`iti_zscore_check.py`); writes lick_where_decoder_z.png only (the
-    basis figures need per-component session SDs, which do not exist)."""
+    basis figures need per-component session SDs, which do not exist). Under a subset filter only the "_z" draw of the
+    subset r table is allowed (`subset_guard`): the figure goes to the subset folder, so its data must be the subset's."""
+    subset_guard(bool(tag))
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -282,8 +437,8 @@ def plot(R: pd.DataFrame, T: pd.DataFrame, tag: str = "") -> None:
                      "Sagittal = sqrt(forward^2 + down^2); angle = atan2(lateral, sagittal).", fontsize=11)
         fig.tight_layout(rect=(0, 0, 1, 0.88))
         fig.subplots_adjust(top=0.82 if tag else 0.84)      # tight_layout left a large gap under the 5-line suptitle
-        fig.savefig(il.OUT / "figures" / (f"lick_where_decoder{tag}.png" if src == "areas" else f"lick_where_decoder_{src}{tag}.png"),
-                    dpi=105)
+        save_png_svg(fig, (il.OUT_W if il.ITI_SUBSET else il.OUT) / "figures" / il.tagged(f"lick_where_decoder{tag}.png" if src == "areas"
+                                                   else f"lick_where_decoder_{src}{tag}.png"), dpi=105)
         plt.close(fig)
     if tag:
         return
@@ -300,19 +455,22 @@ def plot(R: pd.DataFrame, T: pd.DataFrame, tag: str = "") -> None:
                  "licks).\nDots = sessions, r / animal's pre; black = mean +- SEM; * = nested-bootstrap change from pre "
                  "excluding 0. Other targets per basis: where_decoder_tests.csv.", fontsize=11)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
-    fig.savefig(il.OUT / "figures" / "lick_where_decoder_bases.png", dpi=105)
+    save_png_svg(fig, il.OUT / "figures" / il.tagged("lick_where_decoder_bases.png"), dpi=105)
     plt.close(fig)
 
 
 if __name__ == "__main__":
-    if "--z" in sys.argv:                    # redraw from the z-scored run (iti_zscore_check.py); Allen areas only
-        Z = il.OUT / "zscore_check"
-        Rz = pd.read_csv(Z / "where_decoder_z.csv")
+    subset_guard("--z" in sys.argv)          # subset filter: draw only the filtered r table, never the unfiltered one
+    declare_trial_set("--z" in sys.argv)     # every figure of every path below carries the lick set (Priya 11-09)
+    if "--z" in sys.argv:                   # redraw from the z-scored run (iti_zscore_check.py); Allen areas only
+        Z = (il.OUT_W if il.ITI_SUBSET else il.OUT) / "zscore_check"   # subset: iti_dock_where_preds.py's r table
+        Rz = pd.read_csv(Z / il.tagged("where_decoder_z.csv"))
         Tz = tests(Rz)
-        Tz.to_csv(Z / "where_decoder_tests_z.csv", index=False)
+        Tz.to_csv(Z / il.tagged("where_decoder_tests_z.csv"), index=False)
         plot(Rz, Tz, "_z")
         raise SystemExit(0)
     if "--plot-only" in sys.argv:
-        plot(pd.read_csv(il.OUT / "where_decoder.csv"), pd.read_csv(il.OUT / "where_decoder_tests.csv"))
+        plot(pd.read_csv(il.OUT / il.tagged("where_decoder.csv")),
+             pd.read_csv(il.OUT / il.tagged("where_decoder_tests.csv")))
         raise SystemExit(0)
     raise SystemExit(main())

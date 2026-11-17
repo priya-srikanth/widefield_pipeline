@@ -9,7 +9,7 @@ camera's own frame through its per-frame timestamps, `face_rhythm_cams.frames_at
 Here, per task, from the per-frame DAQ times (`face_rhythm_cams.frame_daq_seconds`, through the camera's alignment
 template, right across dropped frames):
 
-  t5, t25      each session / points bin's DAQ time = the per-frame time interpolated at the bin's centre frame
+  t5, t25      each session / points bin's DAQ time = the per-frame time interpolated at the bin's center frame
                (``frame_center`` in the outputs).
   drop5, drop25, drop_trials   the LOCAL FRAME LOSS around each bin / trial-grid time: 1 - (frames recorded within
                +-LOSSY_HALF_S) / (frames expected at the camera rate). FaceRhythm treats frames as evenly spaced, so
@@ -53,7 +53,7 @@ def bin_times(fd: np.ndarray, frame_center: np.ndarray) -> np.ndarray:
 
 
 def compute(fd: np.ndarray, fc5: np.ndarray, fc25: np.ndarray, grid_daq_s: np.ndarray) -> dict:
-    """Everything `load` returns, from the per-frame DAQ times and the outputs' bin centres + the trial grid's DAQ
+    """Everything `load` returns, from the per-frame DAQ times and the outputs' bin centers + the trial grid's DAQ
     times (n_trials, n_t)."""
     t5, t25 = bin_times(fd, fc5), bin_times(fd, fc25)
     g = np.asarray(grid_daq_s, float)

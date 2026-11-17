@@ -1,4 +1,4 @@
-"""Backward / postural treadmill PUSHES as a behavioural readout, per session (Priya 10-23, option 3 of "let's do all 3":
+"""Backward / postural treadmill PUSHES as a behavioral readout, per session (Priya 10-23, option 3 of "let's do all 3":
 pushes become 2-5x more frequent after the stroke in 3/4 animals -- does that track recovery or the far-contra
 deficit?). Side-camera clips (10-23): negative speed at bout ends = a paw pushed forward; the post-cue dip = upper-limb
 extension / posture change. Both are real movements, not belt backlash.
@@ -13,7 +13,7 @@ Per session, the signed treadmill speed (DAQ analog, the encoder's running regre
   cue_dip        median over trials of (min speed 0-1 s after the cue - mean speed -0.5-0 s), mm/s (negative = dip)
   cue_push_frac_far_contra / cue_dip_far_contra   the same on far-contra trials only
 -> <run>/imaging_encoding/qc/push_behaviour_sessions.csv; the LMMs: `python scripts/imaging_lmm.py --sources push`
-(TIME and BEHAVIOUR models, per-animal table first).
+(TIME and BEHAVIOR models, per-animal table first).
 Usage: python scripts/push_behaviour.py [--jobs N]
 """
 from __future__ import annotations
@@ -72,6 +72,9 @@ def job(label: str) -> dict:
 
 
 def main(argv=None) -> int:
+    from wfield_local import config
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("push_behaviour")   # unrouted share writer: refuses in a non-default run mode
     from wfield_local import analysis_kit as ak
     from wfield_local import combined_encoding as ce
     from wfield_local import orofacial_cohort as oc
@@ -82,10 +85,10 @@ def main(argv=None) -> int:
     ap.add_argument("--jobs", type=int, default=4)
     a = ap.parse_args(argv)
     cur = set(ak.curated_labels())
-    labels = [x for x in sorted(ce.sessions_available()) if x in cur and x[-4:] >= "0806"]   # August-only pre
+    labels = [x for x in sorted(ce.sessions_available()) if x in cur and not config.early_pre(x)]   # August-only pre
     got, fail = ak.fan_sessions(labels, job, jobs=a.jobs, label="push")
     S = pd.DataFrame([r for _, r in got]).sort_values("label")
-    dst = oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / "qc" / "push_behaviour_sessions.csv"
+    dst = oo.encoding_root(oc.RUN, PathResolver()) / "qc" / "push_behaviour_sessions.csv"
     assert_writable(dst)
     S.to_csv(dst, index=False, float_format="%.5g")
     pd.set_option("display.width", 220)

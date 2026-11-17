@@ -11,7 +11,7 @@ Per animal x region x window, far-contra spout (and the mean over the six spouts
   deviation      each post session's residual minus the pre-trend prediction; per epoch: mean deviation, the share of
                  sessions above the 95 % PI, and a z of the epoch mean against the mean prediction SE.
   flat baseline  the same against the pre MEAN (no slope): how the answer depends on assuming a trend at all.
-  chronic slope  residual ~ day within the chronic sessions (behaviour stable): does it keep rising after recovery?
+  chronic slope  residual ~ day within the chronic sessions (behavior stable): does it keep rising after recovery?
 The residual per session = evoked (lick: 0 .. 1 s vs -0.3 .. -0.1 s around the first lick; cue: 0.5 .. 1.5 s vs
 -0.5 .. 0 s) of data minus full, from the saved PETHs (`<variant>/sessions/<label>.npz`), x1e3.
 
@@ -19,6 +19,7 @@ Usage: python scripts/frozen_residual_trend.py [--tag gate-attempted_v7g3_t3d] [
 Output: <E>/frozen_encoder_<tag>/residual_trend.csv, residual_trend_sessions.csv, figures/residual_trend_<window>.png
 """
 from __future__ import annotations
+from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import argparse
 import json
@@ -33,11 +34,12 @@ WINDOWS = {"lick": ((0.0, 1.0), (-0.3, -0.1)), "cue": ((0.5, 1.5), (-0.5, 0.0))}
 
 
 def session_table(run: Path, variant: str) -> pd.DataFrame:
+    from wfield_local import config
     from wfield_local import epochs
     rows = []
     for js in sorted((run / variant / "sessions").glob("*.json")):
         m = json.loads(js.read_text(encoding="utf-8"))
-        if m["label"][-4:] < "0801":
+        if config.early_pre(m["label"]):
             continue
         z = np.load(js.with_suffix(".npz"))
         off = z["peth_off_s"]
@@ -75,20 +77,28 @@ def trend_test(pre_d, pre_y, post_d, post_y):
     return beta, pred, se_mean, se_pred, t, np.sqrt(s2)
 
 
+def trial_set_sentence(tag: str, w: str) -> str:
+    """The trials of the ``w``-window trend figure (Priya 11-09): far-contra trials of the frozen run, cue- or
+    first-lick-aligned PETH (the figure draws the far-contra residual)."""
+    from wfield_local import frozen_encoder as fe
+    return fe.trial_set_sentence("peth", tag=tag, align=w, spout="far_contra")
+
+
 def main(argv=None) -> int:
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
     from wfield_local.writeguard import assert_writable
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--tag", default="gate-attempted_v7g3_t3d")
+    ap.add_argument("--tag", default=_design_tag("gate-attempted_v7g3_t3d"))
     ap.add_argument("--variant", default="joint")
     a = ap.parse_args(argv)
-    run = oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / f"frozen_encoder_{a.tag}"
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=tst.union(*(trial_set_sentence(a.tag, w) for w in WINDOWS), unit="trials"))
+    from wfield_local import frozen_encoder as _fe   # the encoder's (tagged) run root, coordinator 11-04
+    run = _fe.out_root() / f"frozen_encoder_{a.tag}"
     assert_writable(run)
     T = session_table(run, a.variant)
     sfx = "" if a.variant == "joint" else f"_{a.variant}"   # one file set per variant (no_fr_dir once overwrote joint)
@@ -163,7 +173,8 @@ def main(argv=None) -> int:
                      f"sessions (LOSO) with 95 % prediction interval, {w} window. Pre span ~8 days -> wide interval when "
                      f"extrapolated.", fontsize=9)
         fig.tight_layout(rect=(0, 0, 1, 0.94))
-        fig.savefig(fd / f"residual_trend{sfx}_{w}.png", dpi=130)
+        with tst.active(None, text=trial_set_sentence(a.tag, w)):            # this figure's window
+            fig.savefig(fd / f"residual_trend{sfx}_{w}.png", dpi=130)
         plt.close(fig)
     print(f"-> {run / 'residual_trend.csv'}, {fd}/residual_trend_*.png")
     return 0

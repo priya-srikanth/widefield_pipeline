@@ -8,7 +8,7 @@ basis -> pixels = W @ values (W = the animal's shared basis on the stat mask); g
 value. Then the mean over animals in pixel space (rule 8: animals first). Columns: data, full, each part, data - full.
 dF/F x 1e3; ipsi (lesioned LEFT hemisphere) = image LEFT (orientation checked against the atlas names, as the area
 maps); displayed at half resolution.
-PRE-NORMALISED copy (Priya 10-23: animals differ in overall amplitude, so the mean row leaned on the brighter ones):
+PRE-NORMALIZED copy (Priya 10-23: animals differ in overall amplitude, so the mean row leaned on the brighter ones):
 `*_prenorm.png` divides each animal's change maps by ITS pre-stroke constant = the RMS over the stat mask of its mean
 PRE data evoked map at that spout / alignment (the repo's NORMALISE_BY_PRE convention, beta_maps.pre_scale); units =
 change as a fraction of the animal's typical pre-stroke evoked response; the mean row then weighs animals equally.
@@ -31,15 +31,21 @@ SHOW = ("data", "full", "lick", "spout", "target", "execution", "exec_locked", "
         "residual")
 
 
+def trial_set_sentence(tag: str, spout: str, align: str) -> str:
+    """The trials of one pixel-map figure (Priya 11-09): the frozen run's modeled trials at ``spout``, cue- or
+    first-lick-aligned evoked response (`frozen_encoder.trial_set_sentence`)."""
+    from wfield_local import frozen_encoder as fe
+    return fe.trial_set_sentence("peth", tag=tag, align=align, spout=spout)
+
+
 def main(argv=None) -> int:
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
+    from wfield_local import config
     from wfield_local import combined_encoding as ce
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
     from wfield_local.writeguard import assert_writable
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from frozen_area_maps import area_image, outline
@@ -48,8 +54,11 @@ def main(argv=None) -> int:
     ap.add_argument("--variant", default="joint")
     ap.add_argument("--spout", default="far_contra")
     a = ap.parse_args(argv)
-    out = oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / f"frozen_encoder_{a.tag}"
-    sess = sorted(js for js in (out / a.variant / "sessions").glob("*.json") if js.stem[-4:] >= "0801")
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=tst.union(*(trial_set_sentence(a.tag, a.spout, al) for al in ("lick", "cue")), unit="trials"))
+    from wfield_local import frozen_encoder as _fe   # the encoder's (tagged) run root, coordinator 11-04
+    out = _fe.out_root() / f"frozen_encoder_{a.tag}"
+    sess = sorted(js for js in (out / a.variant / "sessions").glob("*.json") if not config.early_pre(js.stem))
     fd = out / "figures"
     assert_writable(fd)
     fd.mkdir(parents=True, exist_ok=True)
@@ -127,13 +136,14 @@ def main(argv=None) -> int:
                 fig.colorbar(sm, ax=axs, fraction=0.012, pad=0.01,
                              label="change vs pre / pre RMS (fraction)" if norm else "change vs pre, dF/F x 1e3")
                 kind = next(iter(spatial.values()))["kind"]
-                nt = ("PRE-NORMALISED (each animal / RMS of its mean pre data map; mean row = animals equal). "
+                nt = ("PRE-NORMALIZED (each animal / RMS of its mean pre data map; mean row = animals equal). "
                       if norm else "")
                 fig.suptitle(f"Frozen encoder ({a.variant}, {kind} targets) PIXEL maps: {a.spout}, {ep} minus pre, "
                              f"{al}-aligned evoked response, per animal then mean. {nt}residual = data - full. "
                              f"ipsi (lesion) = image LEFT. PROVISIONAL", fontsize=8)
-                fig.savefig(fd / f"pixel_maps_{a.variant}_{a.spout}_{ep}_{al}{'_prenorm' if norm else ''}.png",
-                            dpi=120, bbox_inches="tight")
+                with tst.active(None, text=trial_set_sentence(a.tag, a.spout, al)):   # this figure's alignment
+                    fig.savefig(fd / f"pixel_maps_{a.variant}_{a.spout}_{ep}_{al}{'_prenorm' if norm else ''}.png",
+                                dpi=120, bbox_inches="tight")
                 plt.close(fig)
     print(f"-> {fd} (pixel_maps_{a.variant}_{a.spout}_*.png)")
     return 0

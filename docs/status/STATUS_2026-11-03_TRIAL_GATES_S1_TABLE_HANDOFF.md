@@ -4,6 +4,167 @@ Window `sabatinilab-5b`. Peers this touches: **e3** (kinematics page, owns it), 
 frozen decoders, epoch families; owns `_class_select` and the shared gates), **a8** (PI deck; its helper may
 republish the imaging page with re-plotted figures).
 
+## START HERE (window e0, 11-04 late) — what is held, what runs next, where everything is
+
+This window is now `sabatinilab-e0` (it was 5b). Peers: **34** (cohort-1 rebuild, encoding page), **a8** (PI deck, keeps
+the page-edit list), **e3** (kinematics page sources on M:).
+
+**1. HELD for the single post-rebuild page pass (Priya 11-04: no interim swaps).** The list is
+`docs/status/PAGE_EDITS_PENDING_2026-11-04.md` (a8). e0 applies the imaging items (A1 incl. the section-0 definition box,
+A2-A6, A8-A12, B1-B3, B5-B7, B11, C paragraph, SPOUT_BALEM section 7). TRIGGER: 34's "render done" message with the old ->
+new figure list. Then, in this order:
+  a. Section-1 tables on the rebuild data (Priya 11-04: LP ENL 1.0 s primary, 2.0 s labeled sensitivity row):
+     `WIDEFIELD_LICK_SOURCE=lp WIDEFIELD_ENL_WINDOW_S=1.0 python scripts/s1_refit_locanmf_table.py --suffix _1104r` and the
+     Allen table (`wf_attempt` analysis/attempt-coding, `PYTHONPATH=. python scripts/s1_refit_basis_table.py --jobs 6
+     --suffix _1104r`) at 1.0, then the Allen table again at `WIDEFIELD_ENL_WINDOW_S=2.0`; then
+     `python docs/results_pages/imaging/p_img_s1_table_20261103.py` (PRIMARY / SENSITIVITY / SUFFIX set at its top).
+  b. Rewrite every working-trial caption cleanly (no CORRECTION notes): working = contact + incomplete camera licks, cut
+     at the session's last camera lick; jaw-only / no-response own classes.
+  c. Read the LIVE imaging page first (https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV, v51), apply, publish.
+  The imaging page still needs sharing with the organization (Priya, Share menu).
+  d. Priya 11-05 (via a8), same pass: hit-rate period = the CAMERA working period primary, DAQ quit tail = robustness
+     row (changes behavior-page Fig 0.2 when 34's render lands; A6 in PAGE_EDITS_PENDING); the per-animal trend-line
+     panels of `orofacial_cohort.fig_epochs` move to a collapsible section, off the main page.
+  e. FR page section 6 (Priya OK 11-05 via a8; "not sure what this is" -> say it plainly): add
+     `readouts/master_pre_v1/spout_mesh_control/spout_mesh_control.png` with: "Is the face signal just the spout? The
+     spout tip sits just below the lowest face points, so we removed every face point within 30 or 60 px of any spout
+     tip and decoded again: pre-cue spout decoding barely changes (2 s window .431 -> .428 / .418; acute far-contra
+     still at chance), so the face differs by spout because the animal's face does, not because the mesh sees the
+     spout." Read the live FR page first.
+  f. KINEMATICS 6.1-6.5 RE-GATED (Priya 11-05 via a8: camera working period + A16 stopped excision, pre = August):
+     `python -m scripts.jaw_only_incomplete_figs --trials <rebuild selection-keyed trial_attempts.csv> --out
+     session_poses/cam1_licks/trial_classes_working_1105` (canonical = working period; matches a8's deck shares
+     trial_class_shares_1105 to 5e-5, 642 / 642 session x spout rows) + `trial_class_raw_share_fig.py --all-engaged <out>
+     [--change]` -> figures/tc_share_all{,_change}.png; LMM toggle figures/tc_share_all_lmm.png (`lmm_change_fig`, cells
+     class|spout, Holm per class); 6.3 = trial_class_share_days.png, 6.4 / 6.5 = trial_class_{jaw,tongue}_traces.png.
+     Captions: "engaged trials" -> working-period trials; far contra acute contact .054, incomplete .623, jaw only .221,
+     no response .102 (was .05 / .60 / .23 / .12); subacute .741 / .191 / .045 / .023; chronic back to pre. Copy into
+     kin_page_src under the page's names in the page pass. 1.7 / 1.8: 34 renders (lick_aim_deficit in its lane E; both
+     scripts being checked for the gate / Aug pre first), 34 sends paths.
+  g. Imaging 15.1-15.7 (quiet-event copy) -> replace with a pointer to encoding section 23 (Priya 11-05, RECONCILIATION
+     D4), no re-render.
+  h. FR 500-permutation null SUBMITTED by Priya on O2 11-05 evening (~3 days): when own_epoch_cohort_null/ is copied
+     back, `python scripts/face_rhythm_cohort_null.py`, then FINDINGS 5.10 + the FR page.
+
+**2. Side cameras + four-camera 3-D (all in `docs/POSE_MODELS.md` Part E; memory `four-camera-3d-ready`).**
+  * Side model round 1 = crop2 (single-frame LP; temporal-loss variant tried, not adopted). Round 2 = Part B only
+    (`SIDECAM_GUIDE.html`, Part B first): 166 pre-labeled frames (62 cam4 round-4 moments + 104 jaw-sequence targets);
+    routine old-Part-C frames deferred (`side_assignment.csv` `deferred`). Waiting on the student.
+  * Four-camera 3-D built + validated on review clips: `wfield_local/pose3d_side.py` (`fuse_session`: side cleaning
+    APPROVED by Priya, robust fusion, water-drop rule, one-view fill, per-session side nose + tongue offsets),
+    `scripts/pose3d.py production --four-cam <bundle>`, the 3-D SOURCE SWITCH `pose3d.pose3d_dir` / env
+    `WIDEFIELD_POSE3D_SOURCE` = 2cam (default, unchanged) | 4cam | 4cam_clips (30 readers/writers converted),
+    `pose_chain --source 4cam --side-bundle <b>`. Results: lateral position unchanged and on the rod surface at contact
+    (0.61 mm); lick detection 100 vs 87 % of DAQ contacts; kinematics unbiased (lateral angle +0.08 deg); precision gain
+    not shown yet. Student-label check (`scripts/side_label_offsets.py`) confirms the nose offset is a view definition and
+    the tongue offset a side-model bias.
+  * NEXT: student labels Part B -> train round 2 -> Priya runs whole-session cam2 / cam3 O2 inference (model space) ->
+    `pose_chain --source 4cam --side-bundle <b>` -> re-run `side_label_offsets.py` with Part B, check the tongue bias,
+    whole-session precision test; June side sessions need intrinsics first. Not before that: 4cam is NOT for the
+    current rebuild (told 34).
+  * ADD to the 4-cam re-run (Priya 11-05 via a8): the UNJUDGED close spouts (close_center / close_mid, where cam1 /
+    cam4 cannot call the jaw direction) get their jaw judged from the side cameras (cam2 / cam3) once the round-2 side
+    model + whole-session side tracking exist.
+  * O2 conda module changed 11-04: `conda/miniforge3/24.11.3-0` is retired (jobs fail in ~3 s); use
+    `conda/miniforge3/26.9.4-1` (a8 swapped every repo site, 981b4647). No side-camera O2 bundle had been built yet, so
+    nothing on O2 needs editing; build the cam2 / cam3 inference bundle from main after that commit.
+
+**3. Spout.** Per-frame 3-D spout fixed in production code (bddf02e7: was a blend 1.04 mm behind the tip; production
+frames NOT re-run). Encoder targets = commanded positions (`wfield_cache/pose3d_inputs/pose3d_spout_positions_commanded_
+20261104.csv`, `scripts/pose3d_spout_commanded.py`; 34 adopted). `scripts/prep_3d_inputs.py` now writes the same
+commanded table itself (`pose3d_spout_positions_commanded_<tag>.csv`, positions restricted to each session's frames;
+matches 34's table to 4.5e-5 mm; 34 told the new name), so a re-run cannot bring back the measured one. The old measured
+table is deleted (local + bundle copy; `docs/status/DELETED_LOCAL_2026-11-04.txt`), a8's notes closed. ENL no-lick spout
+rule for the v36 2-D chain (~17 scripts): FIX WITH THE NEXT 3-D RE-RUN (Priya; remaining list in
+`docs/status/SPOUT_POSITION_AUDIT_2026-11-04.md`; memory `spout-enl-rule-next-3d-rerun`).
+
+**5. Nothing runs now.** e0 waits on two triggers: 34's "render done" (item 1) and the student's Part B labels (item 2).
+
+**4. Published 11-04 (HMS account):** behavior v2, kinematics v28, FaceRhythm v37 (e3's M: sources synced); imaging v51.
+
+## UPDATE 11-04 early — jaw-only OUT of working (Priya decision 11-03 late, via a8)
+
+**11-04 late: page edits are listed in `docs/status/PAGE_EDITS_PENDING_2026-11-04.md` (a8 keeps it; one pass after the
+rebuild).** e0's imaging items there: A1 (incl. the section-0 definition box), A2-A6, A8-A12, B1-B3, B5-B7, B11, the C
+methods paragraph, SPOUT_BALEM section 7. CAVEAT for A11 (the jaw-free s1 table): it was built with ENL 2.0 s
+(`LP_licks_ENL2s`, the old table's window). If A9 (ENL follows the lick source: LP 1.0 s) applies to section 1, re-run both
+s1 tables at 1.0 s in that pass (`WIDEFIELD_LICK_SOURCE=lp WIDEFIELD_ENL_WINDOW_S=1.0`, `--suffix`), then
+`p_img_s1_table_20261103.py` pointed at those files. Told a8 11-04.
+**DECIDED (Priya 11-04, via 34 / a8): section-1 refit = LP ENL 1.0 s, 2.0 s as a labeled sensitivity row.** The table
+script is set up for it (`PRIMARY = LP_licks`, `SENSITIVITY = LP_licks_ENL2s`, both with suffix `_1104r`): in the
+post-rebuild pass run the LocaNMF + Allen s1 tables at `WIDEFIELD_ENL_WINDOW_S=1.0` and the Allen table again at 2.0,
+all with `--suffix _1104r`, then the table script (A11 in PAGE_EDITS_PENDING).
+
+**DECIDED 11-04 (Priya): no interim swap — WAIT for 34's cohort-1 rebuild.** The imaging page (sections 1-4, 6, 7,
+the definition captions, the s1 table) and SPOUT_BALEM §7 stay as published (v51) until the rebuild's figures land;
+then apply everything in one pass. The jaw-free s1 table below is ready for that pass. Same pass also takes the
+section D (scored on working trials) and section G (grouped by camera class: contact / incomplete / jaw-only / none +
+after end) figure changes a8 is implementing on main (34 ports them); a8 sends the figure list.
+
+New definition: working = contact + incomplete camera licks, cut at the session's last camera lick; jaw-only becomes
+its own class, like no-response (`docs/status/JAW_ONLY_CHECKS_2026-11-03.md`, a8 running list 11-03 AWAY). a8 is
+implementing it, then ONE combined render; page edits come to this window (e0) after that render. **HOLD all page
+edits (SPOUT_BALEM §7 included) until a8 sends figure paths.**
+
+Imaging page v51 (scratchpad `imgpage/imaging_page.html`) sections to redo after the render. Rewrite the captions
+cleanly, with no correction notes:
+- the definition "jaw moved or any camera lick" is written out at lines 126, 127 (§0 box) and 154 (§1); change all three to the new wording;
+- figures whose numbers come from working trials: §1 (Fig 1-1, 1-2, S1 table), §2 (2-1, 2-2), §3 (3-1, 3-3),
+  §4 (4-1, 4-2), §6 (6-1..6-3), §7 (7-1..7-4); replace the numbers with the re-rendered ones;
+- the LP-attempt decoder figures (2-3 and the §4 jaw-only mention) already exclude jaw-only trials; no change.
+Kinematics / behavior / FaceRhythm pages: no "working = jaw or lick" wording found (jaw-only is already its own class there).
+
+**a8 11-04: main combined render NOT run tonight** (34's cohort-1 rebuild will replace the working-gated families in
+1-2 days; interim swap = Priya's call in the morning). Keep holding all imaging page edits.
+**s1 tables made jaw-free (off the main render path; e3 flagged they still included jaw-only):**
+- `scripts/s1_trial_class_snapshot.py` now also writes `working_pl_{contact,lick,close}_licks` (= the cutoff gate
+  `& camera_lick`); the existing snapshot is not rerun (overwrite on M:), readers derive the columns when absent.
+- `scripts/s1_refit_locanmf_table.py`: arms `camlickpl_{contact,lick,close}`; `--suffix` for the output name.
+- `wf_attempt` (analysis/attempt-coding, local) `scripts/s1_refit_basis_table.py`: columns `*_camlickpl{contact,lick,close}_*`; `--suffix`.
+- `docs/results_pages/imaging/p_img_s1_table_20261103.py`: primary = `split_camlickpllick` / LocaNMF `camlickpl_lick`;
+  no-cutoff row = camera lick gate; working-incl.-jaw-only kept as a robustness row; robustness sentence states the
+  measured max difference instead of "a few hundredths".
+- RUNNING 11-04 (LP licks, ENL 2 s): Allen `--jobs 6 --suffix _1104` -> `LP_licks_ENL2s/qc/s1_refit_basis_1104.csv`,
+  LocaNMF `--jobs 4 --suffix _1104` -> `LP_licks_ENL2s/qc/s1_refit_locanmf_1104.csv`; logs in e0 scratchpad
+  `s1_allen_1104.log`, `s1_locanmf_1104.log`. Then run the table script; do NOT apply to the page until Priya decides.
+- **DONE 11-04** (both runs exit 0; only PS93_0813 fails, no video, as before). Jaw-free gate drops exactly the
+  in-working jaw-only trials (2908; pre 404 / acute 1277 / subacute 808 / chronic 419; no contact or incomplete lost).
+  Table rebuilt (`docs/results_pages/imaging/s1_update_20261103{.html,_numbers.md}`, NOT applied to the page).
+  Allen split, jaw-free: post-cue .47-.90, pre-cue .25-.55 (was .43-.89 / .26-.56 with jaw-only in); acute post-cue
+  drop still 4 / 4; pre-cue acute up PS95, down PS93 / PS94, flat PS92 (unchanged). LocaNMF jaw-free minus incl-jaw:
+  post-cue acute +.03 / +.04 / +.10 / +.08 (PS92-95), other epochs <= +.04 except PS95 subacute +.10; pre-cue within
+  +-.02. Robustness spread across arms now up to .09 (the incl-jaw row), sentence prints it.
+
+## UPDATE 11-03 night (3) — PUBLISHING FOR OTHER WINDOWS (Priya: this window may publish any page)
+
+- **Imaging page v51** (id 1793740803-1eef, on v50) for a8: `docs/status/STATE_BALEM_PAGE_EDITS_2026-11-03.md` (section 3 ->
+  bal_em production state decoder; Figs 3.1-3.5 swapped to *_balem images; Closed / Pending updated; the new block is a plain
+  note, not a CORRECTION label, per Priya's rewrite rule) + the imaging rows of `FIGURE_RULES_AUDIT_2026-11-03.md`
+  (*_nolines images for 2.1-2.8 except 2.4b [no render], 4.2, 6.1-6.3, 9.1, 9.6-9.8, 10.1, 12.1; captions say faded open
+  markers). Script: scratchpad `imgpage/apply_a8_1103.py` (asserts every replacement). Old images stay in the artifact,
+  unreferenced. NOT done: 2.4b, 5.2 (no source), FaceRhythm page (asked a8), SPOUT_BALEM (a8 holds it until A3).
+- **FaceRhythm page v36** (id 1793745454-bdeb, on 1793125970-97fe) for a8: the audit's 27 FaceRhythm rows, images uploaded as
+  `fig/<name>_rules.png` (old files kept, unreferenced), a "Plot (figure rules)" note per caption (session markers; fit-level
+  for 7.10 / 7.11 / 8.16 / 8.18). Script: scratchpad `frpage/apply_fr_rules_1103.py`.
+- Account switched back to hhmi after these publishes; further publishing needs the HMS account again.
+- **QUEUED for e3 (needs the HMS account):** kinematics page = `kin_page_src/kin_page/index.html` (v26 + 13 collapsed LMM
+  toggles + FR cross-link; new files `lmm/<stem>_lmm.png`, 13 stems listed in e3's message); FaceRhythm page = 3 LMM toggles
+  + kinematics cross-link, new files `lmm/{peak_side_headline,per_lick_stats,asym_aligned_change}_lmm.png`. The FR M: source
+  (10-27) is OLDER than live v36: refresh it from live v36 first, re-run `kin_page_src/kin_page/add_lmm_toggles_1103.py fr`
+  (idempotent), diff, publish. Send e3 the version numbers.
+  **e3 11-03 (later): HOLD the kinematics publish.** e3 is splitting the page (DAQ-contact figures move to a new behavior page, cross-linked), so `kin_lmm/` is superseded; publish kinematics + the new behavior page from M: only when e3 says the sources are ready. FaceRhythm (`fr_lmm/`) still goes ahead. Account: the tool needs a Claude Code restart after switching to HMS (the switch alone left it on the old sign-in, list empty).
+  **e3 11-03 (split READY) — publish order once the tool works:** (1) BEHAVIOR, new page "Task Behavior After Stroke", icon chart, from `M:/.../behaviour_page_src/behaviour_page/index.html`; local files `epoch_1f_engagement_by_epoch.png`, `lmm/epoch_1f_engagement_by_epoch_lmm.png`, `lmm/behaviour_hits_by_spout_lmm.png`; copy `b_timecourse.png` + `behaviour_hits_by_spout.png` server-side from the kinematics artifact (v26); NOT `epoch_1g_*`, `svg/` or `data/`. (2) KINEMATICS from `M:/.../kin_page_src/kin_page/index.html` (backups `index_pre_split_1103.html`, `index_v26_pre_lmm.html`), after replacing the 2 `href="#behaviour-page"` (data-behavior-link) with the behavior URL; files = 12 `lmm/<stem>_lmm.png`. (3) FACERHYTHM `fr_lmm/` staged + optionally the behavior link in xlink-kin. Read each live page in full first; send e3 the three versions + the behavior URL.
+  **+ e3 (later):** kinematics files map also gets `p_phase_contra.png` (Fig 9.7 replaced by the 3-D phase figure with test bars; caption rewritten in index.html; same name, so it replaces the published file).
+  **11-04:** sidebar figure toggles (first figure per section, rest behind a ▸ N button, as on the encoder / FaceRhythm / imaging pages) added to KINEMATICS v28 (1793762111-ab7c) and BEHAVIOR v2 (1793762112-2bde), script scratchpad `add_toc_toggles_1104.py <page> <localStorage prefix>` (asserts once-only); e3 asked to fold it into the M: sources. Sharing checked 11-04: encoder, kinematics, FaceRhythm, behavior = organization; IMAGING page still private (Priya to share). Publishing images: use the explicit {path: absolute source} `files` map (root + list form was refused).
+  **11-03 21:55 ALL THREE PUBLISHED:** behavior v1 (1793760190-da2d) https://claude.ai/artifact/M1xhZBWSPS84aELTSFaMMK; FaceRhythm v37 (1793760943-8fe2; 3 LMM toggles + kinematics / behavior links); kinematics v27 (1793760972-f7dd; e3 split + 12 LMM toggles + new Fig 9.7 p_phase_contra.png, behavior links set). The "Read permission rule" refusals were the `root` + list form of `files`; the explicit {published path: absolute source} map published fine. e3 told. (The block below is superseded.)
+  **11-03 21:45 PUBLISH STATE:** BEHAVIOR page published https://claude.ai/artifact/M1xhZBWSPS84aELTSFaMMK v1 (1793760190-da2d; b_timecourse / behaviour_hits_by_spout copied from kinematics v26). KINEMATICS and FACERHYTHM NOT published: every image upload after that was refused ("blocked by a Read permission rule"; p_phase_contra.png, then lmm/*.png); waiting on Priya to approve. Staged: scratchpad `kin_split/` (M: source with the 2 behavior links set to the URL, 12 lmm PNGs + p_phase_contra.png; live still v26 1793740846-76c9) and `fr_lmm/` (behavior link added to xlink-kin; live still v36 1793745454-bdeb).
+  **STAGED 11-03** (scratchpad, session-local): `fr_lmm/index.html` (+ `fr_lmm/lmm/*.png`, `fr_lmm/fig/*_rules.png`) = v36 +
+  toggles + xlink-kin; `kin_lmm/kin_page.html` (+ `kin_lmm/lmm/*.png`) = e3's source. In both the lmm-supp-style block was moved
+  from the publish wrapper's head into the body (the wrapper head is replaced on publish). Before publishing: confirm live is
+  still FR v36 / kin v26, publish with the lmm/ files map.
+- **Kinematics page v25 -> v26** for e3 (source `kin_page_src/kin_page/index.html`, verified as a section-6-only diff against
+  live; images uploaded by name).
+
 ## UPDATE 11-03 night (2) — SECTION 1 PUBLISHED (imaging page v50)
 
 Priya moved Claude Code to the HMS account; the Artifact tool works again after a restart (this window is now
@@ -151,7 +312,7 @@ None open (the post-quit jaw-only option is with e3 -> Priya). Decided today:
 * `session_classes(label)` -> every trial (no engagement filter): trial_id, position, cue_daq, cls, has_cam1.
 * `cue_classes(table, cue_s)` -> class per DAQ cue, matched by cue TIME within 20 ms (never trial id).
 * `in_gate(cls, "working" | "camera_lick")`.
-* Coverage, 108 curated imaging sessions from 08-06: **107 with v36** (PS93_0813 has no behaviour video —
+* Coverage, 108 curated imaging sessions from 08-06: **107 with v36** (PS93_0813 has no behavior video —
   EXPERIMENT_ERRORS 2026-08-13; it drops out of camera-gated rows only), **all 107 with cam1**, >= 99.7 % of DAQ
   cues matched except **PS92_0908 (82.5 %**, video covers 321 / 389 trials; the rest are "unknown").
 * cam4-only sessions (none today) would be classified without cam1 (no cam1-only licks, jaw-only not cam1-corrected).

@@ -16,6 +16,7 @@ height (interpolated), and the value at +0.5 s / peak.
     set WFIELD_INPUT_CACHE=C:/Users/SabatiniLab/wfield_cache
     python scripts/cohort2_qc/quiet_eta_fr.py [--jobs 5] [--summarise]
 """
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 import argparse
 import os
 import sys
@@ -30,6 +31,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from quiet_area_spikes import DETREND_S, columns, session_traces  # noqa: E402
 from quiet_spikes_fr import N_FOLD, face_regressors, lagged, ridge_oof  # noqa: E402
 from quiet_spikes_v2 import V2, busy_frames, detrend  # noqa: E402
+from wfield_local import config  # noqa: E402
 
 OUTF = V2 / "eta_fr"
 FRV = V2 / "fr_regressed_own" / "sessions"
@@ -44,7 +46,7 @@ EP = ["pre", "acute", "subacute", "chronic"]
 def pre_res_sd(animal):
     from wfield_local import epochs
     v = [np.load(f)["sd_res"] for f in sorted(FRV.glob(f"{animal}_*.npz"))
-         if epochs.epoch_of(f.stem) == "pre" and f.stem[-4:] >= "0806"]
+         if epochs.epoch_of(f.stem) == "pre" and not config.early_pre(f.stem)]
     return np.nanmedian(v, 0)
 
 
@@ -102,7 +104,7 @@ def load():
     D = {}
     for f in sorted((OUTF / "sessions").glob("*.npz")):
         ep = epochs.epoch_of(f.stem)
-        if ep is None or f.stem[-4:] < "0806":
+        if ep is None or config.early_pre(f.stem):
             continue
         D[f.stem] = dict(np.load(f), epoch=ep)
     return D
@@ -194,11 +196,11 @@ def fig_maps(D):
             r += 1
     fig.suptitle("MOVEMENT-CORRECTED event-triggered maps: face movement (FaceRhythm) regressed out of every pixel and "
                  "of the event-detection trace; positive events > 4 x pre SD of the residual, engaged quiet; mean of "
-                 "animal means; ipsilesional = image left.\nDELTA = acute - pre within animal (own colour scale); black "
+                 "animal means; ipsilesional = image left.\nDELTA = acute - pre within animal (own color scale); black "
                  "outline = significant (nested animals -> sessions bootstrap, max-statistic family-wise p < 0.05, "
                  "8x8-px bins, eroded mask)", fontsize=9)
     fig.subplots_adjust(top=0.93, right=0.9)
-    fig.savefig(OUTF / "quiet_eta_maps_fr.png", dpi=110, bbox_inches="tight")
+    save_png_svg(fig, OUTF / "quiet_eta_maps_fr.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
     import pandas as pd
     pd.DataFrame(sig_rows).to_csv(OUTF / "quiet_eta_maps_fr_significance.csv", index=False)
@@ -231,7 +233,7 @@ def fig_decay(D, Tb, T):
         a.axhline(0.5, color="0.6", lw=0.6, ls="--")
         a.axvline(0, color="0.6", lw=0.6)
         a.set_xlim(-0.6, 1.5)
-        a.set_title(f"{g} UP events, residual trace, normalised to peak (mean of animals)", fontsize=8)
+        a.set_title(f"{g} UP events, residual trace, normalized to peak (mean of animals)", fontsize=8)
         a.legend(fontsize=7)
         for c, m, lab in ((1, "decay_half_s", "peak -> half decay (s)"), (2, "rel_at_0p5", "value at +0.5 s / peak")):
             a = ax[r, c]
@@ -255,7 +257,7 @@ def fig_decay(D, Tb, T):
     fig.suptitle("Do acute events decay faster? Movement-corrected (face-regressed) event-triggered residual traces; "
                  "stars = LMM epoch vs August pre, FDR", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
-    fig.savefig(OUTF / "quiet_eta_decay_fr.png", dpi=110)
+    save_png_svg(fig, OUTF / "quiet_eta_decay_fr.png", dpi=110)
     plt.close(fig)
 
 
@@ -291,7 +293,7 @@ def main():
     a = ap.parse_args()
     if not a.summarise:
         from wfield_local.analysis_kit import fan_sessions  # fan_out + sort (rule 9)
-        labels = a.only or sorted(f.stem for f in FRV.glob("*.npz") if f.stem[-4:] >= "0806")
+        labels = a.only or sorted(f.stem for f in FRV.glob("*.npz") if not config.early_pre(f.stem))
         res, fail = fan_sessions(labels, extract, jobs=a.jobs, label="session")
         print(f"{len(res)} done, {len(fail)} failed")
         for x in fail:

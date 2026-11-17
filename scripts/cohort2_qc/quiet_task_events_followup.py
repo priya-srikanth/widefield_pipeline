@@ -48,6 +48,7 @@ OUTPUT M:/MICROSCOPE/Priya/Widefield/labcams/cohort1_quiet_spikes/<v2_quiet | v2
     set WFIELD_INPUT_CACHE=C:/Users/SabatiniLab/wfield_cache
     python scripts/cohort2_qc/quiet_task_events_followup.py [--jobs 4] [--summarise] [--only PS92_0811 ...]
 """
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 import argparse
 import os
 import sys
@@ -61,8 +62,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from quiet_spikes_v2 import LICK_SOURCE, V2  # noqa: E402
 
-TE = V2 / "task_events"
-OUT = V2 / "task_events_followup"
+from quiet_task_events import TE, TE_SUFFIX  # noqa: E402 - keyed by ENL source + window (11-04)
+
+OUT = V2 / f"task_events_followup{TE_SUFFIX}"
 ANIMALS = ("PS92", "PS93", "PS94", "PS95")
 TRIAL_COLS = ("orofacial_left", "orofacial_right")
 K = 4.0
@@ -180,11 +182,11 @@ def frozen_models_for(animal):
     XE, YE, GE, _BE, XU, YU, kept, _c, GU = pool_sessions(pre + post, source="locanmf", align="precue", post_s=2.0,
                                                           features=ft)
     pre_list = [i for i, lab in enumerate(kept) if lab in set(pre)]
-    # PINNED TO THE PRE-11-03 session_z MODEL (scaling=None): this follow-up rebuilds features with its own per-session
-    # engaged-trial z-score (`score_session`), i.e. the session_z frame, and reproduces the stored T13 run. The bal_em
-    # spout decoder (production since 2026-11-03, `spout_scaling`) is not this script's frame.
-    spec = decoder_spec(XE, kept, pre_list, align="precue", source="locanmf", post_s=2.0,
-                        basis_id=getattr(ft, "basis_id", None), scaling=None)
+    # THE PRODUCTION SCALING (bal_em since 2026-11-03, `spout_scaling`; WIDEFIELD_SPOUT_SCALING=session_z reproduces
+    # the stored T13 run, whose models are the session_z ones). Under bal_em `score_session` centres each session's
+    # rebuilt features by the label-free EM centre of its engaged trials under the scoring model.
+    spec = decoder_spec(XE, kept, pre_list, YE=YE, GE=GE, align="precue", source="locanmf", post_s=2.0,
+                        basis_id=getattr(ft, "basis_id", None))
 
     def _never():
         raise RuntimeError(f"{animal}: no stored frozen precue decoder for this spec -- refusing to fit (rule 10)")
@@ -231,6 +233,16 @@ def score_session(lab, models, pre_set, raw, sd, rng):
     # the pooled (cached) engaged features of this session must match too (same mu / sd as the stored run)
     err_pool = float(np.max(np.abs(raw[lab] - ((z["X"] - mu) / sdv)))) if lab in raw else np.nan
     mdl = models["loso"].get(lab, models["full"]) if lab in pre_set else models["full"]
+    if "pi_train" in models:                     # bal_em: the scoring centre (no labels), production SD
+        from wfield_local import spout_scaling
+        if spout_scaling.centre_rows() == "working":
+            # fifth review N1: this script's centre is every engaged row (no camera classes here) -- refuse under the
+            # camera-working centre rather than silently use another centre set
+            raise spout_scaling.BalEmCentreRefused("quiet_task_events_followup: no camera-working center mask available "
+                                                   "(bal_em.centre_rows = working); run with centre_rows = engaged")
+        pt = models["pi_train"]
+        pi = pt["loso"].get(lab, pt["full"]) if lab in pre_set else pt["full"]
+        mu, sdv = spout_scaling.score_centre(mdl, z["X"], pi)
 
     def P(keep, fill="mean", idx=None):
         idx = np.arange(n) if idx is None else idx
@@ -395,7 +407,7 @@ def effects(M):
 
 
 def figure(E, M, out=None):
-    """Priya 11-03 rules: no lines; per-animal STRICT excess small FILLED (shape = animal, colour = epoch group), all
+    """Priya 11-03 rules: no lines; per-animal STRICT excess small FILLED (shape = animal, color = epoch group), all
     animals large filled; the two conditions of a panel (full / removed, before / after) are separate x positions inside
     each epoch group. Per-SESSION values are not stored (the excess pools session x spout strata), so there are no
     session dots. Returns {(analysis, animal, epoch group): plotted excess_strict} for the --plot-only check."""
@@ -462,14 +474,14 @@ def figure(E, M, out=None):
     fig.suptitle("T13 follow-up: is the weaker frozen-decoder position code on pre-cue-event trials contamination by the "
                  "transient or a weaker plan? Frozen pre-stroke precue decoder (LP_licks, 1.0-s window, 4 sub-bins), "
                  "rebuilt per frame; event span = peak -0.3..+0.6 s; no-event controls lose the same frames (matched "
-                 f"pseudo-event masks, {N_DRAW} draws). Small filled = animal (shape), colour = epoch; large = all "
+                 f"pseudo-event masks, {N_DRAW} draws). Small filled = animal (shape), color = epoch; large = all "
                  "animals; STRICT strata; stars = STRICT within-stratum permutation p. Per-session values are not stored "
                  f"(the excess pools session x spout strata), so no session dots. {nev} event-in-window trials. "
                  "Events / masks: "
                  + ("DAQ contact + LP video licks (QS_LICK_SOURCE=daq+lp)." if LICK_SOURCE == "daq+lp"
                     else "DAQ contact licks."), fontsize=8.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.88))
-    fig.savefig(OUT / "t13_followup_exclusion.png" if out is None else out, dpi=110)
+    save_png_svg(fig, OUT / "t13_followup_exclusion.png" if out is None else out, dpi=110)
     plt.close(fig)
     return plotted
 

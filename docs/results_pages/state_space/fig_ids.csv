@@ -1,0 +1,43 @@
+fid,number,title,image
+f-ss_sim_detection,2.1,Planted changes in pre-stroke sessions: detection rate per readout (cue window),ss_sim_detection.png
+f-ss_change_vs_pre,3.1,"Nine state-space readouts, change vs own pre, by epoch · cue −0.5..2.0 s · target grouping",ss_change_vs_pre.png
+f-ss_change_vs_pre_lick,3.2,"Nine state-space readouts, change vs own pre, by epoch · first lick −1.0..0.7 s · target grouping",ss_change_vs_pre_lick.png
+f-ss_resp_size_cue,3.3,Response size per spout in the full 62-area space · cue −0.5..2.0 s (response 0–1 s),ss_resp_size_cue.png
+f-ss_resp_size_lick,3.4,Response size per spout in the full 62-area space · first lick −1.0..0.7 s (response 0.1–0.5 s),ss_resp_size_lick.png
+f-ss_pt_size_cue,3.5,Per-trial response size per spout: distributions and their 10th / 50th / 90th percentiles · cue −0.5..2.0 s,ss_pt_size_cue.png
+f-ss_pt_size_lick,3.6,Per-trial response size per spout: distributions and their 10th / 50th / 90th percentiles · first lick −1.0..0.7 s,ss_pt_size_lick.png
+f-ss_noise_cue,3.7,"Does trial noise scale with the signal? Response size², baseline and response-window trial noise, and noise beyond the pre mean-variance relation · cue −0.5..2.0 s",ss_noise_cue.png
+f-ss_noise_lick,3.8,Does trial noise scale with the signal? · first lick −1.0..0.7 s,ss_noise_lick.png
+f-ss_xform_lick,3.9,"Dimensionality variants: the same readouts on raw, z-scored, cortex-wide-mode-removed and spout-specific activity · first lick −1.0..0.7 s",ss_xform_lick.png
+f-ss_like_for_like,4.1,"Six readouts with trials grouped by target, on-target only, or by executed landing · cue −0.5..2.0 s",ss_like_for_like.png
+f-ss_like_for_like_lick,4.2,"Six readouts with trials grouped by target, on-target only, or by executed landing · first lick −1.0..0.7 s",ss_like_for_like_lick.png
+f-ss_contact_sets,4.3,Contact + incomplete (primary) vs contact-only vs incomplete-only first licks · cue −0.5..2.0 s,ss_contact_sets.png
+f-ss_contact_sets_lick,4.4,Contact + incomplete (primary) vs contact-only vs incomplete-only first licks · first lick −1.0..0.7 s,ss_contact_sets_lick.png
+f-ss_contact_cue,4.5,"Incomplete minus contact first licks, same session and spout · cue −0.5..2.0 s",ss_contact_cue.png
+f-ss_contact_lick,4.6,"Incomplete minus contact first licks, same session and spout · first lick −1.0..0.7 s",ss_contact_lick.png
+f-ss_balance_by_spout,5.1,"Orofacial balance per spout: by target, landed on target, and matched for target + lateral landing · cue 0–1 s",ss_balance_by_spout.png
+f-ss_balance_target_vs_landing,5.2,"Same landing, different target; and the across-spout spread of the balance · cue 0–1 s",ss_balance_target_vs_landing.png
+f-ss_path_over_days,6.1,"Position on the pre → chronic line, chronic-like share, distance from pre and day-to-day step, over days · cue −0.5..2.0 s",ss_path_over_days.png
+f-ss_path_over_days_lick,6.2,"Position on the pre → chronic line, chronic-like share, distance from pre and day-to-day step, over days · first lick −1.0..0.7 s",ss_path_over_days_lick.png
+f-ss_step_lick,6.3,"Step or gradual? Readouts against log days since the stroke, and against far-contra aim recovery · first lick −1.0..0.7 s",ss_step_lick.png
+f-ss_perpos_lick,6.4,Per spout position: the changed representation against recovery and against that spout’s own landing · first lick −1.0..0.7 s,ss_perpos_lick.png
+f-ss_trial_clouds,6.5,Single-trial positions on the pre → chronic line: the cloud moves as a whole · cue −0.5..2.0 s,ss_trial_clouds.png
+f-ss_trial_clouds_lick,6.6,Single-trial positions on the pre → chronic line: the cloud moves as a whole · first lick −1.0..0.7 s,ss_trial_clouds_lick.png
+f-ss_repertoire,6.7,Repertoire before mean: observed chronic-like share vs a slid pre cloud · cue −0.5..2.0 s,ss_repertoire.png
+f-ss_repertoire_lick,6.8,Repertoire before mean: observed chronic-like share vs a slid pre cloud · first lick −1.0..0.7 s,ss_repertoire_lick.png
+f-ss_pt_order_cue,6.9,Within a session: trial position on the pre → chronic line and the acute-departure axis by fifth of the session · cue −0.5..2.0 s,ss_pt_order_cue.png
+f-ss_pt_order_lick,6.10,Within a session: trial position on the pre → chronic line and the acute-departure axis by fifth of the session · first lick −1.0..0.7 s,ss_pt_order_lick.png
+f-ss_pt_order_aim_cue,6.11,"Within a session, colored by behavioral recovery: trial position by session fifth and within-session slopes against far-contra aim · cue −0.5..2.0 s",ss_pt_order_aim_cue.png
+f-ss_pt_order_aim_lick,6.12,"Within a session, colored by behavioral recovery: trial position by session fifth and within-session slopes against far-contra aim · first lick −1.0..0.7 s",ss_pt_order_aim_lick.png
+f-ss_traj_days_cue,7.1,Sessions and trial clouds in the pre → chronic / acute-departure plane · cue −0.5..2.0 s,ss_traj_days_cue.png
+f-ss_traj_days_lick,7.2,Sessions and trial clouds in the pre → chronic / acute-departure plane · first lick −1.0..0.7 s,ss_traj_days_lick.png
+f-ss_pt_plane_cue,7.3,Every trial in the pre → chronic / acute-departure plane: 50 % and 90 % highest-density regions per epoch · cue −0.5..2.0 s,ss_pt_plane_cue.png
+f-ss_pt_plane_lick,7.4,Every trial in the pre → chronic / acute-departure plane: 50 % and 90 % highest-density regions per epoch · first lick −1.0..0.7 s,ss_pt_plane_lick.png
+f-ss_traj_loops_cue,7.5,Mean trial trajectories per spout in the cohort pre-stroke top-2 plane · cue −0.5..2.0 s,ss_traj_loops_cue.png
+f-ss_traj_loops_lick,7.6,Mean trial trajectories per spout in the cohort pre-stroke top-2 plane · first lick −1.0..0.7 s,ss_traj_loops_lick.png
+f-ss_traj_loops_time_cue,7.7,"The same mean trajectories as PC1 and PC2 against time, with 95 % bands · cue −0.5..2.0 s",ss_traj_loops_time_cue.png
+f-ss_traj_loops_time_lick,7.8,"The same mean trajectories as PC1 and PC2 against time, with 95 % bands · first lick −1.0..0.7 s",ss_traj_loops_time_lick.png
+f-ss_traj_loops_splice,7.9,Mean trial trajectories per spout in the cohort pre-stroke top-2 plane · cue −0.5..0.5 s + first lick −0.5..0.7 s,ss_traj_loops_splice.png
+f-ss_traj_loops_animals_lick,7.10,"Mean trial trajectories per animal and spout, same plane · first lick −1.0..0.7 s",ss_traj_loops_animals_lick.png
+f-ss_drift,8.1,"Session-to-session distance vs days apart, within pre and within chronic; pre drift direction vs the post-stroke changes · cue −0.5..2.0 s",ss_drift.png
+f-ss_drift_lick,8.2,"Session-to-session distance vs days apart, within pre and within chronic; pre drift direction vs the post-stroke changes · first lick −1.0..0.7 s",ss_drift_lick.png

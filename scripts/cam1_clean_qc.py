@@ -10,7 +10,7 @@ extended, and their least-squares intersection (`spout_frame`, as on cam4). Also
 each line's distance from the point. Writes ``<cam1 clip folder>/eval/qc_mouth_origin.png``.
 
 ``jaw``: which way and how far does the cam1 jaw move when the mouth opens, and how often does the jaw point land ON the
-tongue (Priya 10-18, labelled clip: "sometimes jaw ends up tracking tongue")? Rest = each trial's median confident jaw over
+tongue (Priya 10-18, labeled clip: "sometimes jaw ends up tracking tongue")? Rest = each trial's median confident jaw over
 cue -500 .. 0 ms (the v3.4 baseline window). Per frame after the cue: jaw displacement from that trial's rest, split by
 tongue state (out = confident tongue > 30 px from the mouth origin). Riding candidates = jaw within 25 px of a confident
 out tongue (cam4's `jaw_off_tongue` test). Panels: displacement clouds by state, |dy| / |dx| percentiles, jaw-tongue distance
@@ -82,7 +82,7 @@ def cmd_mouth(session: str, model: str) -> None:
         ax.set_xlim(150, 470); ax.set_ylim(560, 240); ax.axis("off")
     cap.release()
     fig.suptitle(f"{animal} {date} cam1 -- is the spout-line intersection (red X) the MOUTH?  Lines: far -> close per side "
-                 f"(orange L, blue centre, purple R), extended; rings = the six median spout tips (yellow = this panel's); "
+                 f"(orange L, blue center, purple R), extended; rings = the six median spout tips (yellow = this panel's); "
                  f"green + = jaw (p >= 0.6)\nlines meet to rms {fr.rms_px:.2f} px; origin ({fr.origin[0]:.0f}, {fr.origin[1]:.0f})",
                  fontsize=11)
     fig.tight_layout()

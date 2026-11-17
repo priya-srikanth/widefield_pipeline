@@ -1,9 +1,9 @@
-"""Cue-evoked RAW 415 and 470, at frame resolution -- task-evoked haemodynamics, and a test of
+"""Cue-evoked RAW 415 and 470, at frame resolution -- task-evoked hemodynamics, and a test of
 whether 415 is isosbestic for THIS cohort.
 
 TWO QUESTIONS, ONE MEASUREMENT.
 
-1. TASK-EVOKED COUPLING (Priya, 2026-09-19): is there less cue- or lick-evoked haemodynamic
+1. TASK-EVOKED COUPLING (Priya, 2026-09-19): is there less cue- or lick-evoked hemodynamic
    response after the stroke? The existing `hemo_map_control` answer is a SPATIAL correlation
    between maps, which is attenuation-prone and says nothing about amplitude. This is the
    amplitude, per epoch.
@@ -24,7 +24,7 @@ TWO QUESTIONS, ONE MEASUREMENT.
    NEGATIVE PEAK IN THE EVENT-ALIGNED AVERAGE." That is this module's statistic, described by
    someone who observed it -- and at 405 rather than 415, so it bounds the leak from above.
 
-   **TIMING SETTLES IT AND AMPLITUDE CANNOT.** Calcium is fast (hundreds of ms); haemodynamics is
+   **TIMING SETTLES IT AND AMPLITUDE CANNOT.** Calcium is fast (hundreds of ms); hemodynamics is
    slow (peaks 1-2 s, lasts seconds). So:
 
        415 below the crossing  ->  EARLY NEGATIVE deflection, then the slow positive one
@@ -32,9 +32,9 @@ TWO QUESTIONS, ONE MEASUREMENT.
 
    The +0.54% to +1.96% cue-evoked 415 rises already in DECISIONS cannot settle this: they are
    WINDOW AVERAGES over the whole post-cue period, which average an early dip away completely.
-   That is precisely why they looked like a clean positive haemodynamic response.
+   That is precisely why they looked like a clean positive hemodynamic response.
 
-THE NORMALISATION TRAP THIS MODULE EXISTS TO AVOID, and it has already been paid once here
+THE NORMALIZATION TRAP THIS MODULE EXISTS TO AVOID, and it has already been paid once here
 (DECISIONS, 2026-08-18: a check reported +692% and -2881% evoked responses). `U @ SVT`
 reconstructs the DEVIATION from each channel's mean -- the reconstructed means are ZERO -- so
 dividing by them is division by ~0.
@@ -54,6 +54,7 @@ are irrelevant to an event-triggered average on that baseline.
     python -m scripts.rest_migration.nvc_evoked [--animals PS92 ...] [--align cue|lick]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import csv
@@ -121,7 +122,7 @@ def session_traces(s):
     # LICKS ON THE SAME FRAME CLOCK, by the same searchsorted, with the pipeline's canonical
     # detector parameters (`nolick_decoder` calls it with exactly these).
     from wfield_local.plot_lick_aligned_averages import _load_daq_events
-    lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    lk = _load_daq_events(s["h5"], "lick_analog")
     lick_frames = np.searchsorted(f_of, np.asarray(lk["lick_samples"]))
     t = (np.arange(-int(PRE_S * FS), int(POST_S * FS)) / FS)
     return t, pct470, pct415, cue_frames, lick_frames
@@ -231,10 +232,10 @@ def _present(x) -> bool:
 def _save_curves(curves, t, out_dir):
     """Persist the per-session TRACES the figure is drawn from.
 
-    THE CSV IS NOT ENOUGH FOR THIS MODULE, which is why `--from-csv` needed a second artefact
+    THE CSV IS NOT ENOUGH FOR THIS MODULE, which is why `--from-csv` needed a second artifact
     before it could exist. `epoch_16_nvc_evoked.csv` holds four window AVERAGES per session, and
     this module's own docstring says the trace is the primary object and the windows only
-    summarise it -- Simpson et al. name the observable as a SHAPE, and two window averages are
+    summarize it -- Simpson et al. name the observable as a SHAPE, and two window averages are
     what hid it here for a day. A `--from-csv` that re-derived the tables and left the figure to a
     live run would re-derive the part that was never expensive.
 
@@ -303,7 +304,8 @@ def main(argv=None) -> int:
     from wfield_local import figure_layout as fl
     from wfield_local.paths import PathResolver
 
-    out_dir = a.out or (Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch")
+    from wfield_local import lp_licks              # run-mode routing (rebuild 11-03): identity for the default run
+    out_dir = a.out or lp_licks.output_dir(Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch")
     animals = a.animals or ["PS92", "PS93", "PS94", "PS95"]
     rows, curves, tvec = [], defaultdict(list), None
 
@@ -414,9 +416,9 @@ def main(argv=None) -> int:
     print("  415 early CI SPANS 0   ->  no fast 415 term resolvable. Read the trace AND the trial")
     print("      counts -- this is the outcome low power also produces.")
     print("\nAND GCaMP6s KINETICS BLUR THE WINDOWS (Priya, 2026-09-19): rise 200-500 ms,")
-    print("  half-decay 1-2 s, so a calcium dip is NOT confined to [0, 0.4] and the haemodynamic")
+    print("  half-decay 1-2 s, so a calcium dip is NOT confined to [0, 0.4] and the hemodynamic")
     print("  rise is not confined to [1, 3]. The figure's TRACE is the primary object here; the")
-    print("  windows summarise it, they do not replace it.")
+    print("  windows summarize it, they do not replace it.")
 
     fig = _figure(curves, tvec, out_dir) if curves else None
     if fig is not None:
@@ -479,10 +481,10 @@ def _figure(curves, t, out_dir):
              "(folk practice), 420-430 (Simpson 2024), 440-450 (Barnett 2017) -- and two of the "
              "three put our 415 BELOW it.\n"
              "TIMING SETTLES IT AND AMPLITUDE CANNOT. A negative calcium term appears as an EARLY "
-             "DIP (shaded) before the slow haemodynamic rise. A window average over the whole "
+             "DIP (shaded) before the slow hemodynamic rise. A window average over the whole "
              "post-cue period averages a dip away completely, which is why the +0.5 to +2.0% "
              "figures already on record could not answer this.\n"
-             "WHY THE NO-LICK CLASS. A FAST component in 415 cannot be haemodynamic (latency "
+             "WHY THE NO-LICK CLASS. A FAST component in 415 cannot be hemodynamic (latency "
              ">= 300-500 ms), so on licking trials a movement-locked term could bury a smaller "
              "calcium dip -- and motion correction does not remove it, being z-motion, tilt and "
              "focus rather than in-plane translation. No-lick trials have ZERO licks anywhere in "
@@ -493,7 +495,7 @@ def _figure(curves, t, out_dir):
              "spectrally neutral term (ratio ~1.0 against 470) also lands early.",
              ha="center", va="top", fontsize=8.2)
     out = out_dir / "epoch_16_nvc_evoked.png"
-    fig.savefig(out, dpi=150, bbox_inches="tight")
+    save_png_svg(fig, out, dpi=150, bbox_inches="tight")
     plt.close(fig)
     return out
 

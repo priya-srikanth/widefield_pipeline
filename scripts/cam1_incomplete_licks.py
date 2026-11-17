@@ -10,7 +10,15 @@ and CORRECTED (trials where cam1 saw the tongue in the quiet window removed from
 gate (`pose3d.failed_sessions`) are left out (the cam4 / 3-D match flags are unreliable there).
 
 Writes `session_poses/cam1_licks/incomplete/{sessions.csv, by_epoch.csv}` and `figures/incomplete_<animal>.png` (x =
-days from the stroke, June compressed at the left as in `pose3d_summary_fig`; grey = August pre range).
+days from the stroke, June compressed at the left as in `pose3d_summary_fig`; gray = August pre range).
+
+``--working <trial_attempts.csv> --out DIR`` (11-16, kinematics page gate items (d)): the CAMERA WORKING PERIOD, as the
+section 6 class shares (`jaw_only_incomplete_figs`): only trials with ``canonical`` True in a camera-gated run's per-trial
+table (cue to the session's last camera lick, stopped runs excised; = `trial_classes.working_period_trials`, checked
+11-16: identical trial counts and class shares at all 642 session x spout cells) count -- trials (denominators), their
+cam4 / cam1-only licks, and the jaw-only class (taken from that table's ``cls``; = the gated ``share_jaw_only``). A
+session with no working-period trials contributes nothing. Same columns, written to DIR (never the default folder).
+Production table: rebuild_20261103/LP_analysis/<v36>/imaging_encoding/qc/<camera selection>/trial_attempts.csv.
 """
 from __future__ import annotations
 
@@ -18,6 +26,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from wfield_local.pose3d import pose3d_dir
 
 V36 = "lp_r4_heatmap_20261013__clean_v36"
 POS = ("close_L", "close_center", "close_R", "far_L", "far_center", "far_R")
@@ -32,18 +41,47 @@ def _flag(x: pd.Series) -> pd.Series:
     return x.astype("boolean").fillna(False).astype(bool)
 
 
-def session_rows(rv, s: str, E: pd.DataFrame) -> list[dict]:
+POS_ATT = {"close_ipsi": "close_L", "close_mid": "close_center", "close_contra": "close_R", "far_ipsi": "far_L",
+           "far_mid": "far_center", "far_contra": "far_R"}       # trial_attempts.csv `pos` -> v36 position
+
+
+def working_table(path: Path | str) -> pd.DataFrame:
+    """A camera-gated run's per-trial table, working-period rows only -> [session, trial_id, position, cls]."""
+    W = pd.read_csv(path, usecols=["label", "trial_id", "pos", "cls", "canonical"], low_memory=False)
+    W = W[W.canonical.astype("boolean").fillna(False).astype(bool)].copy()
+    a, d = W.label.str.split("_").str[0], W.label.str.split("_").str[1]
+    W["session"] = a + "_2026" + d
+    W["position"] = W.pos.map(POS_ATT)
+    if W.position.isna().any():
+        raise ValueError(f"unknown positions in {path}: {sorted(W.pos[W.position.isna()].unique())}")
+    W["trial_id"] = W.trial_id.astype(int)
+    return W[["session", "trial_id", "position", "cls"]]
+
+
+def session_rows(rv, s: str, E: pd.DataFrame, W: pd.DataFrame | None = None) -> list[dict]:
+    """``W`` (``--working``): this session's working-period trials (`working_table`); None = every trial."""
     a, d = s.split("_")
     sd = Path(rv.root("orofacial")) / V36 / "sessions" / a / d
     if not (sd / "trials.csv").exists():
         return []
     T = pd.read_csv(sd / "trials.csv")[["trial_id", "position"]]
+    if W is not None:
+        w = W[W.session == s]
+        if not len(w):
+            return []
+        chk = T.merge(w, on="trial_id", how="inner", suffixes=("", "_w"))
+        if len(chk) != len(w) or (chk.position != chk.position_w).any():
+            raise ValueError(f"{s}: working-period trial ids / positions do not match v36 trials.csv")
+        T = T[T.trial_id.isin(set(w.trial_id))]
     L = pd.read_csv(sd / "licks.csv") if (sd / "licks.csv").exists() else pd.DataFrame(columns=["trial_id", "contact"])
     M = pd.read_csv(sd / "tongue_jaw_mismatch.csv") if (sd / "tongue_jaw_mismatch.csv").exists() else None
     g = E[E.session == s]
-    from wfield_local import trial_classes as TC
-    _tc = TC.session_trials(s)
-    cls = _tc.set_index("trial_id").cls if _tc is not None else None
+    if W is not None:
+        cls = w.set_index("trial_id").cls                    # the run's class (= the gated jaw_only share)
+    else:
+        from wfield_local import trial_classes as TC
+        _tc = TC.session_trials(s)
+        cls = _tc.set_index("trial_id").cls if _tc is not None else None
     c1 = g[g.cam1_only]
     out = []
     for p, tp in T.groupby("position"):
@@ -101,7 +139,7 @@ def figure(S: pd.DataFrame, animal: str, path: Path) -> None:
                 ax.set_ylabel(lab, fontsize=7)
     for ax in axes[-1]:
         ax.set_xlabel("days from stroke", fontsize=7)
-    fig.suptitle(f"{animal}: incomplete licks and jaw-without-lick trials, cam4 + cam1 (droplets removed); grey = August "
+    fig.suptitle(f"{animal}: incomplete licks and jaw-without-lick trials, cam4 + cam1 (droplets removed); gray = August "
                  "pre range, dashed = its median; open = June", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.97))
     fig.savefig(path, dpi=110)
@@ -109,6 +147,14 @@ def figure(S: pd.DataFrame, animal: str, path: Path) -> None:
 
 
 def main(argv=None) -> int:
+    import argparse
+    ap = argparse.ArgumentParser(description=__doc__.split(chr(10))[0])
+    ap.add_argument("--working", type=Path, default=None, help="camera-gated trial_attempts.csv: working period only")
+    ap.add_argument("--out", type=Path, default=None, help="output folder (required with --working)")
+    args = ap.parse_args(argv)
+    if args.working is not None and args.out is None:
+        ap.error("--working needs --out (never overwrite the all-trial tables)")
+    W = working_table(args.working) if args.working is not None else None
     from wfield_local import epochs
     from wfield_local import pose3d as P3
     from wfield_local.paths import PathResolver
@@ -119,14 +165,14 @@ def main(argv=None) -> int:
         E[c] = E[c].astype("boolean").fillna(False).astype(bool)
     E["cam1_only"] = ~E.cam4_matched & ~E.in_3d & ~E.droplet
     E["jaw_only_trial"] &= ~E.droplet
-    bad = P3.failed_sessions(Path(rv.root("dlc")) / "session_poses" / "pose3d")
+    bad = P3.failed_sessions(pose3d_dir(rv))
     rows = []
     from wfield_local import analysis_kit as ak
     for s in sorted((set(E.session) - set(bad)) & ak.curated_ids()):            # curated cohort only (Priya 10-20)
-        rows += session_rows(rv, s, E)
+        rows += session_rows(rv, s, E, W)
     S = pd.DataFrame(rows)
     S["epoch"] = [epochs.epoch_of(f"{a}_{dt[4:]}") for a, dt in zip(S.animal, S.date)]
-    out = d / "incomplete"
+    out = args.out if args.out is not None else d / "incomplete"
     (out / "figures").mkdir(parents=True, exist_ok=True)
     S.to_csv(out / "sessions.csv", index=False, float_format="%.4g")
     Aug = S[(S.epoch != "pre") | (S.date >= "20260801")]                    # August-only pre baseline

@@ -13,7 +13,7 @@ WHY (Priya, 2026-09-30): "LP looks better to me on PS93 unseen ... plot some cue
 px location vs time traces trial-overlaid, to see how noisy DLC vs LP are."
 
 STYLE is ported from `stroke_orofacial_pipeline/src/stroke_orofacial/dlc_kinematics/mean_sem_visual.py`
-`_plot_trial_overlays_2x2` (thin per-trial lines, mean line in the same colour, black line at 0, px vs ms,
+`_plot_trial_overlays_2x2` (thin per-trial lines, mean line in the same color, black line at 0, px vs ms,
 y NOT inverted). What differs, on purpose:
   * one moving spout, not L/R -> columns are the two MODELS (DLC | LP), rows are tongue Y, tongue X,
     jaw Y, jaw X, plus a row with the fraction of trials in which each part is confident;
@@ -259,7 +259,7 @@ def cmd_zoom(spec, rv, lp_csv, n_trials: int = 4, t1_ms: float = 1000.0):
         axs[-1, c].set_xlabel("Time relative to cue (ms)")
     axs[0, 0].legend(fontsize=8, loc="upper right")
     fig.suptitle(f"{animal} cam4 | {date} | DLC round 3 (blue) vs LP occlusion (magenta), raw | line = p > {PCUT}, "
-                 f"dots = below cutoff (DLC green, LP grey; LP below cutoff is always the image centre) | image y increases downward", y=1.0, fontsize=11)
+                 f"dots = below cutoff (DLC green, LP gray; LP below cutoff is always the image center) | image y increases downward", y=1.0, fontsize=11)
     fig.tight_layout()
     p = out / f"{animal}_{date}_cue_traces_zoom_DLC_vs_LP.png"
     fig.savefig(p, dpi=200, bbox_inches="tight")
@@ -270,7 +270,7 @@ def cmd_onlyone(spec, rv, lp_csv, per_group: int = 8, seed: int = 1):
     """Contact sheet of frames where only ONE model is confident (DLC-only / LP-only, tongue and jaw), with
     both models' points drawn, to judge who is right (Priya, 2026-10-01: "in some instances DLC is carrying
     valuable information that LP lost"). Filled marker = that model confident; hollow = below cutoff (LP's
-    hollow marker is then the image centre and is not drawn)."""
+    hollow marker is then the image center and is not drawn)."""
     import cv2
     import matplotlib
     matplotlib.use("Agg")
@@ -333,7 +333,7 @@ def cmd_compare(poses_dir: Path, models: list[str], cleaned: bool = False, win_s
     `cmd_plot`: below-cutoff points are gaps, nothing interpolated; ``cleaned`` swaps in `orofacial_clean` output.
     ``n_trials`` > 0 (Priya, 2026-10-15: "show a handful of trials for each model, so I can see whether they look
     plausible"): only that many trials, the SAME ones for every model (one per spout position first, fixed seed), each
-    in its own colour, no mean."""
+    in its own color, no mean."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt

@@ -1,5 +1,5 @@
 """Per-trial attempt classes, a movement-based engagement label and an attempt / completion / latency split of the
-behavioural deficit (Priya 10-20: "fraction of trials with lick as well as incomplete vs complete licks at far mid and
+behavioral deficit (Priya 10-20: "fraction of trials with lick as well as incomplete vs complete licks at far mid and
 far contra"; "call a trial engaged if there is any evidence of attempted lick ... analyze no-try trials in the
 canonical 'engaged' period separately"; "will we include latency?"). Plan: docs/DLC_IN_WIDEFIELD_ANALYSES.md 3B.
 
@@ -11,7 +11,7 @@ trials, cam1 + cam4 to the trial stop: 0 / 24 judged attempts; all 11 jaw_only t
 (6), other movement (4, 2 walking) or still (1); 4 / 6 no_try trials just under the floor also showed a jaw response --
 key session_poses/attempt_review/key.csv). Confounds: sub-threshold walking moves the jaw; some jaw responses follow
 the spout leaving (it starts moving 60-80 ms after stop; detection ends at stop). Until 10-21 jaw_only counted as an
-attempt (outputs copied to qc/superseded_attempts_jaw_20261021/). `canonical` = the behaviour pipeline's
+attempt (outputs copied to qc/superseded_attempts_jaw_20261021/). `canonical` = the behavior pipeline's
 reference-position gate (`orofacial_cohort.engagement_keep`), which stays the DENOMINATOR: no-try trials inside it are
 kept as their own class, never dropped, so failure to initiate stays measurable.
 
@@ -27,6 +27,7 @@ Usage: PYTHONPATH=. python scripts/trial_attempts.py [--jobs 2]
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -34,6 +35,9 @@ import pandas as pd
 from wfield_local import trial_classes as TC  # noqa: E402  THE trial classification (11-03)
 
 CLASSES = ("hit", "incomplete", "jaw_only", "no_try", "unknown")
+#: the session-level camera classes of a camera-gated run (`trial_classes.classify_session`; coordinator 11-04): a
+#: trial in one of these is OUTSIDE the run's working period -- never in the attempt-rate denominator
+RUN_EXCLUDED = TC.OUT_OF_WORKING_PERIOD    # ONE definition of the camera working period (trial_classes, 11-05)
 ATTEMPT_CLASSES = ("hit", "incomplete")             # jaw_only = reacted (jaw), NOT an attempt (10-21 blind review)
 TA_NAMES = {"contact": "hit", "no_response": "no_try"}   # trial_classes names -> this table's historical names
 MEASURES = ("attempt_rate", "ttc_ms", "completion", "incomplete_share", "latency_attempt_ms", "latency_move_ms",
@@ -75,6 +79,35 @@ def session_trials(label: str) -> pd.DataFrame:
     T["attempted"] = T.cls.isin(ATTEMPT_CLASSES)
     T["canonical"] = True if keep is None else t.isin(keep)
     T["gate"] = gate
+    if TC.camera_gate_on():
+        # THE RUN'S CAMERA CLASSES (coordinator 11-04; PI slides 34 / 35, the mixed models' deficit): the session-level
+        # rules of `trial_classes.classify_session` on the trial train -- end at the last camera lick, sustained stop
+        # (>= 6 consecutive no_response / jaw_only, all of them stopped, Priya 11-04; the 5-min rule: a run starting
+        # < 300 s after the first cue is early_run), jaw_only its own class (not an attempt; an isolated one stays in
+        # the working period). The attempt-rate denominator ("canonical") is then the run's WORKING
+        # PERIOD: every trial not stopped / early_run / after_end / unknown (jaw_only and no_try inside it are kept as
+        # non-attempts, never dropped). cls_raw keeps the trial-level class.
+        raw = C.cls.fillna("unknown").to_numpy(object)
+        pos = C.position.to_numpy(object) if "position" in C else None
+        cue_s = C.cue_daq.to_numpy(float) if "cue_daq" in C else None
+        # STOPPED TIME HOLDS NO LICKS (Priya 11-04): the guarded rules get each trial's span lick counts (camera licks by
+        # peak + DAQ contacts, `trial_classes.session_span_licks`); excise -> lick-touched stopped trials are
+        # "stopped_licking", outside both the working period and stopped (RUN_EXCLUDED)
+        span = None
+        if (TC.stopped_rule() in TC.GUARDED_RULES and (TC.stop_lick_rule(), TC.stop_tail_start()) != ("none", "lick_trial")
+                and cue_s is not None):
+            strobe = C.strobe_ms.to_numpy(float) if "strobe_ms" in C else np.full(len(C), np.nan)
+            stop_ms = (C.stop_ms if "stop_ms" in C else T.stop_ms).to_numpy(float)
+            span = TC.session_span_licks(f"{a}_{d}", cue_s, cue_s + strobe / 1000.0, cue_s + stop_ms / 1000.0)
+        run, kind = TC.classify_session(raw, None, pos, rule=TC.stopped_rule(), min_run=TC.stop_run_min(),
+                                        end=TC.end_anchor(), cue_s=cue_s, min_start_s=TC.stop_min_start_s(),
+                                        span_licks=span, return_kind=True)
+        T["stop_kind"] = kind               # "run" / "tail" / "" (stopped_licking keeps its kind; bcdg g_group_final)
+        T["cls_raw"] = T["cls"]
+        T["cls"] = pd.Series(run, index=T.index).replace(TA_NAMES).to_numpy()
+        T["attempted"] = T.cls.isin(ATTEMPT_CLASSES)
+        T["canonical"] = ~T.cls.isin(RUN_EXCLUDED)
+        T["gate"] = "camera:" + TC.run_selection()
     return T
 
 
@@ -87,7 +120,7 @@ def session_summary(D: pd.DataFrame) -> pd.DataFrame:
       completion, incomplete_share, latency_attempt_ms (first lick), latency_move_ms (first lick or after-cue jaw onset),
       latency_contact_ms                                                                attempted trials (components)
       lateral_bias / lateral_scatter   first cam4 lick peak angle on attempted trials vs the animal's August-pre mean /
-                          sd at that spout (+ = toward ipsi). DESCRIPTIVE ONLY -- never a behavioural index: the executed
+                          sd at that spout (+ = toward ipsi). DESCRIPTIVE ONLY -- never a behavioral index: the executed
                           angle enters the neural measures' construction (DECISIONS 10-20, no circular index)
     """
     rows = []
@@ -103,7 +136,10 @@ def session_summary(D: pd.DataFrame) -> pd.DataFrame:
                      "latency_contact_ms": att.contact.median(),
                      "latency_move_ms": np.fmin(att.combined.where(att.has_cam1, att.cam4), att.jaw_onset_ms).median(),
                      "angle_mean": att.angle_first.mean(), "angle_sd": att.angle_first.std(),
-                     **{f"frac_{c}": (can.cls == c).mean() if len(can) else np.nan for c in CLASSES}})
+                     **{f"frac_{c}": (can.cls == c).mean() if len(can) else np.nan for c in CLASSES},
+                     # camera-gated run: the share of ALL trials outside the working period, by reason
+                     **({f"frac_{c}": (g.cls == c).mean() for c in RUN_EXCLUDED if c != "unknown"}
+                        if "cls_raw" in g else {})})
     S = pd.DataFrame(rows)
     W = S.pivot_table(index="label", columns="pos", values=[c for c in S.columns if c not in ("label", "pos")])
     W.columns = [f"{m}_{p}" for m, p in W.columns]
@@ -118,39 +154,79 @@ def session_summary(D: pd.DataFrame) -> pd.DataFrame:
 
 
 def _is_aug_pre(label: str) -> bool:
+    from wfield_local import config
     from wfield_local import epochs
-    return epochs.epoch_of(label) == "pre" and label[-4:] >= "0806"
+    return epochs.epoch_of(label) == "pre" and not config.early_pre(label)
+
+
+def select_labels(available, curated, requested=None) -> list:
+    """The sessions to build: the curated sessions with imaging, in `available` order (the default, unchanged).
+    ``requested`` (``--labels``, 11-09: the June-only supplement build) narrows that set to the given labels; a requested
+    label that is not available + curated raises (run under the env that curates it, e.g. WIDEFIELD_PRE_FROM unset for
+    June), so a typo or a wrong env can never quietly build fewer sessions."""
+    cur = set(curated)
+    labels = [x for x in available if x in cur]
+    if requested is None:
+        return labels
+    want = list(dict.fromkeys(requested))
+    missing = [x for x in want if x not in set(labels)]
+    if missing:
+        raise SystemExit(f"trial_attempts --labels: not available + curated under this env: {', '.join(missing)}")
+    return [x for x in labels if x in set(want)]
 
 
 def main(argv=None) -> int:
+    from wfield_local import config
     from wfield_local import analysis_kit as ak
     from wfield_local import combined_encoding as ce
     from wfield_local import epochs
     from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
     from wfield_local import writeguard
-    from wfield_local.paths import PathResolver
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--run", default=oc.RUN)
     ap.add_argument("--jobs", type=int, default=2)
+    ap.add_argument("--out", type=Path, default=None,
+                    help="write the three tables HERE instead of run_mode.attempts_dir() (a comparison build; nothing "
+                         "registered, the run's table untouched)")
+    ap.add_argument("--labels", nargs="+", default=None,
+                    help="build ONLY these session labels (e.g. PS92_0606; default: every curated session). Needs --out: "
+                         "a partial table is never written over the run's registered one")
     a = ap.parse_args(argv)
-    out = oo.root(PathResolver()) / a.run / "imaging_encoding" / "qc"
-    writeguard.assert_writable(out)
-    cur = set(ak.curated_labels())
-    labels = [x for x in ce.sessions_available() if x in cur]
+    if a.labels is not None and a.out is None:
+        raise SystemExit("trial_attempts --labels needs --out (a partial table never replaces the registered one)")
+    from wfield_local import run_mode
+    # coordinator 11-04 (REDO, routed): the default run writes the untagged qc as before; a tagged run writes ITS qc
+    # (<imaging_encoding>/<tag>/qc), under its camera classes -- where the mixed models' deficit and the PI slides read
+    if a.run != oc.RUN:
+        raise SystemExit("trial_attempts: --run other than the adopted run is not routed (attempts_dir is the adopted run's)")
+    out = a.out or run_mode.attempts_dir()
+    out.mkdir(parents=True, exist_ok=True)
+    if run_mode.tag() and a.out is None:
+        for n in run_mode.ATTEMPTS_FILES:              # selection-keyed tables: registered data files (writeguard)
+            run_mode.register_data_store(out / n)
+    writeguard.assert_writable(out / "trial_attempts_sessions.csv")
+    labels = select_labels(ce.sessions_available(), ak.curated_labels(), a.labels)
     got, fail = ak.fan_sessions(labels, session_trials, jobs=a.jobs)
     for it, err in fail:
         print(f"  FAILED {it}: {err}")
     D = pd.concat([r for _l, r in got], ignore_index=True)
-    D["animal"], D["epoch"] = D.label.str.split("_").str[0], D.label.map(epochs.epoch_of)
-    D["day"] = D.label.map(epochs.days_since_stroke)
+    # one config lookup per SESSION, not per trial row (~57k); mapped through a function, not a dict, so a None day stays
+    # None (a dict map would make the column float and change the CSV bytes)
+    ep = {lab: epochs.epoch_of(lab) for lab in D.label.unique()}
+    day = {lab: epochs.days_since_stroke(lab) for lab in ep}
+    D["animal"], D["epoch"] = D.label.str.split("_").str[0], D.label.map(ep.__getitem__)
+    D["day"] = D.label.map(day.__getitem__)
     D.to_csv(out / "trial_attempts.csv", index=False, float_format="%.1f")
     W = session_summary(D)
     W.insert(1, "animal", W.label.str.split("_").str[0])
     W.insert(2, "epoch", W.label.map(epochs.epoch_of))
     W.insert(3, "day", W.label.map(epochs.days_since_stroke))
     W.to_csv(out / "trial_attempts_sessions.csv", index=False, float_format="%.4g")
-    Aug = D[(D.epoch != "pre") | (D.label.str[-4:] >= "0806")]           # August-only pre baseline
+    Aug = D[(D.epoch != "pre") | (~D.label.map(config.early_pre))]           # August-only pre baseline
+    if Aug.empty:            # a June-only --labels build: no August-pre / post-stroke rows -> no gate table, no summary
+        print("\n  no August-pre / post-stroke sessions in this build: gate table and summaries skipped\n"
+              f"-> {out / 'trial_attempts.csv'}")
+        return 0
     G = Aug.groupby(["animal", "epoch", "pos"]).apply(
         lambda g: pd.Series({"n_trials": len(g), "canonical": g.canonical.sum(),
                              "attempted": g.attempted.sum(), "canonical_and_attempted": (g.canonical & g.attempted).sum(),

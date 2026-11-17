@@ -21,7 +21,7 @@ No `attempt_coding` output folder exists yet (module only being smoke-tested: `a
 | 10-20 10:28-11:19 | v36 re-run of **ALL 133 sessions** on template timing (the 9 timing sessions incl. PS92_0908 first, in the morning); v36 cohort products rebuilt 11:33-12:02 | **Correction:** not only PS92_0908 -- every v36 session folder is dated 10-20 10:xx-11:xx. 3-D frames (PS92/PS93) re-cut 10-20 11:22-19:53, cam1 `events_all` 10-20 21:44 on. |
 | 10-21 ~07:57 / 10:54 | jaw_onsets rewritten (template-timed cam1 + cam4); 10:54 nine columns appended (old columns identical) | OK. |
 | 10-21 late morning | jaw_only = reaction, not attempt; attempts + deficit models re-run; table final 14:33 | OK (`superseded_attempts_cam1incomplete_20261021/` = the 14:33 files). |
-| 10-21 afternoon | normalised map tests implemented (~16:30); DAQ 15r / 15e / 14m re-rendered 16:55-20:12; raw-test renders archived | Added change point: any map figure with significance contours made before 16:55 10-21 uses the old raw tests (affects `epoch_latepre`, 10-18 decks, cam4 within-spout maps before 20:18). |
+| 10-21 afternoon | normalized map tests implemented (~16:30); DAQ 15r / 15e / 14m re-rendered 16:55-20:12; raw-test renders archived | Added change point: any map figure with significance contours made before 16:55 10-21 uses the old raw tests (affects `epoch_latepre`, 10-18 decks, cam4 within-spout maps before 20:18). |
 | 10-21 evening | LP_licks lick source (cam4 + cam1 combined; gate = attempt class hit / incomplete); ENL window 1.0 s under LP + matched DAQ 1.0 s arm; render cache + race fix at night | OK. |
 | cam1 events | at trial_attempts 10-21 14:33: PS92 28/28, PS93 26/26, **PS94 11/27, PS95 0/27** (August+); at the LP_licks render 10-21 22:50: PS94 26/27, **PS95 1/27**; COMPLETE 10-23 17:45 (125 event files) | **Correction:** the "PS94 partial (chronic 2/8)" note was already outdated at the LP render (PS94 missing only 1005); PS95 essentially cam4-only. `cam1_coverage_at.csv`. |
 | 3-D | 10-21 snapshot PS92 + PS93; PS94 frames by 10-21 20:43 (1005 on 10-22), PS95 10-22 21:01 .. 10-23 17:27; kinematics / kinematics_all 17:30 / 17:41; derived tables to 18:23; chain end 18:28; encoding re-cut `*_20261023` 18:29-18:33 | OK ("complete 18:28" = chain end; the 3-D frames themselves were done 17:27). |
@@ -36,7 +36,7 @@ No `attempt_coding` output folder exists yet (module only being smoke-tested: `a
 
 Ordered for the goal question ("what does cortex look like post-stroke when the animal attempts a movement it cannot
 execute or executes differently"). P1 = attempt-gated / video-lick imaging readouts and their statistics; P2 = target vs
-executed / direction; P3 = behavioural descriptors and side tables. `E` = `LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding`,
+executed / direction; P3 = behavioral descriptors and side tables. `E` = `LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding`,
 `G` = `labcams/grant_figures`.
 
 ### 2a. STALE-REDO
@@ -65,7 +65,7 @@ executed / direction; P3 = behavioural descriptors and side tables. `E` = `LP_an
 | P3 | Lick miss rate by epoch (AR-HMM comparison) | `E/qc/lick_contact_by_epoch.csv` | 10-23 08:32 | `trial_attempts_sessions.csv` (10-21) + v36 `licks_all` (cam4 only) | STALE-REDO | **inventory had KEEP** | **GAP**: `python scripts/lick_contact_by_epoch.py` (seconds); consider adding cam1-only no-contact licks | STALE |
 | P3 | Position-coding recovery trend | `E/qc/position_coding_trend_recovery*.csv` | 10-20 16:20 | cam4 O2 nokin + main runs, cam4 contact fraction | STALE-REDO | | **GAP**: `python scripts/position_coding_trend_recovery.py` after O2 main + nokin collect | DONE 10-25 ~09:40 on the O2 final-frame runs (ENCODING_FINDINGS 4.1-4.2; June-span trend test not repeatable) |
 | P3 | Trial-average R2 | `E/qc/trialavg_r2_movement_first_subset-drop_licks-combined_gate-attempted.csv` | 10-22 08:39 | stale drop run | STALE-REDO (low) | | `python scripts/encoder_trialavg_r2.py --folder <O2 drop run>` | STALE (low) |
-| P3 | Push LMM (behaviour part current) | `E/qc/imaging_lmm_push*.csv` | 10-23 18:39 | deficit index | STALE-REDO | `push_behaviour_sessions.csv` (DAQ treadmill) is CURRENT | `imaging_lmm.py --sources push` (planned LMM step) | STALE |
+| P3 | Push LMM (behavior part current) | `E/qc/imaging_lmm_push*.csv` | 10-23 18:39 | deficit index | STALE-REDO | `push_behaviour_sessions.csv` (DAQ treadmill) is CURRENT | `imaging_lmm.py --sources push` (planned LMM step) | STALE |
 
 ### 2b. SUPERSEDED
 
@@ -73,10 +73,10 @@ executed / direction; P3 = behavioural descriptors and side tables. `E` = `LP_an
 |---|---|---|---|
 | cam4 within-spout lick / contact / contact_hits | `E/qc/within_spout_deviation_lick*`, figures | 10-20/21 | ws3d4 (running, 3-D, 4 animals) |
 | 2-animal xyz2 x combined; xyz2 x cam4 cell (CHECK) | `E/movement_first_subset-nokin_exec-xyz2_licks-combined_bins`, `_xyz2_bins` | 10-24 05:35-05:43 | xyz2 `_3d4` (running); cam4 cell low priority |
-| Older duplicate LMM figures + early behaviour-figure copies | `E/qc/figures/` | 10-21 02:03-06:25 | `E/figures/mixed_models` (itself stale). **Inventory had KEEP.** |
+| Older duplicate LMM figures + early behavior-figure copies | `E/qc/figures/` | 10-21 02:03-06:25 | `E/figures/mixed_models` (itself stale). **Inventory had KEEP.** |
 | Frozen group leakage | `E/qc/frozen_group_leakage.csv` | 10-22 13:53 | design at STATS_VERSION 4 / grouping v1; groups changed since (v2, v3, v7 running). **Inventory had "current".** Optional: `scripts/frozen_group_leakage.py` in the t3d env |
 | Whisker ME traces by attempt class | `session_poses/whisker_me` | 10-21 | FaceRhythm |
-| v35 run; v36 `cohort/*_allpre`; `epoch/archive_rawdF_tests_20261021`; `qc/superseded_*`; session_poses legacy (lick_summary_*, lick_template_match*, movement_encoding_summary*, cam1_lick_aim*, jaw_lateral v34, pose3d/kinematics_setpoint, pose3d/figures maps pilot); FR rank-10 (`*_r10`) and pilot sets; ME pilot `movement_first_video-cam1-cam4`; FR pilot encoder runs | various | 10-02 - 10-23 | v36 / August-only / normalised tests / 3-D 4 animals / FR master r12 |
+| v35 run; v36 `cohort/*_allpre`; `epoch/archive_rawdF_tests_20261021`; `qc/superseded_*`; session_poses legacy (lick_summary_*, lick_template_match*, movement_encoding_summary*, cam1_lick_aim*, jaw_lateral v34, pose3d/kinematics_setpoint, pose3d/figures maps pilot); FR rank-10 (`*_r10`) and pilot sets; ME pilot `movement_first_video-cam1-cam4`; FR pilot encoder runs | various | 10-02 - 10-23 | v36 / August-only / normalized tests / 3-D 4 animals / FR master r12 |
 | `epoch_latepre` map figures (15r / 14) and the 10-18 `spout_position_analysis_summary*` decks (map slides) | `G/epoch_latepre`, `labcams/*.pptx` | 10-18 | contours drawn with the pre-10-21 raw tests; re-render only if quoted |
 | Local polar + binned `_3d4` contest (CURRENT, see 2c) | `E/..._polar_licks-combined_bins_3d4` | | O2 `bins_w1` (attempted gate) becomes the primary binned contest |
 
@@ -93,7 +93,7 @@ executed / direction; P3 = behavioural descriptors and side tables. `E` = `LP_an
 | Polar + binned 4-animal contest | `E/movement_first_subset-nokin_exec-polar_licks-combined_bins_3d4` | 10-23 18:50 - 10-24 03:35 | combined licks after cam1 complete, 20261023 tables; reference gate (O2 attempted-gate bins become primary) |
 | Stray-lick test | `E/stray_licks` | 10-23 20:05-21:23 | kinematics_all 17:41; not gated |
 | Contact vs direction | `E/qc/contact_direction_predictability.csv` | 10-23 19:20 | kinematics 17:30 |
-| Push behaviour | `E/qc/push_behaviour_sessions.csv` | 10-23 18:39 | DAQ treadmill only |
+| Push behavior | `E/qc/push_behaviour_sessions.csv` | 10-23 18:39 | DAQ treadmill only |
 | ENL LP census | `E/qc/enl_lp_census*.csv` | 10-21 18:08 | LP pre-cue train is cam4 only (cam1 events are post-cue), v36 retimed 10-20. **Inventory had REDO -- not needed.** |
 | v36 cohort orofacial (prepost / jaw_lateral / w2 / heatmaps / misdirected / robustness / deck) | `LP_analysis/.../clean_v36/cohort` | 10-20 11:33 - 21:43 | v36 retimed 10-20; cam4 + reference gate by design |
 | FaceRhythm master_pre_v1 rank 12 | `o2/fr_cam4_20261021/factors/master_pre_v1` | 10-24 05:49 - 06:30 (own8 still writing) | FR window owns |
@@ -104,7 +104,7 @@ executed / direction; P3 = behavioural descriptors and side tables. `E` = `LP_an
 | family | location | made | note |
 |---|---|---|---|
 | DAQ epoch families 5c/5r/6/7/8/9/10/11/12/13/15d-x/23-26/1b-1g/cd_*/recovery | `G/epoch/` | 09-17 - 10-17 | contact gate; the lick-gated arms (lick_lick, cue_lick, precue_lick) are contact-gated -> the LP_licks versions are the better primary for the attempt question (acute far-contra lick cell is empty under DAQ) |
-| DAQ maps 15r / 15rpa / 15e / 14 / 14pa / 14z (normalised tests) + calibration CSVs | `G/epoch/`, `G/epoch/results/` | 10-21 14:53 - 21:09 | made after the test change -> current |
+| DAQ maps 15r / 15rpa / 15e / 14 / 14pa / 14z (normalized tests) + calibration CSVs | `G/epoch/`, `G/epoch/results/` | 10-21 14:53 - 21:09 | made after the test change -> current |
 | DAQ_ENL1s (matched contact 1.0 s ENL) | `G/DAQ_ENL1s/epoch/` | 10-22 00:12-00:59 | contact only (see UNSURE on its frozen 1.0 s set) |
 | CD leave-one-out; histology; top-level grant_* (10-07 / 10-17); analysis_figures; channel_comparison; chronic_stability; null_potent; region_reference_contrast; enl_movement_multisession (DAQ 2 s ENL + ME); xday; joint_bases; labcams/frozen_models (state segments); local frozen store (10-18, August-only 2.0 s decoders/encoders = latepre set); behavior_summary (10-17); cue_lick (09-19..09-28); qc drift / slowband / position_blocks / precue_contacts | various | 06-01 - 10-21 | no cam1 / attempts / 3-D / encoder-version input. Caveat for ENL-based ones: DAQ 2 s "lick-free" windows contain non-contact licks (LP 1.0 s finding, DECISIONS 10-22) |
 

@@ -290,7 +290,7 @@ def test_curated_sessions_drops_labels_with_no_epoch(monkeypatch):
 
 
 def test_input_order_restores_the_serial_loops_order_not_alphabetical(monkeypatch):
-    """The key that makes a serial->parallel conversion provably behaviour-preserving.
+    """The key that makes a serial->parallel conversion provably behavior-preserving.
 
     `load_sessions` order is not sorted, so collecting a fan-out alphabetically reorders every
     pool the loop builds and moves the CIs while leaving the point estimates exact -- invisible in

@@ -8,13 +8,13 @@ Priya, 2026-10-01: "show me the angle sign flips with a visual example ... the a
 of the most informative". Angle = atan2(lr, ap) in the spout frame, origin = the mouth, 0 = straight out toward
 far_center, + = image-right (= mouse LEFT on cam4).
 Figure 1, one row per trial where the signs disagree (DLC): lick-1 path in IMAGE coordinates around the mouth
-(mouth at top centre, image-right on the right, the tongue going DOWN -- oriented like the video frames beside it;
-Priya 2026-10-06; the dashed line = the 0-degree / far_center axis), coloured by phase
+(mouth at top center, image-right on the right, the tongue going DOWN -- oriented like the video frames beside it;
+Priya 2026-10-06; the dashed line = the 0-degree / far_center axis), colored by phase
 (ring = peak, X = the max-|angle| frame, +-52 ms, square = the same with the outer-half restriction); angle vs
 time (smoothed per-frame angle; distance from the mouth on the right axis); the video frame at the peak and at
 the max-|angle| frame, with the tongue point, the mouth and the 0-degree line.
 Figure 2: angle and protrusion vs lick phase (0 = tongue appears, 0.5 = peak, 1 = gone), mean +- SEM per position,
-DLC and LP, from `TongueKinematics.lick_phase`; thin grey = individual licks of one position.
+DLC and LP, from `TongueKinematics.lick_phase`; thin gray = individual licks of one position.
 Figure 3 (Priya: reach accuracy -- "does the tongue deviate ... even if contact is normal"): DEVIATION = tongue
 angle - the mean angle of this session's CONTACT licks at that position and lick phase (`lick_reference`; the
 pre-stroke reference is in `session_lick_summary`). Replaced tongue - spout-tip angle, which is ~±30-35° even on
@@ -224,7 +224,7 @@ def main(argv=None) -> int:
                 ax.legend(fontsize=7, ncol=2)
             else:
                 ax.set_xlabel("lick phase")
-    fig.suptitle(f"{animal} {date}: tongue angle and protrusion over the lick (mean +- SEM per spout position; grey = "
+    fig.suptitle(f"{animal} {date}: tongue angle and protrusion over the lick (mean +- SEM per spout position; gray = "
                  f"individual far_L licks; tongue-in frames count as at the lips for protrusion; angle hidden where "
                  f"< {MIN_COV:.0%} of licks show the tongue)", fontsize=10)
     fig.tight_layout()

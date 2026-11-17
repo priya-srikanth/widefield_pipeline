@@ -72,7 +72,7 @@ def evidence(T):
 
 
 def suggest(T, max_um=1500):
-    """dict(stroke, seed, missing, mirror, flags) in the standardised section frame."""
+    """dict(stroke, seed, missing, mirror, flags) in the standardized section frame."""
     sh = T["tissue"].shape
     mirror = anchor_mirror(T["gc"], T["gi"], T["x0"])
     mcm = rasterize(mirror, sh); im = rasterize(T["gi"], sh)

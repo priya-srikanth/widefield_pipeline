@@ -1,4 +1,4 @@
-"""O2 stage `project`: every session on the frozen set (temporal weights, normaliser D, per-window spectral share and point speed, point PCs) -> proj/<key>.npz."""
+"""O2 stage `project`: every session on the frozen set (temporal weights, normalizer D, per-window spectral share and point speed, point PCs) -> proj/<key>.npz."""
 from __future__ import annotations
 
 import json
@@ -94,7 +94,7 @@ def _power_dict(mean: np.ndarray, cnt: np.ndarray, pos: np.ndarray) -> dict:
 
 
 def window_power(S, s: float, t5: np.ndarray, cues: np.ndarray, positions: np.ndarray) -> dict:
-    """Per-point SPECTRAL SHARE by window from the 5 Hz session spectrogram ``S`` (n5, 2, P, F), scaled. FR normalises
+    """Per-point SPECTRAL SHARE by window from the 5 Hz session spectrogram ``S`` (n5, 2, P, F), scaled. FR normalizes
     every frame by its mean power over the whole face (normalization_factor 0.95), so this is how a frame's movement is
     DISTRIBUTED over points and frequencies, not how much the face moves (that is `window_speed`)."""
     lab, pos = window_labels(t5, cues, positions, EDGE_BINS)
@@ -104,7 +104,7 @@ def window_power(S, s: float, t5: np.ndarray, cues: np.ndarray, positions: np.nd
 
 def window_speed(Xp: np.ndarray, t25: np.ndarray, cues: np.ndarray, positions: np.ndarray) -> dict:
     """Per-point movement SPEED (px / s, |d displacement / dt| of the 25 Hz points, RMS within each window class) --
-    the ABSOLUTE amount of movement the normalised spectrogram cannot show. ``Xp`` (bins, 2P) point-major."""
+    the ABSOLUTE amount of movement the normalized spectrogram cannot show. ``Xp`` (bins, 2P) point-major."""
     P = Xp.shape[1] // 2
     v = np.diff(Xp.reshape(len(Xp), P, 2), axis=0) * (1.0 / np.median(np.diff(t25)))
     sp2 = np.vstack([np.full((1, P), np.nan), (v ** 2).sum(-1)])                # speed^2 per bin, first bin NaN
@@ -117,7 +117,7 @@ def window_speed(Xp: np.ndarray, t25: np.ndarray, cues: np.ndarray, positions: n
 def points_stream(pf: Path, comps: np.ndarray, cues: np.ndarray, positions: np.ndarray,
                   t25: np.ndarray | None = None, bad: np.ndarray | None = None) -> dict:
     """`_centred_disp` + PCs + `window_speed` for a whole task WITHOUT holding its points: two sequential passes over
-    ``disp`` in ``POINTS_CHUNK`` blocks (the session mean; then per block the centred rows on the frozen PCs and the
+    ``disp`` in ``POINTS_CHUNK`` blocks (the session mean; then per block the centered rows on the frozen PCs and the
     speed^2 per bin, the block's first bin differenced against the previous block's last). Same numbers as the
     in-memory path (test); peak memory one block instead of ~5 GB at 230k bins x 1282 points."""
     D = npz_memmap(pf, "disp")

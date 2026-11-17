@@ -1,8 +1,8 @@
-# Handoff — 2026-10-05 (evening): cam1 DLC + LP, cam1 labelling round 2, 3-D spout frame, multi-camera EKS, first O2 run
+# Handoff — 2026-10-05 (evening): cam1 DLC + LP, cam1 labeling round 2, 3-D spout frame, multi-camera EKS, first O2 run
 
 **START HERE for tracking / 3-D / O2.** Continues `STATUS_2026-10-05_IMAGING_MOVEMENT_HANDOFF.md` (imaging-side
 analyses; still the entry point for those) and `STATUS_2026-09-30_LP_OCCLUSION_ROUND4_HANDOFF.md` (cam4 models,
-labelling rules). Reasoning: `DECISIONS.md`, the three 2026-10-05 tracking entries (afternoon: cam1 audit / spout
+labeling rules). Reasoning: `DECISIONS.md`, the three 2026-10-05 tracking entries (afternoon: cam1 audit / spout
 frame / multi-view plan; round 2; evening: LP vs DLC, EKS, calibration, O2). Analysis desktop; M: = MICROSCOPE.
 
 ## 0. RESUME CHECKLIST
@@ -12,15 +12,15 @@ frame / multi-view plan; round 2; evening: LP vs DLC, EKS, calibration, O2). Ana
    session videos are on scratch (`o2_videos/`, copied `rsync -ah`; never touch dates). First whole-session analyses
    on PS93 0814 (pre) in DECISIONS 2026-10-06; the template-match test waits for whole post-stroke sessions.
 2. **cam1 round 2 (b): DONE (late 10-05).** LP finished; picks run with LP (106 targets + 90 tongue "also label"
-   neighbours), contact sheets `DeepLabCut/Widefield/cam1_round2_scan/picks_sheets/`, extracted, worksheet rebuilt
+   neighbors), contact sheets `DeepLabCut/Widefield/cam1_round2_scan/picks_sheets/`, extracted, worksheet rebuilt
    (Part 3: 61 pair frames + the new picks, 164 blank). See the DECISIONS addendum at the end of the evening entry.
 3. **Calibrated multicam EKS: done, WORSE than calibration-free** (hidden cam1 tongue error 42-45 vs 17-18 px,
-   spikes back, cam1 nose behind the rod 95-155 px off; EKS's likelihood-blind 3-D initialisation lets occluded
+   spikes back, cam1 nose behind the rod 95-155 px off; EKS's likelihood-blind 3-D initialization lets occluded
    cam1 guesses set the depth). Use calibration-free multicam EKS with an explicit `smooth_param` (~10). See DECISIONS.
 
-**Labelling (student, worksheet `CAM1_GUIDE.html`, archived round-1 page in `_guide_archive/`):** Part 1 cam4
+**Labeling (student, worksheet `CAM1_GUIDE.html`, archived round-1 page in `_guide_archive/`):** Part 1 cam4
 round 4 (in progress now), Part 2 the four empty cam1 folders (PS93 0606, PS92 0820, PS95 0821, PS94 0903),
-Part 3 cam1 round 2 (61 pair frames + 106 cam1 hard frames, with 90 tongue "also label" neighbours).
+Part 3 cam1 round 2 (61 pair frames + 106 cam1 hard frames, with 90 tongue "also label" neighbors).
 
 **Then, in order (Priya's plan):** retrain cam1 DLC (+ cam4 after round 4) -> cam1 single-view LP retrain ->
 anipose cam1+cam4 + `spout_world` frame -> multi-view LP (`heatmap_multiview_transformer`, explicit `visible`
@@ -41,12 +41,12 @@ column with the SPLIT RULE, calibration arms a/b) -> 4-5-member ensembles on O2 
 * **O2 works** (DLC rc13 env, L40S, batch 1, 88 fps).
 
 ## 2. Plans / proposed methods (decided or proposed today)
-* **Multi-view LP labels — split rule** (decided): hidden in EVERY labelled view -> visible 1; hidden here but
-  labelled in the other view -> visible 0; unpaired view rows -> visible 0; `all_occluded` -> visible 1.
+* **Multi-view LP labels — split rule** (decided): hidden in EVERY labeled view -> visible 1; hidden here but
+  labeled in the other view -> visible 0; unpaired view rows -> visible 0; `all_occluded` -> visible 1.
 * **Calibration in multi-view LP**: arm (a) 3-D augmentation only vs (b) + projection losses at low weight; keep (b)
   only if better on held-out sessions.
 * **Calibration in EKS**: the nose supports it (reprojects 8.7 px, like the other parts), but the calibrated smoother
-  was worse (see above). Revisit only with a likelihood-weighted 3-D initialisation or with cam2/3 added.
+  was worse (see above). Revisit only with a likelihood-weighted 3-D initialization or with cam2/3 added.
 * **June** (proposed): 3-D output corrected by the per-session spout fit; if the calibrated smoother is worse on
   June, refine June extrinsics from the spout positions + paired labels (no new recording).
 * **Adaptive sessions** (PS93 0817 / 0820, PS92 0820): per-sample distance from events.csv pre_cue rows (trial ids
@@ -75,7 +75,7 @@ column with the SPLIT RULE, calibration arms a/b) -> 4-5-member ensembles on O2 
 |---|---|
 | cam1 DLC model | `M:\...\DeepLabCut\Widefield\training\widefield-Priya-2026-09-08-orofacial-cam1\` (best-40) |
 | cam1 LP model | WSL `/root/lp/cam1-2026-10-05/models/cam1_occl_uniform_20261005/` (epoch 144) |
-| labelled clips (DLC p60 / tongue40, DLC vs LP, disagreement sheet) | `M:\...\Widefield\inference_check_20261005_cam1\` |
+| labeled clips (DLC p60 / tongue40, DLC vs LP, disagreement sheet) | `M:\...\Widefield\inference_check_20261005_cam1\` |
 | EKS test outputs | `M:\...\Widefield\eks_test_20261005\`; scratch `C:\Users\SabatiniLab\lp_stage\eks_test\` |
 | round-2 scan / rows | `M:\...\Widefield\cam1_round2_scan\` |
 | O2 bundle | `M:\...\Widefield\o2\r3_PS93_20261002\` (COMMANDS.md), runbook `runbooks/o2_pose_inference.md` |

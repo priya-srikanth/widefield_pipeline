@@ -5,7 +5,7 @@ The frozen groups (`wfield_local.frozen_encoder.FGROUP`) are defined by what eac
 Per pre-stroke session: each trial's regressor values averaged over the post-lick window (first post-cue lick -0.1 ..
 +1.0 s; trials without a lick: cue .. +1.1 s), per group and per variable, then a multinomial logistic decoder of the
 spout (six classes, chance 1/6) with block cross-validation (GroupKFold over ~6-trial position blocks, as the
-imaging decoders). STATS_VERSION 4 groups: the LICK group (within-spout deviations of lick timing / vigour) should sit
+imaging decoders). STATS_VERSION 4 groups: the LICK group (within-spout deviations of lick timing / vigor) should sit
 near chance; target / exec_locked near ceiling. Templates leave the tested session out (see main).
 Accuracy above chance in a directionless variable = target information it carries indirectly (e.g. wider jaw
 opening for far spouts), which the encoder will credit to that group.
@@ -55,13 +55,11 @@ def one(item) -> list[dict]:
 
 
 def main(argv=None) -> int:
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     from wfield_local import analysis_kit as ak
     from wfield_local import combined_encoding as ce
     from wfield_local import config, epochs
     from wfield_local import frozen_encoder as fe
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
     from wfield_local.writeguard import assert_writable
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("labels", nargs="*")
@@ -69,14 +67,14 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     labels = a.labels
     if not labels:
-        pre = sorted(x for x in ce.sessions_available() if x[-4:] >= "0801" and epochs.epoch_of(x) == "pre")
+        pre = sorted(x for x in ce.sessions_available() if not config.early_pre(x) and epochs.epoch_of(x) == "pre")
         labels = []
         for an in sorted({config.animal_of(x) for x in pre}):
             mine = [x for x in pre if config.animal_of(x) == an]
             labels += [mine[0], mine[len(mine) // 2]] if len(mine) > 1 else mine
     # SPOUT-LOCKED TEMPLATES LEAVING THE TESTED SESSION OUT: with its own trials in the template, the lick deviation
     # would sit at chance in that session by construction; held out, it is a real test (as post sessions are scored)
-    tpre = sorted(x for x in ce.sessions_available() if x[-4:] >= "0801" and epochs.epoch_of(x) == "pre"
+    tpre = sorted(x for x in ce.sessions_available() if not config.early_pre(x) and epochs.epoch_of(x) == "pre"
                   and config.animal_of(x) in {config.animal_of(y) for y in labels})
     tparts, tfail = ak.fan_sessions(tpre, fe.template_job, jobs=a.jobs, label="template")
     if tfail:
@@ -87,7 +85,9 @@ def main(argv=None) -> int:
     for it, err in fail:
         print("FAILED", it[0], err)
     T = pd.DataFrame([r for _, rr in got for r in rr])
-    out = oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / "qc"
+    from wfield_local import run_mode
+    out = run_mode.encoding_out_root() / "qc"            # the run's (tagged) encoding tree, coordinator 11-04
+    out.mkdir(parents=True, exist_ok=True)
     assert_writable(out)
     T.to_csv(out / "frozen_group_leakage.csv", index=False, float_format="%.4f")
     pd.set_option("display.width", 200)

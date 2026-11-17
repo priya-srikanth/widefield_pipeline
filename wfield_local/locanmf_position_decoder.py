@@ -25,6 +25,7 @@ import argparse
 import hashlib
 import glob
 import json
+import os
 from pathlib import Path
 
 import matplotlib
@@ -40,6 +41,7 @@ from sklearn.metrics import confusion_matrix, accuracy_score
 
 from wfield_local import config
 from wfield_local import lp_licks
+from wfield_local.enl_window import lickfree_window, precue_window_start  # noqa: F401 (moved 11-04)
 from wfield_local import nolick_analysis as na
 from wfield_local import session_cache
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS
@@ -55,7 +57,8 @@ def _build_signal(s, source):
     """Return (signal [nfeat,T], feat_region_labels [nfeat])."""
     mc = s["mc"]
     if source == "locanmf":
-        C = np.load(f"{config.locanmf_dir(mc)}/{s['label']}_locanmf_C.npy").astype(np.float64)
+        from wfield_local import locanmf_session
+        C = locanmf_session.load_C(s).astype(np.float64)      # stored, or projected (WIDEFIELD_LOCANMF_PROJECT)
         reg = np.load(f"{config.locanmf_dir(mc)}/{s['label']}_locanmf_regions.npy")
         A = np.load(f"{config.locanmf_dir(mc)}/{s['label']}_locanmf_A.npy", mmap_mode="r")
         return _footprint_scale(A, C.shape[0])[:, None] * C, reg
@@ -131,61 +134,6 @@ def is_engaged(first_lick, rt, max_rt):
     return bool(first_lick > 0 and 0 < rt <= max_rt)
 
 
-def lickfree_window(cue_f, strobe_f, licks, win_n):
-    """Latest ``win_n``-frame window before the cue containing NO licks, or None.
-
-    Moved here from `precue_lickfree` on 2026-08-17 when Priya decided the HEADLINE pre-cue number
-    should be lick-free: the rule now governs the production decoder, so it belongs beside it rather
-    than in the module that used to be its only consumer.
-
-    A FIXED window ending at the cue throws a trial away for a single lick anywhere in it -- including
-    one 200 ms before the cue, when 2 s of clean data sits just earlier in the same enforced no-lick
-    period. Instead: take the lick-free GAPS in [strobe, cue] and use the last ``win_n`` frames of the
-    LATEST gap long enough to hold the window. Closest to the cue is preferred, being most informative
-    about the upcoming action.
-
-    BOUNDED AT THE STROBE, deliberately. Before the spout arrives this trial's position does not exist,
-    and because the task avoids recent repeats, prior-trial activity carries real information about the
-    upcoming position -- a window straying earlier would smuggle that in and look like a pre-cue code.
-    """
-    lo = int(np.ceil(strobe_f)) if np.isfinite(strobe_f) else None
-    hi = int(cue_f)
-    if lo is None or hi - lo < win_n:
-        return None
-    inside = np.sort(licks[(licks >= lo) & (licks < hi)])
-    edges = np.concatenate(([lo], inside, [hi]))
-    for i in range(len(edges) - 2, -1, -1):
-        gap_start = int(edges[i]) + (1 if i > 0 else 0)      # a lick occupies its own frame
-        gap_end = int(edges[i + 1])
-        if gap_end - gap_start >= win_n:
-            return gap_end - win_n
-    return None
-
-
-def precue_window_start(c0, strobe_f, licks_sorted, win_n, lickfree=True):
-    """Start frame of this trial's PRE-CUE window, or None meaning DROP the trial.
-
-    THE HEADLINE PRE-CUE NUMBER IS LICK-FREE (Priya, 2026-08-17). Previously only the Section C
-    control restricted; the headline used every engaged trial and relied on the ENL to keep the
-    window quiet, which it does 90.8-99.5% of the time -- but "almost always" is per SESSION, and
-    PS93 8/9 falls to 76%, in the animal whose licking is already atypical. A readout whose whole
-    claim is motor-independence should not rest on a task contingency holding on average.
-
-    Trials with a clean fixed window keep it, so the common case stays exactly cue-aligned. Trials
-    with a lick in it slide to the latest clean gap. Trials with no clean window ANYWHERE are
-    DROPPED rather than kept-and-flagged -- for a headline number, "mostly clean" is the thing being
-    retired.
-    """
-    fixed = int(c0) - win_n
-    if not lickfree:
-        return fixed if fixed >= 0 else None
-    if fixed < 0:
-        return None
-    if not np.any((licks_sorted >= fixed) & (licks_sorted < fixed + win_n)):
-        return fixed                                          # already clean; keep it cue-aligned
-    return lickfree_window(c0, strobe_f, licks_sorted, win_n)
-
-
 def strobe_frames(cue, cue_f, fs):
     """Per-trial SPOUT-STROBE frame -- the earliest a pre-cue window may be slid back to.
 
@@ -233,7 +181,7 @@ def would_be_lick_offsets(codes, rt, engaged, min_trials=5):
 
     -- so those windows sat up to 2.1 s early inside a 2 s window, i.e. they did not overlap the
     inferred lick at all, and the error was largest at the most impaired positions. That correlates
-    the artefact with severity, which is the very axis these figures report.
+    the artifact with severity, which is the very axis these figures report.
 
     ``min_trials`` no longer gates the offset, only the WEAK flag: below it the median rests on one
     or two trials and is order-of-magnitude evidence rather than a real median. It is still the
@@ -338,6 +286,31 @@ def feature_cache_kind(args, *, signal_key, nolick_ref, with_precue_licks, with_
     return f"tf-{spec['align']}-{digest}"
 
 
+def roi_signal_inputs(s) -> list[str]:
+    """The files `_build_signal(s, "roi")` reads: the Allen-aligned U, atlas and brain mask, and the SVTcorr of THIS
+    hemodynamic variant (`config.svtcorr_path`, so a variant switch is a different path)."""
+    mc = s["mc"]
+    hits = glob.glob(f"{mc}/wfield_local_results/allen_aligned_affine8v1")
+    ad = hits[0] if hits else f"{mc}/wfield_local_results/allen_aligned_affine8v1"
+    return [f"{ad}/U_atlas.npy", f"{ad}/allen_area_atlas_native_grid.npy",
+            f"{ad}/allen_brain_mask_native_grid.npy", str(config.svtcorr_path(mc))]
+
+
+def roi_signal_key(s) -> str:
+    """``signal_key`` for the Allen-ROI source: a digest of (path, mtime_ns, size) of every `roi_signal_inputs` file.
+
+    A re-preprocess, a re-registration or a hemodynamic-variant switch changes one of them and so the cache kind; a
+    missing file is recorded as missing (and `_build_signal` then fails exactly as it did uncached)."""
+    st = []
+    for f in roi_signal_inputs(s):
+        try:
+            x = os.stat(f)
+            st.append((f, x.st_mtime_ns, x.st_size))
+        except OSError:
+            st.append((f, None, None))
+    return "roi-" + hashlib.sha1(repr(st).encode()).hexdigest()[:12]
+
+
 def trial_features_cached(s, args, *, signal=None, feat_region=None, signal_fn=None,
                           signal_key=None, with_precue_licks=False, with_indices=False,
                           with_rt=False, nolick_ref="cue", verbose=False):
@@ -351,11 +324,13 @@ def trial_features_cached(s, args, *, signal=None, feat_region=None, signal_fn=N
       expensive thing we are avoiding building, and hashing ~100 MB per call would cost more than the
       rebuild). A caller that injects a signal must say where it came from; one that does not gets a
       correct, uncached answer instead of a fast, possibly wrong one.
-    * ``source`` OTHER THAN ``locanmf`` WITHOUT AN INJECTED SIGNAL. `_build_signal` then reads
+    * ``source`` OTHER THAN ``locanmf`` / ``roi`` WITHOUT AN INJECTED SIGNAL. `_build_signal` then reads
       `U_atlas.npy` and the SVTcorr, and `session_signature` stats neither, so a re-preprocess would
-      not invalidate the entry. Those sources are diagnostics (`pixel_rsa`, the filter tests), not
-      the hot path, so the honest fix is to leave them uncached rather than to widen a signature
-      every other cached kind also depends on.
+      not invalidate the entry. Those sources (``svt`` ...) are diagnostics (`pixel_rsa`, the filter
+      tests), not the hot path, so they stay uncached rather than widening a signature every other
+      cached kind also depends on. ``roi`` IS cached (11-07): it is section G's and the frozen pools'
+      hot path (~19 s per session-alignment uncached), and its key carries the stats of exactly those
+      files (`roi_signal_key`), so the signature is widened for that kind alone.
 
     ``signal_fn`` is the same injection DEFERRED: a zero-arg callable returning ``(signal, regions)``,
     invoked only when the cache misses. That is what makes the saving real for the joint-basis paths,
@@ -378,7 +353,14 @@ def trial_features_cached(s, args, *, signal=None, feat_region=None, signal_fn=N
     injected = signal is not None or signal_fn is not None
     if injected and not signal_key:
         return _compute()
-    if not injected and getattr(args, "source", "locanmf") != "locanmf":
+    source = getattr(args, "source", "locanmf")
+    if not injected and source == "roi":
+        # ALLEN-ROI IS CACHED (11-07), keyed on the stats of every file `_build_signal` reads for it. It is section G's
+        # pooling source, and uncached it rebuilt every session at every alignment in every unit straight off
+        # MICROSCOPE (~15 min per unit, network-bound). The refusal below was about exactly these files being
+        # invisible to `session_signature`; putting their (path, mtime, size) in the key answers it for this source.
+        signal_key = roi_signal_key(s)
+    elif not injected and source != "locanmf":
         return _compute()
     kind = feature_cache_kind(args, signal_key=signal_key or "own", nolick_ref=nolick_ref,
                               with_precue_licks=with_precue_licks, with_indices=with_indices,
@@ -450,7 +432,7 @@ def _trial_features(s, args, signal=None, feat_region=None, with_precue_licks=Fa
         sig = np.asarray(signal)
         feat_reg = np.arange(sig.shape[0]) if feat_region is None else np.asarray(feat_region)
     nfeat, T = sig.shape
-    cue = _load_cue_events(s["h5"]); lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    cue = _load_cue_events(s["h5"]); lk = _load_daq_events(s["h5"], "lick_analog")
     # LP_licks (WIDEFIELD_LICK_SOURCE=lp, 2026-10-21): the DAQ contact train is replaced by the video lick train, edited
     # so the first lick after each cue is the LP post-cue gate; trials without an LP verdict are marked out of coverage.
     lp = None

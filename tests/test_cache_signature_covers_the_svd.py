@@ -3,7 +3,7 @@
 WHY (2026-09-07). PS92 2026-08-28 was recorded with its 415/470 excitation channels swapped. The
 fix landed 08-29 as a per-session `functional_channel: 0` override and regenerated `SVTcorr.npy`
 and `U.npy` -- and nothing recomputed. `session_signature` hashed `locanmf_C`, the `.h5` and the
-behaviour trials; none of those moved, so every cached ROI and pixel feature kept serving
+behavior trials; none of those moved, so every cached ROI and pixel feature kept serving
 swapped-channel values. The G8d SVD maps and every ROI-sourced result carried them for nine days.
 
 `locanmf_C` IS NOT A PROXY for the SVD: it is downstream of `SVTcorr`, so it is stale whenever the

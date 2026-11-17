@@ -1,7 +1,7 @@
 """Figure for the 8s-vs-6s comparison (QC doc §0j): first-lick traces, maps, spectra, spatial correlation.
 
-Rows: (1) first-lick cortex-mean trace, dF/F %; (2) the same normalised to its own peak (kinetics); (3) hotspot
-trace (top-2% pixels of the 0-0.4 s map), normalised; (4) power spectrum of the corrected cortex mean, normalised
+Rows: (1) first-lick cortex-mean trace, dF/F %; (2) the same normalized to its own peak (kinetics); (3) hotspot
+trace (top-2% pixels of the 0-0.4 s map), normalized; (4) power spectrum of the corrected cortex mean, normalized
 to its 0.1-0.3 Hz level; (5) spontaneous pixel-pair correlation vs distance (from indicator_compare.json, PS120
 recomputed here). Then one first-lick map (0-0.4 s) per session. PS120 is drawn as the blood-flow-only reference
 (no GCaMP signal, §0h). Same signal / mask / events as indicator_compare.py.
@@ -88,8 +88,8 @@ def main():
         cv = stats[lab]["corr_vs_dist_px"]
         axs[4].plot([int(k) + 5 for k in cv], list(cv.values()), **kw)
     for a, ttl, yl in ((axs[0], "first lick: cortex mean (dF/F %)", "dF/F %"),
-                       (axs[1], "first lick: cortex mean, normalised to peak (kinetics)", "fraction of peak"),
-                       (axs[2], "first lick: hotspot (top 2% pixels), normalised to peak", "fraction of peak")):
+                       (axs[1], "first lick: cortex mean, normalized to peak (kinetics)", "fraction of peak"),
+                       (axs[2], "first lick: hotspot (top 2% pixels), normalized to peak", "fraction of peak")):
         a.axvline(0, color="k", lw=0.5)
         a.axhline(0, color="k", lw=0.5)
         a.set_title(ttl, fontsize=10)
@@ -98,7 +98,7 @@ def main():
     axs[1].set_ylim(-1.2, 1.2)
     axs[2].set_ylim(-1.2, 1.2)
     axs[0].legend(fontsize=7.5)
-    axs[3].set_title("corrected cortex-mean power, normalised at 0.1-0.3 Hz (8s keeps more fast power)", fontsize=10)
+    axs[3].set_title("corrected cortex-mean power, normalized at 0.1-0.3 Hz (8s keeps more fast power)", fontsize=10)
     axs[3].set_xlabel("Hz")
     axs[4].set_title("spontaneous (0.3-5 Hz) pixel-pair correlation vs distance", fontsize=10)
     axs[4].set_xlabel("distance (px, same rig)")
@@ -113,7 +113,7 @@ def main():
                     f"t_peak {r['cortex_t_peak_s']:.2f}s", fontsize=8.5)
         a.axis("off")
     fig.suptitle("jGCaMP8s (RiboL1, red) vs GCaMP6s (Thy1, blue; dashed/dotted = cohort1) -- lag + swap-masked "
-                 "correction, DAQ timing; grey = PS120 (blood flow only)", fontsize=12)
+                 "correction, DAQ timing; gray = PS120 (blood flow only)", fontsize=12)
     fig.tight_layout()
     fig.savefig(OUT / "cohort2_indicator_compare.png", dpi=100)
     print("wrote", OUT / "cohort2_indicator_compare.png", json.dumps({k: round(v, 3) if isinstance(v, float) else v

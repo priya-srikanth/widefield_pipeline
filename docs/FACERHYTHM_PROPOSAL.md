@@ -14,12 +14,12 @@ and the ENL movement-removed trajectory (running + motion-energy PCs) was run on
 ## 1. The paper (Hakim, Jaggi, Heo, ... Musall, Sabatini; bioRxiv 10.1101/2025.09.10.675423 v4, 2026-07-09)
 
 **Pipeline.** Dense mesh of ~500-3000 points on a face ROI -> Lucas-Kanade optical flow with three corrections
-(mesh "springs" to neighbours, relaxation toward the start position, freezing of points whose displacement
+(mesh "springs" to neighbors, relaxation toward the start position, freezing of points whose displacement
 jumps, e.g. during grooming) -> per point, x and y, a variable-Q transform (VQT) magnitude spectrogram
-(log-spaced bins, window length L = Q * fs / f) -> normalisation (frame-wise power, optional 1/f boost) ->
+(log-spaced bins, window length L = Q * fs / f) -> normalization (frame-wise power, optional 1/f boost) ->
 non-negative CP / TCA on the (2P x F x T) tensor. Each component = spatial factor (which points) x spectral
 factor (which frequencies) x **temporal factor (amplitude envelope over time) -> that is the regressor**.
-Rank 4-12 is interpretable; 10 is their default. Components are not orthogonal, so co-active behaviours
+Rank 4-12 is interpretable; 10 is their default. Components are not orthogonal, so co-active behaviors
 (whisking + sniffing) separate into different components.
 
 **The result that bears on us — Musall et al. 2019 widefield data (7 mice, 9 sessions, ridge per pixel, cvEVR):**
@@ -56,7 +56,7 @@ Speed: ~200-300 frames/s on a GPU for a 1280x1024 video, dominated by tracking. 
   (11 GB/session; the spectrogram is (2, 918, 30, 50631) float32).
   Per session: `TCA.h5` (factors: points 1836x10, frequency 30x10, time 50631x10 at 12.5 Hz), `ROIs.h5` (two ROIs,
   918 points), and params, config and log files.
-  Parameters: point_spacing 10, LK winSize 50 / maxLevel 5, CLAHE, VQT 0.5-60 Hz, 30 bins, Q 3->10, centred
+  Parameters: point_spacing 10, LK winSize 50 / maxLevel 5, CLAHE, VQT 0.5-60 Hz, 30 bins, Q 3->10, centered
   Hann (6 s window at 0.5 Hz), downsample 20 (-> 12.5 Hz), normalization 0.6, 1/f 0.5, rank-10 NN-CP-HALS
   (random init). Runtime: 2.4 h per session on an O2 GPU.
   NB its mesh and relaxation values (0.002 / 0.002) differ from the paper's production values (0.1 / 0.01). It
@@ -65,7 +65,7 @@ Speed: ~200-300 frames/s on a GPU for a 1280x1024 video, dominated by tracking. 
   a horizontal ~7 Hz one (whisking), a 16 Hz one, several 1-2 Hz ones, and two slow ones near the 0.5 Hz floor.
   Temporal factors are mostly decorrelated (median r -0.09, max 0.76).
 * **`facerhythm_stroke_biomarker_exp/`** holds **no FR output**. It has the old cohort's wavesurfer files,
-  `session_processing3` behaviour products, and four grant example frames (PS51).
+  `session_processing3` behavior products, and four grant example frames (PS51).
 * **None of this is our widefield cohort (PS92-95) or rig** (four Blackflys, a moving spout). The existing runs
   are useful as a parameter and runtime reference and for what lick/whisk components look like, but **cannot**
   be used as regressors. `stroke_orofacial_pipeline` has FR deferred to "Phase 11+" for that old cohort.
@@ -96,7 +96,7 @@ face regressors. The second, and the more important, criterion is in §4.
 
 ## 4. The rig-specific risk: the spout, and why blanking is not enough for FR
 
-* The VQT window is L = Q*fs/f. At 0.5 Hz, Q 3, that is a **6 s** (centred, +/-3 s) kernel. The spout is
+* The VQT window is L = Q*fs/f. At 0.5 Hz, Q 3, that is a **6 s** (centered, +/-3 s) kernel. The spout is
   repositioned before the strobe and arrives ~3 s before the cue. A low-frequency envelope sampled inside
   strobe..trial end therefore integrates the repositioning motion *before* the strobe. Blanking the regressor's
   output does not stop that. ME has no such memory (one frame difference per bin). This matters most for the
@@ -105,7 +105,7 @@ face regressors. The second, and the more important, criterion is in §4.
   through occlusion). (2) Raise F_min for the face cams (e.g. 1-2 Hz, a 1.5-3 s window) and let point-tracking
   PCs carry the slow part (arm D). (3) Use causal VQT kernels so nothing after a bin leaks in (it still looks
   back).
-* **Required check before any ENL use** (the analogue of `enl_video_spout_check.py`): decode position from FR
+* **Required check before any ENL use** (the analog of `enl_video_spout_check.py`): decode position from FR
   temporal factors in the 2 s pre-cue lick-free window. Face-cam ME scores 0.92-0.94 here. If FR is much lower
   and the model R^2 holds, the **0.26 lower bound becomes less conservative** (less over-removal). That is the
   main scientific payoff, beyond interpretability. If FR also scores ~0.9, look at the spatial factors of the

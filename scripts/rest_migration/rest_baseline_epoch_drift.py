@@ -64,8 +64,8 @@ WHAT IT FIXES: the null becomes STRUCTURALLY MATCHED. Self-referenced, the obser
 understated the bias and its p was anti-conservative. Held out, neither shares anything with
 `e_ref`, so the same disjoint-halves null is matched and the p is legitimate.
 
-WHAT IT DOES NOT FIX, MEASURED: it does not centre the null cosine at zero. |null median| is 0.212
-held out against 0.233 self-referenced -- barely moved. The nonzero centre was never mainly the
+WHAT IT DOES NOT FIX, MEASURED: it does not center the null cosine at zero. |null median| is 0.212
+held out against 0.233 self-referenced -- barely moved. The nonzero center was never mainly the
 shared term: under the null `d` is a difference between two random groups of pre BASELINES, and
 those are not isotropic -- they occupy a low-dimensional, cortically structured subspace that
 overlaps the evoked pattern. That is a property of the data and survives any reference. It is also
@@ -84,6 +84,7 @@ still the column the claim rests on.
     python -m scripts.rest_migration.rest_baseline_epoch_drift [--animals PS92 ...] [--perm 2000]
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import csv
@@ -136,7 +137,7 @@ def normalise(b, e):
     THE ONE LINE THAT MAKES SESSIONS COMPARABLE ACROSS DAYS, and the design's central claim: the
     result is invariant to multiplying that session's data by any positive constant. Expression,
     bleaching and window clarity all act as exactly such a constant, and NO SUBTRACTION REMOVES A
-    GAIN TERM -- `crossday_intensity` owns that confound and this is the local defence against it.
+    GAIN TERM -- `crossday_intensity` owns that confound and this is the local defense against it.
     Without this the measurement would largely report how bright the window was on each day.
 
     Pure and separate from the session load so the invariance can be pinned by a test rather than
@@ -341,8 +342,9 @@ def main() -> int:
         from pathlib import Path
 
         from wfield_local.paths import PathResolver
-        p = Path(a.out or (Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch"
-                           / "epoch_15j_rest_baseline_epoch_drift.csv"))
+        from wfield_local import lp_licks
+        p = Path(a.out or (Path(lp_licks.output_dir(Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch"))
+                           / "epoch_15j_rest_baseline_epoch_drift.csv"))      # THIS run's epoch dir (11-04)
         if not p.exists():
             print(f"!! no table at {p} -- run once WITHOUT --replot first.")
             return 1
@@ -380,7 +382,7 @@ def main() -> int:
                 if (g[2] == "pre").any()}
     names = sorted(pre_mean)
     if len(names) > 1:
-        print("\nCROSS-ANIMAL COMPARABILITY of the mean PRE evoked pattern (unit-normalised "
+        print("\nCROSS-ANIMAL COMPARABILITY of the mean PRE evoked pattern (unit-normalized "
               "per session before averaging, so this is SHAPE, not amplitude):", flush=True)
         rs = []
         for i, a1 in enumerate(names):
@@ -416,8 +418,10 @@ def main() -> int:
     from pathlib import Path
 
     from wfield_local.paths import PathResolver
-    out = a.out or (Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch"
-                    / "epoch_15j_rest_baseline_epoch_drift.csv")
+    from wfield_local import lp_licks
+    out = a.out or (Path(lp_licks.output_dir(Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch"))
+                    / "epoch_15j_rest_baseline_epoch_drift.csv")              # THIS run's epoch dir (11-04)
+    Path(out).parent.mkdir(parents=True, exist_ok=True)
     with open(out, "w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=list(rows[0]))
         w.writeheader()
@@ -579,7 +583,7 @@ def _figure(rows, out_dir):
              "cos < 0 INFLATES it. The one significant cell (PS94 subacute, -0.91) is inflating.",
              ha="center", va="top", fontsize=8.2)
     out = out_dir / "epoch_15j_rest_baseline_epoch_drift.png"
-    fig.savefig(out, dpi=150, bbox_inches="tight")
+    save_png_svg(fig, out, dpi=150, bbox_inches="tight")
     plt.close(fig)
     return out
 

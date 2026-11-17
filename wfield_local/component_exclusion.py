@@ -5,7 +5,7 @@ some rim regions. (1) should we apply that before doing CD on the locaNMF compon
 blast radius (2) should we have done this for ALL the decoder analyses??"*
 
 THE FACT THAT PROMPTED IT. `beta_maps.brain_mask()` subtracts the olfactory bulbs AND the
-hand-painted fibre glue, and every MAP analysis goes through it. LocaNMF and every decoder load the
+hand-painted fiber glue, and every MAP analysis goes through it. LocaNMF and every decoder load the
 RAW `allen_brain_mask_native_grid.npy` instead, so the components were fitted over territory no map
 will test. Measured here, per animal, at a 0.5 mass threshold:
 
@@ -36,7 +36,7 @@ correction to results already published.
 IT BECAME MORE PRESSING ON 2026-09-24, for an unrelated reason. `cd_trajectories` now Z-SCORES the
 components before fitting (per-component sd spans 107x; the top five hold 82% of the variance). That
 was right on its own terms, and it removed the amplitude protection that had been implicitly
-down-weighting a dim, mostly-occluded component: after standardising, such a component is scaled to
+down-weighting a dim, mostly-occluded component: after standardizing, such a component is scaled to
 unit variance and competes on equal terms.
 
 WHAT THIS MODULE DOES NOT DO: refit LocaNMF on masked data. That would change `spec_id` for every
@@ -65,13 +65,15 @@ def excluded_pixels(animal, include_bulbs=True):
     throw away cortex that is perfectly good in three of the four -- the same reasoning
     `painted_exclusion` gives for the union being right for POOLED figures and wrong for per-animal
     ones.
+
+    RAISES on a missing / unreadable / mis-shaped mask (`paint_exclusion.load_mask`, 2026-11-09); it used to treat a
+    missing file as "no glue". All-False only for a cohort that opts out (configs/cohorts.yaml painted_exclusion: none).
     """
     from wfield_local import beta_maps as bm
-    from wfield_local.paint_exclusion import mask_path
+    from wfield_local.paint_exclusion import load_mask
 
     bulbs = bm.excluded_mask()
-    p = mask_path(animal)
-    glue = np.load(p).astype(bool) if p.exists() else np.zeros(bulbs.shape, bool)
+    glue = load_mask(animal, bulbs.shape)
     return (glue | bulbs) if include_bulbs else glue
 
 

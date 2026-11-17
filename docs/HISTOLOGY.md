@@ -31,7 +31,7 @@ make a silent drop impossible:
 ## Rules (and why)
 
 * **Pairing.** Outlines are unnamed and unclassified, so a section's two outlines are paired as
-  mutual nearest neighbours by centroid. Each pair must sit on one slide row (|dy| < 1500 px) at
+  mutual nearest neighbors by centroid. Each pair must sit on one slide row (|dy| < 1500 px) at
   hemisphere spacing (3000-9000 px at 0.65 um/px), or the import fails. A mis-pairing is caught
   rather than turned into a plausible ratio.
 * **Ipsi = the smaller outline of each section** (Priya: "the one with smaller area will always be
@@ -42,7 +42,7 @@ make a silent drop impossible:
     show a contralesional > ipsilesional asymmetry. That is harmless for these animals (every section
     is <= 69%), but this rule should not be applied to shams or unlesioned controls.
 * **Section number = reading order on the slide** (row, then x). It is not a verified AP order.
-* **Colours** come from `configs/animals.yaml` (the paper's notebook used matplotlib's cycle). The
+* **Colors** come from `configs/animals.yaml` (the paper's notebook used matplotlib's cycle). The
   jitter is seeded, so a re-render does not move the points.
 
 ## Results (2026-10-21, after exclusions)
@@ -87,14 +87,14 @@ re-render recovered from the SVG). That notebook was the reference for this one.
 Added 2026-10-21. Package `wfield_local/histology_map/`; cohort data `configs/histology_map/PS92-95/`; figure
 `<MICROSCOPE>/Priya/Widefield/histology/PS92-95_stroke_schematic_v2.{png,svg,pdf}` (+ `_sections.json`) and
 `PS92-95_scale_check.png`. Each animal's stroke is drawn on outline-only Paxinos & Franklin plates, lesion left,
-with the animals overlaid with transparency in their `animals.yaml` colours.
+with the animals overlaid with transparency in their `animals.yaml` colors.
 
 ## Pipeline
 
 | step | module | runs where | output |
 |---|---|---|---|
 | crop sections at level 3 (5.2 um/px), all channels | `histology_map.ets` (+ `jobs`) | Mac / rig (needs the VS200 scans) | `<crops_dir>/<animal>_s<n>_L3.npz` |
-| standardise + Claude's suggestion + painter page | `prepare` | anywhere with crops + QuPath project | `sections.json` transforms, painter HTML |
+| standardize + Claude's suggestion + painter page | `prepare` | anywhere with crops + QuPath project | `sections.json` transforms, painter HTML |
 | Priya paints masks | Stroke Painter artifact (`painter_template.html`) | claude.ai | `masks` collection -> `configs/histology_map/<cohort>/masks/` |
 | section -> plate fit at Priya's AP levels | `fit` | anywhere | `sections.json` (figure, kx, ky, ty, err) |
 | schematic | `schematic` | anywhere | png / svg / pdf + per-section areas |
@@ -106,7 +106,7 @@ with the animals overlaid with transparency in their `animals.yaml` colours.
 
 * **Atlas**: Paxinos & Franklin 2nd ed. vector plates (Fig 13-48 = PDF pages 63-98). Outlines only: labels, label
   leader lines, the unlabelled reference circle in the right CPu, and stray line art outside the brain removed;
-  ventricles light grey. Cite the atlas in the legend and check the journal's permission policy for adapted plates.
+  ventricles light gray. Cite the atlas in the legend and check the journal's permission policy for adapted plates.
 * **Lesion always on the LEFT**, whatever the mounting (flipped sections mirrored).
 * **Midline = dorsal interhemispheric fissure**, not the outline's mirror-symmetry axis: atrophy pulls the symmetry
   axis 0.1-0.3 mm toward the intact side (largest in PS93), which then mis-scales the intact hemisphere.
@@ -120,7 +120,7 @@ with the animals overlaid with transparency in their `animals.yaml` colours.
   density / higher GFAP on both sides) is not stroke, a necrotic core extending into GPe is. Footprint = the visible
   lesion, always fully included, spilled laterally then dorsally into territory absent ipsilaterally but present
   contralaterally (the mirrored contra striatum anchored on the surviving striatum's intact medial / dorsomedial
-  border). Medial and usually dorsal striatum spared; DLS involvement in some animals (a fibre-hit vessel). Because
+  border). Medial and usually dorsal striatum spared; DLS involvement in some animals (a fiber-hit vessel). Because
   of encephalomalacia the absent area exceeds the visible lesion; that is expected.
 * **Masks in the figure = Priya's painted masks** (24 sections incl. PS93 s2). PROVISIONAL: she painted them
   quickly ("don't treat my masks as 100% ground truth"); they are a reference, not a calibration target.
@@ -128,13 +128,13 @@ with the animals overlaid with transparency in their `animals.yaml` colours.
 * **AP levels = Priya's figure numbers** (`priya_figures` in sections.json; "?" = `priya_unsure`: PS93 s5, s6,
   PS95 s1). Ranges resolved by the better fit (PS92 s2 -> Fig 29, s5 -> Fig 30). The automatic AP estimate (shape
   fit, and the atlas Nissl / AChE photomicrographs at PDF page = figure + 182, odd = Nissl) narrowed the range to
-  +0.50..-0.10 but could not separate neighbouring 0.12-mm levels; it is not used.
+  +0.50..-0.10 but could not separate neighboring 0.12-mm levels; it is not used.
 * **No skipped levels**: levels between an animal's measured ones are filled by signed-distance interpolation,
-  drawn dashed / lighter and labelled "interp.".
+  drawn dashed / lighter and labeled "interp.".
 
 ## Reproducibility
 
-`sections.json` pins every transform the painted masks depend on (flip, rotation angle + centre, midline, painter
+`sections.json` pins every transform the painted masks depend on (flip, rotation angle + center, midline, painter
 crop + scale). Re-running `schematic` from the repo reproduces the published areas exactly. Re-running `fit`
 reproduces the stored transforms to ~0.01 in scale and ~0.06 mm in ty (the plate masks were cleaned after the
 original fit); `schematic` uses the stored values.
@@ -152,8 +152,8 @@ whenever that folder exists. Placement rules she applied: lateral stroke edge ag
 (corpus callosum / external capsule); blob extending dorsolaterally from the core, only a touch ventral.
 
 ### Figure versions (2026-10-22)
-- All levels, coloured outlines, interpolated levels dashed: `python -m wfield_local.histology_map schematic --cohort PS92-95 --style outline` -> `PS92-95_stroke_schematic_v3_outlines.*` (filled version without `--style`).
-- Selected levels, real sections only (neighbour-level fill-ins listed in `_sources.json`): `scripts/histology_stroke_extent_figure.py <atlas_polygons dir> <out_stem> PS92-95` -> `Widefield_stroke_extent_PS92-95.*`.
+- All levels, colored outlines, interpolated levels dashed: `python -m wfield_local.histology_map schematic --cohort PS92-95 --style outline` -> `PS92-95_stroke_schematic_v3_outlines.*` (filled version without `--style`).
+- Selected levels, real sections only (neighbor-level fill-ins listed in `_sources.json`): `scripts/histology_stroke_extent_figure.py <atlas_polygons dir> <out_stem> PS92-95` -> `Widefield_stroke_extent_PS92-95.*`.
 
 ## Stroke outlines v4 (2026-10-22)
 - Painted in the PS92-95 Stroke Outline Editor (claude.ai artifact, db `outlines`): every kept section, separate stroke

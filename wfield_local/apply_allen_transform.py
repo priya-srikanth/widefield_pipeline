@@ -8,7 +8,7 @@ their names.
 Images are warped onto the Allen atlas grid (``--dims``, default 540x640), which
 is the grid the atlas/region masks are built on. This matters for ROI-cropped
 recordings: their native frames are smaller than the atlas grid, so warping to
-the input size (the old behaviour) left the warped image and the atlas on
+the input size (the old behavior) left the warped image and the atlas on
 different grids and the overlay came out misaligned/cut-off. Full-FOV (540x640)
 recordings are unaffected since input size already equals the atlas grid.
 """
@@ -23,7 +23,10 @@ import numpy as np
 
 from skimage.transform import warp as _sk_warp
 
-from wfield.allen import atlas_from_landmarks_file, load_allen_landmarks
+from wfield_local.wfield_import import no_style_leak
+
+with no_style_leak():   # wfield restyles matplotlib at import (wfield_import docstring)
+    from wfield.allen import atlas_from_landmarks_file, load_allen_landmarks
 
 
 def _warp_image(image: np.ndarray, transform, dims) -> np.ndarray:

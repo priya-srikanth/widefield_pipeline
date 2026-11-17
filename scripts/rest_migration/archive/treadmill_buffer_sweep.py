@@ -106,7 +106,7 @@ def _lick_timing_in_docked(lick_onsets, dm, fs):
     one, and the time from the last lick to each interval's onset should already exceed any
     sensible decay buffer. Both are measured rather than assumed: the lick sensor is on the spout,
     so a detected lick inside a docked interval is either a real contact the retraction did not
-    prevent or a sensor artefact, and either one would matter.
+    prevent or a sensor artifact, and either one would matter.
 
     p05 rather than the minimum, because one interval preceded by a late consumption lick should
     not set the buffer for the whole session -- but it is reported so the tail is visible.

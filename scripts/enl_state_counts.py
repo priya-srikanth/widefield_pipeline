@@ -6,7 +6,7 @@ inference is actually valid -- a well-trained animal may simply work through the
 If there are no pre-stroke stopped trials there is no pre-stroke contrast, and that is worth
 knowing before the feature and decode layers are written rather than after.
 
-BEHAVIOUR-SIDE COUNTS, AND THEY ARE AN UPPER BOUND ON THE IMAGING SET. Trials come from
+BEHAVIOR-SIDE COUNTS, AND THEY ARE AN UPPER BOUND ON THE IMAGING SET. Trials come from
 `session_trials` (the repaired-position classifier), not from `_trial_features`, because this only
 needs to count and the imaging path costs minutes per session. The two universes disagree slightly:
 `hit` here uses the session's real response window while the decoder's `success` requires a lick
@@ -85,6 +85,8 @@ def _worker(item):
 
 
 def main(argv=None) -> int:
+    from wfield_local import trial_classes as _tc_m5
+    _tc_m5.require_gate("daq", "enl_state_counts")   # not wired to the camera classes (review M5)
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--by-position", action="store_true")

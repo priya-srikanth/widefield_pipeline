@@ -75,7 +75,7 @@ def _load_daq_events(
                 thresh_lower=lick_thresh_lower_v,
                 lockout_s=lockout_s,
                 refractory_s=refractory_s,
-                min_ili_s=config.defaults()["lick_detection"]["min_ili_ms"] / 1000.0,   # physiological floor
+                min_ili_s=config.lick_min_ili_s(),   # physiological floor
             )
             events["lick"] = np.asarray(lick_detection["lick_onsets"], dtype=np.int64)
 
@@ -194,7 +194,7 @@ def main() -> int:
     parser.add_argument("--lick-thresh-upper-v", type=float, default=ld["thresh_upper"])
     parser.add_argument("--lick-thresh-lower-v", type=float, default=ld["thresh_lower"])
     parser.add_argument("--lockout-s", type=float, nargs=2, default=tuple(ld["lockout_falling_edge_s"]))
-    parser.add_argument("--refractory-s", type=float, default=0.10)
+    parser.add_argument("--refractory-s", type=float, default=config.lick_detector()["refractory_s"])   # REBUILD_CODE 8.53: no refractory (was 0.10)
     parser.add_argument(
         "--raw-frame-rate",
         type=float,

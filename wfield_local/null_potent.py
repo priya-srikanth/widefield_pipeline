@@ -8,10 +8,10 @@ identification (single-trial data) (Priya, 2026-10-07):
     subject to Q_null' Q_pot = 0, Q_null' Q_null = I, Q_pot' Q_pot = I
 
 C_stat / C_mov = covariance of activity at STATIONARY / MOVING time points (motion energy, `motion_state`);
-s = singular values of each covariance (the normaliser = the most variance d dimensions could capture, so each term
-is a normalised variance explained, normVE, in [0, 1]); d = min(N / 2, 20). They solved it with manopt (MATLAB);
+s = singular values of each covariance (the normalizer = the most variance d dimensions could capture, so each term
+is a normalized variance explained, normVE, in [0, 1]); d = min(N / 2, 20). They solved it with manopt (MATLAB);
 here: Riemannian gradient ascent on the Stiefel manifold of Q = [Q_null | Q_pot] (N x (d_null + d_pot)), QR
-retraction, initialised from the leading eigenvectors -- the same problem, small (N ~ 80 LocaNMF components).
+retraction, initialized from the leading eigenvectors -- the same problem, small (N ~ 80 LocaNMF components).
 
 Also their conservative control (`two_stage_pca`): Q_null = the first 5 PCs of stationary activity; remove it;
 Q_pot = the first 5 PCs of the residual -- "ensures dynamics observed during stationarity are contained within the
@@ -116,7 +116,7 @@ def parallel_analysis(X: np.ndarray, n_shuffle: int = 200, q: float = 95.0, seed
 
 def between_position_cov(F: np.ndarray, y: np.ndarray, n_split: int = 50, seed: int = 0) -> np.ndarray:
     """SPLIT-HALF between-position covariance of trial features ``F`` (trials x N) with labels ``y``: position means
-    from two random halves of each position's trials, centred across positions, B = (M1' M2 + M2' M1) / 2,
+    from two random halves of each position's trials, centered across positions, B = (M1' M2 + M2' M1) / 2,
     averaged over ``n_split`` splits. Trial noise is independent between halves, so it does not inflate B (a plain
     B from all trials carries noise / n_trials in every dimension, which pulls every subspace toward d / N)."""
     rng = np.random.default_rng(seed)

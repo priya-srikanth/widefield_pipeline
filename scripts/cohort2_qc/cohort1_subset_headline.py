@@ -22,7 +22,14 @@ from pathlib import Path
 
 import numpy as np
 
-OUT = Path("M:/MICROSCOPE/Priya/Widefield/labcams/cohort2/_tmp_qc_figures_20261029")
+def _out() -> Path:
+    """The derived cohort_out root (inside the rebuild root under the profile), run-tagged (coordinator 11-04)."""
+    from wfield_local import run_mode
+    from wfield_local.paths import PathResolver
+    return run_mode.subdir(Path(PathResolver().root("cohort_out")) / "cohort2" / "_tmp_qc_figures_20261029")
+
+
+OUT = _out()
 SUBSET = {"PS92": {"pre": ["0811", "0813"], "acute": ["0820"], "subacute": ["0826"], "chronic": ["0911", "0925"]},
           "PS93": {"pre": ["0812", "0814"], "acute": ["0820"], "subacute": ["0826"], "chronic": ["0911", "0925"]},
           "PS94": {"pre": ["0811", "0813"], "acute": ["0820"], "subacute": ["0827"], "chronic": ["0910", "0924"]},

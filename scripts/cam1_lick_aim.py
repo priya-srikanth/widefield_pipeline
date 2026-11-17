@@ -1,4 +1,4 @@
-"""First cam1 behavioural readout (Priya 2026-10-18, PRELIMINARY: the cam1 model is not chosen yet): where does each lick
+"""First cam1 behavioral readout (Priya 2026-10-18, PRELIMINARY: the cam1 model is not chosen yet): where does each lick
 point, relative to its spout, seen from below? cam1 sees left-right and up-down, which cam4 (side view) cannot.
 
     python -m scripts.cam1_lick_aim PS93:20260814=pre PS93:20260821=acute PS93:20260908=chronic \\
@@ -17,12 +17,13 @@ A LICK = a run of cleaned (measured or interpolated) tongue frames after the cue
 >= 3 frames, whose most VENTRAL point (the PEAK, max ``out``) is > 20 px below the mouth. Runs that never get there are
 counted (``n_dorsal_runs``) but not licks: on frames they are a pale bump at the lips with the mouth nearly closed (out -30
 .. -45 px; LP confident). Per lick: ``contact`` = a DAQ spout contact within the run +- 20 ms; ``lat_err_px`` = peak lateral
-- spout lateral, + = more LATERAL (outward) than the spout for side positions, + = mouse's left at the centre (spout ~0);
+- spout lateral, + = more LATERAL (outward) than the spout for side positions, + = mouse's left at the center (spout ~0);
 ``reach_px`` = the peak's ``out`` (ventral reach).
 
 Writes ``session_poses/cam1_lick_aim<tag>.csv`` (one row per lick), ``..._summary.csv`` and ``....png``.
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import glob
@@ -206,7 +207,7 @@ def figure(L: pd.DataFrame, spouts: dict, out: Path, title: str) -> None:
         bx.set_ylabel("lateral px at peak (+ mouse left)" if "center" in p else "lateral error px (+ outward of spout)")
     fig.suptitle(title, fontsize=12)
     fig.tight_layout()
-    fig.savefig(out, dpi=90)
+    save_png_svg(fig, out, dpi=90)
 
 
 def main(argv=None) -> int:

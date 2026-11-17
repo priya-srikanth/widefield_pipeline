@@ -7,14 +7,15 @@ squared deviation of the held-out data from its mean over the window's frames; n
 only -- no model involved. Per animal x epoch: mean over sessions.
   POOLED              epoch - pre within animal, mean of the 4 animals (raw dF/F^2 units)
   PER-ANIMAL NORMED   log2(epoch / pre) within animal, mean of animals (each animal's own scale; 1 = doubling)
-Significance (normalised version): `beta_maps.hierarchical_bootstrap_significance` on per-session log2 variance (animals
--> sessions, Bonferroni over bins), 16 and 32 full-res px (8 / 16 block px), stat mask = eroded brain mask; calibration:
+Significance (normalized version): `beta_maps.hierarchical_bootstrap_significance` on per-session log2 variance (animals
+-> sessions, max-statistic over bins = family-wise per panel, `beta_maps.CORRECTION`), 16 and 32 full-res px (8 / 16 block px), stat mask = eroded brain mask; calibration:
 random pre half-splits (share of splits with >= 1 false bin). Image left = ipsilesional.
 
 Usage: python scripts/variance_maps.py [--windows lick cue] [--n-null 50]
 Output: <E>/variance_maps/ (figures/variance_maps_<window>.png, sig.csv, null.csv, per_animal.npz)
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import json
@@ -26,7 +27,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fr_musall import AN, E, MAIN  # noqa: E402
-from fr_pixel_significance import FACTORS, block_mask, test  # noqa: E402
+from fr_pixel_significance import FACTORS, block_mask, correction_label, test  # noqa: E402
 
 EPS = ["acute", "subacute", "chronic"]
 
@@ -35,7 +36,7 @@ def session_var(jf: Path, windows) -> dict | None:
     from wfield_local import config, epochs
     m = json.loads(jf.read_text())
     lab = m["label"]
-    if lab[-4:] < "0801":
+    if config.early_pre(lab):
         return None
     z = np.load(jf.with_suffix(".npz"))
     k = {str(x): i for i, x in enumerate(z["map_keys"])}
@@ -58,10 +59,11 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--windows", nargs="+", default=["lick", "cue"])
     ap.add_argument("--n-null", type=int, default=50)
+    ap.add_argument("--jobs", type=int, default=8, help="worker processes (shared box: keep <= 3)")
     a = ap.parse_args(argv)
     out = E / "variance_maps"
     (out / "figures").mkdir(parents=True, exist_ok=True)
-    got = Parallel(n_jobs=8)(delayed(session_var)(jf, a.windows) for jf in sorted(MAIN.glob("PS*_*.json")))
+    got = Parallel(n_jobs=a.jobs)(delayed(session_var)(jf, a.windows) for jf in sorted(MAIN.glob("PS*_*.json")))
     S = [g for g in got if g is not None]
     meta = pd.DataFrame([{k: s[k] for k in ("label", "animal", "epoch")} for s in S])
     mask = block_mask()
@@ -97,7 +99,7 @@ def main(argv=None) -> int:
                              "n_animals": len(com)})
             panels = [("pre-stroke level, log10 variance" if i == 0 else None, np.log10(pre_lv), "viridis", None),
                       (f"{ep} - pre (pooled, dF/F$^2$)", raw, "RdBu_r", "sym"),
-                      (f"{ep} vs pre, log2 ratio (per-animal normalised)", nrm, "RdBu_r", 1.0)]
+                      (f"{ep} vs pre, log2 ratio (per-animal normalized)", nrm, "RdBu_r", 1.0)]
             for j, (title, M, cmap, lim) in enumerate(panels):
                 ax = axs[i, j]
                 if j == 0 and i > 0:
@@ -145,10 +147,10 @@ def main(argv=None) -> int:
         fig.suptitle(f"NEURAL (data only): TOTAL VARIANCE of the widefield signal per 2x2-px block, {w} window "
                      "(SST / frames, per session; within animal, then mean of 4 animals).\nMiddle: epoch - pre, raw. "
                      "Right: log2(epoch / pre) per animal (1 = doubling);\ncontours = significant bins (black 16 px, purple "
-                     f"dashed 32 px; nested bootstrap on log2 variance, Bonferroni). Null: >= 1 false bin in {nr.get(16, np.nan):.0%} "
+                     f"dashed 32 px; nested bootstrap on log2 variance, {correction_label()}). Null: >= 1 false bin in {nr.get(16, np.nan):.0%} "
                      f"(16 px) / {nr.get(32, np.nan):.0%} (32 px) of pre half-splits. Image left = ipsilesional.", fontsize=8.5)
         fig.subplots_adjust(left=0.02, right=0.97, top=0.87, bottom=0.02, wspace=0.12, hspace=0.25)
-        fig.savefig(out / "figures" / f"variance_maps_{w}.png", dpi=115)
+        save_png_svg(fig, out / "figures" / f"variance_maps_{w}.png", dpi=115)
         plt.close(fig)
         print(w, [(r["epoch"], r["px"], r["up"], r["down"]) for r in rows if r["window"] == w], flush=True)
     pd.DataFrame(rows).to_csv(out / "sig.csv", index=False)

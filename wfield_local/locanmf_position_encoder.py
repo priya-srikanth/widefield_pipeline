@@ -31,7 +31,7 @@ from collections import defaultdict
 
 from wfield_local import config
 from wfield_local.locanmf_cue_lick_analysis import SESSIONS, ANIMAL_COLOR  # noqa: F401
-from wfield_local.locanmf_position_decoder import _trial_features, _build_signal
+from wfield_local.locanmf_position_decoder import _trial_features, _build_signal, trial_features_cached  # noqa: F401
 from wfield_local.plot_lick_aligned_averages import POSITION_NAMES, DISPLAY_ORDER, _load_daq_events
 from wfield_local.plot_spout_trial_averages import _load_daq_events as _load_cue, _classify_cues  # noqa: F401
 from wfield_local.behavior_position import classify_cues_with_backup
@@ -59,6 +59,33 @@ def _args(post_s=2.0, baseline="none", bins=1):
                            post_s=post_s, fs=FS, max_rt=float(config.defaults()["decode"]["max_rt_s"]), bins=bins)
 
 
+#: In-process tier over `trial_features_cached`, keyed on (label, args). See `_features`.
+_FEAT: dict = {}
+
+
+def _features(s, args):
+    """`_trial_features(s, args)` for the encoder: memoised in-process, and on disk underneath.
+
+    TWO TIERS, as in `joint_xsession.joint_features`. ``trial_features_cached`` is the ON-DISK tier
+    (session_cache kind ``tf-<align>-<digest>``, shared with every other caller that asks for the
+    same spec), so a session whose features were built on an earlier night is a pickle load, not a
+    ~17 s rebuild. The dict is the IN-PROCESS tier: one encoder process asks for each pooled
+    session's features four times (`_region_feve`, the EV matrix, and the two per-animal figures)
+    and each per-date session's twice (`encode_spatial` from `main` and again from
+    `fig_predicted_maps`), all with identical args. Until 2026-11-06 every one of those was a plain
+    `_trial_features` rebuild -- ~4 x 122 pooled sessions x ~17 s in EVERY date's encoder.
+
+    Same args, same tuple: the encoder's args are ``source="locanmf"`` with no injected signal, the
+    case the cache keys fully (`trial_features_cached` computes rather than caches anything it
+    cannot key, so its refusals stay correct here). The returned arrays are SHARED between callers
+    -- no caller in this module mutates X / y / g in place; keep it that way, or copy.
+    """
+    key = (s["label"], repr(sorted(vars(args).items())))
+    if key not in _FEAT:
+        _FEAT[key] = trial_features_cached(s, args)
+    return _FEAT[key]
+
+
 def _names(s):
     return {int(k): v for k, v in json.load(open(glob.glob(
         f"{s['mc']}/wfield_local_results/allen_aligned_affine8v1/allen_area_names.json")[0]))}
@@ -67,7 +94,7 @@ def _names(s):
 def encode_spatial(label):
     """Ridge encoder position->activity; returns CV R^2 per component, per-position predicted activity (B)."""
     s = _sess(label)
-    X, y, g, _, _, reg = _trial_features(s, _args(2.0))
+    X, y, g, _, _, reg = _features(s, _args(2.0))
     pos = np.array(DISPLAY_ORDER); P = np.stack([(y == p).astype(float) for p in pos], 1)
     pred = np.zeros_like(X); ng = min(5, int(np.unique(g).size))
     for tr, te in GroupKFold(ng).split(X, y, g):
@@ -159,7 +186,7 @@ def _quiet_baseline_local(s, sig, nbins=24):
 
 def _engaged_frames(s, post_s=2.0):
     """First-lick frame + position for engaged (cue+lick) trials, with the post window length (frames)."""
-    cue = _load_cue(s["h5"]); lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    cue = _load_cue(s["h5"]); lk = _load_daq_events(s["h5"], "lick_analog")
     cf, lf, _ = _frames(s, cue, lk); codes = classify_cues_with_backup(s, cue)
     ls = np.sort(lf); j = np.searchsorted(ls, cf, side="right")
     first = np.where(j < ls.size, ls[np.clip(j, 0, ls.size - 1)], -1); rt = first - cf
@@ -181,7 +208,8 @@ def fig_predicted_maps(label, out):
     The baseline used is named in the figure TITLE, including when it degrades to the unweighted or
     session-mean fallback -- a map captioned "above rest" has to say which rest."""
     s = _sess(label); e = encode_spatial(label)
-    C = np.load(f"{config.locanmf_dir(s['mc'])}/{label}_locanmf_C.npy")       # RAW C (not footprint-scaled)
+    from wfield_local import locanmf_session
+    C = locanmf_session.load_C(s)       # RAW C (not footprint-scaled); stored, or projected (WIDEFIELD_LOCANMF_PROJECT)
     base, base_note = _restw_baseline(s, C)              # SETTLED position-weighted FLAT rest baseline
     if base is None:
         # NOT a silent substitution: the session mean is not a rest baseline, and the title says so.
@@ -253,7 +281,7 @@ def fig_temporal_encoder(label, out, pre_s=1.0, post_s=1.5):
     rn = np.array([names.get(int(reg[i]), "?") for i in range(sig.shape[0])])
     ssp = np.where(np.char.startswith(rn.astype(str), "SSp"))[0]
     mo = np.array([i for i in range(len(rn)) if rn[i].startswith(("MOp", "MOs"))])
-    cue = _load_cue(s["h5"]); lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    cue = _load_cue(s["h5"]); lk = _load_daq_events(s["h5"], "lick_analog")
     cf, lf, _ = _frames(s, cue, lk); codes = classify_cues_with_backup(s, cue)
     ls = np.sort(lf); j = np.searchsorted(ls, cf, side="right"); first = np.where(j < ls.size, ls[np.clip(j, 0, ls.size - 1)], -1); rt = first - cf
     pre = int(pre_s * FS); post = int(post_s * FS); tax = np.arange(-pre, post) / FS
@@ -316,7 +344,7 @@ def fig_ev_ceiling_by_position(labels, out, tag):
     fig, axes = plt.subplots(1, 2, figsize=(15, 5.5)); w = 0.8 / max(len(labels), 1)
     for i, lab in enumerate(labels):
         s = _sess(lab)
-        X, y, g, _, _, _ = _trial_features(s, _args(2.0))
+        X, y, g, _, _, _ = _features(s, _args(2.0))
         P = np.stack([(y == p).astype(float) for p in pos], 1)
         pred = np.zeros_like(X); ng = min(5, int(np.unique(g).size))
         for tr, te in GroupKFold(ng).split(X, y, g):
@@ -356,8 +384,9 @@ def fig_encoder_vs_svd(label, out):
     mask = np.load(f"{ad}/allen_brain_mask_native_grid.npy").astype(bool); H, Wd = mask.shape; mk = mask.reshape(-1)
     Uf = U.reshape(-1, U.shape[2])
     Ar = np.load(f"{config.locanmf_dir(mc)}/{label}_locanmf_A.npy"); Af = np.nan_to_num(Ar.reshape(-1, Ar.shape[2]))
-    C = np.load(f"{config.locanmf_dir(mc)}/{label}_locanmf_C.npy"); T = SVT.shape[1]
-    cue = _load_cue(s["h5"]); lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    from wfield_local import locanmf_session
+    C = locanmf_session.load_C(s); T = SVT.shape[1]          # stored, or projected (WIDEFIELD_LOCANMF_PROJECT)
+    cue = _load_cue(s["h5"]); lk = _load_daq_events(s["h5"], "lick_analog")
     cf, lf, _ = _frames(s, cue, lk); codes = classify_cues_with_backup(s, cue)
     keep = [k for k in range(cf.size) if codes[k] >= 0 and int(cf[k]) - W >= 0 and int(cf[k]) + W <= T]
     cfk = np.array([int(cf[k]) for k in keep]); yk = np.array([int(codes[k]) for k in keep])
@@ -391,7 +420,7 @@ def _region_feve(label):
     Region FEVE = Σ_comp captured / Σ_comp explainable  (1.0 = encoder captures ALL explainable variance).
     Returns region -> dict(expl, cap, tot, n)."""
     s = _sess(label); names = _names(s)
-    X, y, g, _, _, reg = _trial_features(s, _args(2.0))
+    X, y, g, _, _, reg = _features(s, _args(2.0))
     pos = np.array(DISPLAY_ORDER); P = np.stack([(y == p).astype(float) for p in pos], 1)
     pred = np.zeros_like(X); ng = min(5, int(np.unique(g).size))
     for tr, te in GroupKFold(ng).split(X, y, g):
@@ -465,7 +494,7 @@ def _feve_label_colors(regs):
 
 
 def _feve_heatmap(ax, M, rows, regs, fig):
-    """Shared FEVE heatmap: rows x regions, cell = FEVE% (0-100 viridis; <0 and NaN greyed), annotated."""
+    """Shared FEVE heatmap: rows x regions, cell = FEVE% (0-100 viridis; <0 and NaN grayed), annotated."""
     cmap = plt.cm.viridis.copy(); cmap.set_bad("#dddddd")
     Mc = np.where(M < 0, np.nan, M)                                    # below-0 FEVE shown as 'no capture' grey
     im = ax.imshow(Mc, cmap=cmap, vmin=0, vmax=100, aspect="auto")
@@ -531,7 +560,7 @@ def _feve_log(f, q) -> str:
 def fig_region_feve_pooled(res, out, floor=0.02):
     """ACROSS-SESSIONS: per region, FEVE (% of explainable/ceiling variance the encoder captures) pooled
     within each animal (SS summed over all of that animal's sessions). Heatmap animal x region; 100% = the
-    encoder captures all position-explainable variance in that region. Grey = <0 (no capture) or no
+    encoder captures all position-explainable variance in that region. Gray = <0 (no capture) or no
     explainable signal. Regions sorted by pooled explainable variance; SSp red / MO blue x-labels."""
     by = defaultdict(list)
     for lab in res:
@@ -621,7 +650,7 @@ def ev_per_position(label):
     with GroupKFold over blocks -- the same CV the decoders use, so the two are comparable.
     """
     pos = np.array(DISPLAY_ORDER)
-    X, y, g, _, _, _ = _trial_features(_sess(label), _args(2.0))
+    X, y, g, _, _, _ = _features(_sess(label), _args(2.0))
     P = np.stack([(y == p).astype(float) for p in pos], 1)
     pred = np.zeros_like(X)
     ng = min(5, int(np.unique(g).size))
@@ -645,13 +674,13 @@ def ev_per_position(label):
 
 
 def fig_ev_matrix(by_animal, out, name="locanmf_encoder_ev_matrix.png"):
-    """Encoded variance per POSITION x SESSION, one panel per animal, on ONE colour scale.
+    """Encoded variance per POSITION x SESSION, one panel per animal, on ONE color scale.
 
-    The per-animal bar charts this summarises put six grouped bars per position on one axis and
-    asked the reader to track a position across sessions by colour. As a matrix, a position that
-    degrades over days is a column that changes colour, and the lesion is a horizontal rule.
+    The per-animal bar charts this summarizes put six grouped bars per position on one axis and
+    asked the reader to track a position across sessions by color. As a matrix, a position that
+    degrades over days is a column that changes color, and the lesion is a horizontal rule.
 
-    ONE COLOUR SCALE across animals, so panels are comparable -- which is the whole point of a
+    ONE COLOR SCALE across animals, so panels are comparable -- which is the whole point of a
     summary and is exactly what the per-session figures could not offer.
     """
     from wfield_local import config
@@ -706,9 +735,9 @@ def fig_ev_matrix(by_animal, out, name="locanmf_encoder_ev_matrix.png"):
     fig.suptitle(
         "ENCODED VARIANCE PER SPOUT POSITION, per session. Ridge from a one-hot position design onto "
         "the feature matrix, scored per position with the same block GroupKFold the decoders use. "
-        "ONE colour scale across all animals, so the panels are comparable -- which the per-session "
+        "ONE color scale across all animals, so the panels are comparable -- which the per-session "
         "bar charts could not offer. A position that degrades across days is a COLUMN that changes "
-        "colour; the red rule is the lesion.", fontsize=8.5, wrap=True)
+        "color; the red rule is the lesion.", fontsize=8.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 0.88, 0.90))
     p = out / name
     fig.savefig(p, dpi=140)
@@ -718,7 +747,7 @@ def fig_ev_matrix(by_animal, out, name="locanmf_encoder_ev_matrix.png"):
 
 def fig_ev_by_position_animal(animal, labels, out):
     """Per-position held-out EV for ONE animal across its sessions — one graph, sessions distinguished by
-    colour (grouped bars), labelled by date. The per-animal-across-sessions view of fig_ev_by_position."""
+    color (grouped bars), labeled by date. The per-animal-across-sessions view of fig_ev_by_position."""
     posn = [POSITION_NAMES[c] for c in DISPLAY_ORDER]; pos = np.array(DISPLAY_ORDER)  # noqa: F841
     fig, ax = plt.subplots(figsize=(11, 5.5)); x = np.arange(6); w = 0.8 / max(len(labels), 1)
     for i, lab in enumerate(labels):
@@ -732,12 +761,12 @@ def fig_ev_by_position_animal(animal, labels, out):
 
 
 def fig_ev_ceiling_by_position_animal(animal, labels, out):
-    """Per-position EV RELATIVE TO CEILING for ONE animal across sessions (one graph, sessions by colour).
+    """Per-position EV RELATIVE TO CEILING for ONE animal across sessions (one graph, sessions by color).
     Left: noise ceiling (explainable var) per position; right: captured/ceiling. Per-animal fig_ev_ceiling."""
     posn = [POSITION_NAMES[c] for c in DISPLAY_ORDER]; pos = np.array(DISPLAY_ORDER)
     fig, axes = plt.subplots(1, 2, figsize=(15, 5.5)); w = 0.8 / max(len(labels), 1)
     for i, lab in enumerate(labels):
-        X, y, g, _, _, _ = _trial_features(_sess(lab), _args(2.0))
+        X, y, g, _, _, _ = _features(_sess(lab), _args(2.0))
         P = np.stack([(y == p).astype(float) for p in pos], 1)
         pred = np.zeros_like(X); ng = min(5, int(np.unique(g).size))
         for tr, te in GroupKFold(ng).split(X, y, g):
@@ -767,6 +796,11 @@ def main() -> int:
     ap.add_argument("--date", default="0605")
     ap.add_argument("--pool-dates", default="", help="comma MMDD subset for the pooled FEVE figures "
                     "(default empty = ALL sessions; e.g. 0605,0606,0607,0608 for the 6/5-onward deck)")
+    ap.add_argument("--skip-pooled", action="store_true",
+                    help="draw only this date's per-date figures, not the cross-date pooled ones (FEVE "
+                         "pooled/sessions, EV matrix, per-animal EV). nightly_figs passes it to every "
+                         "date's encoder but the last: the pooled set depends on --pool-dates and "
+                         "--output only, never on --date, so N concurrent dates drew it N times.")
     args = ap.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
     for s in [x for x in SESSIONS if x["label"].endswith(args.date)]:
@@ -784,6 +818,12 @@ def main() -> int:
             print("wrote", f(labs, args.output, args.date).name, flush=True)
         except Exception as ex:
             print(f"{f.__name__}: FAILED {type(ex).__name__}: {str(ex)[:80]}", flush=True)
+    if args.skip_pooled:
+        # Everything below reads only --pool-dates, --output and the session cache -- never --date --
+        # so on a backfill night every date's encoder drew the SAME pooled figures, concurrently, into
+        # the same files. One date (the last, `nightly_figs._per_day_figs`) now draws them.
+        print("pooled figures: skipped (--skip-pooled; another date's encoder draws them)", flush=True)
+        return 0
     # FEVE by region — pooled-per-animal and per-session. Default ALL sessions; --pool-dates restricts
     # (the 6/5-onward deck pools only 6/5-6/8, which share each animal's consistent 6/6-referenced alignment).
     pool = set(args.pool_dates.split(",")) if args.pool_dates else None

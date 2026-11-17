@@ -7,6 +7,9 @@ import numpy as np, pandas as pd, statsmodels.formula.api as smf
 from scipy import stats
 warnings.filterwarnings("ignore")
 DATA, OUT = sys.argv[1], sys.argv[2]
+sys.path.insert(0, ".")
+from wfield_local import run_mode  # noqa: E402
+RUN_TAG = run_mode.require_input_tag(DATA, "a3_lmm_imaging_stars")   # fifth review N5: never another run's sidecars
 EP = ["acute", "subacute", "chronic"]
 def holm(p):
     p = np.asarray(p, float); o = np.argsort(p); a = np.empty(len(p)); r = 0
@@ -52,6 +55,13 @@ for f in sorted(glob.glob(os.path.join(DATA, "*_sessions.csv"))):
                 r.update(beta=m.params[k], se=m.bse[k], p=2 * stats.t.sf(abs(t), len(both) - 1), converged=m.converged)
             rows.append(r)
 T = pd.DataFrame(rows)
+if T.empty or "p" not in T:
+    # NO CELL COULD BE FITTED (fifth review N5; was KeyError 'p'): an empty result, said plainly
+    print(f"a3_lmm_imaging_stars: no figure cell had a fittable LMM in {DATA} ({len(T)} cells read) -- empty result")
+    pd.DataFrame(columns=["figure", "position", "epoch", "n_animals", "beta", "se", "p", "p_holm", "star_lmm",
+                          "input_run_tag"]).to_csv(OUT, index=False)
+    sys.exit(0)
+T["input_run_tag"] = RUN_TAG or "default"
 T["p_holm"] = np.nan
 for _fig, ix in T.groupby("figure").groups.items():
     ok = [i for i in ix if np.isfinite(T.loc[i, "p"])]

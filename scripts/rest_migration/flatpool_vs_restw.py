@@ -78,7 +78,8 @@ def main() -> int:
         if e is None:
             continue
         try:
-            parts = prm.session_raw_maps(s, a.align, post_s=a.post_s, variant="working")
+            # memoised (`session_raw_maps_cached`): the identical call, keyed on the same align / post_s / variant
+            parts = prm.session_raw_maps_cached(s, a.align, post_s=a.post_s, variant="working")
         except Exception as ex:                                        # noqa: BLE001
             print(f"  !! {lab}: {type(ex).__name__} {str(ex)[:60]}", flush=True)
             n_skip += 1
@@ -277,7 +278,8 @@ def _delta_rest_figure(store, pooled, order, mask):
     print("  frames, so a frame-weighted baseline drifts toward the near positions' rest.")
     print("  If it does NOT grow, `restw` is correct-but-INERT and that is the honest verdict.")
 
-    d = __import__("pathlib").Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch"
+    from wfield_local import lp_licks              # run-mode routing (rebuild 11-03): identity for the default run
+    d = lp_licks.output_dir(__import__("pathlib").Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch")
     out = ef.map_grid(
         cells, d, name="epoch_15d_delta_rest_flatpool_minus_restw",
         title="DELTA-REST: frame-weighted (flatpool) MINUS position-weighted (restw) baseline",

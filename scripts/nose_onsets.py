@@ -13,7 +13,7 @@ cam1 15 px) until a blind clip review with the nose traces beside it. Inputs: ca
 RESULT 10-21 -> NOT USED for any attempted / reacted class (Priya: "we won't use nose for the attempted/reacted
 class"). Over the cue .. stop window the call is not specific: cam4 nose "moved" on hit 95 % (onset median 99 ms),
 incomplete 87 %, jaw_only 80 %, no_try 56 % (853 ms) -- and on no_try trials 44-74 % even PRE-stroke, ~1 s after the cue
-(sniffing / drift caught by a 3.5 s window). cam1 nose is hidden by the rod at centre spouts. Reactions are to come from
+(sniffing / drift caught by a 3.5 s window). cam1 nose is hidden by the rod at center spouts. Reactions are to come from
 FaceRhythm components instead (docs/FACE_RHYTHM_PLAN.md). Kept as a descriptive table only.
 
 Output `<v36 run>/imaging_encoding/qc/nose_onsets.csv` (NOT jaw_onsets.csv, which the encoding window watches): session,
@@ -106,6 +106,8 @@ def session(job) -> pd.DataFrame:
 
 
 def main(argv=None) -> int:
+    from wfield_local import run_mode as _rm_guard
+    _rm_guard.require_default("nose_onsets")   # unrouted share writer: refuses in a non-default run mode
     from wfield_local import analysis_kit as ak
     from wfield_local.paths import PathResolver
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)

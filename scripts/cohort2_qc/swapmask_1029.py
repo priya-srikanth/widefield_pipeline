@@ -77,7 +77,8 @@ def main():
         if a.mask_only:
             continue
         s = dict(label=f"{animal}_1029", mc=str(mc), h5=str(DAQ / h5), regime="B", fmdir=None)
-        hv.write(s, hv.ADOPTED, refit_t=True, func=FUNC, bad_pairs=m["bad"], tag="_swapmask")
+        # BUILD key (hv.ADOPTED now names the READ suffix, which follows WIDEFIELD_HEMO_VARIANT; rebuild 11-03)
+        hv.write(s, hv.BUILD_DEFAULT, refit_t=True, func=FUNC, bad_pairs=m["bad"], tag="_swapmask")
 
 
 if __name__ == "__main__":

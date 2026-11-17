@@ -23,13 +23,14 @@ permutation nulls with the decoder's predictions held fixed, so they move with p
 figure would be wrong for at least one bar and would flatter it.
 
 NOTHING BELOW THRESHOLD IS BLANKED. An arm at its null is hatched and still drawn with its number; a
-ratio that cannot be computed is labelled with the REASON rather than left empty. "We could not test
+ratio that cannot be computed is labeled with the REASON rather than left empty. "We could not test
 this" and "we tested this and found nothing" are different facts and only one is evidence of
 absence -- the same rule `enl_decode.underpowered` and `enl_sparsity_figure` follow.
 
     python -m scripts.enl_decode_figure --json <enl_decode out.json> --out <png>
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import json
@@ -216,7 +217,7 @@ def figure(results, out):
         fontsize=10.5)
     out = Path(out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, dpi=160)
+    save_png_svg(fig, out, dpi=160)
     plt.close(fig)
     return out
 
@@ -233,7 +234,8 @@ def main(argv=None) -> int:
         out = Path(args.out)
     else:
         from wfield_local.paths import PathResolver
-        out = Path(PathResolver().root("figures_working")) / "enl_decode_pre.png"
+        from wfield_local import run_mode  # tagged runs never overwrite default figures (review H2)
+        out = run_mode.routed_output(Path(PathResolver().root("figures_working"))) / "enl_decode_pre.png"
     print(f"[enl_decode_figure] -> {figure(results, out)}", flush=True)
     return 0
 

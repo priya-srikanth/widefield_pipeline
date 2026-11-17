@@ -59,18 +59,19 @@ def session_rows(js: Path, align: str = "cue") -> list[dict]:
 
 
 def main(argv=None) -> int:
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
+    from wfield_local import config
     from wfield_local.writeguard import assert_writable
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--folder", default="movement_first_subset-drop_licks-combined_gate-attempted")
     ap.add_argument("--align", choices=("cue", "lick"), default="cue")
     a = ap.parse_args(argv)
-    E = oo.root(PathResolver()) / oc.RUN / "imaging_encoding"
+    from wfield_local import run_mode
+    E = run_mode.encoding_out_root()                     # the encoder runs' (tagged) tree, coordinator 11-04
+    (E / "qc").mkdir(parents=True, exist_ok=True)
     sess = sorted((E / a.folder / "sessions").glob("*.json"))
     T = pd.DataFrame([r for js in sess for r in session_rows(js, a.align)])
-    T = T[T.label.str[-4:] >= "0801"]                                  # August-only pre baseline (primary)
+    T = T[~T.label.map(config.early_pre)]                                  # August-only pre baseline (primary)
     ids = {"label", "animal", "epoch", "lick_set", "pos", "region"}
     parts = [c for c in T.columns if c not in ids]       # whatever the run saved (+ residual); frozen runs add
                                                           # movement / direction / contact

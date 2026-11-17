@@ -15,7 +15,7 @@ that would make that happen:
                  refactor cannot quietly drop it.
 
 What is NOT cached is equally load-bearing: the cross-session layers built on top (the pre-stroke
-band, the common colour scale, the mirror test) still see every new night.
+band, the common color scale, the mirror test) still see every new night.
 """
 import inspect
 

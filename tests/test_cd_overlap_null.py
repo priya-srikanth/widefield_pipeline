@@ -108,7 +108,7 @@ def test_a_REAL_amplitude_increase_still_registers(_ncomp=20, _T=60):
 
 
 def test_K_is_FIXED_across_the_comparison():
-    """`subspace_overlap` normalises by the first basis's dimension and chance is K/n, so a null
+    """`subspace_overlap` normalizes by the first basis's dimension and chance is K/n, so a null
     whose groups each chose their own K would differ from the observation in two ways at once."""
     rng = np.random.default_rng(14)
     T, ncomp = 60, 20

@@ -31,7 +31,7 @@ import numpy as np
 from scipy.ndimage import gaussian_filter1d
 
 from wfield_local.plot_lick_aligned_averages import (
-    _load_daq_events, _classify_events, _event_frame_indices_from_pco, POSITION_NAMES, DISPLAY_ORDER,
+    _load_daq_events, _classify_events, _event_frame_indices_from_pco, POSITION_NAMES, DISPLAY_ORDER,  # noqa: F401
 )
 from wfield_local.plot_spout_trial_averages import (
     _load_daq_events as _load_cue_events, _classify_cues,
@@ -56,13 +56,14 @@ def _process(s, args):
     quiet = quiet_frame_path(mc)
     if quiet is None:
         raise FileNotFoundError(f"no quiet mask for {s['label']} under {mc}")
-    C = np.load(f"{config.locanmf_dir(mc)}/{s['label']}_locanmf_C.npy")
+    from wfield_local import locanmf_session
+    C = locanmf_session.load_C(s)                             # stored, or projected (WIDEFIELD_LOCANMF_PROJECT)
     regions = np.load(f"{config.locanmf_dir(mc)}/{s['label']}_locanmf_regions.npy")
     ncomp, T = C.shape
     Cn, _ = _quiet_zscore(C, np.load(quiet))
 
     cue = _load_cue_events(s["h5"])
-    lk = _load_daq_events(s["h5"], "lick_analog", 2.5, 1.0, (0.001, 0.020), 0.10)
+    lk = _load_daq_events(s["h5"], "lick_analog")
     fsd = cue["sample_rate_hz"]
     if s["regime"] == "B":
         fmdir = s["fmdir"] or mc

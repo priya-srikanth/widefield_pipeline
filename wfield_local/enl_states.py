@@ -5,7 +5,7 @@ the cortex encodes about WHERE it is should be present whether or not the animal
 A trial the animal is still working is one where a plan is also being formed; a trial from the
 terminal quit period is one where (pre-stroke) it is not. Subtracting them is therefore an attempt
 to separate the sensory representation of position from the motor plan built on top of it, using
-the animal's own behaviour as the switch rather than a task manipulation.
+the animal's own behavior as the switch rather than a task manipulation.
 
     success   a detected lick within `decode.max_rt_s`             -- `is_engaged`
     working   no lick, but the animal is still responding at the reference positions
@@ -55,10 +55,10 @@ survives without a plan, full stop. The subtraction sizes the plan's contributio
 establishes that the sensory part is there at all.
 
 ONE UNIVERSE, ONE DEFINITION. The trials, positions and ordering come from the imaging pipeline's
-own `_trial_features`/`classify_cues_with_backup`, never from the behaviour table -- the two disagree
+own `_trial_features`/`classify_cues_with_backup`, never from the behavior table -- the two disagree
 on free rewards and on the response window. Features come from `locanmf_position_decoder`'s
 `_build_signal` / `_window_feature` / `_bins_for`, so a trial here is byte-identical to the same
-trial in the deck. Only the CATEGORISATION is new, which is the whole point of the module.
+trial in the deck. Only the CATEGORIZATION is new, which is the whole point of the module.
 
 CLI::
 
@@ -107,7 +107,7 @@ def align() -> str:
     return "precue"
 
 
-def states_for(order, responded, positions, first_lick, rt, max_rt):
+def states_for(order, responded, positions, first_lick, rt, max_rt, cam_cls=None):
     """Per-trial state, in the imaging universe. Returns an array of `STATES` entries.
 
     Two DIFFERENT gates, and conflating them is the easy mistake:
@@ -119,10 +119,24 @@ def states_for(order, responded, positions, first_lick, rt, max_rt):
         non-recovering collapse.
 
     `behavior_clips.categorise` composes the same two for the clip labels; this is that composition
-    on the imaging pipeline's trials rather than the behaviour table's.
+    on the imaging pipeline's trials rather than the behavior table's.
     """
+    from wfield_local import trial_classes as _tc
     order = np.asarray(order)
     hit = np.array([is_engaged(fl, r, max_rt) for fl, r in zip(first_lick, rt)], bool)
+    if _tc.camera_gate_on():
+        # CAMERA TRIAL GATE (rebuild 11-03): ``cam_cls`` = the camera class per entry of ``order``
+        # (`trial_classes.cue_classes_for` over the session cue train). working = no lick in time and
+        # miss-while-working (incomplete; jaw_only is its own class, Priya 11-03 late); stopped = a SUSTAINED stop (STOPPED_CLASSES, Priya
+        # 11-03); anything else (isolated no_response, unknown, contact) is "" = in neither class.
+        if cam_cls is None:
+            raise _tc.DaqGateRefused("enl_states.states_for under the camera gate needs cam_cls (camera classes)")
+        c = np.asarray(cam_cls, dtype=object)
+        out = np.full(order.size, "", dtype=object)
+        out[~hit & _tc.in_sel(c, "miss_working")] = "working"
+        out[~hit & np.isin(c, list(_tc.STOPPED_CLASSES))] = "stopped"
+        out[hit] = "success"
+        return out
     not_eng = engagement_gate(order, np.asarray(responded, bool), np.asarray(positions))
     out = np.full(order.size, "stopped", dtype=object)
     out[~hit & ~not_eng] = "working"

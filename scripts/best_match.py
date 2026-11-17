@@ -7,14 +7,14 @@ similar to pre-stroke ENL of far_R trials? vs pre-stroke far_L trials? What are 
 how does that change with miss-while-working vs stopped, and over recovery sessions?"
 
 THE DATA ALREADY ANSWERS THIS. `coding_direction.json` stores a cross matrix per class: for trials of
-each TRUE position, the projection onto EVERY position's pre-stroke direction, pole-normalised so
+each TRUE position, the projection onto EVERY position's pre-stroke direction, pole-normalized so
 1.0 = that position's own pre-stroke lick signature. The best match is the argmax across columns.
 
 TWO READINGS, BOTH REPORTED, BECAUSE THE RAW ARGMAX ALONE IS MISLEADING:
 
   RAW      argmax of the row. The literal answer to "what does it look most like" -- but positions
            are intrinsically similar before any lesion (pre-stroke far_center already scores ~0.76 on
-           the far_R direction), so the raw winner is often just the neighbour, with no lesion in it.
+           the far_R direction), so the raw winner is often just the neighbor, with no lesion in it.
   SHIFTED  the same row MINUS the PRE-STROKE LICK row for that same true position. This is what
            CHANGED, i.e. what the trials moved TOWARD, and it is the remapping question. A column
            that is high raw but flat in the shift was always that similar.
@@ -46,7 +46,7 @@ MIN_N = 20
 
 
 def response_rates():
-    """Post-stroke response rate per animal per position, from the behaviour counts."""
+    """Post-stroke response rate per animal per position, from the behavior counts."""
     if not SECTION_G.exists():
         return {}
     rec = json.loads(SECTION_G.read_text(encoding="utf-8"))
@@ -167,7 +167,7 @@ def preserved(window="lick"):
 
     Own-column value in the LICK window for `poststroke_lick`: 1.0 = that position's own pre-stroke
     lick signature, so this is "how much of the normal motor pattern is left", per position and per
-    session. The impaired flag is behavioural (post-stroke response rate < 0.5), so the PRESERVED
+    session. The impaired flag is behavioral (post-stroke response rate < 0.5), so the PRESERVED
     rows are the ones this question is about and the impaired ones are shown for contrast.
     """
     rates = response_rates()

@@ -1,10 +1,10 @@
 """tongue_detect: each ported stage does what stroke_orofacial's v7 code does, on synthetic tongue traces.
 
 Two kinds of test:
-  * behaviour -- small hand-built traces with a known answer (a lick train, a one-frame jump, an isolated
+  * behavior -- small hand-built traces with a known answer (a lick train, a one-frame jump, an isolated
     two-frame blip, a frozen plateau, an x snap-back), asserting what each stage is FOR;
   * parity -- the SOURCE modules loaded straight from `../stroke_orofacial_pipeline` by file path (their
-    package is not installed here and must not be imported normally; see `load_source`), run on randomised
+    package is not installed here and must not be imported normally; see `load_source`), run on randomized
     synthetic sessions and compared for EXACT equality. A tolerance would hide a transcription slip.
 
 `synth_session` and the `source` fixture are imported by test_tongue_kinematics.py.
@@ -401,7 +401,7 @@ def _eq(a, b):
 
 @pytest.mark.parametrize("seed", range(6))
 def test_parity_preclean_detect_gates(source, seed):
-    """Every detection stage, on every trial slice of a randomised session, equals theirs exactly."""
+    """Every detection stage, on every trial slice of a randomized session, equals theirs exactly."""
     pre, det, det2, gat = their_params(P())
     sp, sd, sd2, sg, stp = (source[m] for m in ("_preclean", "_detector", "_detector_v2", "_gates",
                                                 "tongue_pertrial"))

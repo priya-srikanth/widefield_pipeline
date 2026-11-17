@@ -95,7 +95,7 @@ def main() -> int:
     ap.add_argument("--perm", type=int, default=200)
     ap.add_argument("--limit", type=int, default=None)
     ap.add_argument("--no-engagement-gate", action="store_true",
-                    help="keep the pre-2026-09-16 ungated behaviour, for measuring the size of "
+                    help="keep the pre-2026-09-16 ungated behavior, for measuring the size of "
                          "the correction only -- never for a reported result")
     ap.add_argument("--docked", action="store_true",
                     help="restrict rest to the STRICT spout-docked interval (dock -> next "
@@ -192,7 +192,7 @@ def main() -> int:
                     continue
                 periods.append((aa, bb, int(codes[prev])))
         if len(periods) < 30:
-            skipped.append(f"{lab}: only {len(periods)} labelled rest periods")
+            skipped.append(f"{lab}: only {len(periods)} labeled rest periods")
             continue
 
         T = min(v.shape[1], rest.shape[0])

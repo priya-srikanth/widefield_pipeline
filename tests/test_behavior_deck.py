@@ -38,7 +38,7 @@ def test_places_present_figures_grouped(tmp_path):
 
 def test_cumulative_task_raster_grid_gets_a_slide_with_a_note(tmp_path):
     """The rig-GUI raster is on the deck as a tiled per-animal grid, and its speaker note must say what
-    the colours mean and where the outcomes came from — 'hit' and 'a reward was delivered' differ."""
+    the colors mean and where the outcomes came from — 'hit' and 'a reward was delivered' differ."""
     from pptx import Presentation
     root = tmp_path / "bs"
     _png(root / "cohort/by_animal/PS92_raster_grid_p1.png")
@@ -81,7 +81,7 @@ def test_session_dates_sorted_and_filtered(tmp_path):
 
 
 def test_epoch_section_is_opt_in_and_placed_when_asked(tmp_path):
-    """The behaviour-by-epoch figures go on the deck, but ONLY when a caller passes the directory.
+    """The behavior-by-epoch figures go on the deck, but ONLY when a caller passes the directory.
 
     Both halves matter. `spout_behavior` builds this deck in camera-nightly step 4, BEFORE the
     epoch boundaries are resolved in step 5, so a deck built there must not carry an epoch section
@@ -103,8 +103,8 @@ def test_epoch_section_is_opt_in_and_placed_when_asked(tmp_path):
 
     titles = [sh.text_frame.text for s in Presentation(str(tmp_path / "b.pptx")).slides
               for sh in s.shapes if sh.has_text_frame]
-    assert any("Behaviour by epoch" in t for t in titles)
+    assert any("Behavior by epoch" in t for t in titles)
     assert any("days since lesion" in t for t in titles)
     bare = [sh.text_frame.text for s in Presentation(str(tmp_path / "a.pptx")).slides
             for sh in s.shapes if sh.has_text_frame]
-    assert not any("Behaviour by epoch" in t for t in bare)
+    assert not any("Behavior by epoch" in t for t in bare)

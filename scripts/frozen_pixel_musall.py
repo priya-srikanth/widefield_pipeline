@@ -4,7 +4,7 @@ trial-by-trial parts of the signal, at pixel level.
 
 Needs a spatial-target run saved with FROZEN_PIX_MUSALL=1 (keys mus_<window>_<avg|trial>_<E|S> in each session npz:
 target-space second moments of the residual (E) and of the data (S) inside the MUSALL window; `avg` = per-spout
-trial-averaged traces centred on their mean over spouts x time, `trial` = single trials minus their spout's mean;
+trial-averaged traces centered on their mean over spouts x time, `trial` = single trials minus their spout's mean;
 see `frozen_encoder.musall_moments`). --measure all uses the all-frames moments (resid_mom / data_mom), which every
 variant has (incl. the novar_* per-variable drops -> Musall bottom row per VARIABLE, task B).
 
@@ -13,7 +13,7 @@ Per session and pixel: SSE = diag(W E W'), SST = diag(W S W') (W = the animal's 
   unique  dR2 of g                  = (SSE[no_g] - SSE[joint]) / SST
 (pre held out leave-one-session-out, post with the frozen all-pre betas). Display: per animal x epoch SSE and SST SUMMED
 over sessions before the ratio, then the mean over animals (rule 8). Test: per-session maps, epoch minus pre, nested
-bootstrap animals -> sessions (`fr_pixel_significance.test`, 16 px bins, Bonferroni). R2 is a fraction per pixel, but
+bootstrap animals -> sessions (`fr_pixel_significance.test`, 16 px bins, max-statistic over bins, family-wise per panel). R2 is a fraction per pixel, but
 PS94's target terms are ~10x the others' (ENCODING_FINDINGS 8.13): the per-animal table is printed first.
 
 Rows: pre level per measure, then epoch minus pre per measure. Image left = ipsilesional.
@@ -23,6 +23,7 @@ Usage: python scripts/frozen_pixel_musall.py --tag gate-attempted_v7g3_t3d_frA_l
 Output: <E>/frozen_encoder_<tag>/figures/pixel_musall_<layout>_<window>.png + pixel_musall_<layout>_<window>{,_sig}.csv
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import json
@@ -36,7 +37,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fr_musall import E  # noqa: E402
-from fr_pixel_significance import FACTORS, block_mask, test  # noqa: E402
+from fr_pixel_significance import FACTORS, block_mask, correction_label, test  # noqa: E402
 from frozen_r2_maps import pixel_sse  # noqa: E402
 
 #: (label, variant); None = the joint model itself (full R2)
@@ -45,12 +46,15 @@ QS = {"alone": [("full", None), ("task", "task_only"), ("instructed (lick)", "li
                 ("FaceRhythm", "fr_only")],
       "unique": [("full", None), ("task", "no_task"), ("target", "no_target"), ("executed (spout-locked)", "no_exec_locked"),
                  ("executed (within-spout)", "no_exec_within"), ("lick spout", "no_lickspout"), ("spout", "no_spout"),
-                 ("movement", "no_movement"), ("FaceRhythm", "no_fr")],
+                 ("movement", "no_movement"), ("FaceRhythm", "no_fr"),
+                 # v7g3_t3d_spont (8.51): uninstructed incl. the spontaneous licks, and the spontaneous licks alone
+                 ("uninstructed (other)", "no_other"), ("spontaneous licks", "no_spont")],
       # Musall bottom row per VARIABLE (Priya 10-25); order: task, licking, pose, running, FaceRhythm
       # names = the frozen variable bases (`frozen_encoder._VAR_BASES`): target = pos_enl (pre-cue) + pos_cue (post-cue);
       # pose magnitude / direction separate; the FaceRhythm "other" factors (fr_other_<k>) are left out of the figure
       "novar": [("full", None)] + [(v, f"novar_{v}") for v in (
-          "cue", "arrival", "pos_enl", "pos_cue", "lick_onset", "contact", "exec_angle", "tongue_mag", "tongue_dir",
+          "cue", "arrival", "pos_enl", "pos_cue", "lick_onset", "licks_pre", "licks_iti", "contact", "exec_angle",
+          "tongue_mag", "tongue_dir",
           "jaw_mag", "jaw_dir", "nose_mag", "nose_dir", "running", "push",
           "fr_lick", "fr_right", "fr_left", "fr_close", "fr_far")]}
 MLAB = {"avg": "PETH", "trial": "trial-by-trial", "all": "all frames"}
@@ -65,8 +69,9 @@ def keys(measure: str, window: str) -> tuple[str, str]:
 
 def collect(run: Path, qs, measures, window):
     """per session: SSE / SST pixel vectors per (q, measure); also animal x epoch sums."""
+    from wfield_local import config
     from wfield_local import combined_encoding as ce
-    sess = sorted(js for js in (run / "joint" / "sessions").glob("*.json") if js.stem[-4:] >= "0801")
+    sess = sorted(js for js in (run / "joint" / "sessions").glob("*.json") if not config.early_pre(js.stem))
     _V, _ft, _Ub, flat, _pa, _nm, shape, pstat = ce.load_imaging(sess[0].stem)
     spatial, meta, sse, sst = {}, [], {}, {}
     for js in sess:
@@ -97,6 +102,19 @@ def value(layout, q, v, e_q, e_joint, s):
     return (e_q - e_joint) / s
 
 
+def trial_set_sentence(tag: str, window: str, measures) -> str:
+    """The trials / frames of the figure (Priya 11-09): measure "all" = every modeled frame (`resid_mom`); PETH / trial
+    = the frozen Musall ``window`` from the basis moments (trials whose window runs past the recording excluded)."""
+    from wfield_local import frozen_encoder as fe
+    from wfield_local import trial_set_text as tst
+    out = []
+    if "all" in measures:
+        out.append(fe.trial_set_sentence("all", tag=tag))
+    if any(m != "all" for m in measures):
+        out.append(fe.trial_set_sentence("musall", tag=tag, align=window, pixel=True))
+    return out[0] if len(out) == 1 else tst.union(*out, unit="trials")
+
+
 def main(argv=None) -> int:
     import matplotlib
     matplotlib.use("Agg")
@@ -110,6 +128,8 @@ def main(argv=None) -> int:
     ap.add_argument("--measures", nargs="+", default=["avg", "trial"], choices=tuple(MLAB))
     ap.add_argument("--epochs", nargs="+", default=["acute", "chronic"], choices=EPS)
     a = ap.parse_args(argv)
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence(a.tag, a.window, a.measures))
     run = E / f"frozen_encoder_{a.tag}"
     qs = [(q, v) for q, v in QS[a.layout] if v is None or (run / v / "sessions").is_dir()]
     missing = [v for _q, v in QS[a.layout] if v is not None and not (run / v / "sessions").is_dir()]
@@ -248,13 +268,14 @@ def main(argv=None) -> int:
             "novar": "single-VARIABLE UNIQUE dR2 (Musall bottom row)"}[a.layout]
     ttl = (f"NEURAL: frozen-frame PIXEL maps, {what}, {'all frames' if win == 'allframes' else win + ' window (' + ', '.join(MLAB[m] for m in meas) + ')'}, run {a.tag}. "
            f"Pre level = held-out; epoch - pre = frozen all-pre betas; mean of animals (SSE, SST summed over each animal's "
-           f"sessions). Outlines: significant 16-px bins (nested bootstrap animals > sessions, Bonferroni); +/- = bins up / "
-           f"down. Grey = Allen areas. Image left = ipsilesional.")
+           f"sessions). Outlines: significant 16-px bins (nested bootstrap animals > sessions, {correction_label()}); +/- = bins up / "
+           f"down. Gray = Allen areas. Image left = ipsilesional.")
     fig.suptitle("\n".join(textwrap.wrap(ttl, int(24 * len(qs)))), fontsize=9)
     fig.subplots_adjust(left=0.05, right=0.995, top=1 - 1.0 / (2.6 * len(rws) + 1.3), bottom=0.05,
                         wspace=0.05, hspace=0.3)
     p = out / f"{stem}.png"
-    fig.savefig(p, dpi=105)
+    with tst.active(None, text=trial_set_sentence(a.tag, a.window, meas)):     # the measures actually drawn
+        save_png_svg(fig, p, dpi=105)
     plt.close(fig)
     print("->", p)
     return 0

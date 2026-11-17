@@ -126,7 +126,7 @@ def test_sum_M_squared_after_centring_IS_the_between_position_variance():
     """`sum M^2` == n_positions * sum_over_features(variance across positions). Exactly.
 
     This is the whole justification for calling the denominator "between-position signal": after
-    centring, the sum of squares down each feature's column IS that feature's variance across
+    centering, the sum of squares down each feature's column IS that feature's variance across
     positions times the number of positions. Nothing about trials survives into it.
     """
     rng = np.random.default_rng(11)
@@ -139,7 +139,7 @@ def test_centring_leaves_every_pairwise_difference_between_positions_untouched()
     """Subtracting the SAME row from all six rows cannot change any difference between two rows.
 
     So no contrast the encoder is asked to reproduce -- every one of which is a difference between
-    positions -- is affected by centring. What is removed is only the component common to all six.
+    positions -- is affected by centering. What is removed is only the component common to all six.
     """
     rng = np.random.default_rng(12)
     M = rng.normal(size=(6, 380)) * 2.0 + 5.0
@@ -152,7 +152,7 @@ def test_centring_leaves_every_pairwise_difference_between_positions_untouched()
 def test_inverted_patterns_survive_centring_completely():
     """THE CASE THAT LOOKS LIKE A COUNTEREXAMPLE AND IS NOT.
 
-    Three positions at +x and three at -x average to ZERO across positions, so centring subtracts
+    Three positions at +x and three at -x average to ZERO across positions, so centering subtracts
     nothing at all and the between-position signal is retained in full. "Averages out with the
     global session mean" describes a pattern that is the SAME at every position, which carries no
     position information by definition -- not one that is opposite at different positions, which
@@ -166,18 +166,18 @@ def test_inverted_patterns_survive_centring_completely():
 
 
 def test_only_a_pattern_identical_at_every_position_is_removed():
-    """The one thing centring DOES kill: six identical rows, however large."""
+    """The one thing centering DOES kill: six identical rows, however large."""
     big = np.full((6, 380), 100.0)
     assert float((big ** 2).sum()) > 1e7
     assert float((_centred(big) ** 2).sum()) == pytest.approx(0.0, abs=1e-18)
 
 
 def test_a_session_wide_gain_is_NOT_removed_by_centring():
-    """Centring removes an ADDITIVE common offset, not a MULTIPLICATIVE one.
+    """Centering removes an ADDITIVE common offset, not a MULTIPLICATIVE one.
 
-    Scaling every position by 0.4 scales the centred matrix by 0.4 too, so `sum M^2` falls by 0.16.
+    Scaling every position by 0.4 scales the centered matrix by 0.4 too, so `sum M^2` falls by 0.16.
     That is why the amplitude factor `a` exists and why these figures are read after rescale: if
-    centring removed gain there would be nothing for `a` to fit.
+    centering removed gain there would be nothing for `a` to fit.
     """
     rng = np.random.default_rng(14)
     M = rng.normal(size=(6, 380))

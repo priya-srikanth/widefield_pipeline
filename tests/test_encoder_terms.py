@@ -85,7 +85,7 @@ def test_one_position_moving_is_localised_to_that_position():
 
 def test_a_session_wide_offset_is_charged_to_neither_term():
     """A shift shared by every position carries NO position information and the encoder is not being
-    asked to predict it. Centring on the session's own across-position mean is what removes it; if
+    asked to predict it. Centering on the session's own across-position mean is what removes it; if
     it leaked in, every session with a different F0 would read as a tuning change."""
     p = _patterns()
     off = np.random.default_rng(4).normal(0, 3.0, size=DIM)

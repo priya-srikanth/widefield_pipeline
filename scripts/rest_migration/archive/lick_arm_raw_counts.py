@@ -23,7 +23,7 @@ thin-but-present acutely, then balancing the lick arm makes a near-empty class M
 the other five — an argument AGAINST the uniform weighting adopted 2026-09-16, not for it.
 
     truly 0 trials     -> weighting is irrelevant to far_R, as Priya says, and the measured
-                          <= 0.035 moves are the remaining FIVE classes being equalised.
+                          <= 0.035 moves are the remaining FIVE classes being equalized.
     1-19 trials        -> those trials are in the fit and balancing amplifies them ~200x. The
                           uniform change needs revisiting for this arm.
 

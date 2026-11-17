@@ -27,6 +27,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from wfield_local.pose3d import pose3d_dir
 
 PROD = {"cam4": "lp_r4_prod_20261015", "cam1": "lp_cam1_ctx_prod_20261019"}
 V36 = "lp_r4_heatmap_20261013__clean_v36"
@@ -91,7 +92,7 @@ def run_session(s: str) -> dict:
         E["cam4_matched"] = C1.overlaps(E, C4)
     else:
         E["cam4_matched"] = np.nan
-    f3 = Path(rv.root("dlc")) / "session_poses" / "pose3d" / f"{animal}_{date}_frames.csv.gz"
+    f3 = pose3d_dir(rv) / f"{animal}_{date}_frames.csv.gz"
     if f3.exists():
         S = pd.read_csv(f3, usecols=["trial_id", "t_ms", "stop_ms", "position", "tongue_ml", "tongue_ap", "tongue_dv"])
         E["in_3d"] = C1.overlaps(E, P3.lick_events(S.drop_duplicates(["trial_id", "t_ms"])))
@@ -130,8 +131,9 @@ def run_session(s: str) -> dict:
 def _whole_windows(rv, animal, date, ix, out_, lat, present, src, k, med, to_frame, sd, f3) -> dict:
     """``<s>_events_all.csv`` (encoding window via Priya 10-20: "run the ... cam1 lick detection over the WHOLE session";
     the post-cue ``<s>_events.csv`` is unchanged): the same detector over EVERY frame of the trial windows (strobe -
-    0.5 s .. stop + 3 s, cut at the next trial; ~98-99 % of the video), each event with ``context`` (pre_cue / post_cue /
-    iti by onset, `orofacial_outputs.lick_context`), ``daq_on_s`` / ``daq_peak_s`` (absolute DAQ time of the onset /
+    0.5 s .. stop + 3 s, cut at the next trial; ~98-99 % of the video), each event with ``context`` (pre_cue /
+    excluded_0_70 / post_cue / iti by PEAK, `orofacial_outputs.lick_context`, Priya 11-04), ``onset_context`` (the
+    pre-11-04 onset label, `orofacial_outputs.onset_context`), ``daq_on_s`` / ``daq_peak_s`` (absolute DAQ time of the onset /
     peak frame, the camera timestamp through the alignment template) and the same flags as the post-cue file:
     cam4_matched against v36 ``licks_all.csv`` (every cam4 lick; ``licks.csv`` if absent), in_3d, contact (a DAQ
     contact anywhere in the window, not only cue + 70 .. stop), miss_prev3, droplet, jaw_only_trial."""
@@ -147,7 +149,8 @@ def _whole_windows(rv, animal, date, ix, out_, lat, present, src, k, med, to_fra
     tr = ix.groupby("trial_id").agg(strobe_ms=("strobe_ms", "first"), stop_ms=("stop_ms", "first"),
                                     t0=("t_ms", "min"), t1=("t_ms", "max"))
     t = tr.reindex(A.trial_id)
-    A["context"] = OO.lick_context(A.on_ms, t.strobe_ms.to_numpy(float), t.stop_ms.to_numpy(float))
+    A["context"] = OO.lick_context(A.t_peak_ms, t.strobe_ms.to_numpy(float), t.stop_ms.to_numpy(float))
+    A["onset_context"] = OO.onset_context(A.on_ms, t.strobe_ms.to_numpy(float), t.stop_ms.to_numpy(float))
     look = ix.drop_duplicates(["trial_id", "t_ms"]).set_index(["trial_id", "t_ms"]).daq_s
     for col, tc in (("daq_on_s", "on_ms"), ("daq_peak_s", "t_peak_ms")):
         A[col] = look.reindex(pd.MultiIndex.from_arrays([A.trial_id.to_numpy(), A[tc].to_numpy(float)])).to_numpy(float)
@@ -204,7 +207,7 @@ def summarise(d: Path) -> pd.DataFrame:
     E["droplet"] = C1.droplet_flags(E, E.cam1_only)          # water droplets (blind review): dropped from every count
     E = E[~E.droplet].copy()
     from wfield_local import pose3d as P3                    # sessions whose camera timing fails (pose3d gate): out
-    bad = P3.failed_sessions(d.parent / "pose3d")
+    bad = P3.failed_sessions(pose3d_dir(root=d.parent.parent))
     E = E[~E.session.isin(bad)].copy()
     E["incomplete"] = ~E.contact
     g = E.groupby(["animal", "epoch", "session", "position"])

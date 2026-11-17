@@ -53,7 +53,7 @@ Slide numbers are the final numbers (138-slide deck).
 | 37 | 3-D: far-contra licks miss | The notes said "this figure keeps + = ipsilesional". | That note is marked superseded (+ = contra since v18). | kinematics v18 |
 | 99 → 101 | Pre-cue event / weaker code | Bullet 1 did not say what the claim rests on. The notes cited only the DAQ-defined T13 follow-up. | Bullet 1: "After the stroke a pre-cue orofacial event goes with a weaker position code (main and exclusion tests, 4 / 4; two pre-stroke sub-tests also lean negative)". The notes add the LP-defined re-run (unchanged, −0.016, p .001; per animal), that 4-8 Hz was not adopted, and that T20 laterality stays withdrawn. | encoding Figs 23.5 / 23.23; Priya decision 6 |
 | 97 | ~7x more common | Fold change checked: the deck says ~7x / ×6.7, which matches the current page (LP quiet frames; DAQ-only ×5.1). | The notes record the check. No visible change. | encoding Fig 23.1 |
-| 109 | Pre-stroke VFSS | The notes said "stroke date unknown" and "20261029 folder likely mis-dated". | Stroke 11-01. Clips are labelled 10-30 (pre). The notes say the 20261029/ folder is the 10-29 session saved under 20261028_* names (files not renamed), and that no clip here comes from it. | Priya decision 2 / coordinator |
+| 109 | Pre-stroke VFSS | The notes said "stroke date unknown" and "20261029 folder likely mis-dated". | Stroke 11-01. Clips are labeled 10-30 (pre). The notes say the 20261029/ folder is the 10-29 session saved under 20261028_* names (files not renamed), and that no clip here comes from it. | Priya decision 2 / coordinator |
 | 110 | Post-stroke VFSS | The slide said "First post-stroke session (11-02)" and the notes asked to "confirm stroke date". | Bullet now reads "Post-stroke day 1 (11-02; stroke 11-01)". Notes updated. | same |
 | 111 (hidden) | Other post-stroke clips | Same | Title now reads "the other day-1 (11-02) clips". Notes updated. | same |
 | 113 NEW (hidden) | NES-mCherry (PS110): positive vs negative | New | Review sheet (see the mCherry section below). | 2p-RAM red-detection gallery |
@@ -116,4 +116,4 @@ Other candidates considered:
 5. **Imaging section 15** (frozen copy) still says ~5× / DAQ in its figure titles. The current numbers are in encoding section 23. This is a page issue, not a deck issue.
 6. **Kinematics page section 6 numbering** of the new trial-class figures is assumed to be 6.1 / 6.2 (cited as "section 6"). Confirm once published.
 7. **PS110 mCherry counts differ by source.** The deck's slide 115 quotes 559 / 3,804 (strict soma gate, per-tile dedupe, grant summary). The review sheet uses the refined union, 891 / 4,276. Both are explained in the notes; pick one for the main text.
-8. **State decoder decision 7** is still open: class-balanced centring vs the plain z-score.
+8. **State decoder decision 7** is still open: class-balanced centering vs the plain z-score.

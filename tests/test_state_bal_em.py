@@ -1,11 +1,11 @@
-"""bal_em: the PRODUCTION frozen behavioural-state decoder since 2026-11-03 (Priya: "ok bal_em it is").
+"""bal_em: the PRODUCTION frozen behavioral-state decoder since 2026-11-03 (Priya: "ok bal_em it is").
 
-Train on class-balanced pre-stroke sessions (centre = equal-weight mean of the TRUE class means; training labels are
-allowed); score a session by the label-free EM centre (Saerens et al. 2002 priors -> soft class means of the raw
-features -> equal-weight centre, production SD, 3 passes). DECISIONS 2026-11-03.
+Train on class-balanced pre-stroke sessions (center = equal-weight mean of the TRUE class means; training labels are
+allowed); score a session by the label-free EM center (Saerens et al. 2002 priors -> soft class means of the raw
+features -> equal-weight center, production SD, 3 passes). DECISIONS 2026-11-03.
 
 Pins: (a) the spec id changes only for the new scaling; (b) no test-session label reaches a scored session's
-centre -- shuffling them leaves the scaled features (so the predictions) identical; (c) on a synthetic 3-class case
+center -- shuffling them leaves the scaled features (so the predictions) identical; (c) on a synthetic 3-class case
 whose class mix shifts toward running, bal_em recovers the running recall plain session_z loses.
 """
 import numpy as np
@@ -53,14 +53,15 @@ def no_store(monkeypatch):
 
 # ------------------------------------------------------------------ (a) spec identity
 def test_spec_id_changes_only_for_the_new_scaling():
-    """The unscaled and session_z ids are PINNED to their pre-11-03 values (so their stored models still resolve);
-    session_bal_em is a third, new id."""
-    kw = dict(align="segments", source="joint_x", train_labels=[], basis_id="x", n_features=3, post_s=1.0)
+    """Three distinct ids, one per scaling; scaling absent = the same id as scaling=None. COHORT-1 REBUILD (11-03,
+    FREEZE_VERSION 2): every id changed by design (training-data fingerprint, selection, hemo variant), so the pre-11-03
+    pinned values (e14c78c2c8e8 / 85aa81b36cb3) no longer apply on this branch; the rebuild fits a fresh store."""
+    kw = dict(align="segments", source="joint_x", train_labels=[], basis_id="x", n_features=3, post_s=1.0,
+              train_data=None)
     ids = {sc: fm.spec_id(fm.make_spec("PS92", "state", **kw, scaling=sc))
            for sc in (None, "session_z", "session_bal_em")}
-    assert ids[None] == "e14c78c2c8e8" == fm.spec_id(fm.make_spec("PS92", "state", **kw))
-    assert ids["session_z"] == "85aa81b36cb3"
-    assert ids["session_bal_em"] not in (ids[None], ids["session_z"])
+    assert ids[None] == fm.spec_id(fm.make_spec("PS92", "state", **kw))
+    assert len(set(ids.values())) == 3
 
 
 def test_default_scaling_is_bal_em_and_session_z_stays_selectable(monkeypatch):
@@ -143,8 +144,8 @@ def test_bal_em_centre_takes_no_labels_by_signature():
 
 # ------------------------------------------------------------------ (c) the point of it
 def test_bal_em_recovers_minority_recall_session_z_loses(no_store):
-    """Post sessions run 70 % of the time against 10 % pre. Plain session_z centres on the session mean, which moves
-    toward running, and reads running as quiet; bal_em's label-free equal-weight centre recovers it."""
+    """Post sessions run 70 % of the time against 10 % pre. Plain session_z centers on the session mean, which moves
+    toward running, and reads running as quiet; bal_em's label-free equal-weight center recovers it."""
     got = _cohort()
     run = {}
     for sc in ("session_z", "session_bal_em"):

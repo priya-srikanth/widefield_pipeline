@@ -22,7 +22,7 @@ lick microstructure — then the tiled cumulative-task-raster slides (8 sessions
 full-size slide per cross-session metric } -> a cross-animal divider + the cohort figure. One detailed
 figure per slide (like the analysis deck), so each day / metric stays readable.
 
-    python -m wfield_local.behavior_deck                    # build from behavior_out, land beside the figures
+    python -m wfield_local.behavior_deck                    # build from behavior_out -> <decks_out>/behavior
     python -m wfield_local.behavior_deck --out <path.pptx>  # override the output path
     python -m wfield_local.behavior_deck --only PS93 PS94   # subset of animals
 """
@@ -37,7 +37,7 @@ from pptx.dml.color import RGBColor
 from pptx.util import Inches, Pt
 
 from wfield_local import config
-from wfield_local.paths import PathResolver
+from wfield_local.paths import PathResolver, deck_dir
 
 NAVY = RGBColor(0x1F, 0x33, 0x55)
 GREY = RGBColor(0x55, 0x55, 0x55)
@@ -72,7 +72,7 @@ ACROSS_METRICS = [
     ("hit", "hit rate per position across sessions",
      "bold + marker = engaged-gated, thin = all trials.  firebrick dashed = lesion"),
     ("latency", "first-lick latency per position across sessions", "firebrick dashed = lesion"),
-    ("licks_per_trial", "licks / trial per position across sessions", "firebrick dashed = lesion"),
+    ("licks_per_trial", "licks / trial (cue + 70 ms to stop) per position across sessions", "firebrick dashed = lesion"),
     ("lick_rate", "within-trial lick rate per position across sessions", "firebrick dashed = lesion"),
     ("anticipatory", "anticipatory licks per position across sessions", "firebrick dashed = lesion"),
     ("session", "session-level metrics across sessions",
@@ -107,11 +107,11 @@ SESSION_FIGS = [
 # longest session. This note rides those grid slides.
 RASTER_NOTE = (
     "Mirror of the rig GUI's live 'Cumulative task raster', tiled 8 sessions to a slide on ONE shared "
-    "x-axis normalised to this animal's LONGEST session, so trial pacing reads across days (the axis "
+    "x-axis normalized to this animal's LONGEST session, so trial pacing reads across days (the axis "
     "length differs between animals). Each panel: x = time in the session (minutes, t=0 at the first "
     "trial); y = the six spout positions in the GUI's row order (close_center, close_L, close_R, "
     "far_center, far_L, far_R). GREEN = hit (a lick inside the session's real response window); RED = "
-    "miss. THE DOT IS THE ANIMAL'S BEHAVIOUR, NOT WHETHER WATER ARRIVED: reward_mode auto_after_delay "
+    "miss. THE DOT IS THE ANIMAL'S BEHAVIOR, NOT WHETHER WATER ARRIVED: reward_mode auto_after_delay "
     "delivers water on most trials whatever the animal does, withheld only by auto_hold_after_miss "
     "(PS92 8/21: 397 rewards against 310 hits). NOT engagement-gated, deliberately: the sated tail — "
     "the run of red at the end — is what this figure is for. " + _M_TRIALS)
@@ -246,7 +246,7 @@ def build_behavior_deck(behavior_out, out_path, animals=None, epoch_dir=None) ->
 
     # ---------------- behaviour by epoch (END) ----------------
     if epoch_dir:
-        divider("Behaviour by epoch",
+        divider("Behavior by epoch",
                 "the same per-session hit rates as above, pooled into pre / acute / subacute / "
                 "chronic on the boundaries in force this run")
         for stem, ttl, sub in EPOCH_FIGS:
@@ -261,15 +261,16 @@ def build_behavior_deck(behavior_out, out_path, animals=None, epoch_dir=None) ->
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--out", type=Path, default=None,
-                    help="output .pptx (default: <behavior_out>/behavior_summary_deck.pptx)")
+                    help="output .pptx (default: <decks_out>/behavior/behavior_summary_deck.pptx; it was "
+                         "<behavior_out>/behavior_summary_deck.pptx until 2026-11-06)")
     ap.add_argument("--only", nargs="+", metavar="ANIMAL", help="restrict to these animals, or 'all'")
     ap.add_argument("--machine", default=None)
     ap.add_argument("--skip-epoch", action="store_true",
-                    help="omit the behaviour-by-epoch section (it is placed by default)")
+                    help="omit the behavior-by-epoch section (it is placed by default)")
     args = ap.parse_args(argv)
     rv = PathResolver(machine=args.machine)
     root = Path(rv.root("behavior_out"))
-    out = args.out or root / "behavior_summary_deck.pptx"
+    out = args.out or deck_dir("behavior", rv) / "behavior_summary_deck.pptx"
     d = build_behavior_deck(root, out, animals=config.normalize_animals(args.only),
                             epoch_dir=None if args.skip_epoch else epoch_fig_dir(rv))
     print(f"== behavior deck: {d['out']} ({d['slides']} slides, {d['figures_present']} figs, "

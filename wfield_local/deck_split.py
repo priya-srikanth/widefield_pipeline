@@ -175,7 +175,7 @@ def split(full_path, narrative_out=None, appendix_out=None, appendix_tags=APPEND
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("deck", nargs="?", help="built pptx (default: the analysis summary on labcams)")
+    ap.add_argument("deck", nargs="?", help="built pptx (default: the analysis summary in decks_out/analysis)")
     ap.add_argument("--narrative", default=None)
     ap.add_argument("--appendix", default=None)
     ap.add_argument("--tags", nargs="*", default=None,
@@ -186,8 +186,8 @@ def main(argv=None) -> int:
 
     deck = a.deck
     if deck is None:
-        from wfield_local.paths import PathResolver
-        deck = pathlib.Path(PathResolver().root("cohort_out")) / "spout_position_analysis_summary.pptx"
+        from wfield_local.paths import deck_dir
+        deck = deck_dir("analysis") / "spout_position_analysis_summary.pptx"   # labcams top level until 2026-11-06
 
     if a.report:
         import collections

@@ -136,8 +136,9 @@ OUT_ENV = "LICK_TEMPLATES_OUT"        # output folder, inherited by the session 
 def pass1_one(label: str) -> str:
     """Fit one PRE session's spout kernels; saved to <out>/sessions/<label>_tmpl.npz."""
     S = session_design(label)
+    from wfield_local import mask_keys
     np.savez(Path(os.environ[OUT_ENV]) / "sessions" / f"{label}_tmpl.npz", coef=fit_templates(S),
-             areas=np.array(S["areas"]))
+             areas=np.array(S["areas"]), **mask_keys.stamp())
     return label
 
 
@@ -148,6 +149,9 @@ def template_for(label: str, pre: list):
     if not srcs:
         return None, None
     Z = {k: np.load(d / f"{k}_tmpl.npz") for k in srcs}
+    from wfield_local import mask_keys
+    for k, z in Z.items():                        # stale-read guard (11-09)
+        mask_keys.check_obj(z, d / f"{k}_tmpl.npz")
     A = {k: list(Z[k]["areas"]) for k in srcs}
     common = [c for c in A[srcs[0]] if all(c in A[k] for k in srcs)]
     M = np.mean([Z[k]["coef"][:, [A[k].index(c) for c in common]] for k in srcs], 0)
@@ -163,13 +167,12 @@ def pass2_one(item) -> list:
 
 
 def main(argv=None) -> int:
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     from wfield_local import analysis_kit as ak
     from wfield_local import combined_encoding as ce
     from wfield_local import epochs
     from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
     from wfield_local import writeguard
-    from wfield_local.paths import PathResolver
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--run", default=oc.RUN)
     ap.add_argument("--jobs", type=int, default=1)
@@ -184,7 +187,8 @@ def main(argv=None) -> int:
     cur = set(ak.curated_labels())
     if any(x not in cur for x in labels):
         raise SystemExit(f"not curated: {[x for x in labels if x not in cur]}")
-    out = oo.root(PathResolver()) / a.run / "imaging_encoding" / "qc" / (f"lick_templates_{mode}" + (f"_{a.tag}" if a.tag else ""))
+    from wfield_local import run_mode
+    out = run_mode.encoding_out_root(a.run) / "qc" / (f"lick_templates_{mode}" + (f"_{a.tag}" if a.tag else ""))   # 11-04
     writeguard.assert_writable(out.parent)
     (out / "sessions").mkdir(parents=True, exist_ok=True)
     os.environ[OUT_ENV] = str(out)

@@ -5,7 +5,7 @@ window clarity, LED power) the same dF would read as a larger dF/F. Per session:
 (the pipeline's per-pixel temporal mean, raw counts) over the central 60 % of the frame, for the 470 nm (functional,
 `hemo_variants.functional_channel`) and the 415 nm channel. Then per animal: F0 / pre mean by epoch, and the ITI-lick
 post-lick response (`ramp_auc_sessions.csv`, orofacial ROIs averaged) in dF/F and in dF-equivalent units (dF/F x F0 /
-pre F0). If the response increase vanishes in dF, it was an F0 artefact. Within animal across post sessions: r(F0,
+pre F0). If the response increase vanishes in dF, it was an F0 artifact. Within animal across post sessions: r(F0,
 response). Output <E>/iti_licks/f0_check.csv. Usage: python scripts/iti_f0_check.py
 """
 from __future__ import annotations

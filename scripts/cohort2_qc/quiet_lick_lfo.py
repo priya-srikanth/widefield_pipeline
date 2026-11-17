@@ -5,7 +5,7 @@ Ramanathan et al. 2018 (Nat Med) found movement-locked low-frequency oscillation
 motor cortex during reaching FALL after stroke and their return tracks recovery. T16 asks, in the SAME sessions,
 whether task-locked 1-4 Hz activity around licks falls while quiet 1-4 Hz power rises.
 
-EVENTS (DAQ clock; canonical behaviour events `behavior_summary/events/<animal>/<date>.npz` lick_onsets, trials from
+EVENTS (DAQ clock; canonical behavior events `behavior_summary/events/<animal>/<date>.npz` lick_onsets, trials from
 `trial_windows.trial_bounds`, quit from `analysis_kit.session_behavior`), ENGAGED part of the session only:
   cued   = first DAQ lick onset in [cue, stop_s] (stop_s missing -> cue + 3.5 s) of each trial.
   iti    = bout-initiating ITI lick: DAQ lick onset with no lick in the preceding 2 s, outside every trial's
@@ -22,7 +22,7 @@ MEASURES per session x event type x column (>= MIN_EV events):
   null: (a) and (b) for n-matched random onsets in the engaged session (median of N_NULL draws).
 QUIET 1-4 Hz power: `v2_quiet/fluct/sessions/<label>.npz` psd integrated over 1-4 Hz (Welch on engaged-quiet runs >=
 4 s), plus a check from this script's band-passed trace (variance over engaged quiet frames, quiet_spikes_v2 rule).
-Every measure is divided by the animal's AUGUST-pre median (pre = MMDD >= 0806).
+Every measure is divided by the animal's AUGUST-pre median (pre = not config.early_pre, cohort1 cut 0806).
 STATS: per-animal x epoch table first (rule 8), then `mixed_models.lmm_table` epoch + time models (log10 ratio for
 amplitudes / powers, raw ITPC / PPC), FDR within measure.
 RECOVERY LINK (within animal, post sessions): Pearson r of lick-locked ITPC (and the other measures) vs far-contra hit
@@ -44,6 +44,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from quiet_area_spikes import EP, EVENTS, columns, session_traces  # noqa: E402
 from quiet_fluct import FL, TRACE_COLS  # noqa: E402
 from quiet_spikes_v2 import LICK_SOURCE, V2, busy_frames  # noqa: E402
+from wfield_local import lp_licks as _lp_licks  # noqa: E402  (coordinator 11-04: the run's attempts table)
+from wfield_local import config  # noqa: E402
 
 LICK_LABEL = "LP video (+ unmatched DAQ contact) lick" if LICK_SOURCE == "daq+lp" else "DAQ lick"
 LL = V2 / "lick_lfo"                                        # follows QS_LICK_SOURCE
@@ -228,7 +230,7 @@ def session_table():
     for f in sorted((LL / "sessions").glob("*.npz")):
         lab = f.stem
         ep = epochs.epoch_of(lab)
-        if ep is None or (ep == "pre" and lab[-4:] < "0806"):
+        if ep is None or (ep == "pre" and config.early_pre(lab)):
             continue
         d = dict(np.load(f))
         for c in SHOW:
@@ -377,7 +379,7 @@ def fig_epochs(S, T):
                  "sessions. Each value / the animal's August-pre median (log axis; dashed = pre).\nBand-pass 1-4 Hz "
                  "zero-phase on the whole session; window -0.5..+1.5 s around " + LICK_LABEL + " onset; ITPC = Hilbert phase "
                  "consistency over 0-0.5 s; induced = single-trial power after removing the trial average. Open "
-                 "markers = sessions (shape = animal, colour = epoch); filled = pooled mean, nested animal -> session "
+                 "markers = sessions (shape = animal, color = epoch); filled = pooled mean, nested animal -> session "
                  "bootstrap 95% CI; stars = mixed model, epoch vs August pre, FDR q.", fontsize=8.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.9), w_pad=1.5)
     fig.savefig(LL / "lick_lfo_epochs.png", dpi=110)
@@ -397,7 +399,7 @@ def fig_traces():
     lags = None
     for f in sorted((LL / "sessions").glob("*.npz")):
         ep = epochs.epoch_of(f.stem)
-        if ep is None or (ep == "pre" and f.stem[-4:] < "0806"):
+        if ep is None or (ep == "pre" and config.early_pre(f.stem)):
             continue
         d = np.load(f)
         lags = d["lags_s"] if lags is None else lags
@@ -430,7 +432,7 @@ def fig_traces():
     ax[0, -1].legend(fontsize=7.5, loc="upper left", bbox_to_anchor=(1.02, 1), frameon=False, title="epoch")
     fig.suptitle("Lick-locked 1-4 Hz activity in orofacial cortex (bilateral) per animal: mean over sessions of each "
                  "session's trial-averaged band-passed response (rows 1, 3) and inter-trial phase coherence (rows 2, "
-                 "4; grey = the 0-0.5 s window scored). Colour = epoch (pre = August pre).", fontsize=9, wrap=True)
+                 "4; gray = the 0-0.5 s window scored). Color = epoch (pre = August pre).", fontsize=9, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.95), w_pad=1.2)
     fig.savefig(LL / "lick_lfo_traces.png", dpi=110)
     plt.close(fig)
@@ -528,8 +530,7 @@ COMP_NOTE = ("T16 trial-composition control (scripts/cohort2_qc/quiet_lick_lfo.p
              "log(day)-detrended, 5000 within-animal permutations) and the epoch / time LMM per subset.\n"
              "NB cued first licks are DAQ CONTACT licks inside the response window, so ~100 % are already hit trials: "
              "failed attempts never enter the cued set.\n")
-ATTEMPTS = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/qc/"
-                "trial_attempts.csv")
+ATTEMPTS = _lp_licks.attempts_path()      # THIS run's attempts table (coordinator 11-04)
 POS_MAP = {"close_L": "close_ipsi", "close_center": "close_mid", "close_R": "close_contra", "far_L": "far_ipsi",
            "far_center": "far_mid", "far_R": "far_contra"}
 SUBSETS = ("all", "hit", "nonfc", "hit_nonfc")
@@ -583,7 +584,7 @@ def composition(jobs):
     labels = []
     for f in sorted((LL / "sessions").glob("*.npz")):
         ep = epochs.epoch_of(f.stem)
-        if ep is not None and not (ep == "pre" and f.stem[-4:] < "0806"):
+        if ep is not None and not (ep == "pre" and config.early_pre(f.stem)):
             labels.append(f.stem)
     res, fail = fan_sessions(labels, cued_trials, jobs=jobs, label="session")
     if fail:
@@ -746,13 +747,13 @@ def composition_figure(S, T, keep):
             b.set_ylabel("ITPC, log(day) removed", fontsize=8)
     handles = [plt.Line2D([], [], marker=mk, ls="", mfc="none", mec="k", label=an) for an, mk in ANIMAL_MARKER.items()]
     ax[0, -1].legend(handles=handles, fontsize=7, loc="upper left", bbox_to_anchor=(1.02, 1), frameon=False,
-                     title="animal (colour = epoch)", title_fontsize=7)
+                     title="animal (color = epoch)", title_fontsize=7)
     ax[1, -1].legend(fontsize=7, loc="upper left", bbox_to_anchor=(1.02, 1), frameon=False, title="animal")
     sig_marks.reserve_headroom(fig)
     fig.suptitle("T16 trial-composition control: is the cued-lick ITPC <-> far-contra recovery link driven by which "
                  "trials a session contains? Orofacial cortex (bilateral), 1-4 Hz.\nEach session subsampled to the "
                  "same number of licks (the animal's minimum over sessions, >= 15; mean of 20 draws). Top: ITPC / "
-                 "animal's August-pre median; open markers = sessions (shape = animal, colour = epoch), filled = pooled "
+                 "animal's August-pre median; open markers = sessions (shape = animal, color = epoch), filled = pooled "
                  "mean + nested bootstrap 95% CI, stars = LMM vs pre (FDR). Bottom: post sessions, both axes with "
                  "log(day) regressed out within animal; p = 5000 within-animal permutations.", fontsize=8.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.9), w_pad=2.0, h_pad=2.0)
@@ -776,7 +777,7 @@ def main():
     if not a.summarise:
         from wfield_local.analysis_kit import curated_labels
         from wfield_local.analysis_kit import fan_sessions  # fan_out + sort (rule 9)
-        labels = a.only or [k for k in sorted(curated_labels()) if k[-4:] >= "0806" and k[:4] in
+        labels = a.only or [k for k in sorted(curated_labels()) if not config.early_pre(k) and k[:4] in
                             ("PS92", "PS93", "PS94", "PS95")]
         res, fail = fan_sessions(labels, extract, jobs=a.jobs, label="session")
         print(f"{len(res)} done, {len(fail)} failed")

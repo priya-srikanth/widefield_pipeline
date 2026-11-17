@@ -328,6 +328,8 @@ def _quit_mask(session, idx_e, idx_n, y, yn):
     pos = np.array([POSITION_NAMES.get(int(c), str(c)) for c in
                     np.concatenate([np.asarray(y), np.asarray(yn)])])
     o = np.argsort(order, kind="stable")
+    from wfield_local import gate_source  # [gate-source hook] WIDEFIELD_GATE_SOURCE (see that module)
+    responded[o] = gate_source.gate_responded(session["label"], order[o], responded[o])  # [gate-source hook]
     ne = engagement_gate(order[o], responded[o], pos[o])
     by_idx = {int(k): bool(b) for k, b in zip(order[o], ne)}
     return np.array([by_idx.get(int(k), False) for k in idx_n], bool)
@@ -355,7 +357,17 @@ def session_maps(session, align, *, post_s=2.0, balance=False, seed=0, variant="
         feat_region=np.arange(v.shape[0]), signal_key=f"svt:rank{v.shape[0]}",
         with_indices=True)
     X, y, g = np.asarray(X), np.asarray(y), np.asarray(g)
-    if variant == "working" and len(yn):
+    from wfield_local import trial_classes as _tc
+    if variant == "working" and _tc.camera_gate_on():
+        # CAMERA RULE (rebuild 11-03, trial_classes): working = camera classes contact | incomplete on
+        # BOTH arms; the session-cache kind carries the selection tag (run_mode), so this never meets a DAQ entry
+        ke, kn = _tc.camera_rows(session["label"], idx_e, idx_n, "working")
+        X, y, g = X[ke], y[ke], g[ke]
+        if len(yn) and kn.any():
+            X = np.vstack([X, np.asarray(Xn)[kn]])
+            y = np.concatenate([y, np.asarray(yn)[kn]])
+            g = np.concatenate([g, _runs_to_blocks(np.asarray(yn)[kn]) + (int(g.max()) + 1 if len(g) else 0)])
+    elif variant == "working" and len(yn):
         # THE `working` CLASS IS ENGAGED + MISS-WHILE-WORKING, and leaving the second half out is
         # the bug this call site had until 2026-09-12: `trial_features_cached` returns the engaged
         # trials FIRST and the no-lick trials separately, so taking only the first three returns
@@ -496,9 +508,9 @@ def _atlas_names():
     return None, {}
 
 
-@lru_cache(maxsize=1)
+@lru_cache(maxsize=8)
 def painted_exclusion(key="union"):
-    """The hand-painted occlusion mask, or an all-False mask if none has been painted.
+    """The hand-painted occlusion mask. RAISES if the cohort requires it and it is missing / unreadable / mis-shaped.
 
     THE FIBRE GLUE, which no threshold could find. `paint_exclusion` records why three automatic
     attempts failed; the short version is that brightness in this preparation is dominated by
@@ -514,20 +526,33 @@ def painted_exclusion(key="union"):
     energy** -- the position code lives in SSp/MO, not in the posterior territory painted out -- and
     the effect RMS in kept cortex is about 3x that inside the excluded zone. The cut is large in
     area and nearly free in signal.
+
+    NEVER SILENTLY EMPTY (2026-11-09). It used to return an all-False mask on any failure; under the rebuild
+    profile the mask directory followed the rebuild root, nothing was there, and every brain / stat mask quietly kept
+    the glue. `paint_exclusion.load_mask` now raises; the only all-False answer is a cohort that opts out explicitly
+    (configs/cohorts.yaml ``painted_exclusion: none``: cohort2).
     """
-    try:
-        from wfield_local.paint_exclusion import mask_path
-    except Exception:                                                  # noqa: BLE001
-        return np.zeros(MAP_SHAPE, bool)
-    try:
-        p = mask_path(key)
-        if not p.exists():
-            return np.zeros(MAP_SHAPE, bool)
-        m = np.load(p).astype(bool)
-    except Exception as ex:                                            # noqa: BLE001
-        print(f"  !! painted exclusion {key}: {type(ex).__name__} {str(ex)[:60]}", flush=True)
-        return np.zeros(MAP_SHAPE, bool)
-    return m if m.shape == MAP_SHAPE else np.zeros(MAP_SHAPE, bool)
+    from wfield_local.paint_exclusion import load_mask
+    return load_mask(key, MAP_SHAPE)
+
+
+def mask_signature(n: int = 12) -> str:
+    """Short sha1 of the ANALYSIS MASKS' CONTENT (`brain_mask` + `stat_mask` bytes, plus the painted union) -- the
+    token every cache whose value depends on those masks puts in its KEY (2026-11-09).
+
+    Before it, the encoder input cache was keyed on source paths and code only, so the glue-in masks of the rebuild
+    (painted mask silently empty) and the corrected glue-out masks would have shared an entry. "none" = no Allen mask.
+    """
+    import hashlib
+    bm = brain_mask()
+    if bm is None:
+        return "none"
+    h = hashlib.sha1()
+    for m in (bm, stat_mask(), painted_exclusion()):
+        a = np.ascontiguousarray(np.asarray(m, bool))
+        h.update(repr(a.shape).encode())
+        h.update(np.packbits(a).tobytes())
+    return h.hexdigest()[:int(n)]
 
 
 @lru_cache(maxsize=1)
@@ -1258,13 +1283,14 @@ def edge_enrichment(flagged, mask=None, rim_px=32):
 
 
 def significance_contour(pre_by_animal, post_by_animal, *, method=PRIMARY_TEST, n_boot=2000,
-                         n_perm=500, alpha=0.05, seed=0, mask=None, normalise=None):
+                         n_perm=500, alpha=0.05, seed=0, mask=None, normalise=None, factor=MUSALL_DOWNSAMPLE):
     """``(full-resolution boolean mask, one-line label)`` for a difference panel, or ``(None, "")``.
 
     ONE PLACE, so a figure cannot quietly disagree with another about what its drawn contour means.
     Three methods are reachable and they answer the same question with different trade-offs:
 
-        "nested"   animals -> sessions bootstrap on the 8x downsampled grid, Bonferroni over bins.
+        "nested"   animals -> sessions bootstrap on the 8x downsampled grid, family-wise over bins by `CORRECTION`
+                   (default "maxstat": the max-statistic; Bonferroni only if CORRECTION is changed).
                    THE DEFAULT, and the same object the bar families use. Sessions sharpen each
                    animal's estimate without being counted as independent animals.
         "cluster"  full-resolution cluster mass against a within-animal relabelling null. Animal is
@@ -1278,6 +1304,10 @@ def significance_contour(pre_by_animal, post_by_animal, *, method=PRIMARY_TEST, 
 
     ``normalise`` (default `NORMALISE_TESTS_BY_PRE`): both epochs divided by each animal's PRE-stroke constant
     (`pre_scale`) before testing, so the contour is computed on the scale the pooled picture is drawn on.
+
+    ``factor`` = the block size in px for "nested" / "musall" (default 8, `MUSALL_DOWNSAMPLE`); a larger block means fewer
+    bins and a smaller Bonferroni price (Priya 11-05: block-size option; 16 px was the old goal-page Figs 7). The cluster
+    test is full resolution and ignores it.
     """
     norm = NORMALISE_TESTS_BY_PRE if normalise is None else normalise
     if norm and method != "cluster":
@@ -1287,7 +1317,7 @@ def significance_contour(pre_by_animal, post_by_animal, *, method=PRIMARY_TEST, 
         sc = pre_scale(pre_by_animal)
         pre_by_animal, post_by_animal = scale_maps(pre_by_animal, sc), scale_maps(post_by_animal, sc)
     keep, lab = _significance_contour(pre_by_animal, post_by_animal, method=method, n_boot=n_boot, n_perm=n_perm,
-                                      alpha=alpha, seed=seed, mask=mask, normalise=bool(norm))
+                                      alpha=alpha, seed=seed, mask=mask, normalise=bool(norm), factor=factor)
     if norm and lab:
         lab = f"[pre-normalised] {lab}"
         last = getattr(significance_contour, "last", None)
@@ -1297,7 +1327,7 @@ def significance_contour(pre_by_animal, post_by_animal, *, method=PRIMARY_TEST, 
 
 
 def _significance_contour(pre_by_animal, post_by_animal, *, method, n_boot, n_perm, alpha, seed, mask,
-                          normalise=False):
+                          normalise=False, factor=MUSALL_DOWNSAMPLE):
     """`significance_contour` on maps already on their final scale (cluster: scaled per draw when ``normalise``)."""
     if method == "cluster":
         keep = cluster_permutation(pre_by_animal, post_by_animal, n_perm=n_perm, seed=seed,
@@ -1309,21 +1339,21 @@ def _significance_contour(pre_by_animal, post_by_animal, *, method, n_boot, n_pe
     if method == "musall":
         pre_flat = [m for v in pre_by_animal.values() for m in v]
         post_flat = [m for v in post_by_animal.values() for m in v]
-        got = musall_significance(post_flat, pre_flat, alpha=alpha, mask=mask)
+        got = musall_significance(post_flat, pre_flat, factor=factor, alpha=alpha, mask=mask)
         if got is None:
             return None, ""
         sig, _t, _mk, n_tested = got
-        return (upsample_mask(sig) if sig.any() else None,
+        return (upsample_mask(sig, factor=factor) if sig.any() else None,
                 f"Musall t, sessions as unit: {int(sig.sum())} of {n_tested} bins")
     if method != "nested":
         raise ValueError(f"unknown significance method {method!r}")
-    got = hierarchical_bootstrap_significance(pre_by_animal, post_by_animal, n_boot=n_boot,
+    got = hierarchical_bootstrap_significance(pre_by_animal, post_by_animal, n_boot=n_boot, factor=factor,
                                               alpha=alpha, seed=seed, mask=mask)
     if got is None:
         return None, ""
     sig, _lo, _hi, _mk, n_tested = got
     n = int(sig.sum())
-    full = upsample_mask(sig) if n else None
+    full = upsample_mask(sig, factor=factor) if n else None
     enr = edge_enrichment(full) if full is not None else 0.0
     base = (f"nested bootstrap (animals -> sessions), {n_boot:,} draws: "
             f"{n} of {n_tested} bins"
@@ -1580,9 +1610,18 @@ def _session_maps_code() -> str:
     """Source digest of what builds one session's decoder maps (`map_collect.cache_kind`)."""
     import sklearn
 
-    from wfield_local import joint_basis, map_collect, precue_engagement_states
+    from wfield_local import (behavior_position, docked_periods, joint_basis, lick_detection, locanmf_frozen_decoder,
+                              map_collect, precue_engagement_states)
+    # NARROWED (rebuild 11-03): precue_engagement_states enters through the functions the maps call, not whole
     return map_collect.code_digest(session_maps, _runs_to_blocks, _quit_mask, joint_basis._load_session,
-                                   precue_engagement_states) + f"-skl{sklearn.__version__}"
+                                   map_collect.closure(precue_engagement_states, "engagement_gate"),
+                                   # cache-key gaps closed (review second pass LOW, coordinator 11-03): the trial-feature args, lick detection,
+                                   # cue classification and docked-window helpers the builders call
+                                   map_collect.closure(locanmf_frozen_decoder, "_args"),
+                                   map_collect.closure(lick_detection, "detect_licks"),
+                                   map_collect.closure(behavior_position, "classify_cues_with_backup"),
+                                   map_collect.closure(docked_periods, "docked_mask_any"),
+                                   ) + f"-skl{sklearn.__version__}"
 
 
 def session_maps_cached(session, align, *, post_s=2.0, balance=False, variant="lick"):
@@ -1602,8 +1641,13 @@ def session_maps_cached(session, align, *, post_s=2.0, balance=False, variant="l
 
 def _session_maps_job(job):
     """Module-level worker for `map_collect.collect`: ``(label, session, align, post_s, balance, variant)``."""
+    from wfield_local import lp_licks, map_collect
     _lab, s, align, post_s, balance, variant = job
-    return session_maps_cached(s, align, post_s=post_s, balance=balance, variant=variant)
+    try:
+        return session_maps_cached(s, align, post_s=post_s, balance=balance, variant=variant)
+    except lp_licks.LPUnavailable as ex:
+        # LP arm, session never filmed (PS93_0813): ({}, {}) = "no position reached N trials", as the contact arm
+        return map_collect.skip_lp_unavailable_no_video(s["label"], ex, ({}, {}))
 
 
 @lru_cache(maxsize=8)

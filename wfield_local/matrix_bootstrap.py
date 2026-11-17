@@ -7,10 +7,10 @@ WHAT WAS AND WAS NOT ALREADY TESTED. Family 10's scalar arms carry the full nest
 DIAGONAL of the destination matrix) all run through `_scalar_figure`, so "did position P still match
 itself, and did that change" is tested with intervals and corrected marks. What has never carried
 uncertainty is the OFF-DIAGONAL: *which* position P moved toward. That is the substitution claim,
-and it rested on a fraction-of-sessions drawn as a colour, with no interval and no null.
+and it rested on a fraction-of-sessions drawn as a color, with no interval and no null.
 
 This module closes that, and it is deliberately family-agnostic. `matrix_row` draws six families --
-pattern correlation, split-half, crossnobis, the two row-centred crossnobis variants, and best-match
+pattern correlation, split-half, crossnobis, the two row-centered crossnobis variants, and best-match
 destination -- and none of them had per-cell intervals. The unit of resampling is the one every
 other figure in the deck uses, so a cell interval here is comparable to a bar interval there rather
 than being a second, subtly different bootstrap.

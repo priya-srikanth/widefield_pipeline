@@ -182,7 +182,6 @@ def test_statistics_use_an_ERODED_mask_but_display_does_not():
 
     DISPLAY MUST KEEP THE FULL MASK: eroding what is drawn would hide data.
     """
-    import numpy as np
 
     from wfield_local import beta_maps as bm
 
@@ -341,7 +340,6 @@ def test_the_olfactory_bulbs_are_excluded_everywhere_or_nowhere():
     -- inherits the same field of view without each having to remember. Pinned because an exclusion
     honoured by the tests but not by the amplitude numbers would be worse than none.
     """
-    import numpy as np
 
     from wfield_local import beta_maps as bm
 
@@ -469,8 +467,8 @@ def test_the_painted_occlusion_is_subtracted_and_never_leaks_back():
     painted = bm.painted_exclusion()
     disp, stat = bm.brain_mask(), bm.stat_mask()
     assert painted is not None
-    if not painted.any():                      # nothing painted on this machine yet
-        return
+    # painted_exclusion RAISES when the mask is missing (11-09, the rebuild glue-mask bug); it is never silently empty
+    assert painted.any(), "painted glue mask is empty"
     assert not (painted & disp).any(), "painted pixels are still inside the display mask"
     assert not (painted & stat).any(), "painted pixels are still inside the statistics mask"
     # and it must not have eaten the brain

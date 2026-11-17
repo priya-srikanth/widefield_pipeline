@@ -91,6 +91,40 @@ REFERENCES = ("mean", "rest", "restw", "precue", "raw")
 #: would delete it. The difference between the two is the measurement of it.
 REST_WEIGHTED = "restw"
 
+#: DERIVED references (2026-11-01): formed AFTER collection from the cached `raw` column, so they are NOT in
+#: `REFERENCES` -- that tuple is part of every `prm` cache key (`session_raw_maps_cached` spec `refs`), and adding to it
+#: would turn ~33 GB of warm map caches cold for no change in their contents.
+#:   restnl  RESTnl (lick-free rest, flat; `restnl_mask`): raw[q] - U @ b_nl, exact because the baseline is flat and
+#:           the window features are linear means (check doc RESTNL_MAP_SHORTCUT_CHECK_20261101). One baseline map per
+#:           session serves every alignment and lick gate.
+#: A derived reference is attached by `maps_by_epoch` ONLY when named in WIDEFIELD_MAP_REFS (its per-session baselines
+#: must have been built by `python -m wfield_local.restnl_mask`), so a default render is unchanged.
+DERIVED_REFERENCES = ("restnl",)
+REFS_ENV = "WIDEFIELD_MAP_REFS"
+
+
+def requested_references():
+    """References named in WIDEFIELD_MAP_REFS (comma / space separated), or None when unset (= the default set)."""
+    import os
+    v = os.environ.get(REFS_ENV, "").replace(",", " ").split()
+    if not v:
+        return None
+    bad = [r for r in v if r not in REFERENCES + DERIVED_REFERENCES]
+    if bad:
+        raise ValueError(f"{REFS_ENV}: unknown reference(s) {bad}; expected {REFERENCES + DERIVED_REFERENCES}")
+    return tuple(v)
+
+
+def derived_active():
+    """Derived references to attach in `maps_by_epoch` (those requested in WIDEFIELD_MAP_REFS)."""
+    req = requested_references() or ()
+    return tuple(r for r in DERIVED_REFERENCES if r in req)
+
+
+def render_references():
+    """The references the 15r / 15rpa families draw: WIDEFIELD_MAP_REFS when set, else REFERENCES (unchanged)."""
+    return requested_references() or REFERENCES
+
 #: How a reference is NAMED IN A FILENAME. `rest` resolves through the mask variant actually in
 #: use, so a figure built on the retired 8 s-post-reward definition is called `_REWARD8ref_` and one
 #: built on the new between-trials/not-running/not-licking definition is called `_RESTref_`.
@@ -104,6 +138,8 @@ def reference_tag(reference):
     """The filename token for a reference -- baseline-explicit for `rest`."""
     from wfield_local.quiet_periods import quiet_variant
 
+    if reference == "restnl":
+        return "RESTNL"          # `_RESTNLref_`: lick-free flat rest (restnl_mask)
     if reference not in ("rest", "restw"):
         return reference.upper()
     # THE WEIGHTING IS PART OF THE BASELINE'S IDENTITY, so it goes in the filename with it. A
@@ -223,6 +259,8 @@ def session_rest_svt_timelocal(session, svt, nbins=REST_BASELINE_BINS, frames=No
             return None
         return _timelocal_from_mask(V, qm, int(nbins))
     except Exception as ex:                                            # noqa: BLE001
+        from wfield_local import trial_classes as _tc
+        _tc.reraise_under_camera(ex, f"time-local rest {session['label']}")   # review N9
         print(f"  !! time-local rest {session['label']}: {type(ex).__name__} {str(ex)[:60]}",
               flush=True)
         return None
@@ -348,6 +386,17 @@ def _working_xy(session, align, post_s, variant, baseline, v, *, signal_key=None
         signal_key=signal_key or f"svt:rank{v.shape[0]}",
         with_indices=True)
     X, y = np.asarray(X), np.asarray(y)
+    if variant in CLASS_VARIANTS:  # [gate-source hook] Priya 11-09: own cache kinds; marked so existing digests stay put
+        return _class_xy(session["label"], X, y, Xn, yn, idx_e, idx_n, CLASS_VARIANTS[variant])  # [gate-source hook]
+    from wfield_local import trial_classes as _tc
+    if variant in ("working", "miss_working", "stopped") and _tc.camera_gate_on():
+        # CAMERA RULE (rebuild 11-03, `trial_classes.camera_rows`); cache kinds carry the selection tag (run_mode)
+        ke, kn = _tc.camera_rows(session["label"], idx_e, idx_n, variant)
+        X, y = X[ke], y[ke]
+        if len(yn) and kn.any():
+            X = np.vstack([X, np.asarray(Xn)[kn]])
+            y = np.concatenate([y, np.asarray(yn)[kn]])
+        return X, y
     if variant == "working" and len(yn):
         # IDENTICAL to `beta_maps.session_maps`: `working` is engaged PLUS miss-while-working, and
         # the no-lick arm comes back separately. Dropping it here would silently make this a
@@ -377,6 +426,81 @@ def _working_xy(session, align, post_s, variant, baseline, v, *, signal_key=None
         sel = q if variant == "stopped" else ~q
         X, y = np.asarray(Xn)[sel], np.asarray(yn)[sel]
     return X, y
+
+
+#: THE CLASS-SET SUPPLEMENTS OF THE WORKING MAPS (Priya 11-09; selected by camera class label, `trial_classes.CLASSES`,
+#: the same labels as trial_attempts.csv ``cls``). Camera class labels inside the working period stay the raw class; a
+#: trial in a stop run is relabelled "stopped" / "stopped_licking", one after the end anchor "after_end", one outside
+#: the video "unknown" (`trial_classes.classify_session`, OUT_OF_WORKING_PERIOD) -- so selecting a raw class label IS
+#: "that class inside the working period".
+#:   jaw_only        JAW-ONLY panel: jaw moved, no camera lick -- trials the working maps exclude, as their own group
+#:   working_period  PERIOD SUPPLEMENT (Priya 11-09 option c): every JUDGED trial in the working period, contact +
+#:                   incomplete + jaw_only + no_response; stopped runs (A2), stopped_licking, the quit tail / after_end
+#:                   and "unknown" (no video / unmatched cue: no class to judge) excluded
+JAW_ONLY = "jaw_only"
+WORKING_PERIOD = "working_period"
+CLASS_VARIANTS = {JAW_ONLY: ("jaw_only",),
+                  WORKING_PERIOD: ("contact", "incomplete", "jaw_only", "no_response")}
+
+
+#: Class variants whose per-session maps carry NO session floor (Priya 11-09: jaw-only trials are pooled PER EPOCH per
+#: animal, and the floor is applied to the pooled cell -- `pooled_by_epoch`). The per-session cache entries hold every
+#: position with >= 1 trial, with its n.
+SESSION_FLOOR_FREE = frozenset({JAW_ONLY})
+#: the per-cell floor of an epoch-pooled class map: >= this many trials per animal x epoch x position (Priya 11-09,
+#: proposed 20 = the per-session floor of every other map family)
+JAW_EPOCH_FLOOR = 20
+
+
+def pooled_by_epoch(store, ntr, reference, q, epoch, *, floor=JAW_EPOCH_FLOOR):
+    """``({animal: trial-pooled map}, {animal: n})`` for one position x epoch: each animal's sessions of that epoch
+    POOLED AT THE TRIAL LEVEL (session trial means weighted by their n -- the trial average over the epoch, each trial
+    still against its own session's reference), kept only when the animal's pooled n >= ``floor``. ``n`` lists EVERY
+    animal with >= 1 trial (kept or not), so a panel can say "n < floor"."""
+    maps, ns = {}, {}
+    for an, by_e in store.items():
+        sess = {lab: d[reference] for lab, d in ((by_e.get(epoch) or {}).get(q) or {}).items() if reference in d}
+        w = {lab: int((((ntr.get(an) or {}).get(epoch) or {}).get(q) or {}).get(lab, 0)) for lab in sess}
+        n = sum(w.values())
+        if n <= 0:
+            continue
+        ns[an] = n
+        if n >= floor:
+            maps[an] = sum(w[lab] * np.asarray(m, float) for lab, m in sess.items()) / n
+    return maps, ns
+
+
+def class_rows(cls_e, cls_n, classes):
+    """(keep engaged rows, keep no-lick rows): rows whose camera class is in ``classes`` (either arm -- the class
+    decides, as `trial_classes.camera_rows("working")` does)."""
+    keep = list(classes)
+    return (np.isin(np.asarray(cls_e, dtype=object), keep), np.isin(np.asarray(cls_n, dtype=object), keep))
+
+
+def jaw_only_rows(cls_e, cls_n):
+    """`class_rows` for the jaw-only class: rows whose camera class is exactly "jaw_only"."""
+    return class_rows(cls_e, cls_n, CLASS_VARIANTS[JAW_ONLY])
+
+
+def _class_xy(label, X, y, Xn, yn, idx_e, idx_n, classes):
+    """``(X, y)`` of one session's trials whose camera class is in ``classes`` (`class_rows` on
+    `trial_classes.row_classes`), engaged rows first. Camera gate only: these are camera classes, and the DAQ rule has
+    no such set (RAISES rather than guessing)."""
+    from wfield_local import trial_classes as tc
+    if not tc.camera_gate_on():
+        raise ValueError(f"position maps: class set {tuple(classes)} needs the camera trial gate "
+                         "(WIDEFIELD_TRIAL_GATE=camera)")
+    ke, kn = class_rows(tc.row_classes(label, idx_e), tc.row_classes(label, idx_n), classes)
+    Xe, ye = np.asarray(X)[ke], np.asarray(y)[ke]
+    if len(yn) and kn.any():
+        Xe = np.vstack([Xe, np.asarray(Xn)[kn]]) if len(ye) else np.asarray(Xn)[kn]
+        ye = np.concatenate([ye, np.asarray(yn)[kn]])
+    return Xe, ye
+
+
+def _jaw_only_xy(label, X, y, Xn, yn, idx_e, idx_n):
+    """`_class_xy` on the jaw-only class."""
+    return _class_xy(label, X, y, Xn, yn, idx_e, idx_n, CLASS_VARIANTS[JAW_ONLY])
 
 
 def session_raw_maps(session, align, *, post_s=2.0, variant="working"):
@@ -454,6 +578,9 @@ def session_raw_maps(session, align, *, post_s=2.0, variant="working"):
             # SAME FLOOR AS FIGURE 14 (20 trials), for the same reason: below it the map is erratic
             # rather than merely noisy. A position the animal has stopped attempting loses its OWN
             # column and takes nothing else with it.
+            # JAW-ONLY (Priya 11-09): NO per-session floor -- every session's trial mean + n is kept and the floor  # [gate-source hook]
+            # is applied after pooling the epoch's sessions per animal (`pooled_by_epoch`, JAW_EPOCH_FLOOR)  # [gate-source hook]
+            if variant in SESSION_FLOOR_FREE and int(sel.sum()) > 0: r[q], n[q] = _map(np.asarray(Xa)[sel].mean(0)), int(sel.sum()); continue  # noqa: E501,E701,E702  # [gate-source hook]
             if int(sel.sum()) < MIN_TRIALS_PER_CLASS:
                 continue
             r[q], n[q] = _map(np.asarray(Xa)[sel].mean(0)), int(sel.sum())
@@ -560,13 +687,48 @@ def session_raw_maps(session, align, *, post_s=2.0, variant="working"):
             "restw_positions": restw_positions}
 
 
+#: WIDEFIELD_PRM_LEGACY_DATE8 (11-01, a shim reproducing the pre-10-29 digest) was DROPPED in the cohort-1 rebuild
+#: (2026-11-03, the one planned cache rebuild): the digest below is narrowed, so every prm cache is cold once anyway.
+
+
 def _raw_maps_code() -> str:
-    """Source digest of everything that builds one session's maps (`map_collect.cache_kind`)."""
-    from wfield_local import beta_maps, map_collect, precue_engagement_states, quiet_periods
-    from wfield_local import rest_by_position, rest_engagement
-    return map_collect.code_digest(session_raw_maps, _working_xy, session_rest_svt_timelocal, session_restw_svt,
-                                   session_quiet_svt, beta_maps._quit_mask, quiet_periods, rest_engagement,
-                                   rest_by_position, precue_engagement_states)
+    """Source digest of what builds one session's maps (`map_collect.cache_kind`).
+
+    NARROWED (rebuild 2026-11-03): the helper MODULES (quiet_periods, rest_engagement, rest_by_position,
+    precue_engagement_states) used to be hashed whole, so any edit anywhere in them -- a figure, a docstring of an
+    unrelated function -- cold-started ~33 GB of map caches. Now only the functions the map builders call, plus
+    everything they reference inside their own module (`map_collect.closure`), enter the digest."""
+    from wfield_local import map_collect
+    return map_collect.code_digest(*_raw_maps_parts())
+
+
+def _raw_maps_parts() -> list:
+    """What `_raw_maps_code` hashes, as a list (tests/test_map_cache_key.py reads THIS list for its sufficiency check)."""
+    from wfield_local import (analysis_kit, behavior_events, behavior_position, beta_maps, daq_io, docked_periods,
+                              lick_detection, locanmf_frozen_decoder, map_collect, precue_engagement_states,
+                              quiet_periods, rest_by_position, rest_engagement)
+    return [
+        session_raw_maps, _working_xy, session_rest_svt_timelocal, session_restw_svt, session_quiet_svt,
+        beta_maps._quit_mask,
+        # + response_window_s / rest_mask / trial_exclusion / widen_bool_sparse / quiet_dir, reached from
+        # rest_by_position / rest_engagement (review M4, 11-03)
+        map_collect.closure(quiet_periods, "quiet_variant", "quiet_frame_path", "quiet_baseline_svt",
+                            "response_window_s", "rest_mask", "trial_exclusion", "widen_bool_sparse", "quiet_dir"),
+        map_collect.closure(analysis_kit, "response_window_s"),
+        map_collect.closure(rest_engagement, "engaged_frame_mask"),
+        map_collect.closure(rest_by_position, "rest_frames_by_position", "restw_from_frames",
+                            "MIN_POSITIONS_FOR_WEIGHTED"),
+        map_collect.closure(precue_engagement_states, "engagement_gate"),
+        # second pass (11-03): the frame-edge and canonical-events helpers rest_engagement / rest_by_position call
+        map_collect.closure(daq_io, "rising_edges", "strobe_codes"),
+        map_collect.closure(behavior_events, "get_or_compute"),
+        # cache-key gaps closed (review second pass LOW, coordinator 11-03): the trial-feature args, lick detection,
+        # cue classification and docked-window helpers the builders call
+        map_collect.closure(locanmf_frozen_decoder, "_args"),
+        map_collect.closure(lick_detection, "detect_licks"),
+        map_collect.closure(behavior_position, "classify_cues_with_backup"),
+        map_collect.closure(docked_periods, "docked_mask_any"),
+    ]
 
 
 def session_raw_maps_cached(session, align, *, post_s=2.0, variant="working"):
@@ -576,9 +738,16 @@ def session_raw_maps_cached(session, align, *, post_s=2.0, variant="working"):
 
     from wfield_local import map_collect, session_cache
     from wfield_local.quiet_periods import quiet_frame_path
-    kind = map_collect.cache_kind("prm", align, variant,
-                                  {"post_s": float(post_s), "min_trials": MIN_TRIALS_PER_CLASS,
-                                   "rest_bins": REST_BASELINE_BINS, "refs": REFERENCES}, _raw_maps_code())
+    kp = {"post_s": float(post_s), "min_trials": MIN_TRIALS_PER_CLASS, "rest_bins": REST_BASELINE_BINS,
+          "refs": REFERENCES}
+    if variant in CLASS_VARIANTS:
+        # the class-set selector is NOT in `_raw_maps_code` (its hook lines are stripped so every existing kind stays
+        # put); its own source + class set key these kinds instead. Other variants: params exactly as before.
+        kp["cls_code"] = map_collect.code_digest(class_rows, _class_xy)
+        kp["classes"] = CLASS_VARIANTS[variant]
+        if variant in SESSION_FLOOR_FREE:          # per-session maps without the floor (pooled per epoch downstream)
+            kp["session_floor"] = "none-v1"
+    kind = map_collect.cache_kind("prm", align, variant, kp, _raw_maps_code())
     mc = session["mc"]
     ua = glob.glob(f"{mc}/wfield_local_results/allen_aligned_affine8v1/U_atlas.npy")   # = joint_basis._load_session
     try:
@@ -593,8 +762,37 @@ def session_raw_maps_cached(session, align, *, post_s=2.0, variant="working"):
 
 def _raw_maps_job(job):
     """Module-level worker for `map_collect.collect`: ``(label, session, align, post_s, variant)``."""
+    from wfield_local import lp_licks, map_collect
     _lab, s, align, post_s, variant = job
-    return session_raw_maps_cached(s, align, post_s=post_s, variant=variant)
+    try:
+        return session_raw_maps_cached(s, align, post_s=post_s, variant=variant)
+    except lp_licks.LPUnavailable as ex:
+        # LP arm, session never filmed (PS93_0813): empty, exactly as the contact arm; anything else re-raises
+        return map_collect.skip_lp_unavailable_no_video(s["label"], ex, _empty_parts())
+
+
+def _empty_parts() -> dict:
+    """The all-empty `session_raw_maps` dict: a session with no trials in the arm (`maps_by_epoch` skips it)."""
+    return {"raw": {}, "used": {}, "quiet_flat": None, "trial_mean": None,
+            "raw_precue": {}, "used_precue": {}, "raw_rest": {}, "used_rest": {},
+            "raw_restw": {}, "used_restw": {}, "restw_positions": []}
+
+
+def _as_parts(res):
+    """One `session_raw_maps` result as its DICT form, whatever shape it arrived in.
+
+    `session_raw_maps` exits early with the retired 6-TUPLE ``({}, {}, None, None, {}, {})`` when a session has NO
+    trials in the arm, and the session cache stores that tuple as-is. Every consumer indexes the dict by key, so one
+    such session crashed the whole arm: 2026-11-06 render g5_epoch, 15r cue + ENL arms, ``TypeError tuple indices
+    must be integers or slices, not str`` -- PS93_0813 has zero working trials under the camera gate (its lick arm
+    is fine). Normalised HERE, at the consumer, rather than in `session_raw_maps`, because that function's source is
+    in the prm cache digest (`_raw_maps_parts`) and editing it would cold-start every prm cache. An empty-trial
+    session becomes an all-empty dict, which `maps_by_epoch` already reports as "no position reached N trials"."""
+    if isinstance(res, dict):
+        return res
+    if isinstance(res, tuple) and not any(isinstance(x, dict) and x for x in res):
+        return _empty_parts()
+    raise TypeError(f"session_raw_maps result of unexpected shape: {type(res).__name__}")
 
 
 def reference_maps(parts, reference):
@@ -617,6 +815,7 @@ def reference_maps(parts, reference):
     interchangeable at the call site with nothing to catch a transposition -- a swap would have
     produced a complete, plausible, wrong figure.
     """
+    parts = _as_parts(parts)
     if reference == "mean":
         tm = parts.get("trial_mean")
         if tm is None:
@@ -628,6 +827,13 @@ def reference_maps(parts, reference):
         return dict(parts.get("raw_restw") or {})
     if reference == "precue":
         return dict(parts.get("raw_precue") or {})
+    if reference == "restnl":
+        # DERIVED (see DERIVED_REFERENCES): the session's flat lick-free baseline map, attached by `maps_by_epoch` as
+        # `restnl_base`, subtracted from the cached `raw` maps. Absent baseline -> no RESTnl column for the session.
+        base = parts.get("restnl_base")
+        if base is None:
+            return {}
+        return {q: (m - base).astype(np.float32) for q, m in (parts.get("raw") or {}).items()}
     if reference == "raw":
         # NO SUBTRAHEND AT ALL -- the position's own trial average, as the drift-removed signal
         # leaves it. THE POINT IS THE FAILURE MODE IT DOES NOT HAVE: every other reference here
@@ -649,7 +855,7 @@ def reference_maps(parts, reference):
         # evoked response survives relative to it. That is why `raw` is meaningful here and was
         # not under the retired `zerophase` product.
         return dict(parts.get("raw") or {})
-    raise ValueError(f"unknown reference {reference!r}; expected one of {REFERENCES}")
+    raise ValueError(f"unknown reference {reference!r}; expected one of {REFERENCES + DERIVED_REFERENCES}")
 
 
 @lru_cache(maxsize=8)
@@ -686,8 +892,24 @@ def maps_by_epoch(align, variant, post_s=2.0):
     # PASS 3 below sees them in the same order as the old serial loop -- never completion order (rule 9).
     jobs = [(s["label"], s, align, post_s, variant) for v in plan.values() for s, _e in v]
     by_label, fail = map_collect.collect(jobs, _raw_maps_job, label="ref-map")
+    by_label = {k: _as_parts(v) for k, v in by_label.items()}    # empty-trial sessions arrive as a tuple
     for it, err in fail:
         print(f"  !! ref-map {it[0]}: {err[:90]}", flush=True)
+    # DERIVED REFERENCES (WIDEFIELD_MAP_REFS), attached per label AFTER collection; the cached dicts are copied, never
+    # mutated. A session without a baseline loses only that column, and the list is printed (rule: say it out loud).
+    derived = derived_active()
+    refs = REFERENCES + derived
+    if "restnl" in derived:
+        from wfield_local import restnl_mask
+        bases, miss = restnl_mask.base_maps(sorted(by_label))
+        by_label = {k: (dict(v, restnl_base=bases[k]) if k in bases else v) for k, v in by_label.items()}
+        print(f"  .. ref-map: RESTnl baselines for {len(bases)}/{len(by_label)} sessions"
+              + (f"; NO RESTnl column for {miss}" if miss else ""), flush=True)
+        if by_label and not bases:
+            # T4 (third review): the RESTnl column was asked for and NO session has a baseline -- fail loudly, never
+            # render a figure without its RESTnl column
+            raise RuntimeError("ref-map: RESTnl reference requested but no session has a RESTnl baseline "
+                               "(build them: python -m wfield_local.restnl_mask)")
     for an in ANIMALS:
         per, ntr = {}, {}
         for s, e in plan.get(an, []):
@@ -709,9 +931,9 @@ def maps_by_epoch(align, variant, post_s=2.0):
                 n_norestw += 1
             if not parts["raw_precue"]:
                 n_noprecue += 1
-            byref = {r: reference_maps(parts, r) for r in REFERENCES}
+            byref = {r: reference_maps(parts, r) for r in refs}
             for q in raw:
-                got = {r: byref[r][q] for r in REFERENCES if q in byref[r]}
+                got = {r: byref[r][q] for r in refs if q in byref[r]}
                 if got:
                     per.setdefault(e, {}).setdefault(q, {})[s["label"]] = got
                     ntr.setdefault(e, {}).setdefault(q, {})[s["label"]] = used.get(q, 0)
@@ -719,7 +941,7 @@ def maps_by_epoch(align, variant, post_s=2.0):
             out[an], n_out[an] = per, ntr
             rel[an] = {e: {q: {r: bm.split_half_reliability(
                                     {k: d[r] for k, d in by_s.items() if r in d})
-                               for r in REFERENCES}
+                               for r in refs}
                            for q, by_s in by_q.items()}
                        for e, by_q in per.items()}
     # SAID OUT LOUD. A session with no quiet mask silently drops out of the quiet figure only, so

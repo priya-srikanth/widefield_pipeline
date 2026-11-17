@@ -1,6 +1,6 @@
 """Spout behavior-session figures (1 cue + 6 spout positions).
 
-The widefield analogue of ``stroke_orofacial_pipeline``'s ``spout_behavior`` (that rig had 2 cues +
+The widefield analog of ``stroke_orofacial_pipeline``'s ``spout_behavior`` (that rig had 2 cues +
 L/R; this rig has 1 cue and a 2x3 grid of spout positions: close/far x L/center/R).
 
 **Trials come from the DAQ recorder ``.h5``, not the task-controller log** (:func:`load_trials`
@@ -39,6 +39,7 @@ CLI::
     python -m wfield_local.spout_behavior 20260806 --dry-run       # discover only, write nothing
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import re
@@ -92,7 +93,7 @@ RASTER_ROW_ORDER = [0, 1, 2, 3, 4, 5]
 
 
 def pos_color(pos_idx: int):
-    """Per-position colour: side hue, made darker (close) or lighter (far) in HLS while KEEPING
+    """Per-position color: side hue, made darker (close) or lighter (far) in HLS while KEEPING
     saturation — so far positions stay a lighter version of the same hue (red stays red, not pink)."""
     import colorsys
 
@@ -104,24 +105,24 @@ def pos_color(pos_idx: int):
 
 
 def position_style(name: str):
-    """THE cohort-wide style for one position NAME: ``(colour, marker, linestyle)``.
+    """THE cohort-wide style for one position NAME: ``(color, marker, linestyle)``.
 
     ONE PALETTE, and this is it (Priya, 2026-09-10: "can we also make sure we're using the same
-    colour conventions for line plots that include all 6 positions... I think I prefer the former"):
+    color conventions for line plots that include all 6 positions... I think I prefer the former"):
 
-        HUE      = side      L dodger blue, centre purple, R crimson
+        HUE      = side      L dodger blue, center purple, R crimson
         LIGHTNESS= ring      close deeper, far paler -- the same hue, not a different one
         MARKER   = side      o / D / ^, so the six stay separable in greyscale
         LINESTYLE= side      solid / dashed / dotted
 
-    There were THREE conventions before today. This one; `grant_figures.POS_STYLE`, which coloured
-    by RING (far reds, close blues) and whose comment claimed it was "the convention the behaviour
+    There were THREE conventions before today. This one; `grant_figures.POS_STYLE`, which colored
+    by RING (far reds, close blues) and whose comment claimed it was "the convention the behavior
     figures already use" -- it was the opposite of it; and `locanmf_dff_by_position.POS_COLOR`,
-    six unrelated tab10 colours with no mapping at all. A position that is crimson in one figure and
+    six unrelated tab10 colors with no mapping at all. A position that is crimson in one figure and
     blue in the next is a reader's problem, not a palette preference.
 
     Keyed by NAME because the figure modules think in names; `pos_color` stays keyed by index for
-    the behaviour code that already uses it, and both resolve to the same colour.
+    the behavior code that already uses it, and both resolve to the same color.
     """
     idx = next((q["idx"] for q in POSITIONS if q["name"] == name), None)
     if idx is None:
@@ -184,7 +185,7 @@ def load_trials(session_dir: Path, rv=None, params: dict | None = None,
                 gui = _gui_trials_or_none(session_dir)
                 if gui is not None and len(gui) and len(daq) < DAQ_LOG_COVER_TOL * len(gui):
                     print(f"[spout_behavior] {session_dir.name}: DAQ covers {len(daq)} of {len(gui)} "
-                          f"logged trials (crashed recorder) -> BEHAVIOUR figures use the full-session "
+                          f"logged trials (crashed recorder) -> BEHAVIOR figures use the full-session "
                           f"LOG", flush=True)
                     return _gui_shift_corrected(gui, session_dir, rv)
             _warn_if_daq_covers_less_than_log(session_dir, daq)
@@ -201,7 +202,7 @@ _POS_COLS = ("pos_idx", "pos_name", "pos_dist_mm_after_trial")
 
 
 def _gui_shift_corrected(gui: pd.DataFrame, session_dir: Path, rv=None) -> pd.DataFrame:
-    """Undo the pre-v47 one-trial POSITION shift in a behaviour-log trial table (Priya 2026-10-17).
+    """Undo the pre-v47 one-trial POSITION shift in a behavior-log trial table (Priya 2026-10-17).
 
     Before GUI v47 a row's OUTCOME columns belong to trial N but its POSITION columns (pos_idx, pos_name,
     pos_dist_mm_after_trial) to trial N+1 (docs/GUI_TRIALS_LOGGING.md: "invert the shift" when falling back to the
@@ -227,7 +228,7 @@ def _gui_shift_corrected(gui: pd.DataFrame, session_dir: Path, rv=None) -> pd.Da
         h5 = _daq_h5_for(rv, animal, date) if rv is not None else None
         if h5 is not None:
             dec = daq_trials.decode(h5, _cfg.defaults()["lick_detection"])
-            win, _ = daq_trials.response_window_s(session_dir, 3.5)
+            win, _ = daq_trials.response_window_s(session_dir)
             dq = daq_trials.build_trials(dec, win)
             good = sorted(set(int(x) for x in dq.pos_idx if x >= 0))
             rng = max(20, abs(len(gui) - len(dq)) + 10)
@@ -301,9 +302,7 @@ def _daq_trials_for(session_dir: Path, rv, params: dict | None) -> pd.DataFrame 
         return None
     params = params or config.defaults()["behavior"]
     try:
-        df, info = daq_trials.trials_from_h5(
-            h5, session_dir, config.defaults()["lick_detection"],
-            params["licking"]["response_window_s"])
+        df, info = daq_trials.trials_from_h5(h5, session_dir, config.defaults()["lick_detection"])
     except Exception as e:
         print(f"[spout_behavior] {session_dir.name}: DAQ trials unavailable "
               f"({type(e).__name__}: {e}) -> behavior log", flush=True)
@@ -457,9 +456,9 @@ def load_licks(session_dir: Path, rv=None, trials: pd.DataFrame | None = None) -
 def _atomic_csv(df: pd.DataFrame, path: Path) -> None:
     """Write a CSV by tmp-then-rename, so a concurrent reader never sees a half-written file.
 
-    `<sid>_position_metrics.csv` is READ BY THE IMAGING SIDE while behaviour is being regenerated:
+    `<sid>_position_metrics.csv` is READ BY THE IMAGING SIDE while behavior is being regenerated:
     `grant_figures._position_metrics` opens it for section G and the epoch figures. A plain
-    `to_csv` truncates in place, so re-cutting the behaviour figures during a `nightly_figs` run --
+    `to_csv` truncates in place, so re-cutting the behavior figures during a `nightly_figs` run --
     which is exactly when you want to, since the run takes hours -- exposes a window where the
     reader gets a short file and the stage dies or, worse, scores a session on three positions.
     """
@@ -501,8 +500,7 @@ def first_lick_latency_s(session_dir: Path, trials: pd.DataFrame, licks: dict | 
     if licks is None:
         return idx
     from wfield_local import daq_trials
-    max_s, _src = daq_trials.response_window_s(
-        session_dir, (params or {}).get("response_window_s", 2.0))
+    max_s, _src = daq_trials.response_window_s(session_dir)      # configured fallback (was the 2.0 s licking key)
     all_s, cue_t, cue_next = licks["all_s"], licks["cue_by_trial"], licks["cue_next_by_trial"]
     for i, row in trials.iterrows():
         tid = row["trial_id"]
@@ -539,7 +537,7 @@ def lick_microstructure(session_dir: Path, trials: pd.DataFrame, params: dict,
                         engaged_ids=None) -> dict | None:
     """Lick-rate / ILI / bout / peri-cue microstructure from the DAQ-primary licks. ``None`` if no events.
 
-    Per-position (engaged trials): mean post-cue licks/trial, mean anticipatory (pre-cue) licks/trial,
+    Per-position (engaged trials): mean licks/trial (cue + 70 ms to the trial stop), mean anticipatory (pre-cue) licks/trial,
     median within-trial lick rate (Hz, from median post-cue ILI). Session-level: overall lick rate,
     ILI median, bout count/size/duration/within-bout-ILI. Plus peri-cue delays for the raster/PSTH.
     Per-trial licks are windowed from the sorted train around each cue (post capped at the next cue).
@@ -555,11 +553,24 @@ def lick_microstructure(session_dir: Path, trials: pd.DataFrame, params: dict,
         return None
     lk = params["licking"]
     w0, w1 = lk["peri_cue_window_s"]
-    resp = lk["response_window_s"]
     all_s, cue_t, cue_next = licks["all_s"], licks["cue_by_trial"], licks["cue_next_by_trial"]
 
     reset_by_trial = licks["precue_reset_by_trial"]   # ENL-reset licks = impulsive/anticipatory pre-cue
     eng_ids = None if engaged_ids is None else set(np.asarray(list(engaged_ids)).tolist())
+    # LICKS PER TRIAL = TOTAL licks from the cue to the TRIAL STOP (Priya 11-03; the spout is present until then): the
+    # DAQ trial table's measured stop (`daq_trials.trial_stops`: the trial_end TTL), else the task rule (first lick in
+    # the response window + the window, or cue + window). LICK RATE comes from the inter-lick intervals of those licks
+    # (1 / median ILI), never a count / duration.
+    from wfield_local import daq_trials
+    # THE SESSION'S OWN response window (gui_config.json, 3.5 s; fifth review (a)): the GUI-fallback sessions
+    # (08-05, 08-06, PS92 08-12) used the yaml default (2.0 s) here, so their trial stop came 1.5 s early
+    resp = daq_trials.response_window_s(session_dir)[0]
+    if "stop_s" in trials.columns and licks.get("source") == "DAQ" and "lick_s" in getattr(trials, "attrs", {}):
+        stop_by_trial = pd.Series(trials["stop_s"].to_numpy(float), index=trials["trial_id"].to_numpy())
+    else:
+        cs = cue_t.dropna().sort_values()
+        st, _src = daq_trials.trial_stops(cs.to_numpy(float), all_s, resp)
+        stop_by_trial = pd.Series(st, index=cs.index)
     per_trial = []          # (pos_idx, n_post, n_pre, rate_hz, engaged)
     raster = []             # (delays_within_window, pos_idx, trial_order)
     for order, (_i, row) in enumerate(trials.iterrows()):
@@ -570,7 +581,9 @@ def lick_microstructure(session_dir: Path, trials: pd.DataFrame, params: dict,
         nxt = cue_next.get(tid, np.inf)
         d = all_s[(all_s >= c + w0) & (all_s <= min(c + w1, nxt))] - c    # peri-cue window (capped at next cue)
         raster.append((d, pos, order))
-        post = all_s[(all_s >= c) & (all_s <= min(c + resp, nxt))] - c    # post-cue licks -> this trial
+        stop = stop_by_trial.get(tid, np.nan)
+        stop = min(stop if np.isfinite(stop) else c + resp, nxt)
+        post = all_s[(all_s >= c + daq_trials.CONTACT_FROM_CUE_S) & (all_s <= stop)] - c   # cue + 70 ms -> stop
         # anticipatory = licks during the enforced no-lick period that reset the cue timer (pre_cue_reset)
         n_pre = int(reset_by_trial.get(tid, 0))
         rate = (1.0 / np.median(np.diff(post))) if post.size >= 2 else np.nan
@@ -585,7 +598,7 @@ def lick_microstructure(session_dir: Path, trials: pd.DataFrame, params: dict,
         rows.append({
             "pos_idx": idx, "pos_name": POS_BY_IDX[idx]["name"],
             "trials_engaged": len(sub),
-            "licks_per_trial": float(sub["n_post"].mean()) if len(sub) else np.nan,
+            "licks_per_trial": float(sub["n_post"].mean()) if len(sub) else np.nan,     # cue -> trial stop
             "anticipatory_licks": float(sub["n_pre"].mean()) if len(sub) else np.nan,
             "lick_rate_hz": float(np.nanmedian(sub["rate_hz"])) if len(sub) else np.nan,
         })
@@ -645,7 +658,7 @@ def compare_daq_licks(h5_path: Path, params: dict) -> dict | None:
     except Exception:
         return None
     ld = config.defaults()["lick_detection"]
-    min_ili_s = ld.get("min_ili_ms", 40) / 1000.0
+    min_ili_s = config.lick_min_ili_s()
     try:
         with h5py.File(h5_path, "r") as f:
             fs = float(f.attrs["sample_rate_hz"])
@@ -687,8 +700,8 @@ def reference_engagement(responded, positions, *, tail_min_misses=6, reference=N
     union keeps the anti-circularity of the imaging gate and the sensitivity of the old terminal
     rule, and gives up neither.
 
-    THIS IS A BEHAVIOUR-SIDE GATE, and that is deliberate rather than an inconsistency. Imaging
-    KEEPS its disengaged trials as the `poststroke_stopped` class and analyses them; a behavioural
+    THIS IS A BEHAVIOR-SIDE GATE, and that is deliberate rather than an inconsistency. Imaging
+    KEEPS its disengaged trials as the `poststroke_stopped` class and analyses them; a behavioral
     hit rate wants them out of the denominator. Same invariant, different question.
     """
     from wfield_local.precue_engagement_states import REFERENCE, engagement_gate
@@ -700,7 +713,11 @@ def reference_engagement(responded, positions, *, tail_min_misses=6, reference=N
         return np.zeros(0, bool), {"n_disengaged": 0, "tail_start": None, "n_tail": 0,
                                    "gate": "reference_engagement"}
     ref_names = tuple(reference or REFERENCE)
-    collapse = engagement_gate(np.arange(n), resp, pos)
+    from wfield_local import trial_classes as _tc
+    # a MEASURE / reporting gate of the behaviour figures, not an imaging trial selection: the DAQ rule stays under the
+    # camera trial gate (rebuild 11-03; measures of engagement are not gated)
+    with _tc.daq_quit_rule("spout_behavior.flag_engagement: behavior reporting gate (measure of engagement)"):
+        collapse = engagement_gate(np.arange(n), resp, pos)
 
     # the terminal tail, counted in REFERENCE trials but marked over the whole session: once the
     # animal has stopped, the interleaved far trials are not evidence about anything either
@@ -911,7 +928,7 @@ def _engagement_timeline(ax, scored: pd.DataFrame, eng: dict, m: dict | None = N
     Priya, 2026-09-10: "do the behavior deck figures that plot engagement across each session
     accurately show what is 'working' and what is 'stopped'?" The shading was already the right
     gate -- `session_metrics` uses `reference_engagement`, the same gate every analysis figure and
-    the epoch rule use -- but the figure showed it as an unlabelled grey band, which leaves three
+    the epoch rule use -- but the figure showed it as an unlabelled gray band, which leaves three
     things a reader has to know rather than see:
 
     1. **WHICH SIDE IS WHICH.** Unshaded is WORKING: the animal is still trying, and a MISS here is
@@ -1034,7 +1051,7 @@ def _latency_by_position(ax, scored: pd.DataFrame, latency: pd.Series):
 
 
 def _peri_cue_raster(ax, raster, resp_window_s, window_s):
-    """One row per trial; a dot per lick at its time from cue, coloured by position. Cue at 0."""
+    """One row per trial; a dot per lick at its time from cue, colored by position. Cue at 0."""
     for y, (delays, pos, _order) in enumerate(raster):
         if delays.size:
             ax.plot(delays, np.full(delays.size, y), ".", ms=1.6, color=pos_color(pos))
@@ -1044,7 +1061,7 @@ def _peri_cue_raster(ax, raster, resp_window_s, window_s):
     ax.set_ylim(-1, len(raster))
     ax.set_xlabel("time from cue (s)")
     ax.set_ylabel("trial")
-    ax.set_title("peri-cue lick raster (colour = position)")
+    ax.set_title("peri-cue lick raster (color = position)")
 
 
 def _peri_cue_psth(ax, raster, bin_ms, window_s):
@@ -1108,8 +1125,8 @@ def _micro_pos_bars(ax, micro_pos, col, title, ylabel, color):
 # the by-position lick panels shared by the per-session behavior + licking figures, in the same
 # order (and with the same labels) as the across-session per-animal figure's metric families
 LICK_POS_PANELS = [
-    ("licks_per_trial", "licks / trial (post-cue)", "licks"),
-    ("lick_rate_hz", "within-trial lick rate", "Hz"),
+    ("licks_per_trial", "licks / trial (cue + 70 ms to stop)", "licks"),
+    ("lick_rate_hz", "within-trial lick rate (1 / median ILI)", "Hz"),
     ("anticipatory_licks", "anticipatory licks / trial", "licks"),
 ]
 
@@ -1148,7 +1165,9 @@ def plot_licking(session_dir: Path, sid: str, out_dir: Path, params: dict, trial
     micro["per_position"].to_csv(csv, index=False)
 
     fig, axes = plt.subplots(2, 4, figsize=(22, 9))
-    _peri_cue_raster(axes[0, 0], micro["raster"], lk["response_window_s"], lk["peri_cue_window_s"])
+    # the gold band = THIS session's response window (gui_config, 3.5 s; Priya 11-05), not the old 2.0 s yaml key
+    from wfield_local import daq_trials
+    _peri_cue_raster(axes[0, 0], micro["raster"], daq_trials.response_window_s(session_dir)[0], lk["peri_cue_window_s"])
     _peri_cue_psth(axes[0, 1], micro["raster"], lk["psth_bin_ms"], lk["peri_cue_window_s"])
     _ili_hist(axes[0, 2], micro["ili"], daq_cmp, lk["max_ili_ms"],
               config.defaults()["lick_detection"]["min_ili_ms"])
@@ -1162,7 +1181,7 @@ def plot_licking(session_dir: Path, sid: str, out_dir: Path, params: dict, trial
                  f"bouts={s['n_bouts']} (mean {s['mean_bout_size']:.1f} licks/"
                  f"{s['mean_bout_dur_s']:.2f}s){gated}", fontsize=12)
     fig.tight_layout(rect=(0, 0, 1, 0.97))
-    fig.savefig(png, dpi=130)
+    save_png_svg(fig, png, dpi=130)
     plt.close(fig)
     print(f"[spout_behavior] wrote {png.name}", flush=True)
     return png, csv
@@ -1205,7 +1224,7 @@ def raster_markers(trials: pd.DataFrame) -> pd.DataFrame | None:
       * ``outcome`` "earned" (green) — the animal licked in the response window
       * ``outcome`` "miss"   (red)   — it did not
 
-    THE DOT IS THE ANIMAL'S BEHAVIOUR, NOT WHETHER WATER ARRIVED. Recent sessions run
+    THE DOT IS THE ANIMAL'S BEHAVIOR, NOT WHETHER WATER ARRIVED. Recent sessions run
     ``reward_mode: auto_after_delay`` with ``auto_reward_delay: 0``, so water is delivered on most
     trials whether or not the animal licks, withheld only by ``auto_hold_after_miss`` -- "hit" and
     "a reward was delivered" are NOT the same fact, and PS92 8/21 shows the gap plainly (397 rewards
@@ -1281,7 +1300,7 @@ def plot_cumulative_raster(sid: str, out_dir: Path, trials: pd.DataFrame):
                  f"{float(mk['t_min'].max()):.0f} min  ({src}-sourced trials, ALL trials — "
                  f"no engagement gate)", fontsize=12)
     fig.tight_layout(rect=(0, 0, 1, 0.94))
-    fig.savefig(png, dpi=130)
+    save_png_svg(fig, png, dpi=130)
     plt.close(fig)
     print(f"[spout_behavior] wrote {png.name}", flush=True)
     return png
@@ -1322,7 +1341,7 @@ def _raster_panel(ax, mk: pd.DataFrame, xmax: float, title: str, show_ylabels: b
 
 def plot_animal_raster_grid(animal: str, session_dirs, out_dir: Path, params: dict, rv=None):
     """Tile the animal's per-session cumulative rasters 4x2 (8 dates a slide), every panel on ONE
-    shared x-axis normalised to that animal's LONGEST session so trial pacing reads across days. The
+    shared x-axis normalized to that animal's LONGEST session so trial pacing reads across days. The
     axis length is per-animal (a slow animal is not squeezed to match a fast one). One PNG per page of
     8 sessions -> ``cohort/by_animal/<animal>_raster_grid_p{n}.png``. Returns the paths written."""
     entries = []
@@ -1365,7 +1384,7 @@ def plot_animal_raster_grid(animal: str, session_dirs, out_dir: Path, params: di
                      fontsize=14)
         fig.tight_layout(rect=(0, 0, 1, 0.95))
         p = outdir / f"{animal}_raster_grid_p{pg + 1}.png"
-        fig.savefig(p, dpi=130)
+        save_png_svg(fig, p, dpi=130)
         plt.close(fig)
         written.append(p)
     print(f"[spout_behavior] wrote {len(written)} raster-grid page(s) for {animal} "
@@ -1444,7 +1463,7 @@ def plot_session(session_dir: Path, out_dir: Path, params: dict, dry: bool = Fal
                  f"hit-rate(engaged)={m['hit_rate_engaged']:.3f} (raw {m['hit_rate_all']:.3f})",
                  fontsize=12)
     fig.tight_layout(rect=(0, 0, 1, 0.97))
-    fig.savefig(png, dpi=130)
+    save_png_svg(fig, png, dpi=130)
     plt.close(fig)
     print(f"[spout_behavior] wrote {png.name}  ({m['n_disengaged']} disengaged trials excluded)",
           flush=True)
@@ -1500,7 +1519,7 @@ def discover_sessions(rv: PathResolver, date: str | None, animals=None) -> list[
 POS_METRICS = [
     ("hit", "acc", "hit_rate", "hit rate (engaged)"),
     ("lat", "acc", "median_latency_s", "first-lick latency (s)"),
-    ("lpt", "lick", "licks_per_trial", "licks / trial"),
+    ("lpt", "lick", "licks_per_trial", "licks / trial (cue + 70 ms to stop)"),
     ("rate", "lick", "lick_rate_hz", "within-trial lick rate (Hz)"),
     ("ant", "lick", "anticipatory_licks", "anticipatory licks / trial"),
 ]
@@ -1673,7 +1692,7 @@ def cohort_summary(rv: PathResolver, dates, animals, out_dir: Path, dry: bool = 
     ax.legend(fontsize=8)
     fig.suptitle(f"spout behavior cohort — {len(df)} sessions, {len(anims)} animals", fontsize=13)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
-    fig.savefig(png, dpi=130)
+    save_png_svg(fig, png, dpi=130)
     plt.close(fig)
     print(f"[spout_behavior] wrote {png.name} ({len(df)} sessions)", flush=True)
 
@@ -1707,7 +1726,7 @@ def _mark_stroke(ax, bx, excluded_idx, annotate=False):
     """Draw the lesion boundary and shade excluded sessions.
 
     Without this line a reader compares a post-stroke point against the pre-stroke trend by counting
-    tick labels, and these figures are the behavioural ground truth every decoding claim in Section G
+    tick labels, and these figures are the behavioral ground truth every decoding claim in Section G
     rests on -- the boundary is the single most important thing on them.
     """
     if bx is not None:
@@ -1799,7 +1818,7 @@ def plot_animal_summary(animal: str, adf: pd.DataFrame, out_dir: Path):
     fig.suptitle(f"{animal} — behavior across {len(adf)} sessions "
                  f"({_HUE_LEGEND})", fontsize=13)
     fig.tight_layout(rect=(0, 0, 1, 0.96))
-    fig.savefig(png, dpi=130)
+    save_png_svg(fig, png, dpi=130)
     plt.close(fig)
     print(f"[spout_behavior] wrote {png.relative_to(out_dir)}", flush=True)
     return png
@@ -1825,7 +1844,7 @@ def plot_animal_metric_series(animal: str, adf: pd.DataFrame, out_dir: Path):
         fig.suptitle(f"{animal} — {label} across {len(adf)} sessions  ({_HUE_LEGEND})", fontsize=13)
         fig.tight_layout(rect=(0, 0, 1, 0.95))
         p = outdir / f"{animal}_{METRIC_FILE[prefix]}_across_sessions.png"
-        fig.savefig(p, dpi=130)
+        save_png_svg(fig, p, dpi=130)
         plt.close(fig)
         written.append(p)
     # session-level panel as its own figure
@@ -1835,7 +1854,7 @@ def plot_animal_metric_series(animal: str, adf: pd.DataFrame, out_dir: Path):
     fig.suptitle(f"{animal} — session-level metrics across {len(adf)} sessions", fontsize=13)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
     p = outdir / f"{animal}_session_across_sessions.png"
-    fig.savefig(p, dpi=130)
+    save_png_svg(fig, p, dpi=130)
     plt.close(fig)
     written.append(p)
     print(f"[spout_behavior] wrote {len(written)} per-metric figures for {animal}", flush=True)
@@ -1845,13 +1864,13 @@ def plot_animal_metric_series(animal: str, adf: pd.DataFrame, out_dir: Path):
 # --------------------------------------------------------------------------- orchestration
 
 def _refresh_epoch_behaviour(rv):
-    """Derive tonight's epoch boundaries, redraw the epoch BEHAVIOUR figures, return their dir.
+    """Derive tonight's epoch boundaries, redraw the epoch BEHAVIOR figures, return their dir.
 
     Returns None on any failure, which drops the deck's epoch section rather than placing one built
     on boundaries that may not be tonight's -- a wrong epoch label on a published figure is worse
     than a missing section, because nothing about the slide says which boundaries drew it.
 
-    IN THIS ORDER, AND HERE. `epoch_audit.resolve` derives `chronic_from` from the cohort behaviour
+    IN THIS ORDER, AND HERE. `epoch_audit.resolve` derives `chronic_from` from the cohort behavior
     table that `cohort_summary` has just written, so the boundaries cannot be resolved before this
     point in the run -- and the two epoch figures read only the per-session `position_metrics.csv`
     this module also writes, so nothing here waits on LocaNMF. Building them anywhere else is what
@@ -1871,7 +1890,7 @@ def _refresh_epoch_behaviour(rv):
         epoch_grant_figures.main(["--only", "1b", "1c"])
         return behavior_deck.epoch_fig_dir(rv)
     except Exception as e:                                             # noqa: BLE001
-        print(f"[spout_behavior] epoch behaviour figures FAILED: {type(e).__name__}: {e} "
+        print(f"[spout_behavior] epoch behavior figures FAILED: {type(e).__name__}: {e} "
               f"-- deck will omit the epoch section", flush=True)
         return None
 
@@ -1920,7 +1939,8 @@ def run(date, rv, animals=None, cohort=False, from_spec=None, dry=False) -> int:
             epoch_dir = _refresh_epoch_behaviour(rv)
             try:
                 from wfield_local.behavior_deck import build_behavior_deck
-                d = build_behavior_deck(out_dir, out_dir / "behavior_summary_deck.pptx", animals=None,
+                from wfield_local.paths import deck_dir      # decks live in presentations/pipeline (2026-11-06)
+                d = build_behavior_deck(out_dir, deck_dir("behavior", rv) / "behavior_summary_deck.pptx", animals=None,
                                         epoch_dir=epoch_dir)
                 print(f"[spout_behavior] wrote behavior deck: {Path(d['out']).name} "
                       f"({d['slides']} slides, {d['figures_present']} figs, {d['figures_missing']} missing)",

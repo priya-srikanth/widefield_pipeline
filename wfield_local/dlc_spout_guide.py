@@ -1,6 +1,6 @@
-"""The labelling page for the BETWEEN-TRIAL spout frames — a short, self-contained job.
+"""The labeling page for the BETWEEN-TRIAL spout frames — a short, self-contained job.
 
-**WHY THESE FRAMES EXIST.** Every labelled frame in this project is trial-locked: `dlc.frames.phases`
+**WHY THESE FRAMES EXIST.** Every labeled frame in this project is trial-locked: `dlc.frames.phases`
 samples ENL / Cue / early / late relative to a cue, and `lick_offsets_s` samples four points of one
 protrusion. So the network has never been shown the spout **between** trials, which is where it moves
 (Priya, 2026-09-26: *"the spout DURING TRIALS occupies 6 positions, but keep in mind that it moves
@@ -18,7 +18,7 @@ Stratified over all six positions so no position is missed.
 **NO PREDICTIONS ARE DRAWN ON THESE PICTURES, DELIBERATELY.** `CORRECTION_GUIDE.html` shows the
 network's guess because there the question is "who is right about a point you already placed". Here
 the frames were selected precisely where the network is unreliable, so showing its guess would
-anchor the labeller to the error being fixed. These are blank frames; they get labelled from
+anchor the labeller to the error being fixed. These are blank frames; they get labeled from
 scratch.
 
 **TWO FOLDERS, ON PURPOSE** (Priya, 2026-09-26: *"use only one or a few sessions if possible so she
@@ -96,7 +96,7 @@ def iti_rows(rv=None) -> pd.DataFrame:
 def positions(live: Path, stem: str) -> dict[str, int]:
     """``{image: napari slider position}``, 0-based, in filename-sorted order.
 
-    **This is the load-bearing part of the page.** These folders now hold ~24 already-labelled
+    **This is the load-bearing part of the page.** These folders now hold ~24 already-labeled
     frames plus ~23 new ones, interleaved by filename, and napari opens a folder as one stack. Told
     only a filename she would have to scroll 47 frames and squint at each. `dlc_frames` zero-pads to
     seven digits so lexicographic order is numeric order, which makes the index stable — but it
@@ -148,12 +148,12 @@ def build(rv=None, dest: Path | None = None) -> Path:
 <p class="sub">cam4 &middot; {len(rows)} new frames in {rows.video_stem.nunique()} folders &middot;
 generated {today}</p>
 
-<p>These are <b>blank frames</b>, not corrections &mdash; nothing is labelled on them yet. They are
+<p>These are <b>blank frames</b>, not corrections &mdash; nothing is labeled on them yet. They are
 short: about {len(rows)} frames in two folders you have already worked in.</p>
 
 <div class="card note">
 <h3 style="margin-top:.2em">Why these frames</h3>
-<p>Every frame you have labelled so far sits just before or just after a cue, or during a lick. That
+<p>Every frame you have labeled so far sits just before or just after a cue, or during a lick. That
 means the network has never seen the spout <b>between</b> trials &mdash; which is exactly when it
 moves. It currently finds the moved spout in the right place but is not confident enough to report
 it, so those frames are thrown away. These frames are the fix.</p>

@@ -2,7 +2,7 @@
 Priya 10-23: "do we have the pixel/SVD level unique r2 maps?").
 
 Per session x variant the run saved the all-frames residual second moment E and the data second moment S in TARGET
-space (`resid_mom`, `data_mom`; drift-removed, session-centred data). A pixel's SSE = diag(W E W') and SST =
+space (`resid_mom`, `data_mom`; drift-removed, session-centered data). A pixel's SSE = diag(W E W') and SST =
 diag(W S W') with W the animal's shared basis (grid: each block's own diagonal, painted), so R^2 is that of the data
 RECONSTRUCTED in the basis (200 components, >= 99.9 % of pre variance). Per animal x epoch SSE and SST are SUMMED over
 sessions before the ratio (frames weigh equally); then the mean over animals in pixel space (rule 8: animals first).
@@ -14,7 +14,7 @@ Pre sessions are scored with their leave-one-session-out betas (held out), post 
 
 Figures: <E>/frozen_encoder_<tag>/figures/r2_maps_pre.png (full + unique per group, held-out pre) and
 r2_maps_<epoch>_minus_pre.png (frozen unique R^2, epoch minus pre). Maps saved to figures/r2_maps.npz.
-Two more views of the same numbers (Priya 10-23: one strong animal set the shared colour scale and PS93's contact read
+Two more views of the same numbers (Priya 10-23: one strong animal set the shared color scale and PS93's contact read
 black): `*_peranimal.png` = every panel on its OWN scale (99th percentile, printed in the panel; compare shapes across
 animals, read magnitudes from the numbers) and `r2_share_*.png` = unique R^2 / that animal's full R^2 (fraction of
 what the model explains that is group-specific; pixels with full R^2 < SHARE_MIN_FULL blank).
@@ -23,6 +23,7 @@ ipsi (lesioned LEFT hemisphere) = image LEFT; displayed at half resolution.
 Usage: python scripts/frozen_r2_maps.py --tag gate-attempted_v6basis
 """
 from __future__ import annotations
+from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
 import json
@@ -37,7 +38,10 @@ SHARE_MIN_FULL = 0.02
 #: (label, variant whose SSE minus joint's is the unique part)
 UNIQUE = (("lick", "no_lick"), ("spout", "no_spout"), ("target", "no_target"), ("exec_locked", "no_exec_locked"),
           ("exec_within", "no_exec_within"), ("contact", "no_contact"), ("other", "no_other"),
-          ("timing", "no_timing"), ("task", "no_task"), ("movement", "no_movement"), ("non-task+contact", "task_only"))
+          ("timing", "no_timing"), ("task", "no_task"), ("movement", "no_movement"), ("non-task+contact", "task_only"),
+          ("spont", "no_spont"))
+#: drawn only when the run has them (no_spont: the v7g3_t3d_spont design, FROZEN_LICKS_ALL=split; 8.51)
+OPTIONAL = {"no_spont"}
 
 
 def pixel_sse(sp: dict, M: np.ndarray, keep: np.ndarray) -> np.ndarray:
@@ -49,27 +53,38 @@ def pixel_sse(sp: dict, M: np.ndarray, keep: np.ndarray) -> np.ndarray:
     return np.diag(M).copy()
 
 
+def trial_set_sentence(tag: str, own: bool = False) -> str:
+    """The trials / frames of the R2 maps (Priya 11-09): every modeled frame (`resid_mom` / `data_mom`); ``own`` = the
+    per-position maps, scored on the frames of each spout's own trials (frozen drop-one-spout)."""
+    from wfield_local import frozen_encoder as fe
+    return fe.trial_set_sentence("own" if own else "all", tag=tag)
+
+
 def main(argv=None) -> int:
+    # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
+    from wfield_local import config
     from wfield_local import combined_encoding as ce
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
     from wfield_local.writeguard import assert_writable
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from frozen_area_maps import area_image, outline
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--tag", default="gate-attempted_v6basis")
     a = ap.parse_args(argv)
-    out = oo.root(PathResolver()) / oc.RUN / "imaging_encoding" / f"frozen_encoder_{a.tag}"
+    from wfield_local import trial_set_text as tst
+    tst.declare(text=trial_set_sentence(a.tag))
+    from wfield_local import frozen_encoder as _fe   # the encoder's (tagged) run root, coordinator 11-04
+    out = _fe.out_root() / f"frozen_encoder_{a.tag}"
     variants = ["joint"] + sorted({v for _l, v in UNIQUE})
+    variants = [v for v in variants if v not in OPTIONAL or (out / v / "sessions").is_dir()]
     missing = [v for v in variants if not (out / v / "sessions").is_dir()]
     if missing:
         raise SystemExit(f"{out}: no sessions for variants {missing} (re-run the spatial target with the drop variants)")
-    sess = sorted(js for js in (out / "joint" / "sessions").glob("*.json") if js.stem[-4:] >= "0801")
+    sess = sorted(js for js in (out / "joint" / "sessions").glob("*.json") if not config.early_pre(js.stem))
+    UNIQ = tuple((g, v) for g, v in UNIQUE if v in variants)      # noqa: N806 -- the optional ones this run has
     fd = out / "figures"
     assert_writable(fd)
     fd.mkdir(parents=True, exist_ok=True)
@@ -113,11 +128,11 @@ def main(argv=None) -> int:
     for (an, ep), c in acc.items():
         sst = np.where(c["sst"] > 0, c["sst"], np.nan)
         mm = {"full": 1.0 - c["joint"] / sst}
-        for lab, v in UNIQUE:
+        for lab, v in UNIQ:
             mm[lab] = (c[v] - c["joint"]) / sst
         maps[(an, ep)] = {k: paint(an, x) for k, x in mm.items()}
     animals = sorted({an for an, _ in maps})
-    cols = ["full"] + [lab for lab, _v in UNIQUE]
+    cols = ["full"] + [lab for lab, _v in UNIQ]
     np.savez_compressed(fd / "r2_maps.npz", **{f"{an}|{ep}|{k}": x for (an, ep), mm in maps.items()
                                               for k, x in mm.items()})
 
@@ -151,10 +166,10 @@ def main(argv=None) -> int:
                                  + ("" if per_panel else f"\n{'+/-' if diff else '0..'}{lims[c]:.3g}"), fontsize=7)
                 if j == 0:
                     ax.set_ylabel(r, fontsize=8)
-        sub = ("colour scale PER PANEL (99th percentile, printed bottom-left)" if per_panel
-               else "colour scale per column (99th percentile, in each title)")
+        sub = ("color scale PER PANEL (99th percentile, printed bottom-left)" if per_panel
+               else "color scale per column (99th percentile, in each title)")
         fig.suptitle(f"{title}\n{sub}. ipsi (lesion) = image LEFT. PROVISIONAL", fontsize=8)
-        fig.savefig(path, dpi=120, bbox_inches="tight")
+        save_png_svg(fig, path, dpi=120, bbox_inches="tight")
         plt.close(fig)
     kind = next(iter(spatial.values()))["kind"]
     share = {}                                             # unique / full (full kept as is)
@@ -209,15 +224,16 @@ def main(argv=None) -> int:
         fig.suptitle(f"Frozen encoder ({kind} targets, base {base}): PER-POSITION unique R2 of the {part} -- "
                      f"on that spout's own trials, {when}; {scl}. ipsi (lesion) = image LEFT. PROVISIONAL", fontsize=8)
         tag = "target" if what == "drop" else "whole"
-        fig.savefig(fd / f"r2_maps_position_{base}_{tag}_{ep}{'_minus_pre' if diff else ''}"
-                         f"{'_peranimal' if per_panel else ''}.png", dpi=120, bbox_inches="tight")
+        with tst.active(None, text=trial_set_sentence(a.tag, own=True)):         # per-position: own-trial frames
+            save_png_svg(fig, fd / f"r2_maps_position_{base}_{tag}_{ep}{'_minus_pre' if diff else ''}"
+                             f"{'_peranimal' if per_panel else ''}.png", dpi=120, bbox_inches="tight")
         plt.close(fig)
     # PER-POSITION unique R2 (frozen drop-one-spout): spout q's own target-position response folded into the others'
     # mean; dR2_q = (SSE[base|drop:q] - SSE[base]) / SST on q's OWN trial frames, summed over sessions per animal x
     # epoch (Priya 10-23 "and what about per-position unique r2")
     dd = out / "dropspout" / "sessions"
     pj = sorted(dd.glob("*_pix.json")) if dd.is_dir() else []
-    pj = [p for p in pj if p.stem.split("_pix")[0][-4:] >= "0801"]
+    pj = [p for p in pj if not config.early_pre(p.stem.split("_pix")[0])]
     if pj:
         pacc: dict = {}
         for p in pj:

@@ -1,5 +1,26 @@
 # HANDOFF 2026-09-21 — codebase quality: efficient, modular, readable, editable
 
+## State on 2026-11-04 (re-measured on `main`; read this before the 09-20 counts below)
+
+The newer, verified review of the code is
+[`CODE_REVIEW_2026-11-04.md`](CODE_REVIEW_2026-11-04.md): what can give a wrong number, what to consolidate, and the
+proposed order of work. Start there. The plan below is the 09-21 plan; most of section 2 is done.
+
+| | 09-20 (section 1) | 2026-11-04 | how measured |
+|---|---|---|---|
+| `build_analysis_deck()` | spans lines 1550→5440 (~3,900) of a 5,468-line file | **1,776 lines** (473→2248) of a 2,274-line `locanmf_analysis_deck.py` | line numbers of `def build_analysis_deck` and the next `def` |
+| grant / epoch renderer split | `epoch_grant_figures.py` 3,942 lines; grant renderer one file | **done.** Grant renderer = `grant_figures` (driver, 1,270 lines) + `grant_kit` (shared machinery) + six family modules. `epoch_grant_figures.py` is a 603-line driver; families live in `epoch_kit`, `epoch_accuracy`, `epoch_maps`, `epoch_matching`, `epoch_state`, `epoch_behaviour`. **Not split yet:** `epoch_figures.py`, 3,165 lines | `wc -l` |
+| files repeating the `phase_labels("pre")` filter | 62 modules | **48 files** (17 in `wfield_local/`, 31 in `scripts/`) | `grep -l 'phase_labels("pre")'`, archives excluded |
+| files calling `_load_daq_events(` directly | ~35 | **29 files** (22 in `wfield_local/`, 7 in `scripts/`). Three of them define their own copy: `plot_lick_aligned_averages`, `plot_frame_alignment_comparison`, `plot_spout_trial_averages` | `grep -l '_load_daq_events('`, archives excluded |
+| `scripts/rest_migration/` | 74 modules, 19,208 lines | **43 live modules, 15,303 lines**, plus 31 in `rest_migration/archive/` | `ls`, `wc -l` |
+| rest_migration per-session loops fanned out | 4 of 11 | **8 scripts use `ak.fan_sessions`**, including the four expensive loops (`rest_coupling`, `evoked_hrf_latency`, `channel_position_maps`, `quit_prodrome`). `channel_evoked_sign` and `rest_baseline_epoch_drift` still loop serially | `grep -l fan_sessions` |
+| epoch figures on disk but unregistered | 33 of 402 | not re-measured here (needs the share). The review found about 26 unregistered superseded epoch PNGs | — |
+
+New since 09-21 and not in this plan: the **library imports `scripts/`** (`analysis_kit` imports
+`scripts/rest_migration/engagement_decomposition` and `quit_point`; `orofacial_cohort`, `orofacial_outputs` and
+`combined_encoding` import `scripts/pose_kinematics_demo`). See the review, "Modularity" item 1, and
+[`../../scripts/README.md`](../../scripts/README.md).
+
 **The analysis threads are at a natural stopping point.** Read
 [`STATUS_2026-09-20.md`](STATUS_2026-09-20.md) for where the science landed and
 `DECISIONS.md` from **"WHERE THE TWO THREADS LANDED"** for the reasoning. **This document is about
@@ -23,8 +44,8 @@ Three rules that are load-bearing and must survive any restructuring:
 - **Ground rule 6:** per-session loops fan out over cores via `wfield_local/parallel.py`.
 - **Ground rule 8:** print the per-animal table before the bootstrap.
 
-**Behaviour-preserving is the bar.** Every refactor below can be verified the same way the
-parallelisation was: run before, run after, diff the per-session output. That method caught a real
+**Behavior-preserving is the bar.** Every refactor below can be verified the same way the
+parallelization was: run before, run after, diff the per-session output. That method caught a real
 CI shift that a passing test suite would have missed.
 
 ---
@@ -88,7 +109,7 @@ incantation is still written out in ~35 places, most of them in `wfield_local/` 
 want the whole returned dict rather than just `lick_samples`. `analysis_kit.lick_samples` exists;
 sweeping the call sites is a separate change, and several of them are on the nightly path.
 
-### 2.2 Finish the parallelisation (mechanical, measured payoff)
+### 2.2 Finish the parallelization (mechanical, measured payoff)
 
 8 of 11 `rest_migration` loops are still serial. Converted: `quit_prodrome` 36→6 min,
 `rest_coupling` 85→9m43s (×8.7), `evoked_hrf_latency` 90→~12 min, all byte-identical. **Use 2.1's
@@ -143,7 +164,7 @@ matplotlib writes a `<dc:date>` and random element ids, so all 90 SVGs "differ" 
 `_ONLY_WINDOW`/`_ONLY_VARIANT` had to become `grant_kit.set_only()`, because a global assigned in
 one module and read in another is two variables and the failure is silent.
 
-### 2.5 Standardise intermediates so re-runs are cheap
+### 2.5 Standardize intermediates so re-runs are cheap
 
 `rest_coupling --from-csv` re-derives every table from its CSV in seconds. **Nothing else has
 it**, and the absence cost two full re-runs today: ILI was not written to CSV so the per-animal
@@ -165,7 +186,7 @@ while everything else writes to `grant_figures/epoch/`.
 3. ~~Convert the remaining 7 loops (**2.2**)~~ **FOUR DONE 2026-09-21** — `quit_point`,
    `engagement_decomposition`, `nvc_evoked`, `channel_position_maps`; **all four verified** against
    a `git worktree` at HEAD -- the first three diff-identical, `channel_position_maps`
-   order-insensitively identical with all four written artefacts byte-identical. Use `analysis_kit.input_order`, not the default
+   order-insensitively identical with all four written artifacts byte-identical. Use `analysis_kit.input_order`, not the default
    alphabetical collection, or the CIs move. Remaining serial loops are the small diagnostics
    (`channel_evoked_sign`, `channel_vessel_sign`, `cutoff_scaling`, `onset_edge_bias`,
    `restw_reliability`, …) — none on the nightly path
@@ -176,7 +197,7 @@ while everything else writes to `grant_figures/epoch/`.
    (4 m 50 s → **10.7 s**) and `channel_position_maps` (3 m 32 s → **23.6 s**), both verified to
    reproduce their full run's tables exactly; `analysis_kit.read_rows` is the shared reader.
    `quit_point`, `nvc_evoked`, `quit_prodrome` and `lick_bout_structure` still lack one and each
-   needs a SECOND artefact written first (quit-aligned hits, pooled curves, nested per-session
+   needs a SECOND artifact written first (quit-aligned hits, pooled curves, nested per-session
    records) — a `--from-csv` rebuilding only the table half would break the rule it serves.
    ~~The output-dir unification is NOT done and needs a decision~~ **DONE 2026-09-21**:
    the two POOLED figures go to `grant_figures/epoch` and ARE registered (109 → 111 entries); the

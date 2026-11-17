@@ -26,7 +26,7 @@ cleaning / lateral readout). Decisions: `DECISIONS.md` 2026-10-19 (evening). Acq
   windows on the DAQ clock (`o2_inference.session_windows`) → June cam4 x0.8853 about the principal point → spout medians per
   position → **PnP camera poses on the commanded spouts** (09-11 intrinsics only; spout edge offsets) → clean each camera with
   its own rules (MEASURED points only) → pair frames exactly on (trial, t) → triangulate (aniposelib, undistort + DLT) →
-  **fill one-camera frames** on the seen camera's ray (depth from both-camera neighbours <= 24 ms tongue / 200 ms jaw, Akima) → **plausibility
+  **fill one-camera frames** on the seen camera's ray (depth from both-camera neighbors <= 24 ms tongue / 200 ms jaw, Akima) → **plausibility
   gates** → `session_poses/pose3d/<a>_<d>_frames.csv.gz` (per frame: tongue / jaw / nose / spout ml, ap, dv mm; reprojection;
   source 1 both / 2 cam1 / 3 cam4).
 * **Readouts** on top: `pose3d_kinematics` (cam4 lick events or `--licks combined`: 3-D peak, direction vs target, reach,
@@ -53,22 +53,22 @@ cleaning / lateral readout). Decisions: `DECISIONS.md` 2026-10-19 (evening). Acq
 | 09-11 intrinsics kept | lens properties; validated by nose / jaw agreeing to ~1 px between cameras (not used for posing) |
 | spout edge offsets: cam4 = superior edge = mouth zero, cam1 = 1.24 mm below | the mouth zero was set with the UPPER spout tip (Priya); rod diameter measured 1.23-1.31 mm |
 | mouth = the spout mouth zero only | jaw and nose can change post-stroke (Priya); the set point marks the mouth that day |
-| no v36 re-run for the June scaling centre | the centre adds a constant that cancels in every 2-D measure; only 3-D needs the principal point |
+| no v36 re-run for the June scaling center | the center adds a constant that cancels in every 2-D measure; only 3-D needs the principal point |
 | one-camera fill: Akima, tongue <= 24 ms, ray-miss gate 3 mm | held-out error 0.13-0.23 mm; Akima beats linear / PCHIP on long gaps; a 1 mm gate dropped half the real fills |
 | jaw fill limit 200 ms | jaw moves slowly: held-out error at 200 ms median 0.04-0.07 mm (p90 0.20-0.34); 24 ms covered only 1-3 % of one-camera jaw frames, 200 ms 13-23 % |
 | gates: > 8 mm out, > 2 mm behind the mouth, spikes > 1.5 mm; jaw > 5 mm | paw-in-face frames (both models call them tongue at 0.9+) triangulate 7-36 mm out; reprojection does not catch them |
 | readouts: distances primary (3-D mm) + 3-D angle error + midline-plane angle | distances are origin-free; angles vs the spout direction are consistent across the set-point move (spouts commanded from it) |
 | peak = 3-D frame farthest from the mouth zero | cam4's peak is the max of its DOWN axis |
 | lick events: cam4's (comparable) + combined 3-D track | combined adds 3-7 % licks -- NOT small ones (median reach 3.7-4.1 vs 4.5 mm, 45-50 % touched the spout): mostly licks cam4 lost to occlusion / merging |
-| no depth prior for one-camera tongue points | held-out: (a) closest point to the mouth zero 0.6 mm error on licks < 1 mm, 1.3-3.8 mm beyond; (b) learned from cam1 2-D 1.5-1.7 mm on licks < 1 mm (0.5 mm on long ones, already covered by the neighbour fill) |
+| no depth prior for one-camera tongue points | held-out: (a) closest point to the mouth zero 0.6 mm error on licks < 1 mm, 1.3-3.8 mm beyond; (b) learned from cam1 2-D 1.5-1.7 mm on licks < 1 mm (0.5 mm on long ones, already covered by the neighbor fill) |
 | incomplete licks counted from cam1 2-D (`cam1_licks`), not 3-D | counting / sizing needs no depth; tongue tips seen only by cam1 cannot be placed in 3-D (row above) |
 | cam1-only events flagged as WATER DROPLETS and dropped: spread < 3 px, range < 12 px, median point away from the mouth opening (out > -35 px) | Priya's 2-round blind review: all false events were droplets; the rule catches 16 / 17, loses 0 / 70 real. Static points at the mouth opening are real tongue tips at the lips; static points cam4 also calls a lick are the tongue held on the spout, so only cam1-ONLY events are flagged |
 | recent misses kept as a covariate (`miss_prev3`), not a gate | droplets follow uncollected water (Priya): pre 3 % of trials after a hit, 12 % after a miss, 15 % after 3; acute flat ~1 %; the shape rule alone already works |
 | cameras PAIRED ON CAMERA-TIMESTAMP TIME (`t_daq_ms`, nearest within 2 ms), not frame-index `t_ms` (10-20) | Priya: "align using the sync pulse"; frame-index time slides with every dropped frame -- PS92 0908 (frame-drop cliff at min ~104) paired wrong partners (tongue reprojection 8.5 px, 36k frames); now 3.5 px, 153k frames, all 4 session quarters normal. Also fixed PS92 0606, PS93 0605 / 0606 (6.4-9.0 -> 3.1-3.7 px) -- the "June outliers" were drops. Drop-free sessions unchanged (0807: 231615 -> 231601 frames). Output `t_ms` stays cam4's (v36 lick windows) + `t_daq_ms` |
 | session gates `pose3d.failed_sessions`: spout fit > 0.2 mm, median tongue reprojection > 6 px | catches timing / pose failures automatically (normal 2.7-4.0 px); now only PS92 0605 (spout fit) fails |
 | ALL video timing from the alignment templates' per-frame camera times (10-20, Priya: "all timings should use the alignment templates") -- `o2_inference.build_windows` -> `trial_frame_spans_ts`: cue frame = frame nearest the cue in template time, windows by time, `t_ms` = template time from the cue frame snapped to 4 ms (drops leave gaps) | the template's frame-index affine drifted 4 ms per dropped frame: `scripts/cam4_timing_check.py` over 134 cam4 sessions -- 125 within one frame; 9 off: PS92 0605 / 0606 / 0908, PS93 0605 / 0606, PS94 0603 / 0605 / 0805, PS95 0605 (cue 26 ms - 1.3 s; PS94 0805 = no drops but frames ~1.7 % slow). Clean session (PS92 0807): 100 % same cue frames; PS93 0605: cam1 vs cam4 now within 4 ms (was up to 0.6 s -- Priya saw it in the round-3 review). v36 re-run (`--force`) for the 9 |
-| jaw: long one-camera stretches placed with a REST-DEPTH ANCHOR (`pose3d.anchor_single_view`, src 4 cam1 / 5 cam4) | centre spouts: the rod is end-on in cam1's view (cam1 keeps ~46-49 % of jaw frames there), close_center also hides the chin in cam4; held-out on side spouts: ml error 0.03-0.05 mm, per-trial lr_wide r 0.95-0.99, FAR_DIR within 0.02 mm; ap from cam4 alone is 0.15-0.39 mm off -> do not use anchored frames for the 3-D opening's backward part. far_center jaw coverage 62 -> ~100 % |
-| lick phase: onset -> offset per lick (primary), peak-to-peak secondary | same as cam4's per-lick normalised time (`orofacial_cohort.U_NORM`); keeps isolated licks (acute far contra: 38-56 % have a neighbour < 250 ms); peak-to-peak only for stroke_orofacial comparison |
+| jaw: long one-camera stretches placed with a REST-DEPTH ANCHOR (`pose3d.anchor_single_view`, src 4 cam1 / 5 cam4) | center spouts: the rod is end-on in cam1's view (cam1 keeps ~46-49 % of jaw frames there), close_center also hides the chin in cam4; held-out on side spouts: ml error 0.03-0.05 mm, per-trial lr_wide r 0.95-0.99, FAR_DIR within 0.02 mm; ap from cam4 alone is 0.15-0.39 mm off -> do not use anchored frames for the 3-D opening's backward part. far_center jaw coverage 62 -> ~100 % |
+| lick phase: onset -> offset per lick (primary), peak-to-peak secondary | same as cam4's per-lick normalized time (`orofacial_cohort.U_NORM`); keeps isolated licks (acute far contra: 38-56 % have a neighbor < 250 ms); peak-to-peak only for stroke_orofacial comparison |
 
 ## 3. Running / pending at hand-off
 
@@ -85,7 +85,7 @@ cleaning / lateral readout). Decisions: `DECISIONS.md` 2026-10-19 (evening). Acq
 * **cam4 vs 3-D**: cam4 lateral r 0.95-0.97 with 3-D ml (faithful → the cam4 ipsi-aim + jaw-steering findings stand); cam4
   'out' / protrusion = 99 % the DOWN axis (r ~0 with forward) → its acute 'shorter protrusion' = less downward extension.
   3-D has 8-9 % more truly measured tongue frames than cam4 (cam1 covers cam4's occlusions, often at contact).
-* **Acute (PS92)**: aim shifted ipsi from lick ONSET through the whole lick at every position (+5..+13 deg close / centre,
+* **Acute (PS92)**: aim shifted ipsi from lick ONSET through the whole lick at every position (+5..+13 deg close / center,
   ~+30 deg far_R; the far_R mean path crosses the midline); far_R closest approach 3.2 vs ~1 mm, lateral -3.0 mm; slower
   protrusion (far_R radial ~100 vs ~160 mm/s; peak speed below the pre range at every far spout); jaw opens less, FAR_DIR
   0.26 -> 0.02 mm. PS93 (clips) agrees in direction.
@@ -94,14 +94,14 @@ cleaning / lateral readout). Decisions: `DECISIONS.md` 2026-10-19 (evening). Acq
 * **June** sits off the August band on several measures (residual geometry or early training) → August-only baseline.
 * **Jaw one-camera fill (gap check, PS92 0807 / 0818)**: held-out error median 0.03-0.05 mm at 24 ms, 0.04-0.07 mm at 200 ms
   (p90 0.10 -> 0.20-0.34); one-camera jaw frames are mostly LONG stretches (only 13-23 % in gaps <= 200 ms; e.g. the rod
-  over the chin in cam4 for whole centre-spout trials) -> 200 ms adopted; the long stretches stay single-camera (an anchor to
+  over the chin in cam4 for whole center-spout trials) -> 200 ms adopted; the long stretches stay single-camera (an anchor to
   the trial's resting jaw would be the next idea, untested).
 * **Coverage vs cam4 alone (0807 / 0818, response window)**: 3-D has 8-9 % more MEASURED tongue frames than cam4 (12-16 % of
   3-D frames are ones cam4 did not measure); cam4's own 2-D gap fill counts more frames (it interpolates up to 56 ms).
 * **cam1 vs cam4 axes**: cam4 alone = ml + dv (no forward); cam1 alone (looking up ~45 deg) = ml + a mix of forward and down
   that it cannot separate; only both cameras separate all three.
 * **Does 3-D add information? (`pose3d_vs_cam4`, PS92, 9 August pre, leave-one-session-out balanced accuracy)**: target spout
-  from the lick endpoint, 6 positions 0.53 cam4 (0.52 + angle) vs **0.80 3-D**; close vs far L 0.83 vs 0.94, centre 0.59 vs
+  from the lick endpoint, 6 positions 0.53 cam4 (0.52 + angle) vs **0.80 3-D**; close vs far L 0.83 vs 0.94, center 0.59 vs
   **0.87**, R 0.89 vs 0.96 (depth is what cam4 lacks). Acute effect sizes (|z| vs pre day-to-day spread): lateral / angle agree
   in pattern (far_R, close_L), 3-D larger at far_R (~30 vs ~21); 3-D-only miss and forward reach also move (far_R 30.8 / 12.6).
 * **Jaw cross-check (cam4 v36 `jaw_lateral` vs 3-D, 14 sessions, per trial)**: lateral r 0.66-0.88, opening r 0.63-0.92
@@ -110,7 +110,7 @@ cleaning / lateral readout). Decisions: `DECISIONS.md` 2026-10-19 (evening). Acq
   v36 jaw table (none matched).
 * **Depth prior (held-out, cam4 hidden; PS92 8 pre LOSO + 3 acute)**: error by distance from the mouth zero, (a) closest point
   on the ray / (b) KNN on cam1 2-D: 0-1 mm 0.60-0.69 / 1.49-1.74; 1-2 mm 1.33-1.38 / 0.83-0.99; 2-3 mm 2.1-2.2 / 0.55; > 4 mm
-  3.8 / 0.6-0.7. Neither usable for small licks (the neighbour fill is 0.13-0.23 mm) -> not adopted.
+  3.8 / 0.6-0.7. Neither usable for small licks (the neighbor fill is 0.13-0.23 mm) -> not adopted.
 * **cam1 2-D licks (PS92, 16 pre incl. June / 3 acute; REVIEWED, droplets removed)**: blind review 2 rounds (87 events):
   pre cam1-only 23 / 24 real; acute cam1-only away from jaw-only trials 10 / 10 real (8 at the lips); cam1 events on acute
   jaw-only trials 0 / 5 real, pre 5 / 10; controls 10 / 10 contact real, 9 / 9 null none; every false one a water droplet.
@@ -130,7 +130,7 @@ cleaning / lateral readout). Decisions: `DECISIONS.md` 2026-10-19 (evening). Acq
   (0807): median 1.6 ms, p99 28, max 46 ms -> cue-relative v36 timings carry per-session drop error (to quantify).
   QUANTIFIED + FIXED 10-20 (decision row "ALL video timing from the alignment templates"). Chronic jaw lateral RESOLVED:
   on far_L / far_R (the trials FAR_DIR uses) cam4 vs 3-D per-trial r is 0.80 chronic vs 0.90 pre; the drop is the
-  close / centre spouts cam4's jaw readout already excludes. PS93 low contact (62-69 % Aug) is real (cam4 v36 70 %).
+  close / center spouts cam4's jaw readout already excludes. PS93 low contact (62-69 % Aug) is real (cam4 v36 70 %).
 * **10-20 later.** v36 re-run (`--force`) for the 9 timing sessions with template-time windows; cohort + jaw-lateral
   tables rebuilt 10-20 09:07 / 09:14 (cohort rows now looked up by time -- gaps at drops). 3-D re-run for PS92 0606 / 0908,
   PS93 0605 / 0606 (3.1-3.7 px); PS92 0605 still fails (spout fit; 10.6 px). cam1-only share after the timing fix: PS93
@@ -194,7 +194,7 @@ Outputs under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/session_poses/pose3d/` (
    lick set beside "all licks". 2-D vs 3-D: 3-D is headline for depth / reach / miss and close-vs-far; cam4 lateral stands.
 6. **Cohort**: when PS93 / PS94 / PS95 production lands, curated sessions only, August pre baseline, per-animal tables first
    (CLAUDE.md rule 8), then `analysis_kit.boot_delta`; same epochs as the cam4 tables.
-7. Labelling (only if needed): paw-in-face frames as hard negatives (tongue blank) for both cameras.
+7. Labeling (only if needed): paw-in-face frames as hard negatives (tongue blank) for both cameras.
 8. June 0602-0604 (cam4 moved) and PS92 0605 (cam4 template failure) are outside the curated set; leave unless needed.
 
 ## 8. Pitfalls (new today)
@@ -212,7 +212,7 @@ Outputs under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/session_poses/pose3d/` (
    every session reads > 0.2 mm and is skipped.
 7. **aniposelib is in the dlc env only**; locanmf for the rest. Run file scripts with `PYTHONPATH=.` from the repo root.
 8. **`config.stroke_date` returns MMDD** (`'0817'`); use `config._to8` before date maths.
-9. **Paw-in-face frames** are confidently labelled as tongue by both models; the gates catch the far ones only.
+9. **Paw-in-face frames** are confidently labeled as tongue by both models; the gates catch the far ones only.
 10. **Post-stroke set point ~0.5 mm closer** (slack jaw): set-point-relative absolute values shift by that much post-stroke.
 11. **PS93 is on trial clips** (only ~10 % of licks pair with the cam4 production windows): treat its numbers as weak until
     PS93 production lands.

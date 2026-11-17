@@ -13,7 +13,7 @@ resampled onto a common clock; here every view is already on the SAME DAQ grid:
                DAQ time, NaN when none is within ``SESSION_TOL_S`` (then the stacked row is NaN and dropped, as any
                NaN row).
 
-VIEW BALANCE: FR normalises every frame within its own run (VQT normaliser over that view's points), so views differ
+VIEW BALANCE: FR normalizes every frame within its own run (VQT normalizer over that view's points), so views differ
 in point count and scale. Per animal, view v is divided by d_v = RMS(view v's fit rows) x sqrt(E_v / mean E), E_v =
 2 x P_v x F its elements: every view then carries the same total energy in the fit (``view_scales.json``); the
 animal's one scalar (RMS of the balanced rows, ``scales.json``) follows as in a single-view set.
@@ -125,7 +125,7 @@ def balance_divisors(X: np.ndarray, P: list[int]) -> list[float]:
 
 def view_normaliser(rows: np.ndarray, P: list[int], divs: list[float], s: float, normaliser, *args) -> np.ndarray:
     """FR's per-frame divisor D of a stacked row = mean over views of each view's D, from the view's columns un-scaled
-    back to that run's saved values (x s x d_v). ``rows`` (n, 2 sum P, F) xy-major; ``normaliser(rows, *args)``."""
+    back to that run's saved values (x s x d_v). ``rows`` (n, 2 sum P, F) xy-major; ``normalizer(rows, *args)``."""
     x = np.asarray(rows, np.float32).reshape(len(rows), 2, sum(P), rows.shape[-1])
     Ds = [normaliser((x[:, :, sl] * (s * d)).reshape(len(x), -1, x.shape[-1]), *args)
           for sl, d in zip(view_slices(P), divs)]

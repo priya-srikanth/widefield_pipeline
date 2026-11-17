@@ -13,9 +13,9 @@ Analysis desktop; M: = MICROSCOPE.
 **UPDATE 2026-10-19 (supersedes everything below where they differ):**
 * DECIDED: cam4 production stays LP r4 (DECISIONS 2026-10-19; eps35 and ViT-B not adopted). cam1 production model = **LP
   ctx-semi** (`mhcrnn_semi_640_b4`; POSE_MODELS Part B: most faint licks after cleaning, no emergence lag; plain LP c1r2 lags
-  the emerging tip, eps40 loses acute faint licks). No new cam1 labelling round now (targeted round kept as a known fix:
+  the emerging tip, eps40 loses acute faint licks). No new cam1 labeling round now (targeted round kept as a known fix:
   water drops, part-out tongue, faint licks cam1 misses). cam1 cleaning: max gap 24 ms, veto off (D8). Nose: blank at the
-  centre positions by design (rod occludes it).
+  center positions by design (rod occludes it).
 * RUNNING on O2: cam1 production `o2/lp_cam1_ctx_prod_20261019` (137 cam1 videos, `o2_inference bundle --kind lp --cam cam1`),
   smoke job + array (afterok), submitted ~07:40 10-19; all videos were already on scratch. Array **56830841**: smoke 145 fps on L40S
   (median video ~3 h, longest ~4.5 h); only ~16 L40S exist in gpu_quad (we held 10), so Priya opened the LIVE job to any
@@ -29,7 +29,7 @@ Analysis desktop; M: = MICROSCOPE.
   `python -m scripts.apparatus_mouth production --jobs 4` (dlc env; reads both O2 bundles directly, split days handled,
   June cam4 x0.885 about the principal point -> `session_poses/apparatus_mouth_production{,_chosen}.csv`). cam1's principal
   point (200, 200) CHECKED 10-19: pinned from the sensor ROI, correct (POSE_MODELS D5); v36 June sessions need NO re-run
-  (the scaling centre cancels in every 2-D measure). Then cam1 per-session outputs (cleaned traces + cam4-timed lateral landing).
+  (the scaling center cancels in every 2-D measure). Then cam1 per-session outputs (cleaned traces + cam4-timed lateral landing).
   Per-frame 3-D, READY (POSE_MODELS D10): `python -m scripts.pose3d production --jobs 4` (dlc env) -> `session_poses/pose3d/`
   frames + per-lick reach / miss / lateral error against the target spout; tested on the PS93 clips (`pose3d clips`).
   10-19 evening: cameras now POSED PER SESSION by PnP on the commanded spouts (`pose3d.pnp_group`, default; reprojection
@@ -43,12 +43,12 @@ Analysis desktop; M: = MICROSCOPE.
   BEFORE its child, or it starts the next item.
 
 **UPDATE 2026-10-18 evening (superseded by 10-19 above where they differ):**
-* O2 `56718665_1` cam1 eps40: trained 300 / 300, then CRASHED in LP's post-training labelled-frame eval (DataLoader workers
+* O2 `56718665_1` cam1 eps40: trained 300 / 300, then CRASHED in LP's post-training labeled-frame eval (DataLoader workers
   died together, core dumps; MaxRSS 17 GB of 64 -- node / shared memory, not the model). Recovered WITHOUT retraining by a
   predict-only job `predict_eps40.sbatch` in the bundle (`litpose predict ... --skip_viz` + `touch DONE`, excludes
-  compute-g-17-161); submitted by Priya ~19:00. No labelled-frame pixel error for eps40 (not needed).
+  compute-g-17-161); submitted by Priya ~19:00. No labeled-frame pixel error for eps40 (not needed).
 * O2 `56700781_1` cam4 ViT-B: trained 300 / 300 (val loss still falling, 0.19 vs eps35 best 0.11), predicting the 8 eval videos
-  (2 done at 17:11), its sbatch predates `--skip_viz` so labelled videos are rendered after -> DONE late.
+  (2 done at 17:11), its sbatch predates `--skip_viz` so labeled videos are rendered after -> DONE late.
 * O2 `56709413_2` cam1 ctx-semi: epoch 173 / 300 at ~18:45, 2.9 min / epoch -> training ends ~01:00, DONE ~02:00.
 * Local GPU: the LP review inference was STOPPED at 18:35 after clip 1 (eps35 PS92 0821 done, 2 h 17 min per clip) so cam1 DLC
   r2 could run on June 0606 x 4 + PS94 0814 / 0821 / 0907, then r1 PS93 0908 (log `lp_stage\cam1_dlc_eval_june_ps94_20261018.log`;
@@ -59,7 +59,7 @@ Analysis desktop; M: = MICROSCOPE.
   ... --tag _vitb_1018` (with LP r4, eps35, ctx-semi, Priya's review). If the session is gone, run those by hand (§4).
 * Copy-back now with `--exclude 'core.*'` too (the crashed job's 4 x 3.7 GB dumps were copied once; deleted on both sides).
 * New this evening: cam1 max gap 24 ms + veto off (POSE_MODELS D8, re-rendered clip `..._gap24.mp4` for Priya's QC); cam1
-  lateral-landing readout incl. cam4-timed peaks (D9; PS93's apparent rightward shift = 0814 baseline artefact, PS93 shifts
+  lateral-landing readout incl. cam4-timed peaks (D9; PS93's apparent rightward shift = 0814 baseline artifact, PS93 shifts
   ipsi acutely over all sessions; cameras agree once the tongue is > 30 px out; cam1 also sees tiny licks cam4 does not
   count -- 31-41 % of at-the-lips cam1 events have no cam4 lick: put them in the cam1 blind review).
 
@@ -89,14 +89,14 @@ rsync -ah --partial --exclude labeled_videos --exclude 'core.*' $S/lp_train_2026
 rsync -ah --partial --exclude 'tmp*' $S/lp_r4_prod_20261015/out/ $F/lp_r4_prod_20261015/out/      # production inference, if more finished
 ```
 A model is finished when `models/<name>/DONE` exists; its eval predictions are `models/<name>/video_preds/*.csv` (they can be
-copied before DONE -- `litpose predict` renders labelled videos after predicting, which is what held DONE back).
+copied before DONE -- `litpose predict` renders labeled videos after predicting, which is what held DONE back).
 
 **Then, in order:**
 1. Score every new cam1 model on PS93 (+ PS94 when its DLC is done) -- command in §4; add to the cleaned multi-model clip.
 2. LP c1r1 (the 10-05 WSL model) on the new cam1 clips -- WSL, `dali.base.predict.sequence_length=16` + memory guard (never the
    default 96: two blue-screens). Then the cam1 candidate set is complete.
 3. June 3-D test (§2 D5): which June cam4 correction makes the triangulation work.
-4. Priya: cam1 cleaned clip QC (centre-position bridging, water) -> settle `orofacial_clean_cam1`; cam4 eps35 production decision.
+4. Priya: cam1 cleaned clip QC (center-position bridging, water) -> settle `orofacial_clean_cam1`; cam4 eps35 production decision.
 
 ## 1. What was done today (all committed and pushed)
 
@@ -135,8 +135,8 @@ values (measured to remove / fill about the same on cam1, D7). A SEPARATE block 
 
 ## 3. Findings
 
-1. **cam1 sees the centre spout line end-on** (close->far 3.4 px vs L / R 48; cam4 56 / 66 / 68): cam1 sees LR and DV, hardly AP.
-   Centre-spout angles are ill-defined on cam1; cam1's axis = the L / R bisector. Good for 3-D (the cameras see AP very differently).
+1. **cam1 sees the center spout line end-on** (close->far 3.4 px vs L / R 48; cam4 56 / 66 / 68): cam1 sees LR and DV, hardly AP.
+   Center-spout angles are ill-defined on cam1; cam1's axis = the L / R bisector. Good for 3-D (the cameras see AP very differently).
 2. **The apparatus mouth moves with the spout set point** (D5): triangulated spouts fit the command to 0.05 mm; the commanded mouth
    projected into cam1 moves 24 px between PS93 days, the same as the 2-D cam1 spout intersection, because the gui_config mouth set
    point differs by up to 0.70 mm between days (nose moved 0.78 mm relative to it). **Spout set-point jitter across days** -- noted
@@ -154,8 +154,8 @@ values (measured to remove / fill about the same on cam1, D7). A SEPARATE block 
 7. **First cam1 scores (PS93, DLC c1r2 vs LP c1r2 heatmap)**: LP finds more contacts (100 / 99.2 / 99.2 %) and has the steadier,
    better-covered jaw; teleports vary by session for BOTH models (DLC 9.5 / 4.0 / 17.4, LP 5.1 / 17.4 / 12.9 per 10k), so the
    acute LP rise is session noise, not an epoch effect (confirm on PS94).
-8. **cam1 cleaned clip** (`session_poses/PS93_20260814_cam1/eval/cleaned_labels_cam1_dlc2_lp2.mp4`): at the CENTRE positions the
-   cleaning can bridge a between-lick gap (trial 251 +188 ms: interpolated tongue under the spout, mouth closed) -- the centre
+8. **cam1 cleaned clip** (`session_poses/PS93_20260814_cam1/eval/cleaned_labels_cam1_dlc2_lp2.mp4`): at the CENTER positions the
+   cleaning can bridge a between-lick gap (trial 251 +188 ms: interpolated tongue under the spout, mouth closed) -- the center
    spouts sit on the cam1 mouth, so only the veto's speed test is left there.
 
 ## 4. Commands
@@ -193,14 +193,14 @@ python -m scripts.apparatus_mouth clips PS93:20260814 PS92:20260606 ...
    difference is confined to faint no-contact licks).
 1. Score cam1 ctx-semi + eps40 (O2), DLC c1r1, LP c1r1 on PS93 + PS94; per-epoch tables; cleaned multi-model clip; blind cam1
    review sheet for Priya (include late sated trials -- water). Then Priya picks the cam1 model.
-2. cam1 cleaning: Priya's QC of the cleaned clip; a centre-position bridging fix if it is common; measure a static-tongue water
+2. cam1 cleaning: Priya's QC of the cleaned clip; a center-position bridging fix if it is common; measure a static-tongue water
    guard's cost before proposing it; re-check every cam1 value on the chosen model.
 3. June 3-D: run `apparatus_mouth clips` on the four June sessions once their cam1 DLC is done; pick the June cam4 correction.
-4. Next labelling round (cam1 and cam4): water-drop frames with the tongue blank (hard negatives).
-5. Quantify spout set-point jitter across the cohort (nose in each session's mouth-centred frame, D5 method).
+4. Next labeling round (cam1 and cam4): water-drop frames with the tongue blank (hard negatives).
+5. Quantify spout set-point jitter across the cohort (nose in each session's mouth-centered frame, D5 method).
 6. cam4: Priya decides on LP r4 eps35 vs LP r4 (and ctx-semi 640, ViT-B when scored); check the cam4 review's "false detections
    on the spout rod" for water drops.
-7. Production cam1 inference on O2 once a model is chosen: generalise `o2_inference` bundles to `--cam cam1` (window builder reads
+7. Production cam1 inference on O2 once a model is chosen: generalize `o2_inference` bundles to `--cam cam1` (window builder reads
    cam4 templates). O2 scratch purges files untouched ~45 days -- the videos copied 10-06 may go around 11-20.
 8. 3-D: multi-view LP candidate (round-2 cam1 + round-4 cam4), anipose vs calibration-free EKS, the 3-D mouth as the shared origin.
 
@@ -220,7 +220,7 @@ validated against O2's own predictions (median 0.04-0.11 px, confidence agreemen
 3. **locanmf has no pytables**: read DLC `.csv`, not `.h5` (the dlc env has both).
 4. **`orofacial_outputs.params_digest` hashes the whole `orofacial_clean` block** and the cam4 production run refuses to continue
    when it changes -> per-camera values go in `orofacial_clean_<cam>` (test pins the digest).
-5. **`litpose predict` renders labelled videos by default**: hours on 220k-frame clips, DONE held back. `--skip_viz` in the
+5. **`litpose predict` renders labeled videos by default**: hours on 220k-frame clips, DONE held back. `--skip_viz` in the
    bundle now; `--exclude labeled_videos` when copying.
 6. **Reading a prediction file while DLC is still writing it** gives a short file (an IndexError later): check `len(P) >= len(idx)`.
 7. **The tongue "> 40 px" jump count is genuine motion on cam1** (40 = p99): teleports are > 60 px.

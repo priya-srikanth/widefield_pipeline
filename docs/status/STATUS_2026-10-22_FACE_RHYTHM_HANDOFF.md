@@ -10,13 +10,13 @@ DECISIONS.md 2026-10-22 "FaceRhythm: pilot factor set, pre-stroke scored held-ou
 * **AR-HMM (Hillary, github.com/htong1/Priya_ARHMM2026, private; clone in scratch `ext/`) assessed 10-23**: frozen
   pre-stroke sticky AR-HMM (jax-moseq, K 24, 12.5 Hz) on FR consensus + DLC tongue / jaw + treadmill, PS46-50.
   DECIDED (Priya 10-23): LOW PRIORITY, not ported for imaging. FR factors already give continuous regressors for
-  specific behaviours (whisk f7, nose / sniff f2 / f3 / f8, prep jaw f6, bout initiation f1, lick factors by side), and
+  specific behaviors (whisk f7, nose / sniff f2 / f3 / f8, prep jaw f6, bout initiation f1, lick factors by side), and
   the encoder already separates failed vs successful licks (LP lick-onset kernel for every lick + DAQ contact kernel
   for hits + executed angle / reach modulation; trial hit / incomplete classes in `trial_attempts`). What an AR-HMM
   would add is narrow: discrete onsets / bouts (testable with onset kernels on thresholded factors), state
   combinations (interaction terms), and a global per-session recovery score (frozen-model log-lik; the FR EVR gap,
   FINDINGS 6, already covers the vocabulary half). Revisit only for that score or a state interaction linear
-  regressors miss. Its headline ("licks and misses") cross-checked behaviourally: FINDINGS 5c. Open, for the encoding
+  regressors miss. Its headline ("licks and misses") cross-checked behaviorally: FINDINGS 5c. Open, for the encoding
   window if wanted: split the lick-onset kernel by outcome (hit / miss) to test a PRE-lick (preparation) difference.
 
 * **~07:00 10-24: rank-12 master BACK + NAMED.** proj/ 108 (12 cols, spec f4f84d67773df9bc), split half .911 (lick
@@ -139,7 +139,7 @@ DECISIONS.md 2026-10-22 "FaceRhythm: pilot factor set, pre-stroke scored held-ou
   lateral / red vertical, opacity = weight) + spectrum + pre-stroke cue-aligned traces by position; y units
   "a.u. (weight x D; per-animal scale)" -- the weight is the factor's amplitude in the bin (spatial + spectral columns
   unit-norm) on the spectrogram divided by the animal's one scale; comparable within an animal across sessions, not a
-  physical unit. **Epoch figures** (`factor_epochs[_abs].png`): per animal, NORMALISED so each factor's pre-stroke mean
+  physical unit. **Epoch figures** (`factor_epochs[_abs].png`): per animal, NORMALIZED so each factor's pre-stroke mean
   curve max = 1. Clips: 8 examples per factor, PS92_0806, `<dlc>/face_rhythm/cam4/factor_clips/pilot_pre_PS92_PS93/`.
 * **Priya's provisional pilot labels (from the clips; NOT carried from the preview -- factor numbers shift between fits)**:
   f0 left licks later in trials; f1 right / central licks later; f2 sniff / whisk / jaw; f3 vertical nose late after
@@ -147,12 +147,12 @@ DECISIONS.md 2026-10-22 "FaceRhythm: pilot factor set, pre-stroke scored held-ou
   early (faster?); f6 weak, jaw (preparatory before a lick?); f7 nose wiggle / sniff / whisk while walking; f8 nose
   wiggle with a few treadmill steps, sometimes around a little licking; f9 right licking early (faster). No labels.json
   written yet.
-* **Identity check vs behaviour** (`scripts/face_rhythm_validate.py --set pilot_pre_PS92_PS93`, computation
+* **Identity check vs behavior** (`scripts/face_rhythm_validate.py --set pilot_pre_PS92_PS93`, computation
   `wfield_local/face_rhythm_validation.py`; LP licks_all with executed angle, + = animal's left; canonical treadmill
   speed cached per session) -> `<dlc>/face_rhythm/cam4/validation/pilot_pre_PS92_PS93/` (factor_vs_licks_running.png,
   factor_correlations.png + data/). First run, PS92_0806 + 0807 only: f0 LEFT-selective (left-rate r 0.49, right ~0),
-  strongest at SLOW lick rates (5-6 Hz); f1 weakly lick-linked, LATE (t-from-cue r 0.17), centre > R ~ L; f2 sharp peak
-  at RUNNING ONSET; f3 peaks ~0.3 s BEFORE early licks + doubles after running onset; f4 CENTRE / RIGHT (r 0.52 / 0.27),
+  strongest at SLOW lick rates (5-6 Hz); f1 weakly lick-linked, LATE (t-from-cue r 0.17), center > R ~ L; f2 sharp peak
+  at RUNNING ONSET; f3 peaks ~0.3 s BEFORE early licks + doubles after running onset; f4 CENTER / RIGHT (r 0.52 / 0.27),
   peak at 6 Hz (slow, sustained), not early-fast; f5 EARLY + FAST (7-8 Hz), all directions with a left bias; f6 ~0.35 s
   BEFORE early licks, all directions (preparatory); f7 strongest RUNNING factor (speed r 0.56 in trials, 0.68 outside
   licks); f8 running-linked (0.32 / 0.38); f9 RIGHT-selective (r 0.49, left ~0), early AND late, peak ~7 Hz. Caveat:
@@ -218,9 +218,9 @@ paper -- the rank sweep belongs to master_pre_v1). 51 tasks (PS92 28 + PS93 23).
   09:18: PS92_0820, PS92_0818 (acute, full basis; trial err median 0.47). ~13-14 min per task while the share is busy.
   Both drivers are resumable (finished outputs are skipped). Then: rerun `report`, `face_rhythm_readouts.py` on the set.
 * **Figures (queued, start automatically)**: when PS92_0806 / 0807 (pre) are projected: `report --absolute --face
-  <dlc>/face_rhythm/cam4/master_face.png` -> `report/factor_gallery_abs.png` (spatial map coloured by movement direction,
+  <dlc>/face_rhythm/cam4/master_face.png` -> `report/factor_gallery_abs.png` (spatial map colored by movement direction,
   blue lateral / red vertical, size = weight; spectrum; pre-stroke cue-aligned traces by position, L blue / R red /
-  centre grey, close solid / far dashed) + `factor_epochs_abs.png` (cue-aligned by epoch, per animal); and CLIPS, 8
+  center gray, close solid / far dashed) + `factor_epochs_abs.png` (cue-aligned by epoch, per animal); and CLIPS, 8
   examples per factor, engaged trials cue -2..+4 s, PS92_0806 -> `<dlc>/face_rhythm/cam4/factor_clips/pilot_pre_PS92_PS93/`.
   **NO names carried over** (Priya: factor numbers may shift between fits; she names them again from spatial,
   frequency and temporal extent). `report --match <set>` exists as a hint, off by default.

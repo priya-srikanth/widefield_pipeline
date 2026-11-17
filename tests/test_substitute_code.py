@@ -167,13 +167,13 @@ def test_symmetric_raw_transfer_still_produces_a_fake_normalised_asymmetry():
     ceil_pre, ceil_chr = 0.10, 0.23
     fwd = m.retained(0.17 + r, 0.17, 0.17 + ceil_chr, 0.17)   # pre -> chronic
     rev = m.retained(0.17 + r, 0.17, 0.17 + ceil_pre, 0.17)   # chronic -> pre
-    assert rev - fwd > 0.4, "the artefact should be large -- that is why it fooled the first run"
+    assert rev - fwd > 0.4, "the artifact should be large -- that is why it fooled the first run"
     assert (rev - fwd) == pytest.approx(r * (1 / ceil_pre - 1 / ceil_chr), rel=1e-6), (
         "the fake asymmetry must equal the closed form r*(1/ceil_pre - 1/ceil_chr)")
 
 
 def test_equal_ceilings_produce_no_fake_asymmetry():
-    """The control: when the ceilings match, the normalised contrast is honest."""
+    """The control: when the ceilings match, the normalized contrast is honest."""
     m = _mod()
     r = 0.08
     fwd = m.retained(0.17 + r, 0.17, 0.17 + 0.15, 0.17)

@@ -12,7 +12,7 @@ WHY THE FIRMWARE COUNT IS THE GROUND TRUTH, AND WHY IT IS ONLY A TOTAL.
 `device_snapshot_end.json` carries `block_number`, the scheduler's own count of blocks it ran. It is a
 session TOTAL, not per-trial: the GUI polls device status every second but `logging.timeseries_enabled`
 is off, so the polls are never written. (Turning it on would give per-trial block IDs, and was
-considered and rejected — it would stream enough to risk destabilising the log. Priya, 2026-08-18.)
+considered and rejected — it would stream enough to risk destabilizing the log. Priya, 2026-08-18.)
 So `firmware_blocks - observed_runs` gives the exact merge COUNT per session with no inference, but
 not where the boundaries are.
 
@@ -77,29 +77,75 @@ N_POSITIONS = 6                     # the scheduler's cycle length -- six spout 
 
 
 def _behavior_dir(s):
-    """The behaviour-log directory for this session, or None.
+    """The behavior-log directory for this session, or None.
 
-    ``s`` is a session MAPPING, or a Path to the behaviour directory itself. The second form is
+    ``s`` is a session MAPPING, or a Path to the behavior directory itself. The second form is
     what `spout_behavior` holds -- it is already standing in the session's log directory -- and
     accepting it here keeps `block_size_max_for` the single reader of `timing.block_size_max`
-    rather than having the behaviour path grow its own copy of the same three lines.
+    rather than having the behavior path grow its own copy of the same three lines.
 
     Resolved from the session's OWN date, never by globbing the animal — that shortcut silently gave
     every session its animal's earliest config once already (see nolick_decoder.response_window_for).
+
+    11-16 fix (it returned None for every session called with ``{"label": ...}`` alone, the form
+    `state_space_sim.spout_blocks` uses, and for the June baselines whose DAQ file is
+    ``PS94_baseline_<date>_<time>.h5``; those sessions silently fell back to the default 8):
+      * a bare-label mapping is completed from the session table (`config.load_sessions`), the
+        caller's own fields winning;
+      * the date / time come from the DAQ file name OR the motion-corrected path (each tried, not
+        ``h5 or mc``), with an optional infix between animal and date (``_baseline_``);
+      * a ``behavior_trials`` entry counts only if its folder holds gui_config.json (PS93_0805 points at a
+        reviewed-trials CSV in a camera folder);
+      * several log folders on one date (a restarted session): a folder named exactly like the recording
+        (``PS92_20260812_concat``) wins; else the one whose start time is nearest the recording's, not the
+        alphabetically first. Only folders with gui_config.json are candidates.
+    Measured 11-16 on all 139 registered sessions: every one now resolves, and every gui_config says
+    block_size_max 8 / min 4, so the fallback never changed a block (the fix matters for future sessions).
     """
     if isinstance(s, (str, Path)):
         d = Path(s)
         return d if (d / "gui_config.json").exists() else None
-    for cand in config.load_sessions():
-        if cand["label"] == s["label"] and cand.get("behavior_trials"):
-            return Path(cand["behavior_trials"]).parent
-    animal = s["label"].split("_")[0]
-    m = _re.search(rf"{animal}_(\d{{8}})_", str(s.get("h5") or "")) or \
-        _re.search(r"[/\\](\d{8})[/\\]", str(s.get("h5") or s.get("mc") or ""))
-    if not m:
+    rec = dict(s)
+    if not (rec.get("h5") or rec.get("mc")) or "behavior_trials" not in rec:
+        for cand in config.load_sessions():
+            if cand["label"] == rec["label"]:
+                rec = {**cand, **{k: v for k, v in rec.items() if v is not None}}
+                break
+    if rec.get("behavior_trials"):
+        d = Path(rec["behavior_trials"]).parent
+        if (d / "gui_config.json").exists():
+            return d
+    animal = rec["label"].split("_")[0]
+    date = hhmmss = None
+    for src in (str(rec.get("h5") or ""), str(rec.get("mc") or "")):
+        src = src.replace("\\", "/")
+        m = _re.search(rf"{animal}_(?:[A-Za-z]+_)?(\d{{8}})_(\d{{6}})", src)
+        if m:
+            date, hhmmss = date or m.group(1), hhmmss or m.group(2)
+        m = _re.search(rf"{animal}_(?:[A-Za-z]+_)?(\d{{8}})_", src) or _re.search(r"/(\d{8})/", src)
+        if m and date is None:
+            date = m.group(1)
+    if date is None:
         return None
-    hits = sorted(_glob.glob(f"{config.resolver().root('behavior_logs')}/{animal}_{m.group(1)}_*"))
-    return Path(hits[0]) if hits else None
+    hits = [Path(h) for h in sorted(_glob.glob(f"{config.resolver().root('behavior_logs')}/{animal}_{date}_*"))
+            if (Path(h) / "gui_config.json").exists()]
+    if not hits:
+        return None
+    stems = {Path(str(rec.get("h5") or "")).stem}
+    stems |= {p for p in str(rec.get("mc") or "").replace("\\", "/").split("/") if p.startswith(f"{animal}_")}
+    exact = [h for h in hits if h.name in stems]          # PS92_0812: the stitched log PS92_20260812_concat
+    if exact:
+        return exact[0]
+    if hhmmss is None or len(hits) == 1:
+        return hits[0]
+
+    def _sec(t):
+        return int(t[:2]) * 3600 + int(t[2:4]) * 60 + int(t[4:6])
+
+    def _gap(h):
+        t = _re.search(r"_(\d{6})$", h.name)
+        return abs(_sec(t.group(1)) - _sec(hhmmss)) if t else float("inf")
+    return min(hits, key=_gap)
 
 
 def block_size_max_for(s, default=DEFAULT_BLOCK_SIZE_MAX):
@@ -195,7 +241,7 @@ def block_ids(codes, block_size_max=DEFAULT_BLOCK_SIZE_MAX):
 def cycle_ids(codes, block_size_max=DEFAULT_BLOCK_SIZE_MAX, n_positions=N_POSITIONS):
     """Cycle id per trial (-1 = unusable), for the scheduler's `balanced_block_cycles` design.
 
-    The scheduler presents all six positions in a random order, re-randomises, and starts again
+    The scheduler presents all six positions in a random order, re-randomizes, and starts again
     (`gui_config.json timing.scheduling_mode: balanced_block_cycles`, `stop_mode:
     end_of_balanced_cycle`). A cycle is therefore six blocks covering six DISTINCT positions, and a
     position cannot repeat inside one.
@@ -231,7 +277,7 @@ def cycle_ids(codes, block_size_max=DEFAULT_BLOCK_SIZE_MAX, n_positions=N_POSITI
     tests should permute WITHIN cycle rather than within session; measured on all 44 curated
     sessions, no verdict sits in the band where null width could matter, so the within-session nulls
     stand. See DECISIONS.md 2026-09-26. It is kept because it is the prerequisite for reopening that
-    question, and because per-cycle is a natural unit for a behavioural one (does performance drift
+    question, and because per-cycle is a natural unit for a behavioral one (does performance drift
     within a cycle?).
     """
     codes = np.asarray(codes)
@@ -274,8 +320,8 @@ def audit(s, codes, block_size_max=None, verbose=True):
       * reconstructed < firmware -> residual 4+4 merges, the known limit above.
       * reconstructed > firmware -> IMPOSSIBLE from merging alone, so it indicates damaged position
         labels. It fired on exactly the two sessions already known to be damaged: PS93_0806 (dead
-        spout_bit1, behaviour-log fallback) and PS92_0812 (crash + concat). Worth keeping as a
-        position-labelling guard independently of the block question.
+        spout_bit1, behavior-log fallback) and PS92_0812 (crash + concat). Worth keeping as a
+        position-labeling guard independently of the block question.
     """
     bmax = block_size_max or block_size_max_for(s)
     ids = block_ids(np.asarray(codes), bmax)
@@ -297,7 +343,7 @@ def audit(s, codes, block_size_max=None, verbose=True):
         out["status"] = "MORE blocks than the firmware ran -- position labels are suspect"
         if verbose:
             print(f"  [block_ids] {s['label']}: {n_rec} reconstructed vs {n_fw} firmware blocks -- "
-                  f"impossible from merging; check position labelling", flush=True)
+                  f"impossible from merging; check position labeling", flush=True)
     elif n_rec < n_fw:
         out["status"] = f"{n_fw - n_rec} residual merge(s) (4+4 at run-length {bmax})"
     else:

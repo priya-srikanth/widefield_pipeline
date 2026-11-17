@@ -90,7 +90,7 @@ def main(argv=None) -> int:
             ax.axis("off")
         fig.suptitle(f"{animal} {date} {cam}: motion-energy components -- RED pixels move more than average when the "
                      f"component's time course rises, BLUE pixels less (they trade off); white = not involved; the overall "
-                     f"sign is arbitrary. Grey-out = masked.", fontsize=8)
+                     f"sign is arbitrary. Gray-out = masked.", fontsize=8)
         fig.tight_layout()
         fig.savefig(out / f"video_motion_{cam}.png", dpi=110)
         plt.close(fig)

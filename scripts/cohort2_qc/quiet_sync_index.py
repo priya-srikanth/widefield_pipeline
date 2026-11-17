@@ -1,8 +1,8 @@
-"""T20: is quiet cortex more SYNCHRONISED after the stroke? (cohort1, 2026-11-01)
+"""T20: is quiet cortex more SYNCHRONIZED after the stroke? (cohort1, 2026-11-01)
 
 Priya's original hypothesis (handoff section 7): VLS stroke -> less tonic thalamocortical drive. Less-driven cortex is more
-synchronised (large slow fluctuations, less fast activity; Poulet et al. 2012). dF/F cannot see tonic level, but it can see
-synchronisation. Index per area = log10(mean PSD 1-4 Hz / mean PSD 8-15 Hz) of the quiet engaged trace (quiet_fluct
+synchronized (large slow fluctuations, less fast activity; Poulet et al. 2012). dF/F cannot see tonic level, but it can see
+synchronization. Index per area = log10(mean PSD 1-4 Hz / mean PSD 8-15 Hz) of the quiet engaged trace (quiet_fluct
 spectra: Welch 4-s segments, dF/F % not detrended). Change vs the animal's August pre; ipsilesional vs contralesional
 orofacial and limb; whole-cortex mean as the comparison. Reduced drive predicts a rise, strongest in orofacial cortex and,
 if it comes through the ipsilesional thalamic loop, ipsilesionally.
@@ -96,8 +96,8 @@ def figure(S, T):
         a.set_title(nm, fontsize=9)
     ax[0].set_ylabel("change vs pre, log10(PSD 1-4 Hz / 8-15 Hz)")
     sig_marks.reserve_headroom(fig)
-    fig.suptitle("T20: quiet-period synchronisation index (slow / fast power) after the stroke; a less thalamically driven "
-                 "cortex is more synchronised. Sessions (shape = animal), bar = mean of animals; stars = LMM vs pre, FDR",
+    fig.suptitle("T20: quiet-period synchronization index (slow / fast power) after the stroke; a less thalamically driven "
+                 "cortex is more synchronized. Sessions (shape = animal), bar = mean of animals; stars = LMM vs pre, FDR",
                  fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
     fig.savefig(OUT / "quiet_sync_index.png", dpi=110)
