@@ -7,10 +7,15 @@
   "pictures": [
    {
     "shape_name": "fig:lick_recovery_primary",
-    "new_image": "M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-17/swap_inputs/s139_recovery_primary_full_cuedang_3col.png",
-    "source_render": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/bal_full_cuedang_20261117/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/figures/lick_recovery_primary_full.png",
-    "crop_done": "as the old image (both rows + legend; suptitle and footer not drawn, figdata redraw), now 3 columns: cued -> far-contra aim, cued -> cued angle, ITI -> ITI angle (the ITI -> aim column left out as before); 1763 x 934 (old 1164 x 934), so box_emu widens the picture into the free space right of the bullets, centered vertically above the caption",
-    "box_emu": [4389120, 1742227, 7345375, 3891370]
+    "new_image": "M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-17/swap_inputs/s139_recovery_primary_full_cuedang_4col.png",
+    "source_render": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/bal_full_cuedang_20261117/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/figures/lick_recovery_primary_full_cuedleft.png",
+    "crop_done": "as the old image (both rows + legend; suptitle and footer not drawn, figdata redraw --plot-only --fig-tag cuedleft), now all 4 columns in lick_recovery_primary.PLOT_ORDER (Priya 11-17: cued left, ITI right): cued -> far-contra aim, cued -> cued angle, ITI -> ITI angle, ITI -> aim; 2349 x 934 (old 1164 x 934), so box_emu widens the picture into the free space right of the bullets, centered vertically above the caption (a full-width layout would need the bullets moved)",
+    "box_emu": [
+     4389120,
+     2227593,
+     7345375,
+     2920638
+    ]
    }
   ],
   "slide_text": [
@@ -22,13 +27,13 @@
    {
     "shape_name": "TextBox 5",
     "old": "Shown as implied direction = −(balance); top: sessions (gray = pre, left out), mixed models with log(day); bottom: cross-validated R², balance (red) vs days since stroke (gray); cued licks: every first post-cue lick (full set)",
-    "new": "Shown as implied direction = −(balance); columns: cued → far-contra aim, cued → cued lick angle (all spouts, vs pre at the spout), ITI → ITI lick angle; top: sessions (gray = pre, left out), mixed models with log(day); bottom: cross-validated R², balance (red) vs days since stroke (gray); cued licks: every first post-cue lick (full set)"
+    "new": "Shown as implied direction = −(balance); columns: cued → far-contra aim, cued → cued lick angle (all spouts, vs pre at the spout), ITI → ITI lick angle, ITI → far-contra aim; top: sessions (gray = pre, left out), mixed models with log(day); bottom: cross-validated R², balance (red) vs days since stroke (gray); cued licks: every first post-cue lick (full set)"
    }
   ],
   "notes_body": [
-   "lick_recovery_primary_full.png = every first post-cue lick (WFIELD_BAL_FULL=1, 51,252 licks vs 16,076 capped); columns cued first lick -> far-contra aim, cued first lick -> cued lick angle, ITI first lick after quiet -> ITI angle. Balance = angle-matched GAIN RATIO, log2(contralesional activity / what the animal's pre licks at the same angle and order predict) - log2(same, ipsilesional), baseline-subtracted (-1..-0.5 s), 0.1-0.5 s after the FIRST lick, pooled over ALM, tjM1, SSp-m, SSp-n and SSs. Display = implied direction = -(balance). Cued lick angle = per session the mean 3-D landing angle of the same first post-cue licks the balance is measured on, at all six spouts, each lick minus the animal's pre mean angle at that spout (target position removed), signed like the aim (- = ipsilesional).",
-   "Cued first lick -> far-contra aim: per-animal r .79 / .92 / .94 / .75; mixed model slope 13.4 deg per log2 unit (p 2e-5, log(day) in the model); cross-validated R2 for an unseen animal .66 (capped set .67) vs days .23 (within-animal shuffle p .0005). Cued first lick -> cued lick angle: per-animal r .77 / .80 / .97 / .85; slope 6.7 deg per log2 unit (p 1e-5); unseen animal .68 vs days .08 (shuffle p .0005); blocked within animal: balance .49, days .67, + balance .69. Across post-stroke sessions the cued angle and the far-contra aim are nearly one axis (r .94), so the cued balance cannot be told apart from a readout of the direction of its own licks: the cued R2 is a lick-direction result, not independent evidence of a recovery state. ITI -> ITI angle: per-animal r .69 / .83 / .91 / .04, unseen animal .44 vs days .17. Licks inside the pre range only (capped set): cued .48, ITI .12, so the ITI cross-animal result rests on extrapolated licks. Within a known animal the calendar already tracks recovery (blocked: days .75, + balance .78): a STATE MARKER, not a forecast (next-session change p .75 cued, .73 ITI). Window and pool chosen on these data, selection cross-validated; 4 animals. PROVISIONAL.",
-   "FIGURE SOURCE: M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/bal_full_cuedang_20261117/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/figures/lick_recovery_primary_full.png (scripts/lick_recovery_primary.py on the reused balsub_sessions_full.csv of bal_full_20261117, WFIELD_BAL_FULL=1, env of l_recov_primary_g; cued angle from scripts/lick_recovery_markers.py cued_angle_axis); tables recprim_cv_full.csv, recprim_models_full.csv, recprim_sessions_full.csv; README.txt in that folder."
+   "lick_recovery_primary_full.png = every first post-cue lick (WFIELD_BAL_FULL=1, 51,252 licks vs 16,076 capped); columns cued first lick -> far-contra aim, cued first lick -> cued lick angle, ITI first lick after quiet -> ITI angle, ITI first lick after quiet -> far-contra aim. Balance = angle-matched GAIN RATIO, log2(contralesional activity / what the animal's pre licks at the same angle and order predict) - log2(same, ipsilesional), baseline-subtracted (-1..-0.5 s), 0.1-0.5 s after the FIRST lick, pooled over ALM, tjM1, SSp-m, SSp-n and SSs. Display = implied direction = -(balance). Cued lick angle = per session the mean 3-D landing angle of the same first post-cue licks the balance is measured on, at all six spouts, each lick minus the animal's pre mean angle at that spout (target position removed), signed like the aim (- = ipsilesional).",
+   "Cued first lick -> far-contra aim: per-animal r .79 / .92 / .94 / .75; mixed model slope 13.4 deg per log2 unit (p 2e-5, log(day) in the model); cross-validated R2 for an unseen animal .66 (capped set .67) vs days .23 (within-animal shuffle p .0005). Cued first lick -> cued lick angle: per-animal r .77 / .80 / .97 / .85; slope 6.7 deg per log2 unit (p 1e-5); unseen animal .68 vs days .08 (shuffle p .0005); blocked within animal: balance .49, days .67, + balance .69. Across post-stroke sessions the cued angle and the far-contra aim are nearly one axis (r .94), so the cued balance cannot be told apart from a readout of the direction of its own licks: the cued R2 is a lick-direction result, not independent evidence of a recovery state. ITI -> ITI angle: per-animal r .69 / .83 / .91 / .04, unseen animal .44 vs days .17. ITI -> far-contra aim: per-animal r .67 / .87 / .86 / .33, unseen animal .57 vs days .23 (shuffle p .0005). Licks inside the pre range only (capped set): cued .48, ITI .12, so the ITI cross-animal result rests on extrapolated licks. Within a known animal the calendar already tracks recovery (blocked: days .75, + balance .78): a STATE MARKER, not a forecast (next-session change p .75 cued, .73 ITI). Window and pool chosen on these data, selection cross-validated; 4 animals. PROVISIONAL.",
+   "FIGURE SOURCE: M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/bal_full_cuedang_20261117/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/figures/lick_recovery_primary_full_cuedleft.png (scripts/lick_recovery_primary.py --plot-only --fig-tag cuedleft, column order PLOT_ORDER, drawn from the figdata of the render on the reused balsub_sessions_full.csv of bal_full_20261117, WFIELD_BAL_FULL=1, env of l_recov_primary_g; cued angle from scripts/lick_recovery_markers.py cued_angle_axis); tables recprim_cv_full.csv, recprim_models_full.csv, recprim_sessions_full.csv; README.txt in that folder."
   ],
   "data_block": {
    "Window": "0.1-0.5 s after the first lick minus -1.0..-0.5 s (cued: first post-cue lick; ITI: first lick after >= 2 s without licking)",
@@ -63,6 +68,12 @@
     "old": "cued .657 vs .226; ITI .437 vs .167",
     "new": "unchanged (reproduced exactly on the reused session table)",
     "source": "recov_primary_cuedang_try2.log vs bal_full_20261117/logs/recov_primary_full_try4.log"
+   },
+   {
+    "what": "column order and count",
+    "old": "3 columns (cued -> aim, cued -> cued angle, ITI -> ITI angle)",
+    "new": "4 columns, cued left / ITI right (adds ITI -> far-contra aim: r .67 / .87 / .86 / .33, LOAO .57 vs days .23, p .0005)",
+    "source": "bal_full_cuedang_20261117/logs/redraw_cuedleft.log (plot-only); numbers from recov_primary_cuedang_try2.log"
    }
   ],
   "conclusion_changed": false,

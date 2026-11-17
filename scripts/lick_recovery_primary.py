@@ -44,6 +44,11 @@ PANELS = [(lrm.C1SET, CUED_WIN, "aim", "far-contra first-lick aim (deg vs pre)")
           (lrm.C1SET, CUED_WIN, "cued_ang", "cued first-lick angle vs pre, all spouts (deg)")]
 # modelled + saved, not drawn: the far-contra-only cued angle (~ the aim, on the balance's own first licks)
 PANELS_EXTRA = [(lrm.C1SET, CUED_WIN, "cued_ang_fc", "cued first-lick angle vs pre, far contra (deg)")]
+# FIGURE COLUMN ORDER (Priya 11-17: cued panels together on the left, ITI on the right). Drawing order only; PANELS keeps
+# the compute / CSV order. Panels missing from older figdata are skipped; any panel not listed is drawn after these.
+PLOT_ORDER = [f"{lrm.C1SET} -> aim", f"{lrm.C1SET} -> cued_ang", f"{lrm.QSET} -> iti_ang", f"{lrm.QSET} -> aim"]
+# optional figure-name tag (--fig-tag <t> -> lick_recovery_primary{SFX}_<t>.png), so a re-draw never overwrites a figure
+FIG_TAG = sys.argv[sys.argv.index("--fig-tag") + 1] if "--fig-tag" in sys.argv else ""
 AN = lrm.AN
 REF = os.environ.get("WFIELD_BAL_REF", "angle")         # pre-line covariate (lick_balance_subsets.REF)
 REFMETHOD = os.environ.get("WFIELD_BAL_REFMETHOD", "line")
@@ -173,7 +178,10 @@ def plot(F: dict) -> None:
 
     from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE
     T, M, CV, ANr = F["T"], F["M"], F["CV"], F["AN"]
-    panels = [p for p in PANELS if f"{p[0]} -> {p[2]}" in set(T.panel)]     # older figdata: no cued_ang panel
+    have = set(T.panel)                                                    # older figdata: no cued_ang panel
+    rank = {pn: i for i, pn in enumerate(PLOT_ORDER)}
+    panels = sorted([p for p in PANELS if f"{p[0]} -> {p[2]}" in have],
+                    key=lambda p: rank.get(f"{p[0]} -> {p[2]}", len(PLOT_ORDER)))
     fig, axs = plt.subplots(2, len(panels), figsize=(6.2 * len(panels), 11), squeeze=False)
     for j, (st, dn, yv, yl) in enumerate(panels):
         pn = f"{st} -> {yv}"
@@ -230,7 +238,10 @@ def plot(F: dict) -> None:
                  "p < 0.05). Bottom: cross-validated R² vs days since stroke. PROVISIONAL", fontsize=10)
     fig.tight_layout(rect=(0, 0.04, 1, 0.91 if shown else 0.93))
     (il.OUT_W / "figures").mkdir(parents=True, exist_ok=True)       # a fresh WFIELD_ITI_OUT_W folder has none
-    save_png_svg(fig, il.OUT_W / "figures" / f"lick_recovery_primary{SFX}.png", dpi=95)
+    out = il.OUT_W / "figures" / f"lick_recovery_primary{SFX}{'_' + FIG_TAG if FIG_TAG else ''}.png"
+    if FIG_TAG and out.exists():
+        raise SystemExit(f"--fig-tag figure exists, refusing to overwrite: {out}")
+    save_png_svg(fig, out, dpi=95)
     plt.close(fig)
 
 
