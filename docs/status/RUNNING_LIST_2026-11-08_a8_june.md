@@ -632,3 +632,9 @@ PI deck (backup Overview_2026-11-06.bak_pre_a8_renumber_20261116.pptx): FR page 
   ITI dips: share of tjM1 sessions with 0.5-1 s AUC < 0 = 9 % all-ITI, 24 % docked, and EPOCH-DEPENDENT: all-ITI 26 / 12 / 0 / 0 %,
   docked 43 / 30 / 18 / 9 % (pre / acute / subacute / chronic) -> the 0..1 s ITI integral is pulled down mostly in PRE, inflating
   post-stroke ITI increases vs own pre. 52 % of ITI bout starts are single licks (short transient). Figures neg_auc_diag_20261117/.
+- 11-17 Priya: full audit of ITI-window impacts requested (code, outputs, pages, decks, findings docs) -> helper writes
+  docs/status/deck_swap_20261117/ITI_WINDOW_AUDIT_20261117.md and re-renders everything feeding the deck or a page; page items go
+  to their owners (goal page = 3c). Slide 139 4-column figure: reorder cued left / ITI right (queued). Balance sign answered: stored
+  balance = contra - ipsi (+ = contralesional hemisphere larger = looks like an IPSILESIONAL lick in the pre code); slope +13.4 deg per
+  log2 unit vs aim (- = ipsilesional): sessions whose activity looks more ipsilesional land LESS ipsilesionally (angle-matched
+  reference = executed angle, so a target-like signal reads as the landing error).
