@@ -63,7 +63,7 @@ def trial_set_sentence() -> str:
 def main() -> int:
     from wfield_local import trial_set_text as tst
     tst.declare(text=trial_set_sentence())          # every figure states its lick set (Priya 11-09)
-    S = pd.read_csv(il.OUT_W / "balvar_sessions.csv")
+    S = pd.read_csv(il.in_path("balvar_sessions.csv"))
     allc = [c for c in S.columns if c.startswith(("diff:", "ratio:"))]
     fams = {"all definitions": allc,
             "timing: raw difference": [c for c in allc if c.startswith("diff:raw") and c.endswith("|oro")],

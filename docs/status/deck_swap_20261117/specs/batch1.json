@@ -1,0 +1,1261 @@
+[
+ {
+  "slide": 4,
+  "title_now": "Hit rate drops acutely for far & contra; recovers",
+  "status": "ready",
+  "skip_reason": "",
+  "pictures": [
+   {
+    "shape_name": "fig:behaviour_hits_by_spout",
+    "new_image": "M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-17/swap_inputs/s004_hits_by_spout.png",
+    "source_render": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/rebuild_figs/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/behaviour_hits_by_spout.png",
+    "crop_done": "as is (full figure), as the old image"
+   }
+  ],
+  "slide_text": [
+   {
+    "shape_name": "TextBox 3",
+    "old": "•  Far contra: hit rate .94–.96 before, .01–.13 acutely in all 4 animals; far mid .10–.70; close spouts .82–.99",
+    "new": "•  Far contra: hit rate .94–.97 before, .01–.13 acutely in all 4 animals; far mid .10–.77; close spouts .80–.99"
+   },
+   {
+    "shape_name": "TextBox 3",
+    "old": "•  Subacute: far contra back to .65–.81; chronic: .94–1.00 at every spout",
+    "new": "•  Subacute: far contra back to .65–.81; chronic: .92–1.00 at every spout"
+   },
+   {
+    "shape_name": "TextBox 5",
+    "old": "Engaged hit rate (a lick within 3.5 s of the cue); one open marker per session (shape = animal, color = epoch); filled dot + bar = mean of 4 animals ± SEM. Stars: change vs own pre, bootstrap over these 4 animals (* 95 % CI excludes 0, ** Holm across the 18 cells).",
+    "new": "Hit rate over camera working-period trials (contact / (contact + incomplete + jaw-only + no response); contact = a DAQ spout contact from cue + 70 ms to 3.5 s or the trial stop); one open marker per session (shape = animal, color = epoch); filled dot + bar = mean of 4 animals ± SEM."
+   }
+  ],
+  "notes_body": [
+   "Hit = a camera-class contact trial (a DAQ spout contact between cue + 70 ms and min(3.5 s, trial stop)) over all camera working-period trials (first cue to the session's last camera lick, stopped runs removed): contact / (contact + incomplete + jaw-only + no response); column frac_hit_<pos> of the run's trial_attempts_sessions.csv (scripts/rebuild_figs/fig_behaviour_hits.py). Trials from the DAQ strobe. Curated sessions, pre = August only. One open marker per session (shape = animal, color = epoch); filled dot + bar = mean of the 4 animals' session means ± SEM over animals (no connecting lines). Sessions per animal (pre / acute / subacute / chronic): PS92 8/5/2/12, PS93 7/4/3/12, PS94 8/6/5/8, PS95 8/1/7/11 (PS95 acute = one session).",
+   "Per animal, far contra pre -> acute: PS92 .97 -> .04, PS93 .97 -> .13, PS94 .94 -> .04, PS95 .95 -> .01; subacute .65 / .69 / .81 / .81; chronic .99 / .98 / .92 / .96. Far mid acute .69 / .77 / .26 / .10. A miss here = no contact; most acute far-contra misses are attempts that fall short (section 2).",
+   "Robustness: the DAQ quit-tail (engagement-gated) hit rate gives the same picture (far contra acute .04 / .13 / .03 / .01; behaviour_hits_by_spout_daq_quittail.png, same run).",
+   "This render carries no significance marks; a bootstrap-star version has not been rendered on the rebuild.",
+   "Hit rate is back by chronic, but the first-lick aim is not fully back (next slides: kinematics Fig 1.4, encoding Fig 16.9, kinematics Fig 1.5).",
+   "FIGURE SOURCE: imaging page Fig 0.2 · rebuild render M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/rebuild_figs/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/behaviour_hits_by_spout.png (step g7_fig_behaviour_hits, 11-06, code 5db29b07; table behaviour_hits_by_spout.csv beside it) · deck image: presentations/_source_PI_overview_2026-11-17/swap_inputs/s004_hits_by_spout.png (as is)."
+  ],
+  "data_block": {
+   "Window": "response window: cue + 70 ms to min(3.5 s, DAQ trial stop) (camera classes)",
+   "Licks": "DAQ spout contact inside the camera trial classes (cam4 + cam1 + DAQ contact); robustness figure: DAQ licks",
+   "Trial period": "camera working period: first cue to the session's last camera lick, stopped runs (A2 + lick excise) removed (WIDEFIELD_TRIAL_GATE=camera, TRIAL_WINDOW=cue_stop, TRIAL_END=lick, TRIAL_STOPPED=both); robustness figure: DAQ quit-tail engaged trials",
+   "Trial types": "hit rate = contact / (contact + incomplete + jaw_only + no_response)",
+   "Gate": "camera trial gate (fig_behaviour_hits refuses a table without frac_stopped_* columns)",
+   "Baseline": "levels per epoch; August pre only (WIDEFIELD_PRE_FROM=0801): 31 sessions (PS92 8 / PS93 7 (camera table) / PS94 8 / PS95 8)",
+   "Correction": "none: mean of the 4 animals' session means ± SEM over animals; no stars on this render [traced: render log g7_fig_behaviour_hits.log]"
+  },
+  "changes": [
+   {
+    "what": "gate of the picture",
+    "old": "11-03 picture = spout_behavior engaged gate (y axis 'hit rate, engaged trials'), although the Data block already said camera working period",
+    "new": "camera working period (y axis 'hit rate, camera working period'); picture and Data block now agree",
+    "source": "g7_fig_behaviour_hits.log header (TRIAL_GATE=camera) + scripts/rebuild_figs/fig_behaviour_hits.py L1-11"
+   },
+   {
+    "what": "far contra pre range",
+    "old": ".94–.96",
+    "new": ".94–.97",
+    "source": "g7_fig_behaviour_hits.log camera table (pre far_contra .97/.97/.94/.95)"
+   },
+   {
+    "what": "far contra acute range",
+    "old": ".01–.13",
+    "new": ".01–.13 (unchanged; .04/.13/.04/.01)",
+    "source": "g7_fig_behaviour_hits.log camera table"
+   },
+   {
+    "what": "far mid acute range",
+    "old": ".10–.70",
+    "new": ".10–.77",
+    "source": "g7_fig_behaviour_hits.log camera table (.69/.77/.26/.10)"
+   },
+   {
+    "what": "close spouts acute range",
+    "old": ".82–.99",
+    "new": ".80–.99",
+    "source": "g7_fig_behaviour_hits.log camera table (PS94 close contra .80)"
+   },
+   {
+    "what": "chronic range",
+    "old": ".94–1.00",
+    "new": ".92–1.00",
+    "source": "g7_fig_behaviour_hits.log camera table (PS94 far contra chronic .92)"
+   },
+   {
+    "what": "stars",
+    "old": "bootstrap stars (** acute close mid / close contra / far ipsi / far mid / far contra, subacute far contra)",
+    "new": "removed: the rebuild render has no stars (no rebuilt test table)",
+    "source": "rebuild_figs folder holds no _stars render / tests csv"
+   },
+   {
+    "what": "PS93 pre sessions",
+    "old": "8",
+    "new": "7 (camera table; PS93_0813 has no video)",
+    "source": "g7_fig_behaviour_hits.log session table"
+   },
+   {
+    "what": "per-animal far contra acute",
+    "old": "PS94 .03",
+    "new": "PS94 .04 (camera table; .03 in the DAQ quit-tail robustness table)",
+    "source": "g7_fig_behaviour_hits.log"
+   }
+  ],
+  "conclusion_changed": false,
+  "conclusion_note": "Main point holds. The figure loses its bootstrap stars (no starred version on the rebuild); a starred render would need a new run (group C)."
+ },
+ {
+  "slide": 6,
+  "title_now": "First-lick aim does not fully recover: ipsilesional at every spout",
+  "status": "ready",
+  "skip_reason": "",
+  "pictures": [
+   {
+    "shape_name": "fig:k_aim_spout",
+    "new_image": "M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-17/swap_inputs/s006_aim_by_spout_2row.png",
+    "source_render": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/figures/lick_cued_aim_by_spout.png",
+    "crop_done": "suptitle, legend and purple trial-set footnote removed; 7 panels re-tiled as 2 rows (close ipsi / mid / contra; far ipsi / mid / contra + weighted aim), y-axis label repeated on row 2, as the old image (legend moved to the caption)"
+   }
+  ],
+  "slide_text": [
+   {
+    "shape_name": "TextBox 5",
+    "old": "Dots = sessions (color = animal); marker = animal-weighted mean, nested-bootstrap 95 % CI; * CI excludes 0, ** Bonferroni over 18; pre column = pre sessions vs their own mean (noise floor)",
+    "new": "Open markers = sessions (shape = animal: circle PS92, square PS93, triangle PS94, diamond PS95; color = epoch); filled marker = animal-weighted mean, nested-bootstrap 95 % CI; * CI excludes 0, ** Bonferroni over 18; pre column = pre sessions vs their own mean (noise floor)"
+   }
+  ],
+  "notes_body": [
+   "Kinematics page Fig 1.4. Measure (iti_recovery_measure.aim_licks): the 3-D aim angle atan2(lateral, sagittal) at the extension peak of the FIRST post-cue lick of each trial; per session x target spout with >= 5 first licks, the session mean minus the animal's mean over its August pre sessions at that spout (deg); + = contralesional. 3-D tongue = cam1 (below) + cam4 LP v36, triangulated per session on the commanded spouts; curated sessions, pre 31 / acute 16 / subacute 17 / chronic 43, 4 animals. 7th panel = WEIGHTED aim (far contra 3 : far mid 2 : others 1).",
+   "Stats: animal-weighted mean, nested bootstrap animals -> sessions (2,000 draws); * CI excludes 0, ** Bonferroni over 18 (6 spouts x 3 epochs). Acute / subacute / chronic: close ipsi -11.4** / -10.6** / -9.8**; close mid -7.8** / -6.3** / -3.8*; close contra -8.5** / -4.2** / -2.2 (n.s.); far ipsi -14.1** / -11.4** / -7.1*; far mid -17.0** / -8.4** / -6.2**; far contra -27.9** / -12.4** / -7.0**; weighted -17.7** / -9.6** / -6.2**.",
+   "Per animal: every spout shifts ipsilesionally acutely (all 4 animals negative at all six); close ipsi chronic -9.8 (3 / 4 animals at -9.7 to -14.8, PS92 -2.1). 25 % residual = chronic / acute far-contra aim, -7.0 / -27.9 (PS94 45 %: -16.1 / -35.9).",
+   "FIGURE SOURCE: Kinematics page Fig 1.4 · rebuild render M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/figures/lick_cued_aim_by_spout.png (step a_aim_by_spout_g, 11-11, code 8aed3a7b; tables aim_by_spout_tests.csv / aim_by_spout_sessions.csv in iti_licks/<tag>/; script scripts/lick_cued_aim_by_spout.py) · deck image: presentations/_source_PI_overview_2026-11-17/swap_inputs/s006_aim_by_spout_2row.png (suptitle, legend, footnote removed; 7 panels re-tiled 2 rows)."
+  ],
+  "data_block": {
+   "Window": "FIRST post-cue lick of each trial (inside the trial's response window); 3-D aim angle atan2(lateral, sagittal) at the extension peak",
+   "Licks": "LP video licks with the triangulated 3-D tongue (cam4 LP v36 + cam1; where-decoder lick table, COMBINED_ENCODING_TONGUE=3d)",
+   "Trial period": "every trial (no engagement / camera-class gate in the aim table; at most 1500 post-cue licks per session, random draw seed 0)",
+   "Trial types": "trials with a first cued lick; session x spout cells with >= 5 first licks",
+   "Gate": "none (the run env carried WIDEFIELD_TRIAL_GATE=camera, which the aim table does not use)",
+   "Baseline": "change from the animal's own August pre mean at that spout (WIDEFIELD_PRE_FROM=0801); pre 31 / acute 16 / subacute 17 / chronic 43 sessions",
+   "Correction": "nested bootstrap animals -> sessions, 2,000 draws; * 95 % CI excludes 0, ** Bonferroni over 18 (6 spouts x 3 post epochs) [traced: render log a_aim_by_spout_g.log]"
+  },
+  "changes": [
+   {
+    "what": "all slide numbers",
+    "old": "far contra -27.9 / -12.4 / -7.0, close ipsi chronic -9.8, close contra chronic -2.2 n.s., weighted chronic -6.2, 25 %",
+    "new": "unchanged",
+    "source": "a_aim_by_spout_g.log pooled table + per-animal table"
+   },
+   {
+    "what": "picture",
+    "old": "11-02 page render (color = animal)",
+    "new": "11-11 rebuild render (open markers, shape = animal, color = epoch)",
+    "source": "a_aim_by_spout_g.log"
+   },
+   {
+    "what": "caption marker key",
+    "old": "Dots = sessions (color = animal)",
+    "new": "open markers, shape = animal, color = epoch (legend not in the cut picture)",
+    "source": "figure legend of the rebuild render"
+   },
+   {
+    "what": "notes: cam4 all-lick executed angle far contra chronic -2.3 (Fig 3.6)",
+    "old": "-2.3 (n.s.)",
+    "new": "removed: untraced in this rebuild log",
+    "source": "not in a_aim_by_spout_g.log"
+   }
+  ],
+  "conclusion_changed": false,
+  "conclusion_note": ""
+ },
+ {
+  "slide": 8,
+  "title_now": "Aim LMM: log-time recovery",
+  "status": "ready",
+  "skip_reason": "",
+  "pictures": [
+   {
+    "shape_name": "fig:lmm_time_behaviour",
+    "new_image": "M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-17/swap_inputs/s008_lmm_time_aim.png",
+    "source_render": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/figures/lmm_time_behaviour.png",
+    "crop_done": "suptitle and bottom x-note / purple trial-set footnote removed, as the old image"
+   }
+  ],
+  "slide_text": [
+   {
+    "shape_name": "TextBox 3",
+    "old": "•  PS94 stays below the pooled curve (about −15 to −25° far contra from day 15)",
+    "new": "•  PS94 stays below the pooled curve (chronic far-contra mean −18.7° vs −2.8 to −6.5° in the other three)"
+   },
+   {
+    "shape_name": "TextBox 5",
+    "old": "One marker per session (circles pre, triangles post; color = animal); black = pooled fit y ~ post + post:log(day), random step + slope per animal; dotted = fitted pre level",
+    "new": "One open marker per session (shape = animal, color = epoch); black = pooled fit y ~ post + post:log(day), random step + slope per animal; dotted = fitted pre level"
+   }
+  ],
+  "notes_body": [
+   "Encoding page Fig 16.9. TIME model y ~ post + post:log(day): post = the step at day 1 vs pre, post:lday = change per e-fold of days (day 1 -> ~3 -> ~7 -> ~20 -> ~55; 0 = no recovery). Fits carry a random step and slope per animal (re ~post + post:lday), n = 107 sessions. FIRST-lick weighted signed aim: -19.7 deg at day 1 (z -5.5), +4.01 per e-fold (z 5.1); far-contra signed aim -30.4 (z -5.8), +6.98 per e-fold (z 8.2); all q < .001 (BH-FDR within model x term over the 2 behavior measures). z values are OPTIMISTIC: neighboring sessions are not modeled as correlated (sessions as observations); read with the per-animal epoch tables (previous slide).",
+   "Per-animal epoch means, far-contra aim (pre / acute / subacute / chronic): PS92 1.7 / -26.8 / -12.2 / -2.8; PS93 -1.7 / -21.4 / -9.5 / -6.5; PS94 -2.6 / -38.5 / -19.6 / -18.7; PS95 -3.5 / -31.0 / -14.6 / -6.1: the chronic residual is mostly PS94. Licks: LP video licks (cam4) with 3-D tongue position; tables lmm_behaviour.csv; script scripts/iti_lmm_figures.py (wfield_local/mixed_models.py). PROVISIONAL.",
+   "FIGURE SOURCE: Encoding (goal) page Fig 16.9 · rebuild render M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/figures/lmm_time_behaviour.png (step e_lmm_all_g, 11-11, code 8aed3a7b) · deck image: presentations/_source_PI_overview_2026-11-17/swap_inputs/s008_lmm_time_aim.png (suptitle and bottom notes removed)."
+  ],
+  "data_block": {
+   "Window": "FIRST post-cue lick of each trial (inside the trial's response window); 3-D aim angle atan2(lateral, sagittal) at the extension peak",
+   "Licks": "LP video licks with the triangulated 3-D tongue (cam4 LP v36 + cam1; where-decoder lick table, COMBINED_ENCODING_TONGUE=3d)",
+   "Trial period": "every trial (no engagement / camera-class gate in the aim table; at most 1500 post-cue licks per session, random draw seed 0)",
+   "Trial types": "trials with a first cued lick; sessions with >= 20 such licks; per spout >= 5 licks per session (figure data line)",
+   "Gate": "none (the run env carried WIDEFIELD_TRIAL_GATE=camera, which the aim table does not use)",
+   "Baseline": "deg vs the animal's own August pre landing (PRE_FROM=0801); pre level fitted (dotted)",
+   "Correction": "BH-FDR within model x term over the 2 behavior measures (mixed_models.lmm_table, fdr_by=()); z from the mixed model, sessions as observations (optimistic) [traced: render log e_lmm_all_g.log]"
+  },
+  "changes": [
+   {
+    "what": "far contra step / slope, weighted step / slope",
+    "old": "-30.4 (z -5.8) / +6.98 (z 8.2); -19.7 / +4.0; q < .001",
+    "new": "unchanged",
+    "source": "e_lmm_all_g.log L407-408"
+   },
+   {
+    "what": "PS94 below pooled curve",
+    "old": "about -15 to -25 deg far contra from day 15 (read off the plot)",
+    "new": "chronic far-contra epoch mean -18.7 vs -2.8 to -6.5 in the other three",
+    "source": "e_lmm_all_g.log per-animal epoch means (L396-400)"
+   },
+   {
+    "what": "caption marker key",
+    "old": "circles pre, triangles post; color = animal",
+    "new": "open markers, shape = animal, color = epoch",
+    "source": "rebuild render legend"
+   },
+   {
+    "what": "notes: all-lick versions -15.6 / +3.8 and -27.3 / +6.8",
+    "old": "-15.6 / +3.8, -27.3 / +6.8",
+    "new": "removed: untraced (no WFIELD_AIM=all run in the rebuild logs)",
+    "source": "e_lmm_all_g.log has the first-lick fits only"
+   }
+  ],
+  "conclusion_changed": false,
+  "conclusion_note": ""
+ },
+ {
+  "slide": 9,
+  "title_now": "Aim per spout over days: close ipsi stuck",
+  "status": "ready",
+  "skip_reason": "",
+  "pictures": [
+   {
+    "shape_name": "fig:k_aim_days",
+    "new_image": "M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-17/swap_inputs/s009_aim_days_2row.png",
+    "source_render": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/figures/lick_cued_aim_by_spout_days.png",
+    "crop_done": "suptitle, legend and purple trial-set footnote removed; 7 panels re-tiled as 2 rows (close, then far + weighted), y-axis label repeated on row 2, as the old image"
+   }
+  ],
+  "slide_text": [
+   {
+    "shape_name": "TextBox 5",
+    "old": "Thin = per animal, one point per session (>= 5 first licks at the spout); black = pooled cross-animal fit; dashed = stroke",
+    "new": "Open markers = one point per session with >= 5 first licks at the spout (shape = animal, color = epoch); filled = epoch mean ± SEM over animals; black = pooled cross-animal fit; dashed = stroke"
+   }
+  ],
+  "notes_body": [
+   "Hidden supplement to the previous slide. Kinematics page Fig 1.5: the Fig 1.4 measure (six spouts + weighted aim) against day after stroke; pooled fit = the goal page's time model (Fig 16.9) per spout, y ~ post + post:lday with animal random effects (ladder ~post + post:lday -> ~post -> ~1; ~post + post:lday everywhere except close contra and far ipsi, ~post), n = 107 sessions. Step (q) / recovery per e-fold (q), BH over 7 panels: close ipsi -13.2 (.005) / +1.0 (.43, n.s.); close mid -10.1 (<.001) / +1.9 (.013); close contra -10.5 / +2.6; far ipsi -16.1 / +2.6; far mid -18.0 / +3.5 (.005); far contra -30.4 / +7.0; weighted -19.7 / +4.0 (reproduces Fig 16.9 exactly). Close ipsi chronic epoch mean -9.8. Numbers aim_by_spout_sessions.csv, aim_by_spout_time_lmm.csv.",
+   "FIGURE SOURCE: Kinematics page Fig 1.5 · rebuild render M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/figures/lick_cued_aim_by_spout_days.png (step a_aim_by_spout_g, 11-11, code 8aed3a7b) · deck image: presentations/_source_PI_overview_2026-11-17/swap_inputs/s009_aim_days_2row.png (suptitle, legend, footnote removed; 7 panels re-tiled 2 rows)."
+  ],
+  "data_block": {
+   "Window": "FIRST post-cue lick of each trial (inside the trial's response window); 3-D aim angle atan2(lateral, sagittal) at the extension peak",
+   "Licks": "LP video licks with the triangulated 3-D tongue (cam4 LP v36 + cam1; where-decoder lick table, COMBINED_ENCODING_TONGUE=3d)",
+   "Trial period": "every trial (no engagement / camera-class gate in the aim table; at most 1500 post-cue licks per session, random draw seed 0)",
+   "Trial types": "trials with a first cued lick; session x spout cells with >= 5 first licks",
+   "Gate": "none (the run env carried WIDEFIELD_TRIAL_GATE=camera, which the aim table does not use)",
+   "Baseline": "change from the animal's own August pre mean at that spout (WIDEFIELD_PRE_FROM=0801); pre 31 / acute 16 / subacute 17 / chronic 43 sessions",
+   "Correction": "pooled time model per panel (mixed_models, animal random effects); q = BH-FDR over the 7 panels per term [traced: render log a_aim_by_spout_g.log]"
+  },
+  "changes": [
+   {
+    "what": "step / slope per spout",
+    "old": "close ipsi -13.2 (q .005) / +1.0 (q .43) ... weighted -19.7 / +4.0",
+    "new": "unchanged",
+    "source": "a_aim_by_spout_g.log time-model table"
+   },
+   {
+    "what": "caption",
+    "old": "Thin = per animal, one point per session",
+    "new": "open markers per session (shape = animal, color = epoch), filled = epoch mean ± SEM; no per-animal lines in the rebuild figure",
+    "source": "rebuild render"
+   }
+  ],
+  "conclusion_changed": false,
+  "conclusion_note": ""
+ },
+ {
+  "slide": 11,
+  "title_now": "Frozen decoder: far contra .90 → .32 acutely",
+  "status": "ready",
+  "skip_reason": "",
+  "pictures": [
+   {
+    "shape_name": "fig:d_acc_cue",
+    "new_image": "M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-17/swap_inputs/s011_acc_cue_chart.png",
+    "source_render": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/grant_figures/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/epoch/epoch_acc_by_position_cue_working.png",
+    "crop_done": "title + n / bootstrap block removed (chart panels + legend kept), as the old image; the purple trial-set footnote that overlaps the x labels removed by colour (pixels that are a blend of the footnote purple over white set to white; a few residual pixels remain where it crossed the gray group lines)"
+   }
+  ],
+  "slide_text": [
+   {
+    "shape_name": "TextBox 1",
+    "old": "Frozen decoder: far contra .90 → .32 acutely",
+    "new": "Frozen decoder: far contra .88 → .24 acutely"
+   },
+   {
+    "shape_name": "TextBox 3",
+    "old": "•  Far contra .90 → .32 acutely, .63 subacute, .72 chronic (cue window)",
+    "new": "•  Far contra .88 → .24 acutely, .66 subacute, .72 chronic (cue window)"
+   }
+  ],
+  "notes_body": [
+   "Cue window (picture; imaging page Fig 2.3): FROZEN pre-stroke 6-way decoder per animal, fit on that animal's August pre sessions and never refitted (frozen_models; pre bar = leave one session out within animal). Camera working-period trials (contact + incomplete), DAQ spout contact; bars = trial-pooled accuracy, open markers = sessions (shape = animal, color = epoch); nested bootstrap animals -> sessions -> blocks (2,000 draws); * 95 % CI of epoch - pre excludes 0, ** Bonferroni over 18. Pre 31 / acute 16 / subacute 17 / chronic 43 sessions (PS93_0813 excluded: no camera working rows). Far contra pre .879 -> acute .240 [.137, .375], subacute .662, chronic .722; acute change -.618 [-.695, -.531], corrected [-.722, -.488]. Graded: acute near .72 / .73 / .69 vs far .54 / .50 / .24 (ipsi / middle / contra).",
+   "Lick window (bullet 3; imaging page Fig 2.4, not pictured): the LP-trained frozen decoder (epoch-arm set): FROZEN pre-stroke 6-way multinomial logistic regression on each animal's joint-LocaNMF dorsal-cortex components, fit once on that animal's August pre-stroke lick trials (LP licks); pre scored leave-one-session-out. Window: 0-2 s from the first LP lick (8 x 0.25 s bins). Trials: lick trials (LP licks: a video lick, contact or incomplete (cam4 + cam1) within 3.5 s of the cue). Pre: August only, 31 sessions; acute 16 / subacute 17 / chronic 43. Stats: paired nested bootstrap (animals -> sessions -> position blocks, 2,000 draws); * = 95 % CI of epoch - pre excludes 0, ** = the 18-comparison corrected CI excludes 0. Far contra pre .909 -> acute .193 [.102, .336], subacute .653, chronic .723; acute change -.686 [-.790, -.569], corrected [-.834, -.510], 4 / 4, larger than the cue-window loss. Acute far middle -.335, corrected [-.515, -.161]; acute far ipsi -.243, corrected [-.509, -.058]. Subacute far contra -.288, corrected [-.501, -.105]; chronic -.187, corrected [-.337, -.030]. Mask: LocaNMF components overlapping the painted fiber-glue region are dropped.",
+   "FIGURE SOURCE: Imaging page Fig 2.3 · rebuild render M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/grant_figures/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/epoch/epoch_acc_by_position_cue_working.png (step g5_epoch_g, 11-09, code 8aed3a7b; sidecars epoch/data/epoch_acc{,delta}_by_position_cue_working.csv) · lick-window numbers: M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/grant_figures/LP_licks_gateLP_hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/epoch/data/epoch_acc{,delta}_by_position_lick_lick.csv (step g5_epoch_lp_lick_g, 11-09) · deck image: presentations/_source_PI_overview_2026-11-17/swap_inputs/s011_acc_cue_chart.png (chart panels)."
+  ],
+  "data_block": {
+   "Window": "cue window, post-cue 0-2 s (picture); lick window 0-2 s from the first LP lick (bullet 3)",
+   "Licks": "DAQ spout contact (picture: g5_epoch_g 'lick source: daq'); LP video licks cam4 + cam1 (bullet 3: LP_licks_gateLP run)",
+   "Trial period": "camera working period: first cue to the session's last camera lick, stopped runs (A2 + lick excise) removed (WIDEFIELD_TRIAL_GATE=camera, TRIAL_WINDOW=cue_stop, TRIAL_END=lick, TRIAL_STOPPED=both)",
+   "Trial types": "working = camera contact + incomplete trials (picture); lick trials (bullet 3)",
+   "Gate": "camera trial gate (PS93_0813 excluded: no camera working rows)",
+   "Baseline": "August pre only (WIDEFIELD_PRE_FROM=0801): 31 sessions (PS92 8 / PS93 7 / PS94 8 / PS95 8); frozen decoders fit on August pre; pre bar leave-one-session-out within animal",
+   "Correction": "nested bootstrap animals -> sessions -> blocks, 2,000 draws; * 95 % CI of epoch - pre excludes 0, ** Bonferroni over 18 (6 positions x 3 post epochs, epoch_accuracy n_comp) [traced: render log g5_epoch_g.log]"
+  },
+  "changes": [
+   {
+    "what": "title / bullet 1 far contra",
+    "old": ".90 → .32 acutely, .63 subacute, .72 chronic",
+    "new": ".88 → .24 acutely, .66 subacute, .72 chronic",
+    "source": "g5_epoch_g.log -> epoch/data/epoch_acc_by_position_cue_working.csv"
+   },
+   {
+    "what": "acute far contra change",
+    "old": "-.575 [-.738, -.394]",
+    "new": "-.618 [-.695, -.531], corrected [-.722, -.488]",
+    "source": "epoch/data/epoch_accdelta_by_position_cue_working.csv"
+   },
+   {
+    "what": "training / pre set",
+    "old": "decoder trained on all pre (June + August)",
+    "new": "August pre only (PRE_FROM=0801), 31 sessions",
+    "source": "g5_epoch_g.log env + sidecar meta subtitle"
+   },
+   {
+    "what": "trials",
+    "old": "working trials (licking + misses while working), DAQ gate",
+    "new": "camera working-period trials (contact + incomplete)",
+    "source": "sidecar meta title"
+   },
+   {
+    "what": "lick-window bullet 3",
+    "old": ".91 → .19, −.69, 4 / 4",
+    "new": "unchanged (already rebuild numbers); per-animal session means (-.82 / -.73 / -.66 / -.60 etc.) removed from notes: not re-read here",
+    "source": "LP_licks_gateLP_<tag>/epoch/data/epoch_acc{,delta}_by_position_lick_lick.csv"
+   }
+  ],
+  "conclusion_changed": false,
+  "conclusion_note": "Main point holds; title number changes (.90 → .32 becomes .88 → .24)."
+ },
+ {
+  "slide": 13,
+  "title_now": "Frozen pre-cue decoder: far contra lost 4 / 4",
+  "status": "ready",
+  "skip_reason": "",
+  "pictures": [
+   {
+    "shape_name": "fig:d_lpf_enl1_lp",
+    "new_image": "M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-17/swap_inputs/s013_precue_lp_chart.png",
+    "source_render": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/grant_figures/LPfinal/trained_lp/LP_licks_gateLP_hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/epoch/epoch_acc_by_position_precue_working.png",
+    "crop_done": "title block and n / bootstrap block removed (chart panels + legend kept), as the old image; the purple trial-set footnote that overlaps the x labels removed by colour (pixels that are a blend of the footnote purple over white set to white; a few residual pixels remain where it crossed the gray group lines)"
+   }
+  ],
+  "slide_text": [
+   {
+    "shape_name": "TextBox 3",
+    "old": "•  Far contra .42 → .19 acutely (pooled), down in 4 / 4 animals; .31 chronically",
+    "new": "•  Far contra .44 → .21 acutely (pooled), down in 4 / 4 animals; .34 chronically"
+   },
+   {
+    "shape_name": "TextBox 3",
+    "old": "•  Same at 1.5 s and with a DAQ-trained decoder (every far-contra cell within .03)",
+    "new": ""
+   },
+   {
+    "shape_name": "TextBox 3",
+    "old": "•  The pre-cue code and the pre-cue maps both lose far contra",
+    "new": ""
+   },
+   {
+    "shape_name": "TextBox 5",
+    "old": "Bars = trial-pooled accuracy, 95 % CI; dots = sessions; * CI of epoch − pre excludes 0, ** Bonferroni over 18; chance .17",
+    "new": "Bars = trial-pooled accuracy, 95 % CI; open markers = sessions (shape = animal, color = epoch); * CI of epoch − pre excludes 0, ** Bonferroni over 18; chance .17"
+   }
+  ],
+  "notes_body": [
+   "Imaging page Fig 2.8: pre-cue (ENL, no LP lick) 1.0 s decoding by position and epoch, final LP arm, LP-trained. Decoder: FROZEN pre-stroke 6-way multinomial logistic regression on each animal's joint-LocaNMF dorsal-cortex components in time sub-bins, fit once on that animal's August pre trials (LP licks; frozen on 8 / 7 / 8 / 8 pre sessions), stored frozen (frozen_models_lpfinal), loaded unchanged; pre bar scored leave-one-session-out. Window: 1.0 s ending at the cue, free of LP video licks (cam4 + cam1). Trials: camera working-period trials (contact + incomplete; stopped runs removed). Movement not regressed out. Pre 31 / acute 16 / subacute 17 / chronic 43 sessions, 4 animals. Nested bootstrap animals -> sessions -> position blocks (2,000 draws); * 95 % CI of epoch - pre excludes 0, ** Bonferroni over 18.",
+   "Far contra pooled pre .435 [.379, .497] -> acute .213 [.131, .326] **, subacute .335 **, chronic .338 **; acute change -.201 [-.270, -.116], corrected [-.293, -.063]; chronic change -.095, corrected [-.205, -.010]. Per animal (log table, pre 8 / 8 / 9 / 9 sessions): PS92 .374 -> .143, PS93 .404 -> .165, PS94 .525 -> .313, PS95 .421 -> .300 (4 / 4 down; PS95 acute = one session, 40 far-contra trials).",
+   "The figure's own title (cut from the picture) still reads 'lick + miss-while-working | gate: engaged = DAQ contact OR LP attempt': the run's code (cd6da055) predates the caption fix; the run's selection tag and env are the camera working period.",
+   "FIGURE SOURCE: Imaging page Fig 2.8 · rebuild render M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/grant_figures/LPfinal/trained_lp/LP_licks_gateLP_hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/epoch/epoch_acc_by_position_precue_working.png (step g5_lpfinal_dec_r, 11-08, code cd6da055: scripts/lp_final_render.py decoders --window 1.0 --trained lp; sidecars epoch/data/epoch_acc{,delta}_by_position_precue_working.csv) · deck image: presentations/_source_PI_overview_2026-11-17/swap_inputs/s013_precue_lp_chart.png (chart panels)."
+  ],
+  "data_block": {
+   "Window": "1.0 s ending at the cue, free of LP video licks (ENL arm)",
+   "Licks": "LP video licks cam4 + cam1 (WIDEFIELD_LICK_SOURCE=lp); decoder trained on LP pre trials (WIDEFIELD_LP_FROZEN=lp)",
+   "Trial period": "camera working period: first cue to the session's last camera lick, stopped runs (A2 + lick excise) removed (WIDEFIELD_TRIAL_GATE=camera, TRIAL_WINDOW=cue_stop, TRIAL_END=lick, TRIAL_STOPPED=both)",
+   "Trial types": "working = camera contact + incomplete trials (WIDEFIELD_WORKING_TRIALS=in_working); PS93_0813 excluded (no video)",
+   "Gate": "camera trial gate",
+   "Baseline": "August pre only (WIDEFIELD_PRE_FROM=0801): 31 sessions (PS92 8 / PS93 7 / PS94 8 / PS95 8); frozen on August pre; pre bar leave-one-session-out",
+   "Correction": "nested bootstrap animals -> sessions -> position blocks, 2,000 draws; * 95 % CI excludes 0, ** Bonferroni over 18 (epoch_accuracy n_comp) [traced: render log g5_lpfinal_dec_r.log]"
+  },
+  "changes": [
+   {
+    "what": "picture",
+    "old": "pre-rebuild render (11-02, DAQ-rule LP gate, no log)",
+    "new": "rebuild render (11-08, camera working period)",
+    "source": "g5_lpfinal_dec_r.log"
+   },
+   {
+    "what": "pooled far contra",
+    "old": ".42 → .19 acutely, .29 subacute, .31 chronic",
+    "new": ".44 → .21 acutely, .34 subacute, .34 chronic",
+    "source": "epoch/data/epoch_acc_by_position_precue_working.csv"
+   },
+   {
+    "what": "per animal far contra pre -> acute",
+    "old": ".34 -> .12, .38 -> .15, .50 -> .28, .42 -> .15",
+    "new": ".37 -> .14, .40 -> .17, .53 -> .31, .42 -> .30 (4 / 4)",
+    "source": "g5_lpfinal_dec_r.log L41-56"
+   },
+   {
+    "what": "bullet 3 (1.5 s window and DAQ-trained decoder within .03)",
+    "old": "Same at 1.5 s and with a DAQ-trained decoder",
+    "new": "removed: untraced (no 1.5 s or DAQ-trained decoder render in the rebuild)",
+    "source": "LPfinal holds trained_lp / 1.0 s only"
+   },
+   {
+    "what": "bullet 4 (pre-cue maps also lose far contra)",
+    "old": "The pre-cue code and the pre-cue maps both lose far contra",
+    "new": "removed: the maps claim is not in this log (belongs to the maps slides)",
+    "source": "g5_lpfinal_dec_r.log"
+   },
+   {
+    "what": "trials / gate wording",
+    "old": "lick + miss-while-working; engagement gate = DAQ contact OR LP attempt",
+    "new": "camera working-period trials (contact + incomplete)",
+    "source": "g5_lpfinal_dec_r.log env (TRIAL_GATE=camera, WORKING_TRIALS=in_working) + selection tag"
+   }
+  ],
+  "conclusion_changed": false,
+  "conclusion_note": "Title holds (far contra lost in 4 / 4). Two support bullets dropped as untraced on the rebuild (1.5 s / DAQ-trained agreement, pre-cue maps); PS95 acute is one session (.42 -> .30, 40 far-contra trials)."
+ },
+ {
+  "slide": 17,
+  "title_now": "Mixed-model stars: refit - frozen gap by spout",
+  "status": "skip",
+  "skip_reason": "No rebuilt version of this picture exists: it is the LMM companion (d_refitgap_lmm, scripts/lmm_change_fig.py) fitted on pre-rebuild inputs; the rebuild has no lmm_change_fig step. The stale row's current_render is the bootstrap PARENT figure (epoch_5rmgapdelta), which is a different figure (it is the right panel of slide 20). Picture and text left alone; needs a group C render of lmm_change_fig on the rebuild 5rmgapdelta sidecars.",
+  "pictures": [],
+  "slide_text": [],
+  "notes_body": [],
+  "data_block": {},
+  "changes": [],
+  "conclusion_changed": false,
+  "conclusion_note": ""
+ },
+ {
+  "slide": 18,
+  "title_now": "Refit − frozen gap grows with recovery",
+  "status": "ready",
+  "skip_reason": "",
+  "pictures": [
+   {
+    "shape_name": "fig:frozen_refit_pooled",
+    "new_image": "M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-17/swap_inputs/s018_frozen_refit_pooled.png",
+    "source_render": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/rebuild_figs/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/frozen_refit_pooled.png",
+    "crop_done": "as is (full figure), as the old image"
+   }
+  ],
+  "slide_text": [
+   {
+    "shape_name": "TextBox 3",
+    "old": "•  Frozen: -.27** acute, -.16** subacute, -.07 chronic (n.s.); refit: -.24** / -.09* / +.04 (n.s.)",
+    "new": "•  Frozen: −.24** acute, −.16** subacute, −.10** chronic; refit: −.14** / −.04 (n.s.) / +.07**"
+   },
+   {
+    "shape_name": "TextBox 3",
+    "old": "•  Gap (refit - frozen) above pre: +.03 / +.07* / +.11**, up in 4 / 4 animals at every epoch",
+    "new": "•  Gap (refit − frozen) above pre: +.09** / +.13** / +.17**, up in 4 / 4 animals at every epoch"
+   },
+   {
+    "shape_name": "TextBox 3",
+    "old": "•  Caveat: June -> August with no stroke also raises the gap (.09-.18), so chronic reorganization beyond drift is not established",
+    "new": "•  Caveat: June → August with no stroke also raises the gap (.09–.21), so chronic reorganization beyond drift is not established"
+   },
+   {
+    "shape_name": "TextBox 5",
+    "old": "Size-matched decoders, cue window, working trials, all six spouts pooled; one open marker per session (shape = animal); dot + bar = mean of animals +- SEM; * / ** = change vs pre (** Bonferroni over 9)",
+    "new": "Size-matched decoders, cue window, camera working trials, all six spouts pooled; one open marker per session (shape = animal); dot + bar = mean of animals ± SEM; * / ** = change vs pre (** Bonferroni over 9)"
+   }
+  ],
+  "notes_body": [
+   "Pooled twin of the per-spout gap (imaging Fig 4.2). Decoders: size-matched FROZEN pre-stroke logistic vs within-session REFIT (5-fold block CV), same trials, cue 0-2 s, camera working-period trials (contact + incomplete); each session's accuracy pools its trials over the six positions; trials the refit could not train on are dropped from both. Pre = August only. Sessions per animal (pre / acute / subacute / chronic): PS92 8/5/2/12, PS93 7/4/3/12, PS94 8/6/5/8, PS95 8/1/7/11 (PS95 acute = one session).",
+   "Levels (mean of animals ± SEM): frozen .70 / .47 / .54 / .61; refit .78 / .64 / .75 / .85; gap .080 / .173 / .206 / .247. Change vs pre: analysis_kit.boot_delta (paired animals -> sessions, animal-weighted, 4,000 draws), * = 95 % CI excludes 0, ** = Bonferroni over 9 tests. Frozen -.235 [-.311, -.168] / -.164 [-.218, -.106] / -.099 [-.162, -.034]; refit -.143 [-.212, -.070] / -.038 [-.091, +.017] / +.069 [+.014, +.129] (4 / 4 up chronically); gap +.092 [+.053, +.129] / +.125 [+.084, +.163] / +.167 [+.116, +.218]; per animal chronic gap change PS92 +.108, PS93 +.229, PS94 +.198, PS95 +.133.",
+   "June -> August drift with no stroke (imaging Fig 4.3, next slides): gap G .09-.21, frozen deficit F .13-.30 per animal, so the chronic gap rise is drift-sized.",
+   "The 5rmo input table was re-written on 11-09 (glue re-run) after this render; its animal means equal the figure's to .002 (PS94 acute frozen .426 vs .428).",
+   "FIGURE SOURCE: imaging page Fig 4.4 · rebuild render M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/rebuild_figs/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/frozen_refit_pooled.png (step g7_fig_frozen_refit_pooled, 11-07, code a76352f3; values + stats frozen_refit_pooled.csv) · data: grant_figures/<tag>/epoch/data/epoch_5rmo_frozen_refit_overall_cue_working_sessions.csv · deck image: presentations/_source_PI_overview_2026-11-17/swap_inputs/s018_frozen_refit_pooled.png (as is)."
+  ],
+  "data_block": {
+   "Window": "cue 0-2 s post-cue",
+   "Licks": "DAQ spout contact (imaging DAQ lick detector, daqlk)",
+   "Trial period": "camera working period: first cue to the session's last camera lick, stopped runs (A2 + lick excise) removed (WIDEFIELD_TRIAL_GATE=camera, TRIAL_WINDOW=cue_stop, TRIAL_END=lick, TRIAL_STOPPED=both)",
+   "Trial types": "working = camera contact + incomplete trials (WIDEFIELD_WORKING_TRIALS=in_working); matched pooled family 5rmo",
+   "Gate": "camera trial gate (epoch_accuracy _frozen_vs_refit_overall(matched=True))",
+   "Baseline": "August pre only (WIDEFIELD_PRE_FROM=0801): 31 sessions (PS92 8 / PS93 7 / PS94 8 / PS95 8)",
+   "Correction": "analysis_kit.boot_delta paired animals -> sessions, 4,000 draws; * 95 % CI excludes 0; ** CI at 0.05/9 (Bonferroni, 3 post epochs x 3 panels) [traced: render log g7_fig_frozen_refit_pooled.log]"
+  },
+  "changes": [
+   {
+    "what": "frozen change",
+    "old": "-.27** / -.16** / -.07 (n.s.)",
+    "new": "-.235** / -.164** / -.099**",
+    "source": "g7_fig_frozen_refit_pooled.log delta table rows 0-2"
+   },
+   {
+    "what": "refit change",
+    "old": "-.24** / -.09* / +.04 (n.s.)",
+    "new": "-.143** / -.038 (n.s.) / +.069**",
+    "source": "g7_fig_frozen_refit_pooled.log rows 3-5"
+   },
+   {
+    "what": "gap change",
+    "old": "+.03 / +.07* / +.11**",
+    "new": "+.092** / +.125** / +.167**",
+    "source": "g7_fig_frozen_refit_pooled.log rows 6-8"
+   },
+   {
+    "what": "levels",
+    "old": "frozen .71/.44/.55/.65, refit .81/.56/.71/.85, gap .094/.124/.164/.200",
+    "new": "frozen .70/.47/.54/.61, refit .78/.64/.75/.85, gap .080/.173/.206/.247",
+    "source": "g7_fig_frozen_refit_pooled.log level table"
+   },
+   {
+    "what": "pre set",
+    "old": "June + August, 11 sessions per animal",
+    "new": "August only, 8 / 7 / 8 / 8",
+    "source": "g7_fig_frozen_refit_pooled.log session table (PRE_FROM=0801)"
+   },
+   {
+    "what": "drift caveat range (gap)",
+    "old": ".09-.18",
+    "new": ".09-.21",
+    "source": "g5_june_aug.log G_drift .088 / .177 / .209 / .205"
+   },
+   {
+    "what": "notes: page trial-pooled bootstrap chronic frozen -.082 *",
+    "old": "-.082 [-.131, -.012]",
+    "new": "removed: untraced in this log",
+    "source": "-"
+   }
+  ],
+  "conclusion_changed": false,
+  "conclusion_note": "Title holds and is stronger: the gap is above pre at every epoch (**). Sub-claim flips: frozen is now significantly below pre chronically (-.10 **) and refit significantly above pre (+.07 **), where both were n.s. before."
+ },
+ {
+  "slide": 20,
+  "title_now": "Frozen vs refit: only refit recovers fully",
+  "status": "ready",
+  "skip_reason": "",
+  "pictures": [
+   {
+    "shape_name": "fig:d_refitgap",
+    "new_image": "M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-17/swap_inputs/s020_refitgap_matched.png",
+    "source_render": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/grant_figures/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/epoch/epoch_5rmgapdelta_frozen_vs_refit_cue_working.png",
+    "crop_done": "title / n block cropped off, as the old image; the purple trial-set footnote that overlaps the x labels removed by colour (pixels that are a blend of the footnote purple over white set to white; a few residual pixels remain where it crossed the gray group lines)"
+   }
+  ],
+  "slide_text": [
+   {
+    "shape_name": "TextBox 3",
+    "old": "•  Right, by spout: the chronic gap stays above pre at near middle and far contra (Bonferroni)",
+    "new": "•  Right, by spout: the chronic gap stays above pre at far ipsi and far contra (Bonferroni); near middle +.25 (95 % only)"
+   }
+  ],
+  "notes_body": [
+   "Left panel (imaging Fig 13.1, m_dec_time): picture NOT replaced - no rebuilt render of this figure was located; it and bullets 1-3 are the 10-26 render. Frozen = pre-stroke decoder applied unchanged; refit = decoder retrained on each session (training sets size-matched, cue window). Panels: frozen, refit, gap; F_deficit = pre frozen - frozen; G_reorg = (refit - frozen) - (pre refit - pre frozen); refit deficit = F - G. Triangles = sessions by animal; line = mixed model with animal random effects (titles: day-1 level and log-day slope). G keeps rising (+.030 per log-day, z 4.5), but the June -> August no-stroke comparison gives G .09-.21 and F .13-.30 from drift / learning alone (rebuild g5_june_aug), so reorganization beyond drift is not established. Per animal chronic frozen / pre 1.04 / .85 / .83 / .90; refit 1.10 / 1.11 / 1.02 / .99 (10-26 render).",
+   "Right panel (imaging Fig 4.2, rebuild): refit - frozen gap at each epoch minus the pre gap, by spout, training sets size-MATCHED (5rm family), cue window, camera working-period trials (contact + incomplete); paired within trial; paired nested bootstrap animals -> sessions -> position blocks (2,000), thick = 95 %, thin = Bonferroni over 18; open markers = sessions (shape = animal, color = epoch). Pre = August only, 31 sessions. Chronic: far ipsi +.223 (corrected [+.023, +.420]), far contra +.193 ([+.039, +.398]), near middle +.250 (95 % [+.056, +.415], corrected [-.004, +.484]), far middle +.233 (corrected [-.033, +.423]). Acute: near ipsi +.268 (95 % only), near middle -.098 (n.s.).",
+   "FIGURE SOURCE: right = rebuild render M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/grant_figures/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/epoch/epoch_5rmgapdelta_frozen_vs_refit_cue_working.png (step g5_epoch_g, 11-09, code 8aed3a7b; sidecar epoch/data/epoch_5rmgapdelta_frozen_vs_refit_cue_working.csv) · deck image presentations/_source_PI_overview_2026-11-17/swap_inputs/s020_refitgap_matched.png; left = presentations/_source_PI_overview_2026-10-26/build_inputs/crops/m_dec_time.png (unchanged)."
+  ],
+  "data_block": {
+   "Window": "cue 0-2 s post-cue (right panel; left panel: pre-rebuild render, imaging Fig 13.1)",
+   "Licks": "DAQ spout contact (g5_epoch_g 'lick source: daq')",
+   "Trial period": "camera working period: first cue to the session's last camera lick, stopped runs (A2 + lick excise) removed (WIDEFIELD_TRIAL_GATE=camera, TRIAL_WINDOW=cue_stop, TRIAL_END=lick, TRIAL_STOPPED=both) (right panel)",
+   "Trial types": "working = camera contact + incomplete trials; both arms score the same trials",
+   "Gate": "camera trial gate (right panel)",
+   "Baseline": "August pre only (WIDEFIELD_PRE_FROM=0801): 31 sessions (PS92 8 / PS93 7 / PS94 8 / PS95 8) (right panel)",
+   "Correction": "paired nested bootstrap animals -> sessions -> position blocks, 2,000 draws; thick = 95 %, thin = Bonferroni over 18 [traced: render log g5_epoch_g.log]"
+  },
+  "changes": [
+   {
+    "what": "right-panel source family",
+    "old": "stale table named epoch_5rgapdelta (unmatched) as the probable match",
+    "new": "epoch_5rmgapdelta (training-set MATCHED): the old picture's values equal the pre-rebuild 5rmgapdelta sidecar (acute near ipsi .099, far middle -.137, chronic far contra .126), not 5rgapdelta",
+    "source": "M:/MICROSCOPE/Priya/Widefield/labcams/grant_figures/epoch/data/epoch_5r{,m}gapdelta_frozen_vs_refit_cue_working.csv (10-07)"
+   },
+   {
+    "what": "bullet 4: chronic gap above pre (Bonferroni)",
+    "old": "near middle and far contra (page: +.267, +.130)",
+    "new": "far ipsi (+.223) and far contra (+.193); near middle +.250 at 95 % only",
+    "source": "rebuild epoch_5rmgapdelta_frozen_vs_refit_cue_working.csv"
+   },
+   {
+    "what": "left picture + bullets 1-3",
+    "old": "10-26 render",
+    "new": "unchanged: no rebuilt render located (stale row 'left panel rebuild file not located')",
+    "source": "-"
+   },
+   {
+    "what": "drift numbers in notes",
+    "old": "G .09-.18, F .13-.28",
+    "new": "G .09-.21, F .13-.30",
+    "source": "g5_june_aug.log F_drift / G_drift"
+   }
+  ],
+  "conclusion_changed": true,
+  "conclusion_note": "Right-panel claim changes: on the rebuild the chronic per-spout gap survives Bonferroni at far ipsi and far contra, not near middle (near middle +.25 is 95 % only). Left panel stays the pre-rebuild render (no rebuilt version)."
+ },
+ {
+  "slide": 21,
+  "title_now": "Frozen decoders: position fails, state holds",
+  "status": "ready",
+  "skip_reason": "",
+  "pictures": [
+   {
+    "shape_name": "fig:state_position_sessions",
+    "new_image": "M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-17/swap_inputs/s021_state_position.png",
+    "source_render": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/rebuild_figs/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/state_position_sessions.png",
+    "crop_done": "as is (full figure), as the old image"
+   }
+  ],
+  "slide_text": [
+   {
+    "shape_name": "TextBox 1",
+    "old": "Frozen decoders: position fails, state holds",
+    "new": "Frozen decoders: position fails acutely, state holds"
+   },
+   {
+    "shape_name": "TextBox 3",
+    "old": "•  Acute: position keeps ~50 % of its above-chance accuracy, state ~95 %, running ~98 %",
+    "new": "•  Acute: position keeps ~49 % of its above-chance accuracy (pre .84), state ~95 % (pre .97)"
+   },
+   {
+    "shape_name": "TextBox 3",
+    "old": "•  Chronically position still loses ~12 %, state ~5 %; label-free class-balanced centering recovers PS94's running",
+    "new": "•  Chronic: position −.08 vs pre, borderline (Holm .057; ≈ .05 relative to each animal’s own pre), state −.06 (**), mostly PS94 (.98 → .84)"
+   },
+   {
+    "shape_name": "TextBox 5",
+    "old": "One open marker per session (shape = animal, color = epoch); filled dot + bar = mean of animals +- SEM; frozen pre-stroke decoders (state: bal_em centering), cue window; ** = change vs pre, Holm over 6",
+    "new": "One open marker per session (shape = animal, color = epoch); filled dot + bar = mean of animals ± SEM; frozen pre-stroke decoders (state: bal_em centering), cue window; change vs pre, boot_delta p, Holm over 6: * < .05, ** < .01"
+   }
+  ],
+  "notes_body": [
+   "Same cortex, window and decoder family; only the label changes. Position = 6-way frozen pre-stroke decoder (per-session frozen recall, mean of the six); state = 3-way frozen bal_em state decoder (running / licking / rest), cue window. Normalized above chance: (balanced accuracy - chance) / (1 - chance). Camera working-period trials for position; pre = August only (position 8 / 7 / 8 / 8 sessions, state 8 / 8 / 8 / 8); post 5/4/6/1, 2/3/5/7, 12/12/8/11.",
+   "Mean of animals (fraction retained), pre / acute / subacute / chronic: position .835 / .488 / .696 / .758; state .972 / .949 / .944 / .917. Per animal position: PS92 .83 / .50 / .68 / .82, PS93 .68 / .31 / .57 / .62, PS94 .92 / .52 / .73 / .74, PS95 .91 / .63 / .81 / .86; state: PS92 .96 / .92 / .92 / .91, PS93 .96 / .93 / .97 / .96, PS94 .98 / .96 / .90 / .84, PS95 .99 / .99 / .98 / .96.",
+   "ABSOLUTE change vs pre (picture; boot_delta animals -> sessions, 4,000 draws, Holm over 6): position -.347 [-.412, -.287] Holm .0015 / -.139 [-.207, -.069] Holm .0015 / -.077 [-.152, -.009] Holm .057 (n.s.); state -.023 [-.044, -.006] Holm .012 / -.028 [-.063, +.002] Holm .092 / -.056 [-.115, -.013] Holm .006. Acute specificity ratio ~15x (position -.347 vs state -.023); by chronic the two losses are similar.",
+   "RELATIVE to each animal's own pre (post / own pre mean - 1, same bootstrap and Holm; docs/status/provenance_sweep_20261116/slide21_relative_check.py on state_position_sessions.csv): position -.423 [-.521, -.328] Holm .0015 / -.166 [-.250, -.084] Holm .0015 / -.090 [-.169, -.013] Holm .046 (seed 0; .054 with the figure script seed 20261102); state -.024 [-.046, -.005] Holm .021 / -.029 [-.065, +.002] Holm .086 / -.057 [-.115, -.014] Holm .006. Chronic position sits on the .05 line on this scale (Holm .046-.054 depending on the bootstrap seed): borderline either way. Figure: rebuild_figs/<tag>/rel_own_pre_20261117/state_position_sessions_rel_own_pre.png.",
+   "Earlier version of this slide (pre-rebuild inputs: 11 pre sessions per animal incl. June 06-06..08) showed -.41 / -.19 / -.09, all **. On the rebuild pre fell (PS93 .744 -> .681) and post rose (acute all four animals). Which rebuild setting causes this is being tested one setting at a time: docs/status/deck_swap_20261117/SLIDE21_DECOMPOSITION.md.",
+   "FIGURE SOURCE: imaging page Fig 3.4 · rebuild render M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/rebuild_figs/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/state_position_sessions.png (step g7_fig_state_position_r, 11-08, code 480accea; scripts/rebuild_figs/fig_state_position_sessions.py; table state_position_sessions.csv) · deck image: presentations/_source_PI_overview_2026-11-17/swap_inputs/s021_state_position.png (as is)."
+  ],
+  "data_block": {
+   "Window": "cue window (position: post-cue 0-2 s; state: 3-way running / licking / rest segments)",
+   "Licks": "DAQ spout contact (g5_epoch_g 'lick source: daq')",
+   "Trial period": "camera working period: first cue to the session's last camera lick, stopped runs (A2 + lick excise) removed (WIDEFIELD_TRIAL_GATE=camera, TRIAL_WINDOW=cue_stop, TRIAL_END=lick, TRIAL_STOPPED=both) (position)",
+   "Trial types": "position: working = camera contact + incomplete trials; state: running / licking / rest segments",
+   "Gate": "camera trial gate",
+   "Baseline": "August pre only (PRE_FROM=0801): position 8 / 7 / 8 / 8, state 8 / 8 / 8 / 8 sessions; change from each animal's own pre",
+   "Correction": "analysis_kit.boot_delta paired animals -> sessions, 4,000 draws; boot_p, Holm over the 6 tests; * Holm p < .05, ** < .01 [traced: render log g7_fig_state_position_r.log]"
+  },
+  "changes": [
+   {
+    "what": "position change vs pre",
+    "old": "-.41 / -.19 / -.09 (all **)",
+    "new": "-.347** / -.139** / -.077 (Holm .057, n.s.); relative -.42 / -.17 / -.09 (Holm .046)",
+    "source": "g7_fig_state_position_r.log change block; slide21_relative_check.py output"
+   },
+   {
+    "what": "state change vs pre",
+    "old": "-.033 (*) / -.026 (ns) / -.055 (**)",
+    "new": "-.023 (*) / -.028 (n.s.) / -.056 (**)",
+    "source": "g7_fig_state_position_r.log"
+   },
+   {
+    "what": "acute retained",
+    "old": "position ~50 %, state ~95 %, running ~98 %",
+    "new": "position ~49 % (.488), state ~95 % (.949); running removed: untraced in this log",
+    "source": "g7_fig_state_position_r.log mean of animals"
+   },
+   {
+    "what": "chronic loss",
+    "old": "position ~12 %, state ~5 %; bal_em recovers PS94 running",
+    "new": "position -.08 (n.s. Holm), state -.06 (**), mostly PS94 .98 -> .84; running claim removed: untraced",
+    "source": "g7_fig_state_position_r.log"
+   },
+   {
+    "what": "chronic position star in picture",
+    "old": "** (11-03 picture)",
+    "new": "none (Holm .057)",
+    "source": "rebuild render"
+   },
+   {
+    "what": "title",
+    "old": "Frozen decoders: position fails, state holds",
+    "new": "Frozen decoders: position fails acutely, state holds (proposed)",
+    "source": "chronic state -.056 ** vs position -.077 n.s."
+   },
+   {
+    "what": "footer star rule",
+    "old": "** = change vs pre, Holm over 6",
+    "new": "* Holm p < .05, ** < .01 (boot_delta p, Holm over 6)",
+    "source": "scripts/rebuild_figs/fig_state_position_sessions.py L35-36, L160"
+   }
+  ],
+  "conclusion_changed": true,
+  "conclusion_note": "Acute specificity holds (position -.35 vs state -.02), but chronically the state loss (-.056, Holm .006) matches the position loss (-.077, Holm .057 n.s.; relative -.09, Holm .046); title narrowed to 'acutely' pending Priya's scale choice."
+ },
+ {
+  "slide": 23,
+  "title_now": "June → August drift: as large as chronic",
+  "status": "ready",
+  "skip_reason": "",
+  "pictures": [
+   {
+    "shape_name": "fig:j_drift",
+    "new_image": "M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-17/swap_inputs/s023_june_aug_drift.png",
+    "source_render": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/chronic_stability/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/june_august_drift/june_august_drift.png",
+    "crop_done": "suptitle removed, as the old image"
+   }
+  ],
+  "slide_text": [
+   {
+    "shape_name": "TextBox 3",
+    "old": "•  Drift alone: frozen deficit .13–.28, refit − frozen gain .09–.18 (per animal)",
+    "new": "•  Drift alone: frozen deficit .13–.30, refit − frozen gain .09–.21 (per animal)"
+   },
+   {
+    "shape_name": "TextBox 3",
+    "old": "•  About as large as chronic stroke (deficit .03–.18, gain .11–.21): chronic reorganization is drift-sized",
+    "new": "•  About as large as chronic stroke (deficit .04–.23, gain .12–.25, same August-frozen design): chronic reorganization is drift-sized"
+   }
+  ],
+  "notes_body": [
+   "Imaging page Fig 4.3. No-stroke comparison group. Top: crossnobis own-position distance of each session's pattern from a pooled template, in units of the animal's pre-stroke between-position distance. Bottom: a FROZEN logistic decoder fit on June pre (August pre for post-stroke sessions), size-matched (38 draws per animal), vs a within-session REFIT (block CV). Cue 0-2 s, DAQ spout-contact licks. Per animal, no statistics. June 3 / August 8 / post 19 sessions per animal (decoder); August vs June template ~65 days apart (median 64.5).",
+   "Frozen deficit F = baseline frozen accuracy minus scored; refit gain G = (refit - frozen) minus the same at baseline. Per animal PS92 / PS93 / PS94 / PS95: F June -> Aug (no stroke) .13 / .30 / .21 / .19; G June -> Aug .09 / .18 / .21 / .21; same design at chronic (August-frozen, F_chronic_augfrozen / G_chronic_augfrozen) F .04 / .09 / .23 / .13, G .12 / .22 / .25 / .13; pooled June + August frozen twins (recovery_trajectory F_deficit / G_reorg, chronic) F .02 / .08 / .19 / .11, G .11 / .23 / .20 / .13. Drift alone gives F .13-.30 and G .09-.21, so the chronic frozen deficit and the refit - frozen gap are drift-sized (also the 10-07 chronic_drift_vs_reorg result). Distance: August vs June template .63 / .96 / .42 / .61 vs chronic vs August template .93 / 1.15 / .43 / .63 (floor .28 / .35 / .21 / .29). Script scripts/june_august_drift.py.",
+   "FIGURE SOURCE: Imaging page Fig 4.3 · rebuild render M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/chronic_stability/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/june_august_drift/june_august_drift.png (step g5_june_aug, 11-07, code a76352f3; summary_by_animal.csv beside it) · deck image: presentations/_source_PI_overview_2026-11-17/swap_inputs/s023_june_aug_drift.png (suptitle removed)."
+  ],
+  "data_block": {
+   "Window": "cue 0-2 s post-cue (distance and decoder)",
+   "Licks": "DAQ spout contact (drift decoders trained on DAQ June / August pre trials)",
+   "Trial period": "camera working period: first cue to the session's last camera lick, stopped runs (A2 + lick excise) removed (WIDEFIELD_TRIAL_GATE=camera, TRIAL_WINDOW=cue_stop, TRIAL_END=lick, TRIAL_STOPPED=both)",
+   "Trial types": "distance: working trials (VARIANT 'working'); decoder: licking trials (figure axis; _collect_5c paired_matched)",
+   "Gate": "camera trial gate (PS93_0813: no camera working rows, bal_em centre from its DAQ contact rows)",
+   "Baseline": "June pre vs August pre (WIDEFIELD_PRE_FROM unset for this block; June 3 / August 8 per animal); post-stroke sessions vs the August template / August-frozen decoder",
+   "Correction": "none: descriptive per animal; crossnobis split seeds via Python hash() (salted per process) [traced: render log g5_june_aug.log]"
+  },
+  "changes": [
+   {
+    "what": "drift F range",
+    "old": ".13-.28",
+    "new": ".13-.30",
+    "source": "g5_june_aug.log F_drift .125 / .301 / .212 / .194"
+   },
+   {
+    "what": "drift G range",
+    "old": ".09-.18",
+    "new": ".09-.21",
+    "source": "g5_june_aug.log G_drift .088 / .177 / .209 / .205"
+   },
+   {
+    "what": "chronic F range",
+    "old": ".03-.18",
+    "new": ".04-.23 (same August-frozen design)",
+    "source": "g5_june_aug.log F_chronic_augfrozen .036 / .093 / .225 / .127"
+   },
+   {
+    "what": "chronic G range",
+    "old": ".11-.21",
+    "new": ".12-.25 (same design)",
+    "source": "g5_june_aug.log G_chronic_augfrozen .115 / .215 / .254 / .130"
+   }
+  ],
+  "conclusion_changed": false,
+  "conclusion_note": "Holds: drift and chronic ranges still overlap (chronic G slightly above drift in 3 / 4 animals, below in PS95)."
+ },
+ {
+  "slide": 31,
+  "title_now": "cam4 agrees with 3-D; 3-D sees more",
+  "status": "ready",
+  "skip_reason": "",
+  "pictures": [
+   {
+    "shape_name": "fig:pose_validation_sessions",
+    "new_image": "M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-17/swap_inputs/s031_pose_validation.png",
+    "source_render": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/rebuild_figs/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/pose_validation_sessions.png",
+    "crop_done": "as is (full figure), as the old image"
+   }
+  ],
+  "slide_text": [
+   {
+    "shape_name": "TextBox 3",
+    "old": "•  cam4 lateral position and angle track 3-D lick by lick",
+    "new": "•  cam4 lateral position and angle track 3-D lick by lick (per-animal median r .94–.97 and .69–.87)"
+   },
+   {
+    "shape_name": "TextBox 3",
+    "old": "•  cam4 \"out\" is really the downward axis: forward reach is only visible in 3-D",
+    "new": ""
+   },
+   {
+    "shape_name": "TextBox 3",
+    "old": "•  The lick endpoint predicts the target spout better in 3-D, in every animal",
+    "new": "•  The lick endpoint predicts the target spout better in 3-D, in every animal (.67–.86 vs cam4 .42–.78; chance .17)"
+   }
+  ],
+  "notes_body": [
+   "Per-lick agreement between cam4 (front, 2-D, px) and the triangulated 3-D tongue (mm), median over sessions per animal (pose3d/crosscheck/agreement.csv + jaw_agreement.csv): lateral position r .968 / .944 / .974 / .970, peak angle vs 3-D lateral .869 / .689 / .867 / .860, jaw opening per trial .638 / .575 / .743 / .863 (PS92 / PS93 / PS94 / PS95). Target decoding: the target spout predicted from each lick's endpoint, August pre sessions, leave one session out, 6 positions, chance .17 (scripts/pose3d_vs_cam4.py model; pooled per animal): cam4 .530 / .423 / .783 / .587, 3-D .805 / .674 / .862 / .737. So the cam4 aim and jaw findings stand as measured, and depth questions need 3-D. Kinematics page section 10.",
+   "Left: one marker per session (shape = animal, color = epoch), black tick = per-animal MEDIAN over sessions; right: one marker per held-out August pre session, tick = per-animal pooled leave-one-session-out accuracy, lines join cam4 -> 3-D per animal (not epochs). Sessions per animal: lateral / angle 35 / 30 / 30 / 30, jaw 27 / 26 / 27 / 27, decoding 8 / 7 / 8 / 8.",
+   "FIGURE SOURCE: rebuild render M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/rebuild_figs/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/pose_validation_sessions.png (step k_pose_validation, 11-06, code 0e2154f0; scripts/rebuild_figs/fig_pose_validation_sessions.py; table pose_validation_sessions.csv) · deck image: presentations/_source_PI_overview_2026-11-17/swap_inputs/s031_pose_validation.png (as is)."
+  ],
+  "data_block": {
+   "Window": "per lick (agreement); lick endpoint (target decoding)",
+   "Licks": "LP video licks: cam4 LP v36 (2-D) vs triangulated 3-D tongue (cam1 + cam4)",
+   "Trial period": "agreement: every curated session with 3-D (pre incl. June, acute, subacute, chronic); decoding: August pre sessions",
+   "Trial types": "all tracked licks (agreement); licks with an endpoint, 6 target positions (decoding)",
+   "Gate": "none (pose tables are not trial-gated)",
+   "Baseline": "none (agreement levels); decoding leave-one-session-out within animal",
+   "Correction": "none: descriptive per-animal medians / pooled leave-one-session-out accuracy [traced: render log k_pose_validation.log]"
+  },
+  "changes": [
+   {
+    "what": "bullet 2 (cam4 'out' = 3-D down, r .99-1.00; forward r -.22 to .12)",
+    "old": "cam4 \"out\" is really the downward axis: forward reach is only visible in 3-D",
+    "new": "removed: the out-vs-down / forward correlations are not in this render or its log",
+    "source": "k_pose_validation.log"
+   },
+   {
+    "what": "agreement / decoding numbers",
+    "old": "none on slide; notes cited agreement.csv / decoding.csv",
+    "new": "lateral .94-.97, angle .69-.87, jaw .58-.86; decoding cam4 .42-.78, 3-D .67-.86 (4 / 4 higher in 3-D)",
+    "source": "k_pose_validation.log"
+   },
+   {
+    "what": "jaw medians",
+    "old": "table PS94 .67, PS95 .83",
+    "new": ".743, .863 (log flags TABLE MISMATCH vs the old table)",
+    "source": "k_pose_validation.log"
+   }
+  ],
+  "conclusion_changed": false,
+  "conclusion_note": "Title holds; the downward-axis bullet is dropped as untraced."
+ },
+ {
+  "slide": 32,
+  "title_now": "cam4: slower everywhere, far contra fails",
+  "status": "ready",
+  "skip_reason": "",
+  "pictures": [
+   {
+    "shape_name": "fig:k_metrics_4panel",
+    "new_image": "M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-17/swap_inputs/s032_kin_metrics_4panel.png",
+    "source_render": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/cohort/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/figures/prepost_working/cohort_metrics_minus_pre_contra.png",
+    "crop_done": "suptitle removed; 4 of 9 panels (licks with spout contact, first LP lick peak, licks / responded trial, peak protrusion speed) re-tiled 2 x 2, legend right, as the old image"
+   }
+  ],
+  "slide_text": [
+   {
+    "shape_name": "TextBox 3",
+    "old": "•  Far contra: two-thirds fewer licks reach the spout; first contact ~0.9 s later",
+    "new": "•  Far contra: two-thirds fewer licks reach the spout (−.67); first contact ~1.0 s later"
+   },
+   {
+    "shape_name": "TextBox 5",
+    "old": "Change vs pre per spout (bold = mean ± SEM over sessions, faded open markers = sessions, shape = animal); * = session Mann-Whitney BH-FDR AND animal-weighted bootstrap agree",
+    "new": "Change vs pre per spout (bold = mean ± SEM over sessions, faded open markers = sessions, shape = animal); * = session Mann-Whitney BH-FDR AND animal-weighted bootstrap agree; (*) = Mann-Whitney only, b = bootstrap only"
+   }
+  ],
+  "notes_body": [
+   "DATA: cam4 front camera, Lightning Pose r4, cleaning v36; camera working-period trials (to the session's last camera lick, stopped runs removed); August-only pre baseline (31 sessions). Per-lick metrics by spout position and epoch. Change vs pre per session; a cell is marked only when BOTH tests agree (session Mann-Whitney + BH-FDR, and the animal-weighted paired animals -> sessions bootstrap). Responded trials drop acutely (resp_rate change -.147 [-.199, -.097]; per animal pre .96-.99 -> acute .77-.89). Source: tables/prepost_working/stats/RESULTS.md; kinematics page section 1.",
+   "Acute change vs pre (far contra | other spouts, cells where both tests agree): within-bout inter-lick interval +24.7 ms | +13.8 to +16.1 ms (all six); licks touching the spout -.669 | close contra -.058; first LP lick peak +493 ms | far ipsi +121 ms; first spout contact +978 ms | far mid +228 ms; licks per responded trial -5.75 | -1.6 to -3.0 (close mid n.s.); peak protrusion speed -2,230 px/s | -717 to -1,030 px/s (all six). Chronic licks per responded trial +1.5 to +4.1 at five spouts (both tests; far mid Mann-Whitney only). Within-bout ILI is not among the figure's panels.",
+   "FIGURE SOURCE: Kinematics page Fig 1.1 · rebuild render M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/cohort/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/figures/prepost_working/cohort_metrics_minus_pre_contra.png (step k_cohort, 11-06, code ec0ff642; python -m wfield_local.orofacial_cohort) · deck image: presentations/_source_PI_overview_2026-11-17/swap_inputs/s032_kin_metrics_4panel.png (suptitle removed; 4 of 9 panels as 2 x 2)."
+  ],
+  "data_block": {
+   "Window": "post-cue licks: cue + 70 ms to the DAQ trial stop",
+   "Licks": "cam4 LP r4 v36 video licks (ALL POST-CUE licks, measured peaks for kinematics); contact = DAQ spout contact",
+   "Trial period": "camera working period (to the session's last camera lick; stopped runs, A2 + excise, out; orofacial_cohort cohort gate 'working')",
+   "Trial types": "all post-cue licks of working-period trials; per session x position, >= 20 licks",
+   "Gate": "camera working-period gate (k_cohort.log 'cohort gate: working')",
+   "Baseline": "LATE pre only (>= 0806), 31 sessions; each session's change from its animal's own pre mean",
+   "Correction": "session Mann-Whitney vs pre, BH-FDR within metric across positions x epochs, AND animal-weighted bootstrap (analysis_kit.boot_delta); * = both agree, (*) = Mann-Whitney only, b = bootstrap only [traced: render log k_cohort.log]"
+  },
+  "changes": [
+   {
+    "what": "gate",
+    "old": "engaged trials (behavior engagement gate), 11-03 render",
+    "new": "camera working period",
+    "source": "k_cohort.log 'cohort gate: working'"
+   },
+   {
+    "what": "first contact delay far contra",
+    "old": "~0.9 s (+898 ms)",
+    "new": "~1.0 s (+978 ms)",
+    "source": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/cohort/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/tables/prepost_working/stats/RESULTS.md"
+   },
+   {
+    "what": "far contra contact change",
+    "old": "-0.67",
+    "new": "-.669 (unchanged)",
+    "source": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/cohort/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/tables/prepost_working/stats/RESULTS.md"
+   },
+   {
+    "what": "first lick far contra / far ipsi",
+    "old": "+488 / +122 ms",
+    "new": "+493 / +121 ms",
+    "source": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/cohort/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/tables/prepost_working/stats/RESULTS.md"
+   },
+   {
+    "what": "licks per responded trial",
+    "old": "-5.7 | -0.4 to -3.0",
+    "new": "-5.75 | -1.6 to -3.0 (close mid not marked)",
+    "source": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/cohort/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/tables/prepost_working/stats/RESULTS.md"
+   },
+   {
+    "what": "peak protrusion speed",
+    "old": "-2,230 | -710 to -1,030 px/s",
+    "new": "-2,230 | -717 to -1,030 px/s",
+    "source": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/cohort/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/tables/prepost_working/stats/RESULTS.md"
+   },
+   {
+    "what": "ILI",
+    "old": "+26 / +25.7 ms | +14 to +16",
+    "new": "+24.7 | +13.8 to +16.1 ms",
+    "source": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/cohort/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/tables/prepost_working/stats/RESULTS.md"
+   },
+   {
+    "what": "responded fraction",
+    "old": "all trials 0.94 -> 0.64; engaged 0.98 -> 0.82",
+    "new": "resp_rate change -.147 [-.199, -.097] (camera working period)",
+    "source": "k_cohort.log change table"
+   }
+  ],
+  "conclusion_changed": false,
+  "conclusion_note": ""
+ },
+ {
+  "slide": 34,
+  "title_now": "Per spout: far-contra contact collapses",
+  "status": "ready",
+  "skip_reason": "",
+  "pictures": [
+   {
+    "shape_name": "fig:k_acc_pos",
+    "new_image": "M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-17/swap_inputs/s034_contact_by_spout.png",
+    "source_render": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/cohort/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/figures/prepost_working/cohort_epochs_by_position_accuracy_contra.png",
+    "crop_done": "suptitle removed; 1600-px wide copy, as the old image"
+   }
+  ],
+  "slide_text": [],
+  "notes_body": [
+   "Hidden supplement to the previous slide. Kinematics page Fig 1.3: response and contact by position and epoch, as change vs each animal's pre; rows: licks with spout contact, no-contact licks, jaw move without a lick, executed peak angle (+ = contralesional); bold = mean ± SEM over sessions, faded = sessions (shape = animal). Camera working-period trials; August-only pre. Far-contra contact collapses acutely (-.669, subacute -.229; chronic -.072 Mann-Whitney only), the deficit the epochs are defined from; jaw move without a lick far contra +.151 acute; executed angle far contra about -30 deg acutely (-29.9; table sign + = ipsi, flipped at plot level), -8.1 subacute. Pooled within-animal twin: Fig 1.1.",
+   "FIGURE SOURCE: Kinematics page Fig 1.3 · rebuild render M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/cohort/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/figures/prepost_working/cohort_epochs_by_position_accuracy_contra.png (step k_cohort, 11-06, code ec0ff642) · deck image: presentations/_source_PI_overview_2026-11-17/swap_inputs/s034_contact_by_spout.png (suptitle removed, 1600 px)."
+  ],
+  "data_block": {
+   "Window": "post-cue licks: cue + 70 ms to the DAQ trial stop",
+   "Licks": "cam4 LP r4 v36 video licks (ALL POST-CUE licks, measured peaks for kinematics); contact = DAQ spout contact",
+   "Trial period": "camera working period (to the session's last camera lick; stopped runs, A2 + excise, out; orofacial_cohort cohort gate 'working')",
+   "Trial types": "all post-cue licks of working-period trials; per session x position, >= 20 licks",
+   "Gate": "camera working-period gate (k_cohort.log 'cohort gate: working')",
+   "Baseline": "LATE pre only (>= 0806), 31 sessions; each session's change from its animal's own pre mean",
+   "Correction": "session Mann-Whitney vs pre, BH-FDR within metric across positions x epochs, AND animal-weighted bootstrap (analysis_kit.boot_delta); * = both agree, (*) = Mann-Whitney only, b = bootstrap only [traced: render log k_cohort.log]"
+  },
+  "changes": [
+   {
+    "what": "gate",
+    "old": "engaged trials, 11-03 render",
+    "new": "camera working period",
+    "source": "k_cohort.log"
+   },
+   {
+    "what": "far contra contact acute",
+    "old": "-0.67",
+    "new": "-.669 (unchanged)",
+    "source": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/cohort/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/tables/prepost_working/stats/RESULTS.md"
+   },
+   {
+    "what": "executed angle far contra acute",
+    "old": "about -30 deg",
+    "new": "-29.9 deg (unchanged)",
+    "source": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/cohort/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/tables/prepost_working/stats/RESULTS.md"
+   }
+  ],
+  "conclusion_changed": false,
+  "conclusion_note": ""
+ },
+ {
+  "slide": 36,
+  "title_now": "Far contra: animals try and fail",
+  "status": "ready",
+  "skip_reason": "",
+  "pictures": [
+   {
+    "shape_name": "fig:farcontra_attempts_sessions",
+    "new_image": "M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-17/swap_inputs/s036_farcontra_attempts.png",
+    "source_render": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/rebuild_figs/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/farcontra_attempts_sessions.png",
+    "crop_done": "as is (full figure), as the old image"
+   }
+  ],
+  "slide_text": [
+   {
+    "shape_name": "TextBox 3",
+    "old": "•  Acutely most far-contra attempts never reach the spout (completion .02–.15)",
+    "new": "•  Acutely most far-contra attempts never reach the spout (completion .03–.15)"
+   }
+  ],
+  "notes_body": [
+   "Attempt = hit + incomplete lick on a far-contra trial (cam4 + cam1 lick events, DAQ contact) over camera working-period trials (this run's trial_attempts_sessions.csv); completion = hit / attempted. Per animal (PS92 / PS93 / PS94 / PS95), attempt rate pre .99 / 1.00 / .97 / .97 -> acute .84 / .83 / .66 / .37 (PS92-94 try and fail; PS95 mostly fails to try); completion acute .05 / .15 / .04 / .03, back to .95-.99 chronically. Licks without contact (cam4 no-contact + cam1-only no-contact, far_R only; cam1 table read in place, not re-gated): pre .17 / .38 / .22 / .25, acute .86 / .73 / .98 / .99, chronic .35 / .35 / .55 / .32 (still raised in PS92 / PS94). Jaw-without-lick (share of far_R trials with jaw movement and no tongue event after cam1 correction): acute .20 / .21 / .28 / .48, gone chronically (.00-.06). A blind video review of 24 such and just-below-threshold trials found 0 / 24 attempted licks (jaw responses without opening, jaw-up, walking-related movement), so attempted = hit + incomplete (review page Attempt Clip Review; not a rebuild output).",
+   "One marker per session (shape = animal, color = epoch); bar = mean of animals ± SEM over SESSION means per animal. Sessions per animal (pre / acute / subacute / chronic): PS92 8/5/2/12, PS93 7/4/3/12, PS94 8/6/5/8, PS95 8/1/7/11 (PS95 acute = one session).",
+   "FIGURE SOURCE: rebuild render M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/rebuild_figs/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/farcontra_attempts_sessions.png (step g7_fig_farcontra_attempts, 11-05, code 136807cf; scripts/rebuild_figs/fig_farcontra_attempts_sessions.py; table farcontra_attempts_sessions.csv) · data: run trial_attempts_sessions.csv (camera classes) + DeepLabCut/Widefield/session_poses/cam1_licks/incomplete/sessions.csv · deck image: presentations/_source_PI_overview_2026-11-17/swap_inputs/s036_farcontra_attempts.png (as is)."
+  ],
+  "data_block": {
+   "Window": "cue to the trial stop (camera classes)",
+   "Licks": "attempt rate / completion: camera classes (cam4 + cam1 + DAQ contact); licks without contact / jaw: cam1 + cam4 (cam1_licks/incomplete table)",
+   "Trial period": "camera working period: first cue to the session's last camera lick, stopped runs (A2 + lick excise) removed (WIDEFIELD_TRIAL_GATE=camera, TRIAL_WINDOW=cue_stop, TRIAL_END=lick, TRIAL_STOPPED=both) for attempt rate / completion; cam1 table: not re-gated (pose output read in place)",
+   "Trial types": "attempt_rate = (hit + incomplete) / canonical working trials; completion = hit / attempted; incomplete_frac; jaw_only_corr",
+   "Gate": "camera trial gate (attempts); none for the cam1 table",
+   "Baseline": "August pre (PRE_FROM=0801); levels per epoch",
+   "Correction": "none: session markers + mean of animals ± SEM [traced: render log g7_fig_farcontra_attempts.log]"
+  },
+  "changes": [
+   {
+    "what": "acute completion range",
+    "old": ".02-.15",
+    "new": ".03-.15 (.053 / .152 / .042 / .025)",
+    "source": "g7_fig_farcontra_attempts.log"
+   },
+   {
+    "what": "jaw-without-lick chronic",
+    "old": ".00-.07",
+    "new": ".00-.06",
+    "source": "g7_fig_farcontra_attempts.log"
+   },
+   {
+    "what": "n trials acute 336 / 292 / 450 / 120",
+    "old": "336 / 292 / 450 / 120",
+    "new": "removed: untraced in this log",
+    "source": "-"
+   },
+   {
+    "what": "PS93 pre sessions",
+    "old": "7",
+    "new": "7 (unchanged)",
+    "source": "g7_fig_farcontra_attempts.log"
+   }
+  ],
+  "conclusion_changed": false,
+  "conclusion_note": ""
+ },
+ {
+  "slide": 40,
+  "title_now": "Far spouts: incomplete and jaw-only trials",
+  "status": "ready",
+  "skip_reason": "",
+  "pictures": [
+   {
+    "shape_name": "fig:trial_class_share_epochs",
+    "new_image": "M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-17/swap_inputs/s040_trial_class_share.png",
+    "source_render": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/session_poses_derived/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/jaw_only_incomplete_figs/figures/trial_class_share_epochs.png",
+    "crop_done": "as is (full figure), as the old image"
+   }
+  ],
+  "slide_text": [],
+  "notes_body": [
+   "HIDDEN (supporting): the main trial-class slide is 'Far contra: contact .96 → .05 acutely' (all four classes over every working-period trial). This slide = change vs pre for the jaw-only and incomplete classes only. Open markers = sessions (shape = animal, color = epoch); bar = animal-weighted change, paired nested bootstrap 95 % CI; * CI excludes 0, ** Bonferroni over 18; top row jaw-only, bottom row incomplete.",
+   "Trial classes per WORKING-PERIOD trial, first match wins: contact (>= 1 lick touched the spout: cam4 v36 lick with DAQ contact or cam1-only event with contact); incomplete (>= 1 lick, none touched; water droplets removed); jaw_only (no lick, jaw moved, cam1 saw no tongue in the quiet window = the cam1-corrected jaw-without-lick class; a blind review found 0 / 24 were attempted licks); no_response (no lick, no jaw movement; at close mid, where the jaw cannot be judged, every no-lick trial is no_response); unknown (jaw not tracked). Working period = cue to the session's last camera lick, stopped trials excised (wfield_local.trial_classes). Pre = August only; curated sessions (pre 31 / acute 16 / subacute 17 / chronic 43); 3-D gate failures excluded.",
+   "Share of trials per class per session x spout minus the animal's August pre mean at that spout; paired nested bootstrap. Change vs pre, acute / subacute / chronic: incomplete far contra +.60 [.42, .75] ** / +.17 [.08, .29] ** / -.00; far mid +.24 ** / -.02 / -.03; jaw-only far contra +.21 [.08, .37] ** / +.03 ** / -.00; far mid +.17 ** / +.04 * / -.01; far ipsi +.08 ** / +.03 * / -.00; close contra +.03 * acutely (close mid: 0 in every epoch, jaw not judged). Per animal far-contra share acute (PS92 / 93 / 94 / 95): incomplete .80 / .71 / .63 / .36; jaw-only .09 / .10 / .21 / .49 (PS95: 1 acute session). No-response trials (not on this figure): next slide.",
+   "FIGURE SOURCE: rebuild render M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/session_poses_derived/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/jaw_only_incomplete_figs/figures/trial_class_share_epochs.png (step k_jaw_only_figs, 11-06, code ec0ff642; scripts/jaw_only_incomplete_figs.py; tables sessions.csv / tests.csv / time_lmm.csv beside it) · deck image: presentations/_source_PI_overview_2026-11-17/swap_inputs/s040_trial_class_share.png (as is)."
+  ],
+  "data_block": {
+   "Window": "cue-aligned trial classes; traces -500..3000 ms in 20 ms bins",
+   "Licks": "cam4 v36 licks with DAQ contact + cam1-only events (camera classes)",
+   "Trial period": "camera working period: first cue to the session's last camera lick, stopped runs (A2 + lick excise) removed (WIDEFIELD_TRIAL_GATE=camera, TRIAL_WINDOW=cue_stop, TRIAL_END=lick, TRIAL_STOPPED=both)",
+   "Trial types": "contact / incomplete / jaw_only / no_response per working-period trial (unknown excluded); shares per session x spout",
+   "Gate": "camera trial gate (WIDEFIELD_WORKING_TRIALS=in_working)",
+   "Baseline": "change from the animal's own August pre mean at that spout (PRE_FROM=0801)",
+   "Correction": "paired nested bootstrap animals -> sessions; * 95 % CI excludes 0, ** Bonferroni over 18 (6 spouts x 3 epochs) [traced: render log k_jaw_only_figs.log]"
+  },
+  "changes": [
+   {
+    "what": "picture",
+    "old": "11-05 e0 run (trial_classes_working_1105, no log)",
+    "new": "11-06 logged rebuild render (same sessions table; tests equal to rounding)",
+    "source": "k_jaw_only_figs.log"
+   },
+   {
+    "what": "slide numbers",
+    "old": "+.60 / +.17 / ~0; +.21 / +.17 / +.08",
+    "new": "unchanged (log .600 / .169 / -.001; .209 / .169 / .080)",
+    "source": "k_jaw_only_figs.log pooled table"
+   },
+   {
+    "what": "PS95 far-contra trials",
+    "old": "109 far-contra trials",
+    "new": "removed: untraced in this log",
+    "source": "-"
+   }
+  ],
+  "conclusion_changed": false,
+  "conclusion_note": ""
+ },
+ {
+  "slide": 41,
+  "title_now": "Jaw opening by trial class",
+  "status": "ready",
+  "skip_reason": "",
+  "pictures": [
+   {
+    "shape_name": "fig:trial_class_jaw_traces",
+    "new_image": "M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-17/swap_inputs/s041_jaw_traces.png",
+    "source_render": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/session_poses_derived/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/jaw_only_incomplete_figs_redraw_20261116/figures/trial_class_jaw_traces.png",
+    "crop_done": "as is (full figure), as the old image; page-ready 11-16 redraw of the 11-06 tables (KIN_PAGE_GATE_ITEMS_2026-11-16.md item 1, Fig 6.4)"
+   }
+  ],
+  "slide_text": [
+   {
+    "shape_name": "TextBox 3",
+    "old": "•  Jaw-only and incomplete trials open far less than contact trials; acute far-contra contact licks open less at first (peak ~1.2 vs ~2.3 mm pre) but stay more open from ~2 s (3 animals, 61 trials)",
+    "new": "•  Jaw-only and incomplete trials open far less than contact trials; acute far-contra contact licks open less at first (peak ~1.3 vs ~2.3 mm pre) but stay more open from ~2 s (3 animals, 61 trials)"
+   }
+  ],
+  "notes_body": [
+   "Trial classes per WORKING-PERIOD trial, first match wins: contact (>= 1 lick touched the spout: cam4 v36 lick with DAQ contact or cam1-only event with contact); incomplete (>= 1 lick, none touched; water droplets removed); jaw_only (no lick, jaw moved, cam1 saw no tongue in the quiet window = the cam1-corrected jaw-without-lick class; a blind review found 0 / 24 were attempted licks); no_response (no lick, no jaw movement; at close mid, where the jaw cannot be judged, every no-lick trial is no_response); unknown (jaw not tracked). Working period = cue to the session's last camera lick, stopped trials excised (wfield_local.trial_classes). Pre = August only; curated sessions (pre 31 / acute 16 / subacute 17 / chronic 43); 3-D gate failures excluded.",
+   "Traces: 20 ms bins, mean per session (>= 2 trials of the class), then per animal x epoch, then over animals (band = SEM over animals); LEVELS, not changes (classes are defined by what the jaw / tongue did). Far contra, contact trials: pre peak 2.31 mm at 450 ms (4 animals, 2,556 trials), acute peak 1.32 mm at 1,290 ms (3 animals: PS92 14, PS93 35, PS94 12 trials; PS95 has no session with >= 2), mean 2-3 s 1.08 vs .58 mm pre; chronic peak 2.07 mm. Far-contra incomplete acute peak 1.06 mm, jaw-only .31 mm.",
+   "FIGURE SOURCE: kinematics page Fig 6.4 · picture = page-ready redraw M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/session_poses_derived/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/jaw_only_incomplete_figs_redraw_20261116/figures/trial_class_jaw_traces.png (jaw_only_incomplete_figs --reuse on copies of the 11-06 sessions.csv / traces.csv.gz) of the logged rebuild render M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/session_poses_derived/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/jaw_only_incomplete_figs/figures/trial_class_jaw_traces.png (step k_jaw_only_figs, 11-06, code ec0ff642) · deck image: presentations/_source_PI_overview_2026-11-17/swap_inputs/s041_jaw_traces.png (as is)."
+  ],
+  "data_block": {
+   "Window": "cue-aligned trial classes; traces -500..3000 ms in 20 ms bins",
+   "Licks": "cam4 v36 licks with DAQ contact + cam1-only events (camera classes)",
+   "Trial period": "camera working period: first cue to the session's last camera lick, stopped runs (A2 + lick excise) removed (WIDEFIELD_TRIAL_GATE=camera, TRIAL_WINDOW=cue_stop, TRIAL_END=lick, TRIAL_STOPPED=both)",
+   "Trial types": "contact / incomplete / jaw_only trials by spout x epoch; sessions with >= 2 trials of the class",
+   "Gate": "camera trial gate (WIDEFIELD_WORKING_TRIALS=in_working)",
+   "Baseline": "levels (not changes); pre = August only (PRE_FROM=0801)",
+   "Correction": "none: mean over animals ± SEM over animals [traced: render log k_jaw_only_figs.log]"
+  },
+  "changes": [
+   {
+    "what": "acute far-contra contact peak",
+    "old": "~1.2 mm",
+    "new": "~1.3 mm (1.32 at 1,290 ms)",
+    "source": "traces.csv.gz (redraw folder, = 11-06 table), aggregated as the figure: session mean (>= 2 trials) -> animal x epoch -> over animals"
+   },
+   {
+    "what": "pre peak / animals / trials",
+    "old": "~2.3 mm; 3 animals, 61 trials",
+    "new": "2.31 mm; 3 animals, 61 trials (unchanged)",
+    "source": "same"
+   },
+   {
+    "what": "picture",
+    "old": "11-05 e0 run",
+    "new": "11-16 redraw of the 11-06 logged tables",
+    "source": "KIN_PAGE_GATE_ITEMS_2026-11-16.md L14-29"
+   }
+  ],
+  "conclusion_changed": false,
+  "conclusion_note": ""
+ },
+ {
+  "slide": 42,
+  "title_now": "Tongue-out by trial class",
+  "status": "ready",
+  "skip_reason": "",
+  "pictures": [
+   {
+    "shape_name": "fig:trial_class_tongue_traces",
+    "new_image": "M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-17/swap_inputs/s042_tongue_traces.png",
+    "source_render": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/session_poses_derived/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/jaw_only_incomplete_figs_redraw_20261116/figures/trial_class_tongue_traces.png",
+    "crop_done": "as is (full figure), as the old image; page-ready 11-16 redraw of the 11-06 tables (Fig 6.5)"
+   }
+  ],
+  "slide_text": [],
+  "notes_body": [
+   "Trial classes per WORKING-PERIOD trial, first match wins: contact (>= 1 lick touched the spout: cam4 v36 lick with DAQ contact or cam1-only event with contact); incomplete (>= 1 lick, none touched; water droplets removed); jaw_only (no lick, jaw moved, cam1 saw no tongue in the quiet window = the cam1-corrected jaw-without-lick class; a blind review found 0 / 24 were attempted licks); no_response (no lick, no jaw movement; at close mid, where the jaw cannot be judged, every no-lick trial is no_response); unknown (jaw not tracked). Working period = cue to the session's last camera lick, stopped trials excised (wfield_local.trial_classes). Pre = August only; curated sessions (pre 31 / acute 16 / subacute 17 / chronic 43); 3-D gate failures excluded.",
+   "Traces: cue-aligned share of frames with a 3-D tongue point; 20 ms bins, mean per session (>= 2 trials of the class), then per animal x epoch, then over animals (band = SEM over animals); LEVELS, not changes.",
+   "FIGURE SOURCE: kinematics page Fig 6.5 · picture = page-ready redraw M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/session_poses_derived/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/jaw_only_incomplete_figs_redraw_20261116/figures/trial_class_tongue_traces.png of the logged rebuild render M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/session_poses_derived/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/jaw_only_incomplete_figs/figures/trial_class_tongue_traces.png (step k_jaw_only_figs, 11-06, code ec0ff642) · deck image: presentations/_source_PI_overview_2026-11-17/swap_inputs/s042_tongue_traces.png (as is)."
+  ],
+  "data_block": {
+   "Window": "cue-aligned trial classes; traces -500..3000 ms in 20 ms bins",
+   "Licks": "cam4 v36 licks with DAQ contact + cam1-only events (camera classes)",
+   "Trial period": "camera working period: first cue to the session's last camera lick, stopped runs (A2 + lick excise) removed (WIDEFIELD_TRIAL_GATE=camera, TRIAL_WINDOW=cue_stop, TRIAL_END=lick, TRIAL_STOPPED=both)",
+   "Trial types": "contact / incomplete / jaw_only trials by spout x epoch; sessions with >= 2 trials of the class",
+   "Gate": "camera trial gate (WIDEFIELD_WORKING_TRIALS=in_working)",
+   "Baseline": "levels (not changes); pre = August only (PRE_FROM=0801)",
+   "Correction": "none: mean over animals ± SEM over animals [traced: render log k_jaw_only_figs.log]"
+  },
+  "changes": [
+   {
+    "what": "picture",
+    "old": "11-05 e0 run (no log)",
+    "new": "11-16 redraw of the 11-06 logged tables; no numbers on the slide",
+    "source": "k_jaw_only_figs.log; KIN_PAGE_GATE_ITEMS_2026-11-16.md"
+   }
+  ],
+  "conclusion_changed": false,
+  "conclusion_note": ""
+ },
+ {
+  "slide": 43,
+  "title_now": "Trial classes over days: back to pre",
+  "status": "ready",
+  "skip_reason": "",
+  "pictures": [
+   {
+    "shape_name": "fig:trial_class_share_days",
+    "new_image": "M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-17/swap_inputs/s043_trial_class_days.png",
+    "source_render": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/session_poses_derived/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/jaw_only_incomplete_figs/figures/trial_class_share_days.png",
+    "crop_done": "as is (full figure), as the old image; the full-precision 11-06 render, not the 11-16 redraw (the time model is numerically fragile after the redraw round trip, KIN_PAGE_GATE_ITEMS_2026-11-16.md)"
+   }
+  ],
+  "slide_text": [],
+  "notes_body": [
+   "Trial classes per WORKING-PERIOD trial, first match wins: contact (>= 1 lick touched the spout: cam4 v36 lick with DAQ contact or cam1-only event with contact); incomplete (>= 1 lick, none touched; water droplets removed); jaw_only (no lick, jaw moved, cam1 saw no tongue in the quiet window = the cam1-corrected jaw-without-lick class; a blind review found 0 / 24 were attempted licks); no_response (no lick, no jaw movement; at close mid, where the jaw cannot be judged, every no-lick trial is no_response); unknown (jaw not tracked). Working period = cue to the session's last camera lick, stopped trials excised (wfield_local.trial_classes). Pre = August only; curated sessions (pre 31 / acute 16 / subacute 17 / chronic 43); 3-D gate failures excluded.",
+   "Per animal (thin) + pooled time model y ~ post + post:lday (animal random effects; q = BH over 6 spouts per class x term). Far contra: incomplete step +.644 (q < .001), recovery -.186 per e-fold (q < .001); jaw-only step +.166, -.051 per e-fold (both q < .001); every far-spout class returns toward pre. The time model is numerically fragile (the far-mid incomplete random-effects ladder flips under a 4-digit round trip); use the epoch figure (previous slides) for inference.",
+   "FIGURE SOURCE: kinematics page Fig 6.3 · rebuild render M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/session_poses_derived/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/jaw_only_incomplete_figs/figures/trial_class_share_days.png (step k_jaw_only_figs, 11-06, code ec0ff642; time_lmm.csv beside it) · deck image: presentations/_source_PI_overview_2026-11-17/swap_inputs/s043_trial_class_days.png (as is)."
+  ],
+  "data_block": {
+   "Window": "cue-aligned trial classes; traces -500..3000 ms in 20 ms bins",
+   "Licks": "cam4 v36 licks with DAQ contact + cam1-only events (camera classes)",
+   "Trial period": "camera working period: first cue to the session's last camera lick, stopped runs (A2 + lick excise) removed (WIDEFIELD_TRIAL_GATE=camera, TRIAL_WINDOW=cue_stop, TRIAL_END=lick, TRIAL_STOPPED=both)",
+   "Trial types": "contact / incomplete / jaw_only shares per working-period trial, per session x spout",
+   "Gate": "camera trial gate (WIDEFIELD_WORKING_TRIALS=in_working)",
+   "Baseline": "change from the animal's own August pre mean at that spout (PRE_FROM=0801)",
+   "Correction": "pooled time model (mixed_models, animal random effects); q = BH-FDR over 6 spouts per class x term [traced: render log k_jaw_only_figs.log]"
+  },
+  "changes": [
+   {
+    "what": "picture",
+    "old": "11-05 e0 run (no log)",
+    "new": "11-06 logged rebuild render",
+    "source": "k_jaw_only_figs.log"
+   },
+   {
+    "what": "time-model numbers (notes only)",
+    "old": "none quoted",
+    "new": "far contra incomplete +.644 / -.186, jaw-only +.166 / -.051 (q < .001)",
+    "source": "k_jaw_only_figs.log pooled time model"
+   }
+  ],
+  "conclusion_changed": false,
+  "conclusion_note": ""
+ }
+]

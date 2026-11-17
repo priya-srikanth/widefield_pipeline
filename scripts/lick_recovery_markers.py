@@ -100,7 +100,7 @@ def _gaps(label: str) -> pd.DataFrame:
     from wfield_local import orofacial_cohort as oc
     from wfield_local import orofacial_outputs as oo
     from wfield_local.paths import PathResolver
-    C = pd.read_csv(il.OUT_W / f"covref_covariates{lo.SRC_TAG}.csv.gz", usecols=["set", "label", "k", "t"])
+    C = pd.read_csv(il.in_path(f"covref_covariates{lo.SRC_TAG}.csv.gz"), usecols=["set", "label", "k", "t"])
     C = C[(C.label == label) & (C.set == "iti")]
     an, date = config.animal_of(label), "2026" + label.split("_")[-1]
     A = pd.read_csv(oo.session_dir(PathResolver(), oc.RUN, an, date) / "licks_all.csv", usecols=["daq_on_s", "daq_peak_s"])
@@ -138,7 +138,7 @@ def sessions() -> pd.DataFrame:
     from wfield_local import analysis_kit as ak
     P = pd.read_csv(lo.preds_path()).reset_index(drop=True)
     P["k"] = P.groupby(["set", "label"]).cumcount()
-    C = pd.read_csv(il.OUT_W / f"covref_covariates{lo.SRC_TAG}.csv.gz", usecols=["set", "label", "k", "reach_mm", "side_k"])
+    C = pd.read_csv(il.in_path(f"covref_covariates{lo.SRC_TAG}.csv.gz"), usecols=["set", "label", "k", "reach_mm", "side_k"])
     P = P.merge(C, on=["set", "label", "k"], how="left", validate="one_to_one")
     res, fail = ak.fan_sessions(sorted(P.label.unique()), _session)
     if fail:
@@ -215,7 +215,7 @@ def sessions() -> pd.DataFrame:
     # B: response AUCs (session level), change vs the animal's own pre mean
     parts = []
     for st, fn in (("cued", "area_auc_sessions_split_cued.csv"), ("ITI", "area_auc_sessions_split.csv")):
-        T = pd.read_csv(il.OUT_W / fn)
+        T = pd.read_csv(il.in_path(fn))
         T = T[T.area.isin([f"{a}_{h}" for a in ORO for h in ("right", "left")])].copy()
         T["side"] = np.where(T.area.str.endswith("_right"), "contra", "ipsi")
         out = None
@@ -236,7 +236,7 @@ def sessions() -> pd.DataFrame:
         if st == "cued":                     # the cued AUC is already the first post-cue lick
             parts.append(out.assign(set=C1SET))
     S = S.merge(pd.concat(parts, ignore_index=True), on=["set", "label"], how="left")
-    A = pd.read_csv(il.OUT_W / "aim_deficit_sessions.csv", usecols=["label", "day", "farcontra_first"])
+    A = pd.read_csv(il.in_path("aim_deficit_sessions.csv"), usecols=["label", "day", "farcontra_first"])
     S = S.merge(A, on="label", how="left").rename(columns={"farcontra_first": "aim"})
     S = S.merge(ITI_AX, on="label", how="left")
     return S
@@ -348,7 +348,7 @@ def compute() -> dict:
     S = sessions()
     S.to_csv(il.OUT_W / "recmark_sessions.csv", index=False)
     # self-check: the balance reproduces 14.16's session values (post sessions; same reference)
-    B = pd.read_csv(il.OUT_W / "balrec_sessions.csv", usecols=["set", "label", "r_orofacial"])
+    B = pd.read_csv(il.in_path("balrec_sessions.csv"), usecols=["set", "label", "r_orofacial"])
     chk = S.merge(B, on=["set", "label"])
     dmax = float(np.nanmax(np.abs(chk.oro_bal - chk.r_orofacial)))
     print(f"== self-check: oro_bal vs balrec r_orofacial, {len(chk)} sessions, max |diff| = {dmax:.2e}")

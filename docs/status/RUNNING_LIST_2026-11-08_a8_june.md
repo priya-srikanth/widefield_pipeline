@@ -559,3 +559,34 @@ PI deck (backup Overview_2026-11-06.bak_pre_a8_renumber_20261116.pptx): FR page 
   fig_state_position_sessions.py): .../rebuild_figs/<tag>/rel_own_pre_20261117/state_position_sessions_rel_own_pre.png.
   With the figure script's seed (20261102) chronic position Holm .054 (n.s.); the quick check (seed 0) gave .046 -> chronic sits
   ON the .05 line, seed-dependent; report it as borderline, not as a star either way.
+
+### 11-17 — deck swap pass: A+B applied (63 slides)
+- Applied to Overview_2026-11-06.pptx (backup .bak_pre_a8_swap_20261117.pptx) by docs/status/deck_swap_20261117/apply_specs.py
+  from specs/batch1-4.json; logs apply_log_batch1_2.csv, apply_log_batch4_s61.csv, apply_log_batch3.csv. Slide 21 applied with
+  Priya's OK ("ok to replace slide 21, with our ongoing investigation"): absolute scale, chronic "borderline", relative numbers +
+  decomposition pointer in notes. Slide 61 re-drawn on current code (contra-left flip) from rebuild figdata. 147 widened (box override).
+- Main-point changes applied: 20 (chronic Bonferroni cells now far ipsi + far contra), 21, 101 (chronic position-free = medial loss),
+  117 (far spouts still down chronically, new title), 197 (per-trial; pre separation weak in all 4).
+- NOT applied: 17 (LMM companion, queued to the lmm_hidden render helper), 157 (quiet task events, queued C render);
+  105 top / 122 / 125 / 128 / 130 / 131 / 133 / 200 / 203 = docked-spout ITI set never rendered on the rebuild -> docked arm
+  (iti_dock_page_figures + lick_matched_readout gauss + lick_lateral_ratio, WFIELD_ITI_FILTER=dock) queued as group C.
+- Helper flags to follow up: l_offset_terms_g log labels a flat session mean "mean of animals" (scripts/lick_offset_terms_recovery.py
+  ~L85); e_first_lick_g froze NEW iti_first_lick decoders (SPEC-CHANGED, pre set changed); slide 112 figure stars are LMM;
+  purple trial-set stamp whited out of several crops where it overprinted figure text; 139 = capped set until WFIELD_BAL_FULL render.
+- 11-17: 3c (Priya OK) lifted the hold on state-space SVD / LocaNMF-basis slides (11-08 tables were already glue-free; re-run byte
+  identical; M:/.../state_space_recovery/svd_lnmf_gluefree_20261117/logs/RUN_LOG.md). Checked the PI deck: no slide uses SS Fig 6.3 /
+  6.4 (text + notes search), so nothing to change here.
+- 11-17: slide 21 now carries BOTH figures (Priya: "add the per-animal pre-normalized versions"): absolute on top, each session /
+  its animal's own pre mean below (legend rows cut; swap_inputs/s021b_state_position_rel_own_pre.png); caption rewritten;
+  backup .bak_pre_a8_s21rel_20261117.pptx; script deck_swap_20261117/slide21_add_relative.py.
+- 11-17 INCIDENT: a PowerPoint GUI process (PID 43556, started 11-16 16:20) has Overview_2026-11-06.pptx open (no lock file). My COM
+  export of the LIVE path attached to it, showed the 11-16 in-memory version, and its Close() may have closed that window.
+  Saving from that window would overwrite today's deck edits (and 11-16 Data: blocks after 16:20). export_slides.ps1 now refuses
+  live-deck paths; told Priya.
+- Stale-code check (3c 11-17): `python scripts/...` from a worktree imports the main checkout's wfield_local (663 behind). My slide 21
+  runs did; the modules used differ only by ADDED functions in analysis_kit, so the numbers stand. Helpers told to set PYTHONPATH.
+- 11-17: group C LMM companions applied (15 slides: 5, 12, 17, 19, 106, 107, 114, 121, 127, 136, 137, 142, 145, 150, 151) from
+  specs/groupC_lmm.json (renders .../grant_figures/<tag>/lmm_hidden_20261117/, branch lmm-hidden-20261103 pushed, e3f6e02c; 20-hit
+  gate now applied to 121/142/145). Main-point changes: 12 (acute far contra LMM degenerate, not tested; 4/4 animals still drop),
+  145 (acute code + gap not tested under the 20-hit gate; chronic gap -.29 *), 151 (acute orofacial-ipsi lick residual now *).
+  Backup .bak_pre_a8_groupC_lmm_20261117.pptx. Waiting: 108/109/123/129/134/138/201 (docked ITI arm), 111/116 (no rebuild input).
