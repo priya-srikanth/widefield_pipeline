@@ -59,6 +59,9 @@ class SlideCanvas:
         self.placed_figures = []
         self.slide_order = []
         self.figs_by_slide = {}
+        #: full paths beside the names (11-17): the provenance line reads the lick source from the figure's folder
+        #: (an ``LP_licks`` output tag = the LP lick source), which the bare name does not carry
+        self.fig_paths_by_slide = {}
         self.seen_methods = {}
         self.pending_notes = []
         #: Sidecar resolver for `note`; the BUILDER chooses its search roots, because the
@@ -75,6 +78,7 @@ class SlideCanvas:
 
     def _record(self, sl, p):
         self.figs_by_slide.setdefault(id(sl._element), []).append(Path(p).name)
+        self.fig_paths_by_slide.setdefault(id(sl._element), []).append(str(p))
 
     def exists(self, p):
         """Does this figure exist -- and count it either way, present or missing.
