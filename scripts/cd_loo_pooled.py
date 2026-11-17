@@ -29,7 +29,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from scripts.cd_loo_figures import ALIGN_LABEL, EP_COL, POS
+from scripts.cd_loo_figures import ALIGN_LABEL, EP_COL, POS, window_bounds
 
 EPOCHS = ("pre", "acute", "subacute", "chronic")
 
@@ -120,14 +120,13 @@ def fig_traj(Z, D: pd.DataFrame, align: str, path: Path) -> None:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    from scripts.epoch_sessions_long import CD_WINDOWS
     if f"trace_{align}" not in Z:
         return
     t, X = Z[f"t_{align}"], Z[f"trace_{align}"].astype(float)
     lab, ep, pos = Z[f"label_{align}"].astype(str), Z[f"epoch_{align}"].astype(str), Z[f"position_{align}"].astype(str)
     an = np.array([x[:4] for x in lab])
     pre_mean = D[(D["align"] == align) & (D.epoch == "pre")].groupby(["animal", "position"]).value.mean()
-    _, lo, hi = CD_WINDOWS[align]
+    lo, hi = window_bounds(D, align)
     fig, axes = plt.subplots(1, len(POS), figsize=(2.9 * len(POS), 3.2), sharey=True, sharex=True)
     for ax, p in zip(axes, POS):
         ax.axvspan(lo, hi, color="0.93", zorder=0)
