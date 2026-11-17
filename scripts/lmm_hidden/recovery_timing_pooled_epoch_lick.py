@@ -34,8 +34,14 @@ MEAS = {"beh": "behaviour: far-contra hit rate", "neu": "cortex: far-contra code
 def build(root: Path) -> pd.DataFrame:
     S = pd.read_csv(_paths.sub(root, "attempt_coding") / "recovery_timing_series_lick.csv")
     S["gap"] = S.neu - S.beh
-    out = [pd.DataFrame({"position": m, "epoch": S.epoch, "animal": S.animal, "label": S.label, "day": S.day,
-                         "value": S[m], "panel": lab}) for m, lab in MEAS.items()]
+    out = []
+    for m, lab in MEAS.items():
+        G = S
+        if m in ("neu", "gap"):           # code on hits: the main figure's MIN_HITS gate per animal x epoch (11-07)
+            G, dropped = _paths.hit_gate(S, m, "n_hits")
+            print(f"[{m}] hit gate (>= MIN_HITS hits per animal x epoch) dropped: {', '.join(dropped) or 'none'}")
+        out.append(pd.DataFrame({"position": m, "epoch": G.epoch, "animal": G.animal, "label": G.label, "day": G.day,
+                                 "value": G[m], "panel": lab}))
     return pd.concat(out, ignore_index=True).dropna(subset=["value"]).reset_index(drop=True)
 
 

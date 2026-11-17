@@ -75,3 +75,22 @@ def out_title(title: str) -> str:
 
 def allow_no_pub() -> bool:
     return os.environ.get("LMM_HIDDEN_ALLOW_NO_PUB", "") == "1"
+
+
+def hit_gate(S, value: str, n_col: str, by=("animal", "epoch")):
+    """Rows of ``S`` with a finite ``value``, minus every animal x epoch cell whose sessions sum to < analysis_kit.MIN_HITS
+    hits in ``n_col`` -- the code-on-hits gate of the main figures (Priya 11-07: recovery_timing._hit_gated,
+    key_figure._gated, decoder_retention_sessions._cell). Applied when ``n_col`` exists (the v36 tables predate it).
+    Returns (kept rows, list of dropped cells)."""
+    import numpy as np
+    from wfield_local import analysis_kit as ak
+    S = S[np.isfinite(S[value].to_numpy(float))]
+    if n_col not in S:
+        return S, []
+    keep, dropped = [], []
+    for k, g in S.groupby(list(by), sort=False):
+        if ak.hits_ok(g[n_col].to_numpy(float)):
+            keep.append(g)
+        else:
+            dropped.append(f"{'/'.join(map(str, k))} ({int(np.nansum(g[n_col].to_numpy(float)))} hits)")
+    return (S.iloc[0:0] if not keep else __import__("pandas").concat(keep)), dropped

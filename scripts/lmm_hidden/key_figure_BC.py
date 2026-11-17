@@ -46,7 +46,8 @@ def _scaled(rows: pd.DataFrame, cell: str, panel: str) -> pd.DataFrame:
 def build(root: Path) -> pd.DataFrame:
     out = []
     S = pd.read_csv(_paths.sub(root, "attempt_coding") / "recovery_timing_series_lick.csv")
-    S = S[np.isfinite(S.neu)]
+    S, dropped = _paths.hit_gate(S, "neu", "n_hits")     # key_figure._gated: MIN_HITS per animal x epoch (11-07)
+    print(f"[trial:code] hit gate (>= MIN_HITS hits per animal x epoch) dropped: {', '.join(dropped) or 'none'}")
     out.append(pd.DataFrame({"position": "trial:code", "epoch": S.epoch, "animal": S.animal, "label": S.label,
                              "value": S.neu, "panel": PANEL["trial"]}))
     R = pd.read_csv(_paths.sub(root, "iti_licks") / "refit_decoders_sessions.csv")

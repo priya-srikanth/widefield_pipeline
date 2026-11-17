@@ -34,6 +34,10 @@ LABELS = {"hit": "hits", "failed": "failed attempts\n(vs pre hits)"}
 
 def build(root: Path) -> pd.DataFrame:
     S = pd.read_csv(_paths.sub(root, "attempt_coding") / "decoder_retention_sessions.csv")
+    if "n" in S:                          # decoder_retention_sessions._cell: hit cells need >= MIN_HITS (11-07)
+        H, dropped = _paths.hit_gate(S[S.cls2 == "hit"], "ret", "n", by=("window", "animal", "epoch"))
+        print(f"[hit] hit gate (>= MIN_HITS hits per window x animal x epoch) dropped: {', '.join(dropped) or 'none'}")
+        S = pd.concat([H, S[S.cls2 != "hit"]], ignore_index=True)
     rows = []
     for w, wl in WIN:
         K = S[S.window == w]
