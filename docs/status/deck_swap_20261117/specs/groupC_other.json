@@ -358,8 +358,13 @@
   "slide_text": [
    {
     "shape_name": "TextBox 3",
-    "old": "•  Places an unseen animal on its recovery curve: cued R² .65–.70 vs .23 for days since stroke",
+    "old": "•  Places an unseen animal on its recovery curve: cued R² .67 vs .23 for days since stroke",
     "new": "•  Places an unseen animal on its recovery curve: cued R² .66 vs .23 for days since stroke"
+   },
+   {
+    "shape_name": "TextBox 5",
+    "old": "Shown as implied direction = −(balance); top: sessions (gray = pre, left out), mixed models with log(day); bottom: cross-validated R², balance (red) vs days since stroke (gray); cued licks: at most 1500 first licks per session",
+    "new": "Shown as implied direction = −(balance); top: sessions (gray = pre, left out), mixed models with log(day); bottom: cross-validated R², balance (red) vs days since stroke (gray); cued licks: every first post-cue lick (full set)"
    }
   ],
   "notes_body": [
@@ -545,8 +550,8 @@
  {
   "slide": 157,
   "title_now": "Pre-cue event: weaker code, cause unknown",
-  "status": "needs_priya",
-  "skip_reason": "Main point changed: on the rebuild the weaker pre-cue code with an event is present BEFORE the stroke too (pre strict -0.020, p .001, 3/4), so 'after the stroke' no longer holds; the exclusion / contamination follow-up (quiet_task_events_followup.py) was not re-run. Proposed rewrite below; image ready.",
+  "status": "ready",
+  "skip_reason": "",
   "pictures": [
    {
     "shape_name": "fig:q_task_outcome",
