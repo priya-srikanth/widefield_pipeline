@@ -24,6 +24,8 @@ from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin
 import sys
 from pathlib import Path
 
+import os
+
 import numpy as np
 import pandas as pd
 
@@ -41,8 +43,13 @@ GROUP_ROWS = (("resp_n", "response AUC / pre"), ("build_n", "build-up AUC / pre 
 GROUP_COLS = ("orofacial", "visual + RSP", "orofacial - visual + RSP")
 
 
-WOUT = il.OUT_W if il.ITI_SUBSET else il.OUT     # subset runs (dock, ...) write to their own folder (10-29)
-RESP_W = (0.0, 1.0)      # response AUC window (0..1.0 s default since 10-28 evening; 0..0.5 s before)
+# subset runs (dock, ...) write to their own folder (10-29); an explicit WFIELD_ITI_OUT_W re-render too (11-17: it must
+# never fall back to the production OUT)
+WOUT = il.OUT_W if (il.ITI_SUBSET or os.environ.get("WFIELD_ITI_OUT_W")) else il.OUT
+# response AUC window per lick set (iti_licks.CUED_RESP_WIN / ITI_RESP_WIN, Priya 11-17): cued 0..1.0 s (10-28 evening),
+# ITI 0..0.5 s (11-17; 0..1.0 s from 10-28 to 11-17, 0..0.5 s before 10-28)
+RESP_W = il.CUED_RESP_WIN
+ITI_RESP_W = il.ITI_RESP_WIN
 
 
 def _wide(x: str) -> dict:
@@ -54,13 +61,14 @@ def _wide(x: str) -> dict:
     return {k: z[k] for k in ("lick", "cue", "pos", "iti", "cols")}
 
 
-def _resp_wide(X: np.ndarray, base: tuple) -> np.ndarray:
-    """(licks, LAGS_W, areas) -> session-mean response AUC over RESP_W per area, after the per-lick baseline `base`."""
+def _resp_wide(X: np.ndarray, base: tuple, win: tuple) -> np.ndarray:
+    """(licks, LAGS_W, areas) -> session-mean response AUC over `win` (RESP_W cued / ITI_RESP_W ITI) per area, after
+    the per-lick baseline `base`."""
     import lick_cued_ramp as cr
     X = X.astype(float)
     X = X - np.nanmean(X[:, (cr.LAGS_W >= base[0]) & (cr.LAGS_W <= base[1]), :], 1, keepdims=True)
     mu = np.nanmean(X, 0)
-    w = (cr.LAGS_W >= RESP_W[0]) & (cr.LAGS_W <= RESP_W[1])
+    w = (cr.LAGS_W >= win[0]) & (cr.LAGS_W <= win[1])
     return np.trapezoid(mu[w], cr.LAGS_W[w], axis=0)
 
 
@@ -73,7 +81,7 @@ def session_table(D: dict) -> tuple[pd.DataFrame, dict]:
         P = d["bout_peth"][m].astype(float)
         P = P - P[:, (il.LAGS_P >= il.BASE[0]) & (il.LAGS_P <= il.BASE[1]), :].mean(1, keepdims=True)
         mu = P.mean(0)                                    # (lags, areas)
-        rw = _resp_wide(_wide(x)["iti"][m], il.BASE_RESP)   # response 0..1.0 s, baseline -1.0..-0.5 s
+        rw = _resp_wide(_wide(x)["iti"][m], il.BASE_RESP, ITI_RESP_W)   # ITI window, baseline -1.0..-0.5 s
         for j, c in enumerate(d["cols"]):
             if c == "cortex":
                 continue
@@ -153,19 +161,21 @@ def session_table_split(D: dict, spout: str | None = None, min_n: int = 10, cued
         P = d["first_peth" if cued else "bout_peth"][m].astype(float)
         P = P - P[:, (il.LAGS_P >= il.BASE[0]) & (il.LAGS_P <= il.BASE[1]), :].mean(1, keepdims=True)
         mu, cols = il.with_rest(P.mean(0), d["cols"], x, basis="split")      # build-up / pre-lick window (unchanged)
-        # response (and cue) AUC over RESP_W = 0..1.0 s from the long traces, response baseline -1.0..-0.5 s (10-28)
+        # response (and cue) AUC from the long traces, response baseline -1.0..-0.5 s (10-28): cued over RESP_W, ITI over
+        # ITI_RESP_W (11-17)
         Wd = _wide(x)
         if cued:
             mw = np.ones(len(Wd["pos"]), bool) if spout is None else np.asarray(Wd["pos"], str) == spout
             if mw.sum() < min_n:
                 continue
-            rw = _resp_wide(Wd["lick"][mw], il.BASE_RESP)
-            cw = _resp_wide(Wd["cue"][mw], BASE_C)
+            rw = _resp_wide(Wd["lick"][mw], il.BASE_RESP, RESP_W)
+            cw = _resp_wide(Wd["cue"][mw], BASE_C, RESP_W)
             rw, _ = il.with_rest(rw[None, :], d["cols"], x, basis="split")
             cw, _ = il.with_rest(cw[None, :], d["cols"], x, basis="split")
             rw, cw = rw[0], cw[0]
         else:
-            rw, _ = il.with_rest(_resp_wide(Wd["iti"][m], il.BASE_RESP)[None, :], d["cols"], x, basis="split")
+            rw, _ = il.with_rest(_resp_wide(Wd["iti"][m], il.BASE_RESP, ITI_RESP_W)[None, :], d["cols"], x,
+                                 basis="split")
             rw = rw[0]
         for j, c in enumerate(cols):
             if c == "cortex" or c.rsplit("_", 1)[0] in ("MOs", "MOp"):
@@ -191,10 +201,10 @@ def split_maps(spout: str | None = None, cued: bool = False) -> None:
     stem = f"lick_{kind}_area_maps_split{tag}"
     ctag = "_cued" if cued else ""
     T.to_csv(WOUT / f"area_auc_sessions_split{ctag}{tag}.csv", index=False)
-    vals = [("resp", "lick response AUC 0..1.0 s" if cued else "response AUC 0..1.0 s"),
+    vals = [("resp", f"lick response AUC {il.win_label(RESP_W)}" if cued else f"response AUC {il.win_label(ITI_RESP_W)}"),
             ("build", "pre-lick AUC -0.4..-0.05 s (overlaps the CUE)" if cued else "build-up AUC -0.4..-0.05 s")]
     if cued:
-        vals.append(("cue", "cue response AUC 0..1.0 s after the cue"))
+        vals.append(("cue", f"cue response AUC {il.win_label(RESP_W)} after the cue"))
     C = pd.concat([changes(T, v) for v, _t in vals])
     C.to_csv(WOUT / f"area_auc_changes_split{ctag}{tag}.csv", index=False)
     print("== per animal (rule 8), response AUC, ALM / tjM1 / rest\n" + T[T.area.str.contains("ALM|tjM1|rest")]
@@ -342,7 +352,7 @@ def main() -> int:
     img, nm = area_image(labels[0])
     # ---- maps: per row the colour limit, per panel the area -> change dict + the significant areas
     rows = []
-    vals = (("resp", "response AUC 0..1.0 s"), ("build", "build-up AUC -0.4..-0.05 s"))
+    vals = (("resp", f"response AUC {il.win_label(ITI_RESP_W)}"), ("build", "build-up AUC -0.4..-0.05 s"))
     for val, ttl in vals:
         c = C[C.value == val]
         lim = np.nanpercentile(np.abs(c.delta), 98) or 1.0

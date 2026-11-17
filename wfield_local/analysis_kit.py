@@ -53,6 +53,11 @@ PCTL = (2.5, 97.5)
 #: figures say ``HIT_GATE_NA``. Prompted by Fig 0.12's PS94 acute code resting on ONE session with 8 hits.
 MIN_HITS = 20
 HIT_GATE_NA = f"n.a. (<{MIN_HITS} hits)"
+#: Priya 11-17 ("let's show the low-hit cells but mark as <20 hits"): figures MAY draw the session values of a gated
+#: cell (opt-in, e.g. ``--show-low-hits``) as a hollow gray diamond with this legend label; they stay out of every
+#: mean / CI / test / fit. Same marker as the hidden mixed-model companions (scripts/lmm_hidden render.py).
+LOWHIT_LABEL = f"< {MIN_HITS} hits: shown, not tested"
+LOWHIT_COLOR = "0.55"
 
 
 def hits_ok(n_hits) -> bool:

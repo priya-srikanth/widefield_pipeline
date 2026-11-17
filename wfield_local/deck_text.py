@@ -1078,6 +1078,42 @@ M_POSTSTROKE = (
 #: Counts: rebuild epoch sidecars (epoch_acc_by_position_*_meta.csv: pre 31 / acute 16 / subacute 17 / chronic 43);
 #: behavior: rebuild_figs/<tag>/behaviour_hits_by_spout.csv and session_poses_derived/<tag>/
 #: jaw_only_incomplete_figs_redraw_20261116/figures/trial_class_share_raw.csv; design: trial_classes.design_note().
+#: Section G divider subtitle in a TAGGED (rebuild) build (11-17, Priya: the untagged "Lesion 0816; post-stroke pool = <every
+#: post label>" line is the August single-cutoff wording; the rebuild has per-animal lesion dates and epochs, as
+#: M_POSTSTROKE_REBUILD). Kept short: the divider is a title slide, the full design is the G0 note.
+G_DIVIDER_REBUILD = (
+    "Lesions: PS94 / PS95 8/16 (3 mW); PS92 / PS93 redone 8/17 after that day's session (their 8/17 belongs to neither "
+    "phase). Epochs per animal from its own lesion day: acute PS92 days 1-5, PS93 1-4, PS94 1-7, PS95 1; chronic from "
+    "day 11 / 11 / 25 / 15; subacute between. Sessions: August pre 31 (8 / 7 / 8 / 8; PS93_0813 has no video), acute 16 "
+    "(5 / 4 / 6 / 1), subacute 17 (2 / 3 / 5 / 7), chronic 43 (12 / 12 / 8 / 11). Behavior first: far-contra hit rate "
+    "pre -> acute .97 -> .04, .97 -> .13, .94 -> .04, .95 -> .01 (4 / 4); what the animal still attempts bounds what "
+    "any decoding number can mean.")
+
+
+#: Slide G0 in a TAGGED (rebuild) build (Priya 11-17): the untagged G0 bullets describe the August single-cutoff design
+#: ("11 curated dates ending 8/14, 44 sessions", engaged cut pre vs all trials post, no post-stroke engagement gate,
+#: the post-stroke pool as a label list). Same sources as M_POSTSTROKE_REBUILD. Keys = the untagged bullet each one
+#: replaces (locanmf_analysis_deck G0); bullets not listed are kept as they are.
+G0_REBUILD = {
+    "reference": (
+        "PRE-STROKE reference is FROZEN: August-only pre (WIDEFIELD_PRE_FROM=0801), 31 sessions (PS92 8 / PS93 7 / "
+        "PS94 8 / PS95 8; PS93_0813 has no behavior video), fitted once per animal and stored (rebuild_20261103/"
+        "frozen_models); pre sessions are scored leave-one-session-out."),
+    "trials": (
+        "TRIALS: the camera trial gate. Working = camera classes contact (DAQ spout contact) + incomplete (a camera-seen "
+        "LP lick, cam4 + cam1, without contact), inside the session's camera working period (first to last camera "
+        "lick); stopped runs and the quit tail excluded. Section G scores working rows for the pre band and the "
+        "engaged-only post arm, ALL trials for the all-trials arm: the missing licks ARE the phenotype."),
+    "engagement": (
+        "Post-stroke engagement = the camera working period and the quit tail only; no response-rate gate, because a "
+        "local dip in response rate cannot be told from a run of motor failures."),
+    "pool": (
+        "POST-STROKE SESSIONS by epoch (per animal from its own lesion day): acute 16 (5 / 4 / 6 / 1), subacute 17 "
+        "(2 / 3 / 5 / 7), chronic 43 (12 / 12 / 8 / 11); PS92 / PS93 8/17 belongs to neither phase. Every slide is per "
+        "SESSION, never pooled across days; PS95 acute is ONE session."),
+}
+
+
 M_POSTSTROKE_REBUILD = (
     _M_LICK_UNIT +
     "POST-STROKE COMPARISON, COHORT-1 REBUILD (render profile cohort1_rebuild_20261103: hemo variant "

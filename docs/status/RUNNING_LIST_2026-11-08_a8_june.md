@@ -612,3 +612,65 @@ PI deck (backup Overview_2026-11-06.bak_pre_a8_renumber_20261116.pptx): FR page 
   203: docked ITI tjM1 0-1 s spout x epoch LR = -inf: full mixed model failed to converge (MLE on boundary); pre tjM1 docked balance
   very heterogeneous across animals (PS93 / PS94 to -1.8 / -2.0 at close spouts, PS92 / PS95 ~0) with few docked licks per cell;
   0-0.5 s fits (p .016). A fit failure, not a result.
+- 11-17: LMM round 2 applied (15: 12 per-session pre [acute far contra ** p .0002], 108, 109, 111, 116, 123, 129, 134, 136, 137, 138, 201
+  docked; 121 / 142 / 145 with <20-hit cells shown, not tested). specs/groupC_lmm_docked.json; branch lmm-hidden-20261103 d44d8e25;
+  backup .bak_pre_a8_lmm_round2_20261117.pptx. Helper rule slip (rewrote 3 input csvs in its own render folder, identical content; fixed a551070e).
+- 11-17: neg-AUC diagnostic first output: tjM1 ITI trace figures in .../iti_licks/neg_auc_diag_20261117/. Undefined rows = small short
+  lick transient (peak ~8-10 vs ~20) then a dip below baseline at 0.5-1.0 s (to ~-8..-14); defined rows stay up after 0.5 s
+  (following licks / next trial). Clearest PS94 pre, also PS93. Tests of alternatives still running.
+- 11-17: low-hit cells shown on main 141 / 143 / 144 / 146 (specs/lowhit_main.json; code 997573fb --show-low-hits; renders
+  attempt_coding/<tag>/redraw_lowhit_20261117/; tables byte-identical). 147 not hit-gated. Open for Priya: 146 day-bin means INCLUDE
+  low-hit sessions (bin 2 .34, bin 5 .61, bin 6-7 .68; never hit-gated) - gate them? Slide 120 (key_figure_BC code on hits) not yet marked.
+  Backup .bak_pre_a8_lowhit_main_20261117.pptx.
+- 11-17 Priya: ITI AUC + balance -> 0..0.5 s (DECISIONS 2026-11-17); helper re-rendering (*_iti05_20261117, specs/iti05.json); 3c told
+  (goal page owner). 146: keep day bins ungated ("20 hits per epoch is very different than 20 hits per session"), low-hit points noted
+  (already so). 120: low-hit marking queued (specs/lowhit_120.json).
+- 11-17: cued balance -> cued angle done (49d1f416; .../iti_licks/bal_full_cuedang_20261117/): LOAO .68 vs days .08 (cued -> aim .66 vs
+  .23); cued angle r .94 with aim -> cued balance mostly a lick-direction readout. Spec specs/s139_cuedang.json NOT applied: goes to
+  Priya first (conclusion-level; spec replaces the caveat bullet).
+- 11-17 neg-AUC diagnostic: cued / cue NOT biphasic (tjM1 0.5-1.2 s trough +22 / +26 above baseline; 0 / 214 curves below baseline).
+  ITI dips: share of tjM1 sessions with 0.5-1 s AUC < 0 = 9 % all-ITI, 24 % docked, and EPOCH-DEPENDENT: all-ITI 26 / 12 / 0 / 0 %,
+  docked 43 / 30 / 18 / 9 % (pre / acute / subacute / chronic) -> the 0..1 s ITI integral is pulled down mostly in PRE, inflating
+  post-stroke ITI increases vs own pre. 52 % of ITI bout starts are single licks (short transient). Figures neg_auc_diag_20261117/.
+- 11-17 Priya: full audit of ITI-window impacts requested (code, outputs, pages, decks, findings docs) -> helper writes
+  docs/status/deck_swap_20261117/ITI_WINDOW_AUDIT_20261117.md and re-renders everything feeding the deck or a page; page items go
+  to their owners (goal page = 3c). Slide 139 4-column figure: reorder cued left / ITI right (queued). Balance sign answered: stored
+  balance = contra - ipsi (+ = contralesional hemisphere larger = looks like an IPSILESIONAL lick in the pre code); slope +13.4 deg per
+  log2 unit vs aim (- = ipsilesional): sessions whose activity looks more ipsilesional land LESS ipsilesionally (angle-matched
+  reference = executed angle, so a target-like signal reads as the landing error).
+- 11-17 Priya: spout-matched + docked ITI angle markers. Spout-matched ITI angle already existed in learned_compensation.py (T2 same
+  previous spout + phase; T3 docked D_off) but behavior-only, never on the rebuild, and NOT the recovery-marker axis (iti_ang =
+  unmatched session mean of all ITI licks). Helper adds iti_ang_matched / iti_ang_dock / iti_ang_dock_matched (+ docked ITI
+  balance) and far-contra within-spout raw balance vs angle (cued; docked ITI by previous spout) -> ITI_MATCHED_ANGLE_MARKERS.md.
+- 11-17 slide 139 decisions (Priya): keep the caveat bullet + add the cued-angle result as its own bullet; layout 3a (bullets on top,
+  4-panel figure full width); title waits for the matched / docked ITI results ("lick direction IS recovery, so that's ok").
+  Apply once the ITI-marker panels are final (panel set may change).
+- Docked ITI marker was ALREADY run pre-rebuild (itifilter_dock/recprim_*.csv; FINDINGS ~L852): docked ITI balance LOST recovery
+  tracking (LOAO -0.11 vs days .15; all-ITI .42) and the ITI balance shift itself (acute -0.11 ns vs -0.34). Helper told to reproduce
+  on the rebuild via the same ITI_SUBSET hook and report side by side.
+- 11-17 Priya Q "does balance still predict overall lick angle?": rebuild l_bal_angle_lmm_r2 (all-ITI, session x previous spout,
+  0..1 s resp): ITI dec pre slope strong in every pair (ALM -.20, tjM1 -.26, SSp-m -.28, SSp-n -.51 per deg, p < 1e-4; mildly
+  flatter post); ITI resp weak (ALM n.s., tjM1 -.010 p .02, SSp-m -.024). Cued: strong in every pair (~30 % flatter post). Docked
+  version of this LMM never run -> added to the matched-ITI helper (ITI resp at 0..0.5 s).
+- 11-17 matched / docked ITI markers done (1fc7145b; ITI_MATCHED_ANGLE_MARKERS.md): ALL-ITI balance predicts every behavioral ITI axis
+  incl. docked + spout-matched angle (lick-weighted cvR2 .53 vs days .04; matched .51 vs .19). DOCKED balance: cvR2 <= .05 vs days
+  .15-.22 (per-animal r .49/.35/.78/-.26 to ITI angle: 3/4 same sign, PS95 reverses; docked = ~35 % of ITI licks -> noisier).
+  Cued far contra (target fixed): raw resp balance shift at the same angle +.24 log2 (+.23 inside pre range) survives.
+  Balance predicts raw angle across spouts pre and post (dec + resp, docked too).
+- 11-17 documented (Priya "document the figures and findings of the far-contra versions"): FINDINGS.md recovery-marker block gains
+  "Recovery-marker checks 11-17" + "Far contra only, target / previous spout fixed" entries (figures + numbers); detailed record
+  docs/status/deck_swap_20261117/ITI_MATCHED_ANGLE_MARKERS.md section 3.
+- 11-17 ITI 0..0.5 s done (9c245793; lmm 77af6d25; audit ITI_WINDOW_AUDIT_20261117.md; specs/iti05.json = 105, 108, 110, 111, 135,
+  136-138, 203, NOT applied: conclusion changes go to Priya first). ITI increases shrink ~1/3-1/2, none reverses; several cells gain *.
+  Changes: 135 caveat flips (14.13 matched-angle ITI balance: ALM +.06 p .005, orofacial +.04 ns; was orofacial +.15 p .010); hidden
+  108 (0 -> 5/21 *), 110 (share kept ~2/3 -> ~1/2, * every epoch), 111 (0 -> 2/21), 138 (13 -> 14); docked tjM1 LR fits (p .016),
+  ALM loses (.084); page 14.29 "chronic orofacial only" fails (chronic adds SSp-ll/-tr/-ul). 113/114 = cued only (no ITI). Page list
+  sent to 3c (hold page edits until Priya OKs).
+- 11-17 docked rebuild of decoded-vs-executed figures queued (matched curves incl. gap2dock + cued first lick, angle versions,
+  recovery link 16.3-16.5, where scatter / delta, per-lick error) -> DOCKED_DECODED_VS_EXECUTED_20261117.md.
+- 11-17 Priya OK: ITI 0..0.5 s slide updates applied (105, 108, 110, 111, 135 [notes caveat], 136-138, 203; specs/iti05.json; backup
+  .bak_pre_a8_iti05_20261117.pptx). FINDINGS (4 places) + ENCODING_FINDINGS (1) ITI 0..1 s numbers replaced (one owner, per 3c).
+  3c told to swap goal-page figures. Curves figure: footer overlap + dashed (3-animal) acute docked ITI line -> fix queued with the
+  docked-figure helper.
+- 11-17 status: handoff item 00-A8-1117 written (FR handoff section 2). Slide 21 decomposition INTERIM: trial gate drives the change
+  (B_gate -.397 ~ old -.405); pre set / scaling / lick detector ~no effect; hemo + LocaNMF variants running.

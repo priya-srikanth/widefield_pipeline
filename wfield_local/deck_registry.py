@@ -2678,3 +2678,49 @@ KEY_FIGURES = (
      'BASELINE UPDATED 10-29 (Priya): RESTnl = lick-free rest (restdock05 rest minus every cam4 lick, contact or not, and every DAQ lick onset, [0.5 s before, 2.0 s after]; rule wr: per-position medians averaged over the spout positions with ≥ 50 rest frames, ≥ 4 of 6, renormalized, so all 107 sessions are kept; S14) and the current engaged-trial gate, for this figure and its supplements S1, S2, S11–S13. All numbers in this caption are RESTnl (rule wr, *_restnl outputs; rewritten 11-01); the earlier RESTW values are kept as [RESTW x]. NOT OROFACIAL-SPECIFIC (11-01, S2 re-read on RESTnl; the maps agree): the acute far-contra pre-cue raise is shared by the contralesional reference areas (−1..0 s: MOp_rest +7.1, MOs_rest +6.9, SSp-bfd +5.1, all significant and 4/4, VISp +2.7 n.s.; [RESTW +3.3 / +3.9 / +1.9 / −1.1]) and the ipsilesional side (tjM1 +6.1, significant, 3/4; ALM +4.3, CI touches 0); the largest acute far-contra rises are in RSPd (+8.2 / +7.8) and contra SSp-ul (+7.7), and 34 of 45 areas rise significantly; read it as a broad cortical level change, not an orofacial one. Summary under RESTnl: the CHRONIC pre-cue rise is larger and bilateral (contra tjM1 +5.2, SSp-m +4.4, SSp-n +2.6, ALM +3.1; ipsi tjM1 +3.8, SSp-m +4.2, ALM +1.5; all significant and 4/4; ipsi SSp-n +2.7 n.s., 3/4); tjM1 is the largest contralesional orofacial area in every epoch for all spouts (far-contra chronic: SSp-m +5.2 vs tjM1 +4.7); the acute far-contra raise stays (tjM1 +7.4, SSp-n +6.5, 4/4) and far-contra chronic becomes significant (tjM1 / SSp-m / SSp-n +3.4 to +5.4, both hemispheres, 4/4); about half of the earlier chronic FALLS were a restw artifact (significant falls, all spouts, 20 → 11 areas, all VIS / RSP; 4 under the 10-29 strict rule). 10-30: PS93 pre rescued (2 → 7 sessions) by renormalizing the position weights instead of requiring all six positions (same 2.0 s buffer and 50-frame floor; sign, significance and animal count of every headline unchanged; S14). Fig 14.21 · NEURAL · SUPPORTING · NO DECODER · Priya 10-28: pre-cue row referenced to restw (approved); 10-29: RESTnl primary. The pre-cue period cannot be measured against an in-trial baseline (every in-trial window already contains the pre-cue state), so here the LEVEL is referenced to the session’s rest baseline: RESTnl (above; it replaced RESTW, the position-weighted flat rest median of restdock05 engaged rest frames, rest_frames_by_position + restw_from_frames, which kept the non-contact licks inside rest). Pre-cue level = mean over engaged trials of each trial’s mean dF/F (×1e3, same drift-removed area traces as the cued maps; ALM / tjM1 split) in −1.0..0 s before the cue (top rows) and −0.5..0 s (bottom rows), minus RESTnl; change vs pre, mean of animals; outline = nested-bootstrap CI excludes 0 (uncorrected, as the other area maps). Top image all spouts, bottom far-contra target trials. RESTnl formed in 107 / 107 sessions (rule wr) [RESTW: all 6 positions in 107 / 107, no fallback]. Not the same quantity as the cue response: r 0.20 with the in-trial baselined cue AUC (within-area median −0.15) [RESTW 0.13 / −0.20]. Far-contra target, acute: contralesional ALM +6.4, tjM1 +7.4, SSp-m +7.1, SSp-n +6.5 [RESTW +5.4 / +5.5 / +5.3 / +4.5], 4/4 each (per animal tjM1 +12.4 / +10.9 / +2.5 / +3.9 [RESTW +8.1 / +8.1 / +0.1 / +5.7]: PS94 small but positive, no longer ~0). Not orofacial-specific (changed under RESTnl): 34 of 45 areas rise significantly, 30 of them 4/4 — RSPd +8.2 / +7.8 (ipsi / contra), contra SSp-ul +7.7, RSPagl ipsi +7.5, VISa / VISam ipsi +7.3 / +7.1, MOp_rest / MOs_rest contra +7.1 / +6.9, ipsi tjM1 / SSp-m +6.1 (3/4), SSs / ACAd both hemispheres [RESTW: 8 areas, contra ALM / tjM1 / SSp-m / SSp-n / MOs_rest / SSs and ACAd]: cortex as a whole sits further above lick-free rest while the animal waits at the hardest target. Subacute 12 areas, all 3–4/4 (contra tjM1 +4.8, SSp-ul +4.7, ALM +4.2, MOs_rest / MOp_rest +3.1 to +3.7 both hemispheres, ACAd) [RESTW 6]. Chronic: bilateral tjM1 / SSp-m / SSp-n rise, 4/4 (contra +4.7 / +5.2 / +3.4, ipsi +4.2 / +5.4 / +4.7; ipsi SSs +2.9) [RESTW none significant: contra +1.3 / +1.9 / +1.1], and the 11 posterior falls of RESTW (SSp-tr, VIS, RSPagl, −3.1 to −5.5) are no longer significant (changed under RESTnl). All spouts: acute: 12 areas RISE, all 4/4 — RSPd +4.7 / +4.4 (ipsi / contra), RSPv +4.2 / +4.3, RSPagl ipsi +3.6, VISam / VISpm +2.9 to +3.4, contra MOp_rest / MOs_rest / SSp-bfd +2.6, contra ALM +1.6; the ipsi SSp-ul / SSp-un decrease is −2.5 / −2.6, still 4/4 but n.s. [RESTW: the only acute change, −4.4 / −4.4, significant] (changed under RESTnl). Chronic: contra ALM +3.1 [2.1, 4.2] and tjM1 +5.2 [3.7, 6.6] [RESTW +1.5 [0.9, 2.2] / +1.7 [0.9, 2.6]], plus SSp-m +4.4 / +4.2 (contra / ipsi), ipsi tjM1 +3.8, contra SSp-n +2.6, ipsi ALM +1.5, SSs +1.1 / +1.9 (contra / ipsi), every one significant and 4/4 [RESTW: only contra ALM / tjM1] (changed under RESTnl); the posterior DECREASE remains in 11 VIS / RSP areas (−2.5 to −4.4, 3–4/4) [RESTW: 20 areas, −1.9 to −5.2, also SSp-tr, SSp-bfd, RSPv, ipsi MOs_rest]. Caveats: a level minus rest also moves if the REST level moves. The lick-free rest level itself FALLS after the stroke in contralesional orofacial cortex (tjM1 −1.1 pre → −9.0 chronic, change −8.0, 4/4 negative; SSp-m change −9.0, 4/4; ALM −4.0 → −7.3, 3/4; acute tjM1 −6.0, 4/4) [RESTW tjM1 change −4.4], by more than the unreferenced pre-cue level falls (chronic tjM1 −2.7, SSp-m −4.6, ALM −0.2; far-contra acute tjM1 +1.4, PS92 / PS93 +5.7 / +4.5, PS94 / PS95 −0.8 / −3.8): the rises above rest are therefore pre-cue levels that fall LESS than lick-free rest (or, far-contra acute in PS92 / PS93, rise), not absolute increases in every animal; unreferenced levels carry session-to-session offsets, which is why a rest reference is used (same pattern as the S12 D decomposition). VISp contra RESTnl −1.7 pre → −2.5 chronic, so under RESTnl the posterior decrease is not explained by a rising rest level [RESTW −3.2 → −2.3 explained part of it]. Trials with anticipatory licks are kept; PS95 has one acute session. Script scripts/lick_precue_restw.py --rest-variant restnl (precue_restw_changes*_restnl.csv, precue_restw_per_animal*_restnl.csv, precue_restw_sessions*_restnl.csv; RESTW = the same names without _restnl). PROVISIONAL. Licks: RESTnl rest excludes every LP cam4 lick (contact or not); trials = engaged gate, built from DAQ spout contacts.',
      '2026-10-30 07:16'),
 )
+
+
+# ------------------------------------------------------------------------------------------------ rebuild: dropped slots
+#: OUTDATED SLOTS LEFT OUT OF A TAGGED (REBUILD) BUILD (Priya 11-17). Each has no rebuild render and is not planned to
+#: get one, so the build stops EXPECTING it (not placed, not counted missing); an untagged build is unchanged.
+#: Checked against the 11-17 12:0x build's missing list (41; docs/status/DECK_IMG_FOLLOWUPS_20261117.md). KEPT on
+#: purpose: the 15f rest frozen decoder slot (Priya deciding), so it still counts as missing.
+REBUILD_DROPPED_EPOCH = frozenset({
+    # engagement / quit / bouts
+    "epoch_1f_engagement_by_epoch.png", "epoch_1g_engagement_timecourse.png",
+    "epoch_23_quit_prodrome_gated_h90.png", "epoch_24_session_quintiles_gated_h90.png",
+    "epoch_25_quintiles_delta_from_pre_gated_h90.png", "epoch_26_within_bout_deceleration.png",
+    "epoch_26_bouts_per_trial.png", "epoch_26_licks_per_bout.png",
+    # CUEINCREMENT PRECUEref maps
+    "epoch_15_evoked_CUEINCREMENT_PRECUEref_cue.png", "epoch_15pa_evoked_CUEINCREMENT_PRECUEref_by_animal_cue.png",
+    # rest-arm audits
+    "epoch_15x_REST_by_position_by_animal.png", "epoch_15d_delta_rest_flatpool_minus_restw.png",
+    "epoch_15s_shared_position_restdock05.png", "epoch_15j_rest_baseline_epoch_drift.png",
+    # transfer / rotation
+    "epoch_15g_transfer_by_window.png", "epoch_15h_rotation_maps_ENL.png", "epoch_15h_rotation_maps_cue.png",
+    "epoch_15h_rotation_maps_lick.png", "epoch_15h_rotation_maps_rest.png", "epoch_15h_gain_vs_rotation.png",
+    # reference families
+    "epoch_15k_reference_families_cue.png", "epoch_15k_agreed_ccf_cue.png", "epoch_15k_reference_families_lick.png",
+    "epoch_15k_agreed_ccf_lick.png", "epoch_15k_reference_families_precue.png", "epoch_15k_agreed_ccf_precue.png",
+    # hemodynamic / channel
+    "epoch_20_channel_evoked_sign.png", "epoch_21_channel_vessel_sign.png", "epoch_16_nvc_evoked.png",
+    "channel_position_epoch_cue.png", "channel_position_epoch_lick.png",
+})
+#: LP-gated (section K) slots with no rebuild render: LP cue-window accuracy, LP 5c confusion, DAQ_ENL1s 1.0 s pre-cue
+#: accuracy (the LP-trained 1.0 s figure is key figure 2.5).
+REBUILD_DROPPED_LP = frozenset({
+    "grant_figures/LP_licks/epoch/epoch_acc_by_position_cue_working.png",
+    "grant_figures/LP_licks/epoch/epoch_5c_frozen_confusion_lick_lick.png",
+    "grant_figures/DAQ_ENL1s/epoch/epoch_acc_by_position_precue_working.png",
+})
+#: Sections E (cross-mouse comparison, within-animal consistency) and F (RSA: sessions / RDMs / crossnobis /
+#: hemisphere) are per-date LocaNMF groups (`<first>-<last>` tags, last rendered for 0806-1006) with no rebuild render;
+#: the within-day rolling decoder and encoder-EV slides are already out with sections A-C (`--no-within-day`).
+REBUILD_DROPS_SECTIONS_EF = True
+#: Section I patterns whose rebuild figure was REDRAWN into another folder of the tag's grant_figures (relative to its
+#: `epoch/`): the acc family re-drawn 11-17 from its stored figure data with the run / trial-set footer fitted below
+#: the Near / Far labels (`epoch_figures._fit_stamp`); tables identical to epoch/data.
+EPOCH_FIGURES_REBUILD_DIR = {
+    "epoch_acc_by_position_*_*.png": "../epoch_footerfix_20261117",
+    "epoch_accdelta_by_position_*_*.png": "../epoch_footerfix_20261117",
+}

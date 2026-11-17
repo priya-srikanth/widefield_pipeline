@@ -216,10 +216,15 @@ def plot(F: dict) -> None:
     if "window" not in T:
         T = T.assign(window="0-0.5")
     pos = list(lo.POS)
-    for wn in [f"{w0:g}-{w1:g}" for w0, w1 in VWIN]:
+    # figure windows: "primary" = each set on its own response window (Priya 11-17: cued il.CUED_RESP_WIN 0..1.0 s, ITI
+    # il.ITI_RESP_WIN 0..0.5 s) -> lick_vigor_perspout.png; then one window throughout -> lick_vigor_perspout_<w>.png
+    # (until 11-17 the unsuffixed file was 0..1.0 s throughout; that figure is now lick_vigor_perspout_0-1.png)
+    prim = {"cued": il.win_tag(il.CUED_RESP_WIN), "iti": il.win_tag(il.ITI_RESP_WIN)}
+    for fw in ["primary", *[f"{w0:g}-{w1:g}" for w0, w1 in VWIN]]:
         rows = [(st, r) for st in ("cued", "iti") for r in PROIS]
         fig, axs = plt.subplots(len(rows), len(EP), figsize=(18, 13), sharey="row", squeeze=False)
         for i, (st, r) in enumerate(rows):
+            wn = prim[st] if fw == "primary" else fw
             for j, ep in enumerate(EP):
                 ax = axs[i, j]
                 for k, m in enumerate(MODELS):
@@ -237,19 +242,23 @@ def plot(F: dict) -> None:
                     ax.set_title(ep, fontsize=11)
                 if j == 0:
                     what = "CUED first lick (target spout)" if st == "cued" else "ITI bout start (PREVIOUS trial's spout)"
-                    ax.set_ylabel(f"{what}\n{r}: epoch MINUS pre at the spout\n(0 = no change; units = animal's pre AUC)",
+                    ax.set_ylabel(f"{what}\n{r}: AUC {wn.replace('-', '..')} s, epoch MINUS pre at the spout\n(0 = no "
+                                  "change; units = animal's pre AUC)",
                                   fontsize=8.5)
         fig.legend(handles=[Line2D([], [], color=MCOL[m], marker="o", lw=0, label={"none": "unadjusted",
                    "vigour": "vigor regressed out", "vigour+landing": "vigor + landing regressed out"}[m]) for m in MODELS]
                    + [Line2D([], [], color="0.4", marker="o", mfc="white", lw=0, label="hollow = CI includes 0")],
                    loc="lower center", ncol=4, fontsize=9.5, frameon=False)
-        fig.suptitle(f"LICK-VIGOR CONTROL for the per-spout responses (14.7): response AUC {wn.replace('-', '..')} s after lick onset, in units of the pre 0..0.5 s AUC (baseline "
+        wtxt = (f"{il.win_label(il.CUED_RESP_WIN)} (cued rows) / {il.win_label(il.ITI_RESP_WIN)} (ITI rows; Priya 11-17)"
+                if fw == "primary" else f"{fw.replace('-', '..')} s")
+        fig.suptitle(f"LICK-VIGOR CONTROL for the per-spout responses (14.7): response AUC {wtxt} after lick onset, in units of the pre 0..0.5 s AUC (baseline "
                      "-1.0..-0.5 s), epoch MINUS pre AT THAT SPOUT (0 = no change; 1 = one whole pre response, all-spout average), mean of animals with 95% paired nested bootstrap CI.\nVigour = "
                      "3-D reach, peak speed, outward and height of the tip, lick duration, retraction speed; + landing = also "
                      "the lateral tip position; per animal, linear fit on PRE licks only (as 14.13);\none common lick set (licks "
                      "with every covariate) for all three. _right = contralesional. PROVISIONAL", fontsize=9.5)
         fig.tight_layout(rect=(0, 0.04, 1, 0.93))
-        save_png_svg(fig, il.OUT_W / "figures" / ("lick_vigor_perspout.png" if wn == "0-1" else f"lick_vigor_perspout_{wn}.png"), dpi=100)
+        save_png_svg(fig, il.OUT_W / "figures" / ("lick_vigor_perspout.png" if fw == "primary"
+                                                  else f"lick_vigor_perspout_{fw}.png"), dpi=100)
         plt.close(fig)
 
 

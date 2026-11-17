@@ -71,14 +71,15 @@ from wfield_local import epochs as _epochs
 # about, as data. This module decides which of it EXISTS on disk, and where it goes.
 from wfield_local.deck_registry import (   # noqa: F401  (re-exported: the coverage
                                             #  script and tests import EPOCH_FIGURES from here)
-    ALIGNS, BASES, CD_FIGURES, EPOCH_FIGURES, GRANT_FIGURES, KEY_FIGURES, LP_GATED_FIGURES, LP_GATED_REBUILD, EPOCH_FIGURES_REBUILD_LEGEND, NOLICK_BASES, _CCF_LEGEND, _CI_LEGEND, _REF_LEGEND, _ROT_LEGEND,
+    ALIGNS, BASES, CD_FIGURES, EPOCH_FIGURES, GRANT_FIGURES, KEY_FIGURES, LP_GATED_FIGURES, LP_GATED_REBUILD, EPOCH_FIGURES_REBUILD_LEGEND, NOLICK_BASES,
+    REBUILD_DROPPED_EPOCH, REBUILD_DROPPED_LP, REBUILD_DROPS_SECTIONS_EF, EPOCH_FIGURES_REBUILD_DIR, _CCF_LEGEND, _CI_LEGEND, _REF_LEGEND, _ROT_LEGEND,
 )
 # The deck's PROSE lives in `deck_text` (see its docstring). Imported by name rather than
 # `import *` so what the builder uses stays greppable and ruff can still see an unused one.
 from wfield_local.deck_text import (   # noqa: F401  (re-exported: the audit
                                         #  scripts and tests read these off this module)
     M_CODING_DIR, M_COMMON, M_DECODE, M_ENCODE, M_EVOKED, M_FIXEDSCALE, M_FROZEN, M_FROZEN_ENC, M_GATE, M_HEMI,
-    M_HEMIDYN, M_JOINT, M_LICKFREE, M_MISS_STOPPED, M_NOLICK, M_POSTSTROKE, M_POSTSTROKE_REBUILD, M_PRECUE_CAVEAT, M_RECODING, M_RSA,
+    M_HEMIDYN, M_JOINT, M_LICKFREE, M_MISS_STOPPED, M_NOLICK, M_POSTSTROKE, M_POSTSTROKE_REBUILD, G_DIVIDER_REBUILD, G0_REBUILD, M_PRECUE_CAVEAT, M_RECODING, M_RSA,
     M_SPATIAL, M_VESSEL, S_DEC_CUE, S_DEC_LICK, S_DEC_PRECUE, S_DEC_ROLL, S_DRIFT, S_ENC_FEVE, S_ENC_MATRIX,
     S_ENC_POS, S_FROZEN_ALL, S_FROZEN_ENC, S_FROZEN_SESS, S_G0, S_G1, S_G1B, S_G2, S_G2B, S_G2C, S_G3, S_G4,
     S_G4B, S_G5, S_G6, S_G7, S_G7B, S_G7C, S_G7D, S_G8, S_G8B, S_G8C, S_G8D, S_G8E, S_G8F, S_G9, S_G9B, S_G9C,
@@ -1054,99 +1055,102 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
             note(s_, M_NOLICK, specific=S_NOLICK_C)
             big(s_, src / "nolick_basis_agreement.png", top=1.9, width=11.5)
 
-    # ---------------- E. cross-session summary ----------------
-    divider("E. Cross-session summary — decoder recall & encoder accuracy across sessions")
-    s = slide()
-    # SCOPE COMES FROM THE PHASE, NOT FROM `dates`. This interpolated the full cross-session range
-    # (e.g. 0606-0825) while the figure itself is pre-stroke only, so the title asserted a span the
-    # panels do not cover.
-    _pre_d = config.prestroke_dates()
-    title(s, f"Cross-mouse decoding & encoding — PRE-STROKE baseline "
-             f"({_mmdd_label(_pre_d[0])}–{_mmdd_label(_pre_d[-1])})",
-          "Per-mouse overall + per-position decoding and encoding EV, mean ± SEM across that animal's "
-          "PRE-STROKE sessions (points = sessions). Baseline question: do the mice differ from each "
-          "other? The post-stroke comparison lives in section G.",
-          trials=TRIALS_LICK)
-    note(s, M_DECODE + " " + M_ENCODE, specific=S_XMOUSE)
-    big(s, src / f"locanmf_cross_mouse_comparison_{tag}.png", top=1.5, width=12.7)
-    s = slide()
-    title(s, "Within-animal consistency of per-position decode / encode — PRE-STROKE noise floor",
-          "Per-position profile per session + mean ± SD. This IS the session-to-session floor a "
-          "post-stroke change must exceed, so it is built from pre-stroke sessions only.")
-    note(s, M_DECODE + " " + M_ENCODE, specific=S_XCONSIST)
-    big(s, src / f"locanmf_within_animal_consistency_{tag}.png", top=1.5, width=12.9)
-
-    # ---------------- F. RSA ----------------
-    divider("F. RSA — representational geometry of spout position",
-            "Within- vs across-animal second-order RSA, per-animal RDM, and the noise-unbiased crossnobis RDM.")
-    s = slide()
-    title(s, "RSA — within- vs across-animal representational geometry",
-          "6×6 position RDM per session; 2nd-order RSA (basis-free). Within-animal > across = stable individual geometry.",
-          trials=TRIALS_LICK)
-    note(s, M_RSA, specific=S_RSA_A)
-    big(s, src / f"locanmf_rsa_sessions_{tag}.png", top=1.6, width=13.0)
-    s = slide()
-    title(s, "RSA — mean representational dissimilarity matrix per animal",
-          "How the 6 positions relate (dark = similar patterns, bright = distinct).",
-          trials=TRIALS_LICK)
-    note(s, M_RSA, specific=S_RSA_B)
-    big(s, src / f"locanmf_rsa_rdms_{tag}.png", top=1.9, width=12.7)
-    s = slide()
-    title(s, "RSA — crossnobis (noise-unbiased) RDM",
-          "Crossnobis removes the positive noise bias → the honest cross-day / pre-post geometry metric.",
-          trials=TRIALS_LICK)
-    note(s, M_RSA, specific=S_RSA_C)
-    big(s, src / f"locanmf_rsa_crossnobis_{tag}.png", top=1.65, width=13.0)
-
-    # HEMISPHERE-RESOLVED RSA. Written by `locanmf_rsa` on the same tag as the three slides above and
-    # never placed on any of them, so the one RSA arm that is explicitly ABOUT the lesion's side has
-    # been rendered every night and read by nobody.
-    #
-    # WHY IT BELONGS HERE RATHER THAN IN SECTION G. It is a pre-stroke geometry measurement, like the
-    # rest of F -- it establishes what left-vs-right asymmetry looks like BEFORE any lesion, which is
-    # the reference a post-stroke asymmetry has to be read against. Put in G it would look like a
-    # result about the stroke.
-    #
-    # EVERY lesion in this cohort is LEFT-sided (`configs/animals.yaml stroke_laterality`), and
-    # PS93's orofacial deficit is on the RIGHT -- crossed, as expected. So the LEFT hemisphere is
-    # the IPSILESIONAL one, and it is also the hemisphere that REPRESENTS the impaired right side.
-    # Read the left panel for the deficit.
-    #
-    # THIS COMMENT AND THE SLIDE BOTH SAID "CONTRALESIONAL" UNTIL 2026-09-17, which is the exact
-    # inversion they warn about. The ADVICE was right -- read the left panel -- so the error was
-    # invisible from the figure; only the stated reason was wrong, which is how a wrong reason
-    # survives to be quoted somewhere the advice does not come with it.
-    #
-    # AND THE LABELS THEMSELVES WERE VERIFIED, not assumed, because an image-space flip would have
-    # made the correct word the wrong one. Pre-stroke, family `restw`, six independent area pairs:
-    # a RIGHT-side spout drives every `_left` region harder and every `_right` region less
-    # (laterality index SSp-n +0.34/-0.35, MOp +0.23/-0.14, SSp-un +0.18/-0.17, SSp-bfd, SSp-ul
-    # all the same sign pattern). Somatosensation is crossed, so `_left` IS the animal's left.
-    for _hk, _htitle, _hsub in (
-        ("rdms", "per-animal RDMs, split by hemisphere",
-         "Top row = LEFT-hemisphere components, bottom = RIGHT, same 6 positions and the same "
-         "color scale in both. A position geometry that is genuinely bilateral looks the same in "
-         "the two rows; a hemisphere that carries the code differently is visible as a row that "
-         "does not match. This is the PRE-stroke reference for that comparison, so the asymmetry "
-         "seen here is the baseline a post-stroke asymmetry has to beat."),
-        ("summary", "animal x animal RDM similarity, per hemisphere",
-         "Is the geometry shared ACROSS animals within a hemisphere? Left and right are scored "
-         "separately, so a value that is high in one panel and low in the other says the shared "
-         "structure is hemisphere-specific. EVERY LESION IN THIS COHORT IS LEFT-SIDED and PS93's "
-         "orofacial deficit is on the RIGHT, so the LEFT hemisphere is the IPSILESIONAL one and "
-         "also the one representing the impaired side \u2014 read the left panel for it, not the "
-         "right. Atlas '_left' is the animal's left: pre-stroke, right-side spouts drive every "
-         "_left area harder and every _right area less, across six area pairs."),
-    ):
-        _hp = src / f"locanmf_rsa_hemisphere_{_hk}_{tag}.png"
-        if not _hp.exists():
-            _hp = src / f"locanmf_rsa_hemisphere_{_hk}.png"     # untagged, older runs
-        if not _hp.exists():
-            continue
+    # SECTIONS E-F are left out of a TAGGED (rebuild) build (Priya 11-17, deck_registry.REBUILD_DROPS_SECTIONS_EF):
+    # per-date LocaNMF groups with no rebuild render. An untagged build is unchanged.
+    if not (run_mode.tag() and REBUILD_DROPS_SECTIONS_EF):
+        # ---------------- E. cross-session summary ----------------
+        divider("E. Cross-session summary — decoder recall & encoder accuracy across sessions")
         s = slide()
-        title(s, f"RSA \u2014 {_htitle}", _hsub)
+        # SCOPE COMES FROM THE PHASE, NOT FROM `dates`. This interpolated the full cross-session range
+        # (e.g. 0606-0825) while the figure itself is pre-stroke only, so the title asserted a span the
+        # panels do not cover.
+        _pre_d = config.prestroke_dates()
+        title(s, f"Cross-mouse decoding & encoding — PRE-STROKE baseline "
+                 f"({_mmdd_label(_pre_d[0])}–{_mmdd_label(_pre_d[-1])})",
+              "Per-mouse overall + per-position decoding and encoding EV, mean ± SEM across that animal's "
+              "PRE-STROKE sessions (points = sessions). Baseline question: do the mice differ from each "
+              "other? The post-stroke comparison lives in section G.",
+              trials=TRIALS_LICK)
+        note(s, M_DECODE + " " + M_ENCODE, specific=S_XMOUSE)
+        big(s, src / f"locanmf_cross_mouse_comparison_{tag}.png", top=1.5, width=12.7)
+        s = slide()
+        title(s, "Within-animal consistency of per-position decode / encode — PRE-STROKE noise floor",
+              "Per-position profile per session + mean ± SD. This IS the session-to-session floor a "
+              "post-stroke change must exceed, so it is built from pre-stroke sessions only.")
+        note(s, M_DECODE + " " + M_ENCODE, specific=S_XCONSIST)
+        big(s, src / f"locanmf_within_animal_consistency_{tag}.png", top=1.5, width=12.9)
+
+        # ---------------- F. RSA ----------------
+        divider("F. RSA — representational geometry of spout position",
+                "Within- vs across-animal second-order RSA, per-animal RDM, and the noise-unbiased crossnobis RDM.")
+        s = slide()
+        title(s, "RSA — within- vs across-animal representational geometry",
+              "6×6 position RDM per session; 2nd-order RSA (basis-free). Within-animal > across = stable individual geometry.",
+              trials=TRIALS_LICK)
+        note(s, M_RSA, specific=S_RSA_A)
+        big(s, src / f"locanmf_rsa_sessions_{tag}.png", top=1.6, width=13.0)
+        s = slide()
+        title(s, "RSA — mean representational dissimilarity matrix per animal",
+              "How the 6 positions relate (dark = similar patterns, bright = distinct).",
+              trials=TRIALS_LICK)
         note(s, M_RSA, specific=S_RSA_B)
-        big(s, _hp, top=1.75, width=12.7)
+        big(s, src / f"locanmf_rsa_rdms_{tag}.png", top=1.9, width=12.7)
+        s = slide()
+        title(s, "RSA — crossnobis (noise-unbiased) RDM",
+              "Crossnobis removes the positive noise bias → the honest cross-day / pre-post geometry metric.",
+              trials=TRIALS_LICK)
+        note(s, M_RSA, specific=S_RSA_C)
+        big(s, src / f"locanmf_rsa_crossnobis_{tag}.png", top=1.65, width=13.0)
+
+        # HEMISPHERE-RESOLVED RSA. Written by `locanmf_rsa` on the same tag as the three slides above and
+        # never placed on any of them, so the one RSA arm that is explicitly ABOUT the lesion's side has
+        # been rendered every night and read by nobody.
+        #
+        # WHY IT BELONGS HERE RATHER THAN IN SECTION G. It is a pre-stroke geometry measurement, like the
+        # rest of F -- it establishes what left-vs-right asymmetry looks like BEFORE any lesion, which is
+        # the reference a post-stroke asymmetry has to be read against. Put in G it would look like a
+        # result about the stroke.
+        #
+        # EVERY lesion in this cohort is LEFT-sided (`configs/animals.yaml stroke_laterality`), and
+        # PS93's orofacial deficit is on the RIGHT -- crossed, as expected. So the LEFT hemisphere is
+        # the IPSILESIONAL one, and it is also the hemisphere that REPRESENTS the impaired right side.
+        # Read the left panel for the deficit.
+        #
+        # THIS COMMENT AND THE SLIDE BOTH SAID "CONTRALESIONAL" UNTIL 2026-09-17, which is the exact
+        # inversion they warn about. The ADVICE was right -- read the left panel -- so the error was
+        # invisible from the figure; only the stated reason was wrong, which is how a wrong reason
+        # survives to be quoted somewhere the advice does not come with it.
+        #
+        # AND THE LABELS THEMSELVES WERE VERIFIED, not assumed, because an image-space flip would have
+        # made the correct word the wrong one. Pre-stroke, family `restw`, six independent area pairs:
+        # a RIGHT-side spout drives every `_left` region harder and every `_right` region less
+        # (laterality index SSp-n +0.34/-0.35, MOp +0.23/-0.14, SSp-un +0.18/-0.17, SSp-bfd, SSp-ul
+        # all the same sign pattern). Somatosensation is crossed, so `_left` IS the animal's left.
+        for _hk, _htitle, _hsub in (
+            ("rdms", "per-animal RDMs, split by hemisphere",
+             "Top row = LEFT-hemisphere components, bottom = RIGHT, same 6 positions and the same "
+             "color scale in both. A position geometry that is genuinely bilateral looks the same in "
+             "the two rows; a hemisphere that carries the code differently is visible as a row that "
+             "does not match. This is the PRE-stroke reference for that comparison, so the asymmetry "
+             "seen here is the baseline a post-stroke asymmetry has to beat."),
+            ("summary", "animal x animal RDM similarity, per hemisphere",
+             "Is the geometry shared ACROSS animals within a hemisphere? Left and right are scored "
+             "separately, so a value that is high in one panel and low in the other says the shared "
+             "structure is hemisphere-specific. EVERY LESION IN THIS COHORT IS LEFT-SIDED and PS93's "
+             "orofacial deficit is on the RIGHT, so the LEFT hemisphere is the IPSILESIONAL one and "
+             "also the one representing the impaired side \u2014 read the left panel for it, not the "
+             "right. Atlas '_left' is the animal's left: pre-stroke, right-side spouts drive every "
+             "_left area harder and every _right area less, across six area pairs."),
+        ):
+            _hp = src / f"locanmf_rsa_hemisphere_{_hk}_{tag}.png"
+            if not _hp.exists():
+                _hp = src / f"locanmf_rsa_hemisphere_{_hk}.png"     # untagged, older runs
+            if not _hp.exists():
+                continue
+            s = slide()
+            title(s, f"RSA \u2014 {_htitle}", _hsub)
+            note(s, M_RSA, specific=S_RSA_B)
+            big(s, _hp, top=1.75, width=12.7)
 
     # ---------------- G. POST-STROKE ----------------
     # ORDER IS THE ARGUMENT, and it was chosen after getting it wrong once. Behaviour comes FIRST
@@ -1178,16 +1182,18 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     _lp_sg = _lp_section_g_dir(src)
     if _post_labels and (src / "section_g_matched_all.png").exists():
         divider("G. POST-STROKE \u2014 the frozen pre-stroke model applied after the lesion",
-                f"Lesion {config.stroke_cutoff()}; post-stroke pool = {', '.join(_post_labels)}. "
-                f"Behavior first: what the animal still attempts bounds what any decoding number "
-                f"can mean.")
+                # tagged (rebuild) build: per-animal lesion dates / epochs (deck_text.G_DIVIDER_REBUILD, 11-17)
+                G_DIVIDER_REBUILD if run_mode.tag() else
+                (f"Lesion {config.stroke_cutoff()}; post-stroke pool = {', '.join(_post_labels)}. "
+                 f"Behavior first: what the animal still attempts bounds what any decoding number "
+                 f"can mean."))
 
         # --- G0. the design, before any number
         s = slide()
         title(s, "G0. What is compared to what \u2014 and what cannot be compared",
               "Read this before the numbers. Four of these constraints changed a conclusion already.")
         note(s, _M_POST, specific=S_G0)
-        bullets(s, [
+        _g0 = [
             ("PRE-STROKE reference is FROZEN: 11 curated dates ending 8/14, 44 sessions, every one "
             "resolving to phase=='pre'."),
             ("PRE keeps the ENGAGED cut (decode.max_rt_s); POST uses ALL trials \u2014 the missing "
@@ -1204,7 +1210,13 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
              "sensor needs spout contact)."),
             f"POST-STROKE POOL: {', '.join(_post_labels)}. Every slide is per SESSION, never pooled across days — PS94's two nights differ more from each other than pre differs from post, so averaging them would destroy the effect.",
             "The day-1 plan/execution dissociation now REPLICATES in all four animals (G2c), so it is no longer a description of two animals. What remains n=1 is each animal's TRAJECTORY: one session per animal per day.",
-        ])
+        ]
+        if run_mode.tag():
+            # tagged (rebuild) build: the reference / trials / engagement / pool bullets from the rebuild (G0_REBUILD,
+            # Priya 11-17); the arm, lick-source and replication bullets are kept
+            _g0[0], _g0[1], _g0[4], _g0[6] = (G0_REBUILD["reference"], G0_REBUILD["trials"],
+                                              G0_REBUILD["engagement"], G0_REBUILD["pool"])
+        bullets(s, _g0)
 
         # --- G1. behaviour, from the nightly pipeline's own longitudinal figures
         # Iterate the POST-STROKE animals, not every animal: PS92/PS93 have no post-stroke figure by
@@ -2262,6 +2274,8 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     _epoch = _grant / "epoch"
     if _strict and not _epoch.exists():
         for _pat, _t, _b in EPOCH_FIGURES:                       # review 8B N3: as section H
+            if run_mode.tag() and _pat in REBUILD_DROPPED_EPOCH:      # Priya 11-17: not expected in a rebuild
+                continue
             _exists(_epoch / _pat)
     if _epoch.exists():
         # THE BOUNDARIES ARE NAMED ON THE DIVIDER because `chronic_from` is DERIVED each run
@@ -2285,13 +2299,23 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         # completeness check cannot report: it reports figures it EXPECTS and is silent about ones
         # it was never told about.
         for _n, (_pat, _ttl, _legend) in enumerate(EPOCH_FIGURES, 1):
+            if run_mode.tag() and _pat in REBUILD_DROPPED_EPOCH:
+                # OUTDATED, no rebuild render (Priya 11-17, deck_registry.REBUILD_DROPPED_EPOCH): not placed, not
+                # expected; the I-number is kept so the other slides keep theirs
+                continue
             if run_mode.tag() and _pat in EPOCH_FIGURES_REBUILD_LEGEND:   # Priya 11-17: written from the rebuild run
                 _legend = EPOCH_FIGURES_REBUILD_LEGEND[_pat]
             if _pat.startswith("../../chronic_stability/june_august_drift/"):
                 # its own block's folder (PRE_FROM unset), one definition with the script (review 7B B1)
                 _hits = [run_mode.june_august_drift_dir(_grant_root.parent) / Path(_pat).name]
             else:
-                _hits = sorted(_epoch.glob(_pat)) if "*" in _pat else [_epoch / _pat]
+                _edir = _epoch
+                if run_mode.tag() and _pat in EPOCH_FIGURES_REBUILD_DIR:
+                    # the rebuild figure was redrawn into its own folder (deck_registry.EPOCH_FIGURES_REBUILD_DIR, 11-17)
+                    _alt = (_epoch / EPOCH_FIGURES_REBUILD_DIR[_pat]).resolve()
+                    if _alt.exists() and any(_alt.glob(_pat)):
+                        _edir = _alt
+                _hits = sorted(_edir.glob(_pat)) if "*" in _pat else [_edir / _pat]
             if _strict and not any(h.exists() for h in _hits):
                 _exists(_hits[0] if len(_hits) == 1 else _epoch / _pat)    # review 7B N3: counted as MISSING
             for _ef in _hits:
@@ -2385,6 +2409,8 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
     _roots = {"labcams": _lab, "cohort_out": _lab}
     _k_found = []
     for _n, (_root, _rel, _ttl, _legend) in enumerate(LP_GATED_FIGURES, 1):
+        if run_mode.tag() and _rel in REBUILD_DROPPED_LP:
+            continue                       # no rebuild render (Priya 11-17, deck_registry.REBUILD_DROPPED_LP): not expected
         if _root not in _roots:
             try:
                 _roots[_root] = Path(PathResolver().root(_root)) if _on_share else None

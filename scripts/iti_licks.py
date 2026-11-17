@@ -1558,6 +1558,24 @@ def key_figures(D: dict, RR: pd.DataFrame, jobs: int | None = 1) -> None:
 
 
 BASE_RESP = (-1.0, -0.5)   # response-size AUCs only (Priya 10-28); the PETH curves / build-up keep BASE (-1.5..-1.0 s)
+# RESPONSE-AUC WINDOWS, one definition per lick set (Priya 11-17, DECISIONS.md 2026-11-17 "ITI response window 0..0.5 s"):
+# ITI response AUCs and contra / ipsi balance (log2 contra / ipsi AUC) use 0..0.5 s -- the ITI bout-start response is a
+# short transient (peak ~0.2 s) followed by a dip below baseline at ~0.6-1.2 s that a 0..1.0 s integral cancels (ratio
+# undefined in 2.8 % of ITI rows, docked 6.7 %; docs/status/deck_swap_20261117/ITI_NEG_AUC_DIAGNOSTIC.md). Cued and
+# cue-aligned results keep 0..1.0 s (Priya 10-28 evening, "0-1 s should be default now"). Every ITI / cued response AUC,
+# ratio and label reads these two constants; the other window stays available as a secondary where a figure shows both.
+CUED_RESP_WIN = (0.0, 1.0)
+ITI_RESP_WIN = (0.0, 0.5)
+
+
+def win_label(w: tuple) -> str:
+    """'0..0.5 s' for (0.0, 0.5): the window as figure labels / captions write it."""
+    return f"{w[0]:g}..{w[1]:g} s"
+
+
+def win_tag(w: tuple) -> str:
+    """'0-0.5' for (0.0, 0.5): the window as column / file names write it (logr_0-0.5, _auc_0-0.5.png)."""
+    return f"{w[0]:g}-{w[1]:g}"
 
 
 def _ramp_pe(D: dict) -> pd.DataFrame:

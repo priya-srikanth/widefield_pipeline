@@ -33,6 +33,12 @@ Usage: python scripts/recovery_timing.py [--window lick]
        recovery_timing_pooled_day_<window>_aim.png, recovery_timing_pooled_day_<window>_aim.csv,
        recovery_timing_aim_per_animal_<window>.csv, figdata/recovery_timing_pooled_day_<window>_aim.pkl)
 Output: <E>/attempt_coding/recovery_timing_*.csv, figures/recovery_timing.png
+Options (both modes): --show-low-hits (Priya 11-17, "show the low-hit cells but mark as <20 hits"): sessions of a code-
+on-hits animal x epoch below analysis_kit.MIN_HITS are DRAWN as hollow gray diamonds (analysis_kit.LOWHIT_LABEL) and
+named with their summed hits; every mean / CI / test / fit is unchanged (they stay gated). NB the day-bin means of
+Fig 0.12 (`pooled_figures` (a), `aim_compute`) have never been hit-gated, so there the gray sessions ARE in the bin
+mean (said in that legend). --out DIR: every output (CSVs, figures, figdata) goes to DIR; inputs are still read
+from the run folder (a --plot-only redraw reads the run folder's figdata).
 """
 from __future__ import annotations
 from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
@@ -49,6 +55,9 @@ from wfield_local import lp_licks as _lp_licks  # noqa: E402  (coordinator 11-04
 from wfield_local import analysis_kit as ak  # noqa: E402  (MIN_HITS / hits_ok: the hit-gated minimum, Priya 11-07)
 
 A = _ac.out_dir()   # the writer's folder under the run mode (review N1 / N10)
+#: output folder (--out; default = the run folder) and the low-hit drawing switch (--show-low-hits, Priya 11-17)
+OUT = A
+SHOW_LOW = False
 AN = ["PS92", "PS93", "PS94", "PS95"]
 ACOL = {"PS92": "#1b9e77", "PS93": "#d95f02", "PS94": "#7570b3", "PS95": "#e7298a"}
 
@@ -379,7 +388,10 @@ def main(argv=None) -> int:
     import matplotlib.pyplot as plt
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--window", default="lick", choices=("precue", "cue", "lick"))
+    ap.add_argument("--show-low-hits", action="store_true", help="draw gated (< MIN_HITS) code-on-hits cells, marked")
+    ap.add_argument("--out", default=None, help="write CSVs + figures here instead of the run folder")
     a = ap.parse_args(argv)
+    _set_out(a.out, a.show_low_hits)
     S = series(a.window)
     G = _aim_by_label()
     Sm = S.merge(G, on="label", how="left") if G is not None else S.assign(aim=np.nan)
@@ -420,9 +432,9 @@ def main(argv=None) -> int:
     M = pd.DataFrame(out)
     print("== session-to-session lagged models (animal fixed effects; bootstrap within animal)")
     print(M.round(3).to_string(index=False))
-    H.to_csv(A / f"recovery_timing_halftimes_{a.window}.csv", index=False)
-    M.to_csv(A / f"recovery_timing_lagged_{a.window}.csv", index=False)
-    S.to_csv(A / f"recovery_timing_series_{a.window}.csv", index=False)
+    H.to_csv(OUT / f"recovery_timing_halftimes_{a.window}.csv", index=False)
+    M.to_csv(OUT / f"recovery_timing_lagged_{a.window}.csv", index=False)
+    S.to_csv(OUT / f"recovery_timing_series_{a.window}.csv", index=False)
 
     per_animal_figure(Sm, H, a.window, plt)
     pooled_figures(S, a.window, plt)
@@ -500,6 +512,55 @@ def _tidy_axes(fig) -> None:
     sig_marks.reserve_headroom(fig)          # hides the top spine on every panel (no stars here)
 
 
+def _set_out(out, show_low: bool) -> None:
+    """--out / --show-low-hits (Priya 11-17): output folder (figures/ + figdata/ under it) and the low-hit drawing."""
+    from pathlib import Path
+    global OUT, SHOW_LOW
+    OUT = Path(out) if out else A
+    SHOW_LOW = bool(show_low)
+    (OUT / "figures").mkdir(parents=True, exist_ok=True)
+
+
+def _lowhit_mask(P: pd.DataFrame, col: str) -> np.ndarray:
+    """Rows of a code-on-hits column (``neu`` or the ``gap`` built from it) whose animal x epoch cell sums to
+    < analysis_kit.MIN_HITS hits over its sessions with a finite value -- the rows `_hit_gated` / `epoch_value` drop."""
+    if col not in ("neu", "gap") or "n_hits" not in P or not len(P):
+        return np.zeros(len(P), bool)
+    fin = np.isfinite(P[col].to_numpy(float))
+    tot = P[fin].groupby(["animal", "epoch"]).n_hits.sum()
+    low = {k for k, v in tot.items() if not ak.hits_ok([v])}
+    return fin & np.array([(a, e) in low for a, e in zip(P.animal, P.epoch)], bool)
+
+
+def _lowhit_counts(P: pd.DataFrame, col: str, ep: str) -> dict:
+    """{animal: summed hits} of every animal below MIN_HITS in epoch ``ep`` (0 = no session with a code-on-hits value),
+    over animals that have the column in some epoch."""
+    out = {}
+    for an in AN:
+        g = P[(P.animal == an) & np.isfinite(P[col].to_numpy(float))]
+        if not len(g):
+            continue
+        n = float(g[g.epoch == ep].n_hits.sum())
+        if not ak.hits_ok([n]):
+            out[an] = int(n)
+    return out
+
+
+#: day-bin figures: the bin means were never hit-gated, so the gray sessions are IN them (said, not hidden)
+LOWHIT_DAY_LABEL = f"< {ak.MIN_HITS} hits per animal x epoch (in the day-bin mean)"
+
+
+def _low_handle(label: str | None = None):
+    from matplotlib.lines import Line2D
+    return Line2D([], [], ls="none", marker="D", mfc="none", mec=ak.LOWHIT_COLOR, mew=1.0, ms=5,
+                  label=label or ak.LOWHIT_LABEL)
+
+
+def _low_points(ax, x, y) -> None:
+    """Gray hollow diamonds: sessions of a < MIN_HITS cell (shown, not tested; Priya 11-17)."""
+    ax.scatter(x, y, marker="D", s=20, facecolors="none", edgecolors=ak.LOWHIT_COLOR, lw=0.9, zorder=3)
+
+
 def per_animal_figure(Sm: pd.DataFrame, H: pd.DataFrame, window: str, plt) -> None:
     """Per animal (columns) x measure (rows: aim PRIMARY, hit rate, code on hits): session points (open, shape =
     animal, color = epoch, lines within an epoch only) + the per-series half-recovery-to-pre / completeness / flag."""
@@ -512,7 +573,10 @@ def per_animal_figure(Sm: pd.DataFrame, H: pd.DataFrame, window: str, plt) -> No
             ax = axs[i, k]
             ax.axvspan(g.day.min() - 1, 0, color="0.95", lw=0, zorder=0)
             ax.axhline(MEAS_REF[m], color="0.5", ls="--", lw=0.8)
-            _session_points(ax, g.assign(**{m: g[m]}), m, lines=True)
+            lowm = _lowhit_mask(g, m) if SHOW_LOW else np.zeros(len(g), bool)
+            _session_points(ax, g[~lowm], m, lines=True)
+            if lowm.any():                           # < MIN_HITS cell: gray diamonds, no line, outside every fit
+                _low_points(ax, g[lowm].day, g[lowm][m])
             t = f"{an} {('aim', 'hit rate', 'cortex')[['aim', 'beh', 'neu'].index(m)]}: " + fmt_half(
                 {q: r[f"{m}_{q}"] for q in ("half_to_pre", "complete", "flag")})
             if m == "neu":
@@ -523,7 +587,8 @@ def per_animal_figure(Sm: pd.DataFrame, H: pd.DataFrame, window: str, plt) -> No
             if i == len(rows) - 1:
                 ax.set_xlabel("days from stroke")
     _tidy_axes(fig)
-    _conv_legend(fig, AN, [e for e in EP4 if (Sm.epoch == e).any()], loc="lower center", ncol=8, fontsize=8.5)
+    _conv_legend(fig, AN, [e for e in EP4 if (Sm.epoch == e).any()], [_low_handle()] if SHOW_LOW else (),
+                 loc="lower center", ncol=9 if SHOW_LOW else 8, fontsize=8.5)
     fig.suptitle(f"Recovery timing per animal ({window} window): aim (PRIMARY behavior), far-contra hit rate (secondary), "
                  "frozen far-contra code on HITS\n" + DATA_HIT + "\nTitles: half-recovery RELATIVE TO PRE = day the "
                  "exponential fit gets half-way from the acute level back to pre;\n% = completeness (recovered fraction "
@@ -531,7 +596,7 @@ def per_animal_figure(Sm: pd.DataFrame, H: pd.DataFrame, window: str, plt) -> No
                  f"{ak.MIN_HITS} hits per animal x epoch (acute sets the scale); 95% CI by resampling sessions",
                  fontsize=9)
     fig.tight_layout(rect=(0, 0.04, 1, 0.9))
-    out = A / "figures" / f"recovery_timing_{window}.png"
+    out = OUT / "figures" / f"recovery_timing_{window}.png"
     save_png_svg(fig, out, dpi=120)
     plt.close(fig)
     print("->", out)
@@ -588,22 +653,26 @@ def pooled_figures(S: pd.DataFrame, window: str, plt) -> None:
                          **{an: (float(np.mean(v)) if len(v) else np.nan) for an, v in by.items()},
                          "epoch": _bin_epoch(g[g[m].notna()].epoch)})
     Dd = pd.DataFrame(rows)
-    Dd.to_csv(A / f"recovery_timing_pooled_day_{window}.csv", index=False)
+    Dd.to_csv(OUT / f"recovery_timing_pooled_day_{window}.csv", index=False)
     fig, axs = plt.subplots(2, 1, figsize=(10, 7.0), sharex=True)
     for ax, (m, lab, _col) in zip(axs, MEAS):
         ax.axvspan(-13, 0, color="0.95", lw=0, zorder=0)
         ax.axhline(1, color="0.5", ls="--", lw=0.8)
-        _session_points(ax, S, m)
+        lowm = _lowhit_mask(S, m) if SHOW_LOW else np.zeros(len(S), bool)
+        _session_points(ax, S[~lowm], m)
+        if lowm.any():
+            _low_points(ax, S[lowm].day, S[lowm][m])
         _bin_means(ax, Dd[Dd.measure == m])
         ax.set_ylabel(lab + "\n/ animal's pre level", fontsize=9)
     axs[-1].set_xlabel("days from stroke (binned; pre = all August pre sessions at x = -6)")
     _tidy_axes(fig)
-    _conv_legend(fig, AN, [e for e in EP4 if (S.epoch == e).any()], loc="lower center", ncol=8, fontsize=8.5)
+    _conv_legend(fig, AN, [e for e in EP4 if (S.epoch == e).any()], [_low_handle(LOWHIT_DAY_LABEL)] if SHOW_LOW else (),
+                 loc="lower center", ncol=9 if SHOW_LOW else 8, fontsize=8.5)
     fig.suptitle(f"Recovery, pooled across animals ({window} window, hits only for cortex): open = sessions (shape = "
                  "animal, color = epoch);\nfilled = mean of animals per day bin, band = 95% CI (animals > sessions)\n"
                  + DATA_HIT, fontsize=9.5)
     fig.tight_layout(rect=(0, 0.05, 1, 0.91))
-    save_png_svg(fig, A / "figures" / f"recovery_timing_pooled_day_{window}.png", dpi=120)
+    save_png_svg(fig, OUT / "figures" / f"recovery_timing_pooled_day_{window}.png", dpi=120)
     plt.close(fig)
 
     # (b) by epoch, one dot per session; change vs pre (boot_delta); the gap panel
@@ -621,7 +690,21 @@ def pooled_figures(S: pd.DataFrame, window: str, plt) -> None:
             g = S[S.epoch == ep]
             by = {an: _hit_gated(g[g.animal == an], m) for an in AN}
             na = [an for an in AN if m != "beh" and len(g[g.animal == an].neu.dropna()) and not len(by[an])]
-            if na:                                   # animal x epoch below MIN_HITS: named, not plotted / tested
+            if SHOW_LOW and m != "beh" and ep != "pre":
+                # Priya 11-17: the gated sessions are DRAWN (gray diamonds, outside the mean / SEM / CI) and every animal
+                # below MIN_HITS is named with its summed hits (0 = no session with >= 5 hits)
+                low = _lowhit_counts(S, m, ep)
+                for j, an in enumerate(AN):
+                    gl = g[g.animal == an]
+                    gl = gl[_lowhit_mask(gl, m)]
+                    if len(gl):
+                        xs = i + (j - 1.5) * 0.07 + np.random.default_rng(10 * i + j).uniform(-0.02, 0.02, len(gl))
+                        _low_points(ax, xs, gl[m].to_numpy(float))
+                        plotted.extend(gl[m].to_numpy(float).tolist())
+                if low:
+                    ax.text(i, 0.01, f"<{ak.MIN_HITS} hits: " + ", ".join(f"{an} {k}" for an, k in low.items()),
+                            ha="center", va="bottom", fontsize=6.5, color="0.35", transform=ax.get_xaxis_transform())
+            elif na:                                 # animal x epoch below MIN_HITS: named, not plotted / tested
                 ax.text(i, 0.01, ak.HIT_GATE_NA + ": " + "/".join(na), ha="center", va="bottom", fontsize=6.5,
                         color="0.35", transform=ax.get_xaxis_transform())
             by = {an: v for an, v in by.items() if len(v)}
@@ -661,20 +744,22 @@ def pooled_figures(S: pd.DataFrame, window: str, plt) -> None:
         if k == 0:
             ax.set_ylabel("relative to the animal's pre-stroke level")
     Tt = pd.DataFrame(tst)
-    Tt.to_csv(A / f"recovery_timing_pooled_epoch_{window}.csv", index=False)
+    Tt.to_csv(OUT / f"recovery_timing_pooled_epoch_{window}.csv", index=False)
     print("== pooled by epoch: change vs pre (nested bootstrap animals > sessions)\n" + Tt.round(3).to_string(index=False))
     _tidy_axes(fig)
-    _conv_legend(fig, AN, EP4, [Line2D([], [], ls="none", marker="o", color="0.3", ms=7, label="mean of animals +- SEM (epoch color)")], loc="lower center",
-                 ncol=9, fontsize=8.5)
+    xh = [Line2D([], [], ls="none", marker="o", color="0.3", ms=7, label="mean of animals +- SEM (epoch color)")]
+    if SHOW_LOW:
+        xh.append(_low_handle())
+    _conv_legend(fig, AN, EP4, xh, loc="lower center", ncol=10 if SHOW_LOW else 9, fontsize=8.5)
     fig.suptitle(f"Recovery by epoch, one dot per session, normalized within animal ({window} window; cortex = hits only). "
                  "Numbers = change vs pre, 95% nested CI (bold = excludes 0)\ncortex: sessions with >= 5 hits, and an "
                  f"animal x epoch needs >= {ak.MIN_HITS} hits summed (else {ak.HIT_GATE_NA})\n"
                  + DATA_HIT,
                  fontsize=10)
     fig.tight_layout(rect=(0, 0.07, 1, 0.89))
-    save_png_svg(fig, A / "figures" / f"recovery_timing_pooled_epoch_{window}.png", dpi=120)
+    save_png_svg(fig, OUT / "figures" / f"recovery_timing_pooled_epoch_{window}.png", dpi=120)
     plt.close(fig)
-    print("->", A / "figures" / f"recovery_timing_pooled_epoch_{window}.png")
+    print("->", OUT / "figures" / f"recovery_timing_pooled_epoch_{window}.png")
 
 
 import iti_licks as _il  # noqa: E402
@@ -740,6 +825,10 @@ def aim_draw(F: dict) -> None:
     import matplotlib.pyplot as plt
     D, window = F["D"], F["window"]
     P = F.get("P")
+    if SHOW_LOW and P is not None and "n_hits" not in P:
+        # figdata before 11-17 has no hit counts: take them from the run's session series (drawing path only)
+        nh = pd.read_csv(A / f"recovery_timing_series_{window}.csv")[["animal", "epoch", "day", "n_hits"]]
+        P = P.merge(nh.drop_duplicates(["animal", "epoch", "day"]), on=["animal", "epoch", "day"], how="left")
     # aim = PRIMARY behavioural recovery measure (Priya 11-07: "we should use aim rather than hit recovery") -> panel A;
     # hit rate (secondary) -> B; code on hits -> C. Conventions as per_animal_figure (11-07).
     PAN = [("aim", "A  PRIMARY: far-contra aim, first post-cue lick, 3-D angle minus the animal's pre mean "
@@ -751,7 +840,10 @@ def aim_draw(F: dict) -> None:
         ax.axvspan(-13, 0, color="0.95", lw=0, zorder=0)
         ax.axhline(MEAS_REF[m], color="0.5", ls="--", lw=0.8)
         if P is not None and "epoch" in D:
-            _session_points(ax, P, m)
+            lowm = _lowhit_mask(P, m) if SHOW_LOW else np.zeros(len(P), bool)
+            _session_points(ax, P[~lowm], m)
+            if lowm.any():                           # < MIN_HITS cell (the day-bin mean is not hit-gated: legend)
+                _low_points(ax, P[lowm].day, P[lowm][m])
             _bin_means(ax, D[D.measure == m])
         else:                                        # figdata from before 11-07: no session points / bin epochs
             t = D[D.measure == m].sort_values("x")
@@ -762,8 +854,9 @@ def aim_draw(F: dict) -> None:
     axs[-1].set_xlabel("days from stroke (binned; pre = all August pre sessions at x = -6)")
     _tidy_axes(fig)
     if P is not None:
-        _conv_legend(fig, AN, [e for e in EP4 if (P.epoch == e).any()], loc="lower center", ncol=8, fontsize=8,
-                     bbox_to_anchor=(0.5, 0.115))
+        _conv_legend(fig, AN, [e for e in EP4 if (P.epoch == e).any()],
+                     [_low_handle(LOWHIT_DAY_LABEL)] if SHOW_LOW else (), loc="lower center",
+                     ncol=9 if SHOW_LOW else 8, fontsize=8, bbox_to_anchor=(0.5, 0.115))
     PA = F.get("PA")
     if PA is not None and "aim_flag" in PA:     # per-animal completeness + half-recovery relative to pre (fit, flagged)
         txt = ["Per animal: half-recovery RELATIVE TO PRE (fitted day half-way from acute back to pre);",
@@ -774,7 +867,7 @@ def aim_draw(F: dict) -> None:
                  "(shape = animal, color = epoch),\nfilled = mean of animals, band = 95% CI (animals > sessions). "
                  "n = 4, PROVISIONAL\n" + DATA_HIT, fontsize=9.5)
     fig.tight_layout(rect=(0, 0.145, 1, 0.94))
-    out = A / "figures" / f"recovery_timing_pooled_day_{window}_aim.png"
+    out = OUT / "figures" / f"recovery_timing_pooled_day_{window}_aim.png"
     save_png_svg(fig, out, dpi=120)
     plt.close(fig)
     print("->", out)
@@ -784,14 +877,15 @@ def aim_main(window: str, plot_only: bool) -> int:
     from figdata import load_fd, save_fd
     stem, root = f"recovery_timing_pooled_day_{window}_aim", A / "figdata"
     if not plot_only:
+        root = OUT / "figdata"                  # a compute writes its figdata under --out; --plot-only reads the run's
         F = aim_compute(window)
         pd.set_option("display.width", 250)
         print_per_animal(F["PA"], "== per animal (rule 8): aim (PRIMARY), hit rate, code on hits")
         print("  epoch means (beh, neu = / pre; aim = deg vs pre) + recovered fraction by epoch:\n"
               + F["PA"][["animal"] + [c for c in F["PA"] if c.split("_", 1)[-1] in EP4 or "_recov_" in c]]
               .round(2).to_string(index=False))
-        F["D"].to_csv(A / f"recovery_timing_pooled_day_{window}_aim.csv", index=False)
-        F["PA"].to_csv(A / f"recovery_timing_aim_per_animal_{window}.csv", index=False)
+        F["D"].to_csv(OUT / f"recovery_timing_pooled_day_{window}_aim.csv", index=False)
+        F["PA"].to_csv(OUT / f"recovery_timing_aim_per_animal_{window}.csv", index=False)
         ref = pd.read_csv(A / f"recovery_timing_pooled_day_{window}.csv")
         mine = F["D"][F["D"].measure != "aim"].reset_index(drop=True)
         print("== check vs recovery_timing_pooled_day (beh/neu): max |diff| =",
@@ -805,5 +899,6 @@ if __name__ == "__main__":
     import sys
     if "--aim" in sys.argv:          # Fig 0.12 + aim panel: python scripts/recovery_timing.py --aim [--plot-only] [--window lick]
         w = sys.argv[sys.argv.index("--window") + 1] if "--window" in sys.argv else "lick"
+        _set_out(sys.argv[sys.argv.index("--out") + 1] if "--out" in sys.argv else None, "--show-low-hits" in sys.argv)
         raise SystemExit(aim_main(w, "--plot-only" in sys.argv))
     raise SystemExit(main())

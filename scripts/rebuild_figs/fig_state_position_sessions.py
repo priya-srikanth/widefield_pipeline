@@ -160,6 +160,21 @@ def _stars(p: float) -> str:
     return "***" if p < 0.001 else "**" if p < 0.01 else "*" if p < 0.05 else ""
 
 
+def _footer_bottom(fig, pad: float = 0.012) -> float:
+    """Write the trial-set footer NOW (bottom right; `trial_set_text.stamp`, idempotent, so the save path does not add a
+    second one) and return the figure fraction it occupies, so `tight_layout` puts the x tick labels above it.
+    11-17: the footer was stamped at save time, after the layout, and its four lines sat on the epoch tick labels.
+    Returns 0 when no trial set is declared (no footer, layout unchanged)."""
+    from wfield_local import trial_set_text as tst
+    t = tst.stamp(fig)
+    if t is None:
+        t = next((x for x in fig.texts if x.get_gid() == tst.GID), None)
+    if t is None:
+        return 0.0
+    bb = t.get_window_extent(fig.canvas.get_renderer())
+    return min(0.4, bb.y1 / fig.bbox.height + pad)
+
+
 def draw(D: pd.DataFrame, T: dict, png: Path) -> None:
     from wfield_local.orofacial_cohort import EPOCH_LINE
     from wfield_local.sig_marks import reserve_headroom, star_top
@@ -201,7 +216,7 @@ def draw(D: pd.DataFrame, T: dict, png: Path) -> None:
                  label=e.capitalize()) for e in EPOCHS]
     fig.legend(handles=h, loc="upper center", ncol=len(h), frameon=False, fontsize=11, bbox_to_anchor=(0.5, 1.0),
                handletextpad=0.3, columnspacing=1.2, handlelength=1.6)
-    fig.tight_layout(rect=(0, 0, 1, 0.9), w_pad=2.0)
+    fig.tight_layout(rect=(0, _footer_bottom(fig), 1, 0.9), w_pad=2.0)
     save_png_svg(fig, png, dpi=200, facecolor="white")
     plt.close(fig)
 
