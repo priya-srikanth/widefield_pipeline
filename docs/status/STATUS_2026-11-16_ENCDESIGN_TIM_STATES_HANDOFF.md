@@ -73,7 +73,11 @@ Run code from a worktree with `PYTHONPATH=$(pwd -W)` (Windows form). AR-HMM mode
   (v1: 30-60 %). S2 occupancy pre / acute / subacute / chronic: PS92 .01 / .31 / .04 / .00, PS93 .02 / .32 / .15 /
   .02, PS94 .09 / .42 / .20 / .07, PS95 .11 / .11 / .35 / .12 (PS95 peaks subacute, matching its raw no-response
   count: 894 subacute vs 57 acute). K = 4 adds a fourth state that is ALSO consistent across animals: engaged while
-  running (running .28-.32 in every animal). Held-out K selection for v2 running (`select_k_pooled_all_v2.csv`).
+  running (running .28-.32 in every animal). Held-out K selection for v2 running (`select_k_pooled_all_v2.csv`). K = 5 (74 % assigned;
+  PS95 acute 50 % unassigned) is ALSO consistent across animals: adds a PARTIALLY ENGAGED state (attempt .39-.56, no
+  response .18-.23, session position .72) that rises acutely in PS94 (.17) and PS95 (.18) vs <= .04 pre; quit tail
+  89-98 % in the disengaged state. Decision rule: K = 5 only if its held-out gain over K = 4 exceeds the fold spread,
+  else K = 4 with the partial-engagement state as a sensitivity result.
 
 - **AR-HMM kappa / noise floor (11-17)**: O2 scan (chunked, no dither) gave median 0.08-0.32 s for kappa 1e5-1e11 --
   states predicted the smooth 25 Hz PCs to ~0.007 (min log|Q| -109), so every change out-bid the stickiness (FR is 5 Hz
