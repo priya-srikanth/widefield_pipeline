@@ -618,3 +618,7 @@ PI deck (backup Overview_2026-11-06.bak_pre_a8_renumber_20261116.pptx): FR page 
 - 11-17: neg-AUC diagnostic first output: tjM1 ITI trace figures in .../iti_licks/neg_auc_diag_20261117/. Undefined rows = small short
   lick transient (peak ~8-10 vs ~20) then a dip below baseline at 0.5-1.0 s (to ~-8..-14); defined rows stay up after 0.5 s
   (following licks / next trial). Clearest PS94 pre, also PS93. Tests of alternatives still running.
+- 11-17: low-hit cells shown on main 141 / 143 / 144 / 146 (specs/lowhit_main.json; code 997573fb --show-low-hits; renders
+  attempt_coding/<tag>/redraw_lowhit_20261117/; tables byte-identical). 147 not hit-gated. Open for Priya: 146 day-bin means INCLUDE
+  low-hit sessions (bin 2 .34, bin 5 .61, bin 6-7 .68; never hit-gated) - gate them? Slide 120 (key_figure_BC code on hits) not yet marked.
+  Backup .bak_pre_a8_lowhit_main_20261117.pptx.
