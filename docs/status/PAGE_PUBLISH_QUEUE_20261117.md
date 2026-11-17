@@ -49,3 +49,15 @@ same URL, then re-start the artifact watch. Tick each item here and commit.
 ## 3. State-space (9sGELLFEwADEt9k64fXTxe, v41) and kinematics (DKcKRJKbhBoratxxRc6qZv, v31)
 
 - Nothing pending. Re-start their watches after the switch.
+
+## 4. To do after the re-runs (Priya 11-17): clean up stale iterations
+
+Discuss with Priya before deleting anything; deleted-derived list as in DELETED_DERIVED_20261117.md; never original data.
+- Per result family on M: (rebuild_20261103/...): list the CURRENT version pages / decks point to, the older iterations
+  (e.g. _superseded_glue_20261109, 11-08 vs 11-16 vs 11-17 folders, session_cache_restnl_glp* variants, deck backups
+  __2026111*_*.pptx, replay copies such as state_space_recovery/svd_lnmf_gluefree_20261117/ ~7 GB of cache copies),
+  sizes, and what would be lost.
+- Local C: had 79 GB free on 11-17. Biggest: C:/Users/SabatiniLab/wfield_cache 444 GB =
+  input_cache_rebuild_20261104 366 GB (ACTIVE: the rebuild render env's WFIELD_INPUT_CACHE; other windows use it) +
+  session_cache_rebuild_20261103 78 GB (check whether still read). 161 git worktrees under Github/ (remove those whose
+  branches are merged and that no running job uses; `git worktree remove`, never delete a dirty one).
