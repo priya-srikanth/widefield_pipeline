@@ -22,7 +22,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from scripts.lmm_hidden import render
+from scripts.lmm_hidden import _paths, render
 
 NAME = "rec_wlc_primary"
 ROOT = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/"
@@ -81,7 +81,7 @@ def main(argv=None) -> int:
     root, outdir = Path(a.root), Path(a.outdir)
     D = table(root)
     outdir.mkdir(parents=True, exist_ok=True)
-    f = outdir / f"{NAME}_sessions.csv"
+    f = outdir / f"{_paths.out_name(NAME)}_sessions.csv"
     D.to_csv(f, index=False)
     pd.set_option("display.width", 220)
     print("n sessions / animals per epoch, per cell:")

@@ -37,7 +37,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from scripts.lmm_hidden import render
+from scripts.lmm_hidden import _paths, render
 
 DAQ_POS = {"close_ipsi": "close_L", "close_mid": "close_center", "close_contra": "close_R",
            "far_ipsi": "far_L", "far_mid": "far_center", "far_contra": "far_R"}   # fig_behaviour_hits.POS (lesion LEFT)
@@ -96,7 +96,7 @@ def main(argv=None) -> int:
     print(m[[c for c in m.columns if str(c).startswith("d_")]].round(3).to_string())
     out = Path(a.outdir)
     out.mkdir(parents=True, exist_ok=True)
-    f = out / f"{sp['name']}_sessions.csv"
+    f = out / f"{_paths.out_name(sp['name'])}_sessions.csv"
     S.to_csv(f, index=False)
     cells = ["frozen", "refit", "gap"] if a.kind == "frozen" else None
     T = render.render(f, sp["name"], out, title=sp["title"], ylabel=sp["ylabel"], cells=cells,

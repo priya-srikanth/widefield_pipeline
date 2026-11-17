@@ -79,7 +79,7 @@ def main(argv=None) -> int:
     root, outdir = Path(a.root), Path(a.outdir)
     D = table(root)
     outdir.mkdir(parents=True, exist_ok=True)
-    f = outdir / f"{NAME}_sessions.csv"
+    f = outdir / f"{_paths.out_name(NAME)}_sessions.csv"
     D.to_csv(f, index=False)
     print("n sessions / animals per epoch (first cell):")
     g0 = D[D.position == D.position.iloc[0]]

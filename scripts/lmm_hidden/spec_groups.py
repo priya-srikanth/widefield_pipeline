@@ -148,7 +148,7 @@ def main(argv=None) -> int:
     verify(S, Path(a.root), a.tag)
     out = Path(a.outdir)
     out.mkdir(parents=True, exist_ok=True)
-    src = out / f"{NAME}_sessions.csv"
+    src = out / f"{_paths.out_name(NAME)}_sessions.csv"
     S.to_csv(src, index=False)
     have = set(S.position)
     cells = [f"{k}:{a}" for k, _ in PANELS for a in (GL if k in ("res_cue", "res_lick", "l2") else ROIS)

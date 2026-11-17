@@ -24,6 +24,7 @@ import numpy as np
 import pandas as pd
 
 from scripts.lmm_hidden import _curve_auc as ca
+from scripts.lmm_hidden import _paths
 from scripts.lmm_hidden import lick_cued_ramp_perspout as lcp
 
 BASE_L = (-1.5, -1.0)        # iti_licks.BASE
@@ -200,7 +201,7 @@ def run(root: Path, outdir: Path, *, key: str, subset: str, which: str, name: st
     for meas, (suf, words, ylab) in MEASURES.items():
         nm = f"{name}{suf}"
         D = as_sessions(A, meas)
-        f = outdir / f"{nm}_sessions.csv"
+        f = outdir / f"{_paths.out_name(nm)}_sessions.csv"
         D.to_csv(f, index=False)
         P = animal_table(D)
         pd.set_option("display.width", 220)

@@ -82,7 +82,7 @@ def main(argv=None) -> int:
     verify(T, Path(a.root))
     out = Path(a.outdir)
     out.mkdir(parents=True, exist_ok=True)
-    src = out / f"{NAME}_sessions.csv"
+    src = out / f"{_paths.out_name(NAME)}_sessions.csv"
     T.to_csv(src, index=False)
     cells = [f"{w}:{c}" for w, _ in WIN for c in CLS]
     labels = {f"{w}:{c}": LABELS[c] for w, _ in WIN for c in CLS}

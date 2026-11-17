@@ -105,7 +105,7 @@ def main(argv=None) -> int:
     root, outdir = Path(a.root), Path(a.outdir)
     D = table(root)
     outdir.mkdir(parents=True, exist_ok=True)
-    f = outdir / f"{NAME}_sessions.csv"
+    f = outdir / f"{_paths.out_name(NAME)}_sessions.csv"
     D.to_csv(f, index=False)
     pd.set_option("display.width", 220)
     print("n sessions / animals per epoch, per cell:")

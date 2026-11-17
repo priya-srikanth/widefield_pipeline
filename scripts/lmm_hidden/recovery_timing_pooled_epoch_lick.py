@@ -74,7 +74,7 @@ def main(argv=None) -> int:
     print("== published quantity (change vs own pre, mean of animals)\n" + verify(S).round(3).to_string(index=False))
     out = Path(a.outdir)
     out.mkdir(parents=True, exist_ok=True)
-    src = out / f"{NAME}_sessions.csv"
+    src = out / f"{_paths.out_name(NAME)}_sessions.csv"
     S.to_csv(src, index=False)
     T = render.render(src, NAME, out, title="Fig 0.6: far-contra hit rate vs frozen code on hits by epoch (lick window)",
                       ylabel="change vs own pre (fraction of pre)", cells=list(MEAS),

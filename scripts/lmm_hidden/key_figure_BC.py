@@ -100,7 +100,7 @@ def main(argv=None) -> int:
     print("== published quantity (fraction of pre, mean of animals)\n" + verify(S).round(3).to_string(index=False))
     out = Path(a.outdir)
     out.mkdir(parents=True, exist_ok=True)
-    src = out / f"{NAME}_sessions.csv"
+    src = out / f"{_paths.out_name(NAME)}_sessions.csv"
     S.to_csv(src, index=False)
     cells = list(dict.fromkeys(S.position))
     T = render.render(src, NAME, out, title="Key figure 1 B-C: frozen read-out vs epoch refit (lateral lick decoder; "

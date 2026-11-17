@@ -50,7 +50,7 @@ def perspout(root: Path, outdir: Path) -> int:
     D = ca.table(root, key="lick", rois=ca.ROIS7)
     ca.check_cued(root, D)
     outdir.mkdir(parents=True, exist_ok=True)
-    f = outdir / f"{NAME}_sessions.csv"
+    f = outdir / f"{_paths.out_name(NAME)}_sessions.csv"
     D.to_csv(f, index=False)
     cells = [f"{r}:{p}" for r in ca.ROIS7 for p in lcp.POS]
     T = render.render(f, NAME, outdir, title="First cued lick, response AUC 0..0.5 s per spout / the animal's pre AUC at "

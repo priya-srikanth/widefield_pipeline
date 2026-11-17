@@ -18,7 +18,7 @@ from pathlib import Path
 import pandas as pd
 
 from scripts.lmm_hidden import _lick_matched_common as cm
-from scripts.lmm_hidden import render
+from scripts.lmm_hidden import _paths, render
 
 NAME = "lick_matched_gauss_readout_docked"
 SETS = {"iti": "ITI", "trial": "cued"}
@@ -55,7 +55,7 @@ def main() -> int:
     R, Tp, cells, labels = build(Path(a.root))
     outdir = Path(a.outdir)
     outdir.mkdir(parents=True, exist_ok=True)
-    src = outdir / f"{NAME}_sessions.csv"
+    src = outdir / f"{_paths.out_name(NAME)}_sessions.csv"
     R.to_csv(src, index=False)
     T = render.render(src, NAME, outdir, title="Fig 12.1 DOCKED: like-for-like (Gaussian same-place) lick read-out",
                       ylabel="read-out vs pre licks at the same place\n(mm, + = contralesional)", cells=cells,
