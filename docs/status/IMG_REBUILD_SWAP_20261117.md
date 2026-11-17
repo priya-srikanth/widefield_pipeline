@@ -40,3 +40,8 @@ Key figure 3.4 points at the footer-fixed render. Previous deck copied aside as
 `spout_position_analysis_summary__20261117_1201.pptx`. Build: render profile `cohort1_rebuild_20261103` env, then
 `python -m wfield_local.locanmf_analysis_deck --no-within-day --run-start 1794286800` (run_start 2026-11-10, as the
 previous manifest).
+
+Result 12:0x 11-17: first build refused (41 missing figures, all pre-existing rebuild gaps: locanmf_* cross-mouse / RSA
+0806-1006, epoch_1f / 1g, epoch_15 / 15pa / 15x / 15d / 15f / 15s / 15g / 15h, ... none touched here); rebuilt with
+`--allow-missing 41`: 601 slides (same as the 12:01 copy), 811 figures placed, 41 missing. Checked in the pptx: the
+section G divider (slide 39) carries G_DIVIDER_REBUILD; the footer-fixed Fig 3.4 is placed on slide 15.
