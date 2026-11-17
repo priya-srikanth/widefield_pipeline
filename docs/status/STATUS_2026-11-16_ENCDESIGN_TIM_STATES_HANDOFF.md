@@ -46,6 +46,14 @@ Run code from a worktree with `PYTHONPATH=$(pwd -W)` (Windows form). AR-HMM mode
 - **AR-HMM**: features for 120 sessions being extracted; pipeline smoke-tested end to end (fit -> decode -> similarity
   -> profile); NO meaningful state result yet (smoke fits = 2-3 iterations).
 
+- **GLM-HMM per animal, all epochs (11-17, `scratchpad/glmhmm_v1`)**: held-out pseudo-R2 by K (PS92-95) K1 .25/.23/.20/.19,
+  K3 .39/.41/.38/.37, K5 .44/.44/.41/.42; outcome + lick terms saturate at K = 3, extra states model running. BUT the
+  per-animal K = 3 states are NOT comparable across animals: the quit tail (trials after the last camera lick) sits in
+  state 1 for PS92 / PS93 (.83 / .75) and in state 0 for PS94 / PS95 (.71 / .58); "state 2 = disengaged" holds only
+  for PS94 / PS95 (state 2 occupancy acute .36 / .39). NB PS95 is the LEAST severe animal, so that acute rise is not a
+  severity ordering. Quit tails are short (acute median 19 / 21.5 / 27 / 2 trials PS92-95). -> pooled all-epoch fit
+  (`glm_hmm --pooled-all --select-k`: shared emissions, per-animal bias inputs) running 11-17.
+
 ## 3. Running at handoff (background in session 37fdbabf; scratchpad
 `C:/Users/SABATI~1/AppData/Local/Temp/claude/179e1046909c5be2/37fdbabf-285a-455b-bbb7-d5927a5affe6/scratchpad`)
 

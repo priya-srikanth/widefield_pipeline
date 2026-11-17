@@ -422,6 +422,21 @@ def run_refit(data: dict, K: int) -> pd.DataFrame:
     return pd.concat(out, ignore_index=True)
 
 
+def august_on(data: dict) -> list[str]:
+    return sorted(lab for lab in data if lab[-4:] >= "0801")
+
+
+def run_pooled(data: dict, K: int) -> pd.DataFrame:
+    """ONE model over ALL animals and ALL August-onward epochs (Priya 11-17: per-animal states are not comparable --
+    the quit tail sat in a different state in each animal). Shared emissions = shared state definitions; the
+    per-animal bias columns of X absorb each animal's baseline rates, so states are not forced to encode identity
+    (the pooled-PRE fit's failure, 11-16, had no post-stroke variation to model)."""
+    labs = august_on(data)
+    m = GLMHMM(K).fit([data[lab][:2] for lab in labs])
+    order = m.engagement_order(np.vstack([data[lab][0] for lab in labs]).mean(0))
+    return _table(m, labs, data, "pooled_all", order)
+
+
 def main(argv=None) -> int:
     from wfield_local import analysis_kit as ak
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
@@ -430,6 +445,9 @@ def main(argv=None) -> int:
     ap.add_argument("--per-animal", action="store_true",
                     help="K selection PER ANIMAL over ALL its August-onward sessions (Priya 11-16: pooled pre states "
                          "encoded animal identity)")
+    ap.add_argument("--pooled-all", action="store_true",
+                    help="ONE model over all animals, all August-onward epochs (shared states, per-animal bias "
+                         "inputs); with --select-k: folds interleaved by session within animal")
     a = ap.parse_args(argv)
     labels = sorted(ak.curated_ids())
     animals = sorted({lab.split("_")[0] for lab in labels})
@@ -437,6 +455,16 @@ def main(argv=None) -> int:
     od = out_dir()
     od.mkdir(parents=True, exist_ok=True)
     print(f"{len(data)} sessions, {sum(len(v[1]) for v in data.values())} trials; out {od}")
+    if a.pooled_all:
+        if a.select_k:
+            R = select_k(data, labels=august_on(data))
+            R.to_csv(od / "select_k_pooled_all.csv", index=False)
+            print(R.groupby("K")[["bits_per_cycle_vs_K1", "pR2_total", *[f"pR2_{o}" for o in OUTPUTS]]].mean().round(4),
+                  flush=True)
+        for K in ([a.k] if a.k else [3, 4]):
+            run_pooled(data, K).to_csv(od / f"states_pooled_all_K{K}.csv.gz", index=False)
+            print("written", od / f"states_pooled_all_K{K}.csv.gz", flush=True)
+        return 0
     if a.select_k and a.per_animal:
         out = []
         for an in animals:
