@@ -710,3 +710,5 @@ PI deck (backup Overview_2026-11-06.bak_pre_a8_renumber_20261116.pptx): FR page 
 - 11-17 slide 21 decomposition done (ba24aebf; SLIDE21_DECOMPOSITION.md): trial gate explains the change (old gate on the rebuild
   -.397 / -.191 / -.112); ~-.02 from the old fitted-vs-projected joint time courses; pre set / scaling / lick detector none.
   Priya OK -> slide 21 notes line replaced with the result.
+- 11-17 Priya OK -> FR page v55 published: 12 lick-source caption fixes (3c list; FR lick windows = LP video cam4 only,
+  licks_all.csv; Fig 6.1 ENL window cam4 + DAQ). Backup scratchpad fr_page/index_v54_pre_licksrc.html.
