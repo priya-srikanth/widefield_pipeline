@@ -66,6 +66,7 @@ from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin
 import argparse
 import functools
 import pickle
+import os
 import sys
 import textwrap
 import time
@@ -81,7 +82,7 @@ from wfield_local import mask_keys  # noqa: E402
 
 OUT_W = il.OUT_W      # il.OUT_W = run_mode.subdir(<imaging_encoding>/iti_licks): the ITI family's routed folder (11-04)
 IN = il.OUT                                                  # inputs (read only)
-REST_VARIANTS = ("restdock05", "restnl")
+REST_VARIANTS = ("restdock05", "restnl", "restnlc1")   # restnlc1 = RESTnl, cam1-only LP licks also removed (11-17)
 
 
 def rest_variant(argv=None) -> str:
@@ -96,10 +97,14 @@ def rest_variant(argv=None) -> str:
 
 
 REST_VARIANT = rest_variant()
-VSFX = {"restdock05": "", "restnl": "_restnl"}[REST_VARIANT]      # default: every path / tag unchanged
+if REST_VARIANT == "restnlc1":       # RESTnlc1 (11-17): the RESTnl mask + `restnl` text under the cam4cam1 lick set
+    os.environ["WIDEFIELD_RESTNL_LICKS"] = "cam4cam1"
+IS_NL = REST_VARIANT in ("restnl", "restnlc1")
+VSFX = {"restdock05": "", "restnl": "_restnl", "restnlc1": "_restnlc1"}[REST_VARIANT]   # default: paths unchanged
 REST_TXT = {"restnl": "rest = docked quiet rest, lick-free (RESTnl: no camera or DAQ licks)",
+            "restnlc1": "rest = docked quiet rest, lick-free (RESTnlc1: no DAQ, cam4 or cam1 licks)",
             "restdock05": "SUPPLEMENT: rest = docked quiet rest (restdock05, DAQ licks excluded)"}[REST_VARIANT]
-REST_SHORT = {"restnl": "DOCKED QUIET REST, lick-free (RESTnl)",
+REST_SHORT = {"restnl": "DOCKED QUIET REST, lick-free (RESTnl)", "restnlc1": "DOCKED QUIET REST, lick-free (RESTnlc1)",
               "restdock05": "DOCKED QUIET REST (restdock05)"}[REST_VARIANT]
 RAW_TXT = "raw (no rest reference)"                               # lick-set metrics: rest never enters them
 
@@ -159,7 +164,7 @@ def rest_frames_text() -> str:
     """The rest frames of the active rest variant: the RESTnl lick-free mask (`restnl.DEF` minus its per-position
     weighting, which a pseudo-event set does not use) or the restdock05 mask, each cut to the docked window."""
     from wfield_local import config
-    if REST_VARIANT == "restnl":
+    if IS_NL:
         import restnl
         mask = restnl.DEF[: restnl.DEF.index(restnl._WDEF)].rstrip(", ")
         return f"docked (dock .. next trial_start) frames of {mask}"
@@ -190,7 +195,7 @@ def set_sentence(st: str) -> str:
                           f"(window {LAGS_W1[0]:+g} .. {LAGS_W1[-1]:+g} s)",
                           keep=[f"rest frames = {rest_frames_text()}"],
                           excluded=(["sessions without licks_all.csv (no rest set, never a DAQ-only fallback)"]
-                                    if REST_VARIANT == "restnl" else None))
+                                    if IS_NL else None))
     raise ValueError(f"set_sentence: unknown set {st!r}")
 
 
@@ -226,7 +231,7 @@ def rest_extract(label: str) -> dict:
         return {"label": label, "cached": True}
     s = next(x for x in config.load_sessions() if x["label"] == label)
     nl_info = None
-    if REST_VARIANT == "restnl":
+    if IS_NL:
         got, nl_info = _restnl_daq(s)
         if got is None:
             return {"label": label, "excluded": nl_info}
@@ -937,7 +942,7 @@ SIMPLE_READING = {"restdock05": ("At quiet REST coupling rises in the orofacial 
                                  "from acute on); during cued licks the orofacial rise (chronic) is no larger than at "
                                  "rest, and lick minus rest is flat (orofacial) or falls (controls) -> a GLOBAL, "
                                  "state-wide increase, not a lick- or orofacial-specific one. "),
-                  "restnl": ""}[REST_VARIANT]
+                  "restnl": "", "restnlc1": ""}[REST_VARIANT]
 
 
 @_with_sets(("cued", "rest"))

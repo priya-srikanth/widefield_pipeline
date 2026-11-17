@@ -43,7 +43,11 @@ from wfield_local import mask_keys  # noqa: E402
 from figdata import load_fd, plot_only, save_fd  # noqa: E402
 
 SRC = il.OUT                                    # read-only inputs
-OUTD = il.OUT / "restw_check"                   # the ONLY write root
+# RESTnl LICK SET (Priya 11-17, `wfield_local.restnl_licks`): under WIDEFIELD_RESTNL_LICKS=cam4cam1 the `strict` mask
+# (= RESTnl) also removes the cam1-only LP events (droplets removed; `lp_licks.lp_lick_times`), and everything is
+# written to its OWN folder restw_check_c1/ (read by `restnl.py` under the same switch); the cam4 folder is untouched.
+from wfield_local import restnl_licks as _rl  # noqa: E402
+OUTD = il.OUT / ("restw_check_c1" if _rl.is_c1() else "restw_check")   # the ONLY write root
 SESS = OUTD / "sessions"
 FIGS = OUTD / "figures"
 FDR = OUTD / "figdata"
@@ -180,7 +184,11 @@ def session_worker(item) -> dict:
     chk = floor_runs(rest0 & ~widen(daq_on, n, int(0.5 * fs), int(1.0 * fs)), minrun)
     n_chk = int((rest0 & ~chk).sum())
     m_daq2 = floor_runs(rest0 & ~widen(daq_on, n, nb, na), minrun)
-    m_strict = floor_runs(m_daq2 & ~widen(smp(cam4_on), n, nb, na), minrun)
+    strict_on, n_c1 = _rl.extend(label, cam4_on) if _rl.is_c1() else (cam4_on, None)   # cam4cam1: + cam1-only LP
+    if n_c1 is not None:
+        notes["restnl_lick_set"] = _rl.lick_set()
+        notes["restnl_n_cam1_only"] = int(n_c1)
+    m_strict = floor_runs(m_daq2 & ~widen(smp(strict_on), n, nb, na), minrun)
     masks = {"restw": rest0, "daq2": m_daq2, "strict": m_strict}
     if c1 is not None:
         masks["strict_c1"] = floor_runs(m_strict & ~widen(smp(c1.daq_on_s.dropna()), n, nb, na), minrun)

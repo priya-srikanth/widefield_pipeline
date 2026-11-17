@@ -432,7 +432,8 @@ def enl_cache() -> str:
     """Per-session cache dir of the ENL path: lick source + window in the name, so an LP and a DAQ run (or another
     window) can never read each other's entries."""
     from wfield_local import lp_licks
-    return f"{ENL_CACHE}_{lp_licks.lick_source()}{enl_win_s():g}s"
+    # + "_c1" under RESTnlc1 (11-17): the entries store the RESTnl levels (`_rest_levels`), so the lick sets never share
+    return f"{ENL_CACHE}_{lp_licks.lick_source()}{enl_win_s():g}s" + ("_c1" if restnl.C1 else "")
 
 
 def rest_root() -> Path:
@@ -525,7 +526,7 @@ def sample_cues(Rs, ft, cue) -> np.ndarray:
 def _rest_levels(label: str, cs: list) -> dict:
     """RESTnl (both rules) and the old RESTW per column, each with its ok flag (NaN / False when missing)."""
     out = {}
-    src = rest_root() / "restw_check" / "sessions"
+    src = rest_root() / restnl.CHECK / "sessions"           # restw_check, or restw_check_c1 under RESTnlc1 (11-17)
     for r in restnl.RULES:
         try:
             lev, ok = restnl.level(label, cs, r, src=src)

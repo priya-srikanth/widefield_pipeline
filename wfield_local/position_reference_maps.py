@@ -99,7 +99,9 @@ REST_WEIGHTED = "restw"
 #:           session serves every alignment and lick gate.
 #: A derived reference is attached by `maps_by_epoch` ONLY when named in WIDEFIELD_MAP_REFS (its per-session baselines
 #: must have been built by `python -m wfield_local.restnl_mask`), so a default render is unchanged.
-DERIVED_REFERENCES = ("restnl",)
+#:   restnlc1  the same, with cam1-only LP events also removed from the rest mask (Priya 11-17; `restnl_licks`,
+#:           baselines in their own cache dir: `python -m wfield_local.restnl_mask` under WIDEFIELD_RESTNL_LICKS=cam4cam1).
+DERIVED_REFERENCES = ("restnl", "restnlc1")
 REFS_ENV = "WIDEFIELD_MAP_REFS"
 
 
@@ -140,6 +142,8 @@ def reference_tag(reference):
 
     if reference == "restnl":
         return "RESTNL"          # `_RESTNLref_`: lick-free flat rest (restnl_mask)
+    if reference == "restnlc1":
+        return "RESTNLC1"        # `_RESTNLC1ref_`: the same, cam1-only LP events also removed (11-17)
     if reference not in ("rest", "restw"):
         return reference.upper()
     # THE WEIGHTING IS PART OF THE BASELINE'S IDENTITY, so it goes in the filename with it. A
@@ -828,6 +832,11 @@ def reference_maps(parts, reference):
         return dict(parts.get("raw_restw") or {})
     if reference == "precue":
         return dict(parts.get("raw_precue") or {})
+    if reference == "restnlc1":
+        base = parts.get("restnlc1_base")
+        if base is None:
+            return {}
+        return {q: (m - base).astype(np.float32) for q, m in (parts.get("raw") or {}).items()}
     if reference == "restnl":
         # DERIVED (see DERIVED_REFERENCES): the session's flat lick-free baseline map, attached by `maps_by_epoch` as
         # `restnl_base`, subtracted from the cached `raw` maps. Absent baseline -> no RESTnl column for the session.
@@ -938,6 +947,16 @@ def maps_by_epoch(align, variant, post_s=2.0):
             # render a figure without its RESTnl column
             raise RuntimeError("ref-map: RESTnl reference requested but no session has a RESTnl baseline "
                                "(build them: python -m wfield_local.restnl_mask)")
+    if "restnlc1" in derived:
+        from wfield_local import restnl_licks, restnl_mask
+        with restnl_licks.active("cam4cam1"):
+            bases, miss = restnl_mask.base_maps(sorted(by_label))
+        by_label = {k: (dict(v, restnlc1_base=bases[k]) if k in bases else v) for k, v in by_label.items()}
+        print(f"  .. ref-map: RESTnlc1 (DAQ + cam4 + cam1) baselines for {len(bases)}/{len(by_label)} sessions"
+              + (f"; NO RESTnlc1 column for {miss}" if miss else ""), flush=True)
+        if by_label and not bases:
+            raise RuntimeError("ref-map: RESTnlc1 reference requested but no session has a RESTnlc1 baseline "
+                               "(build them: WIDEFIELD_RESTNL_LICKS=cam4cam1 python -m wfield_local.restnl_mask)")
     for an in ANIMALS:
         per, ntr = {}, {}
         for s, e in plan.get(an, []):

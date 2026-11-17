@@ -32,12 +32,19 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
 
-SRC = il.OUT / "restw_check" / "sessions"
+# LICK SET (Priya 11-17, `wfield_local.restnl_licks`): WIDEFIELD_RESTNL_LICKS=cam4cam1 -> RESTnlc1 = the mask also
+# removes the cam1-only LP events (droplets removed). Its levels come from restw_check_c1/ (restw_strict_check under the
+# same switch), its outputs carry the suffix _restnlc1 and its per-session caches `<name>_wr_c1` / `<name>_c1`, so no
+# cam4 RESTnl file is read as, or overwritten by, a cam4cam1 one. Scripts keep `--rest-variant restnl`.
+from wfield_local import restnl_licks as _rl  # noqa: E402
+C1 = _rl.is_c1()
+CHECK = "restw_check_c1" if C1 else "restw_check"
+SRC = il.OUT / CHECK / "sessions"
 SRC_VERSION = 3                 # restw_strict_check.VERSION the levels were built with
 MIN_FR = 50
 MIN_POS_WR = 4                  # rule wr: positions (of 6) with >= MIN_FR frames required
 RULES = ("wr", "strict")
-NAME = "RESTnl"
+NAME = "RESTnlc1" if C1 else "RESTnl"
 
 
 def rule() -> str:
@@ -49,16 +56,18 @@ def rule() -> str:
 
 
 RULE = rule()
-SFX = "_restnl" if RULE == "wr" else "_restnl_strict"
+SFX = ("_restnlc1" if C1 else "_restnl") + ("" if RULE == "wr" else "_strict")
 _WDEF = ("mean of the per-position medians over positions with >= 50 frames (>= 4 of 6, renormalized)" if RULE == "wr"
          else "position-weighted median, all 6 positions >= 50 frames")
-DEF = ("RESTnl = no-lick rest: restdock05 rest minus every cam4 / DAQ lick [0.5 s before, 2.0 s after], engagement-gated, "
-       + _WDEF)
+DEF = ((f"{NAME} = no-lick rest: restdock05 rest minus every cam4 / cam1-only (droplets removed) / DAQ lick [0.5 s before, "
+        "2.0 s after], engagement-gated, ") if C1 else
+       "RESTnl = no-lick rest: restdock05 rest minus every cam4 / DAQ lick [0.5 s before, 2.0 s after], engagement-gated, "
+       ) + _WDEF
 
 
 def cache(name: str) -> str:
     """Per-session cache dir name for the active rule (strict = the original dir, wr = `<name>_wr`)."""
-    return name if RULE == "strict" else f"{name}_wr"
+    return (name if RULE == "strict" else f"{name}_wr") + ("_c1" if C1 else "")
 
 
 def variant() -> str:

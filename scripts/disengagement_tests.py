@@ -62,6 +62,11 @@ if QUIT not in ("camera", "daq"):
     raise SystemExit(f"{QUIT_ENV}={QUIT!r}: expected camera or daq")
 OUT = E / ("disengagement" if QUIT == "camera" else "disengagement_daqquit")
 SESS = E / "disengagement" / "sessions"  # per-session caches carry BOTH quits: one extraction serves both rows
+# RESTnlc1 (Priya 11-17; WIDEFIELD_RESTNL_LICKS=cam4cam1): the RESTnl level read by `restnl.level` also removes cam1-only
+# LP licks, so EVERYTHING (outputs and the img_ caches that store that level) goes to its own `<name>_restnlc1` folders.
+from wfield_local import restnl_licks as _rl  # noqa: E402
+if _rl.is_c1():
+    OUT, SESS = OUT.with_name(OUT.name + "_restnlc1"), E / "disengagement_restnlc1" / "sessions"
 FIG, TAB, FDIR = OUT / "figures", OUT / "tables", OUT / "figdata"
 VERSION = 1
 BEH_VERSION = 4                          # 2: + n_pre2 (DAQ licks in the 2 s before the cue), 10-31; 3: lick_samples = the behaviour DAQ detector (11-05, 8.53); 4: + quit_cam (camera quit, 11-05)
