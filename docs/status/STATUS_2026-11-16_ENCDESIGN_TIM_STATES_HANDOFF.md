@@ -4,7 +4,7 @@ START HERE for this arm. Design / decisions: `docs/status/ENCODING_DESIGN_TIM_ST
 Block-permutation audit: `docs/status/BLOCK_PERMUTATION_AUDIT_2026-11-16.md`. The encoding model's own state
 (production runs, pages, deck) stays in `STATUS_2026-10-26_ENCODING_HANDOFF.md` (block 00-COMPACT-41).
 
-## 0. Where the work is (nothing pushed; both branches off origin/main 20839101 / b70f6a44)
+## 0. Where the work is (both branches PUSHED to origin 11-17, NOT merged into main; off origin/main 20839101 / b70f6a44; listed in docs/START_HERE.md section 1 J on main)
 
 | branch | worktree | holds |
 |---|---|---|
@@ -88,34 +88,34 @@ Run code from a worktree with `PYTHONPATH=$(pwd -W)` (Windows form). AR-HMM mode
   .091, side within contacts .170 / .362. AR-HMM better on every label (one seed; engines differ: EM vs Gibbs; GHMM
   on instantaneous features, not per-bin summaries). Keep the AR-HMM.
 
-## 3. Running at handoff (background in session 37fdbabf; scratchpad
+## 3. Running / state at 11-17 ~14:00 (background in session 37fdbabf; scratchpad
 `C:/Users/SABATI~1/AppData/Local/Temp/claude/179e1046909c5be2/37fdbabf-285a-455b-bbb7-d5927a5affe6/scratchpad`)
 
-- `arhmm_features --all --jobs 4` -> `scratchpad/arhmm_feat/sessions/` (~64 / 120 at 18:xx; ~50 s per session).
-- AR-HMM CHECK FIT: PS92_20260811 + PS92_20260822, kappa 1e8, 40 iters, tag `check_k1e8` -> `scratchpad/arhmm_check/`
-  (log run.log). NOTE: started before the pickle fix; its model loads through `arhmm_model.load_model`.
-
-**UPDATE 11-16 evening:** check fit done (states sensible: quiet / running / lick contra + ipsi with matching FR side
-factors / pre-lick jaw; problems: median syllable 0.28 s at kappa 1e8, state 1 a running + face catch-all, 9 lick states;
-figure `scratchpad/arhmm_check/example_syllables.png`). Found + fixed: cam4 jaw gaps (tongue hides the jaw) cut licks out
-of the model -> features v3 fill them from the 3-D jaw (R2 0.90-0.995), min segment 2 s: median 99.8 % of each session
-modelled (PS92_0812 70 % = its crash gap; PS94_0817 92 % untriangulated tongue; PS95_0903 / 0907 92 / 90 % jaw).
-First bundle `arhmm_20261116` (scan) CANCELLED; current bundle `arhmm_20261116b` (code 9c15dcd1, features
-`scratchpad/arhmm_feat_v3`); Priya created the O2 env `arhmm`. Pilot GLM-HMM per animal over all epochs
-(`glm_hmm --select-k --per-animal`) running locally -> `scratchpad/glmhmm_v1/select_k_per_animal.csv`.
+- **O2 AR-HMM fits RESUBMITTED** (bundle `arhmm_20261116b`, code e4253857): pooled_all x seeds 1-3 (PER_CELL 2) + pre x
+  seeds 1-3, kappa 5e7, dither 0.1, 100 iterations, `-p short -t 3h -c 8 --mem=12G` (measured MaxRSS 5.1-5.6 GB,
+  0.9-1.9 h). The FIRST submission (11-17 ~11:20) ran all 100 iterations and then crashed at the pickle save
+  (`Design.__module__` relabel under `python -m`; 0-byte models) -- fixed: design saved as plain data
+  (`Design.to_dict` / `from_dict`), atomic write; verified by a local end-to-end smoke test with the exact command
+  form (fit -> save -> decode -> load in the analysis env; `scratchpad/arhmm_e2e`). When done: Priya pastes the `done`
+  lines + `ls out/`; then decode (`decode.sbatch`, TAG = pooled_all_s1 and pre_s1; COMMANDS.md step 4), then copy back.
+- **Local hedge fit**: pooled_all seed 1 (same sessions as O2 task 1) -> `scratchpad/arhmm_local_fit/` (~31 s / iter,
+  ~52 min); start state QC on whichever copy finishes first.
+- **GLM-HMM design v2**: held-out K selection K = 1-5 (`glm_hmm --pooled-all --select-k --design v2 --k 3`) ->
+  `scratchpad/glmhmm_v1/select_k_pooled_all_v2.csv` (~3 h from 13:06); K = 5 profile fit -> `states_pooled_all_K5_v2`.
+  Report script: `scratchpad/glmhmm_pooled_report_v2.py`. Sequences cached (`glmhmm_v1/sequences_v1_*.pkl`).
 
 ## 4. To do (in order)
 
-1. Check fit sanity: `python -m wfield_local.arhmm_states profile --out <scratch>/arhmm_check --feat <scratch>/arhmm_feat
-   --tag check_k1e8` -> median syllable (target ~0.5 s; hers 0.7 s), states used, lick enrichment, side of lick states,
-   running / quiet states. Report to Priya BEFORE the O2 bundle.
-2. When extraction finishes: `python scripts/o2_arhmm.py bundle --name arhmm_20261116 --user ps150 --feat
-   <scratch>/arhmm_feat` (needs a clean worktree), give Priya the transfer / login commands from its COMMANDS.md
-   (env creation once; kappa scan 7 tasks; fits pooled_all + pre x 3 seeds; decode every session).
-3. State QC on the O2 models: `arhmm_states similarity` / `profile`, video reels per candidate state (reuse
-   `behavior_clips._clip`, cam4 via the camera templates), Priya's video gate, `merge`, dwell / transitions.
-4. GLM-HMM per animal over ALL epochs, observations = cued outcome + spontaneous licks + whole-cycle running + (later)
-   AR-HMM syllable usage per cycle; K per animal by held-out pseudo-R2.
+1. GLM-HMM K: choose K = 3 / 4 / 5 by held-out gain beyond the fold spread + the extra state consistent across animals
+   + the quit tail staying in one state (K = 4's engaged-while-running state passes the last two). Then: states vs
+   trial classes / working gate; TIM and quiet-period events by state; copy the chosen tables to the share
+   (`LP_analysis/<run>/glm_hmm/v1`).
+2. AR-HMM: check the six fits' median syllables (~0.4-0.5 s expected; else adjust kappa), decode, copy back.
+3. State QC on the AR-HMM models: `arhmm_states similarity` / `profile`, the DAQ-label NMI scoring
+   (`scratchpad/arhmm_score.py`), video reels per candidate state (reuse `behavior_clips._clip`, cam4 via the camera
+   templates), Priya's video gate, `merge`, dwell / transitions; frozen-pre per-frame log-likelihood (the
+   "manifold distortion" score of Priya's June repo).
+4. GLM-HMM + AR-HMM: add syllable usage per trial cycle as an observation (later).
 5. TIM follow-ups: split by trial class / state; response-period frozen TIM vs aim offset (sanity); nose shift = real
    posture vs mouth-origin estimate; the four Yin-linked tests + quiet-events tests (design doc section 4).
 6. Block permutation, rest: no-lick-arm block ids (`_trial_features` cached -> bump CACHE_VERSION), poststroke /
@@ -142,3 +142,7 @@ First bundle `arhmm_20261116` (scan) CANCELLED; current bundle `arhmm_20261116b`
   found only after the first O2 scan sat at ~1 h with no output. The 14-min 2-session check fit was the warning sign
   and was extrapolated instead of profiled. Fix: `CHUNK_BINS` 1500 (60 s, overlap NLAGS) -> 1.16x; per-iteration 5.4 ->
   1.25 s on one session. Before ANY O2 submission: print the padded data shape vs real frames and time a few iterations.
+- (11-17) Six O2 fits lost at the SAVE: pickling a class from a `python -m` module (relabelled `__module__`) fails with
+  "not the same object". Only loading had been tested, and every run that day was a scan (which never saves). Rule:
+  before any O2 submission run the exact command end to end on a tiny input (fit -> save -> load -> decode) and check
+  the files are non-empty; write outputs atomically.
