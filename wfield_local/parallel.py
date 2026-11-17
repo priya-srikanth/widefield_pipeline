@@ -28,7 +28,11 @@ def default_jobs(cap: int = 8) -> int:
 
     `- 2` leaves the box usable while a stage runs; the cap holds peak RSS down (grant workers
     measured ~1.4 GB each) and leaves room for the rest of the nightly.
+    Env WIDEFIELD_MAX_JOBS (optional) lowers the cap further, for hand runs on the shared box (11-17: at most 4).
     """
+    env_cap = os.environ.get("WIDEFIELD_MAX_JOBS", "")
+    if env_cap.isdigit() and int(env_cap) > 0:
+        cap = min(cap, int(env_cap))
     return max(1, min(cap, (os.cpu_count() or 4) - 2))
 
 
@@ -69,6 +73,9 @@ def fan_out(items, worker, *, jobs=None, label="unit", log=print):
     """
     items = list(items)
     n = min(len(items), default_jobs() if jobs is None else jobs)
+    _cap = os.environ.get("WIDEFIELD_MAX_JOBS", "")
+    if jobs is not None and _cap.isdigit() and int(_cap) > 0:
+        n = min(n, int(_cap))      # shared-box hand runs (11-17); unset = unchanged
     pin_blas()
     if n <= 1 or len(items) <= 1:
         results, failures = [], []

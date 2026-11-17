@@ -90,11 +90,14 @@ def main(argv=None) -> int:
     ap.add_argument("--tag", default=_design_tag("v7g3_t3d"))
     ap.add_argument("--window", default="lick", choices=("all", "cue", "lick"))
     ap.add_argument("--trial", action="store_true", help="per-TRIAL best label (needs a trial_sse run, e.g. --tag v7g3_t3d_trial)")
+    ap.add_argument("--out-dir", default="", help="write tables + figures here instead of the relabel run folder "
+                    "(re-render into a new folder; inputs still read from the run folder)")
     a = ap.parse_args(argv)
     from wfield_local import frozen_encoder as fe
     D = fe.out_root() / f"frozen_relabel_{a.tag}"        # the (tagged) encoder relabel run, coordinator 11-04
-    fd = D / "figures"
-    fd.mkdir(exist_ok=True)
+    O = Path(a.out_dir) if a.out_dir else D                # write root (default = the run folder, unchanged)
+    fd = O / "figures"
+    fd.mkdir(parents=True, exist_ok=True)
     unit = "trials" if a.trial else "sessions"
     if a.trial:
         R = trial_rows(D, a.window)
@@ -106,7 +109,7 @@ def main(argv=None) -> int:
             raise SystemExit("no all_areas rows")
         R = session_rows(d)
         sfx = a.window
-    R.to_csv(D / f"relabel_confusion_sessions_{sfx}.csv", index=False)
+    R.to_csv(O / f"relabel_confusion_sessions_{sfx}.csv", index=False)
     S = session_mats(R, "b_")
     # per-animal best-label share matrices
     fig, axs = plt.subplots(4, 4, figsize=(13, 13))
@@ -155,7 +158,7 @@ def main(argv=None) -> int:
     save_png_svg(fig, fd / f"relabel_confusion_change_{sfx}.png", dpi=130)
     plt.close(fig)
     T = pd.DataFrame(rows)
-    T.to_csv(D / f"relabel_confusion_{sfx}.csv", index=False)
+    T.to_csv(O / f"relabel_confusion_{sfx}.csv", index=False)
     pd.set_option("display.width", 200)
     print(T[T.target == "far_contra"].round(2).to_string(index=False))
     if "best" in R:

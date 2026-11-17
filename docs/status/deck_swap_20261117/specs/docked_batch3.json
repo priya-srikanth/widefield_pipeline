@@ -1,0 +1,561 @@
+[
+ {
+  "slide": 105,
+  "title_now": "Lick response larger from subacute on, beyond global gain",
+  "status": "ready",
+  "skip_reason": "",
+  "pictures": [
+   {
+    "shape_name": "fig:iti_ramp_row1",
+    "new_image": "M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-17/swap_inputs/s105_iti_ramp_row1_dock.png",
+    "source_render": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/itidock_main_20261117/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/figures/lick_iti_ramp_wide.png",
+    "crop_done": "row 1 (raw dF/F) only, as the old image; docked-spout ITI bout starts"
+   },
+   {
+    "shape_name": "fig:cued_ramp_summary_row2",
+    "new_image": "M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-17/swap_inputs/s105_cued_summary_row2.png",
+    "source_render": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/figures/lick_cued_ramp_summary.png",
+    "crop_done": "row 2 (lick response / animal's pre) with the row-1 column-title strip, as the old image (cued row; identical numbers in the docked run's log)"
+   }
+  ],
+  "slide_text": [
+   {
+    "shape_name": "TextBox 5",
+    "old": "Acute increase rests on 2 animals (PS94, PS95; PS95 has 1 acute session); subacute / chronic contralesional tjM1 / SSp-m hold under the LMM (hidden slides).",
+    "new": "Acute increase carried mainly by PS94 and PS95 (contralesional tjM1 2.06x / 1.81x pre; PS95 has 1 acute session; PS92 0.97x); subacute and chronic contralesional tjM1 are above pre in 4 / 4 animals."
+   }
+  ],
+  "notes_body": [
+   "Normalization backups (hidden slides 110-111): the session z-scored version and the F0 check are on those slides.",
+   "No decoder: measured dF/F around the lick. TOP (Fig 14.1, docked-spout ITI licks): first ITI lick after >= 2 s without licking with the spout docked (8,247 bout starts), per-session mean PETH, line = mean over sessions (animals pooled), band = SEM, baseline -1.5 to -1.0 s; bars above the curves = time bins that differ from pre (paired nested bootstrap per bin, BH-FDR q = .05). Docked ITI response AUC 0-1.0 s / the animal's pre, change vs pre (acute / subacute / chronic): contralesional tjM1 +2.44 / +2.29 / +2.76 (subacute CI includes 0), SSp-m contra +1.67 / +1.14 / +1.58 (subacute n.s.), SSp-m ipsi +0.59 / +0.47 (n.s.) / +0.89, tjM1 ipsi +0.70 (n.s.) / +0.75 (n.s.) / +1.48; ALM contra +0.38 acute only; cortex +0.96 acute only; ALM ipsi n.s.",
+   "BOTTOM (Fig 14.23 row 2): first cued lick of each attempted trial, AUC 0-1.0 s after lick onset (baseline -1.0 to -0.5 s) / the animal's pre mean; change vs pre (acute / subacute / chronic): tjM1 contra +.51 / +.40 / +.41, SSp-m contra +.49 / +.46 / +.41, SSp-m ipsi +.45 / +.36 / +.34, cortex +.36 / +.30 / +.26 (all CIs exclude 0); ALM contra +.37 [-.01, +.88] acute (n.s.), +.27 / +.17 subacute / chronic (CIs exclude 0); tjM1 ipsi acute +.37 n.s., then +.24 / +.31. Per animal, contralesional tjM1 acute .97 / 1.19 / 2.06 / 1.81x pre (PS92 / PS93 / PS94 / PS95); subacute 1.50 / 1.16 / 1.48 / 1.46; chronic 1.36 / 1.61 / 1.45 / 1.23. Licks: LP video licks (cam4). PROVISIONAL.",
+   "FIGURE SOURCE: Encoding (goal) page Figs 14.1 [#f-iti_ramp_sessions] and 14.23 [#f-lick_cued_ramp_summary] (https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d) · renders M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/itidock_main_20261117/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/figures/lick_iti_ramp_wide.png (row 1, raw dF/F, docked ITI; run cued_ramp_dock 11-17) and M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/figures/lick_cued_ramp_summary.png (row 2; step l_cued_ramp_g 11-11) · deck images: presentations/_source_PI_overview_2026-11-17/swap_inputs/s105_iti_ramp_row1_dock.png, s105_cued_summary_row2.png",
+   "LICK SOURCE: Fig 14.23 [licks: LP cam4 + DAQ contact]; Fig 14.1 [licks: LP video, cam4 (3-D)]."
+  ],
+  "data_block": {
+   "Window": "ITI: bout-start lick -2..+3 s, response AUC 0..1.0 s, baseline -1.5..-1.0 s; cued: first cued lick, AUC 0..1.0 s, baseline -1.0..-0.5 s",
+   "Licks": "LP video licks (cam4) + DAQ contact; ITI from the 3-D whole-session lick table",
+   "Trial period": "cued: cue..stop of working trials; ITI: between trials, spout docked (WFIELD_ITI_FILTER=dock)",
+   "Trial types": "first cued lick of attempted trials (hit + incomplete); docked-spout ITI bout starts (no lick for >= 2 s)",
+   "Gate": "OROFACIAL_GATE=attempted, WIDEFIELD_TRIAL_GATE=camera",
+   "Baseline": "August pre (WIDEFIELD_PRE_FROM=0801); response / the animal's own pre mean",
+   "Correction": "AUCs: paired nested bootstrap 95 % CI (boot_delta, animals -> sessions), uncorrected; curve bars: per-bin bootstrap, BH-FDR q .05 [traced: render log itidock_main_20261117/logs/cued_ramp_dock.log (ITI) + l_cued_ramp_g.log (cued)]"
+  },
+  "changes": [
+   {
+    "what": "top-row image",
+    "old": "pre-rebuild v36 docked image",
+    "new": "rebuild docked render (itidock_main_20261117)",
+    "source": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/itidock_main_20261117/README.txt"
+   },
+   {
+    "what": "docked ITI tjM1 contra change",
+    "old": "not quoted (bin-significance sentence)",
+    "new": "+2.44 / +2.29 (n.s.) / +2.76",
+    "source": "cued_ramp_dock.log ITI summary, tjM1_right resp_auc_n"
+   },
+   {
+    "what": "ITI bin-significance sentence",
+    "old": "significant in every area and cortex acutely and subacutely, chronically tjM1 / SSp-m both sides",
+    "new": "replaced by the docked ITI AUC table: subacute n.s. everywhere; ALM contra and cortex acute only",
+    "source": "cued_ramp_dock.log ITI summary"
+   },
+   {
+    "what": "cued tjM1 contra",
+    "old": "+.47 / +.39 / +.40",
+    "new": "+.51 / +.40 / +.41",
+    "source": "l_cued_ramp_g.log (= cued_ramp_dock.log) change-vs-pre table"
+   },
+   {
+    "what": "cued ALM contra acute",
+    "old": "+.29 (CI excludes 0)",
+    "new": "+.37 [-.01, +.88] n.s.",
+    "source": "same"
+   },
+   {
+    "what": "cued ALM contra sub / chronic; SSp-m; cortex",
+    "old": "+.23 / +.15; +.46 / +.44 / +.40; +.32 / +.30 / +.25",
+    "new": "+.27 / +.17; +.49 / +.46 / +.41; +.36 / +.30 / +.26",
+    "source": "same"
+   },
+   {
+    "what": "per-animal tjM1 contra acute",
+    "old": ".98 / 1.19 / 1.92 / 1.78x",
+    "new": ".97 / 1.19 / 2.06 / 1.81x",
+    "source": "per-animal table (rule 8)"
+   },
+   {
+    "what": "slide caveat line",
+    "old": "rests on 2 animals ...; subacute / chronic ... hold under the LMM (hidden slides)",
+    "new": "carried mainly by PS94 / PS95; subacute / chronic tjM1 above pre in 4 / 4",
+    "source": "per-animal table"
+   },
+   {
+    "what": "normalization numbers; vigor / bout claims",
+    "old": "quoted",
+    "new": "removed: untraced (pointer to hidden slides 110-111 kept)",
+    "source": "-"
+   },
+   {
+    "what": "hidden-slide numbers",
+    "old": "100-101",
+    "new": "110-111",
+    "source": "stale_row conflict"
+   }
+  ],
+  "conclusion_changed": false,
+  "conclusion_note": "Title holds for the cued response (subacute / chronic 4/4). The docked ITI increase is no longer significant subacutely in any area (acute and chronic tjM1 / SSp-m contra remain)."
+ },
+ {
+  "slide": 122,
+  "title_now": "ITI and first cued licks read contralesional",
+  "status": "ready",
+  "skip_reason": "",
+  "pictures": [
+   {
+    "shape_name": "fig:lick_matched_gauss_readout",
+    "new_image": "M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-17/swap_inputs/s122_gauss_readout_allspouts_dock.png",
+    "source_render": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/matched_gauss_dock_20261117/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/figures/lick_matched_gauss_readout.png",
+    "crop_done": "all-spouts columns (all / first / later licks), ITI row + cued row; suptitle / footer removed, as the old image"
+   }
+  ],
+  "slide_text": [
+   {
+    "shape_name": "TextBox 3",
+    "old": "•  ITI: +0.31 / +0.21 / +0.28 mm (acute / subacute / chronic)",
+    "new": "•  ITI: +0.30 / +0.21 / +0.27 mm (acute / subacute / chronic)"
+   },
+   {
+    "shape_name": "TextBox 3",
+    "old": "•  Cued: the first lick +0.31 / +0.22 / +0.15 mm; later cued licks only acutely",
+    "new": "•  Cued: the first lick +0.35 / +0.22 / +0.16 mm; later cued licks only acutely"
+   }
+  ],
+  "notes_body": [
+   "Encoding page Fig 12.1 [#f-lick_matched_gauss_readout] (docked-spout image; the far-contra columns are on the page). DOCKED ITI: all licks +0.30 [+0.14, +0.44] (4/4) / +0.21 [+0.02, +0.38] (3/4) / +0.27 [+0.11, +0.46] (4/4) mm; first lick of the bout +0.37 / +0.22 / +0.26 (4/4 each); later licks +0.20 (4/4) / +0.22 (3/4, CI includes 0) / +0.28 (4/4).",
+   "CUED, all spouts: +0.19 [+0.09, +0.28] acute (4/4), then +0.08 / -0.03 (n.s.); FIRST cued lick +0.35 / +0.22 / +0.16 (4/4, all CIs exclude 0); later cued licks +0.16 (4/4) / +0.06 / -0.05. Far contra cued: first lick +0.67 / +0.31 / +0.11 (chronic n.s.); all licks +0.26 acute, then -0.06 n.s. / -0.28 [-0.39, -0.14] (4/4: read IPSIlesional chronically, carried by the later corrective licks, -0.34 [-0.47, -0.19]).",
+   "Script scripts/lick_matched_readout.py --ref gauss (WFIELD_LICK_DECODER=areas_split, WFIELD_ITI_FILTER=dock). Coverage: 97-100 % of licks have a same-place pre reference.",
+   "SIGN: + = READ more contralesional than the lick landed (decoder like-for-like offset, a DIRECTION quantity); landing / decoded lateral position + = contralesional; image left = ipsilesional. Decoder: frozen pre-stroke KEY-row lateral lick-position decoder per lick set (z-scored Allen areas with the ALM / tjM1 split, lags 0-0.2 s, August pre sessions, pre scored leave-one-session-out). LIKE-FOR-LIKE offset = each lick's decoded lateral position minus a Gaussian-weighted mean (sigma 0.1 mm, chosen by held-out pre prediction) of the decoded positions of the animal's PRE licks of the same set that LANDED at the same lateral place (any spout, no bins). Session means; change vs the animal's own pre, 95 % paired nested bootstrap (animals -> sessions), * = CI excludes 0, k/n animals. DOCKED-SPOUT ITI = ITI lick onset while the spout is docked (WFIELD_ITI_FILTER=dock: 27,968 of 78,938 ITI licks, 35 %); frozen all-ITI decoder, nothing refit. PROVISIONAL (n = 4).",
+   "Licks: LP video licks (cam4 detector) with 3-D tongue position from cam1 + cam4 pose; DAQ licks use the shared detector (daqlk).",
+   "FIGURE SOURCE: Encoding (goal) page Fig 12.1 [#f-lick_matched_gauss_readout] (https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d) · render M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/matched_gauss_dock_20261117/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/figures/lick_matched_gauss_readout.png (run matched_gauss_dock, 11-17) · deck image: presentations/_source_PI_overview_2026-11-17/swap_inputs/s122_gauss_readout_allspouts_dock.png",
+   "LICK SOURCE: Fig 12.1 [licks: LP video, cam4 (3-D)]."
+  ],
+  "data_block": {
+   "Window": "lick peak, decoder lags 0..0.2 s",
+   "Licks": "LP video licks (cam4) with 3-D landing (cam1 + cam4)",
+   "Trial period": "ITI: between trials, spout docked (WFIELD_ITI_FILTER=dock); cued: inside a trial's response window",
+   "Trial types": "docked-spout ITI licks / cued licks, all spouts; first vs later",
+   "Gate": "OROFACIAL_GATE=attempted, WIDEFIELD_TRIAL_GATE=camera",
+   "Baseline": "August pre licks landing at the same place (Gaussian sigma 0.1 mm), pre LOSO",
+   "Correction": "paired nested bootstrap 95 % CI (boot_delta), uncorrected; per-animal epoch minus pre [traced: render log matched_gauss_dock_20261117/logs/matched_gauss_dock.log]"
+  },
+  "changes": [
+   {
+    "what": "docked ITI offset",
+    "old": "+0.31 (4/4) / +0.21 (3/4) / +0.28 (4/4)",
+    "new": "+0.30 / +0.21 / +0.27 (4/4, 3/4, 4/4)",
+    "source": "matched_gauss_dock_20261117/logs/matched_gauss_dock.log all spouts all iti"
+   },
+   {
+    "what": "docked ITI first / later",
+    "old": "+0.38 / +0.23 / +0.26; +0.23 / +0.21 / +0.30",
+    "new": "+0.37 / +0.22 / +0.26; +0.20 / +0.22 (n.s.) / +0.28",
+    "source": "matched_gauss_dock_20261117/logs/matched_gauss_dock.log"
+   },
+   {
+    "what": "cued first lick",
+    "old": "+0.31 / +0.22 / +0.15",
+    "new": "+0.35 / +0.22 / +0.16",
+    "source": "matched_gauss_dock_20261117/logs/matched_gauss_dock.log all spouts first trial"
+   },
+   {
+    "what": "cued all / later",
+    "old": "+0.16 acute; later +0.14 / +0.01 / -0.05",
+    "new": "+0.19 acute; later +0.16 / +0.06 / -0.05",
+    "source": "matched_gauss_dock_20261117/logs/matched_gauss_dock.log"
+   },
+   {
+    "what": "far contra cued",
+    "old": "first +0.60 / +0.31 / +0.11; all +0.22 / -0.09 / -0.27",
+    "new": "first +0.67 / +0.31 / +0.11; all +0.26 / -0.06 / -0.28",
+    "source": "matched_gauss_dock_20261117/logs/matched_gauss_dock.log"
+   },
+   {
+    "what": "ALL ITI caption numbers + basis sensitivity",
+    "old": "quoted",
+    "new": "removed (all-ITI numbers belong to the all-ITI figure; basis sensitivity untraced)",
+    "source": "-"
+   }
+  ],
+  "conclusion_changed": false,
+  "conclusion_note": ""
+ },
+ {
+  "slide": 125,
+  "title_now": "Decoded vs landed: ITI shifted every epoch",
+  "status": "ready",
+  "skip_reason": "",
+  "pictures": [
+   {
+    "shape_name": "fig:lick_matched_gauss_curves",
+    "new_image": "M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-17/swap_inputs/s125_gauss_curves_dock.png",
+    "source_render": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/matched_gauss_dock_20261117/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/figures/lick_matched_gauss_curves.png",
+    "crop_done": "two curve panels; banner / footer removed, as the old image"
+   }
+  ],
+  "slide_text": [],
+  "notes_body": [
+   "Encoding page Fig 12.2 [#f-lick_matched_gauss_curves] (docked-spout ITI image; numbers below are docked ITI). Per animal x epoch where its Gaussian weight is >= 10 licks, then mean +/- SEM over animals; dashed = only three animals. Bars = landing bins whose change vs pre survives Benjamini-Hochberg (paired nested bootstrap; rows acute / subacute / chronic).",
+   "DOCKED ITI: acutely the post curve sits above pre from -1.6 to +0.1 mm (+0.15 to +0.37 mm); chronically from -1.6 to +0.6 mm (+0.17 to +0.65 mm, largest for ipsilesional landings); subacutely only at -1.4 to -1.1 mm (+0.27 to +0.48); beyond +0.9 mm contralesional no difference. Cued: ipsilesional landings read +0.1 to +0.4 mm contralesional; the furthest contralesional landings read BELOW pre chronically (+1.1 to +1.9 mm: -0.26 to -0.30 mm): compression at the edge.",
+   "SIGN: + = READ more contralesional than the lick landed (decoder like-for-like offset, a DIRECTION quantity); landing / decoded lateral position + = contralesional; image left = ipsilesional. Decoder: frozen pre-stroke KEY-row lateral lick-position decoder per lick set (z-scored Allen areas with the ALM / tjM1 split, lags 0-0.2 s, August pre sessions, pre scored leave-one-session-out). LIKE-FOR-LIKE offset = each lick's decoded lateral position minus a Gaussian-weighted mean (sigma 0.1 mm, chosen by held-out pre prediction) of the decoded positions of the animal's PRE licks of the same set that LANDED at the same lateral place (any spout, no bins). Session means; change vs the animal's own pre, 95 % paired nested bootstrap (animals -> sessions), * = CI excludes 0, k/n animals. DOCKED-SPOUT ITI = ITI lick onset while the spout is docked (WFIELD_ITI_FILTER=dock: 27,968 of 78,938 ITI licks, 35 %); frozen all-ITI decoder, nothing refit. PROVISIONAL (n = 4).",
+   "Licks: LP video licks (cam4 detector) with 3-D tongue position from cam1 + cam4 pose; DAQ licks use the shared detector (daqlk).",
+   "FIGURE SOURCE: Encoding (goal) page Fig 12.2 [#f-lick_matched_gauss_curves] (https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d) · render M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/matched_gauss_dock_20261117/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/figures/lick_matched_gauss_curves.png (run matched_gauss_dock, 11-17) · deck image: presentations/_source_PI_overview_2026-11-17/swap_inputs/s125_gauss_curves_dock.png",
+   "LICK SOURCE: Fig 12.2 [licks: LP video, cam4 (3-D)]."
+  ],
+  "data_block": {
+   "Window": "lick peak, decoder lags 0..0.2 s",
+   "Licks": "LP video licks (cam4) with 3-D landing (cam1 + cam4)",
+   "Trial period": "ITI: between trials, spout docked (WFIELD_ITI_FILTER=dock); cued: inside a trial's response window",
+   "Trial types": "docked-spout ITI licks / cued licks, all spouts",
+   "Gate": "OROFACIAL_GATE=attempted, WIDEFIELD_TRIAL_GATE=camera",
+   "Baseline": "August pre licks landing at the same place (Gaussian sigma 0.1 mm), pre LOSO",
+   "Correction": "paired nested bootstrap per landing bin, Benjamini-Hochberg across bins [traced: render log matched_gauss_dock_20261117/logs/matched_gauss_dock.log]"
+  },
+  "changes": [
+   {
+    "what": "notes numbers",
+    "old": "all-ITI numbers under a docked image (every post curve above pre -1.9 to +0.4 in all three epochs ...)",
+    "new": "docked numbers: acute -1.6 to +0.1, chronic -1.6 to +0.6, subacute only -1.4 to -1.1",
+    "source": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/matched_gauss_dock_20261117/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/matched_gauss_bin_tests.csv (set iti)"
+   },
+   {
+    "what": "cued chronic edge compression",
+    "old": "-0.24 to -0.28",
+    "new": "-0.26 to -0.30",
+    "source": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/matched_gauss_dock_20261117/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/matched_gauss_bin_tests.csv (set trial)"
+   },
+   {
+    "what": "PS94 reach +0.65 / +1.15 / +1.45 mm",
+    "old": "quoted",
+    "new": "removed: untraced",
+    "source": "-"
+   }
+  ],
+  "conclusion_changed": false,
+  "conclusion_note": "Title holds, but subacutely the docked ITI shift is significant only for ipsilesional landings (-1.4 to -1.1 mm)."
+ },
+ {
+  "slide": 128,
+  "title_now": "Same target: cued offset goes, ITI stays",
+  "status": "ready",
+  "skip_reason": "",
+  "pictures": [
+   {
+    "shape_name": "fig:lick_sametarget_place",
+    "new_image": "M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-17/swap_inputs/s128_sametarget_2x2_dock.png",
+    "source_render": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/itidock_main_20261117/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/figures/lick_sametarget_place.png",
+    "crop_done": "columns 1 (any spout) and 3 (same target), ITI + cued rows; suptitle / footer removed, as the old image"
+   }
+  ],
+  "slide_text": [],
+  "notes_body": [
+   "Encoding page Fig 12.15 [#f-lick_sametarget_place] (scripts/lick_same_target_place.py, sametarget_*.csv). Same frozen decoder and Gaussian same-place reference as 12.1, but the reference uses only pre licks of the SAME target (same-target sigma 0.15 mm).",
+   "DOCKED ITI (this image): any spout +0.29 (4/4) / +0.21 (3/4) / +0.27 (4/4); covered subset +0.24 / +0.21 / +0.27; same target +0.14 [+0.06, +0.22] (4/4) / +0.16 (3/4) / +0.25 [+0.12, +0.40] (4/4); matching the target removes -0.11 acutely (4/4), -0.05 subacutely, -0.02 chronically. CUED: any spout +0.19 (4/4) / +0.08 / -0.03; covered +0.16 (acute) -> same target +0.03 [-0.03, +0.09], 3/4, n.s.; subacute / chronic -0.02 / -0.08 n.s. So the cued offset of 12.1 is TARGET COMPOSITION (more misses, each read toward its target as pre-stroke misses were); for docked ITI licks about half of the acute offset and nearly all of the chronic offset remain.",
+   "Coverage (share of licks with a same-target same-place reference, mean of animals): docked ITI acute 75 % (PS95 45 %), 92-93 % later; cued acute 86 % (PS94 66 %), 94-98 % later. Columns 2 and 4 (covered subset, difference) and coverage are on the page.",
+   "SIGN: + = READ more contralesional than the lick landed (decoder like-for-like offset, a DIRECTION quantity); landing / decoded lateral position + = contralesional; image left = ipsilesional. Decoder: frozen pre-stroke KEY-row lateral lick-position decoder per lick set (z-scored Allen areas with the ALM / tjM1 split, lags 0-0.2 s, August pre sessions, pre scored leave-one-session-out). LIKE-FOR-LIKE offset = each lick's decoded lateral position minus a Gaussian-weighted mean (sigma 0.1 mm, chosen by held-out pre prediction) of the decoded positions of the animal's PRE licks of the same set that LANDED at the same lateral place (any spout, no bins). Session means; change vs the animal's own pre, 95 % paired nested bootstrap (animals -> sessions), * = CI excludes 0, k/n animals. DOCKED-SPOUT ITI = ITI lick onset while the spout is docked (WFIELD_ITI_FILTER=dock: 27,968 of 78,938 ITI licks, 35 %); frozen all-ITI decoder, nothing refit. PROVISIONAL (n = 4).",
+   "Licks: LP video licks (cam4 detector) with 3-D tongue position from cam1 + cam4 pose; DAQ licks use the shared detector (daqlk).",
+   "FIGURE SOURCE: Encoding (goal) page Fig 12.15 [#f-lick_sametarget_place] (https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d) · render M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/itidock_main_20261117/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/figures/lick_sametarget_place.png (run sametarget_dock, 11-17) · deck image: presentations/_source_PI_overview_2026-11-17/swap_inputs/s128_sametarget_2x2_dock.png (columns 1 + 3)",
+   "LICK SOURCE: Fig 12.15 [licks: LP video, cam4 (3-D)]."
+  ],
+  "data_block": {
+   "Window": "lick peak, decoder lags 0..0.2 s",
+   "Licks": "LP video licks (cam4) with 3-D landing (cam1 + cam4)",
+   "Trial period": "ITI: between trials, spout docked (WFIELD_ITI_FILTER=dock); cued: inside a trial's response window",
+   "Trial types": "docked-spout ITI licks (target = previous trial's spout) / cued licks (target = cued spout)",
+   "Gate": "OROFACIAL_GATE=attempted, WIDEFIELD_TRIAL_GATE=camera",
+   "Baseline": "August pre licks at the same place: any spout (sigma 0.1 mm) vs same target (sigma 0.15 mm), pre LOSO",
+   "Correction": "paired nested bootstrap 95 % CI (boot_delta), uncorrected; LMM p as second opinion [traced: render log itidock_main_20261117/logs/sametarget_dock.log]"
+  },
+  "changes": [
+   {
+    "what": "docked ITI any spout",
+    "old": "+0.30 / +0.20 / +0.28",
+    "new": "+0.29 / +0.21 / +0.27",
+    "source": "itidock_main_20261117/logs/sametarget_dock.log iti any_all"
+   },
+   {
+    "what": "docked ITI same target",
+    "old": "+0.15 (4/4) / +0.16 (3/4) / +0.26 (4/4)",
+    "new": "+0.14 (4/4) / +0.16 (3/4) / +0.25 (4/4)",
+    "source": "itidock_main_20261117/logs/sametarget_dock.log iti tt"
+   },
+   {
+    "what": "ALL ITI caption numbers + Key figure 1D",
+    "old": "quoted",
+    "new": "removed (belong to the all-ITI figure)",
+    "source": "-"
+   },
+   {
+    "what": "cued acute",
+    "old": "+0.165 / +0.139 -> +0.007 [-0.04, +0.06], 2/4",
+    "new": "+0.19 / +0.16 -> +0.03 [-0.03, +0.09], 3/4",
+    "source": "itidock_main_20261117/logs/sametarget_dock.log trial any_all / any_cov / tt"
+   },
+   {
+    "what": "cued sub / chronic same target",
+    "old": "-0.07 / -0.08",
+    "new": "-0.02 / -0.08",
+    "source": "itidock_main_20261117/logs/sametarget_dock.log"
+   },
+   {
+    "what": "first cued lick sentence",
+    "old": "+0.31 -> +0.05",
+    "new": "removed (not shown on this crop)",
+    "source": "-"
+   },
+   {
+    "what": "coverage",
+    "old": "86-88 % acute (PS94 cued 66 %)",
+    "new": "docked ITI 75 % acute (PS95 45 %); cued 86 % (PS94 66 %)",
+    "source": "itidock_main_20261117/logs/sametarget_dock.log coverage table"
+   }
+  ],
+  "conclusion_changed": false,
+  "conclusion_note": ""
+ },
+ {
+  "slide": 130,
+  "title_now": "Read-out LMM: ITI persists, cued recovers",
+  "status": "ready",
+  "skip_reason": "",
+  "pictures": [
+   {
+    "shape_name": "fig:lmm_time_readout",
+    "new_image": "M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-17/swap_inputs/s130_lmm_time_readout_2x2_dock.png",
+    "source_render": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/itidock_main_20261117/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/figures/lmm_time_readout.png",
+    "crop_done": "first row (4 panels) re-tiled 2 x 2 (columns ITI | cued); suptitle / footer removed, as the old image"
+   }
+  ],
+  "slide_text": [
+   {
+    "shape_name": "TextBox 3",
+    "old": "•  ITI: lateral r −0.43 (/ pre) and like-for-like offset +0.21 mm at day 1; the offset does not recover, r only partly (−0.28 chronic)",
+    "new": "•  ITI: lateral r −0.36 (/ pre) and like-for-like offset +0.21 mm at day 1; neither recovers significantly"
+   },
+   {
+    "shape_name": "TextBox 3",
+    "old": "•  Cued: lateral r −0.23, offset +0.23 mm, both recover (q < .001 per e-fold)",
+    "new": "•  Cued: lateral r −0.24, offset +0.27 mm, both recover (q < .001 per e-fold)"
+   },
+   {
+    "shape_name": "TextBox 3",
+    "old": "•  Per animal: ITI offset above pre in 4 / 4 at every epoch (+0.36 / +0.23 / +0.27 mm)",
+    "new": "•  Per animal: ITI offset above pre in 4 / 4 acutely and chronically, 3 / 4 subacutely (+0.30 / +0.21 / +0.27 mm)"
+   },
+   {
+    "shape_name": "TextBox 5",
+    "old": "Left ITI, right cued; top lateral decoder r (/ pre), bottom like-for-like read-out (mm, + = contralesional). Dots = sessions; dotted = fitted pre level; solid = fitted post course",
+    "new": "Left ITI, right cued; top lateral decoder r (/ pre), bottom like-for-like read-out (mm, + = contralesional). Open markers = sessions (shape = animal, color = epoch); dotted = fitted pre level; solid = fitted post course"
+   }
+  ],
+  "notes_body": [
+   "Encoding page Fig 16.1 [#f-lmm_time_readout] (KEY), first row of the docked-spout image (sagittal / angle r and the FIRST-cued-lick panels are on the page). TIME model y ~ post + post:log(day): post = the step at day 1 vs pre; post:lday = change per e-fold of days; each term with its own z and BH-FDR q.",
+   "DOCKED ITI: lateral r post -0.364 (z -5.8, q < .001), post:lday +0.025 (q .25); like-for-like ITI +0.214 (z 5.5, q < .001), post:lday +0.014 (q .25). Cued lateral r -0.237 (z -10.6), +0.049 per e-fold (q < .001); cued like-for-like +0.273 (z 8.0), -0.087 per e-fold (q < .001); first cued lick +0.371, -0.063 per e-fold (q < .001).",
+   "Per animal (rule 8; epoch nested bootstrap, matched_gauss_dock tests): docked ITI like-for-like offset +0.30 (4/4) / +0.21 (3/4; PS93 -0.07) / +0.27 (4/4) mm; docked ITI lateral r below pre in 4/4 at every epoch (animal means -34 / -30 / -27 %); cued offset 4/4 acute (+0.19), 3/4 subacute (+0.08), 2/4 chronic (-0.03), CIs include 0 after acute. The LMM is anti-conservative at 4 animals (DECISIONS 10-27): a * is not a result unless the per-animal count agrees; z optimistic. Decoder: frozen KEY-row lateral decoder; like-for-like = same place, Gaussian reference. DOCKED-SPOUT ITI = ITI lick onset while the spout is docked (WFIELD_ITI_FILTER=dock: 27,968 of 78,938 ITI licks, 35 %); frozen all-ITI decoder, nothing refit. Script scripts/iti_lmm_figures.py. PROVISIONAL.",
+   "FIGURE SOURCE: Encoding (goal) page Fig 16.1 [#f-lmm_time_readout] (https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d) · render M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/itidock_main_20261117/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/figures/lmm_time_readout.png (run lmm_all_dock, 11-17) · deck image: presentations/_source_PI_overview_2026-11-17/swap_inputs/s130_lmm_time_readout_2x2_dock.png (row 1 re-tiled 2 x 2)",
+   "LICK SOURCE: Fig 16.1 [licks: LP video, cam4 (3-D)]."
+  ],
+  "data_block": {
+   "Window": "lick peak, decoder lags 0..0.2 s; session means vs days since stroke",
+   "Licks": "LP video licks (cam4) with 3-D landing (cam1 + cam4)",
+   "Trial period": "ITI: between trials, spout docked (WFIELD_ITI_FILTER=dock); cued: inside a trial's response window",
+   "Trial types": "docked-spout ITI licks / cued licks (<= 1500 per session); sessions with >= 20 such licks",
+   "Gate": "none on the lick sets (env OROFACIAL_GATE=attempted, WIDEFIELD_TRIAL_GATE=camera)",
+   "Baseline": "August pre (WIDEFIELD_PRE_FROM=0801): r / the animal's pre mean; like-for-like vs pre same-place licks",
+   "Correction": "mixed model y ~ post + post:log(day), animal random effects, BH-FDR across terms; per-animal boot_delta as the check [traced: render log itidock_main_20261117/logs/lmm_all_dock.log]"
+  },
+  "changes": [
+   {
+    "what": "ITI lateral r step / slope",
+    "old": "-0.429 (z -7.0), +0.039 per e-fold (q .053)",
+    "new": "-0.364 (z -5.8), +0.025 (q .25)",
+    "source": "itidock_main_20261117/logs/lmm_all_dock.log time r_lat_iti"
+   },
+   {
+    "what": "ITI like-for-like step / slope",
+    "old": "+0.206 (z 5.0), +0.020 (q .127)",
+    "new": "+0.214 (z 5.5), +0.014 (q .25)",
+    "source": "itidock_main_20261117/logs/lmm_all_dock.log time place_iti"
+   },
+   {
+    "what": "slide bullet 2",
+    "old": "r -0.43, offset +0.21; offset does not recover, r only partly (-0.28 chronic)",
+    "new": "r -0.36, offset +0.21; neither recovers significantly",
+    "source": "itidock_main_20261117/logs/lmm_all_dock.log"
+   },
+   {
+    "what": "cued lateral r / like-for-like",
+    "old": "-0.232, +0.047; +0.227, -0.074",
+    "new": "-0.237, +0.049; +0.273, -0.087",
+    "source": "itidock_main_20261117/logs/lmm_all_dock.log time r_lat_trial / place_trial"
+   },
+   {
+    "what": "slide bullet 3 cued offset",
+    "old": "+0.23 mm",
+    "new": "+0.27 mm",
+    "source": "itidock_main_20261117/logs/lmm_all_dock.log time place_trial"
+   },
+   {
+    "what": "per-animal ITI offset",
+    "old": "4/4 at every epoch (+0.36 / +0.23 / +0.27)",
+    "new": "+0.30 (4/4) / +0.21 (3/4) / +0.27 (4/4)",
+    "source": "matched_gauss_dock.log all spouts all iti"
+   },
+   {
+    "what": "per-animal ITI lateral r",
+    "old": "-26 / -22 / -24 %",
+    "new": "-34 / -30 / -27 % (4/4 each)",
+    "source": "itidock_main_20261117/logs/lmm_all_dock.log per-animal r_lat_iti"
+   },
+   {
+    "what": "cued per animal",
+    "old": "4/4 (+0.16), 3/4 (+0.03), 3/4 (-0.03)",
+    "new": "4/4 (+0.19), 3/4 (+0.08), 2/4 (-0.03)",
+    "source": "matched_gauss_dock.log all spouts all trial"
+   },
+   {
+    "what": "ALL ITI caption numbers",
+    "old": "quoted",
+    "new": "removed (belong to the all-ITI figure)",
+    "source": "-"
+   },
+   {
+    "what": "caption marker key",
+    "old": "Dots = sessions",
+    "new": "Open markers = sessions (shape = animal, color = epoch)",
+    "source": "rebuild figure legend"
+   }
+  ],
+  "conclusion_changed": false,
+  "conclusion_note": "Title holds; the docked ITI lateral r no longer shows even partial recovery (+0.025 per e-fold, q .25)."
+ },
+ {
+  "slide": 131,
+  "title_now": "Read-out epoch model",
+  "status": "ready",
+  "skip_reason": "",
+  "pictures": [
+   {
+    "shape_name": "fig:lmm_epoch_readout",
+    "new_image": "M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-17/swap_inputs/s131_lmm_epoch_readout_2x2_dock.png",
+    "source_render": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/itidock_main_20261117/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/figures/lmm_epoch_readout.png",
+    "crop_done": "first row re-tiled 2 x 2; suptitle / footer removed, as the old image"
+   }
+  ],
+  "slide_text": [
+   {
+    "shape_name": "TextBox 4",
+    "old": "Epoch mixed model y ~ C(epoch): small = sessions, open = animal means (shape = animal), black square = fitted epoch level ± 95 % CI; text = change vs pre (bold * = q < .05)",
+    "new": "Epoch mixed model y ~ C(epoch): open = sessions (shape = animal, color = epoch), filled = mean ± SEM over animals, black square = fitted epoch level ± 95 % CI; text = change vs pre (bold * = q < .05)"
+   }
+  ],
+  "notes_body": [
+   "Supplement: the EPOCH twin in the same figure block (encoding page Fig 16.1 second panel, supplementary), docked-spout ITI. Change vs pre (acute / subacute / chronic; * = BH-FDR q < .05): ITI lateral r -0.383* / -0.309* / -0.267*; cued lateral r -0.229* / -0.099* / -0.073*; ITI like-for-like +0.268* / +0.194* / +0.266*; cued like-for-like +0.224* / +0.084* (q .009) / -0.032 (n.s.). Same layout as the previous slide. The LMM is anti-conservative at 4 animals; per-animal counts are in the previous slide's notes.",
+   "FIGURE SOURCE: Encoding (goal) page Fig 16.1 (epoch panel) [#f-lmm_time_readout] (https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d) · render M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/itidock_main_20261117/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/figures/lmm_epoch_readout.png (run lmm_all_dock, 11-17) · deck image: presentations/_source_PI_overview_2026-11-17/swap_inputs/s131_lmm_epoch_readout_2x2_dock.png (row 1 re-tiled 2 x 2)",
+   "LICK SOURCE: Fig 16.1 [licks: LP video, cam4 (3-D)]."
+  ],
+  "data_block": {
+   "Window": "lick peak, decoder lags 0..0.2 s; session means",
+   "Licks": "LP video licks (cam4) with 3-D landing (cam1 + cam4)",
+   "Trial period": "ITI: between trials, spout docked (WFIELD_ITI_FILTER=dock); cued: inside a trial's response window",
+   "Trial types": "docked-spout ITI licks / cued licks (<= 1500 per session)",
+   "Gate": "none on the lick sets (env OROFACIAL_GATE=attempted, WIDEFIELD_TRIAL_GATE=camera)",
+   "Baseline": "August pre (WIDEFIELD_PRE_FROM=0801): r / the animal's pre mean; like-for-like vs pre same-place licks",
+   "Correction": "mixed model y ~ C(epoch), animal random effects, BH-FDR across terms [traced: render log itidock_main_20261117/logs/lmm_all_dock.log]"
+  },
+  "changes": [
+   {
+    "what": "ITI lateral r",
+    "old": "-0.415* / -0.368* / -0.28*",
+    "new": "-0.383* / -0.309* / -0.267*",
+    "source": "itidock_main_20261117/logs/lmm_all_dock.log epoch r_lat_iti"
+   },
+   {
+    "what": "cued lateral r",
+    "old": "-0.229* / -0.104* / -0.072*",
+    "new": "-0.229* / -0.099* / -0.073*",
+    "source": "itidock_main_20261117/logs/lmm_all_dock.log epoch r_lat_trial"
+   },
+   {
+    "what": "ITI like-for-like",
+    "old": "+0.277* / +0.187* / +0.276*",
+    "new": "+0.268* / +0.194* / +0.266*",
+    "source": "itidock_main_20261117/logs/lmm_all_dock.log epoch place_iti"
+   },
+   {
+    "what": "cued like-for-like subacute",
+    "old": "+0.042 (n.s.)",
+    "new": "+0.084* (q .009)",
+    "source": "itidock_main_20261117/logs/lmm_all_dock.log epoch place_trial"
+   },
+   {
+    "what": "notes label",
+    "old": "Hidden supplement",
+    "new": "Supplement (the slide is visible)",
+    "source": "stale_row conflict"
+   },
+   {
+    "what": "caption marker key",
+    "old": "small = sessions, open = animal means",
+    "new": "open = sessions, filled = mean ± SEM over animals",
+    "source": "rebuild figure suptitle"
+   }
+  ],
+  "conclusion_changed": false,
+  "conclusion_note": ""
+ },
+ {
+  "slide": 133,
+  "title_now": "Offset vs lick order, ITI bouts",
+  "status": "ready",
+  "skip_reason": "",
+  "pictures": [
+   {
+    "shape_name": "fig:lick_order_iti_row",
+    "new_image": "M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-17/swap_inputs/s133_lick_order_iti_row_dock.png",
+    "source_render": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/lick_order_dock_20261117/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/figures/lick_order_iti_cued_slope.png",
+    "crop_done": "row 1 (ITI) columns 1-3 + epoch legend, as the old image"
+   }
+  ],
+  "slide_text": [],
+  "notes_body": [
+   "LICK-ORDER ITI BACKUP. Backup for 'Offset vs lick order: tongue corrects, decoder error stays' (previous slide). Encoding (goal) page Fig 13.2 [#f-lick_order_iti_cued_slope], ITI row (row 1, columns 1-3); slopes of the same data: Fig 13.1. Docked-spout ITI bouts (bout = licks split at gaps >= 1 s). Sign: + = contralesional; lfl + = read more contralesional than it landed. Bars = lick orders where that epoch differs from pre (paired nested bootstrap animals > sessions per order, BH-FDR q = .05 across the 10 orders). Slopes (all spouts, change vs pre per lick): landing +0.100 [+0.051, +0.150] (4/4) / +0.056 n.s. (3/4) / +0.088 [+0.036, +0.162] (4/4); decoded +0.000 / +0.012 / +0.029 [0.000, +0.055]; like-for-like -0.027 [-0.047, -0.006] acute (4/4), then n.s. DOCKED-SPOUT ITI = ITI lick onset while the spout is docked (WFIELD_ITI_FILTER=dock: 27,968 of 78,938 ITI licks, 35 %); frozen all-ITI decoder, nothing refit.",
+   "FIGURE SOURCE: render M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/lick_order_dock_20261117/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/figures/lick_order_iti_cued_slope.png (run iti_lick_order_dock, 11-17) · deck image: presentations/_source_PI_overview_2026-11-17/swap_inputs/s133_lick_order_iti_row_dock.png (row 1 columns 1-3 + epoch legend)"
+  ],
+  "data_block": {
+   "Window": "lick peak, decoder lags 0..0.2 s; lick order 0..9+ within the bout",
+   "Licks": "LP video licks (cam4) with 3-D landing; bouts from licks_all onsets split at gaps >= 1 s",
+   "Trial period": "between trials, spout docked (WFIELD_ITI_FILTER=dock)",
+   "Trial types": "docked-spout ITI licks, previous trial's spout known; sessions with >= 20 such licks",
+   "Gate": "none on the lick set (env OROFACIAL_GATE=attempted, WIDEFIELD_TRIAL_GATE=camera)",
+   "Baseline": "August pre at the spout (landing / decoded) and pre same-place licks (like-for-like), pre LOSO",
+   "Correction": "per-order paired nested bootstrap, BH-FDR q .05 across 10 orders; slopes boot_delta 95 % CI [traced: render log lick_order_dock_20261117/logs/iti_lick_order_dock.log]"
+  },
+  "changes": [
+   {
+    "what": "figure",
+    "old": "pre-rebuild docked goal-page image (10-29)",
+    "new": "rebuild docked render (lick_order_dock_20261117)",
+    "source": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/lick_order_dock_20261117/README.txt"
+   },
+   {
+    "what": "docked ITI slopes added to notes",
+    "old": "none",
+    "new": "landing +0.100 / +0.056 / +0.088; lfl -0.027 acute",
+    "source": "lick_order_dock_20261117/logs/iti_lick_order_dock.log all spouts iti *_slope"
+   }
+  ],
+  "conclusion_changed": false,
+  "conclusion_note": ""
+ }
+]

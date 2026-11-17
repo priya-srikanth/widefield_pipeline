@@ -573,3 +573,42 @@ PI deck (backup Overview_2026-11-06.bak_pre_a8_renumber_20261116.pptx): FR page 
 - Helper flags to follow up: l_offset_terms_g log labels a flat session mean "mean of animals" (scripts/lick_offset_terms_recovery.py
   ~L85); e_first_lick_g froze NEW iti_first_lick decoders (SPEC-CHANGED, pre set changed); slide 112 figure stars are LMM;
   purple trial-set stamp whited out of several crops where it overprinted figure text; 139 = capped set until WFIELD_BAL_FULL render.
+- 11-17: 3c (Priya OK) lifted the hold on state-space SVD / LocaNMF-basis slides (11-08 tables were already glue-free; re-run byte
+  identical; M:/.../state_space_recovery/svd_lnmf_gluefree_20261117/logs/RUN_LOG.md). Checked the PI deck: no slide uses SS Fig 6.3 /
+  6.4 (text + notes search), so nothing to change here.
+- 11-17: slide 21 now carries BOTH figures (Priya: "add the per-animal pre-normalized versions"): absolute on top, each session /
+  its animal's own pre mean below (legend rows cut; swap_inputs/s021b_state_position_rel_own_pre.png); caption rewritten;
+  backup .bak_pre_a8_s21rel_20261117.pptx; script deck_swap_20261117/slide21_add_relative.py.
+- 11-17 INCIDENT: a PowerPoint GUI process (PID 43556, started 11-16 16:20) has Overview_2026-11-06.pptx open (no lock file). My COM
+  export of the LIVE path attached to it, showed the 11-16 in-memory version, and its Close() may have closed that window.
+  Saving from that window would overwrite today's deck edits (and 11-16 Data: blocks after 16:20). export_slides.ps1 now refuses
+  live-deck paths; told Priya.
+- Stale-code check (3c 11-17): `python scripts/...` from a worktree imports the main checkout's wfield_local (663 behind). My slide 21
+  runs did; the modules used differ only by ADDED functions in analysis_kit, so the numbers stand. Helpers told to set PYTHONPATH.
+- 11-17: group C LMM companions applied (15 slides: 5, 12, 17, 19, 106, 107, 114, 121, 127, 136, 137, 142, 145, 150, 151) from
+  specs/groupC_lmm.json (renders .../grant_figures/<tag>/lmm_hidden_20261117/, branch lmm-hidden-20261103 pushed, e3f6e02c; 20-hit
+  gate now applied to 121/142/145). Main-point changes: 12 (acute far contra LMM degenerate, not tested; 4/4 animals still drop),
+  145 (acute code + gap not tested under the 20-hit gate; chronic gap -.29 *), 151 (acute orofacial-ipsi lick residual now *).
+  Backup .bak_pre_a8_groupC_lmm_20261117.pptx. Waiting: 108/109/123/129/134/138/201 (docked ITI arm), 111/116 (no rebuild input).
+- 11-17: group C other applied (10 slides: 104, 110, 115, 119, 139 full set, 154, 155, 198, 199, 202) from specs/groupC_other.json
+  (139 text edits re-targeted to the batch-4 text; caption now "full set"). Backup .bak_pre_a8_groupC_other_20261117.pptx.
+  Need Priya: 22 (no session_z frozen model on the rebuild; options keep / swap to epoch_13 state figs / fit new frozen models),
+  157 (event-linked weaker pre-cue code now present PRE-stroke too: pre strict -.020 p .001; "after the stroke" claim fails).
+  Docked arm landed (matched_gauss_dock, lateral_ratio_dock, lick_order_dock, itidock_main _20261117); specs being redone:
+  docked_batch3.json (105/122/125/128/130/131/133), docked_batch4.json (200/203), groupC_lmm_docked.json (108/109/111/116/123/129/134/138/201).
+  Deleted 3 superseded helper tries (stale-package / LP-default first tries), 125 files listed in deck_swap_20261117/DELETED_SUPERSEDED_20261117.txt.
+  Slide 12 LMM: acute far contra SE NaN = singular animal x epoch variance (4 animals -.61..-.67, one pre value per animal);
+  wording/refit decision with Priya. Slide 145: PS92 (10) / PS94 (8) acute hits < 20, PS95 none -> only PS93 acutely.
+- 11-17: docked 200 + 203 applied (specs/docked_batch4.json; backup .bak_pre_a8_docked_20261117.pptx). 203 docked ITI balance up acutely
+  in every area (0-1 s: ALM +.50, tjM1 +.88, SSp-m +.88), chronically only ALM; tjM1 spout x epoch LR fit degenerate (-inf, p 1, printed in
+  the panel title); render lacks the old green DOCKED banner (notes + Data: say docked).
+- 11-17: docked 105 / 122 / 125 / 128 / 130 / 131 / 133 applied (specs/docked_batch3.json). 130: docked ITI lateral r no significant
+  recovery (was "partial"); ITI offset 3/4 subacute (was 4/4 every epoch). 125 weaker subacutely.
+- 11-17 Priya decisions applied: 22 kept as PRE-REBUILD RECORD (notes line; Data: lines may describe the rebuild step), 157 rewrite
+  ("weaker code at every epoch, pre-stroke included"), 12 wording (degenerate cell, see bootstrap); per-session-pre LMM version of 12
+  queued (5r sidecars have 8/7/8/8 pre sessions). Backup .bak_pre_a8_priya1117_20261117.pptx; script deck_swap_20261117/priya_1117_edits.py.
+  145: hit gate stays MIN_HITS = 20 (A11, 11-07); the 10-trial rule is D7 = refit floor, a different rule. Proposal to Priya: show
+  low-hit acute cells as hollow / labeled, untested.
+  203: docked ITI tjM1 0-1 s spout x epoch LR = -inf: full mixed model failed to converge (MLE on boundary); pre tjM1 docked balance
+  very heterogeneous across animals (PS93 / PS94 to -1.8 / -2.0 at close spouts, PS92 / PS95 ~0) with few docked licks per cell;
+  0-0.5 s fits (p .016). A fit failure, not a result.
