@@ -8,7 +8,11 @@ Gain ratio = log2(sum contra / sum of its pre-line prediction) - log2(same, ipsi
 lick angle per lick set x lick order (pre sessions leave-one-pre-session-out, so pre values are a real noise floor);
 session values come from lick_balance_subsets (balsub_sessions.csv; per-area sums, pooled here).
 Targets: cued -> far-contra first-lick aim (deg vs pre, key figure 1A); ITI -> ITI's own axis (session mean ITI lick
-angle vs pre) and the cued aim.
+angle vs pre) and the cued aim; cued -> CUED ANGLE (Priya 11-17 "add cued => cued angle"; lick_recovery_markers.
+cued_angle_axis): the cued analogue of iti_ang on the same first licks the balance is measured on, every spout, each lick
+vs the animal's pre mean at its spout (target removed) -- the circularity check (does the cued balance track the direction
+of its own licks rather than recovery?). Its far-contra-only variant (cued_ang_fc, ~ the aim on the balance's own licks)
+is modelled and saved (PANELS_EXTRA) but not drawn.
 Models (post-stroke sessions; per-animal r first, rule 8): concurrent MixedLM y ~ within + between + log(day) +
 (1 | animal) and with a per-animal spline in log(day); predictive (next-session change ~ marker + current y + log(day));
 cross-validated: leave-one-ANIMAL-out with a within-animal shuffle null, within-animal BLOCKED, leave-one-session-out
@@ -36,7 +40,10 @@ CUED_WIN = "ratio_010_050"             # Priya 10-28: one window for both; 0.1..
 ITI_WIN = "ratio_010_050"
 PANELS = [(lrm.C1SET, CUED_WIN, "aim", "far-contra first-lick aim (deg vs pre)"),
           (lrm.QSET, ITI_WIN, "iti_ang", "ITI lick angle vs pre (deg)"),
-          (lrm.QSET, ITI_WIN, "aim", "far-contra first-lick aim (deg vs pre)")]
+          (lrm.QSET, ITI_WIN, "aim", "far-contra first-lick aim (deg vs pre)"),
+          (lrm.C1SET, CUED_WIN, "cued_ang", "cued first-lick angle vs pre, all spouts (deg)")]
+# modelled + saved, not drawn: the far-contra-only cued angle (~ the aim, on the balance's own first licks)
+PANELS_EXTRA = [(lrm.C1SET, CUED_WIN, "cued_ang_fc", "cued first-lick angle vs pre, far contra (deg)")]
 AN = lrm.AN
 REF = os.environ.get("WFIELD_BAL_REF", "angle")         # pre-line covariate (lick_balance_subsets.REF)
 REFMETHOD = os.environ.get("WFIELD_BAL_REFMETHOD", "line")
@@ -76,9 +83,12 @@ def marker(S: pd.DataFrame, dn: str) -> pd.Series:
 
 def compute() -> dict:
     import statsmodels.formula.api as smf
-    S = pd.read_csv(il.OUT_W / f"balsub_sessions{SFX}.csv")
+    S = pd.read_csv(il.in_path(f"balsub_sessions{SFX}.csv"))
+    # cued angle axis (new columns; the balance table itself is reused, not recomputed)
+    S = S.merge(lrm.cued_angle_axis(full=os.environ.get("WFIELD_BAL_FULL", "") == "1",
+                                    labels=sorted(S[S.set == lrm.C1SET].label.unique())), on="label", how="left")
     rows = []
-    for st, dn, yv, _yl in PANELS:
+    for st, dn, yv, _yl in [*PANELS, *PANELS_EXTRA]:
         t = S[S.set == st].copy()
         rows.append(pd.DataFrame({"panel": f"{st} -> {yv}", "set": st, "def": dn, "yname": yv, "label": t.label,
                                   "animal": t.animal, "epoch": t.epoch, "day": t.day, "y": t[yv],
@@ -99,13 +109,24 @@ def compute() -> dict:
         for name, f, data in (("concurrent, log(day)", "y ~ w + b + logday", post),
                               ("concurrent, per-animal spline", "y ~ w + b + C(animal):bs(logday, df=3)", post),
                               ("predictive (next-session change)", "d_y ~ w + b + y + logday", post.dropna(subset=["d_y"]))):
-            try:
-                m = smf.mixedlm(f, data, groups=data["animal"]).fit(reml=False)
+            # default optimizer first (the published panels' fits); only if it raises (11-17: cued_ang hit a singular
+            # matrix in the default bfgs -> lbfgs -> cg chain, the animal variance at its boundary) retry with a single
+            # optimizer and record which one in fit_note
+            m, note, err = None, "", None
+            for meth in (None, "bfgs", "powell"):
+                try:
+                    kw = {} if meth is None else {"method": meth}
+                    m = smf.mixedlm(f, data, groups=data["animal"]).fit(reml=False, **kw)
+                    note = "" if meth is None else f"refit method={meth} (default optimizer chain raised: {err})"
+                    break
+                except Exception as ex:                                # noqa: BLE001
+                    err = err or ex
+            if m is not None:
                 ci = m.conf_int()
                 M.append({"panel": pn, "model": name, "n": len(data), "slope": m.fe_params["w"], "lo": ci.loc["w", 0],
-                          "hi": ci.loc["w", 1], "p": m.pvalues["w"]})
-            except Exception as ex:                                    # noqa: BLE001
-                M.append({"panel": pn, "model": f"{name} FAILED {ex}", "n": len(data)})
+                          "hi": ci.loc["w", 1], "p": m.pvalues["w"], "fit_note": note})
+            else:
+                M.append({"panel": pn, "model": f"{name} FAILED {err}", "n": len(data)})
         F = lrm.models(G[["set", "label", "animal", "epoch", "day"]].assign(aim=G.y, marker=G.marker))
         CV.append(F["CV"].assign(panel=pn))
         # LICK COUNT (Priya 10-28 "how do we account for variable lick number"): the gain is a ratio of sums over the
@@ -152,8 +173,9 @@ def plot(F: dict) -> None:
 
     from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE
     T, M, CV, ANr = F["T"], F["M"], F["CV"], F["AN"]
-    fig, axs = plt.subplots(2, len(PANELS), figsize=(6.2 * len(PANELS), 11), squeeze=False)
-    for j, (st, dn, yv, yl) in enumerate(PANELS):
+    panels = [p for p in PANELS if f"{p[0]} -> {p[2]}" in set(T.panel)]     # older figdata: no cued_ang panel
+    fig, axs = plt.subplots(2, len(panels), figsize=(6.2 * len(panels), 11), squeeze=False)
+    for j, (st, dn, yv, yl) in enumerate(panels):
         pn = f"{st} -> {yv}"
         G = T[T.panel == pn]
         ax = axs[0, j]
@@ -207,6 +229,7 @@ def plot(F: dict) -> None:
                  f"quiet).{shown}\nTop: one point per session, gray = pre (not fitted), mixed models with log(day) (bold "
                  "p < 0.05). Bottom: cross-validated R² vs days since stroke. PROVISIONAL", fontsize=10)
     fig.tight_layout(rect=(0, 0.04, 1, 0.91 if shown else 0.93))
+    (il.OUT_W / "figures").mkdir(parents=True, exist_ok=True)       # a fresh WFIELD_ITI_OUT_W folder has none
     save_png_svg(fig, il.OUT_W / "figures" / f"lick_recovery_primary{SFX}.png", dpi=95)
     plt.close(fig)
 
@@ -227,7 +250,9 @@ def trial_set_sentence() -> str:
         cued,
         rd.iti_set(filt=None, extra=[*rd.KEY_ROWS, f"no lick onset (licks_all.csv) in the preceding {il.GAP_MAIN:g} s",
                                      *extra]),
-        rd.recovery_axes())
+        rd.recovery_axes(),
+        "cued angle axis: per session the mean 3-D landing angle of the same first post-cue licks, every spout, each "
+        "minus the animal's pre mean at its spout (- = ipsilesional)")
 
 
 def main() -> int:

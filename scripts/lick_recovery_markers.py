@@ -110,6 +110,67 @@ def _gaps(label: str) -> pd.DataFrame:
     return C.assign(gap=gap.reindex(C.t.to_numpy(float)).to_numpy(float)).drop(columns="t")
 
 
+CUED_FC_MIN = 5          # far-contra variant: >= 5 first licks at far contra (iti_recovery_measure.MIN_LICKS["first"])
+
+
+def _cued_first_full(label: str) -> pd.DataFrame:
+    """Every first post-cue lick of a session from firstlick_full (WFIELD_BAL_FULL's set): spout + 3-D landing angle.
+    Reads only the small per-lick arrays (npz members load lazily; X is never touched). Module-level for spawn."""
+    from wfield_local import mask_keys
+    from wfield_local import orofacial_cohort as oc
+    f = il.in_path("firstlick_full") / f"{label}.npz"
+    if not f.exists():
+        return pd.DataFrame()
+    z = np.load(f, allow_pickle=True)
+    mask_keys.check_obj(z, f)                     # stale-read guard (11-09), as lick_balance_subsets._full_session
+    pos = [q if "_" not in q or q.split("_")[-1] not in ("L", "R", "center") else oc.pos_key(q, "L")
+           for q in z["pos"].astype(str)]
+    return pd.DataFrame({"label": label, "animal": str(z["animal"]), "epoch": str(z["epoch"]), "pos": pos,
+                         "side_k": z["side_ml"].astype(float), "reach_mm": z["reach_mm"].astype(float)})
+
+
+def cued_angle_axis(full: bool, labels: list[str] | None = None) -> pd.DataFrame:
+    """CUED ANGLE recovery axis (Priya 11-17 "add cued => cued angle"): the cued analogue of iti_ang, on the SAME first
+    post-cue licks the cued balance is measured on (full = firstlick_full, else the KEY set's order-0 cued licks).
+    Per lick: 3-D landing angle (asin(side / reach), deg) minus the animal's PRE mean angle at the SAME spout (all pre
+    first licks pooled, as the aim's reference in iti_recovery_measure.aim_licks), so the target position is removed;
+    signed like iti_ang / aim (NEGATIVE = ipsilesional; sign from the pre far-contra mean angle).
+      cued_ang     = session mean over ALL spouts' first licks
+      cued_ang_fc  = far-contra first licks only (>= CUED_FC_MIN), ~ the aim on the balance's own lick set
+    Purpose: does the cued balance track the direction of the very licks it is measured on (circularity check)?
+    Returns [label, cued_ang, cued_ang_fc, n_cued_ang]; pre sessions included (vs the pooled pre mean, not fitted)."""
+    from wfield_local import analysis_kit as ak
+    if full:
+        labs = sorted(labels) if labels is not None else sorted(p.stem for p in il.in_path("firstlick_full").glob("*.npz"))
+        res, fail = ak.fan_sessions(labs, _cued_first_full)
+        if fail:
+            raise RuntimeError(f"cued angle: firstlick_full load failed for {len(fail)} sessions: {fail[:5]}")
+        L = pd.concat([v for _i, v in res if len(v)], ignore_index=True)
+    else:
+        P = pd.read_csv(lo.preds_path()).reset_index(drop=True)
+        P["k"] = P.groupby(["set", "label"]).cumcount()
+        C = pd.read_csv(il.in_path(f"covref_covariates{lo.SRC_TAG}.csv.gz"),
+                        usecols=["set", "label", "k", "reach_mm", "side_k"])
+        P = P.merge(C, on=["set", "label", "k"], how="left", validate="one_to_one")
+        L = P[(P.set == "trial") & (P.order == 0)][["label", "animal", "epoch", "pos", "side_k", "reach_mm"]]
+        if labels is not None:
+            L = L[L.label.isin(labels)]
+    L = L.copy()
+    L["angle"] = np.degrees(np.arcsin(np.clip(L.side_k / L.reach_mm, -1, 1)))
+    L = L.dropna(subset=["angle"])
+    pre = L[L.epoch == "pre"]
+    sgn = float(np.sign(pre[pre.pos == "far_contra"].angle.mean()))
+    ref = pre.groupby(["animal", "pos"]).angle.mean()
+    L["off"] = sgn * (L.angle - ref.reindex(pd.MultiIndex.from_arrays([L.animal, L.pos])).to_numpy())
+    L = L.dropna(subset=["off"])
+    out = L.groupby("label").off.agg(cued_ang="mean", n_cued_ang="size")
+    fc = L[L.pos == "far_contra"].groupby("label").off.agg(["mean", "size"])
+    out["cued_ang_fc"] = fc["mean"].where(fc["size"] >= CUED_FC_MIN).reindex(out.index)
+    print(f"== cued angle axis ({'full first-lick set' if full else 'KEY order-0 cued licks'}): {len(L)} first licks, "
+          f"{len(out)} sessions, sign {sgn:+.0f} (pre far-contra)", flush=True)
+    return out.reset_index()[["label", "cued_ang", "cued_ang_fc", "n_cued_ang"]]
+
+
 def _residuals(P: pd.DataFrame, vs: list[str]) -> pd.DataFrame:
     """Per animal x set x lick order: value minus the PRE line on angle; pre sessions leave-one-pre-session-out."""
     out = []
