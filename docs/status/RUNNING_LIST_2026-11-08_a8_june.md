@@ -602,3 +602,5 @@ PI deck (backup Overview_2026-11-06.bak_pre_a8_renumber_20261116.pptx): FR page 
 - 11-17: docked 200 + 203 applied (specs/docked_batch4.json; backup .bak_pre_a8_docked_20261117.pptx). 203 docked ITI balance up acutely
   in every area (0-1 s: ALM +.50, tjM1 +.88, SSp-m +.88), chronically only ALM; tjM1 spout x epoch LR fit degenerate (-inf, p 1, printed in
   the panel title); render lacks the old green DOCKED banner (notes + Data: say docked).
+- 11-17: docked 105 / 122 / 125 / 128 / 130 / 131 / 133 applied (specs/docked_batch3.json). 130: docked ITI lateral r no significant
+  recovery (was "partial"); ITI offset 3/4 subacute (was 4/4 every epoch). 125 weaker subacutely.
