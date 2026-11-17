@@ -573,3 +573,6 @@ PI deck (backup Overview_2026-11-06.bak_pre_a8_renumber_20261116.pptx): FR page 
 - Helper flags to follow up: l_offset_terms_g log labels a flat session mean "mean of animals" (scripts/lick_offset_terms_recovery.py
   ~L85); e_first_lick_g froze NEW iti_first_lick decoders (SPEC-CHANGED, pre set changed); slide 112 figure stars are LMM;
   purple trial-set stamp whited out of several crops where it overprinted figure text; 139 = capped set until WFIELD_BAL_FULL render.
+- 11-17: 3c (Priya OK) lifted the hold on state-space SVD / LocaNMF-basis slides (11-08 tables were already glue-free; re-run byte
+  identical; M:/.../state_space_recovery/svd_lnmf_gluefree_20261117/logs/RUN_LOG.md). Checked the PI deck: no slide uses SS Fig 6.3 /
+  6.4 (text + notes search), so nothing to change here.
