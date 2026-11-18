@@ -1,7 +1,7 @@
 # Figures cut from the results page (analyses still exist)
 
 Priya 2026-10-29: cut graphs with tons of tiny thin bars / unreadable figures from the results page
-(https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d), but keep a record so the analyses can be reached for when a
+(Movement (Execution) Coding After Stroke, formerly the goal page, https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d), but keep a record so the analyses can be reached for when a
 question needs them. The figure files, scripts and CSVs are all kept; only the page `<img>` was removed.
 Outputs live under `M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/`
 unless noted.

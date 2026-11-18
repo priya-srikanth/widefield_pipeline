@@ -408,7 +408,8 @@ def suptitle_text(pre, ns, cfg=None, width=TITLE_WRAP):
 
 def plot_main(ps, crow, pre, out, cfg=None):
     """A per-session balanced accuracy + pooled mean + block-permutation null; B per animal (sessions as open markers,
-    retained vs own pre; animal mean large); C pooled change (nested bootstrap CI, star = CI excludes 0)."""
+    retained vs own pre; animal mean large); C pooled change (nested bootstrap CI, star = CI excludes 0; animal means; sessions faded, each minus its
+    animal's own pre mean, pre sessions included)."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -471,7 +472,18 @@ def plot_main(ps, crow, pre, out, cfg=None):
            Line2D([], [], ls="", marker="o", mfc="none", mec="0.3", ms=9, mew=1.8, label="animal mean")]
     ax[1].legend(handles=hb, fontsize=8.5, frameon=False, loc="upper center", bbox_to_anchor=(0.5, -0.09),
                  ncol=len(hb))
-    # C
+    # C: sessions (small, faded, left of the CI; pre sessions too = the no-stroke spread around 0) are drawn only;
+    # the mean, CI and stars come from `crow` (boot_delta) unchanged (Priya 11-18)
+    rc = np.random.default_rng(2)                    # own generator: panels A / B keep their jitter
+    for i, e in enumerate(order):
+        for an in animals:
+            pre_m = pa.get((an, "pre"), {}).get("above_chance_frac")
+            v = [float(r["above_chance_frac"]) - pre_m for r in ps if r["epoch"] == e and r["animal"] == an] \
+                if pre_m is not None else []
+            if v:
+                ax[2].scatter(i - 0.17 + rc.uniform(-0.07, 0.07, len(v)), v, s=14, facecolors="none",
+                              edgecolors=EPOCH_LINE[e], marker=ANIMAL_MARKER.get(an, "o"), lw=0.7, alpha=0.45,
+                              zorder=1)
     for i, e in enumerate(order):
         c = next(r for r in crow if r["epoch"] == e)
         if e == "pre":
@@ -490,7 +502,10 @@ def plot_main(ps, crow, pre, out, cfg=None):
     ax[2].set_ylabel("above-chance fraction, epoch - own pre", fontsize=11)
     ax[2].set_title("C  Change vs own pre (95% CI)", fontsize=11.5, fontweight="bold", loc="left")
     ax[2].legend(handles=[Line2D([], [], color="0.3", marker="o", lw=2.5, label="animal-weighted mean, 95% CI"),
-                          Line2D([], [], ls="", marker="o", mfc="none", mec="0.3", label="animal (shape)"),
+                          Line2D([], [], ls="", marker="o", mfc="none", mec="0.3", mew=1.0, ms=6,
+                                 label="animal mean (shape = animal)"),
+                          Line2D([], [], ls="", marker="o", mfc="none", mec="0.3", mew=0.7, ms=4, alpha=0.45,
+                                 label="session - own pre mean (faded; pre = no-stroke spread)"),
                           Line2D([], [], ls="", marker="$*$", color="k", ms=9, label="CI excludes 0")],
                  fontsize=8.5, frameon=False, loc="upper center", bbox_to_anchor=(0.5, -0.09), ncol=1)
     for a_ in ax:
