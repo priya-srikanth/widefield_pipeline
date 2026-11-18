@@ -110,6 +110,12 @@ def session_traces(label, detrend=True):
         if k < len(bh.cue_samples):
             quit_s = bh.cue_samples[k] / bh.sample_rate
             engaged = ft < quit_s
+    # QS_ENGAGED_END=lastcue (Priya 11-18): engaged also ends at the TASK end = min(last cue + response window, last
+    # sync edge) (quiet_engaged_end.py). Without it a censored quit kept the whole recording, so imaging
+    # after the task stopped counted as engaged quiet (PS92_0828 7.2-min tail, PS93_0806 pre 12.9 min). Default off.
+    if os.environ.get("QS_ENGAGED_END", "") == "lastcue":
+        from quiet_engaged_end import task_end_s
+        engaged &= ft < task_end_s(label)
     return X, ft, fs_img, rest, engaged, quit_s
 
 
