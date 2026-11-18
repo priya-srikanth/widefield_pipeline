@@ -318,6 +318,69 @@ def fig_wheel_traces(C: dict, od: Path) -> None:
         trace_panels(per, [0, 1, 2, 3], labels, f"wheel_cue_aligned_{gate}gate",
                      "Treadmill around the cue (DAQ wheel), engaged vs not; backward plotted as negative velocity",
                      od, t, rows=rows, negate=(1,), shade=shade)
+    rows = [(f"role_{r}", f"GLM-HMM {r} state") for r in bs.ROLES]
+    if all(r in per for r, _t in rows):
+        trace_panels(per, [0, 1, 2, 3], labels, "wheel_cue_aligned_glmroles",
+                     "Treadmill around the cue by GLM-HMM state role (each trial's most probable state); backward "
+                     "plotted as negative velocity", od, t, rows=rows, negate=(1,), shade=shade)
+    rows = [(f"out_{o}", {"working": "working trials (contact or incomplete camera lick)", "jaw_only": "jaw-only trials",
+                          "no_response": "no-response trials"}[o]) for o in bs.OUTCOME_ROWS]
+    if all(r in per for r, _t in rows):
+        trace_panels(per, [0, 1, 2, 3], labels, "wheel_cue_aligned_outcome",
+                     "Treadmill around the cue by trial outcome, inside the lick working period (camera licks, cam4 + "
+                     "cam1); backward plotted as negative velocity", od, t, rows=rows, negate=(1,), shade=shade)
+
+
+def fig_glmhmm_cue_traces(C: dict, od: Path) -> None:
+    """What each GLM-HMM state looks like around the cue: tongue, jaw, nose and treadmill per state (series), one row per
+    epoch; mean over animals (each = mean of its sessions) +- SEM band."""
+    T = bs.glmhmm_table()
+    roles = bs.glmhmm_roles(T)
+    scol = bs.glmhmm_state_colors(roles)
+    W, F = _traces(C, "wheel"), _traces(C, "feat")
+    fs, (a, _b) = C["meta"]["fs"], bs.CUE_ALIGN_S
+    t = a + (np.arange(next(iter(next(iter(W.values())).values())).shape[1]) + 0.5) / fs
+    pp = bs.push_params()
+    chans = [("feat", 0, "tongue extension (mm)", 1), ("feat", 1, "tongue lateral (mm, + = contra)", 1),
+             ("feat", 2, "jaw vertical (cam4 px, down +)", 1), ("feat", 3, "nose vs mouth (cam4 px)", 1),
+             ("wheel", 0, "forward speed (mm/s)", 1), ("wheel", 1, "backward velocity (mm/s)", -1),
+             ("wheel", 3, f"P(push: backward > {pp['thresh']:g} mm/s)", 1)]
+    fig, axs = plt.subplots(len(EPS), len(chans), figsize=(2.9 * len(chans), 2.4 * len(EPS)), squeeze=False,
+                            sharex=True)
+    for i, e in enumerate(EPS):
+        for j, (kind, ch, lab_, sg) in enumerate(chans):
+            ax = axs[i, j]
+            src = W if kind == "wheel" else F
+            for k in sorted(roles):
+                d = src.get(f"state_{k}", {})
+                an = {}
+                for lab, v in d.items():
+                    if bs.session_epoch(lab) == e:
+                        an.setdefault(lab.split("_")[0], []).append(v[ch])
+                if not an:
+                    continue
+                M = np.stack([np.nanmean(an[x], 0) for x in sorted(an)]) * sg
+                m = np.nanmean(M, 0)
+                se = np.nanstd(M, 0, ddof=1) / np.sqrt(len(M)) if len(M) > 1 else np.zeros_like(m)
+                ax.fill_between(t, m - se, m + se, color=scol[k], alpha=0.08, lw=0, zorder=2)
+                ax.plot(t, m, color=scol[k], lw=1.3, label=f"{k}: {roles[k]} (n = {len(M)})", zorder=4)
+            ax.axvline(0, color="0.6", lw=0.8, ls="--")
+            ax.tick_params(labelsize=7)
+            if i == 0:
+                ax.set_title(lab_, fontsize=8)
+            if j == 0:
+                ax.set_ylabel(e, fontsize=9, fontweight="bold", color=ECOL[e])
+            if i == len(EPS) - 1:
+                ax.set_xlabel("time from cue (s)", fontsize=8)
+        axs[i, -1].legend(fontsize=6, frameon=False, loc="upper right")
+    for j in range(len(chans)):                                       # one y range per column (epochs comparable)
+        lo = min(ax.get_ylim()[0] for ax in axs[:, j])
+        hi = max(ax.get_ylim()[1] for ax in axs[:, j])
+        for ax in axs[:, j]:
+            ax.set_ylim(lo, hi)
+    fig.suptitle(f"GLM-HMM K{bs.GLMHMM_K}: tongue, jaw, nose and treadmill around the cue, per state (each trial's most "
+                 "probable state; every trial)", fontsize=9)
+    _save(fig, "glmhmm_cue_aligned_states", od)
 
 
 def fig_arhmm(C: dict, od: Path) -> None:
@@ -565,7 +628,7 @@ def fig_tim(C: dict, od: Path) -> None:
                  "partial + disengaged trials minus engaged trials", od, nc=3)
 
 
-FAMILIES = {"model": fig_glmhmm_model, "motifs": fig_arhmm_motifs, "occupancy": fig_occupancy, "curves": fig_state_curves, "push": fig_push, "wheel": fig_wheel_traces,
+FAMILIES = {"model": fig_glmhmm_model, "glmcue": fig_glmhmm_cue_traces, "motifs": fig_arhmm_motifs, "occupancy": fig_occupancy, "curves": fig_state_curves, "push": fig_push, "wheel": fig_wheel_traces,
             "arhmm": fig_arhmm, "frozen": fig_frozen, "tim": fig_tim,
             "frozenstats": fig_frozen_stats}
 

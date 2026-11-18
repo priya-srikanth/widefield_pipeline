@@ -3,6 +3,7 @@ SYLLABLES and the treadmill PUSH (Priya 11-17). One collector pass over the sess
 per-trial table; the results page (`scripts/states_page_figs.py`) and any later analysis read them from here.
 
     python -m wfield_local.behavior_states collect [--jobs 8]      # -> out_dir(): csv.gz tables + traces.npz
+    python -m wfield_local.behavior_states reels [--n 8]           # GLM-HMM cue reels -> glmhmm_reels_dir()
 
 EVERY CHOICE IS MADE ONCE, HERE OR UPSTREAM (Priya 11-17: "if we change one thing in the future it will seamlessly
 deploy to downstream analyses"):
@@ -50,6 +51,10 @@ JAW_HALF_S = 0.15                 # syllables at the jaw onset: +- this
 RESP_MAX_S = 2.0                  # response window for the per-trial syllable composition: cue .. cue + min(stop, 2 s)
 ROLES = ("engaged", "partial", "disengaged")
 WHEEL_CHANNELS = ("fwd", "back", "p_walk", "p_push")
+#: pose features of the cue-aligned traces (`arhmm_features` columns; tongue_ml signed + = contralesional)
+CUE_FEATURES = ("tongue_ext", "tongue_ml", "jaw_y", "nose_y")
+#: a session contributes a cue-aligned trace of a trial set only with >= this many trials in the set
+MIN_TRACE_TRIALS = 5
 
 
 # ------------------------------------------------------------------------------------------------ shared choices
@@ -136,13 +141,22 @@ def glmhmm_roles(T: pd.DataFrame) -> dict:
     return {int(k): ("engaged" if k in eng else "disengaged" if k in dis else "partial") for k in P.index}
 
 
+def glmhmm_trial_states(T: pd.DataFrame) -> dict:
+    """{label: {trial_id: state}}: each trial's most probable state."""
+    pc = _pcols(T)
+    st_ = np.array([int(pc[i][7:]) for i in T[pc].to_numpy().argmax(1)])
+    return {lab: dict(zip(g.trial_id, g.st_)) for lab, g in T.assign(st_=st_).groupby("label")}
+
+
+def glmhmm_trial_roles(T: pd.DataFrame) -> dict:
+    """{label: {trial_id: role}}: the role of each trial's most probable state."""
+    roles = glmhmm_roles(T)
+    return {lab: {t: roles[k] for t, k in d.items()} for lab, d in glmhmm_trial_states(T).items()}
+
+
 def glmhmm_engaged(T: pd.DataFrame) -> dict:
     """{label: set(trial_id)} of trials whose most probable state has the engaged role."""
-    roles = glmhmm_roles(T)
-    pc = _pcols(T)
-    arg = np.array([int(pc[i][7:]) for i in T[pc].to_numpy().argmax(1)])
-    eng = np.array([roles[k] == "engaged" for k in arg])
-    return {lab: set(g.trial_id) for lab, g in T[eng].groupby("label")}
+    return {lab: {t for t, r in d.items() if r == "engaged"} for lab, d in glmhmm_trial_roles(T).items()}
 
 
 #: GLM-HMM STATE colors (Priya 11-18: state colors were too close to the spout colors). Hues kept clear of the spout
@@ -290,32 +304,55 @@ def _window(t, x, a, b):
     return x[np.searchsorted(t, a):np.searchsorted(t, b)]
 
 
+#: per-trial OUTCOME rows of the cue-aligned treadmill (Priya 11-18), inside the lick working period: working =
+#: `working_trials.WORKING_CLASSES[IN_WORKING]` (contact + incomplete camera lick), jaw-only, no response
+OUTCOME_ROWS = ("working", "jaw_only", "no_response")
+
+
+def trial_outcome(cls: str) -> str | None:
+    from wfield_local import working_trials as wt
+    if cls in wt.WORKING_CLASSES[wt.IN_WORKING]:
+        return "working"
+    return cls if cls in OUTCOME_ROWS else None
+
+
 def session_readouts(item):
     """One session (module-level for the process pool): per-trial rows, per-session usage / transitions, and the
-    cue-aligned traces. ``item`` = (label, glm_engaged_ids, groups, tag)."""
+    cue-aligned traces. ``item`` = (label, {trial_id: GLM-HMM state}, {state: role}, groups, tag).
+    Cue-aligned traces per trial set (``keys``): treadmill ``WHEEL_CHANNELS`` (needs a complete wheel trace) and the pose
+    ``CUE_FEATURES`` (NaN-aware: mean over the trials with a value at each time)."""
+    from wfield_local import arhmm_features as af
     from wfield_local import trial_classes as tc
-    label, eng_ids, groups, tag = item
+    label, trial_state, roles, groups, tag = item
     T = tc.session_trials(label)
     if T is None or not len(T):
         return None
     T = T.sort_values("trial_id").reset_index(drop=True)
     t, fwd, back, z = load_session(label, tag)
     fs = 1.0 / np.median(np.diff(t))
+    Fz = np.load(Path(af.out_dir()) / "sessions" / f"{label}.npz", allow_pickle=True)
+    fcols = [str(c) for c in Fz["features"]]
+    P = np.stack([Fz["X"][:, fcols.index(c)] for c in CUE_FEATURES])
     gn = list(groups)
     g = np.where(z >= 0, _group_lut(groups)[np.maximum(z, 0)], -1)
     pp, walk = push_params(), walk_threshold()
     period = tc.camera_engaged_period(label, T.cue_daq.to_numpy(float))
     stop = T.cue_daq.to_numpy(float) + np.nan_to_num(T.stop_ms.to_numpy(float) / 1000.0, nan=RESP_MAX_S)
     nb = int(round((CUE_ALIGN_S[1] - CUE_ALIGN_S[0]) * fs))
-    keys = ("lick_in", "lick_out", "glm_in", "glm_out")
+    keys = (("lick_in", "lick_out", "glm_in", "glm_out") + tuple(f"out_{o}" for o in OUTCOME_ROWS)
+            + tuple(f"role_{r}" for r in ROLES) + tuple(f"state_{k}" for k in sorted(roles)))
     wheel = {k: np.zeros((len(WHEEL_CHANNELS), nb)) for k in keys}
     nwheel = dict.fromkeys(keys, 0)
+    feat = {k: np.zeros((len(CUE_FEATURES), nb)) for k in keys}
+    nfeat = {k: np.zeros((len(CUE_FEATURES), nb)) for k in keys}
     etho, neth = np.zeros((len(gn), nb)), 0
     cyc = np.zeros(len(t), bool)
     rows = []
     for i, r in T.iterrows():
         c = float(r.cue_daq)
-        engaged = r.trial_id in eng_ids
+        state = trial_state.get(r.trial_id)
+        role = roles.get(state)
+        engaged = role == "engaged"
         if engaged:
             a = stop[i - 1] if i > 0 else c - 5.0
             cyc[np.searchsorted(t, a):np.searchsorted(t, stop[i])] = True
@@ -343,11 +380,22 @@ def session_readouts(item):
         rows.append(row)
         j0 = np.searchsorted(t, c + CUE_ALIGN_S[0])
         sb, sf, sg = back[j0:j0 + nb], fwd[j0:j0 + nb], g[j0:j0 + nb]
+        ks = ["lick_in" if period[i] else "lick_out", "glm_in" if engaged else "glm_out"]
+        if role:
+            ks += [f"role_{role}", f"state_{state}"]
+        if period[i] and trial_outcome(r.cls):
+            ks.append(f"out_{trial_outcome(r.cls)}")
         if len(sb) == nb and np.isfinite(sb).all() and np.isfinite(sf).all():
             x = np.stack([sf, sb, sf > walk, sb > pp["thresh"]])
-            for k in ("lick_in" if period[i] else "lick_out", "glm_in" if engaged else "glm_out"):
+            for k in ks:
                 wheel[k] += x
                 nwheel[k] += 1
+        pz = P[:, j0:j0 + nb]
+        if pz.shape[1] == nb:
+            ok = np.isfinite(pz)
+            for k in ks:
+                feat[k] += np.where(ok, pz, 0.0)
+                nfeat[k] += ok
         if engaged and len(sg) == nb and (sg >= 0).mean() > 0.9:
             etho[sg[sg >= 0], np.flatnonzero(sg >= 0)] += 1
             neth += 1
@@ -367,7 +415,9 @@ def session_readouts(item):
         if x_ >= 0 and y_ >= 0:
             C[x_, y_] += 1
     return {"trials": pd.DataFrame(rows), "usage": use, "transitions": C,
-            "wheel": {k: (wheel[k] / nwheel[k] if nwheel[k] >= 5 else None) for k in keys},
+            "wheel": {k: (wheel[k] / nwheel[k] if nwheel[k] >= MIN_TRACE_TRIALS else None) for k in keys},
+            "feat": {k: (np.where(nfeat[k] >= MIN_TRACE_TRIALS, feat[k] / np.maximum(nfeat[k], 1), np.nan)
+                         if nfeat[k].max() >= MIN_TRACE_TRIALS else None) for k in keys},
             "ethogram": etho / neth if neth >= 10 else None, "fs": fs}
 
 
@@ -396,10 +446,10 @@ def collect(tag: str | None = None, jobs: int | None = None) -> Path:
     from wfield_local.writeguard import assert_writable
     tag = tag or st.REFERENCE_TAG
     T = glmhmm_table()
-    eng = glmhmm_engaged(T)
+    tstates, roles = glmhmm_trial_states(T), glmhmm_roles(T)
     groups = state_groups(tag)
     labs = sorted(set(T.label) & {p.stem for p in (st.fits_dir() / f"states_{tag}").glob("*.npz")})
-    res, fail = ak.fan_sessions([(lab, eng.get(lab, set()), groups, tag) for lab in labs], session_readouts,
+    res, fail = ak.fan_sessions([(lab, tstates.get(lab, {}), roles, groups, tag) for lab in labs], session_readouts,
                                 jobs=jobs, key=lambda it: it[0])
     for f in fail:
         print("  failed:", f)
@@ -414,9 +464,10 @@ def collect(tag: str | None = None, jobs: int | None = None) -> Path:
     meta(occupancy_per_session(T)).to_csv(od / "glmhmm_occupancy.csv.gz", index=False)
     arr = {}
     for lab, r in res.items():
-        for k, v in r["wheel"].items():
-            if v is not None:
-                arr[f"wheel|{k}|{lab}"] = v
+        for kind in ("wheel", "feat"):
+            for k, v in r[kind].items():
+                if v is not None:
+                    arr[f"{kind}|{k}|{lab}"] = v
         if r["ethogram"] is not None:
             arr[f"etho|{lab}"] = r["ethogram"]
     fs = float(np.median([r["fs"] for r in res.values()]))
@@ -631,13 +682,95 @@ def frozen_distance_frames(prefix: str = "pre_s1_f", tag: str | None = None) -> 
     return S.rename(columns={"all": "ll_rel", "moving": "ll_rel_moving", **{n: f"ll_rel:{n}" for n in gn}})
 
 
+#: GLM-HMM cue reels: trials whose state posterior is at least this confident
+REEL_MIN_POST = 0.8
+
+
+def glmhmm_reels_dir(K: int = GLMHMM_K, design: str = GLMHMM_DESIGN) -> Path:
+    from wfield_local import glm_hmm
+    sfx = "" if design == "v1" else f"_{design}"
+    return Path(glm_hmm.out_dir()) / f"reels_pooled_all_K{K}{sfx}"
+
+
+def glmhmm_reel_selection(T: pd.DataFrame, n: int, seed: int = 0) -> pd.DataFrame:
+    """Per GLM-HMM state, ``n`` example trials (posterior >= REEL_MIN_POST), one per session, cycling over animals then
+    epochs (as `arhmm_reels.select`), in a seeded order. Columns: state, label, trial_id, cue_daq, resp_s, clip."""
+    from wfield_local import trial_classes as tc
+    pc = _pcols(T)
+    P = T[pc].to_numpy()
+    T = T.assign(st_=P.argmax(1), pmax=P.max(1))
+    T = T[T.pmax >= REEL_MIN_POST]
+    rng = np.random.default_rng(seed)
+    rows = []
+    for k in range(len(pc)):
+        D = T[T.st_ == k]
+        order = []
+        cells = {key: list(rng.permutation(sorted(g.label.unique()))) for key, g in D.groupby(["animal", "epoch"])}
+        while cells and len(order) < n:
+            for key in sorted(cells):
+                if cells[key]:
+                    order.append(cells[key].pop())
+            cells = {kk: v for kk, v in cells.items() if v}
+        for lab in order[:n]:
+            g = D[D.label == lab]
+            tid = int(g.trial_id.to_numpy()[rng.integers(len(g))])
+            S = tc.session_trials(lab)
+            r = S[S.trial_id == tid]
+            if not len(r):
+                continue
+            stop = float(r.stop_ms.iloc[0]) / 1000.0
+            rows.append({"state": k, "label": lab, "trial_id": tid, "cue_daq": float(r.cue_daq.iloc[0]),
+                         "resp_s": min(stop if np.isfinite(stop) else RESP_MAX_S, RESP_MAX_S)})
+    S = pd.DataFrame(rows)
+    S["clip"] = S.groupby("state").cumcount()
+    return S
+
+
+def glmhmm_reels(n: int = 8, cams: str = "cam4,cam1", wheel: bool = True, jobs: int = 6) -> Path:
+    """Video reels per GLM-HMM state (`arhmm_reels` cutter: green border = cue .. response end, PAD_S grey either
+    side, treadmill strip with the cue): ``glmhmm_reels_dir()/state_XX.avi``, contact sheet, manifest."""
+    import csv
+    from wfield_local import analysis_kit as ak
+    from wfield_local import arhmm_features as af
+    from wfield_local import arhmm_reels as ar
+    from wfield_local.writeguard import assert_writable
+    S = glmhmm_reel_selection(glmhmm_table(), n)
+    feat = Path(af.out_dir())
+    rows = []
+    for lab, g in S.groupby("label"):
+        t = np.load(feat / "sessions" / f"{lab}.npz", allow_pickle=True)["t_daq_s"]
+        for r in g.itertuples():
+            rows.append({"state": r.state, "label": lab, "trial_id": r.trial_id, "clip": r.clip,
+                         "start_bin": int(np.searchsorted(t, r.cue_daq)),
+                         "stop_bin": int(np.searchsorted(t, r.cue_daq + r.resp_s)), "epoch": session_epoch(lab),
+                         "what": "response"})
+    S = pd.DataFrame(rows)
+    dest = glmhmm_reels_dir()
+    assert_writable(dest)
+    dest.mkdir(parents=True, exist_ok=True)
+    items = [(lab, g.to_dict("records"), str(feat), str(dest), cams.split(","), wheel) for lab, g in S.groupby("label")]
+    res, fails = ak.fan_sessions(items, ar._session_job, jobs=jobs, key=lambda it: it[0])
+    for f in fails:
+        print("  failed:", f)
+    man = pd.DataFrame([r for _it, rr in res for r in rr])
+    man.to_csv(dest / "reels_manifest.csv", index=False, quoting=csv.QUOTE_MINIMAL)
+    ar.stitch(dest, man, n)
+    print(man.status.value_counts().to_string())
+    print("->", dest)
+    return dest
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split(chr(10) * 2)[0])
-    ap.add_argument("cmd", choices=("collect",))
+    ap.add_argument("cmd", choices=("collect", "reels"))
     ap.add_argument("--tag", default=None)
     ap.add_argument("--jobs", type=int, default=None)
+    ap.add_argument("--n", type=int, default=8, help="reels: clips per GLM-HMM state")
     a = ap.parse_args(argv)
-    collect(a.tag, a.jobs)
+    if a.cmd == "collect":
+        collect(a.tag, a.jobs)
+    else:
+        glmhmm_reels(a.n, jobs=a.jobs or 6)
     return 0
 
 

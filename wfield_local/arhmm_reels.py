@@ -254,7 +254,7 @@ def _session_job(item):
                 cv2.rectangle(img, (0, 0), (W - 1, OUT_PX - 1), col, 6)
                 cv2.putText(img, f"state {r['state']}  {animal} {date[4:]} {r['epoch']}", (10, 22),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
-                cv2.putText(img, f"syllable {t1 - t0:.2f} s" + ("  <<" if inside else ""), (10, OUT_PX - 12),
+                cv2.putText(img, f"{r.get('what', 'syllable')} {t1 - t0:.2f} s" + ("  <<" if inside else ""), (10, OUT_PX - 12),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
                 if wheel:
                     img = np.vstack([img, _strip(t_rel, fw, bk, cues - t0, d_now - t0, W,
