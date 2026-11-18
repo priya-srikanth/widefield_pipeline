@@ -96,8 +96,15 @@ def test_restnl_cam1_only_onsets_unchanged_by_refactor(tmp_path):
 
 
 def test_restnl_digest_is_v3_alias_and_only_for_this_source(monkeypatch):
+    import subprocess
+    import sys
+    from pathlib import Path
     from wfield_local import restnl_licks as rl
-    assert rl.code_digest() == "e34a85c2b4b0"                         # RESTnlc1 v3 caches stay warm
+    # fresh interpreter: other tests in the suite may monkeypatch / reload modules the closure hashes
+    root = Path(__file__).resolve().parents[1]
+    d = subprocess.run([sys.executable, "-c", "from wfield_local import restnl_licks as r; print(r.code_digest())"],
+                       cwd=root, capture_output=True, text=True, check=True).stdout.strip()
+    assert d == "e34a85c2b4b0"                                         # RESTnlc1 v3 caches stay warm
     # any other source (here: keep_mask's closure changed) misses the alias -> a new digest = invalidation
     from wfield_local import map_collect
     real = map_collect._Closure.source
