@@ -89,6 +89,57 @@ def walk_window() -> tuple:
     return tuple(float(x) for x in _seg()["walk"]["window_s"])
 
 
+#: CUE-ALIGNED WINDOWS of the trace statistics (Priya 11-18: "cue-aligned AUC"), shared by every cue-aligned trace
+#: figure so they read the same way: pre-cue, early response, late response (s from the cue)
+CUE_WINDOWS_S = (("pre-cue", (-2.0, 0.0)), ("early", (0.0, 1.0)), ("late", (1.0, 4.5)))
+
+
+def cue_window_stats(per: dict, channels: list, names: list, t: np.ndarray, scale: str = "linear",
+                     seed: int = 0) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Windowed statistics of cue-aligned session traces. ``per`` = {label: array [channels, time]} (one trial set),
+    ``t`` = time from the cue. Per session and channel: the mean over each `CUE_WINDOWS_S` window (= AUC / duration;
+    ``scale="log2"`` takes log2 of it, for positive expression). Returns (stats, per_animal): stats = change vs each
+    animal's own pre per (channel, window, epoch) from `analysis_kit.boot_delta` (paired, animal-weighted) with its
+    bootstrap p (`boot_p`) and Holm over the channels within each window x epoch, n_up / n_animals; per_animal = the
+    animal x epoch means (rule 8: the table behind every interval)."""
+    from wfield_local import analysis_kit as ak
+    rows = []
+    for lab, v in per.items():
+        ep = session_epoch(lab)
+        if ep is None:
+            continue
+        for ci, ch in enumerate(channels):
+            for wn, (a, b) in CUE_WINDOWS_S:
+                m = (t >= a) & (t < b)
+                x = float(np.nanmean(v[ch][m]))
+                if scale == "log2":
+                    x = float(np.log2(x)) if x > 0 else np.nan
+                rows.append({"label": lab, "animal": lab.split("_")[0], "epoch": ep, "channel": names[ci],
+                             "window": wn, "value": x})
+    D = pd.DataFrame(rows)
+    A = D.groupby(["channel", "window", "animal", "epoch"]).value.mean().reset_index()
+    rng = np.random.default_rng(seed)
+    out = []
+    for (ch, wn), g in D.groupby(["channel", "window"], sort=False):
+        pre = {a: x.value.dropna().tolist() for a, x in g[g.epoch == "pre"].groupby("animal", sort=True)}
+        for ep in ("acute", "subacute", "chronic"):
+            post = {a: x.value.dropna().tolist() for a, x in g[g.epoch == ep].groupby("animal", sort=True)}
+            pe = {a: v for a, v in pre.items() if v and post.get(a)}
+            po = {a: v for a, v in post.items() if v and a in pe}
+            iv, o = ak.boot_delta(po, pe, rng, draws=True) if len(po) >= 2 else (None, [])
+            d_an = [np.mean(po[a]) - np.mean(pe[a]) for a in po]
+            out.append({"channel": ch, "window": wn, "epoch": ep, "scale": scale,
+                        "point": iv.point if iv else np.nan, "lo": iv.lo if iv else np.nan,
+                        "hi": iv.hi if iv else np.nan, "p_boot": ak.boot_p(o) if iv else np.nan,
+                        "n_up": int(np.sum(np.array(d_an) > 0)), "n_animals": len(po)})
+    S = pd.DataFrame(out)
+    S["p_holm"] = np.nan
+    for _k, g in S.groupby(["window", "epoch"]):
+        S.loc[g.index, "p_holm"] = ak.holm(g.p_boot.to_numpy())
+    S["sig"] = np.where((S.lo > 0) | (S.hi < 0), np.where(S.p_holm < 0.05, "**", "*"), "")
+    return S, A
+
+
 #: COMMON SESSION DURATION for length-matched readouts (Priya 11-18: pre-stroke sessions run longer, so a whole-session
 #: rate mixes in more late-session trials): minutes from the session's first cue. 95 min = about the 10th percentile of
 #: pre / subacute / chronic session lengths; 9 of 107 sessions are shorter and enter whole. Time, not trials, because

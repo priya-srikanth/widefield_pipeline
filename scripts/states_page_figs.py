@@ -131,8 +131,21 @@ def delta_panels(S: pd.DataFrame, D: pd.DataFrame, metrics: list, labels: dict, 
     _save(fig, f"{name}_dpre", od)
 
 
+def _window_marks(ax, S: pd.DataFrame, chan_name: str) -> None:
+    """Top-band marks of `behavior_states.cue_window_stats` over each window's midpoint (one row per post epoch, epoch
+    color; * = CI excludes 0, ** = also Holm across the figure's curves) + a gray tick along the bottom per window."""
+    for wi, (wn, (a, b)) in enumerate(bs.CUE_WINDOWS_S):
+        ax.plot([a + 0.05, b - 0.05], [0.005, 0.005], color="0.55" if wi % 2 else "0.75", lw=2.5,
+                transform=ax.get_xaxis_transform(), clip_on=False, solid_capstyle="butt", zorder=1)
+        for e in EPS[1:]:
+            r = S[(S.channel == chan_name) & (S.window == wn) & (S.epoch == e)]
+            if len(r) and r.sig.iloc[0]:
+                sig_marks.star_top(ax, (a + b) / 2, r.sig.iloc[0], color=ECOL[e], row=EPS.index(e) - 1, fontsize=10)
+
+
 def trace_panels(per: dict, channels: list, labels: list, name: str, title: str, od: Path, t: np.ndarray,
-                 rows: list | None = None, negate: tuple = (), shade: dict | None = None, wrap: int = 0) -> None:
+                 rows: list | None = None, negate: tuple = (), shade: dict | None = None, wrap: int = 0,
+                 stats: pd.DataFrame | None = None) -> None:
     """Time-continuous traces: mean over animals (each = mean of its sessions) +- SEM band (alpha .08, as the
     lick_matched_readout curves); ``rows`` = [(row key, row title)], ``per[row][label] -> (channels, time)``;
     ``wrap`` = panels per figure row when there is a single data row."""
@@ -167,6 +180,8 @@ def trace_panels(per: dict, channels: list, labels: list, name: str, title: str,
             ax.tick_params(labelsize=8)
             ax.spines[["top", "right"]].set_visible(False)
             ax.set_xlabel("time from cue (s)", fontsize=8)
+            if stats is not None:
+                _window_marks(ax, stats, lab_)
             if j == 0 and rt:
                 ax.set_title(rt, loc="left", fontsize=9, fontweight="bold", pad=16 if shade else 6)  # above the window labels
         (axs.flat[0] if nc != len(channels) else axs[i, -1]).legend(fontsize=7, frameon=False, loc="upper right")
@@ -302,10 +317,14 @@ def fig_fr_cue_traces(C: dict, od: Path) -> None:
         return
     fs, (a, _b) = C["meta"]["fs"], bs.CUE_ALIGN_S
     t = a + (np.arange(next(iter(F["glm_in"].values())).shape[1]) + 0.5) / fs
-    trace_panels(F, fr, [names[i][3:].replace("_", " ") + " (abs. expression)" for i in fr], "fr_factors_cue_aligned",
+    labels = [names[i][3:].replace("_", " ") + " (abs. expression)" for i in fr]
+    S, A = bs.cue_window_stats(F["glm_in"], fr, labels, t, scale="log2")
+    S.to_csv(od / "fr_factors_cue_aligned_stats.csv", index=False)
+    A.to_csv(od / "fr_factors_cue_aligned_per_animal.csv", index=False)
+    trace_panels(F, fr, labels, "fr_factors_cue_aligned",
                  "FaceRhythm master factors around the cue, GLM-HMM engaged trials (the trials of the cue-aligned "
-                 "AR-HMM figure): absolute expression, mean over animals +- SEM", od, t, rows=[("glm_in", None)],
-                 wrap=4)
+                 "AR-HMM figure): absolute expression, mean over animals +- SEM; marks = window mean (log2) vs own pre",
+                 od, t, rows=[("glm_in", None)], wrap=4, stats=S)
 
 
 TRIAL_TYPES = (("contact", "contact"), ("incomplete", "incomplete"), ("jaw_only", "jaw-only"),
@@ -476,9 +495,13 @@ def fig_arhmm(C: dict, od: Path) -> None:
     E = _traces(C, "etho")[None]
     fs = C["meta"]["fs"]
     t = bs.CUE_ALIGN_S[0] + (np.arange(next(iter(E.values())).shape[1]) + 0.5) / fs
-    trace_panels({None: E}, list(range(len(gn))), [f"P({g.replace('_', ' ')})" for g in gn],
-                 "arhmm_cue_aligned_groups", "AR-HMM syllable groups around the cue, GLM-HMM-engaged trials", od, t,
-                 wrap=3)
+    labels = [f"P({g.replace('_', ' ')})" for g in gn]
+    S, A = bs.cue_window_stats(E, list(range(len(gn))), labels, t, scale="linear")
+    S.to_csv(od / "arhmm_cue_aligned_groups_stats.csv", index=False)
+    A.to_csv(od / "arhmm_cue_aligned_groups_per_animal.csv", index=False)
+    trace_panels({None: E}, list(range(len(gn))), labels,
+                 "arhmm_cue_aligned_groups", "AR-HMM syllable groups around the cue, GLM-HMM-engaged trials; marks = "
+                 "window mean vs own pre", od, t, wrap=3, stats=S)
     Tr = C["transitions"]
     epoch_panels(Tr, ["entropy_bits"], {"entropy_bits": "transition entropy (bits)"}, "arhmm_transition_entropy",
                  "AR-HMM group transitions on engaged trial cycles (runs collapsed): entropy of the next group", od, nc=1)
