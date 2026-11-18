@@ -1,3 +1,49 @@
+## 2026-11-17 -- Like-for-like curves: local-linear reference with a Gaussian kernel; strict = each animal's own pre curve (Priya; a8 window)
+
+- **Curves** (decoded vs landing per epoch) are Gaussian-smoothed per animal x epoch (sigma 0.1 mm, held-out pre choice;
+  drawn where the weight is >= 10 licks), mean +/- SEM over animals, dashed where only 3 animals. No binned dots: the bin
+  means are the same data, and the binned display could rest an edge bin on one or two animals.
+- **Reference** for the offset, the bar tests and the read-outs = the Gaussian-weighted LOCAL LINE (loclin). Priya:
+  "pick loclin with gaussian kernel". A Gaussian-mean-reference row and a loclin row looked identical (the reference
+  never changes the curves).
+- **Two versions**: all post licks (edge line carried beyond the pre range) and STRICT like-for-like = post licks only
+  where the SAME animal's pre curve of the SAME lick set exists, curves cut to that range. NOT the loclin `beyond` flag
+  (0.5-99.5 % of all pre licks): it reaches past where a pre curve exists. Code: lick_matched_readout.py --inside-curves
+  (inside_curves), scripts/lick_matched_panels.py. Bars stay on 0.25-mm bins (a test needs cells).
+- One combined figure (cued all / cued first / ITI all / ITI first / ITI docked) replaces the separate curve figures that
+  repeated the cued panel (goal page Fig 12.2 v317; deck slide 125).
+
+## 2026-11-17 -- Lick source of the lick-free rest (RESTnl) and of the LP lick trains; every caption names its train (Priya)
+- Priya 11-17: "ensure all figure captions / slide notes are clear about what data they used -- I don't know if we
+  specify everywhere cam4 vs cam4 + cam1 LP licks". Audit and fixes: docs/status/LICK_SOURCE_AUDIT_20261117.md; the
+  wording lives in `wfield_local/lick_provenance.py` (one phrase per train) and the analysis deck's provenance line
+  now names the train on every slide.
+- RESTnl (lick-free rest, `restnl_mask`; also `rest_frozen_decoder_nl`, `state_space_rest_baseline`) removes every DAQ
+  spout-contact lick and every cam4 LP lick of `licks_all.csv`, each widened [0.5 s before, 2.0 s after]. It was
+  defined 10-29 / 11-01 from cam4 `licks_all.csv` (`scripts/restw_strict_check.py` variant `strict`, then
+  `restnl_mask`); cam1 was never added and no reason was recorded (the `strict_c1` variant with cam1 `events_all` was
+  computed in that check but not adopted). Coverage is not the reason: cam4 `licks_all.csv` and cam1 `events_all.csv`
+  are detected over the SAME trial windows (strobe - 0.5 s .. stop + 3 s, cut at the next trial; ~98-99 % of the
+  video, `orofacial_outputs.all_licks_session`), and ITIs are ~1-1.5 s, so both cameras effectively cover the
+  session. cam1-only (not cam4-matched, droplet-filtered) events add ~3-7 % licks per animal.
+- DECIDED (Priya 11-17, later the same day): RESTnl moves to DAQ + cam4 + cam1 (cam1 `events_all`, droplets removed).
+  The RESTnl products are re-run on branch `analysis/restnl-cam1-1117`; until those outputs are placed, every current
+  RESTnl output is DAQ + cam4 and its caption says "rest licks excluded: DAQ + cam4". The wording is generated from
+  `restnl_mask` (`lick_provenance.restnl_text`), so it reads "DAQ + cam4 + cam1" once the mask declares cam1.
+- The LP lick train (`lp_licks.lp_lick_times`, WIDEFIELD_LICK_SOURCE=lp; also `combined_encoding` LICKS=combined and
+  the frozen encoder) = cam4 `licks_all.csv` + cam1-only events of `cam1_licks/<a>_<d>_events.csv`, a POST-CUE file
+  (cue .. trial stop, `cam1_licks.detect(span="post")`). So cam1 adds licks to the post-cue lick / no-lick call, the
+  attempt classes, the first-lick time and the post-cue lick-onset kernel, but never to a pre-cue window: the 1 s ENL
+  lick-free window under LP, and the encoder's pre-cue / ITI lick kernels, are in practice cam4 only. Captions say
+  "pre-cue lick-free window: LP video, cam4 (cam1 is scored only from the cue to the trial stop)". Switching that
+  input to `events_all` would change every LP output (cache tag `lp_licks.spec_token` follows the cam1 folder) and is
+  not done here.
+- Other trains, for the record: DAQ-source imaging runs use DAQ contact for the lick class, the lick alignment and the
+  2 s ENL window; the camera trial classes (`trial_classes`) are DAQ contact + LP cam4 + cam1 (droplets removed); ITI
+  licks, the per-lick kinematics / 3-D tables and FaceRhythm lick windows are cam4 only; quiet frames
+  (QS_LICK_SOURCE=daq+lp) exclude DAQ + cam4 + cam1 `events_all`. PS93_0813 has no video (no LP licks, no camera
+  classes, no RESTnl); every other curated cohort-1 session has cam1 events (11-17: 120 curated, 1 without).
+
 ## 2026-11-17 -- ITI response window 0..0.5 s; cued stays 0..1.0 s (Priya; a8 window)
 - Priya 11-17: "for ITI let's use 0-0.5 ... we should probably just change ITI AUC and balance results to the 0-0.5s".
   Reverses the ITI half of the 10-28 (late) "one window for both" decision (0..1.0 s for ITI and cued; 0..0.5 s was the
@@ -12,6 +58,8 @@
   ramp companions, docked ITI arm). The primary recovery marker already uses 0.1..0.5 s for ITI (unchanged).
 - Bounded index (c - i) / (|c| + |i|) considered (defined for every row; = (r - 1) / (r + 1) when both AUCs > 0) but in
   the dip sessions it would compare undershoots; window fix preferred. Kept as a robustness option.
+- (2026-11-17, Priya "yes update 113 and 114 to match") Cued per-spout first-lick / cue response AUC (Fig 14.7, deck 113 /
+  114; `lick_cued_ramp.spout_windows`) aligned to `iti_licks.CUED_RESP_WIN` (0..1.0 s; was 0..0.5 s, kept as secondary).
 
 ## 2026-11-16 -- June sessions against August-frozen references: drift sub-analyses only (Priya; a8 window)
 - Priya 11-09 asked for the frozen pre-stroke analyses on the June sessions (August-frozen reference); scope settled

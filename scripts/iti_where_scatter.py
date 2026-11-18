@@ -31,6 +31,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
+from wfield_local import trial_set_text as tst  # noqa: E402
 import iti_where_decoder as wd  # noqa: E402
 from figdata import load_fd, plot_only, save_fd  # noqa: E402
 
@@ -242,7 +243,7 @@ def plot_delta(F: dict) -> None:
                  "before the stroke.", fontsize=10, y=0.995)
     fig.legend(handles=hd, loc="upper center", ncol=8, fontsize=8.5, frameon=False,
                bbox_to_anchor=(0.5, 0.945 if tag else 0.955))
-    fig.tight_layout(rect=(0, 0, 1, 0.925 if tag else 0.935))
+    fig.tight_layout(rect=(0, tst.footer_bottom(fig), 1, 0.925 if tag else 0.935))   # bottom: trial-set footer (11-17)
     save_png_svg(fig, WOUT / "figures" / f"lick_where_delta{tag}.png", dpi=95)
     plt.close(fig)
 
@@ -320,7 +321,7 @@ def plot(F: dict) -> None:
                  f"so compare each epoch with PRE (change figure: lick_where_delta{tag}.png).", fontsize=10.5, y=0.997)
     fig.legend(handles=hd, loc="upper center", ncol=6, fontsize=9, frameon=False,
                bbox_to_anchor=(0.5, 0.955 if tag else 0.962))
-    fig.tight_layout(rect=(0, 0, 1, 0.918 if tag else 0.925))
+    fig.tight_layout(rect=(0, tst.footer_bottom(fig), 1, 0.918 if tag else 0.925))   # bottom: trial-set footer (11-17)
     save_png_svg(fig, WOUT / "figures" / f"{_scatter_stem(st, tag)}.png", dpi=95)
     plt.close(fig)
 WOUT = il.OUT_W if il.ITI_SUBSET else il.OUT     # subset runs (dock, ...) write to their own folder (10-29)

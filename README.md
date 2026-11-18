@@ -41,6 +41,7 @@ configs/               single source of truth (mirrors stroke_orofacial_pipeline
 runbooks/              the per-machine nightly runbooks (source of truth: imaging_computer_nightly / analysis_computer_nightly)
 docs (*.md at root)    DECISIONS (analysis decisions + findings), STROBE_BIT1_RECOVERY, CLAUDE; docs/archive/ = retired one-offs
 scripts/               hand-run analyses, figure producers and checks (list: scripts/INDEX.md)
+grants/                code that composed GRANT figures from pipeline outputs, one folder per grant (grants/README.md); not pipeline
 tests/                 pytest suite (242 test files)
 ```
 

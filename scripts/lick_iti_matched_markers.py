@@ -30,13 +30,16 @@ FAR-CONTRA WITHIN SPOUT (`balance-angle`): lick_balance_angle_lmm's session x sp
 0..0.2 s; resp = log2 contra / ipsi response AUC, cued 0..1.0 s, ITI 0..0.5 s per DECISIONS 11-17) with the ITI subset
 hook applied BEFORE the per-lick join; the full balance-angle LMMs (lick_balance_angle_lmm.compute) on that table; then
 far-contra cells only (cued: target far contra; ITI: previous spout far contra): per-animal r, y ~ angle * post.
+With --idx (Priya 11-17) both add the bounded indices dec_idx / resp_idx (lick_balance_angle_lmm.bounded_index; see
+that docstring) as two more measures; without it the outputs are unchanged. --gap2: ITI bout starts with gap >=
+il.GAP_MAIN (2 s) only (lick_balance_angle_lmm.gap_keep).
 
 Usage (env of the matching rebuild step + WFIELD_ITI_OUT_W=<new folder>; PYTHONPATH=<worktree>;<worktree>/scripts):
   python scripts/lick_iti_matched_markers.py docked-balance      (+ WFIELD_ITI_FILTER=dock WFIELD_BAL_FULL=1)
   python scripts/lick_iti_matched_markers.py docked-primary      (same env; lick_recovery_primary on the docked table)
   python scripts/lick_iti_matched_markers.py axes
   python scripts/lick_iti_matched_markers.py models --bal-all <balsub_sessions_full.csv> --bal-dock <...csv>
-  python scripts/lick_iti_matched_markers.py balance-angle --ratio <lateral_ratio_sessions.csv>  [+ WFIELD_ITI_FILTER=dock]
+  python scripts/lick_iti_matched_markers.py balance-angle --ratio <lateral_ratio_sessions.csv> [--idx] [--gap2]  [+ WFIELD_ITI_FILTER=dock]
   python scripts/lick_iti_matched_markers.py plot                 (figures from the saved CSVs)
 """
 from __future__ import annotations
@@ -229,12 +232,12 @@ def summary_table(CV: pd.DataFrame) -> pd.DataFrame:
 
 
 # ------------------------------------------------------------------------------------------------ balance vs angle
-RESP_COL = {"cued": "logr_0-1", "iti": "logr_0-0.5"}     # DECISIONS 11-17: cued 0..1.0 s, ITI 0..0.5 s
+# resp column per set = lick_balance_angle_lmm.RESP_COL (DECISIONS 11-17: cued 0..1.0 s, ITI 0..0.5 s)
 
 
 def bal_angle_points() -> pd.DataFrame:
     """lick_balance_angle_lmm.points with the ITI SUBSET hook applied to the per-lick cache BEFORE the joins (k = cache
-    index kept), resp read per set from RESP_COL of the given lateral-ratio table (--ratio; for a docked run the docked
+    index kept), resp read per set from lba.RESP_COL of the given lateral-ratio table (--ratio; for a docked run the docked
     lateral ratio, whose ITI bout starts are docked)."""
     import iti_lick_order as lo
     import lick_balance_angle_lmm as lba
@@ -243,10 +246,12 @@ def bal_angle_points() -> pd.DataFrame:
     P = pd.read_csv(lo.preds_path()).reset_index(drop=True)
     P["k"] = P.groupby(["set", "label"]).cumcount()
     P = P[il.iti_subset_keep(P)].reset_index(drop=True)
+    P = P[lba.gap_keep(P)].reset_index(drop=True)      # --gap2 (11-17): bout starts with gap >= il.GAP_MAIN only
     print(f"ITI subset {il.ITI_SUBSET or 'none'}: {int((P.set == 'iti').sum())} ITI licks", flush=True)
     C = pd.read_csv(il.in_path(f"covref_covariates{lo.SRC_TAG}.csv.gz"), usecols=["set", "label", "k", "reach_mm", "side_k"])
     P = P.merge(C, on=["set", "label", "k"], how="left", validate="one_to_one")
-    res, fail = ak.fan_sessions(sorted(P.label.unique()), lbr._session_bal)
+    # --idx (11-17): lba's per-session worker / columns / resp table also carry dec_idx / resp_idx (lba.bounded_index)
+    res, fail = ak.fan_sessions(sorted(P.label.unique()), lba.session_worker())
     if fail:
         raise RuntimeError(f"balance failed for {len(fail)} sessions: {fail[:5]}")
     P = P.merge(pd.concat([v for _i, v in res], ignore_index=True), on=["set", "label", "k"], how="left",
@@ -254,18 +259,14 @@ def bal_angle_points() -> pd.DataFrame:
     P["angle"] = np.degrees(np.arcsin(np.clip(P.side_k / P.reach_mm, -1, 1)))
     P["cls"] = np.where(P.order == 0, "", " later")
     g = P.groupby(["set", "cls", "label", "animal", "epoch", "pos"])
-    S = g[["angle", *lbr.BAL]].mean().join(g.size().rename("n")).reset_index()
+    S = g[["angle", *lba.bal_cols()]].mean().join(g.size().rename("n")).reset_index()
     S = S[S.n >= lba.MIN_LICKS]
     S["set"] = S.set.map(lba.SETMAP) + S.cls
     S = S.drop(columns="cls")
-    R = pd.read_csv(_arg("--ratio"))
-    R = R[R.spout.isin(lo.POS) & R.set.isin(list(RESP_COL))]
-    R["y"] = [r_[RESP_COL[st]] for st, (_i, r_) in zip(R.set, R.iterrows(), strict=True)]
-    R = R.pivot_table(index=["set", "label", "spout"], columns="pair", values="y")
-    R.columns = [f"resp_{c}" for c in R.columns]
-    S = S.merge(R.reset_index().rename(columns={"spout": "pos"}), on=["set", "label", "pos"], how="left")
+    S = S.merge(lba.resp_tables(pd.read_csv(_arg("--ratio")), lba.RESP_COL), on=["set", "label", "pos"], how="left")
     S = S.rename(columns={f"bal_{a}": f"dec_{a}" for a in lbr.PAIRS})
     S["dec_orofacial"] = S[[f"dec_{a}" for a in lbr.PAIRS]].mean(1)
+    S = lba.add_dec_idx(S)
     S["post"] = (S.epoch != "pre").astype(int)
     return S
 
@@ -281,7 +282,7 @@ def farcontra(S: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
         if G0.empty:
             continue
         mu = G0[G0.epoch == "pre"].angle.mean()
-        for meas in ("dec", "resp"):
+        for meas in lba.meas_list():                  # + dec_idx / resp_idx with --idx (11-17)
             for a in lba.PAIRS:
                 y = f"{meas}_{a}"
                 if y not in G0:
@@ -310,14 +311,7 @@ def farcontra(S: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
                     rows[-1].update({"shift_post_no_angle": f0.fe_params["post"], "p_shift_no_angle": f0.pvalues["post"]})
                     # INSIDE the pre angle range: post sessions whose angle lies within the animal's pre sessions' range
                     # (acute far-contra licks fall beyond it, where the pre line is extrapolated)
-                    rng_ = G[G.post == 0].groupby("animal").angle.agg(["min", "max"])
-                    lo_ = G.animal.map(rng_["min"])
-                    hi_ = G.animal.map(rng_["max"])
-                    Gi = G[(G.post == 0) | ((G.angle >= lo_) & (G.angle <= hi_))]
-                    if Gi.post.sum() >= 8:
-                        fi = lba._fit(Gi, "y ~ ac + post")
-                        rows[-1].update({"n_post_inside": int(Gi.post.sum()), "shift_inside_pre_range": fi.fe_params["post"],
-                                         "p_shift_inside": fi.pvalues["post"]})
+                    rows[-1].update(lba.inside_shift(G))
                 except Exception as ex:                                   # noqa: BLE001  reported, not hidden
                     rows.append({"set": st, "measure": meas, "pair": a, "note": f"FAILED {ex}"})
     return pd.DataFrame(rows), pd.DataFrame(an)
@@ -447,11 +441,16 @@ def plot_farcontra(S: pd.DataFrame, M: pd.DataFrame, A: pd.DataFrame) -> None:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
+    import lick_balance_angle_lmm as lba
     from wfield_local import sig_marks
     from wfield_local.figure_layout import save_png_svg
     sets = [st for st in ("cued", "iti") if ((S.set == st) & (S.pos == FC)).any()]
     meas = [("resp", "orofacial", "response-AUC balance log2(contra / ipsi), orofacial pool"),
-            ("dec", "orofacial", "decoder-window difference X_right - X_left, 0-0.2 s, orofacial (x1e3 dF/F)")]
+            ("dec", "orofacial", "decoder-window difference X_right - X_left, 0-0.2 s, orofacial (x1e3 dF/F)"),
+            ("resp_idx", "orofacial", "response-AUC bounded index (c - i) / (|c| + |i|), orofacial pool"),
+            ("dec_idx", "orofacial", "decoder-window bounded index (c - i) / (|c| + |i|), 0-0.2 s,\n"
+                                     f"baseline {il.win_label(lba.cr.BASE_SPOUT)} before the peak, orofacial")]
+    meas = [m for m in meas if f"{m[0]}_{m[1]}" in S]          # the indices only with --idx (11-17)
     fig, axs = plt.subplots(len(sets), len(meas), figsize=(6.2 * len(meas), 5.0 * len(sets)), squeeze=False)
     for i, st in enumerate(sets):
         G = S[(S.set == st) & (S.pos == FC)]
@@ -464,7 +463,7 @@ def plot_farcontra(S: pd.DataFrame, M: pd.DataFrame, A: pd.DataFrame) -> None:
             a = A[(A.set == st) & (A.measure == ms) & (A.pair == pr)].set_index("animal")
             win = "0-1.0 s" if st == "cued" else "0-0.5 s"
             ttl = (f"{'cued first lick, target far contra' if st == 'cued' else 'ITI bout start, previous spout far contra'}"
-                   f" ({win if ms == 'resp' else '0-0.2 s'})\nper-animal r pre " +
+                   f" ({win if ms.startswith('resp') else '0-0.2 s'})\nper-animal r pre " +
                    " / ".join(f"{a.r_pre.get(x, np.nan):+.2f}" for x in AN) + "; post " +
                    " / ".join(f"{a.r_post.get(x, np.nan):+.2f}" for x in AN))
             if len(m) and "p_shift" in m and np.isfinite(m.p_shift.iloc[0]):

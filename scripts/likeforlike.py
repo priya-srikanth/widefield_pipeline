@@ -191,3 +191,63 @@ def coverage(P: pd.DataFrame, beyond: np.ndarray) -> pd.DataFrame:
     return Q.groupby(["set", "epoch"]).b.agg(
         share_beyond=lambda s: float((s != 0).mean()),
         median_beyond=lambda s: float(s[s != 0].abs().median()) if (s != 0).any() else 0.0).reset_index()
+
+
+# ------------------------------------------------------------------------------------------- smoothed curves (11-17)
+# The DECODED-vs-ACTUAL curves of the like-for-like figures (lick_matched_readout --ref gauss -> lick_matched_gauss_curves,
+# lick_matched_angle_reach --curves): one definition of the smoothing and of the coverage notes (Priya 11-17: "why is the
+# docked ITI acute line dashed?").
+def smooth_curves(P: pd.DataFrame, x: str, y: str, sigma: float, grid: np.ndarray, min_w: float,
+                  by=("set", "epoch", "animal")) -> pd.DataFrame:
+    """Gaussian-weighted mean of ``y`` at each ``grid`` value of ``x`` per ``by`` group (Nadaraya-Watson, width
+    ``sigma``); a grid point is kept where the total weight (~licks within ~1 sigma) is >= ``min_w``. Rows: *by, mid, y,
+    n (= the weight)."""
+    rows = []
+    for key, g in P.groupby(list(by)):
+        x_, y_ = g[x].to_numpy(float), g[y].to_numpy(float)
+        ok = np.isfinite(x_) & np.isfinite(y_)
+        w = np.exp(-0.5 * ((grid[:, None] - x_[None, ok]) / sigma) ** 2)
+        sw = w.sum(1)
+        yy = np.where(sw >= min_w, (w @ y_[ok]) / np.maximum(sw, 1e-12), np.nan)
+        rows += [dict(zip(by, key), mid=m, y=v, n=s) for m, v, s in zip(grid, yy, sw) if np.isfinite(v)]
+    return pd.DataFrame(rows)
+
+
+def curve_coverage(A: pd.DataFrame) -> pd.DataFrame:
+    """Per set x epoch x animal of a `smooth_curves` table: the x range its curve covers (lo, hi) and n grid points."""
+    if "animal" not in A.columns or A.empty:
+        return pd.DataFrame(columns=["set", "epoch", "animal", "lo", "hi", "n_points"])
+    return A.groupby(["set", "epoch", "animal"]).mid.agg(lo="min", hi="max", n_points="size").reset_index()
+
+
+def dash_notes(A: pd.DataFrame, st: str, epochs, min_w: float, unit: str = "mm", nlick: dict | None = None,
+               min_share: float = 0.5, digits: int = 2) -> list[str]:
+    """One note per epoch drawn MOSTLY dashed (>= ``min_share`` of its drawn grid points have exactly 3 animals; the
+    figures draw the 4-animal stretches solid, 3-animal stretches dashed): the animal(s) missing at most of those points
+    and the range each covers, e.g. 'acute dashed: PS95 covers -0.40..+0.10 mm only (1 session, 53 licks)'. ``nlick`` =
+    {(epoch, animal): (n sessions, n licks)} for the parenthesis (optional)."""
+    out = []
+    cov = curve_coverage(A)
+    allan = sorted(A.animal.unique()) if len(A) else []
+    for ep in epochs:
+        g = A[(A.set == st) & (A.epoch == ep)]
+        if g.empty:
+            continue
+        nn = g.groupby("mid").animal.nunique()
+        drawn = nn[nn >= 3]
+        dashed = drawn[drawn == 3].index
+        if not len(drawn) or len(dashed) / len(drawn) < min_share:
+            continue
+        animals = sorted(g.animal.unique())
+        present = g[g.mid.isin(dashed)].groupby("animal").mid.nunique().reindex(animals).fillna(0)
+        miss = [a for a in animals if present[a] < 0.5 * len(dashed)] + [a for a in allan if a not in animals]
+        c = cov[(cov.set == st) & (cov.epoch == ep)].set_index("animal")
+        parts = []
+        for a in miss:
+            v = (nlick or {}).get((ep, a))
+            n_ = f" ({v[0]} session{'s' if v[0] != 1 else ''}, {v[1]} licks)" if v else ""
+            parts.append(f"{a} covers {c.loc[a, 'lo']:+.{digits}f}..{c.loc[a, 'hi']:+.{digits}f} {unit} only{n_}"
+                         if a in c.index else f"{a} no curve{n_}: too few licks for kernel weight >= {min_w:g}")
+        if parts:
+            out.append(f"{ep} dashed: " + "; ".join(parts))
+    return out

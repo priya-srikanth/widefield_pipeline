@@ -1,0 +1,30 @@
+[
+ {
+  "slide": 147,
+  "title_now": "Encoder spout coding vs behavior, by session",
+  "status": "ready",
+  "skip_reason": "",
+  "pictures": [
+   {
+    "shape_name": "fig:frozen_claims_trend",
+    "new_image": "M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-17/swap_inputs/s147_frozen_claims_trend_footerfix.png",
+    "source_render": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/frozen_fr_compare_footerfix_20261117/figures/frozen_claims_trend.png",
+    "crop_done": "Priya 11-17 footer fix: the figure was re-rendered with the trial-set footer margin reserved (trial_set_text.footer_bottom), so the x tick labels and 'day from stroke' are clean; the old crop had whited out a footer drawn over them and left garbled tick text. Same crop as the current image: 3 panels + legend, full width, suptitle and footer cut (dockfig_scripts/crop_s147.py), white-padded to the old 1680 x 401 so the aspect and the box are unchanged. Numbers unchanged: claims_trend_halfday.csv / claims_trend_levels.csv byte-identical to the production render (scripts/frozen_claims.py --trend-only, env of z_frozen_claims_g; log frozen_fr_compare_footerfix_20261117/logs/trend_trend-only.log)",
+    "box_emu": null
+   }
+  ],
+  "slide_text": [],
+  "notes_body": [],
+  "data_block": {},
+  "changes": [
+   {
+    "what": "slide picture (layout only)",
+    "old": "s147_frozen_claims_trend.png: footer whited out over the x labels, garbled tick text",
+    "new": "s147_frozen_claims_trend_footerfix.png: x labels clean; same data, same crop and box",
+    "source": "frozen_fr_compare_footerfix_20261117/logs/trend_trend-only.log (tables byte-identical to frozen_fr_compare/)"
+   }
+  ],
+  "conclusion_changed": false,
+  "conclusion_note": "Picture swap only; notes and text unchanged."
+ }
+]

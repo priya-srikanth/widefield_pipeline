@@ -27,7 +27,8 @@ Figures (figdata + --plot-only):
   lick_iti_ramp_perspout.png          ITI bout starts by the PREVIOUS trial's spout
   (per-spout figures: per-bin sig bars as 14.1, tested against the animal's pre curve at that spout; 10-28)
 Outputs <E>/iti_licks/cued_ramp_auc_sessions.csv, cued_ramp_session_tests.csv, sig_bins_cued_ramp.csv,
-sig_bins_perspout.csv, perspout_auc_tests.csv (per-spout AUC 0..0.5 s / pre at that spout, change vs pre).
+sig_bins_perspout.csv, perspout_auc_tests.csv (per-spout AUC / pre at that spout, change vs pre; main window per set =
+`spout_windows(key)[0]`: cued / cue 0..1.0 s, ITI 0..0.5 s since Priya 11-17, the other windows kept as secondaries).
 Usage: python scripts/lick_cued_ramp.py --extract [--jobs N]; python scripts/lick_cued_ramp.py [--plot-only]
 """
 from __future__ import annotations
@@ -54,6 +55,14 @@ BASE_SPOUT = (-1.0, -0.5)             # per-spout lick-aligned figures, cued AND
 # per-spout AUC windows (Priya 10-28: "a longer AUC might make a difference ... the far contra acute peak decreases
 # earlier"; "what if we do 0-1s"): 0..0.5 (as before), 0..1.0, and the late part 0.5..1.0 alone
 SPOUT_WINDOWS = ((0.0, 0.5), (0.0, 1.0), (0.5, 1.0))
+
+
+def spout_windows(key: str) -> tuple:
+    """Per-spout AUC windows of a set, MAIN window first (Priya 11-17, "yes update 113 and 114 to match"): cued first lick
+    ('lick') and cue-aligned ('cue') = iti_licks.CUED_RESP_WIN (0..1.0 s; it was 0..0.5 s here until 11-17), ITI =
+    iti_licks.ITI_RESP_WIN (0..0.5 s); the remaining SPOUT_WINDOWS follow as secondaries."""
+    first = il.ITI_RESP_WIN if key == "iti" else il.CUED_RESP_WIN
+    return (first, *[w for w in SPOUT_WINDOWS if w != tuple(first)])
 BASE_RESP = il.BASE_RESP              # response-SIZE AUCs (14.10, 14.11); PETH curves + build-up keep BASE_L
 ROIS = il.KEY_ROIS
 SPOUT_ROIS = ["ALM_right", "tjM1_right", "SSp-m_right", "cortex"]
@@ -520,9 +529,11 @@ def compute() -> dict:
           + WT[WT.roi == "tjM1_right"].round(3).to_string(index=False))
     spout, srecs, auc_t = {}, [], []
     for key, base in (("lick", BASE_SPOUT), ("cue", BASE_C), ("iti", BASE_SPOUT)):
-        # normaliser = the animal's pre response AUC over ALL spouts under the SAME baseline
+        # normaliser = the animal's pre response AUC over ALL spouts under the SAME baseline, over the set's MAIN per-spout
+        # window (spout_windows(key)[0]: cued / cue 0..1.0 s, ITI 0..0.5 s; Priya 11-17 -- it was 0..0.5 s for every set)
         pa = _pe(D, key, base, SPOUT_ROIS)
-        den = {(r_, a_): _auc(np.nanmean(np.stack(g.peth.to_numpy()), 0), LAGS_W, 0.0, 0.5)
+        dw = spout_windows(key)[0]
+        den = {(r_, a_): _auc(np.nanmean(np.stack(g.peth.to_numpy()), 0), LAGS_W, *dw)
                for (r_, a_), g in pa[pa.epoch == "pre"].groupby(["roi", "animal"])}
         for p in lo.POS:
             P_ = _pe(D, key, base, SPOUT_ROIS, pos=p, min_n=MIN_SPOUT)
@@ -534,7 +545,8 @@ def compute() -> dict:
     pd.DataFrame(srecs).to_csv(il.OUT_W / "sig_bins_perspout.csv", index=False)
     AT = pd.DataFrame(auc_t)
     AT.to_csv(il.OUT_W / "perspout_auc_tests.csv", index=False)
-    print("== per-spout response AUC 0..0.5 s / the animal's pre AUC AT THAT SPOUT, change vs pre (* = CI excludes 0)\n"
+    print("== per-spout response AUC (windows per set, main first) / the animal's pre AUC AT THAT SPOUT, change vs pre "
+          "(* = CI excludes 0)\n"
           + AT.pivot_table(index=["set", "roi", "spout", "window"], columns="epoch", values="cell", aggfunc="first")
           .reindex(columns=il.EP4[1:]).to_string())
     return dict(sess=sess, ratio=ratio, win=win, summary=sp_, spout=spout, pos=list(lo.POS), auc_tests=AT,
@@ -552,7 +564,7 @@ def _draw_spout_windows(F: dict, key: str, what: str, path: Path) -> None:
 
     from wfield_local.orofacial_cohort import EPOCH_LINE as colors
     AT, pos = F["auc_tests"], F["pos"]
-    wins = [f"{w0:g}-{w1:g}" for w0, w1 in SPOUT_WINDOWS]
+    wins = [f"{w0:g}-{w1:g}" for w0, w1 in spout_windows(key)]      # main window first (11-17)
     fig, axs = plt.subplots(len(wins), len(SPOUT_ROIS), figsize=(20, 11), sharey="row", squeeze=False)
     for r, w in enumerate(wins):
         for c, roi in enumerate(SPOUT_ROIS):
@@ -579,7 +591,9 @@ def _draw_spout_windows(F: dict, key: str, what: str, path: Path) -> None:
                loc="lower center", ncol=4, fontsize=9.5, frameon=False)
     fig.suptitle(f"PER-SPOUT response size by WINDOW, {what} (baseline -1.0..-0.5 s): per session AUC / the animal's mean "
                  "PRE AUC at the same spout, change vs pre, mean of animals with 95% paired nested bootstrap CI.\nRows: "
-                 "0..0.5 s, 0..1.0 s, and the late part 0.5..1.0 s alone. _right = contralesional. PROVISIONAL", fontsize=9.5)
+                 + ", ".join(w.replace("-", "..") + " s" for w in wins)
+                 + " (first = the main window, Priya 11-17; 0.5..1.0 s = the late part alone). _right = contralesional. "
+                 "PROVISIONAL", fontsize=9.5)
     fig.tight_layout(rect=(0, 0.04, 1, 0.93))
     with _trial_set_for(path):
         save_png_svg(fig, path, dpi=100)
@@ -587,14 +601,15 @@ def _draw_spout_windows(F: dict, key: str, what: str, path: Path) -> None:
 
 
 def _spout_auc_tests(PE: pd.DataFrame, key: str, p: str) -> list[dict]:
-    """Per spout: response AUC (0..0.5 s after the lick / cue) / the animal's mean PRE AUC AT THAT SPOUT; change vs pre per
+    """Per spout: response AUC over spout_windows(key) (main window first: cued / cue 0..1.0 s, ITI 0..0.5 s since 11-17)
+    after the lick / cue / the animal's mean PRE AUC AT THAT SPOUT; change vs pre per
     epoch, `analysis_kit.boot_delta` (paired animals > sessions), animals with both pre and that epoch, >= 3 required.
     Prints the per-animal table first (rule 8)."""
     from wfield_local import analysis_kit as ak
     if PE.empty:
         return []
     out = []
-    for (w0, w1), roi in [(w, r) for w in SPOUT_WINDOWS for r in SPOUT_ROIS]:
+    for (w0, w1), roi in [(w, r) for w in spout_windows(key) for r in SPOUT_ROIS]:
         g = PE[PE.roi == roi].assign(auc=lambda t, w0=w0, w1=w1: [_auc(v, LAGS_W, w0, w1) for v in t.peth])
         pre = g[g.epoch == "pre"].groupby("animal").auc.mean()
         g = g[g.animal.isin(pre.index)].copy()
@@ -797,17 +812,17 @@ def plot(F: dict) -> None:
         _draw_windows(F, k, out / f"lick_ramp_windows_{k}.png")
     _draw_spout(F, "lick", "time from first cued lick (s)",
                 "SUPPLEMENT, NEURAL: first cued lick PER SPOUT (target), lick-onset aligned (-2..+3 s, baseline -1.0..-0.5 s), "
-                "/ the animal's PRE response AUC over all spouts (one scale across spouts); line = mean over sessions "
+                f"/ the animal's PRE response AUC {_CW} over all spouts (one scale across spouts); line = mean over sessions "
                 f"(>= {MIN_SPOUT} licks of that spout), band = SEM; _right = contralesional.",
                 out / "lick_cued_ramp_perspout.png", "/ pre response AUC")
     _draw_spout(F, "cue", "time from cue (s)",
                 "SUPPLEMENT, NEURAL: CUE-aligned per spout (-2..+3 s, baseline -1.0..-0.5 s), / the animal's PRE "
-                "cue-response AUC over all spouts; line = mean over sessions, band = SEM.",
+                f"cue-response AUC {_CW} over all spouts; line = mean over sessions, band = SEM.",
                 out / "lick_cued_ramp_cue_perspout.png", "/ pre cue AUC")
     _draw_spout(F, "iti", "time from ITI bout-start lick onset (s)",
                 "SUPPLEMENT, NEURAL: ITI bout-start licks (no lick for >= 2 s) by the PREVIOUS trial's spout (the spout is "
                 "retracted in the ITI), lick-onset aligned (-2..+3 s, baseline -1.0..-0.5 s), / the animal's PRE ITI response "
-                f"AUC over all spouts; line = mean over sessions (>= {MIN_SPOUT} licks), band = SEM.",
+                f"AUC {_IW} over all spouts; line = mean over sessions (>= {MIN_SPOUT} licks), band = SEM.",
                 out / "lick_iti_ramp_perspout.png", "/ pre response AUC")
     if "auc_tests" in F:     # figdata from before 10-28 evening lacks the per-spout window tests
         _draw_spout_windows(F, "lick", "first cued lick by TARGET spout", out / "lick_cued_perspout_windows.png")

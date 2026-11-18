@@ -231,7 +231,7 @@ SITES = {
     "wfield_local/position_axes.py": "post_s = lp_licks.post_s_for(align)",
     "wfield_local/position_coding_directions.py": "post_s = lp_licks.post_s_for(align)",
     "wfield_local/nightly_figs.py": "str(lp_licks.post_s_for(al))",
-    "wfield_local/locanmf_analysis_deck.py": "post = lp_licks.post_s_for(align, source=lick_source)",   # 11-16: LP-figure slides name their own source
+    "wfield_local/locanmf_analysis_deck.py": "post = lp_licks.post_s_for(align, source=src if src in lp_licks.LICK_SOURCES else None)",   # 11-17: the figure's own lick source (lick_provenance)
     "scripts/locanmf_refit_test/refit_vs_projection.py": "post_s=lp_licks.post_s_for(align)",
 }
 

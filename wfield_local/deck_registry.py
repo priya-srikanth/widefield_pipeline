@@ -2440,7 +2440,7 @@ _K_SESS = ("Sessions: pre = August-only pre-stroke sessions, 31 (PS92 8 / PS93 7
            "behavior video); acute 16 (5 / 4 / 6 / 1), subacute 17 (2 / 3 / 5 / 7), chronic 43 (12 / 12 / 8 / 11); n = 4 "
            "animals (PS95 acute = one session). Epochs per animal from its own lesion day (acute = far-contra hit rate < "
            "25% of pre: PS92 days 1-5, PS93 1-4, PS94 1-7, PS95 1; chronic from day 11 / 11 / 25 / 15; subacute between).")
-_K_LPGATE = ("Licks: LP video licks (cam4, plus cam1 where it exists) choose the trials and start the lick window; trials = "
+_K_LPGATE = ("Licks: LP video licks (cam4 + cam1, cam1 droplets removed) choose the trials and start the lick window; trials = "
              "lick trials (a camera-seen first lick, contact or incomplete, within 3.5 s of the cue) inside the camera "
              "working period (first to last camera lick; stopped runs and the quit tail excluded); engagement gate = DAQ "
              "contact OR LP attempt (LP-inclusive, output tag gateLP); no-lick, jaw-only and no-response trials excluded.")
@@ -2506,7 +2506,7 @@ LP_GATED_REBUILD = {
         "ipsilesional. " + _K_SESS + " Stats: none (descriptive). Script: wfield_local/attempt_maps.py."),
     "epoch_15r_position_RESTref_lick_lick.png": (None, (
         "15r REST-reference LP lick maps, pooled (image page Figs 7.18-7.19 family; rendered 11-17 from this branch, "
-        "frozen LP lick epoch decoders refitted the same day). " + "Window: 0-2 s from the first LP video lick (8 x 0.25 s bins). Licks: LP video licks (cam4, plus cam1 where it exists) "
+        "frozen LP lick epoch decoders refitted the same day). " + "Window: 0-2 s from the first LP video lick (8 x 0.25 s bins). Licks: LP video licks (cam4 + cam1, cam1 droplets removed) "
         "choose the lick trials and start the window; rest frames exclude DAQ licks. Trials: lick trials (a camera-seen first "
         "lick, contact or incomplete, within 3.5 s of the cue), camera trial gate (camera working period; stopped runs and the "
         "quit tail excluded), DAQ engagement gate (output tag LP_licks, not gateLP); >= 20 trials per position per session. "
@@ -2524,7 +2524,7 @@ LP_GATED_REBUILD = {
         "far mid 1.08 (larger, not smaller). Tables data/epoch_15r_position_RESTref_lick_lick_stats.csv. Script: "
         "python -m wfield_local.epoch_grant_figures --only 15r --arm lick (profile block epoch_maps, LP licks).")),
     "epoch_15rpa_position_RESTref_by_animal_lick_lick.png": (None, (
-        "15rpa: the same REST-reference far-contra LP lick maps PER ANIMAL (rendered 11-17 from this branch). " + "Window: 0-2 s from the first LP video lick (8 x 0.25 s bins). Licks: LP video licks (cam4, plus cam1 where it exists) "
+        "15rpa: the same REST-reference far-contra LP lick maps PER ANIMAL (rendered 11-17 from this branch). " + "Window: 0-2 s from the first LP video lick (8 x 0.25 s bins). Licks: LP video licks (cam4 + cam1, cam1 droplets removed) "
         "choose the lick trials and start the window; rest frames exclude DAQ licks. Trials: lick trials (a camera-seen first "
         "lick, contact or incomplete, within 3.5 s of the cue), camera trial gate (camera working period; stopped runs and the "
         "quit tail excluded), DAQ engagement gate (output tag LP_licks, not gateLP); >= 20 trials per position per session. "

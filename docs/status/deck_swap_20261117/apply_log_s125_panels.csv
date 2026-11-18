@@ -1,0 +1,2 @@
+slide,result,conclusion_changed,changes
+125,"applied: 1 picture(s), 2 text edit(s), notes rewritten",False,"[{""what"": ""figure"", ""old"": ""docked-ITI gauss curves (ITI + cued panels)"", ""new"": ""combined 5-column figure, all licks vs strict like-for-like"", ""source"": ""Priya 11-17""}, {""what"": ""reference"", ""old"": ""Gaussian weighted mean"", ""new"": ""Gaussian-weighted local line (loclin)"", ""source"": ""Priya 11-17 'pick loclin with gaussian kernel'""}]"

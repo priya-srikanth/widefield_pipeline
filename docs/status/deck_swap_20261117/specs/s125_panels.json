@@ -1,0 +1,73 @@
+[
+ {
+  "slide": 125,
+  "title_now": "Decoded vs landed: ITI shifted every epoch",
+  "status": "ready",
+  "skip_reason": "",
+  "pictures": [
+   {
+    "shape_name": "fig:lick_matched_gauss_curves",
+    "new_image": "M:/MICROSCOPE/Priya/Widefield/presentations/_source_PI_overview_2026-11-17/swap_inputs/s125_lick_matched_panels_crop.png",
+    "source_render": "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/panels_loclin_first_20261117/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/figures/lick_matched_panels.png",
+    "crop_done": "figure banner (title lines) and purple trial-set footer cropped; dashed-line footnote kept (rows 65..789 of 800)",
+    "box_emu": [
+     183909,
+     1990000,
+     11824182,
+     4460000
+    ]
+   }
+  ],
+  "slide_text": [
+   {
+    "shape_name": "TextBox 3",
+    "old": "•  Cued: close to pre in the middle; compressed at the edges chronically",
+    "new": "•  ITI: every epoch, every lick set; cued: acute + first lick; bottom row = strict matching, same result"
+   },
+   {
+    "shape_name": "TextBox 5",
+    "old": "Mean decoded lateral position for licks landing at each place (Gaussian σ 0.1 mm), mean ± SEM of 4 animals, dashed = 3; bars at top = landing bins that differ from pre (BH)",
+    "new": "Mean decoded lateral position for licks landing at each place (Gaussian σ 0.1 mm), mean ± SEM of 4 animals, dashed = 3; bottom row = only licks where the animal's own pre curve exists; bars = bins that differ from pre (BH)"
+   }
+  ],
+  "notes_body": [
+   "Encoding page Fig 12.2 [#f-lick_matched_panels] (combined figure, 11-17). Columns: cued all licks, cued FIRST post-cue lick, ITI all licks, ITI FIRST lick of a bout, ITI licks made while the spout is DOCKED. Top row: every post-stroke lick (local-linear reference, edge line carried beyond the pre range). Bottom row: only post-stroke licks that landed where the SAME animal's pre curve of the SAME lick set exists, each post curve cut to that range (strict like-for-like). Curves: Gaussian-smoothed per animal x epoch (sigma 0.1 mm; drawn where the Gaussian weight is >= 10 licks), mean +/- SEM over animals; dashed = only three animals. Bars = 0.25-mm landing bins whose change vs pre survives Benjamini-Hochberg (paired nested bootstrap; rows acute / subacute / chronic).",
+   "ITI: above pre on the ipsilesional and central side in every epoch and on every ITI set. All ITI -1.9 to +0.4 mm (10/10, 9/15, 10/16 bins; +0.12 to +0.79 mm); first lick of a bout 8/8, 2/12, 10/11; docked 7/8, 2/12, 10/14 (acute -1.6 to +0.1 mm, chronic -1.6 to +0.6 mm). Contralesional landings beyond about +0.6 mm do not differ. Session means, change vs pre (mm; 4/4 unless stated): ITI all +0.35 / +0.24 (3/4) / +0.27; ITI first +0.38 / +0.26 / +0.27; docked +0.29 / +0.22 (3/4) / +0.28. Cued: ipsilesional landings read +0.1 to +0.4 mm contralesional (acute -2.6 to -0.4 mm, 9/15 bins); the furthest contralesional landings read BELOW pre chronically (+1.1 to +1.9 mm, down to -0.30 mm): compression at the edge. Cued all +0.19 / +0.08 (n.s.) / -0.03 (n.s.); cued first +0.36 / +0.22 / +0.16 (4/4 each).",
+   "Strict like-for-like (bottom row): 3 % of post-stroke curve points drop out for all licks, 12-19 % for first licks (pre first licks cover a narrower range); no remaining point moves by more than 0.09 mm and the significant bins are identical in every panel and epoch. Dashed stretches: ITI first lick acute, PS95 covers only -1.75 to -0.70 mm (one acute session); ITI docked acute, PS95 has no curve (one session, 53 docked licks).",
+   "SIGN: + = READ more contralesional than the lick landed (decoder like-for-like offset, a DIRECTION quantity); landing / decoded lateral position + = contralesional. Decoder: frozen pre-stroke KEY-row lateral lick-position decoder per lick set (z-scored Allen areas with the ALM / tjM1 split, lags 0-0.2 s, August pre sessions, pre scored leave-one-session-out). Offset reference = a Gaussian-weighted local LINE through the animal's PRE licks of the same set (any spout) at the same landing place. Session means; change vs the animal's own pre, 95 % paired nested bootstrap (animals -> sessions). DOCKED ITI = ITI lick onset while the spout is docked (WFIELD_ITI_FILTER=dock), frozen all-ITI decoder, nothing refit. PROVISIONAL (n = 4).",
+   "Licks: LP video licks (cam4 detector) with 3-D tongue position from cam1 + cam4 pose; no DAQ spout-contact input.",
+   "FIGURE SOURCE: Encoding (goal) page Fig 12.2 [#f-lick_matched_panels] (https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d, v317) · render M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/panels_loclin_first_20261117/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/figures/lick_matched_panels.png (scripts/lick_matched_readout.py --ref loclin --first-curves --inside-curves; scripts/lick_matched_panels.py) · deck image: presentations/_source_PI_overview_2026-11-17/swap_inputs/s125_lick_matched_panels.png",
+   "LICK SOURCE: Fig 12.2 [licks: LP video, cam4 (3-D)]."
+  ],
+  "data_block": {
+   "Window": "lick peak, decoder lags 0..0.2 s",
+   "Licks": "LP video licks (cam4) with 3-D landing (cam1 + cam4)",
+   "Trial period": "cued: inside a trial's response window; ITI: between trials (all; bout start; spout docked, WFIELD_ITI_FILTER=dock)",
+   "Trial types": "cued all / cued first lick / ITI all / ITI first lick of a bout / docked-spout ITI licks, all spouts",
+   "Gate": "OROFACIAL_GATE=attempted, WIDEFIELD_TRIAL_GATE=camera",
+   "Baseline": "August pre licks of the same set landing at the same place (Gaussian-weighted local line, sigma 0.1 mm), pre LOSO",
+   "Correction": "paired nested bootstrap per 0.25-mm landing bin, Benjamini-Hochberg across bins [traced: render logs panels_loclin_first_20261117/logs/loclin_inside3.log, panels_loclin_dock_20261117/logs/loclin_inside3.log, panels.log]"
+  },
+  "changes": [
+   {
+    "what": "figure",
+    "old": "docked-ITI gauss curves (ITI + cued panels)",
+    "new": "combined 5-column figure, all licks vs strict like-for-like",
+    "source": "Priya 11-17"
+   },
+   {
+    "what": "reference",
+    "old": "Gaussian weighted mean",
+    "new": "Gaussian-weighted local line (loclin)",
+    "source": "Priya 11-17 'pick loclin with gaussian kernel'"
+   },
+   {
+    "what": "title",
+    "old": "Decoded vs landed: ITI shifted every epoch",
+    "new": "Decoded vs landed: ITI shifted every epoch, cued acutely",
+    "source": "Priya 11-17 'slide title shouldn't be just ITI' (applied after the spec, same pass)"
+   }
+  ],
+  "conclusion_changed": false
+ }
+]

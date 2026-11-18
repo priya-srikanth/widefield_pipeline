@@ -23,6 +23,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
+from wfield_local import trial_set_text as tst  # noqa: E402
 import likeforlike as lfl  # noqa: E402
 from figdata import load_fd, plot_only, save_fd  # noqa: E402
 
@@ -96,7 +97,7 @@ def _fit(fig) -> None:
     """tight_layout leaving room for the suptitle: ~0.2 in per title line + 0.3 in margin (no title / panel overlap)."""
     t = fig._suptitle.get_text() if fig._suptitle is not None else ""
     n = t.count(chr(10)) + 1 if t else 0
-    fig.tight_layout(rect=(0, 0, 1, 1 - (0.17 * n + 0.12) / fig.get_size_inches()[1]))
+    fig.tight_layout(rect=(0, tst.footer_bottom(fig), 1, 1 - (0.17 * n + 0.12) / fig.get_size_inches()[1]))  # footer (11-17)
 
 
 def grid_draw(F: dict) -> None:
@@ -448,10 +449,15 @@ def draw(F: dict) -> None:
     {"grid": grid_draw, "course": course_draw, "hist": hist_draw}[F["kind"]](F)
 
 
+SUBSET_STEMS = ["lick_iti_check_error_per_lick", "lick_iti_check_error_per_lick_angle", "lick_iti_check_error_sessions"]
+
+
 def compute_subset():
     """ITI subset run (il.ITI_SUBSET, e.g. docked-spout licks): only the two ITI error figures (per-lick histograms and
-    the per-session shift / width), from the subset's where cache (il.pred_file -> iti_dock_where_preds.py copy)."""
+    the per-session shift / width), from the subset's where cache (il.pred_file -> iti_dock_where_preds.py copy); since
+    11-17 also the ANGLE per-lick histograms (same cache: angle = atan2 of the lateral and sagittal read-outs)."""
     yield error_hist(("iti",), "lick_iti_check_error_per_lick")
+    yield error_hist(("iti",), "lick_iti_check_error_per_lick_angle", coords=("angle",))
     p = pd.read_csv(il.pred_file("zscore_check/where_preds_z.csv"))
     p["err"] = p.dec_lat - p.act_lat
     E = (p[p.set == "iti"].dropna(subset=["err"]).groupby(["set", "animal", "epoch", "label"]).err
@@ -532,7 +538,7 @@ def _draw(F: dict) -> None:
 def main() -> int:
     il.split_only("iti_check_figures")
     if plot_only():                                   # redraw from figdata only: no CSV, no bootstrap
-        for stem in STEMS:
+        for stem in (SUBSET_STEMS if il.ITI_SUBSET else STEMS):      # a subset run draws only compute_subset's figures
             _draw(load_fd(stem))
         print(f"redrew {len(STEMS)} figures from {il.OUT / 'figdata'}")
         return 0

@@ -264,7 +264,29 @@ _ALIGN_PROSE = {
 }
 
 
-def window_provenance(fig_names, lick_source: str | None = None) -> str:
+#: Figure folders that are NOT a DAQ-source imaging render even without an ``LP_licks`` tag: video / encoder / pose
+#: outputs. A slide whose figure sits under one of these gets no guessed lick source in its provenance line.
+_VIDEO_RUN_MARKERS = ("/LP_analysis/", "/imaging_encoding/", "/session_poses/", "/orofacial", "/face_rhythm")
+
+
+def figure_lick_source(fig_paths=(), lick_source: str | None = None) -> str | None:
+    """The lick source a slide's figures were drawn under: ``lick_source`` when the caller knows it; "lp" when a figure
+    sits in an ``LP_licks`` output folder (`lp_licks.output_tag`) or in `attempt_maps`; None when it sits in a video / encoder output folder
+    (`_VIDEO_RUN_MARKERS`: not resolvable from the path); else the build environment's WIDEFIELD_LICK_SOURCE."""
+    if lick_source:
+        return lick_source
+    paths = [str(q).replace(chr(92), "/") for q in (fig_paths or ())]
+    if any("/LP_licks" in q for q in paths):
+        return "lp"
+    if any("/attempt_maps/" in q for q in paths):      # attempt_maps refuses to run off the LP source (video classes)
+        return "lp"
+    if any(m in q for q in paths for m in _VIDEO_RUN_MARKERS):
+        return None
+    from wfield_local import lp_licks
+    return lp_licks.lick_source()
+
+
+def window_provenance(fig_names, lick_source: str | None = None, fig_paths=None) -> str:
     """One line stating the window and binning behind the figures on a slide.
 
     WHY EVERY SLIDE CARRIES THIS. On 2026-08-21 decode.max_rt_s moved from 2.0 s to 3.5 s and
@@ -287,18 +309,40 @@ def window_provenance(fig_names, lick_source: str | None = None) -> str:
         return ""
     from wfield_local import lp_licks
     # the pre-cue window follows the lick source (Priya 11-04); ``lick_source`` = the source the FIGURE was drawn
-    # under (an LP section G slide in a deck built under the default DAQ env), else the environment's
-    post = lp_licks.post_s_for(align, source=lick_source)
+    # under (an LP section G slide in a deck built under the default DAQ env).
+    # EVERY window line names its lick train (Priya 11-17: "I don't know if we specify everywhere cam4 vs cam4 + cam1
+    # LP licks"). The source comes from the caller, else the figure's folder, else the build env (`figure_lick_source`);
+    # a figure in a video / encoder folder gets an explicit "not resolved" instead of a guess.
+    from wfield_local import lick_provenance as lpv
+    src = figure_lick_source(fig_paths or (), lick_source)
+    post = lp_licks.post_s_for(align, source=src if src in lp_licks.LICK_SOURCES else None)
     nb = int((d.get("bins") or {}).get(align, 1) or 1)
     binning = (f"{nb} sub-bins of {post / nb:.2f} s (the decoder sees a time course, not one mean)"
                if nb > 1 else "1 bin (the window mean)")
+    rt = f"{float(d['max_rt_s']):.1f} s of the cue (decode.max_rt_s)"
+    first = {"lp": "first LP video lick (contact or incomplete)", "daq": "first DAQ spout-contact lick"}.get(src,
+                                                                                                    "first lick")
     bits = [f"- window: {_ALIGN_PROSE[align]}, {post:.1f} s (+1.0 s before it)",
             f"- binning: {binning}",
-            (f"- engaged: first lick within {float(d['max_rt_s']):.1f} s of the cue "
-             f"(decode.max_rt_s)"
-             # stated only when the caller names the source: other slides' figures can come from either run
-             + ("; licks = camera (LP video) licks, contact or incomplete (cam4 + cam1)"
-                if lick_source == "lp" else ""))]
+            f"- engaged (lick trials): {first} within {rt}"]
+    if src in ("lp", "daq"):
+        from wfield_local import trial_classes as _tc
+        try:
+            cam = bool(_tc.camera_gate_on())
+        except Exception:                                    # noqa: BLE001 - a note must not kill the build
+            cam = False
+        # the camera classes hold only for figures of THIS tagged run: an untagged (pre-11-03) render placed in a
+        # tagged build used the DAQ quit-tail working rule (`trial_classes` UNTAGGED_GATE)
+        from wfield_local import run_mode as _rm
+        _tag = _rm.tag()
+        _old = bool(cam and _tag and fig_paths and not any(_tag in str(q) for q in fig_paths))
+        line = lpv.licks_line(src, align, camera_gate=cam and not _old)
+        if _old and src == "daq":
+            line += "; working trials: DAQ quit-tail rule (untagged pre-rebuild render)"
+        bits.append("- " + line)
+    else:
+        bits.append("- licks: the run named in the notes above (a video / encoder output; not resolved from the "
+                    "figure path)")
     if "base-none" in names:
         bits.append("- baseline: none")
     if "cv-block" in names:
@@ -2495,7 +2539,8 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
         _figs = figs_by_slide.get(id(_sl._element), [])
         _cap = figure_caption(_figs, years=_years)
         _line = ("" if id(_sl._element) in _no_window_line else
-                 window_provenance(_figs, lick_source="lp" if id(_sl._element) in _lp_slides else None))
+                 window_provenance(_figs, lick_source="lp" if id(_sl._element) in _lp_slides else None,
+                                   fig_paths=canvas.fig_paths_by_slide.get(id(_sl._element), [])))
         if not _cap and not _line:
             continue
         _tf = _sl.notes_slide.notes_text_frame

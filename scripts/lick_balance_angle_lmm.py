@@ -20,6 +20,22 @@ session contributes one point per spout and the lick angle varies across spouts 
               as the evoked response, is defined for every lick, and as a difference scales with response size;
               resp is baseline-corrected and a ratio (gain-invariant) but needs lick-free windows (first licks only).
               The two disagree on ITI licks (handoff 00-COMPACT-41).
+              Two BOUNDED, baseline-corrected indices (Priya 11-17; requested with --idx, otherwise every output is as
+              before), bounded_index(c, i) = (c - i) / (|c| + |i|), defined for every
+              row, = (r - 1) / (r + 1) for r = c / i when both > 0 (c = X_right, contralesional; i = X_left):
+              dec_idx  = on dec's own per-lick traces (the session file's iti_X / tr_X, LAGS_D -1..+1 s from the lick
+                         PEAK, the decoder's inputs): each hemisphere baseline-subtracted (-1.0..-0.5 s before the PEAK,
+                         lick_cued_ramp.BASE_SPOUT = resp's baseline, there before the ONSET), mean over 0..0.2 s, averaged over the session x spout
+                         cell's licks, THEN the index of the two cell means (as dec = mean c - mean i; orofacial = mean of
+                         the four areas per hemisphere, as resp). For an index the mean and the AUC over one window are
+                         identical (the window length cancels), so dec_idx = the bounded index of the 0..0.2 s AUC.
+              resp_idx = the same index of resp's two AUCs (c_<win>, i_<win> of lateral_ratio_sessions.csv; baseline
+                         -1.0..-0.5 s, cued 0..1.0 s, ITI 0..0.5 s; onset-aligned first licks / bout starts >= 2 s)
+              dec -> dec_idx removes the pre-lick level and the overall gain; dec_idx vs resp_idx = the window / lick set
+              (0..0.2 s from the peak, KEY licks) vs the response window (onset-aligned first licks); resp vs resp_idx =
+              log ratio vs bounded index. Later licks: dec_idx's baseline may hold the previous lick (descriptive only).
+              --gap2 (11-17): ITI bout starts with gap >= il.GAP_MAIN (2 s, resp's rule) only, instead of >= BOUT_GAP
+              (1 s), so the baseline starts >= 1 s after the previous lick (gap_keep).
 MODELS (statsmodels MixedLM, random intercept per animal, ML; centered angle):
   y ~ angle * post          post = any post-stroke epoch: (1) slope of balance on angle pre-stroke; (2) angle x post =
                             does the slope change; (3) post = the shift at the SAME angle (the landing-matched balance
@@ -43,6 +59,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
 import iti_lick_order as lo  # noqa: E402
 import lick_balance_reference as lbr  # noqa: E402
+import lick_cued_ramp as cr  # noqa: E402
 from figdata import load_fd, plot_only, save_fd  # noqa: E402
 
 PAIRS = [*lbr.PAIRS, "orofacial"]       # + the four pooled (Priya 10-28)
@@ -53,16 +70,126 @@ RESP_LAB = (f"hemispheric BALANCE (ratio) log2(contra / ipsi AUC; cued {il.win_l
             f"ITI {il.win_label(il.ITI_RESP_WIN)})")
 MIN_LICKS = 5
 EP = ["acute", "subacute", "chronic"]
+# the bounded indices are REQUESTED with --idx (Priya 11-17); without it every output is byte-identical to before
+MEAS_BASE = ("dec", "resp")
+MEAS_IDX = ("dec_idx", "resp_idx")
+# dec_idx: baseline = resp's (lick_cued_ramp.BASE_SPOUT, -1.0..-0.5 s), here before the lick PEAK on dec's own LAGS_D
+# traces; window = dec's (lick_balance_reference.W, 0..0.2 s)
+_BD = (il.LAGS_D >= cr.BASE_SPOUT[0]) & (il.LAGS_D <= cr.BASE_SPOUT[1])
+ZC = [f"zc_{a}" for a in lbr.PAIRS] + [f"zi_{a}" for a in lbr.PAIRS]
+
+
+def idx_on() -> bool:
+    """--idx on the command line (this script or lick_iti_matched_markers balance-angle) adds dec_idx / resp_idx."""
+    return "--idx" in sys.argv
+
+
+def gap_keep(P: pd.DataFrame) -> np.ndarray:
+    """--gap2 (Priya 11-17): keep only ITI bout starts (set 'iti', order 0) with gap >= il.GAP_MAIN (2 s, resp's rule)
+    instead of >= il.BOUT_GAP (1 s), so the -1.0..-0.5 s baseline starts >= 1 s after the previous lick. Gap = time since
+    the previous lick onset, from <OUT>/iti_dock_audit.csv (key label x k, as il.iti_subset_keep). Later licks and cued
+    rows are untouched. All True without the flag. Needs P['k'] = the prediction-cache index."""
+    if "--gap2" not in sys.argv:
+        return np.ones(len(P), bool)
+    A = pd.read_csv(il.OUT / "iti_dock_audit.csv", usecols=["label", "k", "gap"]).set_index(["label", "k"]).gap
+    g = A.reindex(pd.MultiIndex.from_arrays([P.label, P.k])).to_numpy(float)
+    first = ((P.set == "iti") & (P.order == 0)).to_numpy()
+    keep = ~first | (g >= il.GAP_MAIN)
+    print(f"--gap2: ITI bout starts kept {int((first & keep).sum())} of {int(first.sum())} (gap >= {il.GAP_MAIN:g} s; "
+          f"gap missing for {int((first & ~np.isfinite(g)).sum())})", flush=True)
+    return keep
+
+
+def meas_list() -> tuple:
+    return MEAS_BASE + (MEAS_IDX if idx_on() else ())
+
+
+def bounded_index(c, i):
+    """THE bounded contra / ipsi index (c - i) / (|c| + |i|) in [-1, 1] (Priya 11-17): defined for every row (NaN only
+    where c = i = 0 or either is NaN); = (r - 1) / (r + 1) for r = c / i when both > 0. For one window the mean and the
+    AUC give the same index (the window length cancels)."""
+    c, i = np.asarray(c, float), np.asarray(i, float)
+    den = np.abs(c) + np.abs(i)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        return np.where(den > 0, (c - i) / den, np.nan)
+
+
+def _session_bal_idx(label: str) -> pd.DataFrame:
+    """lbr._session_bal (dec, unchanged) + per lick and area the baseline-subtracted decoder-window mean of each
+    hemisphere (zc_<a> = X_right, zi_<a> = X_left), on the same traces and the same lick match as lbr."""
+    import lick_covariate_reference as cv
+    B = lbr._session_bal(label)
+    acts = cv._acts(label)
+    d = il._load(label)
+    cols = list(d["cols"])
+    out = []
+    for st, (xk, sk) in {"iti": ("iti_X", "iti_side"), "trial": ("tr_X", "tr_side")}.items():
+        act = np.asarray(acts.get(st, []), float)
+        if not len(act):
+            continue
+        m = il.subseq_match(d[sk].astype(float), act)
+        X = d[xk].astype(float)
+        Z = X[:, lbr.W, :].mean(1) - X[:, _BD, :].mean(1)
+        R = pd.DataFrame({"set": st, "label": label, "k": np.arange(len(act))})
+        for a in lbr.PAIRS:
+            for h, side in (("zc", "right"), ("zi", "left")):
+                v = Z[:, cols.index(f"{a}_{side}")]
+                R[f"{h}_{a}"] = np.where(m >= 0, v[np.maximum(m, 0)], np.nan)
+        out.append(R)
+    return B.merge(pd.concat(out, ignore_index=True), on=["set", "label", "k"], how="left", validate="one_to_one")
+
+
+def session_worker():
+    """Per-session fan-out worker: lbr._session_bal, or with --idx _session_bal_idx (its superset)."""
+    return _session_bal_idx if idx_on() else lbr._session_bal
+
+
+def bal_cols() -> list:
+    """Per-lick columns averaged per session x spout."""
+    return [*lbr.BAL, *(ZC if idx_on() else [])]
+
+
+def add_dec_idx(S: pd.DataFrame) -> pd.DataFrame:
+    """dec_idx_<pair> = bounded_index of the cell means zc_ / zi_ (orofacial = the mean of the four areas per hemisphere,
+    as lick_lateral_ratio's orofacial pool). No-op without --idx."""
+    if not idx_on():
+        return S
+    for a in lbr.PAIRS:
+        S[f"dec_idx_{a}"] = bounded_index(S[f"zc_{a}"], S[f"zi_{a}"])
+    S["dec_idx_orofacial"] = bounded_index(S[[f"zc_{a}" for a in lbr.PAIRS]].mean(1),
+                                           S[[f"zi_{a}" for a in lbr.PAIRS]].mean(1))
+    return S
+
+
+def resp_tables(R: pd.DataFrame, colmap: dict) -> pd.DataFrame:
+    """resp_<pair> (the log2 ratio column of each set's primary window, colmap) per set x label x pos from a
+    lick_lateral_ratio sessions table; with --idx also resp_idx_<pair> = bounded_index of the same window's AUCs
+    (c_<win>, i_<win>, lick_lateral_ratio.compute)."""
+    R = R[R.spout.isin(lo.POS) & R.set.isin(list(colmap))].copy()
+    vals = {"y": "resp_"}
+    R["y"] = [r_[colmap[st]] for st, (_i, r_) in zip(R.set, R.iterrows(), strict=True)]
+    if idx_on():
+        vals["yi"] = "resp_idx_"
+        R["yi"] = [float(bounded_index(r_[colmap[st].replace("logr_", "c_")], r_[colmap[st].replace("logr_", "i_")]))
+                   for st, (_i, r_) in zip(R.set, R.iterrows(), strict=True)]
+    out = []
+    for v, pre in vals.items():
+        W = R.pivot_table(index=["set", "label", "spout"], columns="pair", values=v)
+        W.columns = [f"{pre}{c}" for c in W.columns]
+        out.append(W)
+    W = out[0] if len(out) == 1 else out[0].join(out[1], how="outer")
+    return W.reset_index().rename(columns={"spout": "pos"})
 
 
 def points() -> pd.DataFrame:
     from wfield_local import analysis_kit as ak
     P = pd.read_csv(lo.preds_path()).reset_index(drop=True)
     P["k"] = P.groupby(["set", "label"]).cumcount()
+    P = P[gap_keep(P)].reset_index(drop=True)          # --gap2 only (k = cache index kept)
     C = pd.read_csv(il.in_path(f"covref_covariates{lo.SRC_TAG}.csv.gz"),
                     usecols=["set", "label", "k", "reach_mm", "side_k"])
     P = P.merge(C, on=["set", "label", "k"], how="left", validate="one_to_one")
-    res, fail = ak.fan_sessions(sorted(P.label.unique()), lbr._session_bal)
+    res, fail = ak.fan_sessions(sorted(P.label.unique()), session_worker())
     if fail:
         raise RuntimeError(f"balance failed for {len(fail)} sessions: {fail[:5]}")
     B = pd.concat([v for _it, v in res], ignore_index=True)
@@ -74,18 +201,15 @@ def points() -> pd.DataFrame:
     # a later lick would overlap the next lick)
     P["cls"] = np.where(P.order == 0, "", " later")
     g = P.groupby(["set", "cls", "label", "animal", "epoch", "pos"])
-    S = g[["angle", *lbr.BAL]].mean().join(g.size().rename("n")).reset_index()
+    S = g[["angle", *bal_cols()]].mean().join(g.size().rename("n")).reset_index()
     S = S[S.n >= MIN_LICKS]
     S["set"] = S.set.map(SETMAP) + S.cls
     S = S.drop(columns="cls")
-    R = pd.read_csv(il.in_path("lateral_ratio_sessions.csv"))
-    R = R[R.spout.isin(lo.POS) & R.set.isin(list(RESP_COL))]
-    R = R.assign(y=[r_[RESP_COL[st]] for st, (_i, r_) in zip(R.set, R.iterrows())])
-    R = R.pivot_table(index=["set", "label", "spout"], columns="pair", values="y")
-    R.columns = [f"resp_{c}" for c in R.columns]
-    S = S.merge(R.reset_index().rename(columns={"spout": "pos"}), on=["set", "label", "pos"], how="left")
+    S = S.merge(resp_tables(pd.read_csv(il.in_path("lateral_ratio_sessions.csv")), RESP_COL),
+                on=["set", "label", "pos"], how="left")
     S = S.rename(columns={f"bal_{a}": f"dec_{a}" for a in lbr.PAIRS})
     S["dec_orofacial"] = S[[f"dec_{a}" for a in lbr.PAIRS]].mean(1)   # = the mean of the four pair balances
+    S = add_dec_idx(S)
     S["post"] = (S.epoch != "pre").astype(int)
     return S
 
@@ -95,13 +219,29 @@ def _fit(df: pd.DataFrame, formula: str):
     return smf.mixedlm(formula, df, groups=df["animal"]).fit(reml=False)
 
 
+def inside_shift(G: pd.DataFrame, min_post: int = 8) -> dict:
+    """Post shift INSIDE the pre angle range: pre cells + post cells whose angle lies within the animal's own pre cells'
+    range, y ~ ac + post + (1 | animal) (as lick_iti_matched_markers.farcontra). {} when < min_post post cells."""
+    rng_ = G[G.post == 0].groupby("animal").angle.agg(["min", "max"])
+    lo_, hi_ = G.animal.map(rng_["min"]), G.animal.map(rng_["max"])
+    Gi = G[(G.post == 0) | ((G.angle >= lo_) & (G.angle <= hi_))]
+    if Gi.post.sum() < min_post:
+        return {}
+    try:
+        fi = _fit(Gi, "y ~ ac + post")
+    except Exception as ex:                      # noqa: BLE001  reported in the row, not hidden
+        return {"n_post_inside": int(Gi.post.sum()), "note_inside": f"FAILED {ex}"}
+    return {"n_post_inside": int(Gi.post.sum()), "shift_inside_pre_range": fi.fe_params["post"],
+            "p_shift_inside": fi.pvalues["post"]}
+
+
 def compute() -> dict:
     S = points()
     S.to_csv(il.OUT_W / "balance_angle_points.csv", index=False)
     rows, an = [], []
     for st, G0 in S.groupby("set"):
         mu = G0[G0.epoch == "pre"].angle.mean()
-        for meas in ("dec", "resp"):
+        for meas in meas_list():
             for a in PAIRS:
                 y = f"{meas}_{a}"
                 G = G0.dropna(subset=["angle", y]).rename(columns={y: "y"})
@@ -120,6 +260,8 @@ def compute() -> dict:
                                  "slope_pre": fe["ac"], "p_slope_pre": p_["ac"],
                                  "slope_change_post": fe["ac:post"], "p_slope_change": p_["ac:post"],
                                  "shift_post_same_angle": fe["post"], "p_shift": p_["post"], "angle_centre": mu})
+                    if idx_on():                           # 11-17 (--idx): added columns only
+                        rows[-1].update(inside_shift(G))
                     f = _fit(G, "y ~ ac * C(epoch, Treatment('pre'))")
                     fe, p_ = f.fe_params, f.pvalues
                     for ep in EP:
@@ -143,6 +285,8 @@ def compute() -> dict:
     return {"S": S, "M": M, "A": A}
 
 
+TTL = {"dec": "DIFFERENCE (X_right - X_left)", "resp": "BALANCE (ratio)",
+       "dec_idx": "INDEX (decoder window, baseline-corrected)", "resp_idx": "INDEX (response AUCs)"}
 ROWLAB = {"cued": "CUED first lick", "cued later": "CUED LATER licks\n(order >= 1)", "iti": "ITI bout start",
           "iti later": "ITI LATER licks\n(order >= 1 in the bout)"}
 
@@ -165,8 +309,15 @@ def plot(F: dict) -> None:
     col = {"pre": "k", **EPOCH_LINE}
     S, M = F["S"], F["M"]
     for meas, lab in (("dec", "hemispheric DIFFERENCE X_right - X_left, 0..0.2 s, no baseline (x1e3 dF/F)"),
-                      ("resp", RESP_LAB)):
-        sets = ("cued", "cued later", "iti", "iti later") if meas == "dec" else ("cued", "iti")
+                      ("resp", RESP_LAB),
+                      ("dec_idx", "bounded INDEX (c - i) / (|c| + |i|), 0..0.2 s from the peak,\n"
+                                  f"baseline {il.win_label(cr.BASE_SPOUT)}"),
+                      ("resp_idx", "bounded INDEX (c - i) / (|c| + |i|) of the response AUCs\n"
+                                   f"(cued {il.win_label(il.CUED_RESP_WIN)}, ITI {il.win_label(il.ITI_RESP_WIN)}; "
+                                   f"baseline {il.win_label(cr.BASE_SPOUT)})")):
+        if f"{meas}_orofacial" not in S:                  # the indices only with --idx
+            continue
+        sets = ("cued", "cued later", "iti", "iti later") if meas.startswith("dec") else ("cued", "iti")
         fig, axs = plt.subplots(len(sets), len(PAIRS), figsize=(24, 4.75 * len(sets)), squeeze=False)
         for i, st in enumerate(sets):
             G = S[S.set == st]
@@ -227,7 +378,7 @@ def plot(F: dict) -> None:
                    + [Line2D([], [], color="k", lw=1.7, label="pre fit")]
                    + [Line2D([], [], color=col[e], lw=1.4, ls="--", label=f"{e} fit") for e in EP],
                    loc="lower center", ncol=8, fontsize=9, frameon=False)
-        fig.suptitle(f"Hemispheric {'DIFFERENCE (X_right - X_left)' if meas == 'dec' else 'BALANCE (ratio)'} vs lick angle by epoch ({meas}): one point per session x spout (cued: target; "
+        fig.suptitle(f"Hemispheric {TTL[meas]} vs lick angle by epoch ({meas}): one point per session x spout (cued: target; "
                      "ITI: previous trial's spout); mixed model y ~ angle * epoch + (1 | animal), sessions x spouts as "
                      "observations\n(anti-conservative at 4 animals; per-animal x epoch slopes in balance_angle_animals.csv). "
                      "Titles: a/s/c = acute / subacute / chronic vs pre; BOLD = p < 0.05; 'shift at same angle' = epoch "

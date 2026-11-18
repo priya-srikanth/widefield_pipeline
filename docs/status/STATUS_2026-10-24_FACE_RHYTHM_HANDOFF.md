@@ -56,6 +56,89 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
 
 ## 2. Next, in order
 
+00-A8-1117c. **11-17 LATE (a8) -- START HERE (state at ~19:30: all published; only the quiet-event re-run is queued, waiting on 3c's commit); 00-A8-1117b below is the evening state (still valid for everything else).**
+   Like-for-like curves rebuilt as ONE figure (Priya 11-17): columns cued all / cued first / ITI all / ITI bout-start first
+   lick / ITI docked; rows all post licks vs STRICT (post licks only where the animal's own pre curve of the same lick set
+   exists). Gaussian-smoothed curves, local-linear reference (DECISIONS 2026-11-17 'Like-for-like curves'); FINDINGS 4d0k.
+   **Published:** goal page v317 (3c owns the page; a8 edited section 12 + the brief card only, 3c told): Fig 12.2 =
+   lick_matched_panels.png (#f-lick_matched_panels; old id kept), non-linear curves -> Fig 12.2 S2, 3 old curve PNGs
+   removed (page at 509 / 511 files). **Deck:** slide 125 replaced + retitled 'Decoded vs landed: ITI shifted every
+   epoch, cued acutely' (backup .bak_pre_a8_panels_20261117; specs/s125_panels.json). **Outputs:** iti_licks/
+   panels_loclin_first_20261117 (all-ITI, figure + figdata) and panels_loclin_dock_20261117; semband_{allITI,dock,gap2dock}
+   _20261117 (binned loclin curves with SEM band, superseded for display). **Code (default-off):** lick_matched_readout
+   curve_panel / --sem-band / --inside-curves; scripts/lick_matched_panels.py. Record: DOCKED_DECODED_VS_EXECUTED_20261117.md
+   (combined panel section). **Open (offered, not asked):** within-spout like-for-like version (each spout's own pre licks;
+   ~20 min per set); per-session lick counts kept under the strict rule; Fig 12.1 read-out still on the Gaussian-mean
+   reference (loclin agrees within 0.03 mm) -- switch only if Priya wants it. Nothing of a8's is running.
+   **Later 11-17:** figure title 'Decoded vs landed lateral position' (not LIKE-FOR-LIKE; page v318). NON-LINEAR version:
+   page Fig 12.2 S2 (v319, replaces the old non-linear curves; 2 old PNGs removed) + NEW HIDDEN deck slide 126 'Same with a
+   non-linear decoder' (s125b_nonlinear.py; backup .bak_pre_a8_s126nl_20261117). DECK NOW 207 SLIDES: every slide after
+   125 moved +1 (quiet-event 156/157 -> 157/158; rest maps 187/188/204-206 -> 188/189/205-207). **Queued (3c, Priya OK):**
+   quiet-event re-run with the cam1 far-from-mouth guard (cam1-only events count as licks only if non-droplet AND
+   med_out_px >= -120; audit docs/status/CAM1_FARMOUTH_BLAST_RADIUS_20261117.md on branch analysis/restnl-cam1-1117).
+   Wait for 3c's commit on fix/cam1-farmouth-guard-1117; run from that worktree; production env = cohort1_quiet_spikes/
+   v2_quiet_lp_20261117/logs/quiet_v2.log (QS_LICK_SOURCE=daq+lp, rebuild env); new QS_V2_DIRNAME; then per-animal old vs
+   new chronic + chronic-vs-pre numbers to Priya BEFORE page (section 23) / deck (157 / 158; 3c named 112 too) changes.
+
+00-A8-1117b. **11-17 EVENING (a8) -- START HERE; item 00-A8-1117 below is the day's earlier state (its "Running" list is DONE).**
+   Day log: docs/status/RUNNING_LIST_2026-11-08_a8_june.md (11-17 entries). Nothing of a8's is running.
+   **Deck (Overview_2026-11-06.pptx) done today, on top of 00-A8-1117:** groups C (LMM incl. docked + per-session slide 12 +
+   111 / 116; other incl. 22 record, 157 rewrite, 139 full set), docked-ITI slides, low-hit (<20) cells shown (120, 121, 141-146),
+   ITI response window 0..0.5 s (DECISIONS 2026-11-17; ITI_WINDOW_AUDIT_20261117.md), cued per-spout window 0..1.0 s (113 / 114),
+   slide 139 retitled "Cued ipsi-contra balance places an unseen animal on recovery" (4-column figure, cued left / ITI right),
+   slide 21 both scales + decomposition result in notes, slide 20 / 147 layout fixes (overlap_check.py), 33 lick-source wording
+   fixes (3c audit). Backups kept: .bak_pre_a8_swap_20261117 (before today), .bak_pre_a8_licksrc_20261117; 17 others deleted
+   (Priya OK; DELETED_DECK_BACKUPS_20261117.txt). Applier + specs + logs: docs/status/deck_swap_20261117/ (README = spec schema).
+   **Results documented today:** SLIDE21_DECOMPOSITION.md (trial gate drives the slide 21 change: old gate on the rebuild -.397 /
+   -.191 / -.112; ~-.02 from old fitted-vs-projected joint time courses; pre set / scaling / lick detector none);
+   ITI_NEG_AUC_DIAGNOSTIC.md; ITI_MATCHED_ANGLE_MARKERS.md (sections 1-5b: cued -> cued angle .68; all-ITI balance holds vs
+   matched / docked angles, DOCKED balance loses the recovery link; far-contra within-spout raw balance; bounded indices dec_idx /
+   resp_idx: dec's negative ITI shifts vanish, cued far-contra shift survives; gap >= 2 s check); DOCKED_DECODED_VS_EXECUTED_20261117.md
+   (docked ITI offset +0.30 / +0.21 / +0.27 mm holds; raw offset-aim link gone on docked, survives detrended). FINDINGS recovery-
+   marker block has the 11-17 entries; FINDINGS / ENCODING_FINDINGS ITI lines updated to 0..0.5 s.
+   **FR page:** v55 published (12 lick-source captions: FR lick windows = LP video cam4 only, licks_all.csv).
+   **Code added (all flags default-off, outputs byte-identical without them):** iti_licks CUED_RESP_WIN / ITI_RESP_WIN;
+   lick_balance_angle_lmm --idx / --gap2 + bounded_index (tests/test_bounded_index.py); lick_iti_matched_markers.py;
+   lick_matched_readout --first-curves; lick_matched_angle_reach --curves; likeforlike smooth_curves / curve_coverage;
+   trial_set_text.footer_bottom; frozen_claims --trend-only / --plot-only; decoder_retention_sessions / recovery_timing /
+   key_figure --show-low-hits; learned_compensation refactor (t3_cells); lmm-hidden-20261103 branch (wf_lmm_main) pushed.
+   **Grant figure check RESOLVED:** K08 code is now in the repo (grants/k08_2026/, render_fig4_rows.py row_DE); panel D stars
+   = boot_star of lmm_hidden_20261103/cued_ramp_summary_row2_lmm_w0-1_verify.csv; it does NOT star acute ipsi tjM1 (+.36 n.s.),
+   same as the rebuild (+.37 n.s.); contra tjM1 up every epoch (+.51* / +.40* / +.41*). No grant change needed.
+   **Open:** (2) 3c: goal-page swaps of the ITI 0..0.5 s figures, Fig
+   14.7, the idx supplement (PAGE_SUPPLEMENT_IDX_20261117.md) -- 3c owns the page. (3) After the RESTnl-cam1 rerun (3c helper):
+   rest-map slides 24-26, 187, 188, 204-206 wording + figures, after Priya sees old vs new numbers. (4) Optional: per-session /
+   docked-only figures not rendered: docked _far1 / _gap2far1 / _nonlinear / _plain curve variants; F_lnmf decomposition arm.
+   Rules learned: export slides only from a scratch COPY; helpers must set PYTHONPATH=<worktree> (main checkout was stale);
+   brief helpers to reuse repo constants / loaders (memory efficient-no-redo).
+
+00-A8-1117. **11-17 (a8) -- START HERE (supersedes 00-A8-1116b as the entry point).** Day log:
+   docs/status/RUNNING_LIST_2026-11-08_a8_june.md (11-17 entries). The day was the PI-deck rebuild swap pass, not FR.
+   **Done (deck Overview_2026-11-06.pptx; every step backed up as .bak_pre_a8_<step>_20261117.pptx; specs + applier +
+   apply logs in docs/status/deck_swap_20261117/, README there = spec schema):** A+B stale slides (63), group C renders
+   (LMM companions incl. per-session slide 12, docked-ITI slides, 111 / 116, quiet events, 139 full set), low-hit (<20 hits)
+   cells shown not tested (120, 121, 141-146), Priya decisions (22 pre-rebuild record, 157 rewrite, 21 both scales),
+   ITI response window 0..0.5 s (DECISIONS 2026-11-17; audit ITI_WINDOW_AUDIT_20261117.md; slides 105, 108, 110, 111, 135,
+   136-138, 203 applied; FINDINGS / ENCODING_FINDINGS lines updated). ~120 slides updated in total.
+   **Results documented:** ITI_NEG_AUC_DIAGNOSTIC.md (ITI biphasic dip, pre-heavy -> 0..0.5 s), ITI_MATCHED_ANGLE_MARKERS.md
+   (cued -> cued angle .68; all-ITI balance holds vs spout-matched / docked angles; DOCKED balance loses the recovery link;
+   far-contra within-spout raw balance: cued same-angle shift +.24 log2), FINDINGS recovery-marker block (two 11-17 entries).
+   **Running (background helpers; check their outputs before relaunching):**
+   (1) slide 21 one-factor decomposition -> decomp_slide21_20261117/ + slide21_results.jsonl; done A_pre / D_scale / B_gate /
+       C_lick, E_hemo / E2 / F running. INTERIM: the TRIAL GATE drives the change (B_gate = old gate: acute -.397 vs old -.405;
+       post accuracy back to old levels); pre set (A_pre -.344), scaling (D_scale -.334), lick detector (C_lick -.348) ~no
+       effect. Likely mechanism: the camera gate keeps contact + incomplete trials and drops no-attempt misses that the old
+       gate kept. Report -> SLIDE21_DECOMPOSITION.md, then tell Priya (her 11-17 expectation was the opposite).
+   (2) bounded indices dec_idx (0..0.2 s) + resp_idx (resp window) in lick_balance_angle_lmm + far-contra models ->
+       balangle_{all,dock}_decidx_20261117/, section 5 of ITI_MATCHED_ANGLE_MARKERS.md (reuse-repo-code brief given).
+   (3) docked rebuild of decoded-vs-executed figures (matched curves incl. gap2dock + cued first lick, angle versions,
+       recovery link 16.3-16.5, where scatter / delta, per-lick error) + curves footer-overlap fix + dashed-coverage note ->
+       *_dockfig_20261117/, DOCKED_DECODED_VS_EXECUTED_20261117.md.
+   **Waiting on Priya:** slide 139 title (layout decided: caveat kept + cued-angle bullet, figure full width; spec
+   specs/s139_cuedang.json NOT applied); slides 113 / 114 cued per-spout window 0..0.5 s vs cued 0..1 s (flagged).
+   **From other windows:** 3c swaps goal-page ITI figures (list sent) and sends RESTnl-cam1 rerun + lick-source caption fix
+   lists for the deck. Deck rule learned: export slides only from a scratch COPY (COM attaches to an open PowerPoint).
+
 00-A8-1116b. **11-16 LATE (a8) -- START HERE; the to-do list below (item 00-A8-1116) is DONE except where noted.**
    Page = **v54**. Priya: deck slide yes; delete superseded n12 = yes (done, 118 files, list in the running list); block-
    permutation hold = ok.

@@ -428,6 +428,21 @@ def _wrap(txt: str, fig) -> str:
     return "\n".join(textwrap.wrap(txt, width, break_on_hyphens=False)) if len(txt) > width else txt
 
 
+def footer_bottom(fig, pad: float = 0.012) -> float:
+    """Write the trial-set footer NOW (bottom right; `stamp`, idempotent, so the save path does not add a second one)
+    and return the figure fraction it occupies, so `tight_layout(rect=(0, footer_bottom(fig), ...))` puts the x tick
+    labels above it. 11-17: the footer was stamped at save time, after the layout, and sat on the tick labels (Fig 3.4,
+    lick_matched_gauss_curves). Returns 0 when no trial set is declared (no footer, layout unchanged). Moved here from
+    scripts/rebuild_figs/fig_state_position_sessions._footer_bottom (one definition)."""
+    t = stamp(fig)
+    if t is None:
+        t = next((x for x in getattr(fig, "texts", []) if x.get_gid() == GID), None)
+    if t is None:
+        return 0.0
+    bb = t.get_window_extent(fig.canvas.get_renderer())
+    return min(0.4, bb.y1 / fig.bbox.height + pad)
+
+
 def stamp(fig, text: str | None = None, *, below: bool = False):
     """Write the active trial-set sentence (or ``text``) on ``fig``; returns the text artist, or None when there is
     nothing to say or the figure already carries it. Prepended to the run stamp (`lp_licks.stamp`, bottom right) when

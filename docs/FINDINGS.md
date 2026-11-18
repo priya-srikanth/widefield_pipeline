@@ -318,6 +318,22 @@ No laterality support for Priya's reduced-thalamocortical-drive hypothesis after
    n.s.; later +0.15 n.s. / -0.16 / -0.33 (4/4). The first lick lands further ipsilesional than later licks (-1.08 vs
    -0.71 acute). So the target-ward read-out is a property of the aimed launch, and the chronic ipsilesional read-out of
    far-contra licks (4d0b) is carried by the later, corrective licks.
+4d0k. **Like-for-like curves on the rebuild, one figure for every lick set, all licks vs STRICT matching (11-17, a8;
+   Priya: "pick loclin with gaussian kernel, and the two versions would be with and without like-for-like matching";
+   goal page Fig 12.2 v317 #f-lick_matched_panels; deck slide 125). PROVISIONAL.** Columns cued all / cued first /
+   ITI all / ITI first lick of a bout / ITI docked; Gaussian-smoothed curves (sigma 0.1 mm), local-linear reference.
+   STRICT row = post licks only where the SAME animal's pre curve of the SAME lick set exists (curves cut to it): 3 %
+   of post curve points drop for all licks, 12-19 % for first licks; no point moves > 0.09 mm and the significant bins
+   are IDENTICAL in every panel and epoch -- the result does not depend on licks beyond the pre landing range.
+   ITI read contralesional of same-place pre licks in every epoch on EVERY ITI set (session means: all +0.35 / +0.24 /
+   +0.27; first +0.38 / +0.26 / +0.27; docked +0.29 / +0.22 / +0.28 mm; 4/4 except subacute all / docked 3/4; bins
+   acute 10/10, 8/8, 7/8); cued +0.19 acute -> n.s. (first lick +0.36 / +0.22 / +0.16, 4/4), furthest contralesional
+   cued landings below pre chronically (compression at the edge). STANDS: 4d0j's claim on the rebuild. Gauss vs loclin
+   change only the bars / read-outs, never the curves (a two-reference draft looked identical). Record:
+   docs/status/deck_swap_20261117/DOCKED_DECODED_VS_EXECUTED_20261117.md (combined panel section). NON-LINEAR decoder
+   (page Fig 12.2 S2 v319; hidden deck slide 126): same result -- ITI +0.34 / +0.27 / +0.28 (all), +0.39 / +0.28 / +0.28
+   (first), +0.28 / +0.25 / +0.30 (docked); cued +0.24 / +0.13 / +0.02, first +0.36 / +0.25 / +0.18; still compressed
+   toward the middle (any error-minimizing decoder with R2 < 1 is; the same-place comparison cancels it).
 4d0j. **SAME-PLACE like-for-like read-out (PRIMARY, DECISIONS 10-27 late; page v130 figs 3.15 / 3.16, stable ids
    #f-lick_matched_place_readout / _curves). PROVISIONAL.** Each lick vs the animal's pre licks (any spout) that landed
    at the same lateral place. ITI, all spouts +0.31 / +0.21 / +0.24 mm (4/4 each epoch); far ipsi +0.43 / +0.38 / +0.38.
@@ -650,7 +666,10 @@ per-lick measure (proposed 10-25: the first-lick window stays primary; Priya to 
   0-0.2 s): tracks angle pre and post (pre slope -.40/deg); its same-angle shift (+1.7) vanishes inside the pre range
   (+0.3, p .62) -> extrapolation. ITI after a far-contra trial (resp 0-0.5 s): pre slope -.013 (all) / -.026 (docked), no
   same-angle shift (+.08 / +.11 ns) -> the raw ITI shift (+.27 / +.37) is the ipsilesional angle change; docked dec shows a
-  NEGATIVE same-angle shift (-1.8, p .001; -1.4 inside the range, p .013). All spouts pooled (session x spout): balance
+  NEGATIVE same-angle shift (-1.8, p .001; -1.4 inside the range, p .013). Bounded, baseline-corrected index in the
+  decoder window (dec_idx = (c - i) / (|c| + |i|), 0-0.2 s from the peak, baseline -1.0..-0.5 s; section 5): the docked
+  dec shift does NOT survive (+.03, p .17), and neither do dec's negative ITI shifts elsewhere (they came from the pre-lick
+  level and gain). The cued far-contra shift DOES survive (+.095, p < 1e-4; +.063 inside the pre range; + in 4/4). All spouts pooled (session x spout): balance
   predicts raw lick angle pre and post (pre slopes negative 4/4, docked included); caveat: the previous spout explains 57 %
   (docked 49 %) of the ITI angle variance across cells, so the within-spout versions are the clean tests. PROVISIONAL (n = 4;
   7-8 pre far-contra sessions per animal).
@@ -1374,6 +1393,12 @@ be read with it, and the "rules out generic explanations" argument holds for 3 /
    (.917 -> .812, .982 -> .918, .902) are **CORRECTED** to these. **Per animal (10-25, CORRECTED reading):** the cohort
    state drop is PS94 alone (above chance .978 -> .747 / .577 / .447); PS92 / PS93 / PS95 lose only .01-.09 (chronic
    .873 / .951 / .960), so state is nearly intact in 3 / 4 and the specificity claim is stronger there.
+   **Rebuild (11-17, PI deck slide 21; docs/status/deck_swap_20261117/SLIDE21_DECOMPOSITION.md):** position .835 -> .488 /
+   .696 / .758 (mean of animals), change -.347 / -.139 / -.077 (chronic Holm .057, borderline; -.09 relative to own pre,
+   Holm .046-.054 by seed); state -.023 / -.028 / -.056 (chronic **, mostly PS94). The smaller acute drop than the
+   pre-rebuild -.41 is the TRIAL GATE: the camera gate scores / trains on attempts only (contact or incomplete lick); with
+   the old DAQ quit-tail gate the rebuild gives -.397 / -.191 / -.112. Pre set, spout scaling and lick detector: no effect.
+   Ratio claim stands acutely (~15x); by chronic the two losses are similar. PROVISIONAL.
 3. **The frozen decoder is NOT back at recovery, but that gap is within two months of no-stroke drift.** Deficit at
    behavioral recovery F(0) +.083, only PS92 recovered; refit-over-frozen G > 0 in 4 / 4 but a healthy mouse already
    shows G +.05-.10 (DECISIONS 09-12, 10-23). June -> August no-stroke drift group (5b, 10-24,

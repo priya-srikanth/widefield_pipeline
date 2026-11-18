@@ -219,3 +219,34 @@ Disagreement with the diagnostic's slide list: slides 113 / 114 contain **no ITI
 - `docs/FINDINGS.md:1044-1050` (docked ITI response increase, "subacute lost"): at 0..0.5 s subacute is **not** lost (tjM1 contra +0.85*, SSp-m contra +0.78*).
 - `docs/ENCODING_FINDINGS.md:1406-1409` (whole cortex 41/45 areas; chronic MOp / SSp-m / tjM1): see FINDINGS 217.
 - `docs/status/STATUS_2026-10-26_ENCODING_HANDOFF.md:1774-1776` ("one window for both"): superseded by DECISIONS 2026-11-17.
+
+## 7. Addendum (Priya 11-17, "yes update 113 and 114 to match"): cued per-spout AUC moves to 0..1.0 s
+
+The cued per-spout first-lick / cue response AUC now uses `iti_licks.CUED_RESP_WIN`. It was `SPOUT_WINDOWS[0]` = 0..0.5 s; 0..0.5 s is kept as a secondary. DECISIONS 2026-11-17 has a one-line addendum.
+
+- **Code (wf_cleanup2, `scripts/lick_cued_ramp.py`):** `spout_windows(key)` puts the main window first (cued / cue `CUED_RESP_WIN`, ITI `ITI_RESP_WIN`). It feeds the per-spout AUC tests, the `lick_c*_perspout_windows` rows, and the per-spout curve normaliser (pre AUC over all spouts, now on the main window: 0..1.0 s cued / cue, 0..0.5 s ITI, so the ITI scale is unchanged).
+- **Code (wf_lmm_main):** `lick_cued_ramp_perspout.WIN = il.CUED_RESP_WIN` and `WIN_ITI = il.ITI_RESP_WIN`, imported from `scripts.iti_licks` after merging origin/main into the branch. `_curve_auc.win(key)` keeps the ITI per-spout supplement on 0..0.5 s.
+- **Render:** `iti_licks/cued_ramp_cued01_20261117/<tag>/` (log `logs/cued_ramp.log`; env replayed from `l_cued_ramp_g`; cached `cued_wide` traces reused, nothing recomputed upstream).
+  - `perspout_auc_tests.csv` is identical (648 rows, max |diff| 0) to the rebuild table, which already held both windows.
+  - The per-spout curves are rescaled. Significant per-bin bars: lick 2187 → 2178, cue 2282 → 2301; ITI is identical.
+- **LMM render:** `lmm_hidden_20261117/cued01_20261117/lick_cued_ramp_perspout_cued01*`. It reproduces the window-0-1 bootstrap points 72/72.
+- **Comparison, cued per-spout AUC / pre at spout** (contralesional tjM1, acute / subacute / chronic; 0..0.5 → 0..1.0 s):
+
+  | spout | 0..0.5 s | 0..1.0 s |
+  |---|---|---|
+  | close ipsi | +.57* / +.47* / +.35* | +.72* / +.46* / +.37* |
+  | close mid | +.61* / +.50* / +.37* | +.74* / +.47* / +.34* |
+  | close contra | +.75* / +.47* / +.37* | +.91* / +.43* / +.33* |
+  | far ipsi | +.56* / +.49* / +.63* | +.47* / +.36* / +.55* |
+  | far mid | +.27* / +.52* / +.64* | +.13 / +.49* / +.64* |
+  | far contra | +.20 / +.29 / +.52* | -.12 / +.22 / +.48* |
+
+  - Cells with *, all 4 ROIs: lick 60 → 49 of 72; cue 55 → 54.
+  - Losses are acute far mid (tjM1, SSp-m, cortex) and subacute / chronic far ipsi and ALM chronic close spouts. Full table: `iti05_scripts/cmp_cued01.txt`.
+  - LMM (slide 114): 31 → 22 of 72 starred, 0 ** either way. No acute cell stays starred; none are added.
+- **Conclusion:** the slide 113 title "up, except far contra" holds and sharpens. Acute far contra is now below pre (n.s.) in every ROI, acute far mid is n.s., close spouts are larger, and chronic far contra stays up. Slide 114 (hidden backup) changes: there is no acute mixed-model star.
+- **Specs:** `specs/cued01.json` (slides 113, 114; "old" strings from a fresh deck copy, 13:35). The iti05 specs were already applied to the deck by then.
+- **Goal page (3c):**
+  - Fig 14.7 → `cued_ramp_cued01_20261117/<tag>/figures/lick_cued_ramp_perspout.png`. The cue-aligned twin `lick_cued_ramp_cue_perspout.png` and the window rows `lick_cued_perspout_windows.png` / `lick_cue_perspout_windows.png` (0..1.0 s now first) are in the same folder.
+  - Fig 14.8 vigor: its cued rows are already on 0..1.0 s in `vigor_iti05_20261117` (y unit = the pre 0..0.5 s AUC, as before).
+  - The 14.7 caption numbers change as in the table above.
