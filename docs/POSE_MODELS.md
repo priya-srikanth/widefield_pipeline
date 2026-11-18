@@ -1175,6 +1175,27 @@ four review sessions mapped to raw (`lp_sidecam.to_raw`); reference = production
   spout >= 10 (isolated error jumps are ~16 px). All four epsilons were measured from crop2 predictions, which are
   weakest on closed / opening jaw -> re-measure from the round-2 supervised model before the temporal fit.
 
+**Round 2 results (11-18; outputs `heldout_scores.txt`, `heldout_points.txt`, `clip_compare.txt`, `jaw_drops.png` +
+the scripts, all in the work dir).** r2_full / fold0 / fold1 all ran 300 epochs (~15 min each, 1.0 GB GPU).
+* The Part B labels are ANCHORED on crop2: the student nudged seeds by a median ~2 raw px (jaw 2.0, spout 1.7, tongue
+  2.7) and accepted 125 / 135 nose points as is -> crop2 scores 0.0 px on accepted points by construction (first
+  per-frame score, `heldout_scores.txt`, is biased for that reason). Fair per-POINT score (moved / placed points only,
+  model px): crop2 vs r2 median jaw 2.0 / 2.5, tongue 2.5 / 3.1, spout 1.7 / 2.4, nose 1.5 / 2.8 (n 10) -- within the
+  label noise; the position comparison cannot separate the two models.
+* Independent test = the student's HIDDEN calls (seed points she deleted): r2 is still confident on jaw 13 / 27
+  (crop2 27 / 27 by construction), spout 2 / 4, tongue 5 / 6 -> r2 halves false jaw detections.
+* Whole clips (same 14 clips as crop2: 4 review sessions x cam2 / cam3 + 6 whole-window clips): jitter unchanged
+  (step p99 jaw 4.3 vs 4.5, spout 2.2 vs 2.5), spout max step 14 vs 22; one-frame out-and-back spikes are rare in
+  both (jaw 6 / 6, spout 18 / 24, tongue 7 / 2 of ~10k tongue steps; r2 tongue spikes 11-16 px); r2 vs crop2 median
+  distance 0.6-1.8 px. Jaw confident fraction pre-cue 0.83 -> 0.78. `jaw_drops.png` (pre-cue frames crop2 confident,
+  r2 not): (a) spout rod tip at the chin -> r2 calls jaw hidden (as cam4's close_center rule; convention question for
+  Priya); (b) tongue out, crop2 jaw on the tongue underside -> r2 correct; (c) JUNE PS95 0606 closed mouth, jaw
+  visible, rod clear -> r2 MISSES (regression; June side 3-D is skipped until its intrinsics are checked anyway).
+* Temporal-loss thresholds re-measured on r2 (model px / 4 ms, both models alike): nose p99.9 1.4 max 2.2; jaw p99.9
+  7.0, max 10.6; tongue p99 17.7, p99.9 25.0; spout p99.9 4.2 (crop2 5.7), max 13.9. The errors present (jaw spikes
+  3-5 px, tongue spikes 11-16 px) are SMALLER than genuine motion, so no epsilon can target them without penalising
+  real movement: the temporal loss has little to fix (as 11-04). If run: nose 5, jaw 10, tongue 25, spout 10.
+
 ## D13. June in 3-D, re-evaluated (11-07, a8; Priya asked why June kinematics cannot use the spout-posed 3-D)
 
 **Why June was dropped (10-18):** a 2-D argument. cam4 was re-set on 08-05, and June differs in perspective, not just
