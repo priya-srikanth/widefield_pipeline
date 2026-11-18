@@ -34,6 +34,8 @@ import sys
 
 import numpy as np
 
+from wfield_local import cam1_licks as _C1
+
 ENV = "WIDEFIELD_RESTNL_LICKS"
 SETS = ("cam4", "cam4cam1")
 DEFAULT = "cam4"
@@ -51,7 +53,15 @@ VERSION = 3
 #: cam1-only events whose median label position is this far BEHIND the mouth line (px, med_out_px) are static
 #: tracking artifacts, not licks: Priya's blind review 11-17 scored 7 / 8 no-tongue test events below it and 0 / 30
 #: tongue events (docs/status/CAM1_EXTRA_LICKS_CHECK_20261117.md). v3 = this guard; v2 outputs are superseded.
-FAR_FROM_MOUTH_PX = -120.0
+#: Since 11-17 (late) the rule lives in ONE place, `cam1_licks.keep_mask` (droplet + far guard), shared by every cam1
+#: event reader; this name re-exports its threshold.
+FAR_FROM_MOUTH_PX = _C1.FAR_FROM_MOUTH_PX
+#: DIGEST ALIAS (11-17 late, docs/status/CAM1_FARMOUTH_GUARD_CODE_20261117.md): moving the rule into
+#: `cam1_licks.keep_mask` changed this module's text but not one onset (tests/test_cam1_keep_mask.py pins
+#: `cam1_only_onsets` against a frozen copy of the v3 body). The digest of exactly this refactored source (+ keep_mask's
+#: closure) maps to the v3 digest, so the RESTnlc1 v3 caches stay warm; ANY later edit to either changes the digest
+#: and misses the alias, i.e. invalidates as before. Lines carrying the alias marker are not hashed.
+_DIGEST_ALIAS = {"18e0aaed8e01": "e34a85c2b4b0"}  # [digest-alias]
 
 _MISSING: dict = {}
 
@@ -97,19 +107,12 @@ def cam1_events_path(label: str):
     return Path(PathResolver().root("dlc")) / "session_poses" / "cam1_licks" / f"{an}_{config.date8(d)}_events_all.csv"
 
 
-def cam1_only_onsets(E) -> np.ndarray:
-    """DAQ onsets (s) of the cam1-only, non-droplet, not-far-from-mouth (med_out_px >= FAR_FROM_MOUTH_PX) events of an events_all table (finite only, sorted)."""
+def cam1_only_onsets(E, label: str | None = None) -> np.ndarray:
+    """DAQ onsets (s) of the cam1-only (not cam4-matched) events of an events_all table that count as licks under
+    `cam1_licks.keep_mask` (not a water droplet, not a far-from-mouth label; finite only, sorted)."""
     import pandas as pd
-    m4 = E["cam4_matched"].astype(str).str.lower().eq("true").to_numpy()
-    if "droplet" in E:
-        dr = E["droplet"].astype(str).str.lower().eq("true").to_numpy()
-    else:
-        from wfield_local.cam1_licks import droplet_flags
-        dr = droplet_flags(E, ~m4)
-    far = np.zeros(len(E), bool)
-    if "med_out_px" in E:
-        far = (pd.to_numeric(E["med_out_px"], errors="coerce") < FAR_FROM_MOUTH_PX).to_numpy()
-    t = pd.to_numeric(E["daq_on_s"], errors="coerce").to_numpy(float)[~m4 & ~dr & ~far]
+    m4 = _C1.flag_col(E["cam4_matched"])
+    t = pd.to_numeric(E["daq_on_s"], errors="coerce").to_numpy(float)[~m4 & _C1.keep_mask(E, m4, label=label)]
     return np.sort(t[np.isfinite(t)])
 
 
@@ -135,7 +138,7 @@ def extend(label: str, cam4_s) -> tuple[np.ndarray, int]:
         return np.asarray(cam4_s, float), -1
     E = pd.read_csv(f, usecols=lambda c: c in ("daq_on_s", "cam4_matched", "droplet", "spread_px", "range_px",
                                                 "med_out_px"))
-    return union_onsets(cam4_s, cam1_only_onsets(E))
+    return union_onsets(cam4_s, cam1_only_onsets(E, label))
 
 
 def missing_cam1() -> dict:
@@ -144,8 +147,13 @@ def missing_cam1() -> dict:
 
 
 def code_digest() -> str:
-    """This module's source: enters every cam4cam1 cache key."""
-    return hashlib.sha1(inspect.getsource(sys.modules[__name__]).encode()).hexdigest()[:12]
+    """This module's source (alias-marker lines dropped) + the closure of `cam1_licks.keep_mask`: enters every cam4cam1
+    cache key. Mapped through `_DIGEST_ALIAS` (see there)."""
+    from wfield_local import map_collect
+    src = "".join(ln for ln in inspect.getsource(sys.modules[__name__]).splitlines(True) if "[digest-alias]" not in ln)
+    src += map_collect.closure(_C1, "keep_mask").source()
+    d = hashlib.sha1(src.encode()).hexdigest()[:12]
+    return _DIGEST_ALIAS.get(d, d)
 
 
 def key_part(label: str) -> str:

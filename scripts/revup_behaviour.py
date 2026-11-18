@@ -27,8 +27,9 @@ this script always read that untagged table); pre = the AUGUST pre-stroke sessio
                none        no lick before the bound
   contact    first DAQ spout contact in cue + 70 ms .. stop (`pose_kinematics_demo.daq_contacts_ms`' rule)
   movement before the first lick (the rev-up):
-    cam1_small  cam1 2-D detector events (`cam1_licks/<s>_events_all.csv`, droplets out) NOT matched to a cam4 lick =
-                small / incomplete mouth openings cam4 does not register, counted cue .. first lick (n_cam1_pre)
+    cam1_small  cam1 2-D detector events (`cam1_licks/<s>_events_all.csv`; droplets + far-from-mouth labels out,
+                `cam1_licks.keep_mask`) NOT matched to a cam4 lick = small / incomplete mouth openings cam4 does not
+                register, counted cue .. first lick (n_cam1_pre)
     jaw         `qc/jaw_onsets.csv` (cam4 + cam1, cam1 floor 15 px; searched cue .. stop): onset, or its re-onset when
                 the jaw was already deflected at the cue
     FR vigor   FaceRhythm master_pre_v1 (cam4), UNBLANKED (`face_rhythm_outputs.fr_signals(blank=False)`, absolute),
@@ -73,8 +74,10 @@ from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # re
 RUN_ROOT = _encoding_root()
 OUT_W = RUN_ROOT / "iti_licks"
 REV = OUT_W / "revup"
-SESS = "behaviour_sessions"        # per-session cache (revup/sessions/ belongs to the imaging helper; its *.pkl from a
-#                                    first, superseded run of this script = the onset-only lick rule, not read)
+SESS = "behaviour_sessions_c1far"  # per-session cache (revup/sessions/ belongs to the imaging helper; its *.pkl from a
+#                                    first, superseded run of this script = the onset-only lick rule, not read).
+#                                    11-17: "_c1far" = cam1 events through `cam1_licks.keep_mask` (far-from-mouth guard);
+#                                    the cache is keyed on existence only, so the pre-guard behaviour_sessions/ is not read
 LICK_MIN_S = 0.07                  # a post-cue lick needs its PEAK >= cue + 70 ms (the licks.csv / trial_windows rule)
 FIG = OUT_W / "figures"
 QC = RUN_ROOT / "qc"                 # jaw_onsets.csv (one table for every run)
@@ -178,8 +181,10 @@ def session(label: str) -> dict:
     e1 = Path(rv.root("dlc")) / "session_poses" / "cam1_licks" / f"{an}_{date}_events_all.csv"
     has_cam1 = e1.exists()
     if has_cam1:
-        E = pd.read_csv(e1, usecols=["daq_on_s", "cam4_matched", "droplet"])
-        E = E[~E.droplet.fillna(False).astype(bool) & np.isfinite(E.daq_on_s)]
+        from wfield_local import cam1_licks as C1        # droplets + far-from-mouth labels out (Priya 11-17)
+        E = pd.read_csv(e1, usecols=lambda c: c in ("daq_on_s", "cam4_matched", "droplet", "spread_px", "range_px",
+                                                    "med_out_px"))
+        E = E[C1.keep_mask(E, label=f"{an}_{date}") & np.isfinite(E.daq_on_s)]
         e_all = np.sort(E.daq_on_s.to_numpy(float))
         e_small = np.sort(E.loc[~E.cam4_matched.fillna(False).astype(bool), "daq_on_s"].to_numpy(float))
         upto = np.where(np.isfinite(fl), fl, nxt)

@@ -10,7 +10,8 @@ out, 10-60 ms before contact).
 
 DEFINITIONS (Priya's choices, 10-21):
   LP lick        cam4 LP lick onsets (`licks_all.csv`, every context, DAQ s) + cam1-only events (`cam1_licks/<a>_<d>
-                 _events.csv`: not cam4-matched, not water droplets) -- "combined", the same set `combined_encoding`
+                 _events.csv`: not cam4-matched, `cam1_licks.keep_mask` = not water droplets, not far-from-mouth
+                 labels, Priya 11-17) -- "combined", the same set `combined_encoding`
                  uses under COMBINED_ENCODING_LICKS=combined. cam1 missing -> cam4 alone. CAM1 IS NOT FINISHED
                  (10-21: events for 74 / 108 curated sessions; PS95 none, PS94 chronic 2 / 8, PS93 pre 7 / 8): those
                  sessions are cam4-only LP until cam1 lands -- revisit then; the cache tag includes the cam1 folder,
@@ -63,7 +64,8 @@ ATTEMPT_CLASSES = ("hit", "incomplete")
 #: LP cue <-> DAQ cue match tolerance (s).
 MATCH_TOL_S = 0.02
 #: Bump when the definition above changes (enters every LP cache key).
-LP_VERSION = 2          # 2 (11-04): first-lick timing falls back to the DAQ contact at the close spouts
+LP_VERSION = 3          # 2 (11-04): first-lick timing falls back to the DAQ contact at the close spouts
+#                         3 (11-17): cam1 events through `cam1_licks.keep_mask` (+ far-from-mouth guard, Priya 11-17)
 #: LP-vs-DAQ timing tolerance, ms (Priya 11-04; wf_attempt docs/status/rebuild_20261103/lp_missed_contact/
 #: LP_MISSED_CONTACT_20261104.md): a first LP lick ONSET more than this after the trial's first DAQ contact (in the
 #: response window, cue + 70 ms .. min(cue + max_rt, stop)) is late -- at a CLOSE spout the contact time is used instead
@@ -498,9 +500,10 @@ def _read_times(label, sd, f4, f1):
     t = pd.read_csv(f4, usecols=["daq_on_s"]).daq_on_s.to_numpy(float)
     parts = [t[np.isfinite(t)]]
     if f1.exists():
+        from wfield_local import cam1_licks as C1
         E = pd.read_csv(f1)
-        only = ~E.cam4_matched.fillna(False).astype(bool) & ~E.droplet.fillna(False).astype(bool)
-        E = E[only & E.trial_id.isin(cue_t.index)]
+        m4 = C1.flag_col(E["cam4_matched"])
+        E = E[~m4 & C1.keep_mask(E, m4, label=label) & E.trial_id.isin(cue_t.index)]
         t1 = E.trial_id.map(cue_t.cue_daq).to_numpy(float) + E.on_ms.to_numpy(float) / 1000.0
         parts.append(t1[np.isfinite(t1)])
     return np.sort(np.concatenate(parts)), cue_t
