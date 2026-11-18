@@ -49,3 +49,14 @@ AND med_out_px >= -120. The audit is `CAM1_FARMOUTH_BLAST_RADIUS_20261117.md` on
   - keep k 3.75 and update captions only (the lick rule and code), or
   - adopt the re-chosen k 4.5, which re-renders the figures with lower absolute rates and the same conclusions.
 - Page section 23 and deck slides 157 / 158 are NOT changed. 3c also listed slide 112.
+
+## Decision and what was changed (Priya 11-17: "k = 3.75 is good")
+- Figures and numbers kept as rendered at k 3.75. Captions and notes now say that cam1 far-from-mouth labels were
+  still counted in this render, and that removing them changes every rate and model term by < 2 %.
+  - Deck slides 112, 154-158 and 203: the notes "Licks:" line is extended (quiet_licks_note.py; backup
+    .bak_pre_a8_quietnote_20261117).
+  - Goal page v320, section 23: 23 lick sentences are extended the same way.
+- **Flag for Priya:** goal page section 23 still shows the PRE-REBUILD quiet-event outputs (cohort1_quiet_spikes/
+  v2_quiet_lp/, 'k = 4'). The deck uses the rebuilt run (v2_quiet_lp_20261117). Swapping the page to the rebuild is a
+  separate pass; nothing was swapped here.
+- Once 3c's guard branch is merged (Priya's OK on the diff), future quiet re-runs use the guard automatically.

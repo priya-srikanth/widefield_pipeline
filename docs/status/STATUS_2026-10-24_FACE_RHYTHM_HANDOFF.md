@@ -81,7 +81,9 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
    new chronic + chronic-vs-pre numbers to Priya BEFORE page (section 23) / deck (157 / 158; 3c named 112 too) changes.
    **DONE ~19:45:** re-run + fixed-k summary; docs/status/deck_swap_20261117/quiet_c1guard/QUIET_C1GUARD_OLD_NEW_20261117.md.
    Guard changes nothing material at the production k 3.75 (< 2 %); the full re-run's LOAO k flipped 3.75 -> 4.5 on a
-   flat AUC curve. WAITING ON PRIYA: keep k 3.75 (captions only) or adopt 4.5 (re-render, lower absolute rates).
+   flat AUC curve. PRIYA: keep k 3.75. Notes extended on deck slides 112 / 154-158 / 203 (backup
+   .bak_pre_a8_quietnote_20261117) + goal page v320 section 23 lick sentences. OPEN (flagged): page section 23 still
+   shows the PRE-REBUILD quiet outputs (v2_quiet_lp, k 4); the deck has the rebuilt run -- a swap pass if Priya wants.
 
 00-A8-1117b. **11-17 EVENING (a8) -- START HERE; item 00-A8-1117 below is the day's earlier state (its "Running" list is DONE).**
    Day log: docs/status/RUNNING_LIST_2026-11-08_a8_june.md (11-17 entries). Nothing of a8's is running.
