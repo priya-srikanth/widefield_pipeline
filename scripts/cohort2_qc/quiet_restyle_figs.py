@@ -13,9 +13,9 @@ T13 is a within-session contrast (event trials minus the same-session same-spout
 nested bootstrap (`boot_ci`) of the per-session excess excludes 0, per epoch; dagger = the old within-stratum
 permutation p < .05.
 
-INPUTS: base summary (pooled epochs) = the common-k-4 guard summary v2_quiet_lp_c1guard_k4_20261118 (Priya 11-18);
-follow-on tables (face-regressed, 415, stillness, task windows, decay) = v2_quiet_lp_c1guard_k375_20261117/<family>/:
-those scripts use their own fixed k = 4 (the folder name is the base summary's k), so they ARE the k-4 numbers.
+INPUTS: base summary (pooled epochs) and follow-on tables (face-regressed, 415, stillness, task windows, decay) = the
+production sync-end run v2_quiet_lp_c1guard_syncend_20261118 (common k 4; analyzed time ends at the last sync pulse,
+Priya 11-18). The earlier k-4 / k-3.75 / last-cue folders were deleted 11-18 as superseded (Priya OK).
 
     PYTHONPATH=<worktree>;<worktree>/scripts python scripts/cohort2_qc/quiet_restyle_figs.py [--only fr hemo ...]
 """
@@ -44,10 +44,10 @@ from wfield_local.orofacial_cohort import EPOCH_LINE, POS_ORDER  # noqa: E402
 
 T = "hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk"
 Q = Path(f"M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/{T}/cohort1_quiet_spikes")
-# QS_RESTYLE_BASE / QS_RESTYLE_FOL pick the run folders (default = the 11-18 k 4 render); for the engaged-end re-run both
-# are v2_quiet_lp_c1guard_engend_20261118 (base summary and follow-ons in one folder).
-BASE = Q / os.environ.get("QS_RESTYLE_BASE", "v2_quiet_lp_c1guard_k4_20261118")
-FOL = Q / os.environ.get("QS_RESTYLE_FOL", "v2_quiet_lp_c1guard_k375_20261117")
+# QS_RESTYLE_BASE / QS_RESTYLE_FOL pick the run folders (default = the production sync-end run, base summary and
+# follow-ons in one folder).
+BASE = Q / os.environ.get("QS_RESTYLE_BASE", "v2_quiet_lp_c1guard_syncend_20261118")
+FOL = Q / os.environ.get("QS_RESTYLE_FOL", os.environ.get("QS_RESTYLE_BASE", "v2_quiet_lp_c1guard_syncend_20261118"))
 OUT = BASE / "restyled_20261118"
 EP = ["pre", "acute", "subacute", "chronic"]
 POST = EP[1:]

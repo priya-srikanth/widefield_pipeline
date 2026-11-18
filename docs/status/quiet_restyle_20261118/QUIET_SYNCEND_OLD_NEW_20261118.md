@@ -130,3 +130,6 @@ the run folder as before. Script `scripts/cohort2_qc/quiet_restyle_figs.py` (QS_
   +0.59) against +0.31 at corrected 470, so "small" holds for the 415 power / rate measures but less so for the event
   amplitude, which is carried mostly by PS94. Flagged to Priya.
 - Movement page section 23: 3c (messaged with the run and this list).
+- 11-18 later (Priya: "ok for careful wording"): slide 158 title -> "Holds at matched stillness; 415 nm power, rate flat",
+  bullet -> "415 nm response at the events rises slightly (mostly PS94); also ruled out: interictal discharges, breathing
+  (weak video proxy)" (backup .bak_pre_a8_s158title_20261118). Superseded run folders deleted: DELETED_SUPERSEDED_20261118.md.
