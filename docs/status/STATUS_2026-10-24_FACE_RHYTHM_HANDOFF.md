@@ -79,6 +79,9 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
    Wait for 3c's commit on fix/cam1-farmouth-guard-1117; run from that worktree; production env = cohort1_quiet_spikes/
    v2_quiet_lp_20261117/logs/quiet_v2.log (QS_LICK_SOURCE=daq+lp, rebuild env); new QS_V2_DIRNAME; then per-animal old vs
    new chronic + chronic-vs-pre numbers to Priya BEFORE page (section 23) / deck (157 / 158; 3c named 112 too) changes.
+   **DONE ~19:45:** re-run + fixed-k summary; docs/status/deck_swap_20261117/quiet_c1guard/QUIET_C1GUARD_OLD_NEW_20261117.md.
+   Guard changes nothing material at the production k 3.75 (< 2 %); the full re-run's LOAO k flipped 3.75 -> 4.5 on a
+   flat AUC curve. WAITING ON PRIYA: keep k 3.75 (captions only) or adopt 4.5 (re-render, lower absolute rates).
 
 00-A8-1117b. **11-17 EVENING (a8) -- START HERE; item 00-A8-1117 below is the day's earlier state (its "Running" list is DONE).**
    Day log: docs/status/RUNNING_LIST_2026-11-08_a8_june.md (11-17 entries). Nothing of a8's is running.
