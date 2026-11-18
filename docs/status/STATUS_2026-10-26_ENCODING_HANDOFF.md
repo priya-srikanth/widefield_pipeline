@@ -39,6 +39,36 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 3. Then tell **sabatinilab-e3** (PI deck) the decoder figures are final: per figure the share PNG path, page Fig N.k,
    script + args, headline numbers, methods text (they asked 10-26 ~22:30; reply sent: not final yet).
 
+### 00-COMPACT-44 (11-17 ~19:30) -- START HERE; additions to 43 / 42
+Detail: `docs/status/PAGE_PUBLISH_QUEUE_20261117.md` (branch docs/publish-queue-1117, worktree wf_imgswap1117, UNPUSHED).
+
+- **Pages (live):**
+  - IMG v58 (Fig 2.3 footer fix, section 13 on the log deficit, 42 lick-source edits).
+  - SS v44 (per-basis captions 6.3 / 6.4, 142 lick-source edits, SVD 11.x + 10.13-10.16 cam4 wording, Methods box).
+  - KIN v32 (27 lick-source edits).
+  - GOAL v316 (mine: ITI 0..0.5 s swap, Fig 14.7 cued 0..1.0 s, 110 lick-source edits, "(was Fig 14.20)" fix, idx supplement collapsed after 14.13).
+  - Then a8 published GOAL v317-v319 (section 12 only: Fig 12.2 = combined like-for-like, 12.2 S2 non-linear).
+  - **Build any goal edit on v319+.**
+  - Still on pre-rebuild data on the goal page: Fig 14.12, the 14.18 S14a / S14c captions, the status-row "earlier definition", and the 14.25 baseline-sensitivity image. Re-render offered to Priya; no answer yet.
+- **PI deck (a8):** hidden slide 126 inserted, so slides after 125 are +1. RESTnl slides to re-point are 24-26 and 187-189. Match slides by title.
+- **cam1 extra licks:**
+  - Priya's blind review is scored (30/40 tongue; 7/8 no-tongue events are far-from-mouth labels).
+  - RULE (Priya 11-17): cam1-only events count only if non-droplet AND `med_out_px >= -120`.
+  - Records: `CAM1_EXTRA_LICKS_CHECK_20261117.md`, `CAM1_FARMOUTH_BLAST_RADIUS_20261117.md` (branch analysis/restnl-cam1-1117, worktree wf_restnlc1, UNPUSHED).
+- **RUNNING 1: RESTnlc1 v3 overnight queue** (`restnl_licks` v3, 3bf2dd41; helper re-run with v2 outputs moved aside to `_superseded_restnlc1v2_20261117/`, record `RESTNL_V3_RERUN_20261117.md`).
+  - Queue: `scratchpad/rc1/queue_rc1.sh`; `touch rc1/STOP` halts it.
+  - Lane D finished 18:58; B and A/C were running at 19:20 (ETA ~21:00-21:30).
+  - Then: old-vs-new tables per animal to Priya. Only after that: place IMG Fig 12.1 (c1all, wording approved: drops acutely, somewhat below pre chronically, subacute n.s., ~half the old size, provisional), update the FINDINGS rest line, re-point deck 15f, and send a8 the RESTnl slide paths.
+  - Queue fixes 11-17: the SS rest baseline reads `enc_rebuild_20261110g/inputs` via `WF_SS_ENC_INPUTS` (04b moved aside in the glue fix; imaging byte-identical, checked on 3 sessions), and `restnl.variant()` accepts restnlc1 (d2fc1d83).
+- **RUNNING 2: guard in code everywhere** (Priya OK "with the droplet exclusions").
+  - Helper on branch fix/cam1-farmouth-guard-1117 (worktree wf_c1guard1117): one shared keep-mask used by trial_classes, first_lick_latency, lp_licks, combined_encoding, revup_behaviour, cam1_incomplete_licks, cohort2_qc/lp_licks.lick_times; cache bumps; tests.
+  - Show Priya the diff before any push. Send a8 the commit hash.
+- **a8 owns the quiet-event re-run** (goal section 15, deck 112 / 157 / 158; quiet time loses 0.9 %, chronic cells up to 2.9 %). It runs from the guard branch and brings Priya per-animal chronic numbers first.
+- **Approved, not started:** switch the pre-cue (ENL) / ITI lick-free windows to cam4 + cam1 with the v3 rule. Start after the RESTnlc1 tables. Show old vs new before pages.
+- **Priya said NO** to a cohort-wide check of sessions where cam4 video ends early. PS92_0908: camera classes cover trials 1-321 only, which is correct.
+- **Unpushed branches (each needs Priya's OK):** docs/publish-queue-1117, analysis/rest15f-rebuild-1117, analysis/restnl-cam1-1117, fix/cam1-farmouth-guard-1117.
+- **After the re-runs:** stale-iteration cleanup discussion (queue doc section 4).
+
 ### 00-COMPACT-43 (11-17 late morning) -- additions to 42 (42 still the state record)
 
 - PUSHED 11-17: fix/page-figs-1116, fix/deck-section-g-1116 (+ test_enl_window_source pin for the source-aware deck window call),
