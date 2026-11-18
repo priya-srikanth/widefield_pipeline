@@ -83,4 +83,22 @@ The all-LP-trial population gives the same picture.
   |---|---|---|---|---|
   | PS94 | 0.49 | 0.45 | 0.46 | 0.52 |
   | PS95 | 0.33 | 0.28 | 0.56 | **0.78** |
-- Not scored yet.
+- **Scored by Priya (11-18 ~14:18):** `review/scored_priya_20261118.csv`, copied from Downloads. All 42 were answered.
+
+  | group | lips | out | droplet |
+  |---|---|---|---|
+  | static test events (29) | **29** | 0 | 0 |
+  | moving cam1-only reference (5) | 4 | 1 | 0 |
+  | control: cam4-matched contact licks (4) | 0 | 4 | 0 |
+  | control: flagged droplets (4) | 0 | 1 | 3 |
+
+  - Static test events, by stratum: PS95 chronic far 10/10, PS95 chronic close 4/4, PS94 chronic far 8/8, PS94 subacute 4/4,
+    PS95 pre 3/3.
+  - With the 11-17 review, this class now stands at **53 / 54 tongue**.
+- **Reading:** the short, nearly motionless cam1-only events at -50 to -90 px are the tongue at the lips, not static
+  labels.
+  - The cam1 rule needs no movement floor; keep_mask stays as it is.
+  - The RESTnlc1 / Fig 12.1 primary (cam4 + kept cam1) is not undermined by these events.
+  - The census effect is REAL licks. The current cam4-only ENL / ITI lick-free windows in PS95 chronic (and PS94
+    subacute / chronic) contain tongue-at-lips licks that cam4 misses, concentrated at the far spouts. Whether to re-run
+    ENL / ITI with cam1 is Priya's call: she leaned away 11-18, and cam2/3 will be added later.
