@@ -172,6 +172,15 @@ Run code from a worktree with `PYTHONPATH=$(pwd -W)` (Windows form). AR-HMM mode
   nI .. fC only (Priya: one convention).
   Not "psychometric" (spout is not a graded stimulus strength).
 
+- **GLM-HMM state curves by epoch (fig 3b, `glmhmm_state_curves_epoch.py`):** ENGAGEMENT and EXECUTION separate.
+  In the engaged states 0-2, acute far-spout trials are still attempted but MISSED: contact at fC .05-.13 acute vs
+  .94-.98 pre, incomplete .76-.82 acute (fM: contact .48-.59, incomplete .32-.39); jaw-only / no response stay ~0;
+  subacute partly recovered (fC contact .71-.83), chronic = pre. Disengaged state 4 occupancy rises acutely at EVERY
+  spout (~.2 vs .04 pre; subacute ~.14) -> spout-independent; partial state 3 rises acutely mainly at far spouts
+  (fM .23, fC .28 vs ~.03 pre) -> spout-specific. The emissions are shared across epochs, so the engaged states'
+  acute far-spout outcome is a misfit the model absorbs (state = engagement, outcome = execution) -- fine for an
+  engagement gate, but per-state outcome rates are not stationary.
+
 ## 3. Running / state at 11-17 ~14:00 (background in session 37fdbabf; scratchpad
 `C:/Users/SABATI~1/AppData/Local/Temp/claude/179e1046909c5be2/37fdbabf-285a-455b-bbb7-d5927a5affe6/scratchpad`)
 
