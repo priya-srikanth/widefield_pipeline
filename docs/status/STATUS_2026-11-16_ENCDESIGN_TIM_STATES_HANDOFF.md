@@ -166,7 +166,10 @@ Run code from a worktree with `PYTHONPATH=$(pwd -W)` (Windows form). AR-HMM mode
   rates weighted by state posterior, per animal):** states 0-2 contact ~1 close, .8-.95 far; 0 vs 1 differ by pre-cue
   / ITI licking (0 highest); 2 = running, pre-cue licking drops at far spouts; 3 partial = contact .6-.7 close but
   ~.2 far with jaw-only ~.4 at far spouts (a far-spout failure state); 4 = no response ~.5 + jaw-only ~.4.
-  Caveat: jaw-only is 0 at close_mid by construction (class not available there) -> those trials read as no response.
+  Caveat (Priya 11-17): jaw-only is 0 at nM because neither camera can judge the jaw there (cam4 chin hidden by the
+  spout; cam1 failed review; `trial_classes` JAW_UNJUDGED_POSITIONS) -> no-lick nM trials default to no response
+  (jaw_judged False); state 4's no-response peak at nM is the same artifact. Fig 3 caption says so; spout codes
+  nI .. fC only (Priya: one convention).
   Not "psychometric" (spout is not a graded stimulus strength).
 
 ## 3. Running / state at 11-17 ~14:00 (background in session 37fdbabf; scratchpad
