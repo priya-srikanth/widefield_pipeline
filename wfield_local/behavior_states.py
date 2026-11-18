@@ -180,8 +180,9 @@ def glmhmm_engaged(T: pd.DataFrame) -> dict:
 #: GLM-HMM STATE colors (Priya 11-18: state colors were too close to the spout colors). Hues kept clear of the spout
 #: hues (`spout_behavior.SIDE_HUE` blue / purple / red) and the epoch colors (`orofacial_cohort.EPOCH_LINE` black /
 #: magenta / gold / teal); engaged states = one green ramp (dark -> light in state order), separable by lightness under
-#: color-vision deficiency; partial = orange; disengaged = gray.
-ROLE_COLORS = {"engaged": ("#00441B", "#41AB5D", "#A1D99B"), "partial": ("#F28E2B", "#B35806"),
+#: color-vision deficiency, the darkest still clearly green next to the disengaged gray (Priya 11-18); partial = orange;
+#: disengaged = gray.
+ROLE_COLORS = {"engaged": ("#1A9850", "#66BD63", "#A6D96A"), "partial": ("#F28E2B", "#B35806"),
                "disengaged": ("#7F7F7F", "#BDBDBD")}
 
 
