@@ -168,7 +168,7 @@ def trace_panels(per: dict, channels: list, labels: list, name: str, title: str,
             ax.spines[["top", "right"]].set_visible(False)
             ax.set_xlabel("time from cue (s)", fontsize=8)
             if j == 0 and rt:
-                ax.set_title(rt, loc="left", fontsize=9, fontweight="bold")
+                ax.set_title(rt, loc="left", fontsize=9, fontweight="bold", pad=16 if shade else 6)  # above the window labels
         (axs.flat[0] if nc != len(channels) else axs[i, -1]).legend(fontsize=7, frameon=False, loc="upper right")
     fig.suptitle(title, fontsize=9)
     _save(fig, name, od)
