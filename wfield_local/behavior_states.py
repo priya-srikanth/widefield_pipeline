@@ -39,6 +39,11 @@ import pandas as pd
 
 GLMHMM_K = 5                      # Priya 11-17: "let's use k=5" (held-out selection: select_k_pooled_all_v2.csv)
 GLMHMM_DESIGN = "v2"              # shared animal offsets, no previous-outcome input (handoff 11-17)
+#: GLM-HMM states COMBINED in every readout (Priya 11-18: "merge 0 and 1"): K5 states 0 and 1 respond identically and
+#: differ only in spontaneous licking, largely by animal (pre: PS95 75 % state 1, PS93 69 % state 0). A merged state
+#: keeps its first member's number (0 = "0+1"); its posterior = the members' sum, so the argmax / roles / gates follow
+#: (the merge moves the engaged call of 5 of 56,978 trials). The fitted model (`glmhmm_params`) keeps all K states.
+GLMHMM_MERGE = ((0, 1),)
 ENGAGED_ATTEMPT = 0.9             # a GLM-HMM state is ENGAGED when >= 90 % of its trials are attempts (contact /
                                   #   incomplete); K5 v2: engaged states .99, partial .51, disengaged .04
 LICK_GROUPS = ("lick_ipsi", "lick_central", "lick_contra")
@@ -98,14 +103,27 @@ def out_dir(tag: str | None = None) -> Path:
 
 # ------------------------------------------------------------------------------------------------ GLM-HMM
 
-def glmhmm_table(K: int = GLMHMM_K, design: str = GLMHMM_DESIGN) -> pd.DataFrame:
+def glmhmm_state_label(k: int, merge: tuple = GLMHMM_MERGE) -> str:
+    """Display name of state ``k``: "0+1" for a merged state, else "k"."""
+    for g in merge:
+        if k == g[0]:
+            return "+".join(map(str, g))
+    return str(k)
+
+
+def glmhmm_table(K: int = GLMHMM_K, design: str = GLMHMM_DESIGN, merge: bool = True) -> pd.DataFrame:
     """The per-trial posterior table written by `glm_hmm --pooled-all` (all trials, all epochs), restricted to the
-    analysis sessions, with animal / epoch / pos (ipsi-contra key) columns added."""
+    analysis sessions, with animal / epoch / pos (ipsi-contra key) columns added. ``merge`` (default): the
+    `GLMHMM_MERGE` states combined (p_state<first> = the members' sum, the others dropped)."""
     from wfield_local import glm_hmm
     from wfield_local import orofacial_cohort as oc
     sfx = "" if design == "v1" else f"_{design}"
     T = pd.read_csv(Path(glm_hmm.out_dir()) / f"states_pooled_all_K{K}{sfx}.csv.gz")
     T = T[T.cls != "unknown"].copy()
+    if merge:
+        for g in GLMHMM_MERGE:
+            T[f"p_state{g[0]}"] = T[[f"p_state{k}" for k in g]].sum(1)
+            T = T.drop(columns=[f"p_state{k}" for k in g[1:]])
     T["epoch"] = T.label.map(session_epoch)
     T = T[T.epoch.notna()].copy()
     T["animal"] = T.label.str.split("_").str[0]
@@ -168,10 +186,15 @@ ROLE_COLORS = {"engaged": ("#00441B", "#41AB5D", "#A1D99B"), "partial": ("#F28E2
 
 
 def glmhmm_state_colors(roles: dict) -> dict:
-    """{state: color} from the roles (`ROLE_COLORS`): the n-th state of a role takes that role's n-th shade."""
+    """{state: color} from the roles (`ROLE_COLORS`): the n-th state of a role takes that role's n-th shade, counted over
+    the FITTED numbering (merged-away members included), so a state keeps its color with or without the merge."""
+    full = dict(roles)
+    for g in GLMHMM_MERGE:
+        if g[0] in roles:
+            full.update({m: roles[g[0]] for m in g[1:]})
     out, n = {}, {r: 0 for r in ROLE_COLORS}
-    for k in sorted(roles):
-        r = roles[k]
+    for k in sorted(full):
+        r = full[k]
         shades = ROLE_COLORS[r]
         out[k] = shades[min(n[r], len(shades) - 1)]
         n[r] += 1
@@ -698,11 +721,12 @@ def glmhmm_reel_selection(T: pd.DataFrame, n: int, seed: int = 0) -> pd.DataFram
     from wfield_local import trial_classes as tc
     pc = _pcols(T)
     P = T[pc].to_numpy()
-    T = T.assign(st_=P.argmax(1), pmax=P.max(1))
+    ks = [int(c[7:]) for c in pc]
+    T = T.assign(st_=np.array(ks)[P.argmax(1)], pmax=P.max(1))
     T = T[T.pmax >= REEL_MIN_POST]
     rng = np.random.default_rng(seed)
     rows = []
-    for k in range(len(pc)):
+    for k in ks:
         D = T[T.st_ == k]
         order = []
         cells = {key: list(rng.permutation(sorted(g.label.unique()))) for key, g in D.groupby(["animal", "epoch"])}
