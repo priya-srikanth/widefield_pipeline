@@ -154,6 +154,21 @@ Run code from a worktree with `PYTHONPATH=$(pwd -W)` (Windows form). AR-HMM mode
   shifted -- or (b) distribution -- fewer licks per trial at contra spouts? Compare with that window's per-spout
   results when they land. Fig 1 restyled: repo EPOCH_LINE colors, +-SEM band across animals (alpha .07, edges .25).
 
+- **Peri-cue push / walking from the treadmill alone (Priya 11-17; `cue_push.py`, figs 2a / 2b on the share):** push =
+  backward wheel > 0.5 mm/s in [-0.25, +0.75) s of the cue (control [-2, -1) s); walking = forward > 3 mm/s. Push is a
+  TASK behavior: ~0 outside the lick working period in every epoch. Working period: push rate .15 pre, -.11 acute
+  (4/4, Holm), +.25 chronic (4/4, Holm); control-window rate tiny (.01). Peak backward speed on push trials rises
+  +.22 subacute / +.38 chronic, latency earlier (-.07 / -.10 s). Cue-window walking unchanged (only GLM-engaged
+  chronic -.014). Gate comparison: GLM-HMM engaged (states 0-2) is a strict SUBSET of the lick working period
+  (GLM-only = 0); in-period but GLM-not-engaged = 6 % pre, 33 % acute, 21 % subacute, 5 % chronic. Push results are the
+  same under either gate. Backward speed plotted negative (Priya).
+- **GLM-HMM per-state response curves by spout (fig 3, `glmhmm_state_curves.py`; weights not saved -> observed
+  rates weighted by state posterior, per animal):** states 0-2 contact ~1 close, .8-.95 far; 0 vs 1 differ by pre-cue
+  / ITI licking (0 highest); 2 = running, pre-cue licking drops at far spouts; 3 partial = contact .6-.7 close but
+  ~.2 far with jaw-only ~.4 at far spouts (a far-spout failure state); 4 = no response ~.5 + jaw-only ~.4.
+  Caveat: jaw-only is 0 at close_mid by construction (class not available there) -> those trials read as no response.
+  Not "psychometric" (spout is not a graded stimulus strength).
+
 ## 3. Running / state at 11-17 ~14:00 (background in session 37fdbabf; scratchpad
 `C:/Users/SABATI~1/AppData/Local/Temp/claude/179e1046909c5be2/37fdbabf-285a-455b-bbb7-d5927a5affe6/scratchpad`)
 
