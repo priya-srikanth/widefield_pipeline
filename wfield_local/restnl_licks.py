@@ -56,12 +56,6 @@ VERSION = 3
 #: Since 11-17 (late) the rule lives in ONE place, `cam1_licks.keep_mask` (droplet + far guard), shared by every cam1
 #: event reader; this name re-exports its threshold.
 FAR_FROM_MOUTH_PX = _C1.FAR_FROM_MOUTH_PX
-#: DIGEST ALIAS (11-17 late, docs/status/CAM1_FARMOUTH_GUARD_CODE_20261117.md): moving the rule into
-#: `cam1_licks.keep_mask` changed this module's text but not one onset (tests/test_cam1_keep_mask.py pins
-#: `cam1_only_onsets` against a frozen copy of the v3 body). The digest of exactly this refactored source (+ keep_mask's
-#: closure) maps to the v3 digest, so the RESTnlc1 v3 caches stay warm; ANY later edit to either changes the digest
-#: and misses the alias, i.e. invalidates as before. Lines carrying the alias marker are not hashed.
-_DIGEST_ALIAS = {"18e0aaed8e01": "e34a85c2b4b0"}  # [digest-alias]
 
 _MISSING: dict = {}
 
@@ -147,13 +141,14 @@ def missing_cam1() -> dict:
 
 
 def code_digest() -> str:
-    """This module's source (alias-marker lines dropped) + the closure of `cam1_licks.keep_mask`: enters every cam4cam1
-    cache key. Mapped through `_DIGEST_ALIAS` (see there)."""
+    """This module's source + the closure of `cam1_licks.keep_mask`: enters every cam4cam1
+    cache key. (11-17: the move of the rule into `keep_mask` changed this digest, so RESTnlc1 caches made by the v3 code before it
+    recompute once; an alias that kept them warm was dropped as fragile.)"""
     from wfield_local import map_collect
-    src = "".join(ln for ln in inspect.getsource(sys.modules[__name__]).splitlines(True) if "[digest-alias]" not in ln)
+    src = inspect.getsource(sys.modules[__name__])
     src += map_collect.closure(_C1, "keep_mask").source()
     d = hashlib.sha1(src.encode()).hexdigest()[:12]
-    return _DIGEST_ALIAS.get(d, d)
+    return d
 
 
 def key_part(label: str) -> str:

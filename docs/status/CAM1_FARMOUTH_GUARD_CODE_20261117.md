@@ -123,3 +123,10 @@ audit's `blast_c1far/sessions.csv`.
 
 The quiet-chain lick train (`cohort2_qc/lp_licks.lick_times`) drops 106 / 324 / 22 cam1-only onsets in these sessions.
 That equals the audit's far events_all counts, and the result is now the same cam1 set as RESTnlc1.
+
+## 11-17 late: digest alias dropped
+
+The `_DIGEST_ALIAS` in `restnl_licks.code_digest` failed in the full pre-push suite (passed alone and in a fresh
+interpreter here) and was dropped as fragile. Consequence: RESTnlc1 caches written by the v3 code before the keep_mask
+refactor (the 11-17 re-run, which imports wf_restnlc1) recompute once when a later run uses this code. The test now
+checks only that the digest follows keep_mask's closure.

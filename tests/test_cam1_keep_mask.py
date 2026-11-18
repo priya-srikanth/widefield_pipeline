@@ -4,7 +4,7 @@
 (1) a droplet row is dropped, a far cam1-only row is dropped, a cam4-matched row is untouched (even when far);
 (2) no droplet column -> `droplet_flags` decides; no med_out_px column -> no far guard, printed once per session;
 (3) `restnl_licks.cam1_only_onsets` is unchanged by the refactor (frozen copy of the v3 body, EXACT equality) and its
-    cache digest stays the v3 one (alias), while any other source would not map to it;
+    and its cache digest follows keep_mask's closure (a change there invalidates);
 (4) `trial_classes.session_trials` drops a far cam1-only event from the incomplete set AND from the jaw-only "seen" set.
 """
 from __future__ import annotations
@@ -95,21 +95,14 @@ def test_restnl_cam1_only_onsets_unchanged_by_refactor(tmp_path):
     assert rl.FAR_FROM_MOUTH_PX == FAR == -120.0
 
 
-def test_restnl_digest_is_v3_alias_and_only_for_this_source(monkeypatch):
-    import subprocess
-    import sys
-    from pathlib import Path
-    from wfield_local import restnl_licks as rl
-    # fresh interpreter: other tests in the suite may monkeypatch / reload modules the closure hashes
-    root = Path(__file__).resolve().parents[1]
-    d = subprocess.run([sys.executable, "-c", "from wfield_local import restnl_licks as r; print(r.code_digest())"],
-                       cwd=root, capture_output=True, text=True, check=True).stdout.strip()
-    assert d == "e34a85c2b4b0"                                         # RESTnlc1 v3 caches stay warm
-    # any other source (here: keep_mask's closure changed) misses the alias -> a new digest = invalidation
+def test_restnl_digest_follows_keep_mask(monkeypatch):
+    """The cam4cam1 cache key hashes keep_mask's closure: changing it must change the digest (invalidation)."""
     from wfield_local import map_collect
+    from wfield_local import restnl_licks as rl
+    d0 = rl.code_digest()
     real = map_collect._Closure.source
     monkeypatch.setattr(map_collect._Closure, "source", lambda self: real(self) + "\n# changed\n")
-    assert rl.code_digest() != "e34a85c2b4b0"
+    assert rl.code_digest() != d0
 
 
 def test_session_trials_far_event_not_a_lick_nor_seen(tmp_path):
