@@ -67,7 +67,9 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      production-key p_true wrapper for slide 158, superseded folders.
    - **OPEN:**
      - Goal page section 23: Priya OK'd the swap to the guard-run quiet data (11-18, via 3c); 3c is doing the page
-       side from QUIET_C1GUARD_OLD_NEW_20261117.md. a8 does not touch it.
+       side from QUIET_C1GUARD_OLD_NEW_20261117.md. a8 does not touch it. Priya accepted the rebuild + guard figures
+       there; a8 rendered the k 4 threshold figure for 23.18 (v2_quiet_lp_c1guard_k4_20261118, 95b66db6, path sent to 3c).
+       Restyle of the quiet figures (boot_delta stars, no top spine, open session markers): WAIT for 3c to relay Priya.
      - The attempt_coding csig re-key under the guard: no guard-keyed tables yet.
      - Delete the superseded v2_quiet_lp_20261117 follow-ons and the v2_quiet_lp_c1guard_20261117 k 4.5 summary only on
        Priya's OK.
