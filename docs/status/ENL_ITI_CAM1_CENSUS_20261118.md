@@ -64,3 +64,47 @@ The all-LP-trial population gives the same picture.
 - **Before any re-run:** decide whether the static cam1 events at -50 to -90 px are licks. The far-from-mouth guard
   (or a range / spread floor) would need extending first. Adopting cam1 in ENL / ITI with the current rule would inject a
   chronic-specific, far-spout-specific trial loss.
+
+## Blind review of the static class (Priya 11-18: "yes let's do review of the motionless calls")
+- **Already in hand, from the 11-17 review:** 25 of its test events fall in this class (kept cam1-only, `range_px` < 10,
+  `med_out_px` -120..0). Priya scored 24 of them as tongue (23 lips, 1 out) and 1 as none. Almost all came from PS92 / PS93.
+- **New sheet (11-18), aimed at the census hot spots:** `<G>/cam1_static_review_20261118/review/review_sheet.html`
+  (G = `M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/grant_figures`). It holds 42 shuffled candidates, pre-cue / ITI
+  context only:
+  - static PS95 chronic far 10, PS95 chronic close 4, PS94 chronic far 8, PS94 subacute 4, PS95 pre 3;
+  - reference: 5 kept cam1-only events that move (`range_px` >= 10, chronic);
+  - controls: 4 cam4-matched contact licks, 4 flagged droplets.
+  It uses the 11-17 format (cam1, cam1 with the detector point, cam4, cam1 -400..+400 ms). `review/sample.csv` is the key.
+  The code is in `code/` (`c1s_sample.py`; `c1x_review.py` / `c1x_sheet.py` are copied from 11-17, with only the sheet's
+  title and storage key changed).
+- The static class is this share of kept pre-cue / ITI cam1-only events in PS94 / PS95:
+
+  | | pre | acute | subacute | chronic |
+  |---|---|---|---|---|
+  | PS94 | 0.49 | 0.45 | 0.46 | 0.52 |
+  | PS95 | 0.33 | 0.28 | 0.56 | **0.78** |
+- **Scored by Priya (11-18 ~14:18):** `review/scored_priya_20261118.csv`, copied from Downloads. All 42 were answered.
+
+  | group | lips | out | droplet |
+  |---|---|---|---|
+  | static test events (29) | **29** | 0 | 0 |
+  | moving cam1-only reference (5) | 4 | 1 | 0 |
+  | control: cam4-matched contact licks (4) | 0 | 4 | 0 |
+  | control: flagged droplets (4) | 0 | 1 | 3 |
+
+  - Static test events, by stratum: PS95 chronic far 10/10, PS95 chronic close 4/4, PS94 chronic far 8/8, PS94 subacute 4/4,
+    PS95 pre 3/3.
+  - With the 11-17 review, this class now stands at **53 / 54 tongue**.
+- **Reading:** the short, nearly motionless cam1-only events at -50 to -90 px are the tongue at the lips, not static
+  labels.
+  - The cam1 rule needs no movement floor; keep_mask stays as it is.
+  - The RESTnlc1 / Fig 12.1 primary (cam4 + kept cam1) is not undermined by these events.
+  - The census effect is REAL licks. The current cam4-only ENL / ITI lick-free windows in PS95 chronic (and PS94
+    subacute / chronic) contain tongue-at-lips licks that cam4 misses, concentrated at the far spouts. Whether to re-run
+    ENL / ITI with cam1 is Priya's call: she leaned away 11-18, and cam2/3 will be added later.
+- **Decisions (Priya 11-18, DECISIONS.md 2026-11-18):**
+  - Fig 12.1 is no longer provisional (Spout (Target) Coding page v65; FINDINGS item 9 STANDS).
+  - **ENL / ITI stay as they are.** Priya: "i don't know that we need to eliminate these little pre-licks, ok to keep as
+    is". No re-run.
+  - The caveat above (small cam1-only licks at the lips inside the windows of PS95 chronic and PS94 subacute / chronic)
+    is recorded; revisit with cam2/3.
