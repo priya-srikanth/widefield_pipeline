@@ -12,3 +12,4 @@ arhmm_lick_direction_by_epoch,3.3,,arhmm_lick_direction_by_epoch.png,1
 arhmm_transition_entropy,3.4,,arhmm_transition_entropy.png,1
 arhmm_groups_at_jaw_onset_jawonly,3.5,,arhmm_groups_at_jaw_onset_jawonly.png,1
 arhmm_reels_contact_sheet,3.6,,arhmm_reels_contact_sheet.png,1
+arhmm_frozen_likelihood_by_epoch,5.1,,arhmm_frozen_likelihood_by_epoch.png,1

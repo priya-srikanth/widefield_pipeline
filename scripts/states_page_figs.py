@@ -307,8 +307,17 @@ def fig_arhmm(C: dict, od: Path) -> None:
                  f"Jaw-only trials: AR-HMM syllable groups at the jaw onset (+- {bs.JAW_HALF_S:g} s)", od, ylim01=True)
 
 
+def fig_frozen(C: dict, od: Path) -> None:
+    S = bs.frozen_distance()
+    S.to_csv(od / "arhmm_frozen_distance_per_session.csv", index=False)
+    epoch_panels(S, ["ll_rel"], {"ll_rel": "log-likelihood per frame under the pre-stroke AR-HMM (relative, nats)"},
+                 "arhmm_frozen_likelihood_by_epoch",
+                 "How pre-stroke-like is each session's movement? AR-HMM marginal log-likelihood under held-out "
+                 "pre-stroke fits (8 folds); pre days scored only by the fold that left them out", od, nc=1)
+
+
 FAMILIES = {"occupancy": fig_occupancy, "curves": fig_state_curves, "push": fig_push, "wheel": fig_wheel_traces,
-            "arhmm": fig_arhmm}
+            "arhmm": fig_arhmm, "frozen": fig_frozen}
 
 
 def main(argv=None) -> int:

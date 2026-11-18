@@ -77,7 +77,7 @@ Code: <code>wfield_local/behavior_states.py</code>, figures <code>scripts/states
 <tr><td>Does lick direction recover?</td><td>Not by this measure: contralesional share of lick frames .44 pre, &minus;.12 acute, &minus;.07 subacute, &minus;.07 chronic. Needs the LP per-lick direction cross-check.</td><td><a href="#f-arhmm_lick_direction_by_epoch">3.3</a></td><td>TO CHECK</td></tr>
 <tr><td>Is jaw-only an AR-HMM syllable?</td><td>No: at the jaw onset of jaw-only trials the syllables are quiet, slow nose and walking; the chewing group (21 + 22) is peri-lick.</td><td><a href="#f-arhmm_groups_at_jaw_onset_jawonly">3.5</a></td><td>PROVISIONAL</td></tr>
 <tr><td>Does task-independent movement (TIM) rise, as in Yin et al.?</td><td>No: within-session TIM does not rise; the acute nose rise in the frozen frame is a posture shift.</td><td><a href="#tim">4</a></td><td>PROVISIONAL</td></tr>
-<tr><td>How far does post-stroke behavior sit from the pre-stroke repertoire?</td><td>Held-out pre-stroke AR-HMM fits (8 folds) done on O2; the frozen likelihood score is next.</td><td><a href="#frozen">5</a></td><td><span class="pending">PENDING</span></td></tr>
+<tr><td>How far does post-stroke behavior sit from the pre-stroke repertoire?</td><td>Under held-out pre-stroke fits, acute sessions score more pre-stroke-like (+.52 nats / frame, stillness) and chronic less (&minus;.66, 4/4); needs a control for the quiet share.</td><td><a href="#f-arhmm_frozen_likelihood_by_epoch">5.1</a></td><td>PROVISIONAL</td></tr>
 </tbody></table></div>
 </section>
 
@@ -156,12 +156,17 @@ This fits the stiller acute state seen here (more quiet syllables) and in the qu
 <code>task_independent_movement/v2/sessions</code>).</p>
 </section>
 
-<section id="frozen" data-toc="5. Distance from the pre-stroke repertoire">
-<span class="tag">Frozen pre-stroke AR-HMM &middot; pending</span>
-<h2>5. How far does post-stroke behavior sit from the pre-stroke repertoire?</h2>
-<p class="pending">Pending. Frame-by-frame log-likelihood of each session under the pre-stroke AR-HMM: post-stroke days
-scored by the full pre-stroke fit, pre-stroke days by 8 held-out fits (fold k leaves out each animal's k-th pre day;
-fits done on O2 11-17), so the pre-stroke floor is not in-sample.</p>
+<section id="frozen" data-toc="5. Distance from the pre-stroke repertoire" data-kind="l">
+<span class="tag">Frozen pre-stroke AR-HMM &middot; FINDINGS 9.5</span>
+<h2>5. How far does post-stroke behavior sit from the pre-stroke repertoire? <span class="kind l">lick</span></h2>
+<p>Marginal log-likelihood per frame of each session under 8 pre-stroke-only AR-HMM fits (O2, 11-17): fold k leaves
+out each animal's k-th August pre day, so every pre day is scored by a model that never saw it. Each fold has its own
+PCA basis, so sessions are compared only within a fold (relative to the animal's mean over that fold's unseen
+sessions); post days average over the 8 folds.</p>
+<div class="take">Acute sessions score MORE pre-stroke-like (+.52 nats / frame, 4/4) and chronic sessions LESS
+(&minus;.66, 4/4). The acute rise is most likely the stiller acute state (quiet frames are easy to predict), so this
+score needs a control for the amount of quiet before it can read as distance from the pre-stroke repertoire.</div>
+<figure id="f-arhmm_frozen_likelihood_by_epoch" data-fid="arhmm_frozen_likelihood_by_epoch" data-num="5.1"><span id="fig5-1" class="figanchor"></span><div class="ftitle"><span class="fnum">Fig 5.1</span>Likelihood under held-out pre-stroke AR-HMM fits: higher acutely (stillness), lower chronically</div><img src="arhmm_frozen_likelihood_by_epoch.png" alt="Frozen pre-stroke AR-HMM log-likelihood by epoch"><figcaption><b class="h">Fig 5.1 &middot; frozen pre-stroke likelihood.</b> Change vs own held-out pre: +.52 [.26, .83] acute, &minus;.21 [&minus;.53, .08] subacute, &minus;.66 [&minus;1.07, &minus;.23] chronic (4/4 in the sign of acute and chronic; PS92 chronic only &minus;.02). <b>Caveat:</b> per-frame likelihood rewards predictable (quiet) frames; next: the same score on movement frames only, or adjusted for the quiet share. <b>Data:</b> whole sessions, 25 Hz AR-HMM features, models <code>arhmm/v1/fits/model_pre_s1_f1..f8.pkl</code>, scores <code>ll_pre_s1_f*.csv</code> (<code>python -m wfield_local.arhmm_model score</code>), combined by <code>behavior_states.frozen_distance</code>. <b>Stats:</b> * = paired bootstrap CI vs own pre excludes 0. <b>Script:</b> <code>scripts/states_page_figs.py --only frozen</code>. <span class="ffile"><b>File:</b> <code>LP_analysis/lp_r4_heatmap_20261013__clean_v36/arhmm/v1/poststroke_pooled_all_s1/page_figs/arhmm_frozen_likelihood_by_epoch.png</code></span></figcaption></figure>
 </section>
 
 <section id="methods" data-toc="6. Methods and caveats">

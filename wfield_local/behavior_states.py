@@ -358,6 +358,29 @@ def per_session(trials: pd.DataFrame, gate: str | None = None) -> pd.DataFrame:
     return S.reset_index()
 
 
+def frozen_distance(prefix: str = "pre_s1_f") -> pd.DataFrame:
+    """How LIKELY each session's movement is under the pre-stroke AR-HMM, with an OUT-OF-SAMPLE pre-stroke floor.
+
+    Inputs: ``ll_<prefix><k>.csv`` beside the fold models in `arhmm_states.fits_dir()` (`arhmm_model score`); fold k
+    left out each animal's k-th August pre day (model['held_out']). Each fold model has its own PCA basis, so a
+    likelihood is compared only inside one model: for fold k and animal a, every session the model did NOT fit (the
+    animal's held-out pre day and all its post days) is taken relative to their mean (the anchor A_ka). A post day's
+    score = mean over folds of LL_k - A_ka; a pre day's score = LL_j - A_ja under the one fold j that held it out. The
+    anchor cancels in the change vs pre, so `orofacial_cohort.epoch_tables` gives the change from each animal's own
+    (held-out) pre days. Units: log-likelihood per frame (nats); negative change = less like the pre-stroke repertoire.
+    """
+    from wfield_local import arhmm_states as st
+    L = pd.concat([pd.read_csv(f) for f in sorted(st.fits_dir().glob(f"ll_{prefix}*.csv"))])
+    L = L[~L.in_fit.astype(bool)].copy()
+    L["animal"] = L.label.str.split("_").str[0]
+    L["epoch"] = L.label.map(session_epoch)
+    L = L[L.epoch.notna()]
+    L = L[(L.epoch != "pre") | L.held_out.astype(bool)]                 # pre days only where held out
+    L["rel"] = L.ll_per_frame - L.groupby(["model", "animal"]).ll_per_frame.transform("mean")
+    S = L.groupby(["label", "animal", "epoch"]).agg(ll_rel=("rel", "mean"), n_models=("model", "nunique")).reset_index()
+    return S
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split(chr(10) * 2)[0])
     ap.add_argument("cmd", choices=("collect",))

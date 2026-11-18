@@ -36,6 +36,7 @@ import pickle
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 
 FS_HZ = 25.0
 PCA_VAR = 0.90
@@ -276,7 +277,7 @@ def per_session(z, owner, feats) -> dict:
 # -------------------------------------------------------------------------------------------------------------- cli ----
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split(chr(10) * 2)[0])
-    ap.add_argument("cmd", choices=("scan", "fit", "decode"))
+    ap.add_argument("cmd", choices=("scan", "fit", "decode", "score"))
     ap.add_argument("--feat", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--epochs", required=True, help="json {label: epoch} (written by the analysis env)")
@@ -301,6 +302,37 @@ def main(argv=None) -> int:
     tag = a.tag or f"{a.frame}_s{a.seed}" + (f"_f{a.holdout_fold}" if a.holdout_fold else "")
     feats = load_features(a.feat, a.run_floor)
     epochs = json.loads(Path(a.epochs).read_text())
+    if a.cmd == "score":
+        # frame-by-frame MARGINAL log-likelihood of each session under this model (forward algorithm over every
+        # state path; padded frames add 0), per frame = total / masked frames after the lags. Each model has its own
+        # PCA basis, so compare likelihoods only WITHIN one model (held-out pre day vs post days under the same fold;
+        # `behavior_states.frozen_distance`). Rows land in ll_<tag>.csv beside the model.
+        from jax_moseq.models import arhmm
+        M = load_model(out / f"model_{tag}.pkl")
+        jnp = _jax().numpy
+        P = {k: jnp.asarray(M["params"][k]) for k in ("Ab", "Q", "pi")}
+        dest = out / f"ll_{tag}.csv"
+        done = set(pd.read_csv(dest).label) if dest.exists() else set()
+        rows = []
+        for lab in ([a.label] if a.label else sorted(feats)):
+            if lab in done:
+                continue
+            seqs, _own = seqs_of(feats, [lab], M["design"], M.get("dither", 0.0))
+            if not seqs:
+                continue
+            d = make_data(seqs)
+            n = float(np.asarray(d["mask"])[:, NLAGS:].sum())
+            ll = float(arhmm.marginal_log_likelihood(d["mask"], d["x"], **P))
+            rows.append({"label": lab, "model": tag, "ll_total": ll, "n_frames": n, "ll_per_frame": ll / n,
+                         "in_fit": lab in set(M.get("fit_labels", [])), "held_out": lab in set(M.get("held_out", []))})
+            print(f"scored {lab}: {ll / n:.3f} / frame", flush=True)
+        if rows:
+            new = pd.DataFrame(rows)
+            allr = pd.concat([pd.read_csv(dest), new]) if dest.exists() else new
+            tmp = dest.with_suffix(".csv.tmp")
+            allr.to_csv(tmp, index=False)
+            tmp.replace(dest)
+        return 0
     if a.cmd == "decode":
         M = load_model(out / f"model_{tag}.pkl")
         jnp = _jax().numpy

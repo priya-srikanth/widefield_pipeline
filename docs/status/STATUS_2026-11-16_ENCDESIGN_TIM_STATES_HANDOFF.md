@@ -101,6 +101,30 @@ Run code from a worktree with `PYTHONPATH=$(pwd -W)` (Windows form). AR-HMM mode
   .091, side within contacts .170 / .362. AR-HMM better on every label (one seed; engines differ: EM vs Gibbs; GHMM
   on instantaneous features, not per-bin summaries). Keep the AR-HMM.
 
+## 3b. 11-17 night: STATES RESULTS PAGE + one module for every state readout -- START HERE for the states arm
+
+- **Page:** https://claude.ai/artifact/ChbBM9K12WWRohx6nU6rCX (source `docs/results_pages/states/`, README = rebuild
+  steps). Sections: 1 GLM-HMM engagement, 2 treadmill push / walking, 3 AR-HMM syllables, 4 TIM (figures pending),
+  5 frozen pre-stroke likelihood (scoring running), 6 methods. FINDINGS section 9 (main).
+- **Code (Priya: modular, no redefinitions):** `wfield_local/behavior_states.py` holds every choice once (GLM-HMM K /
+  design, roles FROM PROFILES via `glmhmm_roles`, groups from the reviewed `state_labels.csv` via `state_groups`,
+  epochs = `epochs.epoch_of` + `config.early_pre`, walking = segmentation.running, push = NEW `segmentation.push` in
+  configs/defaults.yaml, lick gate = `trial_classes.camera_engaged_period`, stats = `orofacial_cohort.epoch_tables`).
+  `python -m wfield_local.behavior_states collect` -> `arhmm/v1/poststroke_pooled_all_s1/` (csv.gz + traces.npz);
+  `python scripts/states_page_figs.py [--only ...]` -> `page_figs/`. Test `tests/test_behavior_states.py`. The scratch
+  scripts (scripts/states_poststroke, share `arhmm/v1/poststroke_s1/`) are SUPERSEDED (folder kept; derived, can go).
+- **Data on the share now:** features `arhmm/features_v3` (= `arhmm_features.out_dir()`), fits + decoded states
+  `arhmm/v1/fits` (`arhmm_states.fits_dir()`, PROVENANCE.txt: pooled_all_s1 = local refit = the REVIEWED reference;
+  s2 / s3 / pre_s1-3 = O2; pre_s1_f1..f8 = O2 held-out folds).
+- **Frozen likelihood:** `arhmm_model score --tag pre_s1_f<k>` (marginal LL per frame, jax-moseq
+  `marginal_log_likelihood`) running for all 8 folds x 107 sessions -> `fits/ll_pre_s1_f<k>.csv`; combined by
+  `behavior_states.frozen_distance` (within-model anchor, pre days only where held out); figure family `frozen`.
+- state_labels.csv groups updated: 21 / 22 -> jaw_chew, 4 -> walk_slow (notes in the rows).
+- **Frozen likelihood RESULT (page 5.1, v2):** change vs own held-out pre, nats / frame: acute +.52 [.26, .83] (4/4),
+  subacute -.21 (n.s.), chronic -.66 [-1.07, -.23] (4/4; PS92 only -.02). Acute "more pre-like" = stiller (quiet
+  frames are predictable) -> NEXT: the score on movement frames only / adjusted for the quiet share (per-frame
+  forward-filter normalizers), before calling it a distance from the pre-stroke repertoire.
+
 ## 3a. 11-17 ~18:00: held-out pre baseline + pre seed stability
 
 - **Pre-model seed stability** (`arhmm_seed_match_noQ.py`, ref pre_s1): pre_s2 frame agreement .823 / ARI .847; pre_s3
