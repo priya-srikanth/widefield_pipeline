@@ -74,6 +74,10 @@ LICKS3D = pose3d_dir() / "kinematics" / "licks.csv.gz"                   # 3-D f
 # roots, then compare every table); never set in a production queue.
 ROOT = Path(os.environ.get("WF_SS_ROOT") or REBUILD / "state_space_recovery")   # every state-space output
 SHARE = Path(PathResolver().root("microscope")) / "Widefield"                     # the share root (read-only here)
+# RESTnlc1 (Priya 11-17; WIDEFIELD_RESTNL_LICKS=cam4cam1): every RESTnl-referenced state-space output (rest baseline,
+# chronic maps / shift_* folders and their page_figs) gets this suffix, so the cam4 RESTnl outputs are never overwritten.
+from wfield_local import restnl_licks as _rl  # noqa: E402
+RSFX = "_restnlc1" if _rl.is_c1() else ""
 LEGACY_ROOT = SHARE / "state_space_recovery"
 # Inputs from OTHER arms (11-16 path fix): until then within_session_behavior and detour_vs_balance built these as
 # `ROOT.parent / ...`, which was the share root before the 11-12 reroute and is the REBUILD root after it, where

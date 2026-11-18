@@ -10,6 +10,9 @@ memory with extra exclusions):
   daq2       + DAQ lick onsets (the mask's own detector, config criteria) with buffer [0.5, 2.0] s        -> concern (b)
   strict     daq2 + EVERY cam4 lick of licks_all.csv (any context, contact or not; daq_on_s) [0.5, 2.0] s -> (a)+(b)
   strict_c1  strict + every cam1 2-D lick event (session_poses/cam1_licks/<a>_<d>_events_all.csv, daq_on_s)
+             SUPERSEDED 11-17 (Priya): counts droplets and far-from-mouth labels (no cam1_licks.keep_mask). The live
+             cam4 + cam1 rest set is RESTnlc1 (`restnl_licks`, keep_mask rule). Kept unchanged so the shared VERSION
+             (and the restw_check_c1v3 caches) are not redone; do not quote strict_c1 numbers.
   strict_jaw strict + frames of cam4 cleaned jaw y (clean.npz, px from the jaw rest point) above a per-session robust
              threshold (median + 5 x 1.4826 MAD over all video frames; hidden jaw = not counted) [0.5, 2.0] s
   After each intersection the mask's own min_rest_s floor (0.5 s) is re-applied, as rest_mask does last.
@@ -43,7 +46,11 @@ from wfield_local import mask_keys  # noqa: E402
 from figdata import load_fd, plot_only, save_fd  # noqa: E402
 
 SRC = il.OUT                                    # read-only inputs
-OUTD = il.OUT / "restw_check"                   # the ONLY write root
+# RESTnl LICK SET (Priya 11-17, `wfield_local.restnl_licks`): under WIDEFIELD_RESTNL_LICKS=cam4cam1 the `strict` mask
+# (= RESTnl) also removes the cam1-only LP events (droplets removed; `lp_licks.lp_lick_times`), and everything is
+# written to its OWN folder restw_check_c1/ (read by `restnl.py` under the same switch); the cam4 folder is untouched.
+from wfield_local import restnl_licks as _rl  # noqa: E402
+OUTD = il.OUT / (_rl.CHECK_DIR if _rl.is_c1() else "restw_check")   # the ONLY write root
 SESS = OUTD / "sessions"
 FIGS = OUTD / "figures"
 FDR = OUTD / "figdata"
@@ -54,7 +61,7 @@ MIN_FR_RELAXED = 50
 # the variants reported (d_<v> = v - restw; *_flat - restw_flat). PRIMARY = strict_w50 (all sessions kept)
 SHOW = ["daq2", "strict", "strict_w50", "strict_c1_w50", "strict_jaw_w50", "strict_flat"]
 VLAB = {"daq2": "DAQ licks [0.5, 2.0]", "strict": "STRICT (+ all cam4 licks), 200-frame floor",
-        "strict_w50": "STRICT, 50-frame floor (primary)", "strict_c1_w50": "strict + cam1 licks, 50-frame floor",
+        "strict_w50": "STRICT, 50-frame floor (primary)", "strict_c1_w50": "strict + cam1 licks (SUPERSEDED: unfiltered), 50-frame floor",
         "strict_jaw_w50": "strict + jaw motion, 50-frame floor", "strict_flat": "STRICT unweighted median vs restw unweighted"}
 LAGS = np.round(np.arange(-2.0, 3.0001, 0.05), 3)
 WIN = (-1.0, 0.0)
@@ -180,7 +187,11 @@ def session_worker(item) -> dict:
     chk = floor_runs(rest0 & ~widen(daq_on, n, int(0.5 * fs), int(1.0 * fs)), minrun)
     n_chk = int((rest0 & ~chk).sum())
     m_daq2 = floor_runs(rest0 & ~widen(daq_on, n, nb, na), minrun)
-    m_strict = floor_runs(m_daq2 & ~widen(smp(cam4_on), n, nb, na), minrun)
+    strict_on, n_c1 = _rl.extend(label, cam4_on) if _rl.is_c1() else (cam4_on, None)   # cam4cam1: + cam1-only LP
+    if n_c1 is not None:
+        notes["restnl_lick_set"] = _rl.lick_set()
+        notes["restnl_n_cam1_only"] = int(n_c1)
+    m_strict = floor_runs(m_daq2 & ~widen(smp(strict_on), n, nb, na), minrun)
     masks = {"restw": rest0, "daq2": m_daq2, "strict": m_strict}
     if c1 is not None:
         masks["strict_c1"] = floor_runs(m_strict & ~widen(smp(c1.daq_on_s.dropna()), n, nb, na), minrun)

@@ -50,6 +50,8 @@ INDIRECT = {
     "coupling_vigour_sm.py", "decoder_retention_sessions.py", "lick_correction.py",
     "lick_firstlick_extract.py", "lick_vigor_perspout.py", "precue_class_matched.py", "recovery_timing.py",
     "restw_strict_check.py", "session_pace_table.py",
+    # RESTnl cam4 vs cam4cam1 comparison (11-17): writes only under the rebuild root (restnl_cam1_compare_20261117/)
+    "restnl_cam1_compare.py",
     # state-space arm (11-09): writes only under state_space_sim.ROOT (inputs pinned to the rebuild profile's literal
     # run tags, like every state_space_*.py); trips the scan only through its M:/MICROSCOPE/Priya INPUT paths
     "state_space_shift_movement.py",

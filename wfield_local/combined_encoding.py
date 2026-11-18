@@ -135,7 +135,8 @@ TARGET3D_TABLE_ENV = "COMBINED_ENCODING_TARGET3D_TABLE"
 #: kernel"). cam4 misses small licks (cam1 adds 3-7 % real ones; incomplete licks rise post-stroke, PS92 far_R share
 #: .17 -> .86 acute), so their cortical activity was left to position / executed / traces -- a post-stroke bias.
 #:   cam4      (default) LP cam4 lick onsets + DAQ contacts (as before)
-#:   combined  + cam1-ONLY events (session_poses/cam1_licks/<a>_<d>_events.csv: not cam4-matched, not droplets) in the
+#:   combined  + cam1-ONLY events (session_poses/cam1_licks/<a>_<d>_events.csv: not cam4-matched, `cam1_licks.keep_mask`
+#:             = not droplets, not far-from-mouth labels, Priya 11-17) in the
 #:             same lick kernel
 #:   lips      as combined, but cam1-only events with size_class == 'lips' get their OWN kernel (inside `licks`)
 #: TIMING ONLY: cam1-only events have no angle / reach (no cam4 trace; no usable 3-D depth below ~1 mm), so they never
@@ -383,7 +384,8 @@ def lick_angle_3d(L: pd.DataFrame, session: str) -> np.ndarray:
     return np.degrees(np.arctan2(ml, np.hypot(ap, dv)))
 _CACHE_CODE = ("wfield_local/combined_encoding.py", "wfield_local/orofacial_cohort.py",
                "wfield_local/orofacial_outputs.py", "wfield_local/trial_windows.py", "wfield_local/beta_maps.py",
-               "wfield_local/daq_trials.py", "scripts/pose_kinematics_demo.py")
+               "wfield_local/daq_trials.py", "scripts/pose_kinematics_demo.py",
+               "wfield_local/cam1_licks.py")      # the cam1 lick rule (`_cam1_lick_events`, 11-17)
 
 
 def _cached(kind: str, label: str, sources, build):
@@ -688,9 +690,10 @@ def _cam1_lick_events(rv, animal: str, date: str, cue_t: pd.DataFrame, mode: str
     f = Path(rv.root("dlc")) / "session_poses" / "cam1_licks" / f"{animal}_{date}_events.csv"
     if not f.exists():                                  # never mix event sets silently
         raise FileNotFoundError(f"{LICKS_ENV}={mode} needs {f}")
+    from wfield_local import cam1_licks as C1
     E = pd.read_csv(f)
-    only = ~E.cam4_matched.fillna(False).astype(bool) & ~E.droplet.fillna(False).astype(bool)
-    E = E[only & E.trial_id.isin(cue_t.index)]
+    m4 = C1.flag_col(E["cam4_matched"])
+    E = E[~m4 & C1.keep_mask(E, m4, label=f"{animal}_{date}") & E.trial_id.isin(cue_t.index)]
     t = E.trial_id.map(cue_t.cue_daq).to_numpy(float) + E.on_ms.to_numpy(float) / 1000.0
     is_lips = (E.size_class == "lips").to_numpy()
     if mode == "combined":

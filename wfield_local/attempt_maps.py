@@ -94,7 +94,7 @@ def classes_for_rows(cls_e, cls_u, quit_u, pre, camera_u=None):
 #: default, unchanged). `restnl` = RESTnl (lick-free rest, flat; `restnl_mask`): features of the PLAIN SVT (the same
 #: cached `svt:rank<K>` key as 15r's raw load), minus the flat baseline b_nl in every bin -- exact, because the window
 #: features are linear bin means with no per-trial baseline; a session without a usable RESTnl baseline is skipped.
-REST_VARIANTS = ("rest", "restnl")
+REST_VARIANTS = ("rest", "restnl", "restnlc1")   # restnlc1 = RESTnl, cam1-only LP licks also removed (11-17)
 
 
 def session_class_maps(label, align, post_s=None, rest_variant="rest"):
@@ -112,9 +112,10 @@ def session_class_maps(label, align, post_s=None, rest_variant="rest"):
     u, v = joint_basis._load_session(s["mc"])
     a = _args("locanmf", align, post_s, baseline="none")
     b_nl = None
-    if rest_variant == "restnl":
-        from wfield_local import restnl_mask
-        d = restnl_mask.baseline_or_build(label)      # built when missing (T4); None = excluded / rule wr only
+    if rest_variant in ("restnl", "restnlc1"):
+        from wfield_local import restnl_licks, restnl_mask
+        with restnl_licks.active("cam4cam1" if rest_variant == "restnlc1" else "cam4"):
+            d = restnl_mask.baseline_or_build(label)  # built when missing (T4); None = excluded / rule wr only
         if d is None:
             print(f"  .. {label}: no usable RESTnl baseline (excluded or rule wr) -- skipped", flush=True)
             return {}
@@ -353,10 +354,12 @@ def figures(od, align, animals, spouts=("far_contra", "far_mid", "far_ipsi"), re
                     cb.set_label("dF", fontsize=6)
                 else:
                     axes[i, -1].set_visible(False)
-            if rest_variant == "restnl":
-                what = ("RESTnl-referenced dF, minus pre-stroke hits" if diff else "RESTnl-referenced dF")
-                fig.suptitle(f"{P}, {align} window: {what}. RESTnl = lick-free rest, flat (rest licks excluded: DAQ "
-                             f"contact + cam4 LP video, [-0.5, +2.0] s); {_run_text()}"
+            if rest_variant in ("restnl", "restnlc1"):
+                nm = "RESTnl" if rest_variant == "restnl" else "RESTnlc1"
+                lk = "cam4 LP video" if rest_variant == "restnl" else "cam4 LP + cam1-only LP"
+                what = (f"{nm}-referenced dF, minus pre-stroke hits" if diff else f"{nm}-referenced dF")
+                fig.suptitle(f"{P}, {align} window: {what}. {nm} = lick-free rest, flat (rest licks excluded: DAQ "
+                             f"contact + {lk}, [-0.5, +2.0] s); {_run_text()}"
                              f"\n(image left = ipsilesional; mean = mean of animal means, >= 2 animals; per-row "
                              f"symmetric 99th-pct scale)", fontsize=8)
                 fig.tight_layout(rect=(0, 0, 1, 0.93))

@@ -60,8 +60,8 @@ SHIFTBASE = __import__("os").environ.get("WF_SS_SHIFTBASE", "")
 if SHIFTBASE not in ("", "rest", "enl"):
     raise ValueError(f"WF_SS_SHIFTBASE={SHIFTBASE!r}")
 BSUF = f"_b{SHIFTBASE}" if SHIFTBASE else ""
-OUT = S.ROOT / f"shift_carried{S.tag()}{BSUF}"
-FIGS = S.ROOT / "page_figs"
+OUT = S.ROOT / f"shift_carried{S.tag()}{BSUF}{S.RSFX}"
+FIGS = S.ROOT / f"page_figs{S.RSFX}"
 ROIS = PM.ROIS
 WINS = {"all bins": (-1.0, 0.7), "before the lick (-1.0..-0.1 s)": (-1.0, -0.1),
         "around the lick (-0.1..+0.4 s)": (-0.1, 0.4), "late (+0.4..+0.7 s)": (0.4, 0.7)}

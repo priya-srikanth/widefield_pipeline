@@ -47,8 +47,8 @@ from wfield_local.figure_layout import save_png_svg  # noqa: E402
 from wfield_local.orofacial_cohort import EPOCH_LINE  # noqa: E402
 
 EPS = SB.EPS
-OUT = S.ROOT / f"shift_movement{S.tag()}"
-FIGS = S.ROOT / "page_figs"
+OUT = S.ROOT / f"shift_movement{S.tag()}{S.RSFX}"
+FIGS = S.ROOT / f"page_figs{S.RSFX}"
 from wfield_local.paths import PathResolver  # noqa: E402
 
 PRIYA = Path(PathResolver().root("microscope"))   # was the literal M:/MICROSCOPE/Priya (drive letters move)
@@ -145,7 +145,7 @@ def fit(T, reads, cov, tag):
 
 
 def main():
-    src = S.ROOT / f"shift_behavior{S.tag()}" / "trials.csv.gz"
+    src = S.ROOT / f"shift_behavior{S.tag()}{S.RSFX}" / "trials.csv.gz"
     T = pd.read_csv(src)
     reads = [c for c in T.columns if " | " in c and not c.startswith(("obs", "pred", "res"))]
     T = T[list(dict.fromkeys(["animal", "label", "epoch", "day", "spout", "trial_id", "rt_s", *reads, *SB.BEH]))]

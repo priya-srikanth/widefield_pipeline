@@ -23785,3 +23785,23 @@ Priya 11-03 late: August-only pre everywhere in the rebuild, except june_august_
 - A30 (Priya 11-06): `pose3d_summary_fig` session dots = OPEN markers, shape = animal (`cat_points.animal_marker`),
   color = epoch (`orofacial_cohort.EPOCH_LINE`; June pre gray) via `session_dots`; `pose3d_phase` hides the top spine
   on every 2-D panel (`no_top_spine` in its one save path).
+
+## 2026-11-17 -- ONE cam1 lick rule: water droplets AND far-from-mouth labels out, at every reader (Priya 11-17)
+
+- **Rule (Priya, approved 11-17).** A cam1 event counts as a lick only if both hold:
+  - it is not a water droplet (`droplet` column, else `cam1_licks.droplet_flags`);
+  - if cam1-only, its median label is not far behind the mouth line (`med_out_px < -120 px` = a static tracking label).
+- **Evidence.** Her blind review (`docs/status/CAM1_EXTRA_LICKS_CHECK_20261117.md`) scored 7 / 8 "no tongue: other"
+  test events below -120 px and 0 / 30 tongue events. Blast radius: `docs/status/CAM1_FARMOUTH_BLAST_RADIUS_20261117.md`.
+- **One definition (rule 9).** `wfield_local/cam1_licks.keep_mask` holds the rule. It is used by:
+  - `restnl_licks` (RESTnlc1, output unchanged);
+  - `trial_classes.session_trials` (incomplete filter and jaw-only "seen" set);
+  - `first_lick_latency`, `lp_licks`, `combined_encoding`, `revup_behaviour`, `cam1_incomplete_licks`;
+  - `cohort2_qc/lp_licks.lick_times` (the cohort1 quiet chain).
+- **Size (audit).** 15 / 62,771 trials change class (0.03 %, max PS94 acute 0.36 %). The quiet family loses ~0.9 % of
+  quiet time to far events (1.5-3 % in chronic / subacute cells; PS92_0929 51 %), so it is re-run first.
+- **Cache keys.** These are invalidated: csig, `LP_VERSION` 3, the combined_encoding behaviour cache, and the revup
+  pkl folder. The RESTnlc1 v3 digest is kept through a source-exact alias, because the refactor moves no onset.
+  `session_cache.CACHE_VERSION` is not bumped. Record: `docs/status/CAM1_FARMOUTH_GUARD_CODE_20261117.md`.
+- **Open.** `restw_strict_check` `strict_c1` (a superseded diagnostic arm) still reads every `events_all` row, droplets
+  included. Changing it needs a `VERSION` bump that would redo `restw_check_c1v3`.

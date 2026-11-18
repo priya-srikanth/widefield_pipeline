@@ -261,19 +261,23 @@ def session_trials(label: str, window: str = DEFAULT_WINDOW, v36: Path | str | N
     else:
         L = pd.DataFrame(columns=["trial_id", "on_ms", "t_ms", "contact"])
     L = L[in_win(L, "t_ms")]
-    # --- cam1-only tongue events (no cam4 lick, no 3-D lick overlaps; droplets out), in the window
+    # --- cam1-only tongue events (no cam4 lick, no 3-D lick overlaps; droplets and far-from-mouth labels out:
+    # `cam1_licks.keep_mask`, the one cam1 lick rule, Priya 11-17), in the window
     fe = c1 / f"{animal}_{date}_events.csv"
     has_cam1 = fe.exists()
     if has_cam1:
+        from wfield_local import cam1_licks as C1
         E = pd.read_csv(fe)
+        m4 = _flag(E["cam4_matched"]) if "cam4_matched" in E else pd.Series(False, index=E.index)
+        keep = C1.keep_mask(E, m4.to_numpy(), label=label)
         for c in ("cam4_matched", "in_3d", "contact", "jaw_only_trial", "droplet"):
             E[c] = _flag(E[c]) if c in E else False
         if "t_peak_ms" not in E:
             raise ValueError(f"{fe} has no t_peak_ms: the response window is judged on the event PEAK (11-04)")
         # cam1 saw a tongue, no lick counted it -- inside the response window (an untimed row keeps the old call)
-        sv = E.jaw_only_trial & ~E.droplet
+        sv = E.jaw_only_trial & keep
         seen = set(E.loc[sv & in_win(E, "t_peak_ms", keep_untimed=True), "trial_id"])
-        E = E[~E.cam4_matched & ~E.in_3d & ~E.droplet]
+        E = E[~E.cam4_matched & ~E.in_3d & keep]
         E = E[in_win(E, "t_peak_ms")]
     else:
         E, seen = pd.DataFrame(columns=["trial_id", "on_ms", "contact"]), set()
@@ -656,8 +660,11 @@ def class_source_signature(v36: Path | str | None = None, c1: Path | str | None 
         for f in (sorted(Path(c1).glob("*_events.csv")) if Path(c1).exists() else []):
             stat(f)
         stat(_jaw_csv(v36))
-        from wfield_local import map_collect
+        from wfield_local import cam1_licks, map_collect
         h.update(map_collect.code_digest(map_collect.closure(sys.modules[__name__], *CLASS_CODE_ROOTS)).encode())
+        # + the cam1 lick rule (`cam1_licks.keep_mask`, 11-17): it lives in another module, which the closure above
+        # does not follow, so a change to the droplet / far-from-mouth rule must enter here explicitly
+        h.update(map_collect.code_digest(map_collect.closure(cam1_licks, "keep_mask")).encode())
         _CLASS_SIG[key] = h.hexdigest()[:10]
     return _CLASS_SIG[key]
 

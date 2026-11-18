@@ -456,10 +456,12 @@ def test_rest_main_asks_the_store_by_default():
 
 def test_rest_digested_sources_unchanged():
     """`rest_frozen_decoder_nl._code_key` hashes `_collect` + `_frame_samples`: both must stay source-identical to the
-    commit that keyed the collected-feature cache (7c53214a), or every cached session would be recollected."""
+    commit that keyed the collected-feature cache, or every cached session would be recollected. Re-pinned 11-17 from
+    7c53214a to 308468b5: the opt-in ``period_cues`` argument (15f on the rebuild, working-bracketed rest) changed
+    `_collect`'s source on purpose; defaults unchanged, the collected-feature cache recollects once."""
     rf = _rf()
     try:
-        old = subprocess.run(["git", "-C", str(ROOT), "show", "7c53214a:scripts/rest_migration/rest_frozen_decoder.py"],
+        old = subprocess.run(["git", "-C", str(ROOT), "show", "308468b5:scripts/rest_migration/rest_frozen_decoder.py"],
                              capture_output=True, text=True, check=True, encoding="utf-8").stdout
     except Exception:                                                    # noqa: BLE001
         pytest.skip("git history not available")

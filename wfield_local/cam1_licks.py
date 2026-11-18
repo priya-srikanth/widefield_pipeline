@@ -81,6 +81,46 @@ def droplet_flags(E: pd.DataFrame, cam1_only) -> np.ndarray:
             & (E.range_px.to_numpy(float) < DROPLET_RANGE_PX) & (E.med_out_px.to_numpy(float) > DROPLET_MOUTH_OUT_PX))
 
 
+#: FAR-FROM-MOUTH LABELS (Priya 11-17, approved): a cam1-only event whose median label position sits this far BEHIND the
+#: mouth line (``med_out_px`` < -120 px) is a static tracking label, not a tongue. Her blind review scored 7 / 8
+#: "no tongue: other" test events below it and 0 / 30 tongue events (docs/status/CAM1_EXTRA_LICKS_CHECK_20261117.md;
+#: blast radius docs/status/CAM1_FARMOUTH_BLAST_RADIUS_20261117.md). Applied, like the droplet rule, to cam1-ONLY
+#: events: a cam4-matched row is a cam4 lick whatever its cam1 label does. `restnl_licks.FAR_FROM_MOUTH_PX` is this.
+FAR_FROM_MOUTH_PX = -120.0
+_NO_FAR_COL: set = set()
+
+
+def flag_col(x) -> np.ndarray:
+    """A True/False event-flag column as bool; missing / NaN / anything but "true" (any case) = False."""
+    return pd.Series(x).astype(str).str.lower().eq("true").to_numpy()
+
+
+def keep_mask(E: pd.DataFrame, cam4_matched=None, *, label: str | None = None) -> np.ndarray:
+    """THE cam1 LICK RULE (one definition, CLAUDE.md rule 9; Priya 11-17): ``bool[len(E)]``, True = this row of a cam1
+    `*_events.csv` / `*_events_all.csv` table may count as a lick. A row is DROPPED when it is
+
+      * a WATER DROPLET: the ``droplet`` column, or `droplet_flags` (on the cam1-only rows) when the column is absent;
+      * a FAR-FROM-MOUTH label: cam1-only (not cam4-matched) with ``med_out_px`` < `FAR_FROM_MOUTH_PX`.
+
+    cam4-matched rows are never dropped here (the droplet column is False on them by construction); callers that want
+    cam1-ONLY licks still AND with ``~cam4_matched`` themselves. ``cam4_matched`` = the already-parsed flag (default:
+    the table's column via `flag_col`). A table without ``med_out_px`` gets no far guard, printed once per ``label``."""
+    m4 = flag_col(E["cam4_matched"]) if cam4_matched is None else np.asarray(cam4_matched, bool)
+    if "droplet" in E:
+        dr = flag_col(E["droplet"])
+    else:
+        dr = droplet_flags(E, ~m4)
+    if "med_out_px" in E:
+        far = ~m4 & (pd.to_numeric(E["med_out_px"], errors="coerce") < FAR_FROM_MOUTH_PX).to_numpy()
+    else:
+        far = np.zeros(len(E), bool)
+        key = label or "<unlabelled cam1 table>"
+        if key not in _NO_FAR_COL:
+            _NO_FAR_COL.add(key)
+            print(f"[cam1_licks] {key}: no med_out_px column -> no far-from-mouth guard", flush=True)
+    return ~dr & ~far
+
+
 def overlaps(E: pd.DataFrame, W: pd.DataFrame, on: str = "on_ms", off: str = "off_ms", tol_ms: float = 0.0) -> np.ndarray:
     """Per event of ``E``: does any window of ``W`` (same trial_id; ``on`` .. ``off``) overlap it, +- ``tol_ms``?"""
     win = {k: g[[on, off]].to_numpy(float) for k, g in W.groupby("trial_id")}

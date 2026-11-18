@@ -11,7 +11,8 @@ TABLES READ (all read-only):
          trial windows, contexts pre_cue / post_cue / iti), column `daq_on_s`.
   cam1   `<dlc root>/session_poses/cam1_licks/<animal>_<date8>_events_all.csv` (`scripts/cam1_licks.py`, the cam1 2-D
          detector over the whole windows), column `daq_on_s`, keeping only CAM1-ONLY events (`cam4_matched` False:
-         no overlap with any cam4 lick of licks_all) that are not water droplets (`droplet` False). If events_all is
+         no overlap with any cam4 lick of licks_all) that count as licks under `wfield_local.cam1_licks.keep_mask`
+         (not water droplets, not far-from-mouth labels with med_out_px < -120; Priya 11-17). If events_all is
          absent, the post-cue `<s>_events.csv` is used (trial id + `on_ms` from the cue, cue from windows.npz).
   jaw    `<v36 run>/imaging_encoding/qc/jaw_onsets.csv` (`scripts/jaw_onsets.py`): per trial `jaw_onset_ms` and
          `jaw_reonset_ms` (ms from the cue; cue response only -- there are no ITI jaw onsets).
@@ -76,6 +77,8 @@ def dedup(t, min_ili=MIN_ILI_S) -> np.ndarray:
 def lick_times(label: str, return_parts: bool = False):
     """Sorted LP video lick onsets (cam4 + cam1-only, deduplicated) in DAQ seconds; empty array if no video."""
     import pandas as pd
+
+    from wfield_local import cam1_licks as C1
     sd, f4, f1, f1a, _, _ = _paths(label)
     if not f4.exists():
         _warn(label, f"no cam4 LP table ({f4}); returning no video licks")
@@ -83,14 +86,16 @@ def lick_times(label: str, return_parts: bool = False):
     t4 = pd.read_csv(f4, usecols=["daq_on_s"]).daq_on_s.to_numpy(float)
     t1, src = np.zeros(0), "none"
     if f1a.exists():
-        E = pd.read_csv(f1a, usecols=["daq_on_s", "cam4_matched", "droplet"])
-        only = ~E.cam4_matched.fillna(False).astype(bool) & ~E.droplet.fillna(False).astype(bool)
+        E = pd.read_csv(f1a, usecols=lambda c: c in ("daq_on_s", "cam4_matched", "droplet", "spread_px", "range_px",
+                                                     "med_out_px"))
+        m4 = C1.flag_col(E["cam4_matched"])
+        only = ~m4 & C1.keep_mask(E, m4, label=label)
         t1, src = E.daq_on_s[only].to_numpy(float), "events_all"
     elif f1.exists() and (sd / "windows.npz").exists():
         cue = _cues(sd)
         E = pd.read_csv(f1)
-        only = ~E.cam4_matched.fillna(False).astype(bool) & ~E.droplet.fillna(False).astype(bool)
-        E = E[only & E.trial_id.isin(cue.index)]
+        m4 = C1.flag_col(E["cam4_matched"])
+        E = E[~m4 & C1.keep_mask(E, m4, label=label) & E.trial_id.isin(cue.index)]
         t1, src = E.trial_id.map(cue).to_numpy(float) + E.on_ms.to_numpy(float) / 1000.0, "events_postcue"
         _warn(label, "no cam1 events_all; using post-cue cam1 events only")
     else:

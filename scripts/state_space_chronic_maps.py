@@ -136,7 +136,7 @@ FR_MODES = ("", "0", "A", "B", "As", "Bs", "K0", "Ks", "KBs", "KBw", "KBe")
 if FR not in FR_MODES or (FR and WIN != "resp"):
     raise ValueError(f"WF_SS_FR={FR!r} (needs one of {FR_MODES} and WF_SS_MAPWIN=resp)")
 KIN = FR.startswith("K")
-BSUF = ("" if BASE == "lick" else f"_{BASE}") + ("_precue" if WIN == "precue" else "") + (f"_fr{FR}" if FR else "")
+BSUF = ("" if BASE == "lick" else f"_{BASE}") + ("_precue" if WIN == "precue" else "") + (f"_fr{FR}" if FR else "") + S.RSFX
 BASE_LABEL = {"lick": "response window minus the trial's -1.0..-0.6 s before the first lick",
               "rest": "response window minus the session's RESTnl rest level",
               "none": "response window, no baseline (drift-removed signal)",
@@ -144,9 +144,9 @@ BASE_LABEL = {"lick": "response window minus the trial's -1.0..-0.6 s before the
 if WIN == "precue":
     BASE_LABEL = {k: v.replace("response window", "PRE-CUE lick-free (>= 1 s) ENL window") for k, v in BASE_LABEL.items()}
 OUT = S.ROOT / f"chronic_maps{S.tag()}{BSUF}"
-FIGS = S.ROOT / "page_figs"
+FIGS = S.ROOT / f"page_figs{S.RSFX}"
 SUF = S.tag().lstrip("_")                # NOT S.fig_suffix(): empty for cue (the published map names)
-REST = S.ROOT / "rest_baseline_svd"
+REST = S.ROOT / f"rest_baseline_svd{S.RSFX}"
 ENL = S.ROOT / "enl_baseline_svd"
 BASIS_DIR = S.SVD_BASIS
 
