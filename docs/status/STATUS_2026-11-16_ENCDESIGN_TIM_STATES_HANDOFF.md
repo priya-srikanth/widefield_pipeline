@@ -125,6 +125,23 @@ Run code from a worktree with `PYTHONPATH=$(pwd -W)` (Windows form). AR-HMM mode
   frames are predictable) -> NEXT: the score on movement frames only / adjusted for the quiet share (per-frame
   forward-filter normalizers), before calling it a distance from the pre-stroke repertoire.
 
+## 3c. 11-18: stillness control, frozen-model groups, TIM figures, K 6-8 (page v4)
+
+- **Frozen likelihood, stillness control** (`arhmm_model score --per-frame` -> `fits/llframe_<model>/`, verified: frames
+  sum to the marginal; `behavior_states.frozen_distance_frames`): movement frames only: acute -.31 (3/4, n.s.),
+  subacute -.42 (n.s.), chronic -.61 [-.80, -.39] (4/4). By group, chronic: ipsi licks -.78, contra -.43, quiet -.11,
+  slow walk -.15 (all 4/4); push +.93 (4/4, MORE stereotyped than pre); acute chewing -.75. The +.51 acute all-frame
+  rise = stillness. Page 5.1 / 5.2.
+- **Frozen pre_s1 model combined into the reviewed groups** (`behavior_states.group_stats`; Priya 11-18: merges apply
+  as groups): quiet +.10 acute; contra licks -.03 acute / -.01 subacute, bouts -0.10 s subacute and chronic; ipsi
+  +.025 / central +.010 / push +.014 chronic; no new states. Page 5.3-5.5 (per-state version superseded).
+- **TIM** (`behavior_states.tim_trials`, page 4.1 / 4.2): no rise; acute response tongue -3.8 px, ITI jaw -2.1 px;
+  pre-cue nose TIM higher when not engaged (Yin effect, 4/4 pre, +2.2..4.3 px), unchanged after the stroke.
+- **GLM-HMM K 6-8:** total pseudo-R2 .491 / .494 / .499 (K5 .470); 5 -> 6 in 2/4 folds, then ~0; outcome / lick flat
+  from K 3; extra states = running. K = 5 stands.
+- Open: LP direction cross-check (other window); contra lick bout length vs the kinematics page; merge of the
+  branches into main.
+
 ## 3a. 11-17 ~18:00: held-out pre baseline + pre seed stability
 
 - **Pre-model seed stability** (`arhmm_seed_match_noQ.py`, ref pre_s1): pre_s2 frame agreement .823 / ARI .847; pre_s3

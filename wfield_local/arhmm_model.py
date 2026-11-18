@@ -265,6 +265,20 @@ def seqs_of(feats, labels, design, dither: float = 0.0):
     return seqs, owner
 
 
+def frame_log_lik(seq, P) -> np.ndarray:
+    """One-step PREDICTIVE log-likelihood of every frame of one (unpadded) chunk under the model: log sum_k
+    P(z_t = k | x_<t) p(x_t | z_t = k, lags) from the forward filter (uniform start). Length T - NLAGS; its sum is the
+    chunk's marginal log-likelihood (`arhmm.marginal_log_likelihood`). ``P`` = {'Ab', 'Q', 'pi'} as jax arrays."""
+    from jax.scipy.special import logsumexp
+    from dynamax.hidden_markov_model import hmm_filter
+    from jax_moseq.models import arhmm
+    jnp = _jax().numpy
+    ll = arhmm.ar_log_likelihoods(jnp.asarray(seq), P["Ab"], P["Q"])
+    K = ll.shape[-1]
+    post = hmm_filter(jnp.full(K, 1.0 / K), P["pi"], ll)
+    return np.asarray(logsumexp(jnp.log(jnp.clip(post.predicted_probs, 1e-30)) + ll, axis=-1))
+
+
 def per_session(z, owner, feats) -> dict:
     """Chunk states (N, T - NLAGS) -> {label: per-bin state, -1 = not modelled}; chunks tile each segment."""
     out = {}
@@ -295,6 +309,7 @@ def main(argv=None) -> int:
     ap.add_argument("--dither", type=float, default=DITHER, help="PC-space noise floor SD (see seqs_of)")
     ap.add_argument("--holdout-fold", type=int, default=0,
                     help="fit: 1-based; drop each animal's k-th fit session (held-out pre baseline); tag gets _f<k>")
+    ap.add_argument("--per-frame", action="store_true", help="score: also save per-frame predictive LL per session")
     ap.add_argument("--fit-labels", default=None, help="comma list: fit on exactly these sessions (sanity checks)")
     a = ap.parse_args(argv)
     out = Path(a.out)
@@ -315,7 +330,7 @@ def main(argv=None) -> int:
         done = set(pd.read_csv(dest).label) if dest.exists() else set()
         rows = []
         for lab in ([a.label] if a.label else sorted(feats)):
-            if lab in done:
+            if lab in done and not (a.per_frame and not (out / f"llframe_{tag}" / f"{lab}.npz").exists()):
                 continue
             seqs, _own = seqs_of(feats, [lab], M["design"], M.get("dither", 0.0))
             if not seqs:
@@ -323,9 +338,17 @@ def main(argv=None) -> int:
             d = make_data(seqs)
             n = float(np.asarray(d["mask"])[:, NLAGS:].sum())
             ll = float(arhmm.marginal_log_likelihood(d["mask"], d["x"], **P))
+            if a.per_frame:                              # session-aligned per-frame LL (NaN = not modelled)
+                fd = out / f"llframe_{tag}"
+                fd.mkdir(exist_ok=True)
+                lp = np.full(len(feats[lab]["X"]), np.nan, np.float32)
+                for (_l, s0, s1), sq in zip(_own, seqs):
+                    lp[s0 + NLAGS:s1] = frame_log_lik(sq, P)
+                np.savez_compressed(fd / f"{lab}.npz", lp=lp)
             rows.append({"label": lab, "model": tag, "ll_total": ll, "n_frames": n, "ll_per_frame": ll / n,
                          "in_fit": lab in set(M.get("fit_labels", [])), "held_out": lab in set(M.get("held_out", []))})
             print(f"scored {lab}: {ll / n:.3f} / frame", flush=True)
+        rows = [r for r in rows if r["label"] not in done]
         if rows:
             new = pd.DataFrame(rows)
             allr = pd.concat([pd.read_csv(dest), new]) if dest.exists() else new

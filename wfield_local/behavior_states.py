@@ -358,6 +358,120 @@ def per_session(trials: pd.DataFrame, gate: str | None = None) -> pd.DataFrame:
     return S.reset_index()
 
 
+def syllable_stats(tag: str, ref_tag: str | None = None, min_usage: float = 0.005) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Per-session statistics of ANY decoded AR-HMM fit (e.g. the FROZEN pre-stroke model ``pre_s1`` applied to every
+    session): usage and median dwell (s) per state, transition entropy (runs collapsed) and the share of frames in
+    states rare before the stroke. Returns (per-session table, state names): each state is named by the reviewed
+    group of the reference fit (`state_groups`, default `arhmm_states.REFERENCE_TAG`) it overlaps most, frame by frame,
+    on the same sessions. Pre-stroke days are IN-SAMPLE for a model fit on them (usage, not likelihood, so the bias is
+    small; the held-out folds serve the likelihood)."""
+    from wfield_local import arhmm_model as am
+    from wfield_local import arhmm_states as st
+    ref_tag = ref_tag or st.REFERENCE_TAG
+    groups = state_groups(ref_tag)
+    lut = _group_lut(groups)
+    gn = list(groups)
+    d, dr = st.fits_dir() / f"states_{tag}", st.fits_dir() / f"states_{ref_tag}"
+    labs = sorted(p.stem for p in d.glob("*.npz") if session_epoch(p.stem))
+    Z = {lab: np.load(d / f"{lab}.npz")["z"].astype(int) for lab in labs}
+    K = max(int(z.max()) for z in Z.values()) + 1
+    over = np.zeros((K, len(gn)))
+    for lab in labs:
+        if (dr / f"{lab}.npz").exists():
+            z, zr = Z[lab], np.load(dr / f"{lab}.npz")["z"].astype(int)
+            ok = (z >= 0) & (zr >= 0)
+            g = lut[zr[ok]]
+            np.add.at(over, (z[ok][g >= 0], g[g >= 0]), 1)
+    allz = np.concatenate([z[z >= 0] for z in Z.values()])
+    use_all = np.bincount(allz, minlength=K) / len(allz)
+    live = [k for k in range(K) if use_all[k] >= min_usage]
+    names = pd.DataFrame({"state": live, "group": [gn[int(over[k].argmax())] if over[k].sum() else "?" for k in live],
+                          "group_share": [over[k].max() / max(over[k].sum(), 1) for k in live],
+                          "usage_all": [use_all[k] for k in live]})
+    pre_use = np.bincount(np.concatenate([Z[lab][Z[lab] >= 0] for lab in labs if session_epoch(lab) == "pre"]),
+                          minlength=K)
+    pre_use = pre_use / pre_use.sum()
+    rare = np.flatnonzero(pre_use < min_usage)
+    rows = []
+    for lab in labs:
+        z = Z[lab]
+        zz = z[z >= 0]
+        r = {"label": lab, "animal": lab.split("_")[0], "epoch": session_epoch(lab)}
+        u = np.bincount(zz, minlength=K) / max(len(zz), 1)
+        for k in live:
+            r[f"use_{k}"] = u[k]
+        runs = np.split(z, np.flatnonzero(np.diff(z) != 0) + 1)
+        seq = [(int(q[0]), len(q)) for q in runs if q[0] >= 0]
+        for k in live:
+            dk = [n for s, n in seq if s == k]
+            r[f"dwell_{k}"] = float(np.median(dk)) / am.FS_HZ if dk else np.nan
+        r["dwell_median_s"] = float(np.median([n for _s, n in seq])) / am.FS_HZ if seq else np.nan
+        C = np.zeros((K, K))
+        for (a_, _), (b_, _) in zip(seq[:-1], seq[1:]):
+            C[a_, b_] += 1
+        P = C / np.maximum(C.sum(1, keepdims=True), 1)
+        p = C.sum(1) / max(C.sum(), 1)
+        r["entropy_bits"] = float(sum(p[i] * -(q[q > 0] * np.log2(q[q > 0])).sum() for i, q in enumerate(P)))
+        r["rare_pre_share"] = float(np.isin(zz, rare).mean())
+        rows.append(r)
+    return pd.DataFrame(rows), names
+
+
+def group_stats(tag: str, ref_tag: str | None = None) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """`syllable_stats` COMBINED INTO THE REVIEWED GROUPS (Priya 11-17: merges are applied as groups): every state of
+    ``tag`` joins the group it overlaps most (`syllable_stats` names; states below min usage are dropped), then per
+    session: usage and median bout (s) per group (runs of the same group collapsed) and the group transition entropy.
+    Returns (per-session table, state -> group map)."""
+    from wfield_local import arhmm_model as am
+    from wfield_local import arhmm_states as st
+    _S, N = syllable_stats(tag, ref_tag)
+    gn = list(state_groups(ref_tag))
+    lut = np.full(64, -1)
+    for r in N.itertuples():
+        lut[int(r.state)] = gn.index(r.group) if r.group in gn else -1
+    d = st.fits_dir() / f"states_{tag}"
+    rows = []
+    for p in sorted(d.glob("*.npz")):
+        lab = p.stem
+        if not session_epoch(lab):
+            continue
+        z = np.load(p)["z"].astype(int)
+        g = np.where(z >= 0, lut[np.maximum(z, 0)], -1)
+        gg = g[g >= 0]
+        r = {"label": lab, "animal": lab.split("_")[0], "epoch": session_epoch(lab)}
+        seq = [(int(q[0]), len(q)) for q in np.split(g, np.flatnonzero(np.diff(g) != 0) + 1) if q[0] >= 0]
+        for k, n in enumerate(gn):
+            r[f"use:{n}"] = float(np.mean(gg == k)) if len(gg) else np.nan
+            dk = [m for s, m in seq if s == k]
+            r[f"bout:{n}"] = float(np.median(dk)) / am.FS_HZ if dk else np.nan
+        C = np.zeros((len(gn), len(gn)))
+        for (a_, _), (b_, _) in zip(seq[:-1], seq[1:]):
+            C[a_, b_] += 1
+        P = C / np.maximum(C.sum(1, keepdims=True), 1)
+        pw = C.sum(1) / max(C.sum(), 1)
+        r["entropy_bits"] = float(sum(pw[i] * -(q[q > 0] * np.log2(q[q > 0])).sum() for i, q in enumerate(P)))
+        rows.append(r)
+    return pd.DataFrame(rows), N
+
+
+def tim_trials(frame: str = "within") -> pd.DataFrame:
+    """The per-trial TIM table (`task_independent_movement`, every session, ``frame`` = 'within' | 'frozen') joined
+    with the trial's GLM-HMM role (argmax state; NaN for trials the GLM-HMM table lacks), restricted to the analysis
+    sessions (epoch / August-only pre as everywhere here)."""
+    from wfield_local import task_independent_movement as tim
+    files = sorted((Path(tim.out_dir()) / "sessions").glob(f"*_{frame}.csv.gz"))
+    D = pd.concat([pd.read_csv(f) for f in files], ignore_index=True)
+    D["epoch"] = D.label.map(session_epoch)
+    D = D[D.epoch.notna() & D.trial_id.notna()].copy()
+    D["trial_id"] = D.trial_id.astype(int)
+    T = glmhmm_table()
+    roles = glmhmm_roles(T)
+    pc = _pcols(T)
+    T["role"] = [roles[int(pc[i][7:])] for i in T[pc].to_numpy().argmax(1)]
+    D = D.merge(T[["label", "trial_id", "role"]], on=["label", "trial_id"], how="left")
+    return D
+
+
 def frozen_distance(prefix: str = "pre_s1_f") -> pd.DataFrame:
     """How LIKELY each session's movement is under the pre-stroke AR-HMM, with an OUT-OF-SAMPLE pre-stroke floor.
 
@@ -379,6 +493,44 @@ def frozen_distance(prefix: str = "pre_s1_f") -> pd.DataFrame:
     L["rel"] = L.ll_per_frame - L.groupby(["model", "animal"]).ll_per_frame.transform("mean")
     S = L.groupby(["label", "animal", "epoch"]).agg(ll_rel=("rel", "mean"), n_models=("model", "nunique")).reset_index()
     return S
+
+
+def frozen_distance_frames(prefix: str = "pre_s1_f", tag: str | None = None) -> pd.DataFrame:
+    """`frozen_distance` from the PER-FRAME scores (``llframe_<model>/<label>.npz``, `arhmm_model score --per-frame`),
+    split by the reviewed syllable group of each frame (reference fit `tag`): one row per session with ``ll_rel`` (all
+    frames, = `frozen_distance`), ``ll_rel_moving`` (every group except quiet: the STILLNESS CONTROL -- quiet frames
+    are easy to predict, so a stiller session scores more pre-like) and ``ll_rel:<group>`` (how pre-like each kind of
+    movement is). Same within-model anchor and held-out-pre rule as `frozen_distance`."""
+    from wfield_local import arhmm_states as st
+    tag = tag or st.REFERENCE_TAG
+    groups = state_groups(tag)
+    lut, gn = _group_lut(groups), list(groups)
+    fits = st.fits_dir()
+    L = pd.concat([pd.read_csv(f) for f in sorted(fits.glob(f"ll_{prefix}*.csv"))])
+    L = L[~L.in_fit.astype(bool)].copy()
+    L["animal"], L["epoch"] = L.label.str.split("_").str[0], L.label.map(session_epoch)
+    L = L[L.epoch.notna() & ((L.epoch != "pre") | L.held_out.astype(bool))]
+    ref = {}
+    rows = []
+    for r in L.itertuples():
+        if r.label not in ref:
+            z = np.load(fits / f"states_{tag}" / f"{r.label}.npz")["z"].astype(int)
+            ref[r.label] = np.where(z >= 0, lut[np.maximum(z, 0)], -1)
+        g = ref[r.label]
+        lp = np.load(fits / f"llframe_{r.model}" / f"{r.label}.npz")["lp"].astype(float)
+        ok = np.isfinite(lp) & (g >= 0)
+        row = {"model": r.model, "label": r.label, "animal": r.animal, "epoch": r.epoch, "all": lp[ok].mean(),
+               "moving": lp[ok & (g != gn.index("quiet"))].mean() if "quiet" in gn else np.nan}
+        for k, n in enumerate(gn):
+            m = ok & (g == k)
+            row[n] = lp[m].mean() if m.sum() >= 50 else np.nan
+        rows.append(row)
+    F = pd.DataFrame(rows)
+    cols = ["all", "moving", *gn]
+    for c in cols:
+        F[c] = F[c] - F.groupby(["model", "animal"])[c].transform("mean")
+    S = F.groupby(["label", "animal", "epoch"])[cols].mean().reset_index()
+    return S.rename(columns={"all": "ll_rel", "moving": "ll_rel_moving", **{n: f"ll_rel:{n}" for n in gn}})
 
 
 def main(argv=None) -> int:

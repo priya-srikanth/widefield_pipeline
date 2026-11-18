@@ -308,16 +308,70 @@ def fig_arhmm(C: dict, od: Path) -> None:
 
 
 def fig_frozen(C: dict, od: Path) -> None:
-    S = bs.frozen_distance()
+    S = bs.frozen_distance_frames()
     S.to_csv(od / "arhmm_frozen_distance_per_session.csv", index=False)
-    epoch_panels(S, ["ll_rel"], {"ll_rel": "log-likelihood per frame under the pre-stroke AR-HMM (relative, nats)"},
+    groups = [c for c in S if c.startswith("ll_rel:")]
+    epoch_panels(S, ["ll_rel", "ll_rel_moving"],
+                 {"ll_rel": "all frames", "ll_rel_moving": "movement frames only (quiet excluded)"},
                  "arhmm_frozen_likelihood_by_epoch",
-                 "How pre-stroke-like is each session's movement? AR-HMM marginal log-likelihood under held-out "
-                 "pre-stroke fits (8 folds); pre days scored only by the fold that left them out", od, nc=1)
+                 "How pre-stroke-like is each session's movement? log-likelihood per frame (relative, nats) under "
+                 "held-out pre-stroke AR-HMM fits (8 folds); pre days scored only by the fold that left them out", od,
+                 nc=2)
+    epoch_panels(S, groups, {g: g.split(":")[1].replace("_", " ") for g in groups},
+                 "arhmm_frozen_likelihood_by_group",
+                 "Held-out pre-stroke AR-HMM log-likelihood per frame (relative, nats) by syllable group of the frame "
+                 "(reviewed pooled-fit groups): which kinds of movement are least pre-stroke-like", od, nc=5)
+
+
+def fig_frozen_stats(C: dict, od: Path, tag: str = "pre_s1") -> None:
+    """The FROZEN pre-stroke AR-HMM applied to every session, combined into the reviewed groups (each frozen state
+    joins the group it overlaps most): usage and bout length per group, whole sessions."""
+    S, N = bs.group_stats(tag)
+    S.to_csv(od / f"frozen_{tag}_group_stats.csv", index=False)
+    N.to_csv(od / f"frozen_{tag}_state_names.csv", index=False)
+    gn = [c.split(":")[1] for c in S if c.startswith("use:")]
+    members = {g: "-".join(str(int(s)) for s in N[N.group == g].state) for g in gn}
+    for kind, lab_, ylim in (("use", "share of frames", True), ("bout", "median bout (s)", False)):
+        epoch_panels(S, [f"{kind}:{g}" for g in gn],
+                     {f"{kind}:{g}": f"{g.replace('_', ' ')} (frozen {members[g]}): {lab_}" for g in gn},
+                     f"frozen_{tag}_{kind}_by_epoch",
+                     f"Frozen pre-stroke AR-HMM ({tag}) decoded on every session (whole session), combined into the "
+                     f"reviewed groups: {lab_}", od, nc=5, ylim01=ylim)
+    epoch_panels(S, ["entropy_bits"], {"entropy_bits": "group transition entropy (bits)"},
+                 f"frozen_{tag}_summary_by_epoch", f"Frozen pre-stroke AR-HMM ({tag}), groups: transition entropy, "
+                 "whole sessions", od, nc=1)
+
+
+TIM_PERIODS = ("precue", "response", "iti")      # windows always ordered pre-cue, cue / response, then ITI
+TIM_PARTS = ("tongue", "jaw", "nose")
+
+
+def fig_tim(C: dict, od: Path) -> None:
+    D = bs.tim_trials("within")
+    W = D[D.working.astype(bool)]
+    S = W.pivot_table(index=["label", "animal", "epoch"], columns=["period", "part"], values="tim_px").reset_index()
+    S.columns = [c if isinstance(c, str) else (c[0] if not c[1] else f"{c[0]}:{c[1]}") for c in S.columns]
+    ms = [f"{p}:{q}" for p in TIM_PERIODS for q in TIM_PARTS if f"{p}:{q}" in S]
+    epoch_panels(S, ms, {m: f"TIM {m.split(':')[1]}, {m.split(':')[0]} (px)" for m in ms}, "tim_within_by_epoch",
+                 "Task-independent movement (within-session fit, cross-validated), working trials: mean residual "
+                 "position not predicted by the task, per session", od, nc=3)
+    # by engagement (Yin et al.: TIM rises when mice disengage): per session, not-engaged minus engaged, pre-cue
+    P = D[D.period == "precue"].copy()
+    P["eng"] = np.where(P.role == "engaged", "engaged", np.where(P.role.notna(), "not", None))
+    P = P[P.eng.notna()]
+    G = P.pivot_table(index=["label", "animal", "epoch", "part"], columns="eng", values="tim_px").reset_index()
+    G = G[G.engaged.notna() & G["not"].notna()]
+    G["diff"] = G["not"] - G["engaged"]
+    H = G.pivot_table(index=["label", "animal", "epoch"], columns="part", values="diff").reset_index()
+    epoch_panels(H, [q for q in TIM_PARTS if q in H], {q: f"TIM {q}, pre-cue: not engaged minus engaged (px)"
+                                                       for q in TIM_PARTS}, "tim_by_engagement_by_epoch",
+                 "Task-independent movement by GLM-HMM engagement (pre-cue period, within-session fit): per session, "
+                 "partial + disengaged trials minus engaged trials", od, nc=3)
 
 
 FAMILIES = {"occupancy": fig_occupancy, "curves": fig_state_curves, "push": fig_push, "wheel": fig_wheel_traces,
-            "arhmm": fig_arhmm, "frozen": fig_frozen}
+            "arhmm": fig_arhmm, "frozen": fig_frozen, "tim": fig_tim,
+            "frozenstats": fig_frozen_stats}
 
 
 def main(argv=None) -> int:
