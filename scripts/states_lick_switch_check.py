@@ -1,7 +1,7 @@
 """Check (11-18): are contralesional lick runs shorter because licking switches between lick groups more often?
 Engaged trials (GLM-HMM), response window cue .. cue + min(stop, 2 s): lick-group switches per second of lick frames and
 the mean run length of the TARGET-side lick group, by spout; change vs own pre via orofacial_cohort.epoch_tables.
-Uses behavior_states for every definition. Scratch; locanmf env."""
+Uses behavior_states for every definition. Run: python scripts/states_lick_switch_check.py (locanmf env); results in FINDINGS 9.5 and the states page Fig 5.4."""
 import numpy as np
 import pandas as pd
 
