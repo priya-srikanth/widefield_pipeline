@@ -142,6 +142,19 @@ Run code from a worktree with `PYTHONPATH=$(pwd -W)` (Windows form). AR-HMM mode
 - Open: LP direction cross-check (other window); contra lick bout length vs the kinematics page; merge of the
   branches into main.
 
+## 3e. 11-18 (afternoon): MERGED TO MAIN (3368de29) -- page v10; START HERE for the states arm
+
+- analysis/tim-encdesign-1116 is on main via merge/tim-encdesign-into-main (pre-push suite passed). Work on main now.
+- Page v10 (https://claude.ai/artifact/ChbBM9K12WWRohx6nU6rCX): Fig 1.1 identified states + K sweep, 1.2 per-state cue
+  traces (tongue / jaw / nose / treadmill), 1.3 GLM-HMM cue reels (`behavior_states reels`, glm_hmm/v1/reels_pooled_all_K5_v2),
+  2.3 treadmill by trial outcome, 2.6 by GLM-HMM role (push = attempted trials; residual not-engaged push = partial
+  state, 86 %), 3.1 AR-HMM motifs; every by-epoch figure as change vs own pre; collapsible sidebar sections (also in
+  docs/templates/results_page_example.html).
+- Open with Priya: merge GLM-HMM states 0 + 1 (differ in spontaneous licking, largely by animal: PS95 75 % state 1,
+  PS93 69 % state 0)? Not decided.
+- Page renames (Priya 11-18): imaging -> "Spout (Target) Coding", encoding -> "Movement (Execution) Coding", quiet
+  events on the movement page -- applied by sabatinilab-3c (owns both pages).
+
 ## 3d. 11-18 (late morning): page v6 -- identified states / motifs first, change-vs-own-pre figures, new state colors
 
 - **cam1 lick rule (main dc1f1e2d) re-run** on the merge branch: collector + figures; NO headline number moved (push,
