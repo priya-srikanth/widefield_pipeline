@@ -136,11 +136,15 @@ def lickfree_mask(s: dict):
     daq_on = daq_lick_onsets(s, fs)
     cam4 = pd.read_csv(lp, usecols=["daq_on_s"]).daq_on_s.to_numpy(float)
     cam4 = cam4[np.isfinite(cam4)]
+    from wfield_local import restnl_licks as _rl  # [gate-source hook] [restnl-licks hook: cam4cam1 adds cam1-only LP events, 11-17]
+    cam4, _n_c1 = _rl.extend(s["label"], cam4) if _rl.is_c1() else (cam4, None)  # [gate-source hook]
     m_daq2 = floor_runs(rest0 & ~widen(daq_on, n, nb, na), minrun)
     m = floor_runs(m_daq2 & ~widen(np.round(cam4 * fs).astype(np.int64), n, nb, na), minrun)
     info = {"n_daq_licks": int(len(daq_on)), "n_cam4_licks": int(len(cam4)), "n_rest0_samples": int(rest0.sum()),
             "n_daq2_samples": int(m_daq2.sum()), "n_lickfree_samples": int(m.sum()), "fs": float(fs),
             "n_trials": int(len(eng)), "n_trials_engaged": int(np.sum(eng))}
+    if _n_c1 is not None:  # [gate-source hook]
+        info.update(lick_set=_rl.lick_set(), n_cam1_only=int(_n_c1))  # [gate-source hook]
     return m, (cs_s, codes, ts, fs_samp, sync, eng), info
 
 
@@ -196,6 +200,9 @@ def cache_dir() -> Path:
     from wfield_local import session_cache
     c = Path(session_cache.CACHE_DIR)
     from wfield_local import gate_source as _gs  # [gate-source hook] LP-inclusive rest gate (11-02, lp-final)
+    from wfield_local import restnl_licks as _rl  # [gate-source hook] [restnl-licks hook] cam4cam1 = its own dir
+    if _rl.is_c1():  # [gate-source hook]
+        return c.with_name(c.name + "_" + _rl.CACHE_TAG + ("_" + _gs.cache_tag() if _gs.is_lp() else ""))  # [gate-source hook]
     if _gs.is_lp():  # [gate-source hook] its own baselines, so a gate-LP build never prunes / reads the default ones
         return c.with_name(c.name + "_restnl_" + _gs.cache_tag())  # [gate-source hook]
     return c.with_name(c.name + "_restnl")
@@ -229,6 +236,8 @@ def _key(s: dict) -> str:
              repr((BUF_S, MIN_FR, MIN_POS_WR)), session_cache.session_signature(s),
              map_collect.stat_sig(qs[0] if qs else None), map_collect.stat_sig(ua[0] if ua else None),
              map_collect.stat_sig(licks_all_path(s["label"]))]
+    from wfield_local import restnl_licks as _rl  # [gate-source hook] [restnl-licks hook] + cam1 events / LP train code
+    parts += [_rl.key_part(s["label"])] if _rl.is_c1() else []  # [gate-source hook]
     return hashlib.sha1("|".join(parts).encode()).hexdigest()[:16]
 
 
@@ -238,6 +247,9 @@ def _stem(label: str) -> str:
     the adopted baselines. Default names unchanged."""
     from wfield_local import run_mode
     t = run_mode.cache_tag()
+    from wfield_local import restnl_licks as _rl  # [gate-source hook] [restnl-licks hook]
+    if _rl.is_c1():  # [gate-source hook]
+        return f"{label}__{_rl.CACHE_TAG}" + (f"-{t}" if t else "")  # [gate-source hook]
     return f"{label}__restnl" + (f"-{t}" if t else "")
 
 
@@ -464,6 +476,8 @@ def validate(rows) -> dict:
     from wfield_local import run_mode
     # restw_strict_check writes <iti_licks.OUT>/restw_check = run_mode.subdir(<imaging_encoding>/iti_licks) (11-04)
     src = run_mode.subdir(oo.encoding_root(oc.RUN, PathResolver()) / "iti_licks") / "restw_check" / "sessions"
+    from wfield_local import restnl_licks as _rl  # [gate-source hook] [restnl-licks hook] cam4cam1 -> its restw_check_c1
+    src = src.parent.parent / _rl.CHECK_DIR / "sessions" if _rl.is_c1() else src  # [gate-source hook]
     eq, ne, absent = [], [], []
     for r in rows:
         if "nfr_pos" not in r:
@@ -495,6 +509,8 @@ def main(argv=None) -> int:
     excl = [r["label"] for r in rows if r.get("excluded")]
     err = [(r["label"], r["error"]) for r in rows if r.get("error")]
     fail_wr = [r["label"] for r in rows if "ok_wr" in r and not r["ok_wr"]]
+    from wfield_local import restnl_licks as _rl  # [gate-source hook] [restnl-licks hook]
+    print(f"[restnl] lick set {_rl.lick_set()}; cam4-only sessions under cam4cam1: {_rl.missing_cam1() or sorted(r['label'] for r in rows if r.get('n_cam1_only') == -1)}", flush=True)  # [gate-source hook]
     print(f"[restnl] {len(rows)} sessions in {(time.time() - t0) / 60:.1f} min; excluded (no licks_all.csv): {excl}; "
           f"rule wr fails: {fail_wr}; errors: {err}", flush=True)
     print(f"[restnl] frame counts vs restw_check strict__nfr_pos: {v['equal']} equal, {len(v['differ'])} differ "

@@ -91,8 +91,11 @@ EPOCHS = ("pre", "acute", "subacute", "chronic")
 MASK_TEXT = {
     "restnl": "RESTnl rest (lick-free: DAQ contact + cam4 LP video licks removed [0.5 s, 2.0 s])",
     "rest": "REST rest (restdock05; DAQ contact licks removed [0.5 s, 1.0 s])",
+    "restnlc1": "RESTnlc1 rest (lick-free: DAQ contact + cam4 LP + cam1-only LP licks removed [0.5 s, 2.0 s])",
 }
-LICK_TEXT = {"restnl": "licks: DAQ contact + cam4 LP video", "rest": "licks: DAQ spout contact"}
+LICK_TEXT = {"restnl": "licks: DAQ contact + cam4 LP video", "rest": "licks: DAQ spout contact",
+             "restnlc1": "licks: DAQ contact + cam4 LP + cam1-only LP video"}
+MASKS = ("restnl", "rest", "restnlc1")
 PRE_TEXT = {"aug": "August-only pre", "all": "June + August pre"}
 # THE PAGE RUN'S FLAGS (nightly_figs: --perm 200 --refit --match-train --match-duration --match-lickgap)
 PERM, BINS, MIN_PERIODS, MIN_PER_CLASS, PCT, LICK_FAR_S = 200, 4, 40, 5, 10.0, 3.0
@@ -125,12 +128,37 @@ def lickfree_rest(session, rest, rate):
     return m, np.unique(np.concatenate([daq_on, cam4]))
 
 
+def lickfree_rest_c1(session, rest, rate):
+    """`lickfree_rest` with the video set = cam4 licks_all UNION the cam1-only, non-droplet events of cam1 events_all.csv
+    (`restnl_licks.extend`) -- RESTnlc1 (Priya 11-17). A session without cam1 events_all gets cam4 only (logged)."""
+    import pandas as pd
+
+    from wfield_local import config, restnl_licks
+    from wfield_local import restnl_mask as rn
+    lp = rn.licks_all_path(session["label"])
+    if not lp.exists():
+        raise FileNotFoundError(f"no licks_all.csv ({lp})")
+    n = rest.shape[0]
+    nb, na = int(rn.BUF_S[0] * rate), int(rn.BUF_S[1] * rate)
+    minrun = int(float(config.defaults()["segmentation"]["rest"]["min_rest_s"]) * rate)
+    daq_on = rn.daq_lick_onsets(session, rate)
+    cam4 = pd.read_csv(lp, usecols=["daq_on_s"]).daq_on_s.to_numpy(float)
+    cam4, _n1 = restnl_licks.extend(session["label"], cam4[np.isfinite(cam4)])
+    cam4 = np.round(cam4 * rate).astype(np.int64)
+    m = rn.floor_runs(rest & ~rn.widen(daq_on, n, nb, na), minrun)
+    m = rn.floor_runs(m & ~rn.widen(cam4, n, nb, na), minrun)
+    return m, np.unique(np.concatenate([daq_on, cam4]))
+
+
 # ------------------------------------------------------------------------------------------------ collect
 def _code_key(mask):
     from wfield_local import restnl_mask as rn
     src = inspect.getsource(rf._collect) + inspect.getsource(rf._frame_samples)
     if mask == "restnl":
         src += inspect.getsource(lickfree_rest) + repr((rn.BUF_S, rn.MIN_FR, rn.MIN_POS_WR))
+    if mask == "restnlc1":
+        from wfield_local import restnl_licks
+        src += inspect.getsource(lickfree_rest_c1) + repr((rn.BUF_S, rn.MIN_FR, rn.MIN_POS_WR)) + restnl_licks.code_digest()
     tag = _run_mode.cache_tag()                       # R1: another hemo / projection / selection never meets this key
     return hashlib.sha1((f"{src}|{BINS}|gate" + (f"|{tag}" if tag else "")).encode()).hexdigest()[:12]   # default key kept
 
@@ -157,7 +185,7 @@ def _collect_job(item):
     s = next(x for x in SESSIONS if x["label"] == label)
     t0 = time.perf_counter()
     basis = _basis(label.split("_")[0])
-    got, why = rf._collect(s, basis, BINS, gate=True, rest_mask=lickfree_rest if mask == "restnl" else None,
+    got, why = rf._collect(s, basis, BINS, gate=True, rest_mask={"restnl": lickfree_rest, "restnlc1": lickfree_rest_c1}.get(mask),
                            period_frames=True)
     fp.parent.mkdir(parents=True, exist_ok=True)
     tmp = fp.with_suffix(f".{os.getpid()}.tmp.npz")
@@ -316,8 +344,10 @@ def fit_and_score(mask, pre, data, out, stem, allow_thin=False):
                 continue
             if ep == "pre" and not _pre_ok(lab, pre):
                 continue
-            if mask == "restnl":
-                ok_wr, _n = wr_status(lab)
+            if mask in ("restnl", "restnlc1"):
+                from wfield_local import restnl_licks
+                with restnl_licks.active("cam4cam1" if mask == "restnlc1" else "cam4"):
+                    ok_wr, _n = wr_status(lab)
                 if ok_wr is False:
                     skipped.append(f"{lab}: RESTnl rule wr fails")
                     continue
@@ -692,7 +722,7 @@ def report(per_session, crow, title):
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--mask", choices=["restnl", "rest"], default="restnl")
+    ap.add_argument("--mask", choices=list(MASKS), default="restnl")
     ap.add_argument("--pre", choices=["aug", "all"], default="aug")
     ap.add_argument("--stage", choices=["collect", "counts", "fit", "all"], default="all")
     ap.add_argument("--plot-only", action="store_true", help="redraw tables + figures from the CSVs (no data read)")

@@ -321,6 +321,24 @@ _REF_TEXT = {
               "contact licks, [0.5, 1.0] s) and the flat position-weighted estimator (old REST was time-local, "
               "frame-weighted); old REST is kept as a supplement. Pre = AUGUST-ONLY pre-stroke sessions."),
     ),
+    # ADDED 2026-11-17 (Priya: RESTnl excludes DAQ + cam4 + cam1 licks, the within-trial lick-free train): the same
+    # derived reference with the cam1-only LP events also removed (`restnl_licks`, baselines in their own cache dir).
+    "restnlc1": dict(
+        short="one vs RESTnlc1 (lick-free rest, flat; rest licks DAQ contact + cam4 LP + cam1-only LP)",
+        title="Position maps referenced to RESTnlc1 (lick-free rest, flat; rest licks excluded: DAQ contact + cam4 LP "
+              "+ cam1-only LP events, droplets and far-from-mouth labels removed)",
+        cbar="activity minus RESTnlc1\n(lick-free rest, flat)",
+        note=("RESTnlc1 = RESTnl with the cam1 licks also removed (Priya 11-17). REST FRAMES: the restdock05 rest mask "
+              "(docked, not running) minus EVERY DAQ spout-contact lick, EVERY cam4 Lightning-Pose video lick "
+              "(licks_all.csv, contact or not) AND every cam1-only LP lick event (not cam4-matched; water droplets "
+              "removed; inside the camera trial windows) -- the same lick train as the within-trial lick-free windows "
+              "-- with a buffer of 0.5 s before / 2.0 s after each lick, the min-rest floor re-applied, engagement-"
+              "gated. Sessions without cam1 events use cam4 only (named in the run log). LEVEL as RESTnl: per-position "
+              "medians of each SVD component, equal-weight mean over positions with >= 50 frames (>= 4 of 6); one "
+              "FLAT map per session, raw[q] - U @ b. Same flat-baseline caveat as RESTnl (PS94 subacute / chronic "
+              "within-session drift). Sessions without a cam4 lick table (PS93_0813) have no RESTnlc1 column. Pre = "
+              "AUGUST-ONLY pre-stroke sessions."),
+    ),
 }
 def _fig_15rpa_reference_by_animal(out_dir, align, variant, wname):
     """15rpa: the quiet- and mean-referenced position maps PER ANIMAL, at far-contralateral.

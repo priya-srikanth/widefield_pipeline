@@ -39,3 +39,9 @@ therefore identical: the deleted models were reproducible by the current code (t
 current code select the same pre-stroke training trials for this kind). The gate description in the log ("camera gate:
 LP-attempted trials: every camera-seen lick") is the same in both; the wf_rebuild run of 11-16 printed "DAQ lick-arm
 trials" while hitting the same ids, i.e. only its label text differs.
+
+## 11-17 ~15:30 — RESTnlc1 v1 timing-run caches (Priya OK 11-17: "ok to delete the orphan cache files")
+
+Written 14:31-14:33 by a one-session timing run under the superseded post-cue cam1 definition (lp_lick_times); never read by any code (v2 uses session_cache_restnlc1v2 / restw_check_c1v2).
+- `M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/session_cache_restnlc1/PS92_0814__restnlc1-hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk_csig-3d7bbe921e__44b2de7cd98d8e89.npz` — 1058631 bytes, mtime 2026-11-17 14:32:17
+- `M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/restw_check_c1/sessions/PS92_0814.npz` — 30106 bytes, mtime 2026-11-17 14:33:20.0

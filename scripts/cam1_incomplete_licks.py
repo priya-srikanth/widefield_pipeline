@@ -3,7 +3,8 @@
     python -m scripts.cam1_incomplete_licks
 
 Per session x spout position, per trial: cam4 licks (v36 ``licks.csv``) and its NO-CONTACT licks; cam1-ONLY events
-(`scripts/cam1_licks.py`: no cam4 lick and no 3-D lick overlaps them; water droplets removed -- blind review, 2 rounds)
+(`scripts/cam1_licks.py`: no cam4 lick and no 3-D lick overlaps them; water droplets removed -- blind review, 2 rounds;
+far-from-mouth labels removed, Priya 11-17 -- both via `cam1_licks.keep_mask`)
 split into ``lips`` (never > 20 px below the cam1 mouth) and ``out``; INCOMPLETE licks = cam4 no-contact + cam1-only
 without a DAQ contact; and the jaw-without-lick share of jaw-QC'd trials (v36 ``tongue_jaw_mismatch.csv``) as cam4 has it
 and CORRECTED (trials where cam1 saw the tongue in the quiet window removed from the numerator). Sessions failing a 3-D
@@ -139,7 +140,7 @@ def figure(S: pd.DataFrame, animal: str, path: Path) -> None:
                 ax.set_ylabel(lab, fontsize=7)
     for ax in axes[-1]:
         ax.set_xlabel("days from stroke", fontsize=7)
-    fig.suptitle(f"{animal}: incomplete licks and jaw-without-lick trials, cam4 + cam1 (droplets removed); gray = August "
+    fig.suptitle(f"{animal}: incomplete licks and jaw-without-lick trials, cam4 + cam1 (droplets, far-from-mouth labels removed); gray = August "
                  "pre range, dashed = its median; open = June", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.97))
     fig.savefig(path, dpi=110)
@@ -160,11 +161,19 @@ def main(argv=None) -> int:
     from wfield_local.paths import PathResolver
     rv = PathResolver()
     d = Path(rv.root("dlc")) / "session_poses" / "cam1_licks"
-    E = pd.concat([pd.read_csv(f, dtype={"date": str}) for f in sorted(d.glob("PS*_events.csv"))], ignore_index=True)
+    from wfield_local import cam1_licks as C1
+
+    def _read(f):
+        # the cam1 lick rule per FILE (`cam1_licks.keep_mask`: droplets + far-from-mouth labels, Priya 11-17), so a
+        # file without med_out_px is reported by name instead of passing NaN through the concat
+        X = pd.read_csv(f, dtype={"date": str})
+        X["c1_keep"] = C1.keep_mask(X, label=f.name.replace("_events.csv", ""))
+        return X
+    E = pd.concat([_read(f) for f in sorted(d.glob("PS*_events.csv"))], ignore_index=True)
     for c in ("cam4_matched", "in_3d", "contact", "jaw_only_trial", "droplet"):
         E[c] = E[c].astype("boolean").fillna(False).astype(bool)
-    E["cam1_only"] = ~E.cam4_matched & ~E.in_3d & ~E.droplet
-    E["jaw_only_trial"] &= ~E.droplet
+    E["cam1_only"] = ~E.cam4_matched & ~E.in_3d & E.c1_keep
+    E["jaw_only_trial"] &= E.c1_keep
     bad = P3.failed_sessions(pose3d_dir(rv))
     rows = []
     from wfield_local import analysis_kit as ak

@@ -153,7 +153,8 @@ def test_default_path_never_touches_the_restnl_accessor():
     assert lih.REST_VARIANT == "restdock05"
     src = (REPO / "scripts" / "lick_interhemispheric.py").read_text(encoding="utf-8")
     body = src.split("def rest_extract(", 1)[1].split("\ndef ", 1)[0]
-    assert 'if REST_VARIANT == "restnl":' in body and "_restnl_daq(s)" in body
+    assert "if IS_NL:" in body and "_restnl_daq(s)" in body          # IS_NL = restnl or restnlc1 (11-17)
+    assert lih.IS_NL is False
 
 
 # ------------------------------------------------------------------------------------------------ raw (no rest reference)

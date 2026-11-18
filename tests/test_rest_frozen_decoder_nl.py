@@ -41,6 +41,7 @@ def test_defaults_are_off():
     sig = inspect.signature(rf._collect)
     assert sig.parameters["rest_mask"].default is None
     assert sig.parameters["period_frames"].default is False
+    assert sig.parameters["period_cues"].default is False          # 11-17 opt-in (rest15f_restnl_1117)
 
 
 #: Functions allowed to differ from REV. `_collect`: the two opt-in keywords. `main`: since 11-02 its pre-stroke models

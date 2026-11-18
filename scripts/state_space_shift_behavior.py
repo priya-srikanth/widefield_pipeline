@@ -48,8 +48,8 @@ from wfield_local.figure_layout import save_png_svg  # noqa: E402
 from wfield_local.orofacial_cohort import EPOCH_LINE  # noqa: E402
 
 EPS = S.POST
-OUT = S.ROOT / f"shift_behavior{S.tag()}"
-FIGS = S.ROOT / "page_figs"
+OUT = S.ROOT / f"shift_behavior{S.tag()}{S.RSFX}"
+FIGS = S.ROOT / f"page_figs{S.RSFX}"
 REGIONS = S.SHIFT_REGIONS
 SIDES = SM.SIDES
 WINDOWS = {"before the lick": (-1.0, -0.1), "early (0..0.3 s)": (0.0, 0.3), "late (0.3..0.7 s)": (0.3, 0.7)}

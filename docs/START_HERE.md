@@ -123,6 +123,9 @@ bootstrap (`analysis_kit.boot_delta`), and the block-permutation null for any la
 - **Code (on that branch):** `task_independent_movement.py`, `glm_hmm.py`, `arhmm_features.py`, `arhmm_model.py`,
   `arhmm_states.py`, `scripts/o2_arhmm.py`; the block null `analysis_kit.block_permute` on branch
   `fix/block-perm-null-1116`
+- **Results page:** https://claude.ai/artifact/ChbBM9K12WWRohx6nU6rCX (GLM-HMM engagement, treadmill push, AR-HMM
+  syllables, TIM, frozen pre-stroke likelihood); findings: [`FINDINGS.md`](FINDINGS.md) section 9; one module for every
+  state readout: `behavior_states.py` (+ `scripts/states_page_figs.py`), handoff section 3b.
 - **Status:** not merged into main yet; every result is provisional.
 
 ### K. Anatomy and histology

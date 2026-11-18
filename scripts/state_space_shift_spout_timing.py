@@ -51,8 +51,8 @@ from wfield_local.orofacial_cohort import EPOCH_LINE, pos_disp  # noqa: E402
 
 EPS = SB.EPS
 POS = S.POS
-OUT = S.ROOT / f"shift_spout_timing{S.tag()}"
-FIGS = S.ROOT / "page_figs"
+OUT = S.ROOT / f"shift_spout_timing{S.tag()}{S.RSFX}"
+FIGS = S.ROOT / f"page_figs{S.RSFX}"
 WINS = {"early (0..0.3 s)": (0.0, 0.3), "late (0.3..0.7 s)": (0.3, 0.7)}
 NSPLIT = 20
 MIN_TR = 4

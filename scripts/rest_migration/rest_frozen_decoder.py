@@ -399,7 +399,7 @@ def refit_predictions(X, y, g):
     return pred
 
 
-def _collect(session, basis, bins, verbose=True, gate=True, rest_mask=None, period_frames=False):
+def _collect(session, basis, bins, verbose=True, gate=True, rest_mask=None, period_frames=False, period_cues=False):
     """Rest-period features for ONE session in the animal's JOINT basis.
 
     Returns (X, y, order) or None. `order` is the time order of the periods, which the
@@ -411,7 +411,9 @@ def _collect(session, basis, bins, verbose=True, gate=True, rest_mask=None, peri
     (RESTnl: `rest_frozen_decoder_nl.lickfree_rest`) and adds lick onsets the lick-gap measure
     must also see. ``period_frames=True`` appends each period's frame count to the tuple. Both
     are opt-in; with the defaults the function is the pre-11-02 one (pinned in
-    tests/test_rest_frozen_decoder_nl.py).
+    tests/test_rest_frozen_decoder_nl.py). ``period_cues=True`` (11-17, opt-in) appends each period's bracketing cue
+    indices ``(prev, next)`` into the session cue train, so a caller can apply a per-trial rule (camera working
+    trials) to both bracketing trials.
     """
     import h5py
 
@@ -481,6 +483,7 @@ def _collect(session, basis, bins, verbose=True, gate=True, rest_mask=None, peri
     blk = block_ids(np.asarray(codes), block_size_max_for(session))
 
     X, y, g, dur, p_aa, p_bb, nfr = [], [], [], [], [], [], []
+    c_prev, c_next = [], []
     for aa, bb in zip(np.flatnonzero(dif > 0), np.flatnonzero(dif < 0)):
         prev = np.searchsorted(cs, aa, "right") - 1
         nxt = np.searchsorted(ts, bb, "left")
@@ -512,6 +515,8 @@ def _collect(session, basis, bins, verbose=True, gate=True, rest_mask=None, peri
         p_aa.append(int(aa))
         p_bb.append(int(bb))
         nfr.append(int(fr.size))
+        c_prev.append(int(prev))
+        c_next.append(int(nc))
     if not y:
         return None, f"{lab}: 0 usable rest periods"
     gap = lick_gap_s(np.asarray(p_aa), np.asarray(p_bb), licks, rate)
@@ -521,6 +526,8 @@ def _collect(session, basis, bins, verbose=True, gate=True, rest_mask=None, peri
            np.asarray(dur, float), gap, lick_hz)
     if period_frames:
         out = out + (np.asarray(nfr, int),)
+    if period_cues:
+        out = out + (np.asarray(c_prev, np.int64), np.asarray(c_next, np.int64))
     return out, None
 
 

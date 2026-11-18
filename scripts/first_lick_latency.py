@@ -1,8 +1,9 @@
 """First-lick latency three ways (Priya 10-20: "these median first lick times are based on keypoint tracking right? not
 spout contact"): per trial, time from the cue to the first
   cam4      LP cam4 lick onset (session licks.csv `on_ms`; what the lick-aligned within-spout check uses)
-  combined  earliest of cam4 and the cam1 2-D detector's events (session_poses/cam1_licks/<a>_<d>_events.csv, droplets
-            excluded) -- small / incomplete licks cam4 misses
+  combined  earliest of cam4 and the cam1 2-D detector's events (session_poses/cam1_licks/<a>_<d>_events.csv; water
+            droplets and far-from-mouth labels excluded, `cam1_licks.keep_mask`, Priya 11-17) -- small / incomplete
+            licks cam4 misses
   contact   first DAQ spout contact
 A late cam4 first lick with an earlier cam1 event = attempts cam4 did not register as licks; a late contact with an
 early lick = licks that miss the spout. Curated sessions from 08-06; cam1 columns only where events exist.
@@ -36,8 +37,10 @@ def session_latency(label: str) -> pd.DataFrame:
     f = Path(rv.root("dlc")) / "session_poses" / "cam1_licks" / f"{a}_{d}_events.csv"
     cam1 = None
     if f.exists():
-        E = pd.read_csv(f, usecols=["trial_id", "on_ms", "droplet"])
-        E = E[(E.on_ms >= 0) & ~E.droplet.fillna(False).astype(bool)]
+        from wfield_local import cam1_licks as C1
+        E = pd.read_csv(f, usecols=lambda c: c in ("trial_id", "on_ms", "cam4_matched", "droplet", "spread_px",
+                                                   "range_px", "med_out_px"))
+        E = E[(E.on_ms >= 0) & C1.keep_mask(E, label=label)]
         cam1 = E.groupby("trial_id").on_ms.min()
     con = D.daq_contacts_ms(a, d, b, rv)
     rows = []
