@@ -69,7 +69,7 @@ Rows A–B, D–E and F–H are each rendered as one canvas by `render_fig4_rows
 | C | Response around lick onset by region and epoch | `make_fig3.py`, deck raster with redrawn axes | `deck2/f3_traces_4roi.png` | Overview deck ROI-trace row (slide 96 family, `f3_cued_ROI_row.png` in `FIGURE_SOURCES.md`), cut to tjM1 + SSp-m both sides |
 | D | Lick-response AUC, fold of own pre | `render_fig4_rows.py` `row_DE()` | `data/cued_ramp_w01_{sessions,verify}.csv` | `lmm_hidden/cued_ramp_summary_row2_lmm_w0-1_{sessions,verify}.csv`. Stars: `boot_star` (see `FIGURE_SOURCES.md`, "Correction, 9 Nov"). Final "cued D" version: `Fig5D_cued.svg` (10 Nov 01:15), placed in Illustrator |
 | E | Contra : ipsi balance, far contra | `render_fig4_rows.py` `row_DE()` | `data/lick_lateral_ratio_auc_docked_{sessions,lmm}.csv` | `lmm_hidden/lick_lateral_ratio_auc_docked_*`. Stars: `star` |
-| F | Balance (SSp-m) vs far-contra aim, per session | `render_fig4_rows.py` `row_FGH()` | `recov/balance_aim_sessions.csv`, `recov/balance_aim_models.csv`, `data/lick_lateral_ratio_auc_docked_sessions.csv` | Within-animal slope, mixed model adjusted for log time from stroke (`recov/` staged 9 Nov 14:34) |
+| F | Balance (SSp-m) vs far-contra aim, per session | `render_fig4_rows.py` `row_FGH()` | `recov/balance_aim_sessions.csv` (y = aim), `data/lick_lateral_ratio_auc_docked_sessions.csv` (x); `recov/balance_aim_models.csv` was staged but is not read | **`scripts/lick_recovery_primary.py`** -> `recprim_sessions.csv`, selection re-exported by `session_scripts/export_balance_aim.py`. The plotted columns are bit-identical to the current server file; the unplotted `marker` drifted on 11 Nov (see Gaps). The p in the annotation is typed into the renderer; see Gaps |
 | G | Position on pre → chronic axis vs days | `render_fig4_rows.py` `row_FGH()` | `ssdata/days_sessions.csv` | **`scripts/state_space_trajectories.py`** -> `state_space_recovery/trajectories_lick_svd/days_sessions.csv`, copied unchanged. Byte-identical, checked 17 Nov |
 | H | Sessions in the axis × acute-departure plane | `render_fig4_rows.py` `row_FGH()` | `data/ss_plane_sessions.csv` | **`scripts/state_space_per_position.py`** -> `state_space_recovery/per_position_lick_svd/per_position_sessions.csv`, renamed on copy. Byte-identical, checked 17 Nov |
 | I | Reference areas (Allen key) | `make_fig3.py`, raster from PDF | `airaster/panel_areakey_nolab.png` | `Widefield_CAMS_fig.ai`, panel H (v7 Figure 5H), crop x 232–322, y 316–396 pt |
@@ -91,11 +91,29 @@ Rows A–B, D–E and F–H are each rendered as one canvas by `render_fig4_rows
   (`scripts/state_space_trajectories.py`), and `frbasis/{sessions,stats}.csv` are
   `frozen_refit_basis/{sessions,stats}.csv` (`scripts/frozen_refit_basis_compare.py`), all identical to their server
   originals. `data/cued_ramp_w01_*` is the documented rename of `lmm_hidden/cued_ramp_summary_row2_lmm_w0-1_*`.
-- **The one file still without code:** `recov/balance_aim_{sessions,models}.csv`. Derived, not copied: no file on the
-  share matches either one, and the extraction that made them from
-  `iti_licks/<daqlk tag>/figdata/lick_recovery_primary.pkl` (`T` and `M`, `set == 'cued first lick'`) plus
-  `balimg_primary_link.csv` ran inline in the figure session and was never written to a file. To rebuild it, see
-  `session_scripts/recov_README.txt` for the columns and the model numbers it must reproduce, and
-  `scripts/lick_recovery_primary.py` for the pipeline step behind the pkl.
+- **`recov/balance_aim_{sessions,models}.csv`: re-exported by `session_scripts/export_balance_aim.py` (17 Nov),
+  except the `marker` column and the six ITI model rows, which cannot be recovered.** They were a selection of `scripts/lick_recovery_primary.py`'s
+  `recprim_sessions.csv` / `recprim_models.csv` (panel `cued first lick -> aim`), as of 9 Nov.
+  Checked against the archived staged copies:
+  - **Sessions, from the current server `recprim_sessions.csv`:** 107 / 107 rows in the same order.
+    `label`, `animal`, `epoch`, `day`, `y` and `n_licks` are bit-identical.
+  - **`marker` matches 0 / 107** (max |d| 0.092, r 0.998). Its input `balsub_sessions.csv` was rewritten on 11 Nov
+    05:31, after the 9 Nov 14:34 staging. Every `balsub_sessions*.csv` on the share was checked with the pipeline's
+    `marker()`, and none reproduces it. The 9 Nov value therefore survives only in the staged file.
+  - **Models:** `fit_panels` run on the staged sessions reproduces the three cued rows of the staged models file to
+    < 1e-12 relative (13.597 [6.178, 21.015], p 3.28e-4; spline 17.548; predictive 0.506), and per-animal r
+    0.69 / 0.89 / 0.93 / 0.75.
+  - **The six ITI model rows cannot be reproduced.** That includes `concurrent, per-animal spline FAILED Singular
+    matrix`. Their sessions were never staged, and the 9 Nov `recprim_sessions.csv` was rewritten on 11 Nov 05:38;
+    the archive holds no pkl. On today's table the ITI rows differ (iti_ang log(day) 5.63 vs 5.73), and the spline
+    converges. The script writes any fit that `fit_panels` had to retry (retries added 17 Nov) back as a `FAILED`
+    row in the 9 Nov form, so it would not quietly repair that failure. Figure 5F does not use the ITI rows.
+  - **What Figure 5F draws:** only `label`, `animal`, `epoch` and `y` from these files, so the plotted points are
+    reproducible. Nothing reads `marker` or `balance_aim_models.csv`.
+  - **Panel F's annotation** ("within-animal slope p < 10^-9, adjusted for time") is typed into `render_fig4_rows.py`.
+    It does **not** come from `balance_aim_models.csv` (p 3.3e-4, a different x). Running the same `fit_panels`
+    model on the x that is actually plotted (SSp-m lateral ratio, `cued|SSp-m:far_contra`) gives slope -19.4, p 6.6e-11.
+    That agrees with the annotation, but no saved file records the fit. In that fit the per-animal r are
+    -0.86 / +0.22 / -0.86 / -0.66, so PS93 goes the other way.
 - Where this file and `FIGURE_SOURCES.md` disagree, this file is newer for the submitted figures (Fig 5A is the known
   case).
