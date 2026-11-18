@@ -56,7 +56,8 @@ JAW_HALF_S = 0.15                 # syllables at the jaw onset: +- this
 RESP_MAX_S = 2.0                  # response window for the per-trial syllable composition: cue .. cue + min(stop, 2 s)
 ROLES = ("engaged", "partial", "disengaged")
 WHEEL_CHANNELS = ("fwd", "back", "p_walk", "p_push")
-#: pose features of the cue-aligned traces (`arhmm_features` columns; tongue_ml signed + = contralesional)
+#: pose features of the cue-aligned traces (`arhmm_features` columns; tongue_ml signed + = contralesional); the
+#: session's FaceRhythm master factors (`fr_*` columns, absolute expression) follow them; names in collect.json
 CUE_FEATURES = ("tongue_ext", "tongue_ml", "jaw_y", "nose_y")
 #: a session contributes a cue-aligned trace of a trial set only with >= this many trials in the set
 MIN_TRACE_TRIALS = 5
@@ -81,6 +82,25 @@ def _seg() -> dict:
 def walk_threshold() -> float:
     """Walking = forward treadmill speed above the DAQ running threshold (mm/s)."""
     return float(_seg()["running"]["thresh_speed_mm_s"])
+
+
+def walk_window() -> tuple:
+    """(a, b) s after the cue of the WALKING readout (configs/defaults.yaml segmentation.walk.window_s)."""
+    return tuple(float(x) for x in _seg()["walk"]["window_s"])
+
+
+#: COMMON SESSION DURATION for length-matched readouts (Priya 11-18: pre-stroke sessions run longer, so a whole-session
+#: rate mixes in more late-session trials): minutes from the session's first cue. 95 min = about the 10th percentile of
+#: pre / subacute / chronic session lengths; 9 of 107 sessions are shorter and enter whole. Time, not trials, because
+#: quitting is time-driven (STATUS_2026-09-20) and failed acute trials end sooner (acute median 600 trials in 115 min).
+COMMON_SESSION_MIN = 95.0
+
+
+def add_session_time(T: pd.DataFrame, trials: pd.DataFrame) -> pd.DataFrame:
+    """``T`` (label, trial_id) + ``t_min`` = minutes from the session's first cue, from the collector's trial table
+    (``load_collected()["trials"]``, which stores it per trial: no session reload)."""
+    m = trials[["label", "trial_id", "t_min"]].astype({"trial_id": int})
+    return T.astype({"trial_id": int}).merge(m, on=["label", "trial_id"], how="left").set_axis(T.index)
 
 
 def push_params() -> dict:
@@ -356,10 +376,12 @@ def session_readouts(item):
     fs = 1.0 / np.median(np.diff(t))
     Fz = np.load(Path(af.out_dir()) / "sessions" / f"{label}.npz", allow_pickle=True)
     fcols = [str(c) for c in Fz["features"]]
-    P = np.stack([Fz["X"][:, fcols.index(c)] for c in CUE_FEATURES])
+    cue_feats = list(CUE_FEATURES) + [c for c in fcols if c.startswith("fr_")]   # + the FaceRhythm master factors
+    P = np.stack([Fz["X"][:, fcols.index(c)] for c in cue_feats])
     gn = list(groups)
     g = np.where(z >= 0, _group_lut(groups)[np.maximum(z, 0)], -1)
-    pp, walk = push_params(), walk_threshold()
+    pp, walk, ww = push_params(), walk_threshold(), walk_window()
+    c0 = float(np.nanmin(T.cue_daq.to_numpy(float)))                 # session start = first cue (t_min per trial)
     period = tc.camera_engaged_period(label, T.cue_daq.to_numpy(float))
     stop = T.cue_daq.to_numpy(float) + np.nan_to_num(T.stop_ms.to_numpy(float) / 1000.0, nan=RESP_MAX_S)
     nb = int(round((CUE_ALIGN_S[1] - CUE_ALIGN_S[0]) * fs))
@@ -367,8 +389,8 @@ def session_readouts(item):
             + tuple(f"role_{r}" for r in ROLES) + tuple(f"state_{k}" for k in sorted(roles)))
     wheel = {k: np.zeros((len(WHEEL_CHANNELS), nb)) for k in keys}
     nwheel = dict.fromkeys(keys, 0)
-    feat = {k: np.zeros((len(CUE_FEATURES), nb)) for k in keys}
-    nfeat = {k: np.zeros((len(CUE_FEATURES), nb)) for k in keys}
+    feat = {k: np.zeros((len(cue_feats), nb)) for k in keys}
+    nfeat = {k: np.zeros((len(cue_feats), nb)) for k in keys}
     etho, neth = np.zeros((len(gn), nb)), 0
     cyc = np.zeros(len(t), bool)
     rows = []
@@ -382,11 +404,11 @@ def session_readouts(item):
             cyc[np.searchsorted(t, a):np.searchsorted(t, stop[i])] = True
         bc, bk = _window(t, back, c + pp["cue"][0], c + pp["cue"][1]), _window(t, back, c + pp["control"][0],
                                                                                   c + pp["control"][1])
-        fc, fk = _window(t, fwd, c + pp["cue"][0], c + pp["cue"][1]), _window(t, fwd, c + pp["control"][0],
+        fc, fk = _window(t, fwd, c + ww[0], c + ww[1]), _window(t, fwd, c + pp["control"][0],
                                                                                 c + pp["control"][1])
         gr = _window(t, g, c, c + min(stop[i] - c, RESP_MAX_S))
         gr = gr[gr >= 0]
-        row = {"label": label, "trial_id": r.trial_id, "position": r.position, "cls": r.cls,
+        row = {"label": label, "trial_id": r.trial_id, "position": r.position, "cls": r.cls, "t_min": (c - c0) / 60.0,
                "glm_engaged": engaged, "lick_period": bool(period[i])}
         if len(bc) >= 0.5 * fs and len(bk) >= 0.5 * fs and np.isfinite(bc).all() and np.isfinite(bk).all():
             above = np.flatnonzero(bc > pp["thresh"])
@@ -442,7 +464,7 @@ def session_readouts(item):
             "wheel": {k: (wheel[k] / nwheel[k] if nwheel[k] >= MIN_TRACE_TRIALS else None) for k in keys},
             "feat": {k: (np.where(nfeat[k] >= MIN_TRACE_TRIALS, feat[k] / np.maximum(nfeat[k], 1), np.nan)
                          if nfeat[k].max() >= MIN_TRACE_TRIALS else None) for k in keys},
-            "ethogram": etho / neth if neth >= 10 else None, "fs": fs}
+            "ethogram": etho / neth if neth >= 10 else None, "fs": fs, "cue_features": cue_feats}
 
 
 def transition_table(res: dict, groups: dict, min_out: int = 20) -> pd.DataFrame:
@@ -498,7 +520,8 @@ def collect(tag: str | None = None, jobs: int | None = None) -> Path:
     np.savez_compressed(od / "traces.npz", **arr)
     (od / "collect.json").write_text(json.dumps({
         "tag": tag, "glmhmm": {"K": GLMHMM_K, "design": GLMHMM_DESIGN, "roles": glmhmm_roles(T)},
-        "groups": groups, "push": push_params(), "walk_mm_s": walk_threshold(), "cue_align_s": CUE_ALIGN_S,
+        "groups": groups, "push": push_params(), "walk_mm_s": walk_threshold(), "walk_window_s": walk_window(),
+        "cue_align_s": CUE_ALIGN_S, "cue_features": next(iter(res.values()))["cue_features"],
         "fs": fs, "n_sessions": len(res), "failed": [str(f) for f in fail]}, indent=1, default=str))
     print(f"{len(res)} sessions -> {od}")
     return od

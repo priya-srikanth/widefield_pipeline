@@ -186,6 +186,12 @@ def fig_occupancy(C: dict, od: Path) -> None:
     epoch_panels(S, ms, lab, "glmhmm_occupancy_by_epoch",
                  f"GLM-HMM K{bs.GLMHMM_K} ({bs.GLMHMM_DESIGN}) state occupancy (mean posterior per session), every trial; "
                  "roles from each state's own profile", od, ylim01=True)
+    cap = bs.COMMON_SESSION_MIN                       # length-matched: the first `cap` minutes of every session
+    Tc = bs.add_session_time(T, C["trials"])
+    Sc = bs.occupancy_per_session(Tc[~(Tc.t_min > cap)])
+    epoch_panels(Sc, ms, lab, "glmhmm_occupancy_by_epoch_first95",
+                 f"GLM-HMM K{bs.GLMHMM_K} state occupancy, FIRST {cap:g} MIN of each session (length-matched)", od,
+                 ylim01=True)
 
 
 def _curve_table(T: pd.DataFrame, outputs: dict, min_w: float = 3.0) -> pd.DataFrame:
@@ -239,7 +245,22 @@ def fig_state_curves(C: dict, od: Path) -> None:
     fig.suptitle(f"GLM-HMM K{bs.GLMHMM_K} ({bs.GLMHMM_DESIGN}) per-state response by spout, all epochs pooled: rate "
                  "weighted by each trial's state posterior; series color = state", fontsize=9)
     _save(fig, "glmhmm_state_curves", od)
-    # (2) by epoch: rows = states, columns = outputs + P(state | spout); epochs side by side, stars per spout
+    _curves_by_epoch(CT, roles, "glmhmm_state_curves_by_epoch", od, "")
+    cap = bs.COMMON_SESSION_MIN
+    Tc = bs.add_session_time(T, C["trials"])
+    keep = ~(Tc.t_min > cap)
+    CTc = _curve_table(Tc[keep], {k: v[keep] for k, v in outs.items()})
+    CTc.to_csv(od / "glmhmm_state_curves_per_session_first95.csv", index=False)
+    _curves_by_epoch(CTc, roles, "glmhmm_state_curves_by_epoch_first95", od,
+                     f" -- FIRST {cap:g} MIN of each session (length-matched)")
+
+
+def _curves_by_epoch(CT: pd.DataFrame, roles: dict, name_out: str, od: Path, note: str) -> None:
+    """By epoch: rows = states, columns = outputs + P(state | spout); epochs side by side, stars per spout."""
+    pos = list(oc.POS_ORDER)
+    x = np.arange(len(pos))
+    states = sorted(roles)
+    lat = bs.laterality()
     cols2 = ["contact", "incomplete", "jaw-only", "no response", "p_state_given_spout"]
     eoff = cp.epoch_offsets(len(EPS))
     fig, axs = plt.subplots(len(states), len(cols2), figsize=(3.3 * len(cols2), 2.6 * len(states)), squeeze=False)
@@ -265,8 +286,61 @@ def fig_state_curves(C: dict, od: Path) -> None:
     axs[0, -1].legend(fontsize=7, frameon=False, loc="upper right")
     fig.suptitle(f"GLM-HMM K{bs.GLMHMM_K} per-state response by spout and epoch: does a state mean the same thing after "
                  "the stroke? (emissions are shared across epochs); last column = which states the animals are in at "
-                 "each spout", fontsize=9)
-    _save(fig, "glmhmm_state_curves_by_epoch", od)
+                 f"each spout{note}", fontsize=9)
+    _save(fig, name_out, od)
+
+
+def fig_fr_cue_traces(C: dict, od: Path) -> None:
+    """The FaceRhythm master factors around the cue, on the trials and window of the cue-aligned AR-HMM figure
+    (GLM-HMM engaged trials, cue -2 .. +4.5 s), by epoch: the amplitude view of the same behavior (Priya 11-18; for
+    the FaceRhythm page)."""
+    F = _traces(C, "feat")
+    names = C["meta"].get("cue_features") or []
+    fr = [i for i, c in enumerate(names) if c.startswith("fr_")]
+    if not fr:
+        print("  no FaceRhythm factors in the collected traces (re-run behavior_states collect)")
+        return
+    fs, (a, _b) = C["meta"]["fs"], bs.CUE_ALIGN_S
+    t = a + (np.arange(next(iter(F["glm_in"].values())).shape[1]) + 0.5) / fs
+    trace_panels(F, fr, [names[i][3:].replace("_", " ") + " (abs. expression)" for i in fr], "fr_factors_cue_aligned",
+                 "FaceRhythm master factors around the cue, GLM-HMM engaged trials (the trials of the cue-aligned "
+                 "AR-HMM figure): absolute expression, mean over animals +- SEM", od, t, rows=[("glm_in", None)],
+                 wrap=4)
+
+
+TRIAL_TYPES = (("contact", "contact"), ("incomplete", "incomplete"), ("jaw_only", "jaw-only"),
+               ("no_response", "no response"))
+
+
+def fig_state_given_type(C: dict, od: Path) -> None:
+    """P(state | camera trial type): the mean state posterior over the trials of each type, per session (Priya 11-18:
+    the reverse view of Fig 'per-state response by spout'); all epochs pooled, and by epoch."""
+    T = bs.glmhmm_table()
+    roles = bs.glmhmm_roles(T)
+    scol = bs.glmhmm_state_colors(roles)
+    pc = bs._pcols(T)
+    states = sorted(roles)
+    S = T.groupby(["label", "animal", "epoch", "cls"])[pc].mean().reset_index()
+    S.to_csv(od / "glmhmm_state_given_type_per_session.csv", index=False)
+    x = np.arange(len(TRIAL_TYPES))
+    off = cp.epoch_offsets(len(states), step=0.15)
+    fig, axs = plt.subplots(1, len(EPS) + 1, figsize=(3.6 * (len(EPS) + 1), 3.4), squeeze=False, sharey=True)
+    for a, (ax, ep) in enumerate(zip(axs.flat, [None] + EPS)):
+        D = S if ep is None else S[S.epoch == ep]
+        for si, k in enumerate(states):
+            for j, (c, _n) in enumerate(TRIAL_TYPES):
+                _pooled(ax, x[j] + off[si], D[D.cls == c], f"p_state{k}", scol[k],
+                        label=f"state {bs.glmhmm_state_label(k)} ({roles[k]})" if (j == 0 and a == 0) else None)
+        ax.set_xticks(x, [n.replace(" ", "\n") for _c, n in TRIAL_TYPES], fontsize=8)
+        ax.set_xlim(-0.6, len(TRIAL_TYPES) - 0.4)
+        ax.set_ylim(-0.02, 1.02)
+        ax.set_title("all epochs" if ep is None else ep, fontsize=9, color="k" if ep is None else ECOL[ep])
+        ax.tick_params(labelsize=8)
+    axs[0, 0].set_ylabel("P(state | trial type)\n(mean posterior)", fontsize=8)
+    axs[0, 0].legend(fontsize=7, frameon=False, loc="upper right")
+    fig.suptitle(f"GLM-HMM K{bs.GLMHMM_K}: which state the animal is in, given the camera trial type (mean posterior "
+                 "over the trials of each type; every trial)", fontsize=9)
+    _save(fig, "glmhmm_state_given_type", od)
 
 
 def _spout_axis(ax, x, pos, lat, colored: bool = False):
@@ -282,16 +356,18 @@ def _spout_axis(ax, x, pos, lat, colored: bool = False):
 
 
 def fig_push(C: dict, od: Path) -> None:
-    pp, walk = bs.push_params(), bs.walk_threshold()
+    pp, walk, ww = bs.push_params(), bs.walk_threshold(), bs.walk_window()
     lab = {"push_rate": f"push rate (backward > {pp['thresh']:g} mm/s in cue window)",
            "push_control_rate": "same test in the control window", "push_cue_minus_control": "cue minus control",
            "push_peak": "peak backward speed on push trials (mm/s)", "push_latency_s": "push onset re cue (s)",
-           "walk_cue": f"walking (forward > {walk:g} mm/s), cue window", "walk_control": "walking, control window"}
+           "walk_cue": f"walking (forward > {walk:g} mm/s), {ww[0]:g}-{ww[1]:g} s after cue",
+           "walk_control": "walking, control window"}
     for gate, gname in (("lick_period", "lick working period"), ("glm_engaged", "GLM-HMM engaged")):
         S = bs.per_session(C["trials"], gate)
         epoch_panels(S, list(lab), lab, f"push_by_epoch_{gate}",
                      f"Treadmill around the cue, trials inside the {gname}: cue window {pp['cue'][0]:g} .. "
-                     f"{pp['cue'][1]:g} s, control {pp['control'][0]:g} .. {pp['control'][1]:g} s", od)
+                     f"{pp['cue'][1]:g} s, walk window {ww[0]:g} .. {ww[1]:g} s, control {pp['control'][0]:g} .. "
+                     f"{pp['control'][1]:g} s", od)
 
 
 def _traces(C: dict, prefix: str) -> dict:
@@ -312,7 +388,7 @@ def fig_wheel_traces(C: dict, od: Path) -> None:
     labels = ["forward speed (mm/s)", "backward velocity (mm/s)", f"P(walking: forward > {walk:g} mm/s)",
               f"P(push: backward > {pp['thresh']:g} mm/s)"]
     per = {k: {lab: v for lab, v in d.items()} for k, d in W.items()}
-    shade = {pp["control"]: "control", pp["cue"]: "cue window"}
+    shade = {pp["control"]: "control", pp["cue"]: "cue window", bs.walk_window(): "walk window"}
     for gate, rows in (("lick", [("lick_in", "inside the lick working period"), ("lick_out", "outside it")]),
                        ("glm", [("glm_in", "GLM-HMM engaged"), ("glm_out", "GLM-HMM partial + disengaged")])):
         trace_panels(per, [0, 1, 2, 3], labels, f"wheel_cue_aligned_{gate}gate",
@@ -630,7 +706,7 @@ def fig_tim(C: dict, od: Path) -> None:
                  "partial + disengaged trials minus engaged trials", od, nc=3)
 
 
-FAMILIES = {"model": fig_glmhmm_model, "glmcue": fig_glmhmm_cue_traces, "motifs": fig_arhmm_motifs, "occupancy": fig_occupancy, "curves": fig_state_curves, "push": fig_push, "wheel": fig_wheel_traces,
+FAMILIES = {"model": fig_glmhmm_model, "statetype": fig_state_given_type, "frcue": fig_fr_cue_traces, "glmcue": fig_glmhmm_cue_traces, "motifs": fig_arhmm_motifs, "occupancy": fig_occupancy, "curves": fig_state_curves, "push": fig_push, "wheel": fig_wheel_traces,
             "arhmm": fig_arhmm, "frozen": fig_frozen, "tim": fig_tim,
             "frozenstats": fig_frozen_stats}
 
