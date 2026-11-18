@@ -64,3 +64,23 @@ The all-LP-trial population gives the same picture.
 - **Before any re-run:** decide whether the static cam1 events at -50 to -90 px are licks. The far-from-mouth guard
   (or a range / spread floor) would need extending first. Adopting cam1 in ENL / ITI with the current rule would inject a
   chronic-specific, far-spout-specific trial loss.
+
+## Blind review of the static class (Priya 11-18: "yes let's do review of the motionless calls")
+- **Already in hand, from the 11-17 review:** 25 of its test events fall in this class (kept cam1-only, `range_px` < 10,
+  `med_out_px` -120..0). Priya scored 24 of them as tongue (23 lips, 1 out) and 1 as none. Almost all came from PS92 / PS93.
+- **New sheet (11-18), aimed at the census hot spots:** `<G>/cam1_static_review_20261118/review/review_sheet.html`
+  (G = `M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/grant_figures`). It holds 42 shuffled candidates, pre-cue / ITI
+  context only:
+  - static PS95 chronic far 10, PS95 chronic close 4, PS94 chronic far 8, PS94 subacute 4, PS95 pre 3;
+  - reference: 5 kept cam1-only events that move (`range_px` >= 10, chronic);
+  - controls: 4 cam4-matched contact licks, 4 flagged droplets.
+  It uses the 11-17 format (cam1, cam1 with the detector point, cam4, cam1 -400..+400 ms). `review/sample.csv` is the key.
+  The code is in `code/` (`c1s_sample.py`; `c1x_review.py` / `c1x_sheet.py` are copied from 11-17, with only the sheet's
+  title and storage key changed).
+- The static class is this share of kept pre-cue / ITI cam1-only events in PS94 / PS95:
+
+  | | pre | acute | subacute | chronic |
+  |---|---|---|---|---|
+  | PS94 | 0.49 | 0.45 | 0.46 | 0.52 |
+  | PS95 | 0.33 | 0.28 | 0.56 | **0.78** |
+- Not scored yet.
