@@ -20,7 +20,7 @@ export FROZEN_LICKS_ALL=split
 export OROFACIAL_GATE=attempted
 export PYTHONPATH="C:\\Users\\SabatiniLab\\Github\\wf_cleanup2;C:\\Users\\SabatiniLab\\Github\\wf_cleanup2/scripts"
 export WFIELD_INPUT_CACHE=C:/Users/SabatiniLab/wfield_cache/input_cache_rebuild_20261104
-export WFIELD_LICK_DECODER=areas_split
+export WFIELD_LICK_DECODER=${LICK_DECODER:-areas_split}   # LICK_DECODER=nonlinear for the non-linear decoder runs (11-17)
 export WIDEFIELD_FROZEN_MODEL_DIR=M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/frozen_models
 export WIDEFIELD_HEMO_VARIANT=meegkit_hpfit_lag_refitT_swapmask
 export WIDEFIELD_LOCANMF_PROJECT=1

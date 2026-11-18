@@ -233,3 +233,10 @@ Dashed = landing grid points where only 3 animals have a curve (kernel weight â‰
   - New `scripts/lick_matched_panels.py`.
   - A plot-only redraw with default options was byte-identical before and after the refactor (gauss curves, loclin
     sem-band).
+- **Non-linear decoder version (Priya 11-17):** `I/panels_nonlinear_first_20261117/<tag>/figures/lick_matched_panels.png`
+  (data: panels_nonlinear_{first,dock}_20261117; `LICK_DECODER=nonlinear` in `dockfig_scripts/run_step.sh`). The all-ITI
+  numbers equal the production non-linear loclin tests (432/432). Same conclusion. ITI session means are +0.34 / +0.27 /
+  +0.28 (all), +0.39 / +0.28 / +0.28 (first) and +0.28 / +0.25 / +0.30 (docked), 4/4 except docked subacute 3/4. Cued
+  are +0.24 / +0.13 / +0.02 (all) and +0.36 / +0.25 / +0.18 (first, 4/4). Strict-row bars match row 1 in every cell
+  except docked acute (7/8 -> 6/8). The non-linear curves are a little less compressed (wider decoded range) but are
+  still pulled to the middle.

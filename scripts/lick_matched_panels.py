@@ -67,7 +67,8 @@ def main() -> int:
             if i < len(ROWS) - 1:
                 axs[i, j].set_xlabel("")
     sg = D["all"]["As"]["sigma"].iloc[0]
-    fig.suptitle("LIKE-FOR-LIKE: decoded position for a given landing place, before and after the stroke (frozen KEY-row "
+    dec = ("NON-LINEAR (RBF kernel ridge)" if lmr.lo.SOURCE == "nonlinear" else "KEY-row")    # WFIELD_LICK_DECODER
+    fig.suptitle(f"LIKE-FOR-LIKE: decoded position for a given landing place, before and after the stroke (frozen {dec} "
                  "lateral decoder). A curve shifted UP = read more contralesional than pre licks landing at the same "
                  f"place.\nCurves: Gaussian-smoothed per animal (sigma {sg:g} mm), mean +/- SEM of 4 animals; dashed = "
                  "only 3 animals there. Reference for the bars: local-linear on pre licks.\nBars at the top = 0.25-mm "
