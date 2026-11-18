@@ -68,9 +68,11 @@ def main() -> int:
                 axs[i, j].set_xlabel("")
     sg = D["all"]["As"]["sigma"].iloc[0]
     dec = ("NON-LINEAR (RBF kernel ridge)" if lmr.lo.SOURCE == "nonlinear" else "KEY-row")    # WFIELD_LICK_DECODER
-    fig.suptitle(f"LIKE-FOR-LIKE: decoded position for a given landing place, before and after the stroke (frozen {dec} "
-                 "lateral decoder). A curve shifted UP = read more contralesional than pre licks landing at the same "
-                 f"place.\nCurves: Gaussian-smoothed per animal (sigma {sg:g} mm), mean +/- SEM of 4 animals; dashed = "
+    # title: not "LIKE-FOR-LIKE" -- the curves are decoded vs landed per epoch; the matched comparison is the bars /
+    # read-outs, and only the bottom row is strictly matched (Priya 11-17)
+    fig.suptitle(f"Decoded vs landed lateral position, before and after the stroke (frozen {dec} lateral decoder). "
+                 "A curve shifted UP = read more contralesional than pre licks landing at the same place."
+                 f"\nCurves: Gaussian-smoothed per animal (sigma {sg:g} mm), mean +/- SEM of 4 animals; dashed = "
                  "only 3 animals there. Reference for the bars: local-linear on pre licks.\nBars at the top = 0.25-mm "
                  "bins whose change vs pre survives BH (paired nested bootstrap; rows acute / subacute / chronic). "
                  "PROVISIONAL", fontsize=10, y=0.995)
