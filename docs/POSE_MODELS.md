@@ -1155,6 +1155,26 @@ four review sessions mapped to raw (`lp_sidecam.to_raw`); reference = production
   licks (contact-lick SD within session x position, 13 cells: midline 5.9 vs 5.7 deg, sagittal 3.7 vs 4.6) -- to test on
   the whole-session run.
 
+**Round 2 training (11-18; student finished Part B).** Work dir `C:/Users/SabatiniLab/lp_stage/lp_side_r2_20261118/`
+(`r2_full` = production candidate, `fold0` / `fold1` = held-out test, `crop2_copy` = round 1 predicting the same frames).
+* Label state (guide logic, `dlc_sidecam_guide.sessions`): 166 Part B targets; 135 edited by the student; 31 still
+  EXACTLY the crop2 seed. 22 of those sit in folders she saved -> taken as her accepted calls (trained; their blank parts
+  train as hidden) but NOT scored (crop2 matches them by construction). The 9 in `cam3_2026-08-26T09_53_05` are in a
+  folder last written 11-04 11:29 (the seed write) -> never opened -> EXCLUDED from training and scoring.
+* One-part frames: the three PS95 09-17 nose-only targets (cam2 img1325540 / img1325614, cam3 img1325691) are
+  GROOMING (both paws over the mouth; jaw, tongue and spout tip hidden) -> deliberately labeled, KEPT (the `MIN_PARTS 2`
+  rule would have dropped them). The two Part A one-part context frames (cam2 06-06 14:09 img0233867, cam3 06-06 12:25
+  img0811263) are open-face frames left unfinished -> dropped (Priya agreed 11-18).
+  Unlabeled frames never train as "not visible": only frames in `CollectedData.csv` reach LP, and a blank is "hidden"
+  only inside a labeled frame.
+* Staged: r2_full 385 frames (round 1: 228). Held-out test = 2 session folds over the 13 Part B sessions (balanced by
+  epoch; fold models train on Part A + the other fold), scored on the 135 human-edited targets (87 jaw-sequence, 48 cam4
+  round-4 moments) against crop2, which never saw any Part B session. Recipe = crop2 unchanged (supervised).
+* Temporal-loss arm planned on the round-2 labels (same folds). Epsilon check: the 11-04 spout epsilon 5 is BELOW
+  genuine between-trial spout motion (move steps p99.9 5.1, max 9.8 px / frame) and breaks the "above p99.9" rule ->
+  spout >= 10 (isolated error jumps are ~16 px). All four epsilons were measured from crop2 predictions, which are
+  weakest on closed / opening jaw -> re-measure from the round-2 supervised model before the temporal fit.
+
 ## D13. June in 3-D, re-evaluated (11-07, a8; Priya asked why June kinematics cannot use the spout-posed 3-D)
 
 **Why June was dropped (10-18):** a 2-D argument. cam4 was re-set on 08-05, and June differs in perspective, not just
