@@ -88,7 +88,7 @@ REWRITE = {
                                                         "log10(rate + 0.2), epoch vs August pre, BH-FDR)")
          + " [traced: render log quiet_v2_fr.log; restyle quiet_restyle_figs.py]"),
         ("Orofacial events / min (both hemispheres), pre -> acute:",
-         "Orofacial events / min (both hemispheres), pre -> acute: PS92 7.1 -> 36.2, PS93 6.5 -> 50.9, PS94 4.9 -> "
+         "Orofacial events / min (both hemispheres), pre -> acute: PS92 7.1 -> 36.2, PS93 6.5 -> 50.9, PS94 4.7 -> "
          "31.0, PS95 3.8 -> 23.1 (4/4). Change vs own pre (bootstrap, events / min): ipsilesional acute +31.1 [22.2, "
          "42.7], subacute +11.5 [6.1, 16.7], chronic +4.1 [0.6, 9.1] (4/4 each); contralesional +26.4 [16.3, 36.9], "
          "+13.3 [6.9, 21.8], +4.0 [0.25, 10.0] (chronic 3/4). Mixed model on log10(rate + 0.2) vs August pre: x7.3 "

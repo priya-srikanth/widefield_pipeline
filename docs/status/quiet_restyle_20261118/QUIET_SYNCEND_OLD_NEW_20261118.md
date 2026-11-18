@@ -19,7 +19,7 @@ primary, mixed-model dagger, change vs own pre, session markers; accepted); the 
 
 ## 2. What the fix does to the numbers (per animal first)
 - Face-regressed orofacial events / min (both hemispheres; slide 157), pre -> acute, old -> new: PS92 6.6 -> 32.0 becomes
-  7.1 -> 36.2; PS93 10.2 -> 49.7 becomes 6.5 -> 50.9; PS94 4.9 -> 31.0 and PS95 3.8 -> 23.1 unchanged.
+  7.1 -> 36.2; PS93 10.2 -> 49.7 becomes 6.5 -> 50.9; PS94 4.9 -> 31.0 becomes 4.7 -> 31.0 (pre only, small); PS95 3.8 -> 23.1 unchanged (corrected 11-18 after 3c recomputed it; the first version of this list called PS94 unchanged).
 - PS93's pre falls because PS93_0806 loses its 12.6-min post-task tail (orofacial 22.2 / 31.5 -> 1.8 / 4.2 per min).
 - PS92_0828 (the chronic outlier) keeps only its 2.3 task-period quiet minutes: still high (orofacial 68 / 82, limb 75 /
   84 per min), so it is an unusual task-period session rather than a tail artifact. It stays in the statistics.
