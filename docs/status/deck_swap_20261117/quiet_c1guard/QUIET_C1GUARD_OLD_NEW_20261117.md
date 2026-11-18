@@ -108,3 +108,11 @@ AND med_out_px >= -120. The audit is `CAM1_FARMOUTH_BLAST_RADIUS_20261117.md` on
   sentences, which are now wrong about k. 3c was told and is relaying to Priya.
 - **Superseded (deletable on Priya's OK, not deleted):** the follow-on outputs in `v2_quiet_lp_20261117/`
   (fr_regressed_own, eta_fr, task_events, examples) and `v2_quiet_lp_c1guard_20261117/` (k 4.5 summary).
+
+## 11-18: k 4 threshold figure for goal Fig 23.18 (Priya, via 3c)
+- The guard render's threshold figure draws the grey line at 3.75; the decided gate is k 4. `run_quiet_v2_k4.sh` =
+  `--summarise --k 4` on the guard per-session data (sessions/ copied in), into
+  `cohort1_quiet_spikes/v2_quiet_lp_c1guard_k4_20261118/`. Code wf_c1guard1117 f3484347; wfield_local checked.
+- Only the grey line (and the title note "4; common k for both groups") changes: threshold_counts / sensitivity / auc /
+  auc_loao CSVs are byte-identical to the k 3.75 folder. Use `threshold_choice.png` (+ svg/) from the k 4 folder only;
+  the other summary files there (lmm_v2, pooled epochs) are at common k 4 and are not used anywhere.
