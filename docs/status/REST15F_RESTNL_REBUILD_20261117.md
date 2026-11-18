@@ -56,3 +56,15 @@ June + August passes for all four. Counts: `*/data/counts_animal_epoch_position_
   On the page (lick periods included): 0.383 / 0.402 / 0.470 / 0.356.
 - August-only sensitivity (PS94 and PS95 only), cam4: acute 0.43, subacute 0.67, chronic 0.36. All three change CIs exclude 0.
 - PS95 acute is the one recorded acute session (0817), and it moves 0.29 -> 0.05 when the cam1-only licks are also removed.
+
+## 11-18: Fig 12.1 title redraw (c1all, allpre + augpre)
+- The second suptitle line (the RESTnlc1 mask text, ~260 characters) was clipped at both edges. `plot_main` now wraps
+  every title line at 185 characters (`suptitle_text`) and grows the figure by 0.18 in per extra line, so the panels keep
+  their size. Redrawn with `--plot-only --lp c1all --pre all|aug` (no refit): `_sessions`, `_per_animal`, `_cohort`,
+  `_confusion`, `_confusion_meta` CSVs byte-identical to the 11-17 run; the confusion PNGs are byte-identical and stayed
+  in place. Same file names. The 11-17 main PNG + SVG of each pre set were moved to
+  `<pre>/_superseded_rest15f_title_20261118/` (2 PNG, 2 SVG).
+- `--plot-only` had been broken: `ef.confusion_row` writes its panel table over `data/<stem>_confusion.csv` (the merged
+  counts it was drawn from). The plot-only path now re-merges the confusion counts from the per-animal parts first.
+- cam4-only render (`rest15f_restnl_cam4_20261117`) checked with a scratch redraw: its third title line now wraps to two
+  lines, nothing clipped, tables byte-identical; the published cam4 PNG on M: was NOT replaced.

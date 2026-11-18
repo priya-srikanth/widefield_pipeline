@@ -324,10 +324,10 @@ def stem(pre):
     return f"rest15f_{MASK}_{pre}pre_durgap"
 
 
-def merge(pre, out, animals):
+def merge(pre, out, animals, kinds=("sessions", "frozen", "skipped", "confusion")):
     import pandas as pd
     dp = out / "data"
-    for kind in ("sessions", "frozen", "skipped", "confusion"):
+    for kind in kinds:
         parts = [dp / f"{stem(pre)}__{an}_{kind}.csv" for an in animals]
         dfs = [pd.read_csv(p) for p in parts if p.exists() and p.stat().st_size > 0]
         dfs = [d for d in dfs if len(d.columns) > 1 or kind == "skipped"]
@@ -342,6 +342,23 @@ def merge(pre, out, animals):
 
 
 # ------------------------------------------------------------------------------------------------ figure
+#: widest suptitle line (characters) that fits the 17 in figure at fontsize 10 with a margin; longer lines are wrapped
+#: (the c1all mask text, ~260 characters, was clipped at both edges, 11-18)
+TITLE_WRAP = 185
+#: height (inches) one more suptitle line takes at fontsize 10
+TITLE_LINE_IN = 0.18
+
+
+def suptitle_text(pre, ns, width=TITLE_WRAP):
+    """The main figure's suptitle, every line wrapped to ``width`` characters."""
+    import textwrap
+    lines = [f"Rest position read by a FROZEN (stored) pre-stroke decoder; baseline: {PRE_TEXT[pre]}", MASK_TEXT,
+             f"duration- and lick-gap-matched (gap to nearest DAQ or LP lick), 4 bins / period, joint LocaNMF, "
+             f"200 block permutations; stars: nested animal -> session bootstrap of the change vs own pre; "
+             f"sessions {ns}"]
+    return "\n".join(textwrap.fill(s, width=width, break_on_hyphens=False) for s in lines)
+
+
 def plot_main(ps, crow, pre, out):
     """A per-session balanced accuracy + pooled mean + block-permutation null; B per animal (sessions as open markers,
     retained vs own pre; animal mean large); C pooled change (nested bootstrap CI, star = CI excludes 0)."""
@@ -355,7 +372,13 @@ def plot_main(ps, crow, pre, out):
     order = [e for e in EPOCHS if any(r["epoch"] == e for r in ps)]
     animals = sorted({r["animal"] for r in ps})
     pa = nl.per_animal(ps)
-    fig = plt.figure(figsize=(17, 6.2))
+    ns = ", ".join(f"{c['epoch']} {c['n_sessions']}" for c in crow)
+    title = suptitle_text(pre, ns)
+    # 3 title lines = the original 6.2 in figure with the panels below 0.87; each wrapped line past the third adds
+    # TITLE_LINE_IN to the height (the panels keep their size) and lowers the panels' top by the same amount
+    extra = max(0, title.count("\n") - 2) * TITLE_LINE_IN
+    fig_h = 6.2 + extra
+    fig = plt.figure(figsize=(17, fig_h))
     gs = fig.add_gridspec(1, 3, width_ratios=[1, 1.5, 1])
     ax = [fig.add_subplot(gs[0, i]) for i in range(3)]
     rs = np.random.default_rng(1)
@@ -428,12 +451,8 @@ def plot_main(ps, crow, pre, out):
         a_.set_xticklabels(order, fontsize=10)
         a_.spines[["top", "right"]].set_visible(False)
     sig_marks.reserve_headroom(fig)
-    ns = ", ".join(f"{c['epoch']} {c['n_sessions']}" for c in crow)
-    fig.suptitle(f"Rest position read by a FROZEN (stored) pre-stroke decoder; baseline: {PRE_TEXT[pre]}\n{MASK_TEXT}"
-                 f"\nduration- and lick-gap-matched (gap to nearest DAQ or LP lick), 4 bins / period, joint LocaNMF, "
-                 f"200 block permutations; stars: nested animal -> session bootstrap of the change vs own pre; "
-                 f"sessions {ns}", fontsize=10)
-    fig.tight_layout(rect=(0, 0.02, 1, 0.87))
+    fig.suptitle(title, fontsize=10)
+    fig.tight_layout(rect=(0, 0.02 * 6.2 / fig_h, 1, 1 - (0.13 * 6.2 + extra) / fig_h))
     p = out / f"{stem(pre)}.png"
     save_png_svg(fig, p, dpi=150)
     plt.close(fig)
@@ -507,6 +526,10 @@ def main(argv=None) -> int:
         for it, err in fails:
             print("   FIT FAIL", it, str(err)[:400], flush=True)
         merge(a.pre, out, animals)
+    else:
+        # `ef.confusion_row` writes its panel table to data/<stem>_confusion.csv, over the merged counts it was drawn
+        # from (11-18: a --plot-only redraw then failed on the panel table); rebuild the counts from the per-animal parts
+        merge(a.pre, out, animals, kinds=("confusion",))
     ps = nl._read(out / "data" / f"{stem(a.pre)}_sessions.csv")
     crow = nl.cohort(ps)
     nl._write(out / "data" / f"{stem(a.pre)}_per_animal.csv", list(nl.per_animal(ps).values()))
