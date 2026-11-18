@@ -70,6 +70,15 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
    (combined panel section). **Open (offered, not asked):** within-spout like-for-like version (each spout's own pre licks;
    ~20 min per set); per-session lick counts kept under the strict rule; Fig 12.1 read-out still on the Gaussian-mean
    reference (loclin agrees within 0.03 mm) -- switch only if Priya wants it. Nothing of a8's is running.
+   **Later 11-17:** figure title 'Decoded vs landed lateral position' (not LIKE-FOR-LIKE; page v318). NON-LINEAR version:
+   page Fig 12.2 S2 (v319, replaces the old non-linear curves; 2 old PNGs removed) + NEW HIDDEN deck slide 126 'Same with a
+   non-linear decoder' (s125b_nonlinear.py; backup .bak_pre_a8_s126nl_20261117). DECK NOW 207 SLIDES: every slide after
+   125 moved +1 (quiet-event 156/157 -> 157/158; rest maps 187/188/204-206 -> 188/189/205-207). **Queued (3c, Priya OK):**
+   quiet-event re-run with the cam1 far-from-mouth guard (cam1-only events count as licks only if non-droplet AND
+   med_out_px >= -120; audit docs/status/CAM1_FARMOUTH_BLAST_RADIUS_20261117.md on branch analysis/restnl-cam1-1117).
+   Wait for 3c's commit on fix/cam1-farmouth-guard-1117; run from that worktree; production env = cohort1_quiet_spikes/
+   v2_quiet_lp_20261117/logs/quiet_v2.log (QS_LICK_SOURCE=daq+lp, rebuild env); new QS_V2_DIRNAME; then per-animal old vs
+   new chronic + chronic-vs-pre numbers to Priya BEFORE page (section 23) / deck (157 / 158; 3c named 112 too) changes.
 
 00-A8-1117b. **11-17 EVENING (a8) -- START HERE; item 00-A8-1117 below is the day's earlier state (its "Running" list is DONE).**
    Day log: docs/status/RUNNING_LIST_2026-11-08_a8_june.md (11-17 entries). Nothing of a8's is running.

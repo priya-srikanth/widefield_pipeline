@@ -330,7 +330,10 @@ No laterality support for Priya's reduced-thalamocortical-drive hypothesis after
    acute 10/10, 8/8, 7/8); cued +0.19 acute -> n.s. (first lick +0.36 / +0.22 / +0.16, 4/4), furthest contralesional
    cued landings below pre chronically (compression at the edge). STANDS: 4d0j's claim on the rebuild. Gauss vs loclin
    change only the bars / read-outs, never the curves (a two-reference draft looked identical). Record:
-   docs/status/deck_swap_20261117/DOCKED_DECODED_VS_EXECUTED_20261117.md (combined panel section).
+   docs/status/deck_swap_20261117/DOCKED_DECODED_VS_EXECUTED_20261117.md (combined panel section). NON-LINEAR decoder
+   (page Fig 12.2 S2 v319; hidden deck slide 126): same result -- ITI +0.34 / +0.27 / +0.28 (all), +0.39 / +0.28 / +0.28
+   (first), +0.28 / +0.25 / +0.30 (docked); cued +0.24 / +0.13 / +0.02, first +0.36 / +0.25 / +0.18; still compressed
+   toward the middle (any error-minimizing decoder with R2 < 1 is; the same-place comparison cancels it).
 4d0j. **SAME-PLACE like-for-like read-out (PRIMARY, DECISIONS 10-27 late; page v130 figs 3.15 / 3.16, stable ids
    #f-lick_matched_place_readout / _curves). PROVISIONAL.** Each lick vs the animal's pre licks (any spout) that landed
    at the same lateral place. ITI, all spouts +0.31 / +0.21 / +0.24 mm (4/4 each epoch); far ipsi +0.43 / +0.38 / +0.38.
