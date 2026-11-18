@@ -104,3 +104,103 @@ Loose v2 files (all named `*restnlc1*`, plus b08's `cue_to_lick/figdata/*_tau0.p
 | `R/IE/iti_licks/HV/stopped_traces/figures/svg` | 20 | 21.9 |
 
 Total: 335 items, 1705 files, 2.21 GB. Full list (from, to, files, bytes): `docs/status/RESTNLC1_V3_RERUN_20261117_moves.tsv`.
+
+## Queue outcome (v3, code 4d77936d / 259e95e9)
+
+Launched 18:11. Lane A C: a1-a9 + c01-c15 all done (finished 21:53). Lane D: d1-d3 done (18:58). Lane B: b01-b18 done
+(23:04); b19_cv_sm_plot (plot-only) held: another window's arhmm scoring jobs (8 x ~4 GB, not ours, not touched) took
+free RAM to 1-2 GB at 22:51, the queue wrote STOP during b18 (nothing killed; b18 finished OK). A background waiter
+re-ran `ONLY=b19_cv_sm_plot SECTIONS=B` once >= 12 GB was free (STOP -> `logs/STOP_lowram_b18_2251.txt`): b19 done 11-18 00:07. All 43 steps done; no step failed.
+
+## Old vs new
+
+Tables (CSV, read-only scripts): `<G>/restnl_cam1_compare_20261117/frames_v3/`, `frames_v2/` (frames, `restnl_cam1_compare
+frames`, CACHE_TAG patched to v2 for the v2 run), `v3/decoder_*_long.csv`, `v3/pairs_v3.csv`, `v3/flips_*.csv`
+(scratch scripts `compare_v3.py`, `flips_v3.py`, `frames_ver.py`, run under the rebuild profile).
+
+### 1. Rest frames removed by cam1 vs cam4-only RESTnl, per animal x epoch (pre = June + August)
+
+The LP-gate and DAQ-gate restnl_mask caches carry the SAME key (the mask does not depend on the gate source), so the
+two gates give identical frames; one table. "frames back" = lick-free rest frames v3 returns relative to v2.
+
+| animal | epoch | sessions | removed v2 | removed v3 | max session v2 / v3 | frames back |
+|---|---|---:|---:|---:|---:|---:|
+| PS92 | pre | 11 | 2.4 % | 2.4 % | 4.7 / 4.7 % | 0 |
+| PS92 | acute | 5 | 1.7 % | 1.7 % | 4.1 / 4.1 % | 18 |
+| PS92 | subacute | 2 | 6.1 % | 4.4 % | 6.3 / 5.6 % | 59 |
+| PS92 | chronic | 12 | 15.6 % | 12.8 % | 49.0 / 23.5 % | 935 |
+| PS93 | pre | 10 | 13.1 % | 12.6 % | 28.0 / 28.0 % | 310 |
+| PS93 | acute | 4 | 8.1 % | 7.7 % | 17.4 / 16.9 % | 117 |
+| PS93 | subacute | 3 | 19.8 % | 19.7 % | 29.2 / 28.7 % | 20 |
+| PS93 | chronic | 12 | 22.5 % | 21.8 % | 28.1 / 27.3 % | 368 |
+| PS94 | pre | 11 | 6.5 % | 6.3 % | 11.8 / 11.8 % | 94 |
+| PS94 | acute | 6 | 7.6 % | 6.4 % | 21.5 / 18.8 % | 749 |
+| PS94 | subacute | 5 | 12.9 % | 9.9 % | 28.7 / 19.8 % | 682 |
+| PS94 | chronic | 8 | 4.0 % | 3.9 % | 6.7 / 6.7 % | 55 |
+| PS95 | pre | 11 | 3.6 % | 3.2 % | 10.4 / 8.4 % | 865 |
+| PS95 | acute | 1 | 1.0 % | 0.7 % | 1.0 / 0.7 % | 71 |
+| PS95 | subacute | 7 | 5.2 % | 4.0 % | 15.3 / 13.9 % | 1071 |
+| PS95 | chronic | 11 | 10.6 % | 9.2 % | 18.3 / 18.3 % | 1513 |
+
+(The v2 column reproduces the 11-17 afternoon table: PS92 2/2/6/16, PS93 13/8/20/23, PS94 7/8/13/4, PS95 4/1/5/11 %.)
+The far-from-mouth guard mostly trims the worst sessions (PS92 chronic max 49 -> 24 %, PS94 subacute 29 -> 20 %); the
+EPOCH DEPENDENCE stays (PS92 2.4 -> 12.8 %, PS93 ~13 -> 22 %), so RESTnlc1 still differs from RESTnl most in chronic
+PS92 / PS93. No session changes wr status; every session has a cam1 events_all file.
+
+### 2. Fig 12.1 rest frozen decoder (rest15f, c1all = RESTnlc1 rest), retained fraction per animal x epoch
+
+All-pre (PRIMARY): cam4-only RESTnl / v2 / v3 (n sessions v3)
+
+| animal | acute | subacute | chronic |
+|---|---|---|---|
+| PS92 | 1.01 / 0.99 / 0.99 (5) | 2.92 / 3.07 / 3.07 (1) | 1.34 / 1.48 / 1.40 (11) |
+| PS93 | -0.23 / -0.09 / -0.09 (1) | 0.40 / 0.51 / 0.43 (3) | 0.55 / 0.52 / 0.52 (12) |
+| PS94 | 0.39 / 0.38 / 0.41 (6) | 0.51 / 0.41 / 0.43 (5) | 0.27 / 0.12 / 0.14 (8) |
+| PS95 | 0.29 / 0.10 / 0.13 (1) | 0.67 / 0.69 / 0.70 (7) | 0.63 / 0.53 / 0.55 (11) |
+
+Cohort epoch change (delta above-chance fraction vs own pre, nested bootstrap 95 % CI, "*" = CI excludes 0):
+
+| epoch | cam4 RESTnl | v2 | v3 |
+|---|---|---|---|
+| acute | -0.118 [-0.186, -0.036] * | -0.125 [-0.195, -0.039] * | -0.120 [-0.188, -0.037] * |
+| subacute | -0.031 [-0.116, 0.089] | -0.030 [-0.121, 0.092] | -0.030 [-0.118, 0.092] |
+| chronic | -0.071 [-0.140, -0.001] * | -0.084 [-0.167, 0.004] | -0.081 [-0.153, -0.005] * |
+
+Aug-pre (PS94, PS95 only; PS92 / PS93 refused by the fairness gate):
+
+| animal | acute | subacute | chronic |
+|---|---|---|---|
+| PS94 | 0.61 / 0.56 / 0.62 | 0.66 / 0.65 / 0.85 | 0.18 / 0.23 / 0.28 |
+| PS95 | 0.21 / 0.20 / 0.19 | 0.67 / 0.54 / 0.56 | 0.43 / 0.41 / 0.40 |
+
+| epoch | cam4 RESTnl | v2 | v3 |
+|---|---|---|---|
+| acute | -0.122 [-0.213, -0.007] * | -0.129 [-0.223, -0.014] * | -0.122 [-0.223, -0.003] * |
+| subacute | -0.064 [-0.118, -0.004] * | -0.081 [-0.148, -0.006] * | -0.063 [-0.139, 0.017] |
+| chronic | -0.128 [-0.175, -0.081] * | -0.125 [-0.185, -0.064] * | -0.118 [-0.177, -0.056] * |
+
+12.1b (rest_frozen_decoder_nl, engaged brackets; cam4 exists for aug-pre only): all-pre v2 -> v3 acute -0.115* -> -0.113*,
+subacute -0.026 -> -0.033 (ns both), chronic -0.081* -> -0.084*. Aug-pre cam4 / v2 / v3: acute -0.109* / -0.112* / -0.093*,
+subacute -0.075* / -0.088* / -0.066*, chronic -0.090* / -0.121* / -0.114*. Per animal: `v3/decoder_per_animal_long.csv`.
+
+### 3. Everything else (pairs of `*_restnl.csv` vs `*_restnlc1.csv`, v3 vs cam4 and vs v2)
+
+No significant cell changes SIGN in any table (v3 vs cam4 or v2). CI-edge flips only, deltas nearly equal:
+- pre-cue level changes (RESTW-window and ENL, all / far contra; 270 cells each): v3 vs cam4 gained 1-4 / lost 3-11
+  stars per table (e.g. ENL pre-cue PL L/R subacute, VISa / VISpm R chronic lose their star, deltas within 0.1); v3 vs v2
+  gained 0-3 / lost 0-1. No contralesional (right) ALM / tjM1 cell flips; two ipsilesional (left) cells gain a star:
+  far-contra ENL tjM1_left acute (5.54 -> 5.62) and ENL ALM_left precue05 chronic (1.02 -> 1.05).
+- cue-to-lick A / C / D: v3 vs cam4 lost 15 / 18 / 15 and gained 7 / 8 / 4 of ~1,200-2,000 cells; vs v2 mostly gains.
+- interhemispheric tests (7,830 cells; no v2, b14 never finished under v2): v3 vs cam4 gained 106 / lost 176 CI-excludes-0
+  flags, no sign flips; most in asym / lag_peak / gc_ic / gc_ci acute-subacute.
+- LPfinal 15r / map drift stats: n-significant-bin counts per panel moved by up to 10-19 bins v3 vs v2 (no star rows).
+- Fig 14.20 head-to-head (lane D): v2 -> v3 max |diff| 0.06, no p crosses 0.05, per-animal sign counts identical.
+- State space (c lane) and disengagement: no cam4 twin with the `_restnl` naming / no v2 run; not compared here.
+
+### Conclusions that change vs cam4-only RESTnl
+
+1. Fig 12.1 aug-pre SUBACUTE drop loses its star under RESTnlc1 v3 (cam4 -0.064 [-0.118, -0.004] * -> v3 -0.063 [-0.139,
+   0.017]); same point estimate, wider CI (2 animals). v2 still had the star.
+2. Fig 12.1 all-pre CHRONIC drop keeps its star under v3 (-0.081 [-0.153, -0.005] *); v2 had lost it ([-0.167, 0.004]),
+   so the v2 "chronic not significant" reading was driven by the far-from-mouth labels.
+3. No sign change anywhere; all other changes are single cells at the CI edge (listed in `v3/flips_cells.csv`).
