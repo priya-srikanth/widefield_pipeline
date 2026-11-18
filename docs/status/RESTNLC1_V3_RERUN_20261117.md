@@ -188,8 +188,8 @@ subacute -0.075* / -0.088* / -0.066*, chronic -0.090* / -0.121* / -0.114*. Per a
 No significant cell changes SIGN in any table (v3 vs cam4 or v2). CI-edge flips only, deltas nearly equal:
 - pre-cue level changes (RESTW-window and ENL, all / far contra; 270 cells each): v3 vs cam4 gained 1-4 / lost 3-11
   stars per table (e.g. ENL pre-cue PL L/R subacute, VISa / VISpm R chronic lose their star, deltas within 0.1); v3 vs v2
-  gained 0-3 / lost 0-1. Contra ALM / tjM1 headline cells unchanged except far-contra ENL tjM1_left acute GAINS a star
-  (5.54 -> 5.62) and ENL ALM_left precue05 chronic gains one (1.02 -> 1.05).
+  gained 0-3 / lost 0-1. No contralesional (right) ALM / tjM1 cell flips; two ipsilesional (left) cells gain a star:
+  far-contra ENL tjM1_left acute (5.54 -> 5.62) and ENL ALM_left precue05 chronic (1.02 -> 1.05).
 - cue-to-lick A / C / D: v3 vs cam4 lost 15 / 18 / 15 and gained 7 / 8 / 4 of ~1,200-2,000 cells; vs v2 mostly gains.
 - interhemispheric tests (7,830 cells; no v2, b14 never finished under v2): v3 vs cam4 gained 106 / lost 176 CI-excludes-0
   flags, no sign flips; most in asym / lag_peak / gc_ic / gc_ci acute-subacute.
