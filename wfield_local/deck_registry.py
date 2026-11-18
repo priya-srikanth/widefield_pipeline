@@ -2591,59 +2591,66 @@ _CD_LOO_REBUILD = (
     "pre, mean over positions: pre-cue .86 / .63 / .67 / .74, cue .77 / .61 / .74 / .95, lick .90 / .79 / .82 / 1.00 "
     "(PS92-95) -- the cross-day cost of a pre-stroke direction.")
 EPOCH_FIGURES_REBUILD_LEGEND: dict = {pat: _CD_LOO_REBUILD for pat, _t, _l in EPOCH_FIGURES if pat.startswith("cd_loo/")}
-#: 15f (imaging page Fig 12.1) on the rebuild = the frozen pre-stroke REST decoder on lick-free rest, "RESTnlc1 v3"
-#: (Priya approved 11-17; docs/status/REST15F_RESTNL_REBUILD_20261117.md, RESTNLC1_V3_RERUN_20261117.md). Its render has
-#: its own name and folder, so a tagged build reads this file (relative to the tag's `epoch/`) instead of the slot name.
+#: 15f (imaging page Fig 12.1) on the rebuild = the frozen pre-stroke REST decoder on lick-free rest, "RESTnlc1 v3", with
+#: post-stroke sessions scored at >= 30 matched periods (Priya 11-18: floor 30 is the primary; pre stays 40; records
+#: docs/status/REST15F_RESTNL_REBUILD_20261117.md, REST15F_FLOOR30_SENSITIVITY_20261118.md). Its render has its own
+#: name and folder, so a tagged build reads this file (relative to the tag's `epoch/`) instead of the slot name.
 EPOCH_FIGURES_REBUILD_FILE = {
     "epoch_15f_rest_frozen_restdock05_durmatched_gapmatched.png":
-        "rest15f_restnlc1all_20261117/allpre/rest15f_restnlc1v3wk_allpre_durgap.png",
+        "rest15f_restnlc1all_floor30_20261118/allpre/rest15f_restnlc1v3wk_allpre_durgap_floor30.png",
     "epoch_15f_rest_frozen_restdock05_durmatched_gapmatched_confusion.png":
-        "rest15f_restnlc1all_20261117/allpre/rest15f_restnlc1v3wk_allpre_durgap_confusion.png",
+        "rest15f_restnlc1all_floor30_20261118/allpre/rest15f_restnlc1v3wk_allpre_durgap_floor30_confusion.png",
 }
 EPOCH_FIGURES_REBUILD_LEGEND["epoch_15f_rest_frozen_restdock05_durmatched_gapmatched.png"] = (
-    "Image page Fig 12.1 (rebuild, RESTnlc1 v3, 11-17). PROVISIONAL. Decoder: FROZEN pre-stroke 6-way logistic regression "
-    "(StandardScaler + C = 0.1) on joint-LocaNMF (projected) rest-period features, 4 bins per period, one model per "
-    "animal stored in the rebuild frozen-model store and reloaded (align rest-restnlc1v3wk); pre sessions scored by "
-    "stored leave-one-session-out models; no refit arm. Period: restdock05 rest (docked, not running) minus every DAQ "
-    "lick, every cam4 LP lick and every cam1-only LP event over the whole trial window that is not a droplet and has "
-    "med_out_px >= -120 px, each widened 0.5 s before / 2.0 s after. Trial brackets: the cue before the period and the "
-    "next trial at the same spout, both inside the camera working period and both camera working trials (contact or "
-    "incomplete). Duration and lick gap (to the nearest DAQ or LP lick) matched to the central 80 % of the animal's pre "
-    "periods. Measured: balanced accuracy (chance 1/6); above-chance fraction = (acc - 1/6) / (5/6); retained = that "
-    "fraction / own pre; null = 200 block-label permutations. Baseline: own pre, June + August. Sessions: pre 34 (8 / 6 "
-    "/ 9 / 11), acute 13 (5 / 1 / 6 / 1), subacute 16 (1 / 3 / 5 / 7), chronic 42 (11 / 12 / 8 / 11), PS92 / 93 / 94 / "
-    "95. Stats: analysis_kit.boot_delta, nested animals -> sessions (4,000 draws) of the change in above-chance fraction "
-    "vs own pre; * (top band) = 95% CI excludes 0. Per animal retained (acute / subacute / chronic): PS92 .99 / 3.07 / "
-    "1.40, PS93 -.09 / .42 / .52, PS94 .41 / .43 / .14, PS95 .13 / .70 / .55. PS93 acute and PS92 subacute each rest on "
-    "one session that meets the 40-period minimum (PS93 0818 of 0818-0821, PS92 0824 of 0824 / 0826; the others have "
-    "31-39 lick-free rest periods); PS95's acute epoch has one recorded session (0817). "
-    "Pooled change: acute -0.120 [-0.188, -0.037] *, subacute -0.030 [-0.118, +0.092] n.s., chronic -0.081 [-0.153, "
-    "-0.005] *. Reading: the rest code drops acutely, is not different from pre subacutely, and stays somewhat below "
-    "pre chronically (borderline: the interval's upper end is -0.005); about half the size of the earlier restdock05 / "
-    "DAQ-only version (acute -0.222). August-only pre (PS94, PS95): acute and chronic drops hold; subacute does not "
-    "exclude zero. cam4-only lick removal (no cam1): same calls (acute -0.118 *, subacute n.s., chronic -0.071 [-0.140, "
-    "-0.001] *). Caveat: PS92's lick-free pre-stroke rest accuracy is barely above chance (.227 vs null .168); PS92 "
-    "stays in the statistics. Script: scripts/rest_migration/rest15f_restnl_1117.py --pre all (R15F_LP_SET=c1all).")
-#: the 15f confusion slot on the rebuild (11-18): same run, same periods and models as the main 15f legend above. Numbers
-#: from data/rest15f_restnlc1v3wk_allpre_durgap__PS9x_confusion.csv (raw counts) and the merged panel table.
+    "Image page Fig 12.1 (rebuild, RESTnlc1 v3, floor 30, 11-18). PROVISIONAL. Decoder: FROZEN pre-stroke 6-way logistic "
+    "regression (StandardScaler + C = 0.1) on joint-LocaNMF (projected) rest-period features, 4 bins per period, one "
+    "model per animal stored in the rebuild frozen-model store and reloaded (align rest-restnlc1v3wk); pre sessions "
+    "scored by stored leave-one-session-out models; no refit arm. Period: restdock05 rest (docked, not running) minus "
+    "every DAQ lick, every cam4 LP lick and every cam1-only LP event over the whole trial window that is not a droplet "
+    "and has med_out_px >= -120 px, each widened 0.5 s before / 2.0 s after. Trial brackets: the cue before the period "
+    "and the next trial at the same spout, both inside the camera working period and both camera working trials "
+    "(contact or incomplete). Duration and lick gap (to the nearest DAQ or LP lick) matched to the central 80 % of the "
+    "animal's pre periods. Scored sessions: a post-stroke session needs >= 30 matched lick-free rest periods; pre "
+    "sessions, training pools and the frozen models need >= 40. Measured: balanced accuracy (chance 1/6); above-chance "
+    "fraction = (acc - 1/6) / (5/6); retained = that fraction / own pre; null = 200 block-label permutations. Baseline: "
+    "own pre, June + August. Sessions: pre 34 (8 / 6 / 9 / 11), acute 16 (5 / 4 / 6 / 1), subacute 16 (1 / 3 / 5 / 7), "
+    "chronic 43 (12 / 12 / 8 / 11), PS92 / 93 / 94 / 95. Stats: analysis_kit.boot_delta, nested animals -> sessions "
+    "(4,000 draws) of the change in above-chance fraction vs own pre; * (top band) = 95% CI excludes 0. Per animal "
+    "retained (acute / subacute / chronic): PS92 .99 / 3.07 / 1.30, PS93 -.14 / .42 / .52, PS94 .41 / .43 / .14, PS95 "
+    ".13 / .70 / .55. PS92 subacute rests on one session that meets the minimum (PS92_0824; PS92_0826 has 22 matched "
+    "periods); PS95's acute epoch has one recorded session (PS95_0817). Pooled change: acute -0.122 [-0.194, -0.040] *, "
+    "subacute -0.030 [-0.118, +0.092] n.s., chronic -0.083 [-0.154, -0.007] *. Reading: the rest code drops acutely, is "
+    "not different from pre subacutely, and stays somewhat below pre chronically (borderline: the interval's upper end "
+    "is -0.007); about half the size of the earlier restdock05 / DAQ-only version (acute -0.222). Requiring 40 matched "
+    "periods per post-stroke session (instead of 30) drops PS93's acute sessions 0819-0821 and one PS92 chronic session "
+    "(0911) and changes no outcome (acute -0.120 [-0.188, -0.037] *, subacute n.s., chronic -0.081 [-0.153, -0.005] *). "
+    "August-only pre (PS94, PS95; no session added by the lower floor): acute and chronic drops hold; subacute does not "
+    "exclude zero (-0.063 [-0.139, +0.017]). cam4-only lick removal (no cam1, floor 30): same calls (acute -0.118 *, "
+    "subacute n.s., chronic -0.071 [-0.140, -0.001] *). Caveat: PS92's lick-free pre-stroke rest accuracy is barely "
+    "above chance (.227 vs null .168); PS92 stays in the statistics. Script: "
+    "scripts/rest_migration/rest15f_restnl_1117.py --lp c1all --pre all --score-min-post 30.")
+#: the 15f confusion slot on the rebuild: same run, periods and models as the main 15f legend above. Numbers from
+#: data/rest15f_restnlc1v3wk_allpre_durgap_floor30__PS9x_confusion.csv (raw counts) and the merged panel table.
 EPOCH_FIGURES_REBUILD_LEGEND["epoch_15f_rest_frozen_restdock05_durmatched_gapmatched_confusion.png"] = (
-    "Where the frozen rest decoder's errors go (rebuild, RESTnlc1 v3, 11-17 run). PROVISIONAL. Same decoder, rest periods, "
-    "brackets, matching and June + August pre baseline as Fig 12.1 (the main 15f slide): frozen pre-stroke 6-way "
-    "logistic regression on joint-LocaNMF rest features, 4 bins per period; rest = restdock05 minus every DAQ lick, cam4 "
-    "LP lick and cam1-only LP event (-0.5 / +2.0 s), between two camera working trials at the same spout. Top row: "
-    "confusion pooled across animals (raw bin counts summed over PS92-95, then row-normalized: recall per true "
-    "position; n = scored bins, acc = raw fraction correct). Bottom row: each epoch minus pre. Bins: pre 4985, acute "
-    "1020, subacute 1545, chronic 4114; pooling weights animals by their bins (PS95 is 52 % of pre, 13 % of acute, 61 % "
-    "of subacute, 36 % of chronic). No test on this figure; the stars are on the main 15f slide. Mean recall (balanced "
-    "accuracy of the pooled matrix): pre .34, acute .25, subacute .29, chronic .25. WHAT IT SHOWS. (1) Far-contra "
-    "recall falls: .40 pre, .22 acute, .32 subacute, .20 chronic, lower than pre in all four animals acutely (.39 -> "
-    ".18, .15 -> .00, .41 -> .30, .46 -> .17) and chronically (.28, .10, .20, .22). (2) Far-ipsi rest is read as "
-    "near-ipsi: .14 of far-ipsi bins pre, .34 acute, .17 subacute, .25 chronic; up in all four animals acutely (.13 -> "
-    ".30, .16 -> .30, .12 -> .41, .14 -> .30) and chronically (.37, .22, .24, .23). Near-ipsi takes .24 of all acute "
-    "predictions (.16 pre). (3) Errors from the far rows land in near columns more often chronically: .52 of far-row "
-    "errors pre, .58 acute, .51 subacute, .64 chronic. The chronic pile onto near-contra (.19 of predictions pre, .26 "
-    "chronic) is PS95 alone (.16 -> .38; PS92 .17 -> .14, PS93 .29 -> .27, PS94 .19 -> .14). Reading: the rest position "
-    "code is lost mostly at the far spouts: far-contra is read less often and far-ipsi folds onto near-ipsi. Script: scripts/rest_migration/rest15f_restnl_1117.py --pre all (R15F_LP_SET=c1all).")
+    "Where the frozen rest decoder's errors go (rebuild, RESTnlc1 v3, floor 30, 11-18). PROVISIONAL. Same decoder, rest "
+    "periods, brackets, matching, scored-session floor (>= 30 matched periods post-stroke, >= 40 pre) and June + August "
+    "pre baseline as Fig 12.1 (the main 15f slide): frozen pre-stroke 6-way logistic regression on joint-LocaNMF rest "
+    "features, 4 bins per period; rest = restdock05 minus every DAQ lick, cam4 LP lick and cam1-only LP event (-0.5 / "
+    "+2.0 s), between two camera working trials at the same spout. Top row: confusion pooled across animals (raw bin "
+    "counts summed over PS92-95, then row-normalized: recall per true position; n = scored bins, acc = raw fraction "
+    "correct). Bottom row: each epoch minus pre. Bins: pre 4985, acute 1121, subacute 1545, chronic 4151; pooling "
+    "weights animals by their bins (PS95 is 52 % of pre, 12 % of acute, 61 % of subacute, 36 % of chronic). No test on "
+    "this figure; the stars are on the main 15f slide. Mean recall (balanced accuracy of the pooled matrix): pre .34, "
+    "acute .24, subacute .29, chronic .25. WHAT IT SHOWS. (1) Far-contra recall falls: .40 pre, .19 acute, .32 "
+    "subacute, .20 chronic, lower than pre in all four animals acutely (.39 -> .18, .15 -> .00, .41 -> .30, .46 -> .17) "
+    "and chronically (.27, .10, .20, .22). (2) Far-ipsi rest is read as near-ipsi: .14 of far-ipsi bins pre, .35 acute, "
+    ".17 subacute, .26 chronic; up in all four animals acutely (.13 -> .30, .16 -> .36, .12 -> .41, .14 -> .30) and "
+    "chronically (.37, .22, .24, .23). Near-ipsi takes .25 of all acute predictions (.16 pre). (3) Errors from the far "
+    "rows land in near columns more often acutely and chronically: .52 of far-row errors pre, .60 acute, .51 subacute, "
+    ".64 chronic. The chronic pile onto near-contra (.19 of predictions pre, .26 chronic) is PS95 alone (.16 -> .38; "
+    "PS92 .17 -> .14, PS93 .29 -> .27, PS94 .19 -> .14). Reading: the rest position code is lost mostly at the far "
+    "spouts: far-contra is read less often and far-ipsi folds onto near-ipsi. Script: "
+    "scripts/rest_migration/rest15f_restnl_1117.py --lp c1all --pre all --score-min-post 30.")
 
 
 #: NO-STROKE DRIFT GROUP (10-24, `scripts/june_august_drift.py`; Priya: "add in a june vs august pre comparison
