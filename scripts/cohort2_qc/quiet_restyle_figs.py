@@ -22,6 +22,7 @@ those scripts use their own fixed k = 4 (the folder name is the base summary's k
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -43,8 +44,10 @@ from wfield_local.orofacial_cohort import EPOCH_LINE, POS_ORDER  # noqa: E402
 
 T = "hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk"
 Q = Path(f"M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/{T}/cohort1_quiet_spikes")
-BASE = Q / "v2_quiet_lp_c1guard_k4_20261118"
-FOL = Q / "v2_quiet_lp_c1guard_k375_20261117"
+# QS_RESTYLE_BASE / QS_RESTYLE_FOL pick the run folders (default = the 11-18 k 4 render); for the engaged-end re-run both
+# are v2_quiet_lp_c1guard_engend_20261118 (base summary and follow-ons in one folder).
+BASE = Q / os.environ.get("QS_RESTYLE_BASE", "v2_quiet_lp_c1guard_k4_20261118")
+FOL = Q / os.environ.get("QS_RESTYLE_FOL", "v2_quiet_lp_c1guard_k375_20261117")
 OUT = BASE / "restyled_20261118"
 EP = ["pre", "acute", "subacute", "chronic"]
 POST = EP[1:]
@@ -55,6 +58,9 @@ STATS = ("* = nested animals -> sessions bootstrap 95% CI of the change vs own p
          f"{DAGGER} = mixed model q < .05 (backup, FDR within measure); k/4 = animals changing in the pooled direction")
 LOOK = ("Open markers = sessions minus their animal's own pre mean (shape = animal, color = epoch; pre sessions = the "
         "no-stroke spread); filled = animal-weighted change, 95% CI")
+if "engend" in FOL.name:      # the 11-18 engaged-end re-run: say which engaged period the rates use
+    LOOK += ("; engaged = before the quit and before the task end (last cue + response window, or the last sync "
+             "edge if earlier; Priya 11-18)")
 
 
 def hemi(c):
@@ -465,8 +471,27 @@ def level_cells(ax, P, col, rng, xpos, old_p, panel, *, jitter=0.1, dx=0.28, row
     ax.axhline(0, color="0.6", lw=0.8, zorder=0)
 
 
-FAMILIES = {"pooled": fig_pooled, "fr": fig_fr, "fr_detail": lambda r: fig_fr(r, detail=True), "hemo": fig_hemo,
-            "stillness": fig_stillness, "t12": fig_t12, "decay": fig_decay, "t13": fig_t13}
+def fig_fr2x2(rng):
+    """Deck layout of q_fr (slide 157, Priya 11-18 per-row y): rows orofacial / limb, columns ipsi / contra."""
+    S = pd.read_csv(FOL / "fr_regressed_own" / "quiet_events_fr_sessions.csv")
+    L = pd.read_csv(FOL / "fr_regressed_own" / "lmm_v2_fr.csv")
+    fig, ax = plt.subplots(2, 2, figsize=(9.6, 7.6), sharey="row")
+    for i, g in enumerate(("orofacial", "limb")):
+        for j, h in enumerate(("left", "right")):
+            c = f"{g}_{h}"
+            change_cells(ax[i, j], S, f"{c}|res_both", rng, XE, q=lmm_q(L, measure="res_both", column=c),
+                         panel=f"fr2x2 res_both {hemi(c)}")
+            epoch_axis(ax[i, j])
+            ax[i, j].set_title(hemi(c), fontsize=10)
+        ax[i, 0].set_ylabel("events / min, face regressed,\nchange vs own pre")
+    legend(fig, 0.955)
+    finish(fig, "quiet_events_face_regressed_2x2_restyled.png",
+           "Quiet-period events per minute after regressing out face movement, change vs own pre",
+           f"{LOOK}. {STATS}. Source: {FOL.name}/fr_regressed_own (fixed k = 4).", top=0.91)
+
+
+FAMILIES = {"pooled": fig_pooled, "fr": fig_fr, "fr2x2": fig_fr2x2, "fr_detail": lambda r: fig_fr(r, detail=True),
+            "hemo": fig_hemo, "stillness": fig_stillness, "t12": fig_t12, "decay": fig_decay, "t13": fig_t13}
 
 
 def main():

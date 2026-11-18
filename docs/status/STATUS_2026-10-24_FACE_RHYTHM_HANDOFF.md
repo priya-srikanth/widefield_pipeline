@@ -57,6 +57,21 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
 ## 2. Next, in order
 
 00-A8-1118. **11-18 (a8) -- START HERE; 00-A8-1117c below holds the record up to 11-17 ~19:45.**
+   **NEWEST (11-18 late): quiet events are on the SYNC-END run, deck swapped.** Run
+   cohort1_quiet_spikes/v2_quiet_lp_c1guard_syncend_20261118 (QS_ENGAGED_END=lastsync = Priya's "the end of the analyzed
+   time is the LAST SYNC PULSE"; common k 4; code 871be8f9; runner quiet_c1guard/run_chain_syncend.sh; restyled figures
+   in its restyled_20261118/). One old-vs-new list: docs/status/quiet_restyle_20261118/QUIET_SYNCEND_OLD_NEW_20261118.md.
+   - Priya 11-18: "yes you can swap the figures and numbers". DONE: deck slides 155-159 + 204 (pictures, movie, notes;
+     158 title "small at 415 nm", 159 title "weaker code pre, acute and chronic"); script
+     quiet_c1guard/deck_swap_syncend.py, images quiet_c1guard/syncend_crops.py -> swap_inputs/*_syncend.png; backup
+     .bak_pre_a8_quiet_syncend_20261118; export QC from a scratch copy.
+   - Page section 23 (Movement page): 3c's, messaged with the run + list; a8 does not touch it.
+   - FR page v56: Fig 5.6 = a2's cue-aligned factor figure + cue-window stats (Priya "yes" / "add stats").
+   - OPEN: (1) caching refactor of the quiet scripts (Priya "yes", after the run: cache session traces + quiet /
+     engaged masks, apply the engaged gate at summary time, verify exact reproduction of the syncend tables + timing);
+     (2) delete OK pending for superseded quiet folders (k375 follow-ons, k4_20261118 incl. restyled, engend_20261118,
+     v2_quiet_lp_20261117 follow-ons, the c1guard_20261117 k4.5 summary); (3) slide 158 caveat for Priya: the 415
+     response at events rises acutely +0.22 % dF/F (corrected 470 +0.31), mostly PS94.
    **Quiet events are now on the cam1-guard production run.** Priya, late 11-17: "k 3.75 with cam1 fix", then "k 4 iw
    fine" (the follow-on figures keep their fixed k = 4), then "re run both" (154 / 157). Run folder:
    cohort1_quiet_spikes/v2_quiet_lp_c1guard_k375_20261117 (guard code wf_c1guard1117 f3484347; runner
