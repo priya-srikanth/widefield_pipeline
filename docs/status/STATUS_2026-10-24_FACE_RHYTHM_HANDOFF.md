@@ -56,6 +56,32 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
 
 ## 2. Next, in order
 
+00-A8-1118. **11-18 (a8) -- START HERE; 00-A8-1117c below holds the record up to 11-17 ~19:45.**
+   **Quiet events are now on the cam1-guard production run.** Priya, late 11-17: "k 3.75 with cam1 fix", then "k 4 iw
+   fine" (the follow-on figures keep their fixed k = 4), then "re run both" (154 / 157). Run folder:
+   cohort1_quiet_spikes/v2_quiet_lp_c1guard_k375_20261117 (guard code wf_c1guard1117 f3484347; runner
+   quiet_c1guard/run_downstream_k375.sh).
+   - **Deck (Priya 11-18 "ok"):** slides 154-158 and 203 swapped (pictures, movie, notes); the wrong "< 2 % ... same
+     k 3.75" note was removed everywhere, including slide 112. Backup .bak_pre_a8_c1guard_20261118.
+   - **Record:** quiet_c1guard/QUIET_C1GUARD_OLD_NEW_20261117.md, last section: old vs new per slide, the
+     production-key p_true wrapper for slide 158, superseded folders.
+   - **OPEN:**
+     - Goal page section 23: Priya OK'd the swap to the guard-run quiet data (11-18, via 3c); 3c is doing the page
+       side from QUIET_C1GUARD_OLD_NEW_20261117.md. a8 does not touch it.
+     - The attempt_coding csig re-key under the guard: no guard-keyed tables yet.
+     - Delete the superseded v2_quiet_lp_20261117 follow-ons and the v2_quiet_lp_c1guard_20261117 k 4.5 summary only on
+       Priya's OK.
+     - **NEW SLIDE QUEUED as slide 27, after the position maps 24-26 (Priya OK 11-18, via 3c):** rest frozen decoder
+       (15f), title "Frozen pre-stroke decoder on lick-free rest: drops acutely, borderline below pre chronically".
+       - **11-18 change (Priya, via 3c): the PRIMARY is now the FLOOR-30 version** (post-stroke scored sessions need
+         >= 30 matched lick-free rest periods; a 40 floor changes no outcome). Floor 30: acute -0.122 [-0.194, -0.040]*,
+         subacute -0.030 n.s., chronic -0.083 [-0.154, -0.007]*; PS93 acute now 4 sessions.
+       - Picture: the title-fixed floor-30 render in a NEW folder rest15f_restnlc1all_floor30_20261118/... (NOT the
+         20261117 floor-40 file). Hold placement until 3c sends the exact path.
+       - Notes follow imaging page Fig 12.1 (floor-30 caption). The old single-session wording (PS93 acute / PS92
+         subacute on ONE session) was for floor 40; re-check per-cell session counts from 3c's caption, don't copy it.
+       - 3c may add one notes line from a central-90% matching sensitivity, if Priya wants it.
+
 00-A8-1117c. **11-17 LATE (a8) -- START HERE (state at ~19:30: all published; only the quiet-event re-run is queued, waiting on 3c's commit); 00-A8-1117b below is the evening state (still valid for everything else).**
    Like-for-like curves rebuilt as ONE figure (Priya 11-17): columns cued all / cued first / ITI all / ITI bout-start first
    lick / ITI docked; rows all post licks vs STRICT (post licks only where the animal's own pre curve of the same lick set
