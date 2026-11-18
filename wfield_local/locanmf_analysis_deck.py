@@ -72,7 +72,7 @@ from wfield_local import epochs as _epochs
 from wfield_local.deck_registry import (   # noqa: F401  (re-exported: the coverage
                                             #  script and tests import EPOCH_FIGURES from here)
     ALIGNS, BASES, CD_FIGURES, EPOCH_FIGURES, GRANT_FIGURES, KEY_FIGURES, LP_GATED_FIGURES, LP_GATED_REBUILD, EPOCH_FIGURES_REBUILD_LEGEND, NOLICK_BASES,
-    REBUILD_DROPPED_EPOCH, REBUILD_DROPPED_LP, REBUILD_DROPS_SECTIONS_EF, EPOCH_FIGURES_REBUILD_DIR, _CCF_LEGEND, _CI_LEGEND, _REF_LEGEND, _ROT_LEGEND,
+    REBUILD_DROPPED_EPOCH, REBUILD_DROPPED_LP, REBUILD_DROPS_SECTIONS_EF, EPOCH_FIGURES_REBUILD_DIR, EPOCH_FIGURES_REBUILD_FILE, _CCF_LEGEND, _CI_LEGEND, _REF_LEGEND, _ROT_LEGEND,
 )
 # The deck's PROSE lives in `deck_text` (see its docstring). Imported by name rather than
 # `import *` so what the builder uses stays greppable and ruff can still see an unused one.
@@ -2360,6 +2360,11 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
                     if _alt.exists() and any(_alt.glob(_pat)):
                         _edir = _alt
                 _hits = sorted(_edir.glob(_pat)) if "*" in _pat else [_edir / _pat]
+                if run_mode.tag() and _pat in EPOCH_FIGURES_REBUILD_FILE:
+                    # the rebuild render has its own name / folder (deck_registry.EPOCH_FIGURES_REBUILD_FILE, 15f 11-17)
+                    _alt_f = (_epoch / EPOCH_FIGURES_REBUILD_FILE[_pat]).resolve()
+                    if _alt_f.exists():
+                        _hits = [_alt_f]
             if _strict and not any(h.exists() for h in _hits):
                 _exists(_hits[0] if len(_hits) == 1 else _epoch / _pat)    # review 7B N3: counted as MISSING
             for _ef in _hits:

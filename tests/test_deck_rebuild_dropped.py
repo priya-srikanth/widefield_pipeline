@@ -51,3 +51,23 @@ def test_drop_lists_are_registered_slots_and_spare_15f():
     assert not any(p.startswith("epoch_15f_") for p in reg.REBUILD_DROPPED_EPOCH)
     assert reg.REBUILD_DROPPED_LP <= {rel for _r, rel, _t, _l in reg.LP_GATED_FIGURES}
     assert len(reg.REBUILD_DROPPED_EPOCH) == 31 and len(reg.REBUILD_DROPPED_LP) == 3
+
+
+def test_tagged_build_reads_15f_from_its_rebuild_file(tmp_path, monkeypatch):
+    """15f re-pointed to the RESTnlc1 v3 render (deck_registry.EPOCH_FIGURES_REBUILD_FILE, 11-17)."""
+    pat = "epoch_15f_rest_frozen_restdock05_durmatched_gapmatched.png"
+    from PIL import Image
+    new = tmp_path / "grant" / "epoch" / reg.EPOCH_FIGURES_REBUILD_FILE[pat]
+    new.parent.mkdir(parents=True, exist_ok=True)
+    Image.new("RGB", (8, 6), "red").save(new)              # distinguishable from the old-named white 4x4
+    s, titles = _build(tmp_path, monkeypatch, "T")
+    assert s["figures_present"] == 1                       # one 15f slide: the old-named file is NOT also placed
+    from pptx import Presentation
+    notes = [sl.notes_slide.notes_text_frame.text for sl in Presentation(str(tmp_path / "deck_T.pptx")).slides
+             if sl.has_notes_slide]
+    assert any("RESTnlc1 v3" in n for n in notes)          # the rebuild legend rides with the re-pointed image
+    blobs = [sh.image.blob for sl in Presentation(str(tmp_path / "deck_T.pptx")).slides for sh in sl.shapes
+             if sh.shape_type == 13]
+    assert new.read_bytes() in blobs                       # the v3 render is the placed picture
+    assert pat in reg.EPOCH_FIGURES_REBUILD_LEGEND
+    assert set(reg.EPOCH_FIGURES_REBUILD_FILE) <= {p for p, _t, _l in reg.EPOCH_FIGURES}

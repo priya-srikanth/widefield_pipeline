@@ -2591,6 +2591,35 @@ _CD_LOO_REBUILD = (
     "pre, mean over positions: pre-cue .86 / .63 / .67 / .74, cue .77 / .61 / .74 / .95, lick .90 / .79 / .82 / 1.00 "
     "(PS92-95) -- the cross-day cost of a pre-stroke direction.")
 EPOCH_FIGURES_REBUILD_LEGEND: dict = {pat: _CD_LOO_REBUILD for pat, _t, _l in EPOCH_FIGURES if pat.startswith("cd_loo/")}
+#: 15f (imaging page Fig 12.1) on the rebuild = the frozen pre-stroke REST decoder on lick-free rest, "RESTnlc1 v3"
+#: (Priya approved 11-17; docs/status/REST15F_RESTNL_REBUILD_20261117.md, RESTNLC1_V3_RERUN_20261117.md). Its render has
+#: its own name and folder, so a tagged build reads this file (relative to the tag's `epoch/`) instead of the slot name.
+EPOCH_FIGURES_REBUILD_FILE = {
+    "epoch_15f_rest_frozen_restdock05_durmatched_gapmatched.png":
+        "rest15f_restnlc1all_20261117/allpre/rest15f_restnlc1v3wk_allpre_durgap.png",
+}
+EPOCH_FIGURES_REBUILD_LEGEND["epoch_15f_rest_frozen_restdock05_durmatched_gapmatched.png"] = (
+    "Image page Fig 12.1 (rebuild, RESTnlc1 v3, 11-17). PROVISIONAL. Decoder: FROZEN pre-stroke 6-way logistic regression "
+    "(StandardScaler + C = 0.1) on joint-LocaNMF (projected) rest-period features, 4 bins per period, one model per "
+    "animal stored in the rebuild frozen-model store and reloaded (align rest-restnlc1v3wk); pre sessions scored by "
+    "stored leave-one-session-out models; no refit arm. Period: restdock05 rest (docked, not running) minus every DAQ "
+    "lick, every cam4 LP lick and every cam1-only LP event over the whole trial window that is not a droplet and has "
+    "med_out_px >= -120 px, each widened 0.5 s before / 2.0 s after. Trial brackets: the cue before the period and the "
+    "next trial at the same spout, both inside the camera working period and both camera working trials (contact or "
+    "incomplete). Duration and lick gap (to the nearest DAQ or LP lick) matched to the central 80 % of the animal's pre "
+    "periods. Measured: balanced accuracy (chance 1/6); above-chance fraction = (acc - 1/6) / (5/6); retained = that "
+    "fraction / own pre; null = 200 block-label permutations. Baseline: own pre, June + August. Sessions: pre 34 (8 / 6 "
+    "/ 9 / 11), acute 13 (5 / 1 / 6 / 1), subacute 16 (1 / 3 / 5 / 7), chronic 42 (11 / 12 / 8 / 11), PS92 / 93 / 94 / "
+    "95. Stats: analysis_kit.boot_delta, nested animals -> sessions (4,000 draws) of the change in above-chance fraction "
+    "vs own pre; * (top band) = 95% CI excludes 0. Per animal retained (acute / subacute / chronic): PS92 .99 / 3.07 (1 "
+    "session) / 1.40, PS93 -.09 (1 session) / .42 / .52, PS94 .41 / .43 / .14, PS95 .13 (1 session) / .70 / .55. "
+    "Pooled change: acute -0.120 [-0.188, -0.037] *, subacute -0.030 [-0.118, +0.092] n.s., chronic -0.081 [-0.153, "
+    "-0.005] *. Reading: the rest code drops acutely, is not different from pre subacutely, and stays somewhat below "
+    "pre chronically (borderline: the interval's upper end is -0.005); about half the size of the earlier restdock05 / "
+    "DAQ-only version (acute -0.222). August-only pre (PS94, PS95): acute and chronic drops hold; subacute does not "
+    "exclude zero. cam4-only lick removal (no cam1): same calls (acute -0.118 *, subacute n.s., chronic -0.071 [-0.140, "
+    "-0.001] *). Caveat: PS92's lick-free pre-stroke rest accuracy is barely above chance (.227 vs null .168); PS92 "
+    "stays in the statistics. Script: scripts/rest_migration/rest15f_restnl_1117.py --pre all (R15F_LP_SET=c1all).")
 
 
 #: NO-STROKE DRIFT GROUP (10-24, `scripts/june_august_drift.py`; Priya: "add in a june vs august pre comparison
