@@ -2591,7 +2591,7 @@ _CD_LOO_REBUILD = (
     "pre, mean over positions: pre-cue .86 / .63 / .67 / .74, cue .77 / .61 / .74 / .95, lick .90 / .79 / .82 / 1.00 "
     "(PS92-95) -- the cross-day cost of a pre-stroke direction.")
 EPOCH_FIGURES_REBUILD_LEGEND: dict = {pat: _CD_LOO_REBUILD for pat, _t, _l in EPOCH_FIGURES if pat.startswith("cd_loo/")}
-#: 15f (imaging page Fig 12.1) on the rebuild = the frozen pre-stroke REST decoder on lick-free rest, "RESTnlc1 v3", with
+#: 15f (Spout (Target) Coding page Fig 12.1) on the rebuild = the frozen pre-stroke REST decoder on lick-free rest, "RESTnlc1 v3", with
 #: post-stroke sessions scored at >= 30 matched periods and periods matched to the central 90 % of pre (Priya 11-18: the
 #: primary; records docs/status/REST15F_RESTNL_REBUILD_20261117.md, REST15F_FLOOR30_SENSITIVITY_20261118.md,
 #: REST15F_PCT5_SENSITIVITY_20261118.md). Its render has its own name and folder, so a tagged build reads this file
@@ -2681,15 +2681,15 @@ EPOCH_FIGURES = EPOCH_FIGURES + (
 
 # ---------------------------------------------------------------------------------------------------------------
 #: KEY FIGURES (Priya 11-16): the key-figure cards of each results page, placed as the deck's first section. Only the
-#: goal page (Attempt Encoding Figures) marks key figures (its 'Key figure 1 / 2' plus the summary cards); the Cortical
-#: Spout Coding, State-Space Recovery and Licking Kinematics pages carry no key-figure cards or KEY-marked figures (checked
+#: goal page (Movement (Execution) Coding, formerly Attempt Encoding Figures; renamed 11-18) marks key figures (its 'Key
+#: figure 1 / 2' plus the summary cards); the Spout (Target) Coding (formerly Cortical Spout Coding), State-Space Recovery and Licking Kinematics pages carry no key-figure cards or KEY-marked figures (checked
 #: 11-16 on the published versions), so they contribute nothing here until they do.
 #: Entries are (page, page URL, figure label on the page, PathResolver root, path under that root, slide main point =
 #: the page's figure title, lick-source tag from the title, the page's caption, render time of the file). The file is the
 #: page's own published image (byte-identical, checked 11-16): these are PRE-REBUILD renders (LP run v36, 10-28 to
 #: 10-30, before the 11-09 glue-mask fix), shown because the page shows them; rebuild re-renders exist for some
 #: (`iti_licks/<run tag>/figures`) and replace these only when the page does. Captions are the page's, American spelling.
-_GOAL_PAGE = ("Attempt Encoding Figures", "https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d")
+_GOAL_PAGE = ("Movement (Execution) Coding", "https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d")
 KEY_FIGURES = (
     (*_GOAL_PAGE, 'Key figure 1', "orofacial",
      'lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks/figures/key_figure.png',

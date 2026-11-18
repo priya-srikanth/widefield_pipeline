@@ -14,7 +14,7 @@ BRITISH = re.compile(r"\b(colour|behaviour(?!_hits)|centre|normalis|analyse[sd]?
 @pytest.mark.parametrize("e", K.KEY_FIGURES_PAGES, ids=lambda e: f"{e[0][:6]}-{e[2]}")
 def test_page_key_figure_entry(e):
     page, url, lab, base, path, title, licks, cap, what = e
-    assert page in ("Cortical Spout Coding", "State-Space Recovery", "Licking Kinematics")
+    assert page in ("Spout (Target) Coding", "State-Space Recovery", "Licking Kinematics")
     assert url.startswith("https://claude.ai/artifact/") and lab.startswith("Fig ")
     assert base in ("rebuild", "share") and not path.startswith(("M:", "/", "C:"))
     assert base == "share" or "rebuild" in what
@@ -27,12 +27,12 @@ def test_page_key_figure_entry(e):
 def test_pages_grouped_in_order():
     order = [e[0] for e in K.KEY_FIGURES_PAGES]
     firsts = [p for i, p in enumerate(order) if i == 0 or order[i - 1] != p]
-    assert firsts == ["Cortical Spout Coding", "State-Space Recovery", "Licking Kinematics"]
+    assert firsts == ["Spout (Target) Coding", "State-Space Recovery", "Licking Kinematics"]
 
 
 def test_enl_figure_is_25_primary():
     """Coordinator 11-17: the 1.0 s ENL figure is Fig 2.5, the primary window (2.6 = the 1.5 s window-length check)."""
-    labs = {e[2]: e for e in K.KEY_FIGURES_PAGES if e[0] == "Cortical Spout Coding"}
+    labs = {e[2]: e for e in K.KEY_FIGURES_PAGES if e[0] == "Spout (Target) Coding"}
     assert "Fig 2.5" in labs and "Fig 2.8" not in labs and "primary" in labs["Fig 2.5"][5]
 
 

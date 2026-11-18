@@ -1,6 +1,10 @@
 # Imaging results page — source and rebuild
 
-Published page: https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV (v36, 2026-10-28: v27 = section.position figure
+Published page: **Spout (Target) Coding After Stroke** (renamed 2026-11-18, v63; formerly "Cortical Spout Coding" /
+"the imaging page"; its companion is Movement (Execution) Coding After Stroke,
+https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d). **The live page is the source:** the HTML in this folder and the
+share copy below are stale (repo = v46, share = 11-01); build any republish from the live page (Artifact read).
+https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV (v36, 2026-10-28: v27 = section.position figure
 numbers, figure titles, full-method captions; v28-29 add section 14, the Haufe decoder maps; v30 maps its encoding-page cross-reference to that page's 10-27 renumbering (3.33-3.35 -> 3.64-3.66, linked by stable id; v31 -> 3.69-3.71 after its v130 insertions; v34 -> 15.6-15.8 after its v136 section split; v35 -> 15.11-15.13 (its v140); v36 cites them by NAME, no numbers (Priya 10-28), so its renumbering no longer touches this page); v32 = stable figure ids; v33 = section 1 holds only the refit decoder (frozen pre-cue figure moved to 2.1, refit by-position Figs 1.1-1.2 added); format rule in `docs/templates/README.md`).
 
 **The figure PNGs are not in git** (83 files, ~188 MB). The full source, PNGs included, is on the share at

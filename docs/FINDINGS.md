@@ -21,8 +21,11 @@ August-only pre-stroke baseline. Epochs: pre / acute / subacute / chronic (`wfie
 state control / anatomy (claims extracted from the docs by d4; owner to confirm). 4: encoding window (d4). 5: FaceRhythm
 window (e3). 6: histology. 7: everyone.
 
-**Results pages.** behavioral states (section 9) https://claude.ai/artifact/ChbBM9K12WWRohx6nU6rCX - FaceRhythm https://claude.ai/artifact/X8NDdQNHi3zMP77PBrZAC1 - goal question / encoding
-https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d - imaging https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV - licking kinematics (2-D + 3-D, sections 1-2) https://claude.ai/artifact/DKcKRJKbhBoratxxRc6qZv
+**Results pages.** behavioral states (section 9) https://claude.ai/artifact/ChbBM9K12WWRohx6nU6rCX - FaceRhythm https://claude.ai/artifact/X8NDdQNHi3zMP77PBrZAC1 - Movement (Execution) Coding After Stroke
+(encoders, tongue / lick read-out, FaceRhythm, state, quiet events; formerly "goal question / encoding", "Attempt
+Encoding Figures") https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d - Spout (Target) Coding After Stroke (position
+decoders, frozen decoder, specificity, maps, coding directions, RSA, pre-cue code, rest; formerly "imaging",
+"Cortical Spout Coding"; renamed 2026-11-18) https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV - licking kinematics (2-D + 3-D, sections 1-2) https://claude.ai/artifact/DKcKRJKbhBoratxxRc6qZv
 
 ## 0. Synthesis: how cortical motor encoding changes after the stroke (10-25, d4's reading; all arms may edit)
 
