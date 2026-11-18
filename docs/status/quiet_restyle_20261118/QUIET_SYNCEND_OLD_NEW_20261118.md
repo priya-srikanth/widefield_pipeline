@@ -118,3 +118,15 @@ quiet_stillness_restyled (q_stillness), t12_task_window_event_rates_restyled (q_
 quiet_eta_decay_fr_restyled (q_decay_fr), t13_precue_event_vs_outcome_restyled (q_task_outcome). Unrestyled outputs of
 the same run for slides 155 / 156 / 204 (movie, example traces, event maps) and the page's other section-23 figures are in
 the run folder as before. Script `scripts/cohort2_qc/quiet_restyle_figs.py` (QS_RESTYLE_BASE / QS_RESTYLE_FOL).
+
+## 6. Applied (11-18, Priya: "yes you can swap the figures and numbers")
+- Deck slides 155-159 + 204 swapped from this run: movie (155), example traces (156), restyled 2x2 face-regressed
+  figure (157), restyled stillness panel + 470 / 415 rows with all five columns (158), restyled T13 decoder panel (159),
+  event maps (204); notes rewritten with the sync-end numbers and the bootstrap / mixed-model star rule. Titles: 158
+  "Holds at matched stillness; small at 415 nm", 159 "Pre-cue event: weaker code pre, acute and chronic"; 157 bullet
+  x7.3 / x3.7 / x1.9. Script `docs/status/deck_swap_20261117/quiet_c1guard/deck_swap_syncend.py`, images
+  `syncend_crops.py`; deck backup `Overview_2026-11-06.pptx.bak_pre_a8_quiet_syncend_20261118`.
+- Note on slide 158: the 415 response at corrected-470 events rises acutely by +0.22 % dF/F [0.03, 0.48] (4/4, PS94
+  +0.59) against +0.31 at corrected 470, so "small" holds for the 415 power / rate measures but less so for the event
+  amplitude, which is carried mostly by PS94. Flagged to Priya.
+- Movement page section 23: 3c (messaged with the run and this list).
