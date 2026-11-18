@@ -68,3 +68,14 @@ June + August passes for all four. Counts: `*/data/counts_animal_epoch_position_
   counts it was drawn from). The plot-only path now re-merges the confusion counts from the per-animal parts first.
 - cam4-only render (`rest15f_restnl_cam4_20261117`) checked with a scratch redraw: its third title line now wraps to two
   lines, nothing clipped, tables byte-identical; the published cam4 PNG on M: was NOT replaced.
+
+## 11-18: Fig 12.1 panel C session markers (Priya; redraw only)
+- Panel C now also draws one faded small open marker per SESSION (shape = animal, color = epoch, alpha 0.45, left of the
+  CI with small jitter, own RNG so A / B jitter is unchanged): the session's above-chance fraction minus its animal's own
+  pre mean (same units as the y axis). Pre sessions are drawn the same way (the no-stroke spread around 0). Animal means,
+  the animal-weighted mean + 95% CI and the boot_delta stars (top band) are unchanged; no LMM dagger, no "k/4" labels.
+  Legend: "animal mean (shape = animal)" and "session - own pre mean (faded; pre = no-stroke spread)".
+- Redrawn with `--plot-only` for the floor30_pct5 renders: c1all allpre + augpre, cam4 allpre. All 84 CSV / JSON files in
+  the three `data/` folders hash-identical before and after; the confusion PNGs byte-identical. Same file names. The
+  previous main PNG + SVG of each were moved to `<pre>/_superseded_rest15f_panelC_20261118/` (3 PNG, 3 SVG).
+- Imaging page Fig 12.1 images 1-3 swapped and the plot clause of the caption rewritten (page v64).
