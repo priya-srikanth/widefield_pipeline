@@ -56,6 +56,28 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
 
 ## 2. Next, in order
 
+00-A8-1118. **11-18 (a8) -- START HERE; 00-A8-1117c below holds the record up to 11-17 ~19:45.**
+   **Quiet events are now on the cam1-guard production run.** Priya, late 11-17: "k 3.75 with cam1 fix", then "k 4 iw
+   fine" (the follow-on figures keep their fixed k = 4), then "re run both" (154 / 157). Run folder:
+   cohort1_quiet_spikes/v2_quiet_lp_c1guard_k375_20261117 (guard code wf_c1guard1117 f3484347; runner
+   quiet_c1guard/run_downstream_k375.sh).
+   - **Deck (Priya 11-18 "ok"):** slides 154-158 and 203 swapped (pictures, movie, notes); the wrong "< 2 % ... same
+     k 3.75" note was removed everywhere, including slide 112. Backup .bak_pre_a8_c1guard_20261118.
+   - **Record:** quiet_c1guard/QUIET_C1GUARD_OLD_NEW_20261117.md, last section: old vs new per slide, the
+     production-key p_true wrapper for slide 158, superseded folders.
+   - **OPEN:**
+     - Goal page section 23 (3c owns it): it still has the pre-rebuild figures and the v320 note; 3c is relaying to
+       Priya.
+     - The attempt_coding csig re-key under the guard: no guard-keyed tables yet.
+     - Delete the superseded v2_quiet_lp_20261117 follow-ons and the v2_quiet_lp_c1guard_20261117 k 4.5 summary only on
+       Priya's OK.
+     - **NEW SLIDE QUEUED (Priya OK 11-18, via 3c and "ok for all above"):** rest frozen decoder (15f), title
+       "Frozen pre-stroke decoder on lick-free rest: drops acutely, borderline below pre chronically".
+       - Picture: grant_figures/<tag>/epoch/rest15f_restnlc1all_20261117/allpre/rest15f_restnlc1v3wk_allpre_durgap.png.
+       - Wait for 3c's message that the title-fixed re-render has landed.
+       - Notes follow imaging page v59+ Fig 12.1. Do NOT write "one acute session": PS93 acute and PS92 subacute each
+         rest on ONE session that meets the 40-period minimum.
+
 00-A8-1117c. **11-17 LATE (a8) -- START HERE (state at ~19:30: all published; only the quiet-event re-run is queued, waiting on 3c's commit); 00-A8-1117b below is the evening state (still valid for everything else).**
    Like-for-like curves rebuilt as ONE figure (Priya 11-17): columns cued all / cued first / ITI all / ITI bout-start first
    lick / ITI docked; rows all post licks vs STRICT (post licks only where the animal's own pre curve of the same lick set

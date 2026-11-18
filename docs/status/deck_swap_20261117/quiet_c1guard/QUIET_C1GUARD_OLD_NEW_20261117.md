@@ -60,3 +60,51 @@ AND med_out_px >= -120. The audit is `CAM1_FARMOUTH_BLAST_RADIUS_20261117.md` on
   v2_quiet_lp/, 'k = 4'). The deck uses the rebuilt run (v2_quiet_lp_20261117). Swapping the page to the rebuild is a
   separate pass; nothing was swapped here.
 - Once 3c's guard branch is merged (Priya's OK on the diff), future quiet re-runs use the guard automatically.
+
+## Correction later on 11-17: the guard run is production; follow-on figures at k 4 (deck applied 11-18)
+- Priya clarified: "k 3.75 with cam1 fix" = the guard run is production. Then: "k 4 iw fine". The follow-on scripts keep
+  their own fixed k = 4, as in the 11-17 deck pass. Then: "re run both" (slides 154 and 157 were still on the
+  pre-rebuild `labcams/cohort1_quiet_spikes/v2_quiet_lp`). The "< 2 % (re-run, same k 3.75)" note above was wrong
+  about k for these slides. It is removed from every slide, and from slide 112 (gain_bio pipeline, never measured).
+- **Run:** `v2_quiet_lp_c1guard_k375_20261117`, with `sessions/` copied from the guard re-run. Follow-on steps go
+  through `run_downstream_k375.sh <step>`: examples, fr, eta, task, tasksumm, hemo, still, stillplot, movie. Logs are
+  in `<run>/logs/`. The fr and hemo logs show exit 2 because the runner was edited while bash was reading it. Python
+  had finished and written every output in both, and the logs are annotated. Never edit a script while it runs.
+- **Task summary (slide 158):** the guard re-keys the camera-class csig (3d7bbe921e -> 0f1b20ae2d), and attempt_coding
+  has no guard-keyed `trials_precue` tables. So `task_events_summarise_prodptrue.py` reads the PRODUCTION-key p_true
+  tables. p_true comes from the frozen decoder on the DAQ 2-s window, which no cam1 label enters. Event flags come from
+  the guard run. The summary log says 108 sessions, but t13 pre n_sessions = 31 as before (not yet explained; same as
+  the old table).
+- **Old (deck) -> new, per slide:**
+  - **155, example traces:** PS92 acute orofacial ipsi 46 -> 45, contra 56; pre 1 event; thresholds 1.26 / 1.22 %.
+  - **156, face-regressed rate:** x6.6 / x3.3 / x1.7 unchanged (coefficients .8205 -> .8228, .5128 -> .5167,
+    .2192 -> .2198); max |delta coef| .017 over 108 terms, and no q crosses .05.
+    - Pre -> acute: PS93 49.6 -> 49.7, PS94 30.9 -> 31.0, PS95 22.9 -> 23.1.
+    - Ipsi x6.5 -> x6.4, contra x6.0 -> x6.1; raw x4.9 / 2.6 / 1.6 and limb x2.3 unchanged.
+  - **158, pre-cue event (strict):** pre -.020 -> -.019; acute -.017, subacute -.020, chronic -.010 unchanged.
+    - Per-animal pre: PS93 -.035 -> -.032, PS94 -.001 -> .000.
+    - Far-contra no-attempt +.045 unchanged.
+  - **203, event maps:** outlined bins at -0.3 / 0 / +0.2 / +1.0 s go 58 / 55 / 542 / 70 -> 60 / 56 / 542 / 85; rim
+    1.9x -> 1.8x; decay -0.0005 s (p .96) -> -0.0001 s (p .99).
+  - **154, movie** (pre-rebuild -> guard; mixes the rebuild with the guard): same clips, pre start 8505 -> 8503 s.
+    - Events 13 / 30 -> 13 / 40, because PS92's threshold drops 1.86 / 1.84 -> 1.26 / 1.22 % after the rebuild.
+  - **157 left, stillness** (pre-rebuild -> guard): acute rise per bin +.93 ... +.36 (all q < .01) -> +.74 / +.67 /
+    +.52 / +.41 / +.25.
+    - Most-active bin q .066; the other bins q <= .001.
+    - Time at < 0.5x pre face speed 19 % -> 47 %, unchanged.
+  - **157 right, 415 nm:**
+    - 415 stays flat (q .34-.75).
+    - Corrected 470 SD +.21 -> +.28; 0.5-1 Hz subacute q .02 -> .057.
+    - 415 response at 470 events +.37 (q .001) -> +.20 (q .22).
+- **Deck (Priya 11-18 "ok"):** `deck_swap_c1guard.py` (exact-match edits) and `c1guard_crops.py`. Re-cutting the old
+  renders reproduces every current deck image pixel for pixel, so the new images use the same geometry.
+  - Backup `.bak_pre_a8_c1guard_20261118`.
+  - Pictures: 155-158 and 203. Movie and poster on 154.
+  - Notes: numbers and FIGURE SOURCE. The Licks line now says cam1-only labels far from the mouth are not counted.
+  - Slide 158 bullet: pre -.019.
+  - Slide 112: the note is removed.
+  - QC by exporting the slides from a scratch copy.
+- **Not changed:** goal page section 23 (3c's). It still shows the pre-rebuild quiet outputs plus the v320 "< 2 %"
+  sentences, which are now wrong about k. 3c was told and is relaying to Priya.
+- **Superseded (deletable on Priya's OK, not deleted):** the follow-on outputs in `v2_quiet_lp_20261117/`
+  (fr_regressed_own, eta_fr, task_events, examples) and `v2_quiet_lp_c1guard_20261117/` (k 4.5 summary).
