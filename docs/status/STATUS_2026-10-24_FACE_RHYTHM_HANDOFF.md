@@ -69,7 +69,16 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      - Goal page section 23: Priya OK'd the swap to the guard-run quiet data (11-18, via 3c); 3c is doing the page
        side from QUIET_C1GUARD_OLD_NEW_20261117.md. a8 does not touch it. Priya accepted the rebuild + guard figures
        there; a8 rendered the k 4 threshold figure for 23.18 (v2_quiet_lp_c1guard_k4_20261118, 95b66db6, path sent to 3c).
-       Restyle of the quiet figures (boot_delta stars, no top spine, open session markers): WAIT for 3c to relay Priya.
+       11-18 later: Priya "use k = 4 for all" + restyle OK (via 3c). DONE, waiting on Priya before any page / deck swap:
+       restyled figures in v2_quiet_lp_c1guard_k4_20261118/restyled_20261118/ (scripts/cohort2_qc/quiet_restyle_figs.py,
+       branch figures/quiet-restyle-1118, worktree wf_qstyle1118, on main 63b74576); star list
+       docs/status/quiet_restyle_20261118/QUIET_RESTYLE_K4_STAR_CHANGES_20261118.md (k alone: 1 LMM star; LMM -> boot: 53 of
+       259 cells). Next if adopted: re-cut deck crops 155-159 / 204 from the restyled renders (new layout).
+     - Slide 27 panel C: Priya "yes add sessions to c" (11-18, typed here) -> 3c re-rendering all three 15f images; swap
+       the slide-27 image when 3c sends the path.
+     - Page rename live (Priya OK): imaging page = "Spout (Target) Coding After Stroke", goal page = "Movement (Execution)
+       Coding After Stroke". Deck notes citing the old names: list from 3c in wf_pagerename
+       docs/status/page_rename_20261118/deck_mentions_Overview_2026-11-06.txt (Priya OK'd updating them). NOT done yet.
      - The attempt_coding csig re-key under the guard: no guard-keyed tables yet.
      - Delete the superseded v2_quiet_lp_20261117 follow-ons and the v2_quiet_lp_c1guard_20261117 k 4.5 summary only on
        Priya's OK.

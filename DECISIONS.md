@@ -23786,6 +23786,18 @@ Priya 11-03 late: August-only pre everywhere in the rebuild, except june_august_
   color = epoch (`orofacial_cohort.EPOCH_LINE`; June pre gray) via `session_dots`; `pose3d_phase` hides the top spine
   on every 2-D panel (`no_top_spine` in its one save path).
 
+## 2026-11-16 -- Encoding design review: TIM, behavioural states, block permutation (window a2; Priya)
+
+Handoff `docs/status/STATUS_2026-11-16_ENCDESIGN_TIM_STATES_HANDOFF.md` (section 1 lists every decision); design
+`docs/status/ENCODING_DESIGN_TIM_STATES_2026-11-16.md`; audit `docs/status/BLOCK_PERMUTATION_AUDIT_2026-11-16.md`.
+- Instructed vs uninstructed by CONTEXT (response period vs pre-cue / ITI), not by body part; task-aligned vs
+  task-independent is measured (Musall partition), not assigned.
+- Permutation nulls over spout-following labels use BLOCK permutation (`analysis_kit.block_permute`, one definition);
+  first measurement: per-session decoders barely move (engaged arm unchanged; marginal arms reshuffle around 0.05).
+- TIM (Yin et al. 2025) in within-session and frozen-pre frames, response period separate; GLM-HMM states from ALL
+  trials over whole trial cycles, per animal over all epochs; AR-HMM (Hillary Tong's model) ported with this rig's
+  encoder variables at 25 Hz, pooled over animals and epochs, run on O2; state merges = multi-method cosine + video.
+
 ## 2026-11-17 -- ONE cam1 lick rule: water droplets AND far-from-mouth labels out, at every reader (Priya 11-17)
 
 - **Rule (Priya, approved 11-17).** A cam1 event counts as a lick only if both hold:
@@ -23805,3 +23817,20 @@ Priya 11-03 late: August-only pre everywhere in the rebuild, except june_august_
   `session_cache.CACHE_VERSION` is not bumped. Record: `docs/status/CAM1_FARMOUTH_GUARD_CODE_20261117.md`.
 - **Open.** `restw_strict_check` `strict_c1` (a superseded diagnostic arm) still reads every `events_all` row, droplets
   included. Changing it needs a `VERSION` bump that would redo `restw_check_c1v3`.
+
+## 2026-11-18 -- Behavioral states: GLM-HMM states 0 + 1 combined; readouts as change vs own pre (window a2; Priya)
+
+* **GLM-HMM states 0 and 1 are combined in every readout** (Priya 11-18: "merge 0 and 1"). In the K5 v2 fit they attempt
+  and contact identically (attempt >= .99) and differ only in spontaneous pre-cue / ITI licking (.92 / .88 vs .57 / .35),
+  largely by animal (pre: PS95 75 % state 1, PS93 69 % state 0). The fitted model is unchanged (all 5 states, Fig 1.1);
+  readouts sum the members' posteriors (`behavior_states.GLMHMM_MERGE`, applied in `glmhmm_table`), so argmax, roles
+  and the GLM-HMM engaged gate follow: 5 of 56,978 trials change engaged call; role-level numbers unchanged.
+  State colors are assigned over the fitted numbering, so a state keeps its color with or without the merge.
+* **Every by-epoch states figure is shown as change vs each animal's own pre** (`<name>_dpre.png`; levels kept as
+  `<name>.png`), Priya 11-18.
+* **Push is tied to an attempt**: per-trial treadmill readouts are split by trial outcome (working = contact or
+  incomplete camera lick, `working_trials.WORKING_CLASSES`; jaw-only; no response) and by GLM-HMM role.
+* **Engaged period ends at the task end when no quit is detected** (Priya 11-18; quiet-event chain, a8, branch
+  fix/quiet-engaged-end-1118): task end = min(last cue + response window, last sync edge); post-task imaging tails
+  > 2 min in 12 sessions (4 pre). The whole-session AR-HMM readouts (states page 5.1, 5.3-5.5) will adopt the same
+  task end once that rule is on main.

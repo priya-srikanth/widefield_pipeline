@@ -2278,31 +2278,41 @@ route makes the frozen-encoder movement-vs-mapping separation essential.
 ## 9. Behavioral states: engagement (GLM-HMM), movement syllables (AR-HMM), treadmill push, TIM (11-17)
 
 *Owner a2 (states window); results page https://claude.ai/artifact/ChbBM9K12WWRohx6nU6rCX; code
-`wfield_local/behavior_states.py` on branch `analysis/tim-encdesign-1116` (not merged); handoff
-`docs/status/STATUS_2026-11-16_ENCDESIGN_TIM_STATES_HANDOFF.md` section 3b. Changes vs each animal's own August pre
+`wfield_local/behavior_states.py` (on main since 11-18); handoff
+`docs/status/STATUS_2026-11-16_ENCDESIGN_TIM_STATES_HANDOFF.md` section 3e. GLM-HMM states 0 and 1 are COMBINED in
+every readout (Priya 11-18, `behavior_states.GLMHMM_MERGE`): they respond identically and differ only in spontaneous
+licking, largely by animal; the merge moves the engaged call of 5 of 56,978 trials. Changes vs each animal's own August pre
 (`boot_delta`).*
 
 9.1. **Disengagement rises acutely and subacutely, gone by chronic; not spout-specific: PROVISIONAL.** GLM-HMM K = 5
-   (design v2, all trials, all animals; roles from each state's profile): engaged-state occupancy -.28 acute, -.14
-   subacute, +.02 chronic; disengaged +.17 / +.10, partial +.11 / +.04 (CI excludes 0, 4 animals). The disengaged
-   state rises at every spout acutely (~.2 vs .04); the partial state mainly at far mid / far contra. Page 1.1, 1.3.
+   (design v2, all trials, all animals; roles from each state's profile): engaged states 0+1 (still) and 2 (running),
+   engaged-state occupancy -.28 acute, -.14 subacute, +.02 chronic (state 0+1 alone -.20 acute); disengaged +.17 / +.10, partial +.11 / +.04 (CI excludes 0, 4 animals). The disengaged
+   state rises at every spout acutely (~.2 vs .04); the partial state mainly at far mid / far contra. Page 1.4, 1.6.
+   What the states are (page 1.1-1.3): engaged = full lick (tongue 1.9 mm) on a still or running treadmill; partial
+   = weak lick (0.75 mm) while walking (~2.4 mm/s), attempt .57; disengaged = no tongue / jaw / nose response, no
+   spontaneous licks, sticky (stays .98 trial to trial); reels in `glm_hmm/v1/reels_pooled_all_K5_v2/`.
 9.1b. **Inside the engaged states the acute far-spout deficit is execution, not motivation: PROVISIONAL.** Engaged
-   states at far contra: contact .94-.98 pre -> .05-.13 acute (incomplete .76-.82), .71-.83 subacute, .97 chronic;
+   states (0+1 / 2) at far contra: contact .98 / .93 pre -> .06 / .09 acute (incomplete .82 / .76), .79 / .84
+   subacute, .97 / .98 chronic; acutely the engaged tongue swings ipsilesional on average (lateral -0.31 to -0.39 mm
+   over all spouts vs ~0 pre; -0.18 to -0.27 chronic; page 1.2);
    jaw-only / no response stay ~0. Emissions are shared across epochs, so per-state outcome rates are not stationary
    (the states are used as an engagement gate). GLM-HMM engaged trials are a strict subset of the lick working period
-   (in-period but not GLM-engaged: .06 pre, .33 acute, .21 subacute, .05 chronic). Page 1.3. Near-mid jaw-only cannot
+   (in-period but not GLM-engaged: .06 pre, .33 acute, .21 subacute, .05 chronic). Page 1.6. Near-mid jaw-only cannot
    be called (spout occludes the chin) -> no-lick near-mid trials count as no response.
 9.2. **Cue-locked treadmill push: halves acutely, then grows past pre: PROVISIONAL.** Backward wheel > 0.5 mm/s in
    -0.25..+0.75 s of the cue (control 2..1 s before): rate .15 pre, -.11 acute, +.12 subacute, +.25 chronic (lick
    working period; same under the GLM-HMM gate); chronic pushes faster (+.38 mm/s peak) and earlier (-.10 s), 4/4.
-   Push happens only while working (~0 outside the working period). Walking in the cue window: no reliable change.
-   Page 2.1-2.4.
+   Push happens only while working (~0 outside the working period) and only with an ATTEMPT: working trials push
+   (P peak .39 chronic), jaw-only and no-response trials almost never (<= .01); the residual push on GLM-HMM
+   not-engaged trials is the partial state (86 % of those pushes; attempted partial trials .24, subacute + chronic).
+   Jaw-only trials happen while walking (2.3-4.7 mm/s). Walking in the cue window: no reliable change. Page 2.1-2.6.
 9.3. **Movement repertoire on engaged trials: acute stillness and fewer contralesional licks; chronic ipsilesional /
    central licks and push up: PROVISIONAL.** AR-HMM (pooled seed 1, groups from Priya's 11-17 reel review): quiet
    +.11 acute; contralesional lick share of lick frames .44 pre, -.12 acute, -.07 subacute, -.07 chronic (4/4) --
    CHECK against LP per-lick direction (aim within spout vs fewer licks at contra spouts) before claiming a persistent
    direction deficit; transition entropy -.20 bits acute. Jaw-only attempts are not a syllable (quiet / slow nose /
-   walking at the jaw onset); the chewing group (21 + 22) is peri-lick. Page 3.1-3.5.
+   walking at the jaw onset); the chewing group (21 + 22) is peri-lick. Motifs (page 3.1): lick groups split by tongue
+   lateral sign at onset, push = backward treadmill dip with a later jaw, walk = forward ramp. Page 3.1-3.6.
 9.4. **Task-independent movement does not rise post-stroke (unlike Yin et al. 2025): PROVISIONAL.** Within-session TIM,
    working trials: pre-cue unchanged in every part; acute response tongue -3.8 px and ITI jaw -2.1 px (stiller).
    Pre-stroke, pre-cue nose TIM is higher on not-engaged (GLM-HMM) than engaged trials in 4/4 (+2.2..4.3 px; the
@@ -2312,9 +2322,13 @@ route makes the frozen-encoder movement-vs-mapping separation essential.
    held-out pre-stroke AR-HMM fits (each animal's k-th pre day left out), per-frame log-likelihood: all frames +.51
    acute / -.67 chronic, but on MOVEMENT frames (quiet excluded) -.31 acute (n.s.) / -.61 chronic (4/4). Least
    pre-like chronically: ipsilesional licks -.78, contralesional -.43 (4/4); the cue push is MORE stereotyped than
-   before (+.93, 4/4). The frozen pre-stroke model's syllables, combined into the reviewed groups: contralesional lick
-   bouts -0.10 s subacute and chronic, more ipsilesional / central licks and push chronically, no new states. Page
-   5.1-5.5.
+   before (+.93, 4/4). The frozen pre-stroke model's syllables, combined into the reviewed groups: more ipsilesional /
+   central licks and push chronically, no new states (page 5.1-5.5). Its whole-session contralesional runs are
+   shorter (-0.10 s), but NOT at the target: on engaged trials contralesional runs at near contra are longer chronically
+   (+0.18 s), lick-group switching does not rise at any spout, and licks per responded trial at the contralesional
+   spouts rise chronically (kinematics: near +2.6, far +1.5). What persists is at far contra: the share of lick frames
+   labeled contralesional -.67 acute, -.35 subacute, -.21 chronic (interval reaching 0) -- part of far-contra licking
+   still reads as central / ipsilesional (`scripts/states_lick_switch_check.py`).
 9.6. **GLM-HMM K: gains plateau after K = 5** (held-out pseudo-R2 K5-8 .470 / .491 / .494 / .499; outcome and lick
    terms flat from K = 3; the extra states model running). K = 5 stands.
 

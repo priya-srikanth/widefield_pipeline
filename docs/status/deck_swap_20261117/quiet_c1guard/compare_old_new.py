@@ -1,6 +1,6 @@
 """Quiet-period events: production (v2_quiet_lp_20261117) vs cam1-guard re-run (v2_quiet_lp_c1guard_20261117). Per animal
 FIRST (rule 8): epoch means of quiet minutes and event rates, and each animal's change vs its OWN pre (chronic first, as
-Priya asked), then the LMM epoch terms side by side. usage: python compare_old_new.py [out_md] [new_dirname]"""
+Priya asked), then the LMM epoch terms side by side. usage: python compare_old_new.py [out_md] [new_dirname] [old_dirname]"""
 import sys
 from pathlib import Path
 
@@ -8,7 +8,7 @@ import pandas as pd
 
 Q = Path("M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_"
          "sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/cohort1_quiet_spikes")
-OLD = Q / "v2_quiet_lp_20261117"
+OLD = Q / (sys.argv[3] if len(sys.argv) > 3 else "v2_quiet_lp_20261117")
 NEW = Q / (sys.argv[2] if len(sys.argv) > 2 else "v2_quiet_lp_c1guard_20261117")   # e.g. the fixed-k summary
 EPS = ["pre", "acute", "subacute", "chronic"]
 COLS = ["quiet_min", "orofacial|rate", "orofacial|rate_both", "limb|rate"]
