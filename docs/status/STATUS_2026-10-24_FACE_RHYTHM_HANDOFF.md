@@ -66,17 +66,27 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
    - **Record:** quiet_c1guard/QUIET_C1GUARD_OLD_NEW_20261117.md, last section: old vs new per slide, the
      production-key p_true wrapper for slide 158, superseded folders.
    - **OPEN:**
-     - Goal page section 23 (3c owns it): it still has the pre-rebuild figures and the v320 note; 3c is relaying to
-       Priya.
+     - Goal page section 23: Priya OK'd the swap to the guard-run quiet data (11-18, via 3c); 3c is doing the page
+       side from QUIET_C1GUARD_OLD_NEW_20261117.md. a8 does not touch it. Priya accepted the rebuild + guard figures
+       there; a8 rendered the k 4 threshold figure for 23.18 (v2_quiet_lp_c1guard_k4_20261118, 95b66db6, path sent to 3c).
+       Restyle of the quiet figures (boot_delta stars, no top spine, open session markers): WAIT for 3c to relay Priya.
      - The attempt_coding csig re-key under the guard: no guard-keyed tables yet.
      - Delete the superseded v2_quiet_lp_20261117 follow-ons and the v2_quiet_lp_c1guard_20261117 k 4.5 summary only on
        Priya's OK.
-     - **NEW SLIDE QUEUED (Priya OK 11-18, via 3c and "ok for all above"):** rest frozen decoder (15f), title
-       "Frozen pre-stroke decoder on lick-free rest: drops acutely, borderline below pre chronically".
-       - Picture: grant_figures/<tag>/epoch/rest15f_restnlc1all_20261117/allpre/rest15f_restnlc1v3wk_allpre_durgap.png.
-       - Wait for 3c's message that the title-fixed re-render has landed.
-       - Notes follow imaging page v59+ Fig 12.1. Do NOT write "one acute session": PS93 acute and PS92 subacute each
-         rest on ONE session that meets the 40-period minimum.
+     - **NEW SLIDE QUEUED as slide 27, after the position maps 24-26 (Priya OK 11-18, via 3c):** rest frozen decoder
+       (15f), title "Frozen pre-stroke decoder on lick-free rest: drops acutely, borderline below pre chronically".
+       - **11-18 change (Priya, via 3c): the PRIMARY is now the FLOOR-30 version** (post-stroke scored sessions need
+         >= 30 matched lick-free rest periods; a 40 floor changes no outcome). Floor 30: acute -0.122 [-0.194, -0.040]*,
+         subacute -0.030 n.s., chronic -0.083 [-0.154, -0.007]*; PS93 acute now 4 sessions.
+       - Picture: the title-fixed floor-30 render in a NEW folder rest15f_restnlc1all_floor30_20261118/... (NOT the
+         20261117 floor-40 file). Hold placement until 3c sends the exact path.
+       - Notes follow imaging page Fig 12.1 (floor-30 caption). The old single-session wording (PS93 acute / PS92
+         subacute on ONE session) was for floor 40; re-check per-cell session counts from 3c's caption, don't copy it.
+       - **11-18 later (Priya, via 3c): PRIMARY = floor 30 + CENTRAL-90% pre matching** (supersedes the line above).
+         All-pre calls: acute -0.139 [-0.200, -0.070]*, subacute -0.069 [-0.128, -0.008]* (newly significant),
+         chronic -0.098 [-0.170, -0.024]*. Title becomes e.g. "Frozen pre-stroke decoder on lick-free rest: drops
+         acutely and stays below pre" (3c's wording; confirm with Priya when placing). Notes add: central-80% window ->
+         subacute n.s., acute / chronic hold; a 40-period floor changes nothing. Renders in a new folder; hold for 3c's path.
 
 00-A8-1117c. **11-17 LATE (a8) -- START HERE (state at ~19:30: all published; only the quiet-event re-run is queued, waiting on 3c's commit); 00-A8-1117b below is the evening state (still valid for everything else).**
    Like-for-like curves rebuilt as ONE figure (Priya 11-17): columns cued all / cued first / ITI all / ITI bout-start first

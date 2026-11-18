@@ -1431,8 +1431,25 @@ be read with it, and the "rules out generic explanations" argument holds for 3 /
    **PROVISIONAL**.
 9. **Rest carries spout position** (engagement-gated): observed / null 1.634, 43 / 44 sessions, 4 / 4; per-session
    decode 94 / 96; persistence, not anticipation (r_prev - r_next +.077, 4 / 4); a different code from the task
-   (cosine .09 / .16). **STANDS** (REST_ENGAGEMENT_AUDIT §3; ungated predecessors 1.622 / 1.443 **CORRECTED**). "Rest shows
-   the same acute dip" **WITHDRAWN** (DECISIONS 09-15).
+   (cosine .09 / .16). **STANDS** (REST_ENGAGEMENT_AUDIT §3; ungated predecessors 1.622 / 1.443 **CORRECTED**).
+   **Frozen pre-stroke rest decoder on lick-free rest (imaging page Fig 12.1, rebuild, "RESTnlc1 v3", floor 30, central
+   90 %):** rest = restdock05 minus DAQ licks, cam4 LP licks and cam1-only LP events (non-droplet, med_out_px >= -120
+   px), -0.5 / +2.0 s; periods between two camera working trials at the same spout; duration / lick gap matched to the
+   central 90 % of the animal's pre periods (training and scoring; stored frozen models, align dur5-gap5); June + August
+   pre; a post-stroke session is scored with >= 30 matched periods (pre sessions, training pools and models >= 40;
+   Priya 11-18) (35 / 16 / 16 / 43 sessions). Retained per animal (acute / subacute / chronic): PS92 .68 / 1.15 / 1.02,
+   PS93 -.16 / .32 / .31, PS94 .35 / .46 / .13, PS95 .16 / .72 / .61 (animal-weighted .26 / .66 / .52). PS92 subacute
+   rests on one session that meets the minimum (0824; 0826 has 27 matched periods); PS95's acute epoch has one recorded
+   session (0817). Change in above-chance fraction vs own pre (`boot_delta`, animals -> sessions): acute -.139 [-.200,
+   -.070]*, subacute -.069 [-.128, -.008]*, chronic -.098 [-.170, -.024]*: the rest code drops acutely and stays below
+   pre subacutely and chronically; the acute drop is smaller than in the restdock05 / DAQ-only version (-.222). With the
+   central-80% matching window, the subacute drop does not exclude zero (-.030 [-.118, +.092]); acute and chronic hold.
+   Requiring 40 matched periods per post-stroke session instead of 30 changes no outcome. August-only pre (PS92, PS94,
+   PS95; PS92 passes the fairness gate at this window): acute -.091*, subacute -.033 n.s., chronic -.090*. cam4-only
+   lick removal (no cam1, same settings): acute -.135*, subacute -.049 n.s., chronic -.077 [-.150, +.003] n.s. PS92's
+   lick-free pre-stroke rest accuracy is the lowest (.264 vs null .169); PS92 stays in the statistics. **PROVISIONAL**
+   (docs/status/REST15F_PCT5_SENSITIVITY_20261118.md, docs/status/REST15F_FLOOR30_SENSITIVITY_20261118.md,
+   docs/status/REST15F_RESTNL_REBUILD_20261117.md, docs/status/RESTNLC1_V3_RERUN_20261117.md).
 10. **Pre-cue (ENL) position code: no consistent acute loss** (up PS92 / PS95, down PS93 / PS94; the slow band accounts
     for PS93's drop). Coding-direction leave-one-out (rebuild re-run 11-17: DAQ lick-gated trials, August pre 32
     sessions incl. PS93_0813, paired animals -> sessions bootstrap, * = 95 % CI excludes 0 uncorrected, 10 of 54 cells
