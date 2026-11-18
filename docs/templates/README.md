@@ -1,7 +1,7 @@
 # Results pages (Priya 10-24)
 
 Every result family gets a published Artifact page for review. `results_page_example.html` is the worked example (the
-goal-question page, https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d). Conventions:
+goal-question page, now Movement (Execution) Coding After Stroke, https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d). Conventions:
 
 - **Left-panel table of contents**, clickable and hidable (remembers open / closed per viewer; overlays on phones).
   Built by the small script at the bottom of the example from `<section id=... data-toc="..." data-kind="n|l">` and

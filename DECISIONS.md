@@ -23817,3 +23817,39 @@ Handoff `docs/status/STATUS_2026-11-16_ENCDESIGN_TIM_STATES_HANDOFF.md` (section
   `session_cache.CACHE_VERSION` is not bumped. Record: `docs/status/CAM1_FARMOUTH_GUARD_CODE_20261117.md`.
 - **Open.** `restw_strict_check` `strict_c1` (a superseded diagnostic arm) still reads every `events_all` row, droplets
   included. Changing it needs a `VERSION` bump that would redo `restw_check_c1v3`.
+
+## 2026-11-18 -- Behavioral states: GLM-HMM states 0 + 1 combined; readouts as change vs own pre (window a2; Priya)
+
+* **GLM-HMM states 0 and 1 are combined in every readout** (Priya 11-18: "merge 0 and 1"). In the K5 v2 fit they attempt
+  and contact identically (attempt >= .99) and differ only in spontaneous pre-cue / ITI licking (.92 / .88 vs .57 / .35),
+  largely by animal (pre: PS95 75 % state 1, PS93 69 % state 0). The fitted model is unchanged (all 5 states, Fig 1.1);
+  readouts sum the members' posteriors (`behavior_states.GLMHMM_MERGE`, applied in `glmhmm_table`), so argmax, roles
+  and the GLM-HMM engaged gate follow: 5 of 56,978 trials change engaged call; role-level numbers unchanged.
+  State colors are assigned over the fitted numbering, so a state keeps its color with or without the merge.
+* **Every by-epoch states figure is shown as change vs each animal's own pre** (`<name>_dpre.png`; levels kept as
+  `<name>.png`), Priya 11-18.
+* **Push is tied to an attempt**: per-trial treadmill readouts are split by trial outcome (working = contact or
+  incomplete camera lick, `working_trials.WORKING_CLASSES`; jaw-only; no response) and by GLM-HMM role.
+* **Engaged period ends at the task end when no quit is detected** (Priya 11-18; quiet-event chain, a8, branch
+  fix/quiet-engaged-end-1118): task end = min(last cue + response window, last sync edge); post-task imaging tails
+  > 2 min in 12 sessions (4 pre). The whole-session AR-HMM readouts (states page 5.1, 5.3-5.5) will adopt the same
+  task end once that rule is on main.
+
+## 2026-11-18 -- Motionless cam1 events are tongue at the lips; Fig 12.1 stands; ENL / ITI keep the cam4 lick train (Priya 11-18)
+- **What was checked.** The ENL / ITI census found that most of the kept cam1-only events behind its larger changes
+  (PS95 chronic, PS94 subacute / chronic, far spouts) were short and nearly motionless: range < 10 px, sitting 0 to 120 px
+  behind the mouth line. Two blind reviews looked at them:
+  - 11-17 (`CAM1_EXTRA_LICKS_CHECK_20261117.md`): 24 / 25 events of this kind were tongue, mostly from PS92 / PS93.
+  - 11-18 (`ENL_ITI_CAM1_CENSUS_20261118.md`): 29 / 29 from PS95 / PS94 post-stroke and PS95 pre were tongue at the lips.
+    The controls behaved as expected: cam4 contact licks 4 / 4 out, flagged droplets 3 / 4 droplet.
+- **Decision 1: `cam1_licks.keep_mask` is unchanged.** It gets no movement floor; the -120 px guard and the droplet flag
+  stay.
+- **Decision 2: Fig 12.1 (frozen rest decoder, RESTnlc1 v3, floor 30, central 90 %) moves from provisional to STANDS.**
+  The cam4-only sensitivity's weaker subacute / chronic changes fit cam4 missing licks at the lips. The page caption names
+  both review rounds (Spout (Target) Coding page v65).
+- **Decision 3: the ENL (pre-cue) and ITI lick-free windows stay on the current lick train.** That train is cam4 LP plus
+  cam1 post-cue (ENL), and cam4 + DAQ (ITI). Priya: "i don't know that we need to eliminate these little pre-licks, ok to
+  keep as is."
+  - Caveat to keep: in PS95 chronic and in PS94 subacute / chronic, those windows contain small tongue-at-lips licks that
+    only cam1 sees, concentrated at the far spouts. The census has the sizes.
+  - Revisit when the cam2 / cam3 side cameras are added.

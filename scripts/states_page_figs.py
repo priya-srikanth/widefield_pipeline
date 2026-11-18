@@ -182,7 +182,7 @@ def fig_occupancy(C: dict, od: Path) -> None:
     roles = bs.glmhmm_roles(T)
     ms = list(bs.ROLES) + [f"p_state{k}" for k in sorted(roles)]
     lab = {r: f"{r} states (occupancy)" for r in bs.ROLES}
-    lab.update({f"p_state{k}": f"state {k} ({v})" for k, v in roles.items()})
+    lab.update({f"p_state{k}": f"state {bs.glmhmm_state_label(k)} ({v})" for k, v in roles.items()})
     epoch_panels(S, ms, lab, "glmhmm_occupancy_by_epoch",
                  f"GLM-HMM K{bs.GLMHMM_K} ({bs.GLMHMM_DESIGN}) state occupancy (mean posterior per session), every trial; "
                  "roles from each state's own profile", od, ylim01=True)
@@ -228,7 +228,7 @@ def fig_state_curves(C: dict, od: Path) -> None:
             D = CT[CT.state == k]
             for j, p in enumerate(pos):
                 _pooled(ax, x[j] + off[si], D[D.pos == p], name, scol[k],
-                        label=f"state {k} ({roles[k]})" if j == 0 else None)
+                        label=f"state {bs.glmhmm_state_label(k)} ({roles[k]})" if j == 0 else None)
         _spout_axis(ax, x, pos, lat)
         ax.set_title(name, fontsize=9)
         ax.set_ylim(-0.02, 1.02)
@@ -261,7 +261,7 @@ def fig_state_curves(C: dict, od: Path) -> None:
             if i == 0:
                 ax.set_title("P(state | spout)" if name == "p_state_given_spout" else name, fontsize=9)
             if j == 0:
-                ax.set_ylabel(f"state {k}: {roles[k]}", fontsize=9, fontweight="bold")
+                ax.set_ylabel(f"state {bs.glmhmm_state_label(k)}: {roles[k]}", fontsize=9, fontweight="bold")
     axs[0, -1].legend(fontsize=7, frameon=False, loc="upper right")
     fig.suptitle(f"GLM-HMM K{bs.GLMHMM_K} per-state response by spout and epoch: does a state mean the same thing after "
                  "the stroke? (emissions are shared across epochs); last column = which states the animals are in at "
@@ -363,7 +363,8 @@ def fig_glmhmm_cue_traces(C: dict, od: Path) -> None:
                 m = np.nanmean(M, 0)
                 se = np.nanstd(M, 0, ddof=1) / np.sqrt(len(M)) if len(M) > 1 else np.zeros_like(m)
                 ax.fill_between(t, m - se, m + se, color=scol[k], alpha=0.08, lw=0, zorder=2)
-                ax.plot(t, m, color=scol[k], lw=1.3, label=f"{k}: {roles[k]} (n = {len(M)})", zorder=4)
+                ax.plot(t, m, color=scol[k], lw=1.3, label=f"{bs.glmhmm_state_label(k)}: {roles[k]} (n = {len(M)})",
+                        zorder=4)
             ax.axvline(0, color="0.6", lw=0.8, ls="--")
             ax.tick_params(labelsize=7)
             if i == 0:
@@ -450,7 +451,7 @@ def fig_frozen_stats(C: dict, od: Path, tag: str = "pre_s1") -> None:
 def fig_glmhmm_model(C: dict, od: Path) -> None:
     """The identified GLM-HMM states: held-out K sweep, model emission profiles, P(attempt) by spout, transitions."""
     from wfield_local import glm_hmm
-    T = bs.glmhmm_table()
+    T = bs.glmhmm_table(merge=False)                  # the fitted model: all K states (readouts combine GLMHMM_MERGE)
     roles = bs.glmhmm_roles(T)
     scol = bs.glmhmm_state_colors(roles)
     P = bs.glmhmm_params()
@@ -521,8 +522,9 @@ def fig_glmhmm_model(C: dict, od: Path) -> None:
         t_.set_color(scol[k])
     ax.set_xlabel("to state")
     ax.set_title("transitions, trial to trial", fontsize=9)
+    merged = "; ".join(f"states {' and '.join(map(str, g))} combined in every readout" for g in bs.GLMHMM_MERGE)
     fig.suptitle(f"GLM-HMM K{bs.GLMHMM_K} ({bs.GLMHMM_DESIGN}), one model over all animals and epochs: the identified "
-                 "states", fontsize=9)
+                 f"states ({merged})", fontsize=9)
     _save(fig, "glmhmm_model", od)
 
 

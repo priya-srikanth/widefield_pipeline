@@ -1053,7 +1053,8 @@ Deferred: non-linear ceiling; pre-cue -> lick-window carry-over decode; decoder 
 
 ## 8. Results of 10-24 night / 10-25 (goal question; to be folded into 2-4) — results page Figs renumbered 10-25
 
-All on the goal-question results page https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d (figure numbers as of 10-25,
+All on the goal-question results page (now Movement (Execution) Coding After Stroke)
+https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d (figure numbers as of 10-25,
 in page order). August pre only; nested bootstrap = animals -> sessions (`analysis_kit.boot_delta`), Bonferroni where
 cells are many; per-animal numbers on the page.
 
