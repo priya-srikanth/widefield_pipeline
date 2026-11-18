@@ -21,7 +21,7 @@ August-only pre-stroke baseline. Epochs: pre / acute / subacute / chronic (`wfie
 state control / anatomy (claims extracted from the docs by d4; owner to confirm). 4: encoding window (d4). 5: FaceRhythm
 window (e3). 6: histology. 7: everyone.
 
-**Results pages.** FaceRhythm https://claude.ai/artifact/X8NDdQNHi3zMP77PBrZAC1 - goal question / encoding
+**Results pages.** behavioral states (section 9) https://claude.ai/artifact/ChbBM9K12WWRohx6nU6rCX - FaceRhythm https://claude.ai/artifact/X8NDdQNHi3zMP77PBrZAC1 - goal question / encoding
 https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d - imaging https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV - licking kinematics (2-D + 3-D, sections 1-2) https://claude.ai/artifact/DKcKRJKbhBoratxxRc6qZv
 
 ## 0. Synthesis: how cortical motor encoding changes after the stroke (10-25, d4's reading; all arms may edit)
@@ -2254,6 +2254,42 @@ verify)*. The striatum projects to the brainstem in no species (via SNr / GPi; S
 primates). Framing consequence: ground homology in control principles and cortical computation, not the final pathway
 (reach models share the limitation); brainstem premotor networks are a candidate compensation site; the SNr -> brainstem
 route makes the frozen-encoder movement-vs-mapping separation essential.
+
+## 9. Behavioral states: engagement (GLM-HMM), movement syllables (AR-HMM), treadmill push, TIM (11-17)
+
+*Owner a2 (states window); results page https://claude.ai/artifact/ChbBM9K12WWRohx6nU6rCX; code
+`wfield_local/behavior_states.py` on branch `analysis/tim-encdesign-1116` (not merged); handoff
+`docs/status/STATUS_2026-11-16_ENCDESIGN_TIM_STATES_HANDOFF.md` section 3b. Changes vs each animal's own August pre
+(`boot_delta`).*
+
+9.1. **Disengagement rises acutely and subacutely, gone by chronic; not spout-specific: PROVISIONAL.** GLM-HMM K = 5
+   (design v2, all trials, all animals; roles from each state's profile): engaged-state occupancy -.28 acute, -.14
+   subacute, +.02 chronic; disengaged +.17 / +.10, partial +.11 / +.04 (CI excludes 0, 4 animals). The disengaged
+   state rises at every spout acutely (~.2 vs .04); the partial state mainly at far mid / far contra. Page 1.1, 1.3.
+9.1b. **Inside the engaged states the acute far-spout deficit is execution, not motivation: PROVISIONAL.** Engaged
+   states at far contra: contact .94-.98 pre -> .05-.13 acute (incomplete .76-.82), .71-.83 subacute, .97 chronic;
+   jaw-only / no response stay ~0. Emissions are shared across epochs, so per-state outcome rates are not stationary
+   (the states are used as an engagement gate). GLM-HMM engaged trials are a strict subset of the lick working period
+   (in-period but not GLM-engaged: .06 pre, .33 acute, .21 subacute, .05 chronic). Page 1.3. Near-mid jaw-only cannot
+   be called (spout occludes the chin) -> no-lick near-mid trials count as no response.
+9.2. **Cue-locked treadmill push: halves acutely, then grows past pre: PROVISIONAL.** Backward wheel > 0.5 mm/s in
+   -0.25..+0.75 s of the cue (control 2..1 s before): rate .15 pre, -.11 acute, +.12 subacute, +.25 chronic (lick
+   working period; same under the GLM-HMM gate); chronic pushes faster (+.38 mm/s peak) and earlier (-.10 s), 4/4.
+   Push happens only while working (~0 outside the working period). Walking in the cue window: no reliable change.
+   Page 2.1-2.4.
+9.3. **Movement repertoire on engaged trials: acute stillness and fewer contralesional licks; chronic ipsilesional /
+   central licks and push up: PROVISIONAL.** AR-HMM (pooled seed 1, groups from Priya's 11-17 reel review): quiet
+   +.11 acute; contralesional lick share of lick frames .44 pre, -.12 acute, -.07 subacute, -.07 chronic (4/4) --
+   CHECK against LP per-lick direction (aim within spout vs fewer licks at contra spouts) before claiming a persistent
+   direction deficit; transition entropy -.20 bits acute. Jaw-only attempts are not a syllable (quiet / slow nose /
+   walking at the jaw onset); the chewing group (21 + 22) is peri-lick. Page 3.1-3.5.
+9.4. **Task-independent movement does not rise post-stroke (unlike Yin et al. 2025): PROVISIONAL.** Within-session TIM:
+   tongue falls acutely in 3/4 (less spontaneous licking; PS95 rises); frozen-frame acute nose rise (4/4) = a
+   contralesional nose posture shift (-0.8 to -5.1 px), not variability. Page section 4 (figures pending).
+9.5. **Likelihood under held-out pre-stroke AR-HMM fits: acute higher (+.52 nats / frame), chronic lower (-.66), 4/4:
+   PROVISIONAL, CONFOUNDED.** 8 O2 folds (each animal's k-th pre day left out). The acute rise most likely reflects
+   stillness (quiet frames are predictable); needs a quiet-share control before it reads as distance from the
+   pre-stroke repertoire. Page 5.1.
 
 ## 7. Open questions and withdrawn claims (index)
 
