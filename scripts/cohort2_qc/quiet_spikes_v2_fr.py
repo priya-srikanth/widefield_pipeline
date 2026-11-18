@@ -19,7 +19,7 @@ movement-associated; chance = the same at 3000 random engaged quiet frames.
 STATISTICS: per-animal table first, `mixed_models.lmm_table` epoch + time models (August pre, log10(rate + 0.2)), FDR.
 
     set WFIELD_INPUT_CACHE=C:/Users/SabatiniLab/wfield_cache
-    python scripts/cohort2_qc/quiet_spikes_v2_fr.py [--jobs 6] [--summarise]
+    python scripts/cohort2_qc/quiet_spikes_v2_fr.py [--jobs 6] [--summarise | --plot-only]
 """
 from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 import argparse
@@ -154,46 +154,115 @@ def stats(S):
     return T
 
 
+CLIP_PCTL = 99          # deck 2x2: y top = 1.1 x this percentile of the row's session values (Priya 11-18: "lower")
+
+
+def _panel(a, S, T, c, m, rng, top=None):
+    """One panel: open session markers (shape = animal, color = epoch), pooled mean + nested-bootstrap 95% CI, stars
+    (mixed model vs August pre, FDR) in the top band. `top`: y-axis top; sessions above it are drawn AT the top edge
+    and their value is written next to them (clipped, never dropped)."""
+    import matplotlib.pyplot as plt  # noqa: F401
+    from wfield_local import sig_marks
+    from wfield_local.analysis_kit import boot_ci
+    from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE
+    col = f"{c}|{m}"
+    for x, ep in enumerate(EP):
+        B = S[S.epoch == ep]
+        for an, A in B.groupby("animal"):
+            xs, ys = x + rng.uniform(-0.18, 0.18, len(A)), A[col].to_numpy(float)
+            hi = (ys > top) if top is not None else np.zeros(len(ys), bool)
+            a.scatter(xs[~hi], ys[~hi], marker=ANIMAL_MARKER[an], facecolors="none", edgecolors=EPOCH_LINE[ep],
+                      s=18, lw=0.8, alpha=0.8)
+            for xv, yv in zip(xs[hi], ys[hi]):
+                a.scatter([xv], [top], marker=ANIMAL_MARKER[an], facecolors="none", edgecolors=EPOCH_LINE[ep], s=18,
+                          lw=0.8, clip_on=False, zorder=4)
+                a.annotate(f"{yv:.0f}", (xv, top), xytext=(4, -1), textcoords="offset points", fontsize=7,
+                           color=EPOCH_LINE[ep], va="center", ha="left", annotation_clip=False)
+        ci = boot_ci({an: list(A[col].dropna()) for an, A in B.groupby("animal") if A[col].notna().any()}, rng)
+        if ci is not None:
+            a.errorbar(x + 0.32, ci.point, yerr=[[ci.point - ci.lo], [ci.hi - ci.point]], fmt="o",
+                       color=EPOCH_LINE[ep], mfc=EPOCH_LINE[ep], ms=6, capsize=3, lw=1.6, zorder=5)
+        if m == "move_frac":
+            a.plot([x - 0.3, x + 0.3], [B.move_null.mean()] * 2, color="0.5", ls="--", lw=1)
+        t = T[(T.model == "epoch") & (T.measure == m) & (T.column == c) & (T.term == f"C(epoch)[T.{ep}]")]
+        if x > 0 and len(t) and t.q.iloc[0] < 0.05:
+            q = t.q.iloc[0]
+            sig_marks.star_top(a, x, "***" if q < 0.001 else "**" if q < 0.01 else "*", color=EPOCH_LINE[ep])
+    if top is not None:
+        a.set_ylim(min(0.0, a.get_ylim()[0]), top)
+    a.set_xticks(range(len(EP)), EP, fontsize=8)
+
+
+def _title(c):
+    return c.replace("_left", " ipsilesional").replace("_right", " contralesional")
+
+
+def _legend(a):
+    import matplotlib.pyplot as plt
+    from wfield_local.orofacial_cohort import ANIMAL_MARKER
+    handles = [plt.Line2D([], [], marker=mk, ls="", mfc="none", mec="k", label=an) for an, mk in ANIMAL_MARKER.items()]
+    a.legend(handles=handles, fontsize=7, loc="upper left")
+
+
 def figure(S, T, rows, out, title):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     from wfield_local import sig_marks
-    from wfield_local.analysis_kit import boot_ci
-    from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE
     fig, ax = plt.subplots(len(rows), len(SHOW), figsize=(3.5 * len(SHOW), 2.7 * len(rows) + 0.8), sharey="row",
                            squeeze=False)
     rng = np.random.default_rng(0)
     for i, m in enumerate(rows):
         for j, c in enumerate(SHOW):
-            a, col = ax[i, j], f"{c}|{m}"
-            for x, ep in enumerate(EP):
-                B = S[S.epoch == ep]
-                for an, A in B.groupby("animal"):
-                    a.scatter(x + rng.uniform(-0.18, 0.18, len(A)), A[col], marker=ANIMAL_MARKER[an],
-                              facecolors="none", edgecolors=EPOCH_LINE[ep], s=18, lw=0.8, alpha=0.8)
-                ci = boot_ci({an: list(A[col].dropna()) for an, A in B.groupby("animal") if A[col].notna().any()}, rng)
-                if ci is not None:
-                    a.errorbar(x + 0.32, ci.point, yerr=[[ci.point - ci.lo], [ci.hi - ci.point]], fmt="o",
-                               color=EPOCH_LINE[ep], mfc=EPOCH_LINE[ep], ms=6, capsize=3, lw=1.6, zorder=5)
-                if m == "move_frac":
-                    a.plot([x - 0.3, x + 0.3], [B.move_null.mean()] * 2, color="0.5", ls="--", lw=1)
-                t = T[(T.model == "epoch") & (T.measure == m) & (T.column == c) & (T.term == f"C(epoch)[T.{ep}]")]
-                if x > 0 and len(t) and t.q.iloc[0] < 0.05:
-                    q = t.q.iloc[0]
-                    sig_marks.star_top(a, x, "***" if q < 0.001 else "**" if q < 0.01 else "*", color=EPOCH_LINE[ep])
-            a.set_xticks(range(len(EP)), EP, fontsize=8)
+            a = ax[i, j]
+            _panel(a, S, T, c, m, rng)
             if j == 0:
                 a.set_ylabel(MEASURES[m], fontsize=8)
             if i == 0:
-                a.set_title(c.replace("_left", " ipsilesional").replace("_right", " contralesional"), fontsize=9)
-    handles = [plt.Line2D([], [], marker=mk, ls="", mfc="none", mec="k", label=an) for an, mk in ANIMAL_MARKER.items()]
-    ax[0, 0].legend(handles=handles, fontsize=7, loc="upper left")
+                a.set_title(_title(c), fontsize=9)
+    _legend(ax[0, 0])
     sig_marks.reserve_headroom(fig)
     fig.suptitle(title, fontsize=8.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.92 if len(rows) < 3 else 0.95))
     save_png_svg(fig, FRV2 / out, dpi=110)
     print("wrote", FRV2 / out)
+
+
+def figure_2x2(S, T, m="res_both", out="quiet_events_face_regressed_2x2.png"):
+    """Deck version (slide 156): rows orofacial / limb, columns ipsilesional / contralesional, NO title (the slide
+    carries it). y shared within a row only; row top = 1.1 x the CLIP_PCTL-th percentile of the row's session values
+    (or the pooled CI top if higher), so one extreme session no longer sets the scale (Priya 11-18)."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from wfield_local import sig_marks
+    rows = [["orofacial_left", "orofacial_right"], ["limb_left", "limb_right"]]
+    fig, ax = plt.subplots(2, 2, figsize=(7.6, 5.6), squeeze=False)
+    rng = np.random.default_rng(0)
+    for i, cs in enumerate(rows):
+        v = np.concatenate([S[f"{c}|{m}"].dropna().to_numpy(float) for c in cs])
+        top = 1.1 * float(np.percentile(v, CLIP_PCTL))
+        for j, c in enumerate(cs):
+            a = ax[i, j]
+            _panel(a, S, T, c, m, rng, top=top)
+            a.set_title(_title(c), fontsize=9)
+            if j == 0:
+                a.set_ylabel(MEASURES[m], fontsize=8)
+        clipped = S.loc[(S[[f"{c}|{m}" for c in cs]] > top).any(axis=1), "label"].tolist()
+        print(f"row {cs[0].split('_')[0]}: y top {top:.1f}; sessions drawn at the top edge: {clipped}")
+    _legend(ax[0, 0])
+    sig_marks.reserve_headroom(fig)
+    fig.tight_layout(h_pad=1.6)
+    save_png_svg(fig, FRV2 / out, dpi=150)
+    print("wrote", FRV2 / out)
+
+
+def plot_only():
+    """Redraw every figure from the saved session + LMM tables (no session extraction, no refit)."""
+    import pandas as pd
+    S = pd.read_csv(FRV2 / "quiet_events_fr_sessions.csv")
+    T = pd.read_csv(FRV2 / "lmm_v2_fr.csv")
+    figure_2x2(S, T)
 
 
 def summarise():
@@ -220,6 +289,7 @@ def summarise():
            "factors + face-point PCs + speeds, lags +-0.3 s, out of fold).\n" + cap)
     figure(S, T, ["raw_both", "res_both", "move_frac", "r2"], "quiet_events_face_regressed_detail.png",
            "Raw vs face-regressed quiet events, movement at raw events (dashed = chance) and face-model R2. " + cap)
+    figure_2x2(S, T)
     (FRV2 / "README.txt").write_text(__doc__)
 
 
@@ -228,7 +298,10 @@ def main():
     ap.add_argument("--jobs", type=int, default=6)
     ap.add_argument("--summarise", action="store_true")
     ap.add_argument("--only", nargs="*")
+    ap.add_argument("--plot-only", action="store_true", help="redraw the deck 2x2 from the saved tables")
     a = ap.parse_args()
+    if a.plot_only:
+        return plot_only()
     if not a.summarise:
         from wfield_local.analysis_kit import curated_labels
         from wfield_local.analysis_kit import fan_sessions  # fan_out + sort (rule 9)
