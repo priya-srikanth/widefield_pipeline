@@ -95,14 +95,25 @@ def test_restnl_cam1_only_onsets_unchanged_by_refactor(tmp_path):
     assert rl.FAR_FROM_MOUTH_PX == FAR == -120.0
 
 
-def test_restnl_digest_follows_keep_mask(monkeypatch):
-    """The cam4cam1 cache key hashes keep_mask's closure: changing it must change the digest (invalidation)."""
-    from wfield_local import map_collect
-    from wfield_local import restnl_licks as rl
-    d0 = rl.code_digest()
-    real = map_collect._Closure.source
-    monkeypatch.setattr(map_collect._Closure, "source", lambda self: real(self) + "\n# changed\n")
-    assert rl.code_digest() != d0
+def test_restnl_digest_follows_keep_mask():
+    """The cam4cam1 cache key hashes keep_mask's closure: changing it must change the digest (invalidation). Runs in a
+    fresh interpreter: in the full suite another test leaves module / source state behind that the closure reads
+    (11-17: KeyError 'no top-level keep_mask' only under the pre-push run)."""
+    import subprocess
+    import sys
+    from pathlib import Path
+    code = "\n".join([
+        "from wfield_local import map_collect, restnl_licks as rl",
+        "d0 = rl.code_digest()",
+        "real = map_collect._Closure.source",
+        "map_collect._Closure.source = lambda self: real(self) + '# changed'",
+        "d1 = rl.code_digest()",
+        "assert d0 != d1, (d0, d1)",
+        "print('ok', d0, d1)",
+    ])
+    r = subprocess.run([sys.executable, "-c", code], cwd=Path(__file__).resolve().parents[1],
+                       capture_output=True, text=True)
+    assert r.returncode == 0 and r.stdout.startswith("ok"), r.stderr[-2000:]
 
 
 def test_session_trials_far_event_not_a_lick_nor_seen(tmp_path):
