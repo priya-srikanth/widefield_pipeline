@@ -94,6 +94,9 @@ Rows A–B, D–E and F–H are each rendered as one canvas by `render_fig4_rows
 - **`recov/balance_aim_{sessions,models}.csv`: re-exported by `session_scripts/export_balance_aim.py` (17 Nov),
   except the `marker` column and the six ITI model rows, which cannot be recovered.** They were a selection of `scripts/lick_recovery_primary.py`'s
   `recprim_sessions.csv` / `recprim_models.csv` (panel `cued first lick -> aim`), as of 9 Nov.
+  **The data were rebuilt after submission with slight analysis differences, so the current server values are
+  expected to differ a little from the submitted ones. The archived staged copies are the record of what was
+  submitted.** Which analysis change caused each difference has not been traced.
   Checked against the archived staged copies:
   - **Sessions, from the current server `recprim_sessions.csv`:** 107 / 107 rows in the same order.
     `label`, `animal`, `epoch`, `day`, `y` and `n_licks` are bit-identical.
