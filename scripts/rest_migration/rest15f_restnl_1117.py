@@ -98,6 +98,13 @@ POS_SHORT = {"close_L": "close ipsi", "close_center": "close mid", "close_R": "c
 POS_ORDER = ["close_L", "close_center", "close_R", "far_L", "far_center", "far_R"]   # lesion LEFT: L = ipsi
 
 
+def _apply_mode():
+    """Re-resolve the LP-set globals from LP_ENV (main, and any spawned worker, call this)."""
+    global MASK, _OUT_NAME, MASK_TEXT, OUT_ROOT
+    MASK, _OUT_NAME, MASK_TEXT = _mode()
+    OUT_ROOT = EPOCH_DIR / _OUT_NAME
+
+
 # ------------------------------------------------------------------------------------------------ mask
 def lickfree_rest_lp(session, rest, rate):
     """``(lick-free rest mask, DAQ + LP lick onsets in samples)``: `rest_frozen_decoder_nl.lickfree_rest` with the LP
@@ -151,6 +158,7 @@ def _working_flags(session):
 
 
 def _collect_job(label):
+    _apply_mode()
     from wfield_local import lp_licks
     from wfield_local.locanmf_cue_lick_analysis import SESSIONS
     fp = _cache_path(label)
@@ -308,7 +316,9 @@ _NL_WRITE = nl._write
 
 def _fit_job(item):
     """One animal (module-level for spawn): `nl.fit_and_score` on its sessions, own stem."""
-    an, pre, out = item
+    an, pre, out, cfg = item
+    _apply_mode()
+    _apply_cfg(cfg)                                # floor + match window travel in the item (spawned workers)
     nl._write = _write_tolerant
     from wfield_local import parallel
     parallel.pin_blas()
@@ -316,19 +326,54 @@ def _fit_job(item):
     labs = [s["label"] for s in SESSIONS if s["label"].startswith(an + "_")]
     data = {k: v for k, v in load_collected([x for x in nl.wanted_labels() if x in labs]).items()}
     t0 = time.perf_counter()
-    ps = nl.fit_and_score(MASK, pre, data, Path(out), f"{stem(pre)}__{an}")
+    ps = nl.fit_and_score(MASK, pre, data, Path(out), f"{stem(pre, cfg)}__{an}")
     return {"animal": an, "n": len(ps), "s": round(time.perf_counter() - t0, 1)}
 
 
-def stem(pre):
-    return f"rest15f_{MASK}_{pre}pre_durgap"
+#: THE FIG 12.1 PRIMARY SETTINGS (Priya 11-18), both options of this script; `rest_frozen_decoder_nl` keeps its own
+#: defaults (MIN_PERIODS 40, PCT 10) so other consumers do not change.
+#:   SCORED POST-STROKE SESSION FLOOR = 30: a post-stroke session is scored with >= 30 matched lick-free rest periods (in
+#:     trained classes); pre sessions, training pools, LOSO and the frozen models keep nl.MIN_PERIODS (40).
+#:   MATCH WINDOW = 5 % per tail (central 90 %) of the animal's pre duration and lick-gap distributions, for training AND
+#:     scoring. nl.PCT is in the frozen align ("dur5-gap5"), so it selects its own stored models.
+SCORE_MIN_POST_DEFAULT = 30
+MATCH_PCT_DEFAULT = 5.0
 
 
-def merge(pre, out, animals):
+def _cfg(cfg=None):
+    """(floor, pct) with the nl defaults (40, 10) filled in."""
+    floor, pct = (None, None) if cfg is None else cfg
+    return (nl.MIN_PERIODS if floor is None else int(floor)), (10.0 if pct is None else float(pct))
+
+
+def _apply_cfg(cfg):
+    """Set the scored floor and match window on `rest_frozen_decoder_nl` (main and every worker call this)."""
+    floor, pct = _cfg(cfg)
+    nl.SCORE_MIN_POST = floor
+    nl.PCT = pct
+
+
+def floor_tag(cfg=None):
+    """'' at (40, 10) (the 11-17 names), else '_floor<n>' and / or '_pct<p>'."""
+    floor, pct = _cfg(cfg)
+    return ("" if floor == nl.MIN_PERIODS else f"_floor{floor}") + ("" if pct == 10.0 else f"_pct{pct:g}")
+
+
+def out_name(cfg=None):
+    """Output folder of the active LP set and settings: the 11-17 folder at (40, 10), else '<base><tag>_20261118'."""
+    tag = floor_tag(cfg)
+    return _OUT_NAME if not tag else f"{_OUT_NAME.rsplit('_', 1)[0]}{tag}_20261118"
+
+
+def stem(pre, cfg=None):
+    return f"rest15f_{MASK}_{pre}pre_durgap{floor_tag(cfg)}"
+
+
+def merge(pre, out, animals, cfg=None, kinds=("sessions", "frozen", "skipped", "confusion")):
     import pandas as pd
     dp = out / "data"
-    for kind in ("sessions", "frozen", "skipped", "confusion"):
-        parts = [dp / f"{stem(pre)}__{an}_{kind}.csv" for an in animals]
+    for kind in kinds:
+        parts = [dp / f"{stem(pre, cfg)}__{an}_{kind}.csv" for an in animals]
         dfs = [pd.read_csv(p) for p in parts if p.exists() and p.stat().st_size > 0]
         dfs = [d for d in dfs if len(d.columns) > 1 or kind == "skipped"]
         if not dfs:
@@ -338,11 +383,30 @@ def merge(pre, out, animals):
             df = df.groupby(["epoch", "true", "pred"], as_index=False, sort=False)["count"].sum()
         if kind == "skipped":
             df = df[df.skipped.notna() & (df.skipped.astype(str) != "")]
-        df.to_csv(dp / f"{stem(pre)}_{kind}.csv", index=False)
+        df.to_csv(dp / f"{stem(pre, cfg)}_{kind}.csv", index=False)
 
 
 # ------------------------------------------------------------------------------------------------ figure
-def plot_main(ps, crow, pre, out):
+#: widest suptitle line (characters) that fits the 17 in figure at fontsize 10 with a margin; longer lines are wrapped
+#: (the c1all mask text, ~260 characters, was clipped at both edges, 11-18)
+TITLE_WRAP = 185
+#: height (inches) one more suptitle line takes at fontsize 10
+TITLE_LINE_IN = 0.18
+
+
+def suptitle_text(pre, ns, cfg=None, width=TITLE_WRAP):
+    """The main figure's suptitle, every line wrapped to ``width`` characters."""
+    floor, pct = _cfg(cfg)
+    import textwrap
+    lines = [f"Rest position read by a FROZEN (stored) pre-stroke decoder; baseline: {PRE_TEXT[pre]}", MASK_TEXT,
+             f"duration- and lick-gap-matched to the central {100 - 2 * pct:g}% of pre (gap to nearest DAQ or LP lick), "
+             f"4 bins / period, joint LocaNMF, "
+             f"200 block permutations; stars: nested animal -> session bootstrap of the change vs own pre; "
+             f"scored sessions need >= {floor} matched periods post-stroke, >= {nl.MIN_PERIODS} pre; sessions {ns}"]
+    return "\n".join(textwrap.fill(s, width=width, break_on_hyphens=False) for s in lines)
+
+
+def plot_main(ps, crow, pre, out, cfg=None):
     """A per-session balanced accuracy + pooled mean + block-permutation null; B per animal (sessions as open markers,
     retained vs own pre; animal mean large); C pooled change (nested bootstrap CI, star = CI excludes 0)."""
     import matplotlib
@@ -355,7 +419,13 @@ def plot_main(ps, crow, pre, out):
     order = [e for e in EPOCHS if any(r["epoch"] == e for r in ps)]
     animals = sorted({r["animal"] for r in ps})
     pa = nl.per_animal(ps)
-    fig = plt.figure(figsize=(17, 6.2))
+    ns = ", ".join(f"{c['epoch']} {c['n_sessions']}" for c in crow)
+    title = suptitle_text(pre, ns, cfg)
+    # 3 title lines = the original 6.2 in figure with the panels below 0.87; each wrapped line past the third adds
+    # TITLE_LINE_IN to the height (the panels keep their size) and lowers the panels' top by the same amount
+    extra = max(0, title.count("\n") - 2) * TITLE_LINE_IN
+    fig_h = 6.2 + extra
+    fig = plt.figure(figsize=(17, fig_h))
     gs = fig.add_gridspec(1, 3, width_ratios=[1, 1.5, 1])
     ax = [fig.add_subplot(gs[0, i]) for i in range(3)]
     rs = np.random.default_rng(1)
@@ -428,30 +498,28 @@ def plot_main(ps, crow, pre, out):
         a_.set_xticklabels(order, fontsize=10)
         a_.spines[["top", "right"]].set_visible(False)
     sig_marks.reserve_headroom(fig)
-    ns = ", ".join(f"{c['epoch']} {c['n_sessions']}" for c in crow)
-    fig.suptitle(f"Rest position read by a FROZEN (stored) pre-stroke decoder; baseline: {PRE_TEXT[pre]}\n{MASK_TEXT}"
-                 f"\nduration- and lick-gap-matched (gap to nearest DAQ or LP lick), 4 bins / period, joint LocaNMF, "
-                 f"200 block permutations; stars: nested animal -> session bootstrap of the change vs own pre; "
-                 f"sessions {ns}", fontsize=10)
-    fig.tight_layout(rect=(0, 0.02, 1, 0.87))
-    p = out / f"{stem(pre)}.png"
+    fig.suptitle(title, fontsize=10)
+    fig.tight_layout(rect=(0, 0.02 * 6.2 / fig_h, 1, 1 - (0.13 * 6.2 + extra) / fig_h))
+    p = out / f"{stem(pre, cfg)}.png"
     save_png_svg(fig, p, dpi=150)
     plt.close(fig)
     return p
 
 
-def plot_confusion(out, pre):
+def plot_confusion(out, pre, cfg=None):
     from wfield_local import epoch_figures as ef
     from wfield_local.grant_figures import CONF_LABELS
-    conf = rf._read_conf(out / "data" / f"{stem(pre)}_confusion.csv", list(EPOCHS), CODES)
+    conf = rf._read_conf(out / "data" / f"{stem(pre, cfg)}_confusion.csv", list(EPOCHS), CODES)
     rank = {q: i for i, q in enumerate(CONF_LABELS)}
     idx = sorted(range(6), key=lambda i: rank.get(_pname(CODES[i]), 99))
     cnt = {e: np.asarray(m)[np.ix_(idx, idx)] for e, m in conf.items() if np.asarray(m).sum()}
     labels = ef.anatomical_labels([_pname(CODES[i]) for i in idx], short=True)
-    return ef.confusion_row(cnt, out, name=f"{stem(pre)}_confusion",
+    flo, pct = _cfg(cfg)
+    return ef.confusion_row(cnt, out, name=f"{stem(pre, cfg)}_confusion",
                             title=f"Frozen pre-stroke rest decoder confusion, pooled across animals -- RESTnl "
                                   f"(DAQ + {LP_TXT[lp_set()]} licks removed), working brackets; "
-                                  f"baseline {PRE_TEXT[pre]}",
+                                  f"baseline {PRE_TEXT[pre]}; matched to the central {100 - 2 * pct:g}% of pre; "
+                                  f"scored sessions >= {flo} matched periods post-stroke, >= {nl.MIN_PERIODS} pre",
                             delta=True, chance=rf.CHANCE, labels=labels)
 
 
@@ -466,13 +534,21 @@ def main(argv=None) -> int:
     ap.add_argument("--lp", choices=LP_SETS, default="cam4",
                     help="LP licks removed from rest: cam4 (= restnl_mask), cam4cam1 (post-cue cam1 only; superseded) or c1all "
                          "(cam4 + cam1 events_all = RESTnlc1, 11-17 night)")
+    ap.add_argument("--score-min-post", type=int, default=SCORE_MIN_POST_DEFAULT,
+                    help="scored POST-stroke session floor (matched lick-free rest periods); pre sessions, training "
+                         f"pools and frozen models keep {nl.MIN_PERIODS}. Default 30 (Priya 11-18, primary)")
+    ap.add_argument("--match-pct", type=float, default=MATCH_PCT_DEFAULT,
+                    help="percent trimmed from EACH tail of the pre duration and lick-gap distributions (training and "
+                         "scoring; in the frozen align). Default 5 = central 90 %% (Priya 11-18, primary); 10 = 11-17")
     ap.add_argument("--out", type=Path, default=None)
     a = ap.parse_args(argv)
-    global MASK, MASK_TEXT, OUT_ROOT, _OUT_NAME
     os.environ[LP_ENV] = a.lp                      # before any fan-out: spawned workers read it at import
-    MASK, _OUT_NAME, MASK_TEXT = _mode()
-    OUT_ROOT = EPOCH_DIR / _OUT_NAME
-    a.out = a.out or OUT_ROOT
+    _apply_mode()
+    cfg = (int(a.score_min_post), float(a.match_pct))
+    _apply_cfg(cfg)                                # main process too (counts / matching_windows); workers: the item
+    a.out = a.out or EPOCH_DIR / out_name(cfg)
+    print(f"scored post-stroke floor: {cfg[0]} (pre {nl.MIN_PERIODS}); match window: {cfg[1]:g} % per tail "
+          f"(nl.PCT = {nl.PCT:g})", flush=True)
     print(f"LP set: {a.lp} -> mask {MASK}", flush=True)
     import wfield_local
     print(f"wfield_local: {wfield_local.__file__}\nout: {a.out}\ncache: {CACHE_ROOT / MASK} key {_code_key()}",
@@ -500,23 +576,28 @@ def main(argv=None) -> int:
         if a.stage == "counts":
             return 0
         from wfield_local import analysis_kit as ak
-        res, fails = ak.fan_sessions([(an, a.pre, str(out)) for an in animals], _fit_job, jobs=len(animals),
+        res, fails = ak.fan_sessions([(an, a.pre, str(out), cfg) for an in animals], _fit_job, jobs=len(animals),
                                      key=lambda it: it[0], label="fit-animals")
         for r in res:
             print("[fit]", r, flush=True)
         for it, err in fails:
             print("   FIT FAIL", it, str(err)[:400], flush=True)
-        merge(a.pre, out, animals)
-    ps = nl._read(out / "data" / f"{stem(a.pre)}_sessions.csv")
+        merge(a.pre, out, animals, cfg)
+    else:
+        # `ef.confusion_row` writes its panel table to data/<stem>_confusion.csv, over the merged counts it was drawn
+        # from (11-18: a --plot-only redraw then failed on the panel table); rebuild the counts from the per-animal parts
+        merge(a.pre, out, animals, cfg, kinds=("confusion",))
+    ps = nl._read(out / "data" / f"{stem(a.pre, cfg)}_sessions.csv")
     crow = nl.cohort(ps)
-    nl._write(out / "data" / f"{stem(a.pre)}_per_animal.csv", list(nl.per_animal(ps).values()))
-    nl._write(out / "data" / f"{stem(a.pre)}_cohort.csv", crow)
+    nl._write(out / "data" / f"{stem(a.pre, cfg)}_per_animal.csv", list(nl.per_animal(ps).values()))
+    nl._write(out / "data" / f"{stem(a.pre, cfg)}_cohort.csv", crow)
     nl.report(ps, crow, f"{MASK} / {PRE_TEXT[a.pre]}")
-    print("wrote", plot_main(ps, crow, a.pre, out))
-    print("wrote", plot_confusion(out, a.pre))
-    (out / "data" / f"{stem(a.pre)}_figdata.json").write_text(json.dumps(
+    print("wrote", plot_main(ps, crow, a.pre, out, cfg))
+    print("wrote", plot_confusion(out, a.pre, cfg))
+    (out / "data" / f"{stem(a.pre, cfg)}_figdata.json").write_text(json.dumps(
         {"mask": MASK, "pre": a.pre, "mask_text": MASK_TEXT, "run_tag": _run_mode.tag(),
-         "inputs": [f"{stem(a.pre)}_sessions.csv", f"{stem(a.pre)}_confusion.csv"], "redraw": "--plot-only",
+         "inputs": [f"{stem(a.pre, cfg)}_sessions.csv", f"{stem(a.pre, cfg)}_confusion.csv"], "redraw": "--plot-only",
+         "score_min_post": cfg[0], "min_periods_pre": nl.MIN_PERIODS, "match_pct_per_tail": cfg[1],
          "script": "scripts/rest_migration/rest15f_restnl_1117.py"}, indent=1))
     print(f"[done in {time.time() - t0:.0f}s]", flush=True)
     return 0

@@ -73,7 +73,10 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      - The attempt_coding csig re-key under the guard: no guard-keyed tables yet.
      - Delete the superseded v2_quiet_lp_20261117 follow-ons and the v2_quiet_lp_c1guard_20261117 k 4.5 summary only on
        Priya's OK.
-     - **NEW SLIDE QUEUED as slide 27, after the position maps 24-26 (Priya OK 11-18, via 3c):** rest frozen decoder
+     - **DONE 11-18: slide 27 added (shown)** = rest frozen decoder, floor 30 + central 90 % (s27_rest15f.py; backup
+       .bak_pre_a8_s27rest15f_20261118; deck now 208 slides, every later slide +1: quiet slides = 155-159 and 204).
+       Title shortened to fit: "Lick-free rest decoder: drops acutely, stays below pre". History below.
+     - (was) **NEW SLIDE QUEUED as slide 27, after the position maps 24-26 (Priya OK 11-18, via 3c):** rest frozen decoder
        (15f), title "Frozen pre-stroke decoder on lick-free rest: drops acutely, borderline below pre chronically".
        - **11-18 change (Priya, via 3c): the PRIMARY is now the FLOOR-30 version** (post-stroke scored sessions need
          >= 30 matched lick-free rest periods; a 40 floor changes no outcome). Floor 30: acute -0.122 [-0.194, -0.040]*,

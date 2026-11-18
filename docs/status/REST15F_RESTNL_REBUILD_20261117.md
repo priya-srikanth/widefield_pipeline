@@ -41,10 +41,10 @@ June + August passes for all four. Counts: `*/data/counts_animal_epoch_position_
 ## Results (June + August pre; retained = above-chance fraction / own pre)
 | animal | page (restdock05, DAQ) acute / sub / chr | cam4 | cam4 + cam1 |
 |---|---|---|---|
-| PS92 | 0.61 / 0.65 / 0.80 | 1.01 / 2.91 (1 session) / 1.34 | 0.97 / 2.65 / 0.98 |
+| PS92 | 0.61 / 0.65 / 0.80 | 1.01 / 2.91 (only 0824 meets the 40-period minimum; 0826 has 33) / 1.34 | 0.97 / 2.65 / 0.98 |
 | PS93 | 0.28 / 0.45 / 0.69 | -0.23 / 0.40 / 0.55 | 0.07 / 0.58 / 0.56 |
 | PS94 | 0.09 / 0.13 / 0.19 | 0.39 / 0.51 / 0.27 | 0.37 / 0.41 / 0.20 |
-| PS95 | -0.09 / 0.49 / 0.47 | 0.29 (1 session) / 0.67 / 0.62 | 0.05 / 0.73 / 0.62 |
+| PS95 | -0.09 / 0.49 / 0.47 | 0.29 (the one recorded acute session, 0817) / 0.67 / 0.62 | 0.05 / 0.73 / 0.62 |
 | pooled flat | 0.28 / 0.36 / 0.54 | 0.30 / 0.73 / 0.56 | 0.38 / 0.74 / 0.51 |
 | change in above-chance fraction, acute | -0.222 [-0.313, -0.121] * | -0.118 [-0.186, -0.036] * | -0.122 [-0.194, -0.039] * |
 | subacute | -0.170 [-0.269, -0.091] * | -0.031 [-0.116, +0.089] | -0.028 [-0.119, +0.086] |
@@ -55,4 +55,16 @@ June + August passes for all four. Counts: `*/data/counts_animal_epoch_position_
   PS92 0.231 vs 0.167 (4/8), PS93 0.290 vs 0.171 (7/9), PS94 0.351 vs 0.167 (9/10), PS95 0.354 vs 0.166 (10/11).
   On the page (lick periods included): 0.383 / 0.402 / 0.470 / 0.356.
 - August-only sensitivity (PS94 and PS95 only), cam4: acute 0.43, subacute 0.67, chronic 0.36. All three change CIs exclude 0.
-- PS95 acute is still ONE session, and it moves 0.29 -> 0.05 when the cam1-only licks are also removed.
+- PS95 acute is the one recorded acute session (0817), and it moves 0.29 -> 0.05 when the cam1-only licks are also removed.
+
+## 11-18: Fig 12.1 title redraw (c1all, allpre + augpre)
+- The second suptitle line (the RESTnlc1 mask text, ~260 characters) was clipped at both edges. `plot_main` now wraps
+  every title line at 185 characters (`suptitle_text`) and grows the figure by 0.18 in per extra line, so the panels keep
+  their size. Redrawn with `--plot-only --lp c1all --pre all|aug` (no refit): `_sessions`, `_per_animal`, `_cohort`,
+  `_confusion`, `_confusion_meta` CSVs byte-identical to the 11-17 run; the confusion PNGs are byte-identical and stayed
+  in place. Same file names. The 11-17 main PNG + SVG of each pre set were moved to
+  `<pre>/_superseded_rest15f_title_20261118/` (2 PNG, 2 SVG).
+- `--plot-only` had been broken: `ef.confusion_row` writes its panel table over `data/<stem>_confusion.csv` (the merged
+  counts it was drawn from). The plot-only path now re-merges the confusion counts from the per-animal parts first.
+- cam4-only render (`rest15f_restnl_cam4_20261117`) checked with a scratch redraw: its third title line now wraps to two
+  lines, nothing clipped, tables byte-identical; the published cam4 PNG on M: was NOT replaced.

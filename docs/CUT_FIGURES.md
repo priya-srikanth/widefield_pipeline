@@ -143,3 +143,13 @@ named in the last column stays on the page.
 | haufe_precue.png | IMG Fig 14.1 | Haufe decoder maps, pre-cue window, pooled: weak (pre split-half r .73-.96), only near middle's acute change significant | "where does the pre-cue decode come from?" | wfield_local/epoch_maps.py (maps and tests wfield_local/beta_maps.py) |
 | haufez_precue.png | IMG Fig 14.4 | pre-cue Haufe maps tested against zero: few significant bins in any epoch | pre-cue Haufe bins per position / epoch | wfield_local/epoch_maps.py (beta_maps.py) |
 | haufepa_precue.png | IMG Fig 14.7 | far-contra pre-cue Haufe map per animal: acute change does not replicate (2 / 4 up, PS94 down) | per-animal pre-cue Haufe maps | wfield_local/epoch_maps.py (beta_maps.py) |
+
+## Figdata that must not be used for a `--plot-only` redraw
+
+- `lick_cue_to_lick_B_{pre_models,exponents_all,exponents_far_contra}_tau0.pkl` in the rebuild's
+  `.../iti_licks/<rebuild tag>/cue_to_lick/figdata/` (written 2026-11-17 19:48) hold the tau-0.6 data of the LAST run
+  only (restnlc1): before the 11-18 fix, `figdata.fd_path`'s `Path(stem).stem` cut "..._tau0.6_<variant>" to "..._tau0",
+  so every rest variant overwrote the same file. The same-named files in the pre-rebuild
+  `lp_r4_heatmap_20261013__clean_v36/.../cue_to_lick/figdata/` (10-30) are equally ambiguous. Priya decided (11-18) not
+  to regenerate them. Each tau-0.6 PNG was drawn right after its own save, so it matches its variant unless two variants ran at the same time. New runs write
+  `..._tau0p6<variant>.pkl` (`lick_cue_to_lick.fd_stem`).

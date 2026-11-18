@@ -67,12 +67,19 @@ from wfield_local.sig_marks import reserve_headroom, star_top  # noqa: E402
 SFX = restnl.SFX if restnl.variant() == "restnl" else ""
 
 
+def fd_stem(stem: str) -> str:
+    """The figdata stem: ``stem`` + the variant suffix with every "." spelled "p" (11-18). `figdata.fd_path` takes
+    ``Path(stem).stem``, so "..._tau0.6_restnlc1" lost everything after the dot and every tau-0.6 figdata of every rest
+    variant shared one file ("..._tau0.pkl"). PNG names keep "_tau0.6" (they do not go through fd_path)."""
+    return (stem + SFX).replace(".", "p")
+
+
 def save_fd(stem, obj, root=None):
-    return _fd.save_fd(stem + SFX, obj, root)
+    return _fd.save_fd(fd_stem(stem), obj, root)
 
 
 def load_fd(stem, root=None):
-    return _fd.load_fd(stem + SFX, root)
+    return _fd.load_fd(fd_stem(stem), root)
 
 
 def _o(name: str) -> str:

@@ -99,6 +99,17 @@ MASKS = ("restnl", "rest", "restnlc1")
 PRE_TEXT = {"aug": "August-only pre", "all": "June + August pre"}
 # THE PAGE RUN'S FLAGS (nightly_figs: --perm 200 --refit --match-train --match-duration --match-lickgap)
 PERM, BINS, MIN_PERIODS, MIN_PER_CLASS, PCT, LICK_FAR_S = 200, 4, 40, 5, 10.0, 3.0
+#: MATCH WINDOW (sensitivity, Priya 11-18): env WF_REST_MATCH_PCT trims this percentile from each tail of the pre
+#: duration and lick-gap distributions (default 10 = central 80 %). It is in the frozen align, so a new value fits new models.
+PCT = float(os.environ.get("WF_REST_MATCH_PCT") or PCT)
+#: SCORED POST-STROKE SESSION FLOOR (sensitivity, Priya 11-18): env WF_REST_SCORE_MIN_POST lowers the minimum for
+#: scored NON-pre sessions only; pre sessions (training pools, LOSO, frozen models) keep MIN_PERIODS. Default = MIN_PERIODS.
+SCORE_MIN_POST = int(os.environ.get("WF_REST_SCORE_MIN_POST") or MIN_PERIODS)
+
+
+def _score_min(ep):
+    return MIN_PERIODS if ep == "pre" else SCORE_MIN_POST
+
 #: FAIRNESS GATE (11-02): every position needs >= this many matched PRE training periods, or the animal is not fitted
 #: (unless --allow-thin). Measured: RESTnl Aug-pre PS93 far contra has 9 (REST 348), so a frozen model barely predicts
 #: that class, pre test sets hardly contain it and post test sets do -- a downward bias at the stroke position.
@@ -354,7 +365,7 @@ def fit_and_score(mask, pre, data, out, stem, allow_thin=False):
             if not d["ok"]:
                 skipped.append(d["why"])
                 continue
-            ok, bad = rf._usable(d["y"], MIN_PERIODS, MIN_PER_CLASS)
+            ok, bad = rf._usable(d["y"], _score_min(ep), MIN_PER_CLASS)
             if not ok:
                 skipped.append(f"{lab}: {bad}")
                 continue
@@ -403,7 +414,7 @@ def fit_and_score(mask, pre, data, out, stem, allow_thin=False):
                 skipped.append(f"{lab}: training pool {bad}")
                 continue
             m_test = np.isin(y, np.unique(yt)) & keep_test
-            if m_test.sum() < MIN_PERIODS:
+            if m_test.sum() < _score_min(ep):
                 skipped.append(f"{lab}: only {int(m_test.sum())} periods in trained classes")
                 continue
             model = payload["loso"].get(lab) if ep == "pre" else payload["full"]
