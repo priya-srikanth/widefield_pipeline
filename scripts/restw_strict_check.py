@@ -10,6 +10,9 @@ memory with extra exclusions):
   daq2       + DAQ lick onsets (the mask's own detector, config criteria) with buffer [0.5, 2.0] s        -> concern (b)
   strict     daq2 + EVERY cam4 lick of licks_all.csv (any context, contact or not; daq_on_s) [0.5, 2.0] s -> (a)+(b)
   strict_c1  strict + every cam1 2-D lick event (session_poses/cam1_licks/<a>_<d>_events_all.csv, daq_on_s)
+             SUPERSEDED 11-17 (Priya): counts droplets and far-from-mouth labels (no cam1_licks.keep_mask). The live
+             cam4 + cam1 rest set is RESTnlc1 (`restnl_licks`, keep_mask rule). Kept unchanged so the shared VERSION
+             (and the restw_check_c1v3 caches) are not redone; do not quote strict_c1 numbers.
   strict_jaw strict + frames of cam4 cleaned jaw y (clean.npz, px from the jaw rest point) above a per-session robust
              threshold (median + 5 x 1.4826 MAD over all video frames; hidden jaw = not counted) [0.5, 2.0] s
   After each intersection the mask's own min_rest_s floor (0.5 s) is re-applied, as rest_mask does last.
@@ -58,7 +61,7 @@ MIN_FR_RELAXED = 50
 # the variants reported (d_<v> = v - restw; *_flat - restw_flat). PRIMARY = strict_w50 (all sessions kept)
 SHOW = ["daq2", "strict", "strict_w50", "strict_c1_w50", "strict_jaw_w50", "strict_flat"]
 VLAB = {"daq2": "DAQ licks [0.5, 2.0]", "strict": "STRICT (+ all cam4 licks), 200-frame floor",
-        "strict_w50": "STRICT, 50-frame floor (primary)", "strict_c1_w50": "strict + cam1 licks, 50-frame floor",
+        "strict_w50": "STRICT, 50-frame floor (primary)", "strict_c1_w50": "strict + cam1 licks (SUPERSEDED: unfiltered), 50-frame floor",
         "strict_jaw_w50": "strict + jaw motion, 50-frame floor", "strict_flat": "STRICT unweighted median vs restw unweighted"}
 LAGS = np.round(np.arange(-2.0, 3.0001, 0.05), 3)
 WIN = (-1.0, 0.0)
