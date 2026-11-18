@@ -74,11 +74,11 @@ def test_tagged_build_reads_15f_from_its_rebuild_file(tmp_path, monkeypatch):
 
 
 def test_tagged_build_reads_15f_confusion_from_its_rebuild_file(tmp_path, monkeypatch):
-    """The 15f confusion slot also reads the RESTnlc1 v3 floor-30 render, with its own rebuild legend (11-18)."""
+    """The 15f confusion slot also reads the RESTnlc1 v3 floor-30 / central-90% render, with its own rebuild legend (11-18)."""
     main = "epoch_15f_rest_frozen_restdock05_durmatched_gapmatched.png"
     pat = "epoch_15f_rest_frozen_restdock05_durmatched_gapmatched_confusion.png"
     assert reg.EPOCH_FIGURES_REBUILD_FILE[pat] == (
-        "rest15f_restnlc1all_floor30_20261118/allpre/rest15f_restnlc1v3wk_allpre_durgap_floor30_confusion.png")
+        "rest15f_restnlc1all_floor30_pct5_20261118/allpre/rest15f_restnlc1v3wk_allpre_durgap_floor30_pct5_confusion.png")
     from PIL import Image
     ep = tmp_path / "grant" / "epoch"
     files = {}
@@ -97,7 +97,8 @@ def test_tagged_build_reads_15f_confusion_from_its_rebuild_file(tmp_path, monkey
     leg = reg.EPOCH_FIGURES_REBUILD_LEGEND[pat]
     assert any("Where the frozen rest decoder's errors go" in n for n in notes)
     # the v3 numbers, not the retired restdock05 / DAQ-only reading (far-contra "holds up", .56 -> .67)
-    assert "pre 4985, acute 1121, subacute 1545, chronic 4151" in leg          # floor 30 (Priya 11-18)
-    assert ".40 pre, .19 acute, .32 subacute, .20 chronic" in leg
+    assert "pre 6160, acute 1375, subacute 1964, chronic 4725" in leg          # floor 30, central 90 % (11-18)
+    assert ".41 pre, .25 acute, .33 subacute, .23 chronic" in leg
+    assert "central 90 %" in leg
     assert ">= 30 matched periods post-stroke" in leg
     assert "HOLDS UP" not in leg and "0.67" not in leg
