@@ -307,13 +307,19 @@ def stitch(dest: Path, manifest: pd.DataFrame, n: int = N_PER_STATE) -> None:
         cv2.imwrite(str(dest / "contact_sheet.png"), np.vstack(rows))
 
 
+def reels_dir(tag: str) -> Path:
+    """The default reel folder of a fitted model (``LP_analysis/<run>/arhmm/v1/reels_<tag>``); its ``state_labels.csv``
+    holds the reviewed state labels and GROUPS that `behavior_states.state_groups` reads."""
+    from wfield_local import orofacial_cohort as oc
+    from wfield_local import orofacial_outputs as oo
+    from wfield_local.paths import PathResolver
+    return Path(oo.root(PathResolver())) / oc.RUN / "arhmm" / "v1" / f"reels_{tag}"
+
+
 def main(argv=None) -> int:
     from wfield_local import analysis_kit as ak
     from wfield_local import arhmm_states as st
     from wfield_local import epochs as ep
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
     from wfield_local.writeguard import assert_writable
     ap = argparse.ArgumentParser(description=__doc__.split(chr(10) * 2)[0])
     ap.add_argument("--out", required=True, help="AR-HMM output dir (model_<tag>.pkl, states_<tag>/)")
@@ -339,7 +345,7 @@ def main(argv=None) -> int:
     S = select(Z, live + [k for k in want if k not in live], dmed, epochs, a.n + SPARE)
     S = S[S.state.isin(want)].copy()
     S["clip"] = S.groupby("state").cumcount()
-    dest = Path(a.dest) if a.dest else Path(oo.root(PathResolver())) / oc.RUN / "arhmm" / "v1" / f"reels_{a.tag}"
+    dest = Path(a.dest) if a.dest else reels_dir(a.tag)
     assert_writable(dest)
     dest.mkdir(parents=True, exist_ok=True)
     cams = a.cams.split(",")

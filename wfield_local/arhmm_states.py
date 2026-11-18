@@ -32,8 +32,22 @@ import numpy as np
 import pandas as pd
 
 DEAD_USAGE = 0.005
+#: the REVIEWED reference fit (Priya's 11-17 reel review labels its states): pooled_all seed 1, kappa 5e7, dither 0.1
+REFERENCE_TAG = "pooled_all_s1"
 RANK_Q = 0.9                      # a pair "agrees" in a method when its cosine is in that method's top 10 % of pairs
 MIN_AGREE = 4                     # of 5 methods
+
+
+def fits_dir() -> Path:
+    """Where the fitted models (``model_<tag>.pkl``) and decoded states (``states_<tag>/<label>.npz``) live:
+    ``LP_analysis/<run>/arhmm/v1/fits`` (``PROVENANCE.txt`` there says which fit came from where); ARHMM_FITS overrides."""
+    import os
+    if os.environ.get("ARHMM_FITS"):
+        return Path(os.environ["ARHMM_FITS"])
+    from wfield_local import orofacial_cohort as oc
+    from wfield_local import orofacial_outputs as oo
+    from wfield_local.paths import PathResolver
+    return Path(oo.root(PathResolver())) / oc.RUN / "arhmm" / "v1" / "fits"
 
 
 def load(out: Path, tag: str, feat: Path):

@@ -1,0 +1,211 @@
+<title>Behavioral States After Stroke</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: the repo's results-page template (docs/templates/results_page_example.html): hidable left contents panel,
+   one reading column of numbered figures. Tokens as the template. */
+:root { --bg:#fbfaf7; --fg:#22211f; --muted:#6b675f; --rule:#e2ded5; --accent:#6a3d9a; --card:#ffffff; --tag:#f1ece2; --side:#f4f1ea; --neural:#6a3d9a; --lick:#b35806; --pend:#8a6d00; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#17161a; --fg:#ece9e3; --muted:#a59f94; --rule:#34313a; --accent:#b799e0; --card:#1f1e23; --tag:#2a2830; --side:#1c1b20; --neural:#b799e0; --lick:#f1a340; --pend:#e0c060; color-scheme:dark } }
+:root[data-theme="dark"] { --bg:#17161a; --fg:#ece9e3; --muted:#a59f94; --rule:#34313a; --accent:#b799e0; --card:#1f1e23; --tag:#2a2830; --side:#1c1b20; --neural:#b799e0; --lick:#f1a340; --pend:#e0c060; color-scheme:dark }
+* { box-sizing:border-box }
+html { scroll-behavior:smooth; scroll-padding-top:12px }
+body { background:var(--bg); color:var(--fg); font:15px/1.55 "Source Sans 3", system-ui, sans-serif; margin:0; }
+.toc { position:fixed; top:env(safe-area-inset-top,0px); left:0; bottom:0; width:270px; overflow-y:auto; background:var(--side); border-right:1px solid var(--rule); padding:56px 14px 24px; font-size:.86rem; transition:transform .2s ease; z-index:10 }
+.toc h3 { font:600 .72rem/1 "Source Sans 3", sans-serif; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin:0 0 10px }
+.toc ol { list-style:none; margin:0; padding:0 }
+.toc li { margin:0 0 6px }
+.toc li li { margin:3px 0 3px 12px }
+.toc a { color:var(--fg); text-decoration:none; display:block; padding:2px 6px; border-radius:3px }
+.toc a:hover, .toc a.on { background:var(--tag) }
+.toc .sub a { color:var(--muted); font-size:.82rem }
+.kind { display:inline-block; font-size:.62rem; letter-spacing:.06em; text-transform:uppercase; padding:0 5px; border-radius:2px; margin-left:4px; vertical-align:1px; border:1px solid currentColor }
+.kind.n { color:var(--neural) } .kind.l { color:var(--lick) }
+.tocbtn { position:fixed; top:calc(env(safe-area-inset-top,0px) + 10px); left:max(10px, env(safe-area-inset-left,0px)); z-index:11; font:600 .8rem "Source Sans 3", sans-serif; background:var(--card); color:var(--fg); border:1px solid var(--rule); border-radius:4px; padding:6px 10px; cursor:pointer }
+.tocbtn:focus-visible, .toc a:focus-visible { outline:2px solid var(--accent); outline-offset:2px }
+body.closed .toc { transform:translateX(-100%) }
+.main { margin-left:270px; transition:margin .2s ease }
+body.closed .main { margin-left:0 }
+@media (max-width: 640px) { .main { margin-left:0 } .toc { box-shadow:2px 0 12px rgba(0,0,0,.15) } }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior:auto } .toc, .main { transition:none } }
+.wrap { max-width:1120px; margin:0 auto; padding-left:max(16px, env(safe-area-inset-left,0px)); padding-right:max(16px, env(safe-area-inset-right,0px)); padding-block:56px 64px; }
+h1 { font:600 1.7rem/1.2 "Source Serif 4", Georgia, serif; margin:0 0 6px; text-wrap:balance; }
+.sub { color:var(--muted); margin:0 0 22px; max-width:80ch; }
+section { border-top:1px solid var(--rule); padding-block:22px 6px; }
+h2 { font:600 1.15rem/1.3 "Source Serif 4", Georgia, serif; margin:0 0 4px; text-wrap:balance }
+.tag { display:inline-block; font-size:.72rem; letter-spacing:.06em; text-transform:uppercase; background:var(--tag); color:var(--muted); padding:2px 8px; border-radius:3px; margin-bottom:8px; }
+p, li { max-width:80ch; }
+.take { border-left:3px solid var(--accent); padding-left:12px; margin:10px 0 14px; }
+.pending { color:var(--pend); font-weight:600 }
+figure { margin:0 0 18px; background:var(--card); border:1px solid var(--rule); border-radius:4px; padding:10px; overflow-x:auto; }
+figure img { display:block; max-width:100%; height:auto; background:#fff; }
+.ftitle { font-weight:600; margin:0 0 6px; } .fnum { color:var(--accent); margin-right:6px }
+figcaption { color:var(--muted); font-size:.86rem; margin-top:6px; }
+figcaption b.h { color:var(--fg) }
+code { font-size:.85em; overflow-wrap:anywhere }
+.tbl { overflow-x:auto; margin:6px 0 16px }
+table { border-collapse:collapse; font-size:.86rem; font-variant-numeric:tabular-nums }
+td, th { border-bottom:1px solid var(--rule); padding:3px 8px; text-align:right; vertical-align:top } th:first-child, td:first-child { text-align:left }
+.stand td, .stand th { text-align:left }
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600&family=Source+Serif+4:wght@600&display=swap">
+
+<button class="tocbtn" id="tocbtn" type="button" aria-controls="toc" aria-expanded="true">&#9776; Contents</button>
+<nav class="toc" id="toc" aria-label="Contents">
+<h3>Contents</h3>
+<ol id="toclist"></ol>
+</nav>
+
+<div class="main"><div class="wrap">
+<h1>Behavioral states after the stroke</h1>
+<p class="sub">VLS stroke, cohort 1 (PS92&ndash;PS95, lesion left: ipsi = ipsilesional = mouse left). Is the post-stroke
+change in <em>engagement</em> (GLM-HMM states over trials), in <em>execution</em> (outcome within an engaged state),
+or a reorganized <em>movement repertoire</em> (AR-HMM syllables, treadmill)? Every readout is the change from each
+animal's OWN August pre-stroke sessions. <span class="kind l">lick</span> = behavior only (no imaging on this page).
+Code: <code>wfield_local/behavior_states.py</code>, figures <code>scripts/states_page_figs.py</code>. Findings:
+<code>docs/FINDINGS.md</code> section 9.</p>
+
+<section id="stand" data-toc="Where things stand">
+<h2>Where things stand</h2>
+<div class="tbl"><table class="stand">
+<thead><tr><th>Question</th><th>Result</th><th>Figures</th><th>Status</th></tr></thead>
+<tbody>
+<tr><td>Do animals disengage more after the stroke?</td><td>Yes, transiently: engaged-state occupancy &minus;.28 acute, &minus;.14 subacute, back to pre chronic; disengaged +.17 / +.10, partial +.11 / +.04 (CI excludes 0).</td><td><a href="#f-glmhmm_occupancy_by_epoch">1.1</a></td><td>PROVISIONAL</td></tr>
+<tr><td>Is disengagement spout-specific?</td><td>No: the disengaged state rises at every spout acutely (~.2 vs .04). The partial state rises mainly at the far spouts.</td><td><a href="#f-glmhmm_state_curves_by_epoch">1.3</a></td><td>PROVISIONAL</td></tr>
+<tr><td>Is the acute far-spout deficit motivational or motor?</td><td>Motor: inside the engaged states animals still attempt far contra but miss (contact .05&ndash;.13 acute vs .94&ndash;.98 pre; incomplete .76&ndash;.82); recovered by chronic.</td><td><a href="#f-glmhmm_state_curves_by_epoch">1.3</a></td><td>PROVISIONAL</td></tr>
+<tr><td>Does the cue-locked treadmill push change?</td><td>Yes, in both directions: push rate .15 pre, &minus;.11 acute, +.12 subacute, +.25 chronic; chronic pushes are faster (+.38 mm/s) and earlier (&minus;.10 s). Push happens only while working.</td><td><a href="#f-push_by_epoch_lick_period">2.1</a>, <a href="#f-wheel_cue_aligned_lickgate">2.2</a></td><td>PROVISIONAL</td></tr>
+<tr><td>Does walking around the cue change?</td><td>No reliable change in the cue window (lick gate); a small chronic drop on GLM-engaged trials (&minus;.014).</td><td><a href="#f-push_by_epoch_lick_period">2.1</a>, <a href="#f-push_by_epoch_glm_engaged">2.3</a></td><td>PROVISIONAL</td></tr>
+<tr><td>How does the movement repertoire change on engaged trials?</td><td>Acute: more quiet (+.11), fewer contralesional licks, less chewing and walking, lower transition entropy (&minus;.20 bits). Chronic: more ipsilesional and central licks, more push.</td><td><a href="#f-arhmm_cue_aligned_groups">3.1</a>, <a href="#f-arhmm_usage_engaged_by_epoch">3.2</a>, <a href="#f-arhmm_transition_entropy">3.4</a></td><td>PROVISIONAL</td></tr>
+<tr><td>Does lick direction recover?</td><td>Not by this measure: contralesional share of lick frames .44 pre, &minus;.12 acute, &minus;.07 subacute, &minus;.07 chronic. Needs the LP per-lick direction cross-check.</td><td><a href="#f-arhmm_lick_direction_by_epoch">3.3</a></td><td>TO CHECK</td></tr>
+<tr><td>Is jaw-only an AR-HMM syllable?</td><td>No: at the jaw onset of jaw-only trials the syllables are quiet, slow nose and walking; the chewing group (21 + 22) is peri-lick.</td><td><a href="#f-arhmm_groups_at_jaw_onset_jawonly">3.5</a></td><td>PROVISIONAL</td></tr>
+<tr><td>Does task-independent movement (TIM) rise, as in Yin et al.?</td><td>No: within-session TIM does not rise; the acute nose rise in the frozen frame is a posture shift.</td><td><a href="#tim">4</a></td><td>PROVISIONAL</td></tr>
+<tr><td>How far does post-stroke behavior sit from the pre-stroke repertoire?</td><td>Held-out pre-stroke AR-HMM fits (8 folds) done on O2; the frozen likelihood score is next.</td><td><a href="#frozen">5</a></td><td><span class="pending">PENDING</span></td></tr>
+</tbody></table></div>
+</section>
+
+<section id="engage" data-toc="1. Engagement states" data-kind="l">
+<span class="tag">GLM-HMM engagement states &middot; FINDINGS 9.1</span>
+<h2>1. Engagement states (GLM-HMM, K = 5) <span class="kind l">lick</span></h2>
+<p>One GLM-HMM fit to every trial of every session (all animals, all epochs). Each state has its own multinomial GLM
+from the trial's inputs (intercept, spout, a "moved" flag; animal offsets shared across states; no previous-outcome
+input) to the trial's outputs (outcome class, pre-cue lick, ITI lick, running pre-cue and in the ITI). The states'
+roles come from their own profiles: <b>engaged</b> = &ge; 90 % of trials attempted (states 0, 1, 2; 2 = engaged while
+running), <b>partial</b> (state 3: half attempted), <b>disengaged</b> (state 4: no response .60, jaw-only .35).</p>
+<div class="take">Disengagement rises acutely and subacutely and is gone by chronic; it is not spout-specific. Inside
+the engaged states, acute far-spout attempts continue but miss: the acute far-contra deficit is execution, not
+motivation.</div>
+<figure id="f-glmhmm_occupancy_by_epoch" data-fid="glmhmm_occupancy_by_epoch" data-num="1.1"><span id="fig1-1" class="figanchor"></span><div class="ftitle"><span class="fnum">Fig 1.1</span>GLM-HMM K5 state occupancy by epoch: engaged states fall acutely, partial and disengaged rise; chronic = pre</div><img src="glmhmm_occupancy_by_epoch.png" alt="GLM-HMM state occupancy by epoch, sessions and pooled 95 % CI"><figcaption><b class="h">Fig 1.1 &middot; occupancy by epoch.</b> Mean state posterior per session (open markers, shape = animal), pooled mean with 95 % CI (nested bootstrap animals &rarr; sessions). Change vs own pre: engaged &minus;.28 [&minus;.39, &minus;.16] acute, &minus;.14 [&minus;.25, &minus;.04] subacute, +.02 chronic; partial +.11 / +.04 / &minus;.02; disengaged +.17 [.02, .30] / +.10 [.02, .19] / &minus;.00. The single engaged states (0, 1, 2) do not change individually. <b>Data:</b> every trial (no gate), all spouts; trial outputs from the camera trial classes (contact / incomplete / jaw-only / no response) and LP video licks; GLM-HMM K5 design v2 (<code>glm_hmm --pooled-all --design v2</code>). <b>Baseline:</b> August pre. <b>Stats:</b> * = paired animal-weighted bootstrap of the change vs own pre (<code>analysis_kit.boot_delta</code> via <code>orofacial_cohort.epoch_tables</code>), 95 % CI excludes 0; 4 animals. <b>Script:</b> <code>scripts/states_page_figs.py --only occupancy</code>. <span class="ffile"><b>File:</b> <code>LP_analysis/lp_r4_heatmap_20261013__clean_v36/arhmm/v1/poststroke_pooled_all_s1/page_figs/glmhmm_occupancy_by_epoch.png</code></span></figcaption></figure>
+<figure id="f-glmhmm_state_curves" data-fid="glmhmm_state_curves" data-num="1.2"><span id="fig1-2" class="figanchor"></span><div class="ftitle"><span class="fnum">Fig 1.2</span>GLM-HMM K5 per-state response curves by spout, all epochs: partial state fails at far spouts, disengaged state = no response + jaw-only</div><img src="glmhmm_state_curves.png" alt="Per-state response by spout"><figcaption><b class="h">Fig 1.2 &middot; per-state response by spout.</b> For each state, the rate of each output weighted by the trial's state posterior (session markers faded; pooled 95 % CI); series color = state. Engaged states: contact ~1 at near spouts, .8&ndash;.95 far; states 0 and 1 differ in pre-cue and ITI licking (0 highest); state 2 runs and its pre-cue licking drops at far spouts. Partial: contact .6&ndash;.7 near, ~.2 far, with jaw-only ~.4 at far spouts. Disengaged: no response ~.5 and jaw-only ~.4. Not psychometric curves (spout is not a graded stimulus). <b>Caveat:</b> jaw-only cannot be called at near mid (cam4 chin hidden by the spout; cam1 failed review), so no-lick near-mid trials default to no response (<code>trial_classes</code>, jaw_judged = False); the near-mid no-response peak is that artifact. <b>Data:</b> every trial, all epochs pooled, posterior weights from the K5 fit; cells need &ge; 3 effective trials per session. <b>Script:</b> <code>scripts/states_page_figs.py --only curves</code>. <span class="ffile"><b>File:</b> <code>LP_analysis/lp_r4_heatmap_20261013__clean_v36/arhmm/v1/poststroke_pooled_all_s1/page_figs/glmhmm_state_curves.png</code></span></figcaption></figure>
+<figure id="f-glmhmm_state_curves_by_epoch" data-fid="glmhmm_state_curves_by_epoch" data-num="1.3"><span id="fig1-3" class="figanchor"></span><div class="ftitle"><span class="fnum">Fig 1.3</span>GLM-HMM K5 per-state response by spout and epoch: engaged states keep attempting far spouts acutely but miss</div><img src="glmhmm_state_curves_by_epoch.png" alt="Per-state response by spout and epoch"><figcaption><b class="h">Fig 1.3 &middot; per-state response by spout and epoch.</b> Rows = states; columns = contact, incomplete, jaw-only, no response (posterior-weighted rates) and P(state | spout) (which state the animals are in at each spout). Engaged states at far contra: contact .94&ndash;.98 pre, .05&ndash;.13 acute, .71&ndash;.83 subacute, .97 chronic; incomplete .02&ndash;.05 / .76&ndash;.82 / .13&ndash;.25 / .02; jaw-only and no response stay ~0. P(disengaged state) rises acutely at every spout (~.2 vs .04); P(partial) mainly at far mid (.23) and far contra (.28). The emissions are shared across epochs, so the engaged states take on the acute misses: the states read engagement, the outcome inside a state reads execution. <b>Stats:</b> * per spout and epoch (one row per post epoch) = paired bootstrap CI of the change vs own pre excludes 0. Near-mid jaw-only caveat as Fig 1.2. <b>Script:</b> <code>scripts/states_page_figs.py --only curves</code>. <span class="ffile"><b>File:</b> <code>LP_analysis/lp_r4_heatmap_20261013__clean_v36/arhmm/v1/poststroke_pooled_all_s1/page_figs/glmhmm_state_curves_by_epoch.png</code></span></figcaption></figure>
+<p><b>Model choice.</b> Held-out McFadden pseudo-R&sup2; (4 interleaved session folds), total over outputs, K = 1&ndash;5: .108 / .340 / .396 / .444 / .470. K 3 &rarr; 4 gains in every fold (mostly running); K 4 &rarr; 5 in 2 of 4 folds; K = 5 chosen (Priya 11-17; states can be combined post hoc). <span class="pending">K = 6&ndash;8 plateau test running.</span> Table: <code>glm_hmm/v1/select_k_pooled_all_v2.csv</code>.</p>
+<p><b>Lick gate vs GLM-HMM gate</b> (share of trials per epoch, animal-weighted). GLM-HMM engaged is a strict subset of the lick working period (first to last camera lick); the difference is in-period trials the GLM-HMM calls partial or disengaged.</p>
+<div class="tbl"><table>
+<thead><tr><th>epoch</th><th>both engaged</th><th>lick period only</th><th>GLM-HMM only</th><th>neither</th></tr></thead>
+<tbody>
+<tr><td>pre</td><td>.920</td><td>.061</td><td>0</td><td>.019</td></tr>
+<tr><td>acute</td><td>.638</td><td>.327</td><td>0</td><td>.036</td></tr>
+<tr><td>subacute</td><td>.776</td><td>.207</td><td>0</td><td>.017</td></tr>
+<tr><td>chronic</td><td>.934</td><td>.051</td><td>0</td><td>.015</td></tr>
+</tbody></table></div>
+</section>
+
+<section id="push" data-toc="2. Treadmill push and walking" data-kind="l">
+<span class="tag">Treadmill (DAQ wheel) &middot; FINDINGS 9.2</span>
+<h2>2. Treadmill push and walking around the cue <span class="kind l">lick</span></h2>
+<p>Model-free, from the DAQ treadmill alone. <b>Push</b> = backward wheel speed above 0.5 mm/s in the cue window
+(&minus;0.25 to +0.75 s); the same test 2 to 1 s before the cue (spout already in place) is the control.
+<b>Walking</b> = forward speed above 3 mm/s (the repo's running threshold). Thresholds:
+<code>configs/defaults.yaml</code> segmentation.push and segmentation.running.</p>
+<div class="take">The push is a cue-locked task behavior (essentially absent outside the working period) that halves
+acutely and then grows past pre: chronic pushes are more frequent, faster and earlier. Walking around the cue does not
+change reliably.</div>
+<figure id="f-push_by_epoch_lick_period" data-fid="push_by_epoch_lick_period" data-num="2.1"><span id="fig2-1" class="figanchor"></span><div class="ftitle"><span class="fnum">Fig 2.1</span>Cue-window push and walking, lick working period: push rate falls acutely, rises past pre by chronic</div><img src="push_by_epoch_lick_period.png" alt="Push and walking readouts by epoch, lick gate"><figcaption><b class="h">Fig 2.1 &middot; push and walking by epoch, lick working period.</b> Push rate .15 pre: &minus;.11 [&minus;.20, &minus;.04] acute, +.12 [.01, .22] subacute, +.25 [.14, .34] chronic; control-window rate ~.01 (chronic +.04); cue minus control &minus;.10 / +.10 / +.21. On push trials the peak backward speed rises (+.14 / +.24 / +.38 mm/s) and the push starts earlier (subacute &minus;.06 s, chronic &minus;.10 s). Walking in the cue window: no reliable change. Outside the working period the push rate is ~0 in every epoch (not shown). <b>Data:</b> trials inside the camera working period (first to last camera lick; <code>trial_classes.camera_engaged_period</code>); DAQ wheel at 25 Hz (AR-HMM feature copy). <b>Stats:</b> * = paired bootstrap CI vs own pre excludes 0. <b>Script:</b> <code>scripts/states_page_figs.py --only push</code>. <span class="ffile"><b>File:</b> <code>LP_analysis/lp_r4_heatmap_20261013__clean_v36/arhmm/v1/poststroke_pooled_all_s1/page_figs/push_by_epoch_lick_period.png</code></span></figcaption></figure>
+<figure id="f-wheel_cue_aligned_lickgate" data-fid="wheel_cue_aligned_lickgate" data-num="2.2"><span id="fig2-2" class="figanchor"></span><div class="ftitle"><span class="fnum">Fig 2.2</span>Treadmill around the cue, inside vs outside the lick working period: the push is cue-locked and only while working</div><img src="wheel_cue_aligned_lickgate.png" alt="Cue-aligned wheel speed, lick gate"><figcaption><b class="h">Fig 2.2 &middot; cue-aligned treadmill, lick gate.</b> Rows: inside / outside the working period. Columns: forward speed, backward velocity (plotted negative), P(walking), P(push). Mean over animals (each = mean of its sessions) &plusmn; SEM band. P(push) peaks ~0.15 s after the cue: .14 pre, .05 acute, .31 subacute, .40 chronic. Outside the period animals walk more (P ~.2) and barely push. Shaded: control and cue windows. <b>Script:</b> <code>scripts/states_page_figs.py --only wheel</code>. <span class="ffile"><b>File:</b> <code>LP_analysis/lp_r4_heatmap_20261013__clean_v36/arhmm/v1/poststroke_pooled_all_s1/page_figs/wheel_cue_aligned_lickgate.png</code></span></figcaption></figure>
+<figure id="f-push_by_epoch_glm_engaged" data-fid="push_by_epoch_glm_engaged" data-num="2.3"><span id="fig2-3" class="figanchor"></span><div class="ftitle"><span class="fnum">Fig 2.3</span>Cue-window push and walking, GLM-HMM engaged trials: same push result as the lick gate</div><img src="push_by_epoch_glm_engaged.png" alt="Push and walking readouts by epoch, GLM-HMM gate"><figcaption><b class="h">Fig 2.3 &middot; push and walking by epoch, GLM-HMM engaged trials.</b> Push rate .16 pre: &minus;.10 acute, +.18 subacute, +.26 chronic (CI excludes 0 in each); peak +.09 / +.22 / +.39 mm/s; onset &minus;.07 / &minus;.10 s subacute / chronic. Walking in the cue window drops slightly chronically (&minus;.014). <b>Data:</b> trials whose most probable GLM-HMM state is engaged. <b>Stats</b> as Fig 2.1. <b>Script:</b> <code>scripts/states_page_figs.py --only push</code>. <span class="ffile"><b>File:</b> <code>LP_analysis/lp_r4_heatmap_20261013__clean_v36/arhmm/v1/poststroke_pooled_all_s1/page_figs/push_by_epoch_glm_engaged.png</code></span></figcaption></figure>
+<figure id="f-wheel_cue_aligned_glmgate" data-fid="wheel_cue_aligned_glmgate" data-num="2.4"><span id="fig2-4" class="figanchor"></span><div class="ftitle"><span class="fnum">Fig 2.4</span>Treadmill around the cue, GLM-HMM engaged vs not</div><img src="wheel_cue_aligned_glmgate.png" alt="Cue-aligned wheel speed, GLM-HMM gate"><figcaption><b class="h">Fig 2.4 &middot; cue-aligned treadmill, GLM-HMM gate.</b> As Fig 2.2 with the GLM-HMM gate. The not-engaged row (partial + disengaged states) still shows a small push in subacute and chronic: those trials include in-period partial trials (table in section 1). <b>Script:</b> <code>scripts/states_page_figs.py --only wheel</code>. <span class="ffile"><b>File:</b> <code>LP_analysis/lp_r4_heatmap_20261013__clean_v36/arhmm/v1/poststroke_pooled_all_s1/page_figs/wheel_cue_aligned_glmgate.png</code></span></figcaption></figure>
+</section>
+
+<section id="syll" data-toc="3. Movement syllables" data-kind="l">
+<span class="tag">AR-HMM syllables &middot; FINDINGS 9.3</span>
+<h2>3. Movement syllables (AR-HMM) <span class="kind l">lick</span></h2>
+<p>Sticky AR-HMM (jax-moseq; &kappa; 5e7, PC-space dither 0.1, 24 states, 19 used) on 25 Hz face, tongue, jaw,
+FaceRhythm and treadmill features, fit on 31 sessions across animals and epochs and decoded on all 107. States are
+grouped by Priya's reel review (11-17; <code>reels_pooled_all_s1/state_labels.csv</code>): quiet 5-8-19, slow nose 1,
+chewing 21-22, ipsilesional licks 0-7-9-23, central licks 10-12-18, contralesional licks 2-15-20, push 11-13, slow walk
+4, walk 6. Readouts use the GLM-HMM engaged trial cycles (previous trial's stop to this trial's stop).</p>
+<div class="take">Acutely the engaged animal sits quiet more and makes fewer contralesional licks; behavior is more
+stereotyped. Chronically lick syllables shift toward ipsilesional and central and the cue push grows: a reorganized
+repertoire rather than a return to pre.</div>
+<figure id="f-arhmm_cue_aligned_groups" data-fid="arhmm_cue_aligned_groups" data-num="3.1"><span id="fig3-1" class="figanchor"></span><div class="ftitle"><span class="fnum">Fig 3.1</span>AR-HMM syllable groups around the cue, engaged trials: acute quiet up and contralesional licks down; chronic push peak doubles</div><img src="arhmm_cue_aligned_groups.png" alt="Cue-aligned syllable group probabilities"><figcaption><b class="h">Fig 3.1 &middot; cue-aligned syllable groups.</b> P(group) from &minus;2 to +4.5 s around the cue; mean over animals &plusmn; SEM band. Acute: quiet stays high after the cue, contralesional and central lick peaks are lower, the ipsilesional peak higher, slow-nose stays up (failed attempts), pre-cue chewing collapses (.25 &rarr; .05; above pre chronically). Push peaks at the cue: .19 pre, .42 chronic. <b>Data:</b> GLM-HMM engaged trials; sessions need &ge; 10 such trials with &gt; 90 % decoded frames. <b>Script:</b> <code>scripts/states_page_figs.py --only arhmm</code>. <span class="ffile"><b>File:</b> <code>LP_analysis/lp_r4_heatmap_20261013__clean_v36/arhmm/v1/poststroke_pooled_all_s1/page_figs/arhmm_cue_aligned_groups.png</code></span></figcaption></figure>
+<figure id="f-arhmm_usage_engaged_by_epoch" data-fid="arhmm_usage_engaged_by_epoch" data-num="3.2"><span id="fig3-2" class="figanchor"></span><div class="ftitle"><span class="fnum">Fig 3.2</span>AR-HMM syllable-group share on engaged trial cycles by epoch</div><img src="arhmm_usage_engaged_by_epoch.png" alt="Syllable group usage by epoch"><figcaption><b class="h">Fig 3.2 &middot; syllable-group share, engaged cycles.</b> Change vs own pre (acute / subacute / chronic; * = CI excludes 0): quiet +.11* / &minus;.01 / &minus;.06; chewing &minus;.07* / &minus;.04* / +.01; ipsilesional licks +.03* / +.02 / +.02*; central licks &minus;.00 / +.01* / +.02*; contralesional licks &minus;.02* / &minus;.01 / &minus;.00; push &minus;.01* / +.01 / +.02*; slow walk &minus;.02*; walk &minus;.02* acute. <b>Data:</b> fraction of decoded frames per session on GLM-HMM engaged trial cycles. <b>Script:</b> <code>scripts/states_page_figs.py --only arhmm</code>. <span class="ffile"><b>File:</b> <code>LP_analysis/lp_r4_heatmap_20261013__clean_v36/arhmm/v1/poststroke_pooled_all_s1/page_figs/arhmm_usage_engaged_by_epoch.png</code></span></figcaption></figure>
+<figure id="f-arhmm_lick_direction_by_epoch" data-fid="arhmm_lick_direction_by_epoch" data-num="3.3"><span id="fig3-3" class="figanchor"></span><div class="ftitle"><span class="fnum">Fig 3.3</span>Lick direction from the AR-HMM: contralesional share of lick frames stays below pre through chronic</div><img src="arhmm_lick_direction_by_epoch.png" alt="Lick syllable direction shares by epoch"><figcaption><b class="h">Fig 3.3 &middot; lick direction share.</b> Each lick group as a share of all lick-syllable frames (direction, independent of how much the mouse licks). Contralesional .44 pre: &minus;.12 [&minus;.17, &minus;.04] acute, &minus;.07 [&minus;.10, &minus;.03] subacute, &minus;.07 [&minus;.10, &minus;.03] chronic; ipsilesional +.14 / +.04 / +.03 (all CI excludes 0). <b>To check:</b> whether this is aim (tongue lateral within a spout) or distribution (fewer licks per trial at contralesional spouts) &ndash; compare with the LP per-lick direction results (kinematics page). <b>Script:</b> <code>scripts/states_page_figs.py --only arhmm</code>. <span class="ffile"><b>File:</b> <code>LP_analysis/lp_r4_heatmap_20261013__clean_v36/arhmm/v1/poststroke_pooled_all_s1/page_figs/arhmm_lick_direction_by_epoch.png</code></span></figcaption></figure>
+<figure id="f-arhmm_transition_entropy" data-fid="arhmm_transition_entropy" data-num="3.4"><span id="fig3-4" class="figanchor"></span><div class="ftitle"><span class="fnum">Fig 3.4</span>AR-HMM transition entropy on engaged cycles: lower acutely (more stereotyped sequences)</div><img src="arhmm_transition_entropy.png" alt="Transition entropy by epoch"><figcaption><b class="h">Fig 3.4 &middot; transition entropy.</b> Entropy of the next syllable group (runs of the same group collapsed), occupancy-weighted: &minus;.20 [&minus;.31, &minus;.10] bits acute, +.03 subacute, +.11 chronic. Exploratory single transitions (about 140 tests): chronic push &rarr; contralesional lick &minus;.11, quiet &rarr; contralesional &minus;.06, walk &rarr; central &minus;.17, walk &rarr; ipsilesional +.16 (table <code>transitions.csv.gz</code>). <b>Script:</b> <code>scripts/states_page_figs.py --only arhmm</code>. <span class="ffile"><b>File:</b> <code>LP_analysis/lp_r4_heatmap_20261013__clean_v36/arhmm/v1/poststroke_pooled_all_s1/page_figs/arhmm_transition_entropy.png</code></span></figcaption></figure>
+<figure id="f-arhmm_groups_at_jaw_onset_jawonly" data-fid="arhmm_groups_at_jaw_onset_jawonly" data-num="3.5"><span id="fig3-5" class="figanchor"></span><div class="ftitle"><span class="fnum">Fig 3.5</span>Jaw-only trials: the syllables at the jaw onset are quiet, slow nose and walking, not chewing</div><img src="arhmm_groups_at_jaw_onset_jawonly.png" alt="Syllable groups at the jaw onset of jaw-only trials"><figcaption><b class="h">Fig 3.5 &middot; syllables at the jaw onset, jaw-only trials.</b> Share of frames &plusmn; 0.15 s around the camera jaw onset. Jaw-only attempts get no syllable of their own: quiet, slow nose (state 1) and the walking groups dominate in every epoch; chewing (21 + 22) is .04&ndash;.05. The chewing group is peri-lick (69 % of state 21 frames within 0.5 s of a camera lick), so it falls with licking acutely. About 40 % of jaw-only onsets fall in walking states pre and post (run-onset jaw movement?). <b>Script:</b> <code>scripts/states_page_figs.py --only arhmm</code>. <span class="ffile"><b>File:</b> <code>LP_analysis/lp_r4_heatmap_20261013__clean_v36/arhmm/v1/poststroke_pooled_all_s1/page_figs/arhmm_groups_at_jaw_onset_jawonly.png</code></span></figcaption></figure>
+<figure id="f-arhmm_reels_contact_sheet" data-fid="arhmm_reels_contact_sheet" data-num="3.6"><span id="fig3-6" class="figanchor"></span><div class="ftitle"><span class="fnum">Fig 3.6</span>AR-HMM state reels: mid-syllable frame of each reel clip, one row per state</div><img src="arhmm_reels_contact_sheet.png" alt="Contact sheet of AR-HMM state reels"><figcaption><b class="h">Fig 3.6 &middot; reel contact sheet.</b> Eight syllables per state (two per animal, mostly pre and acute), cam4. Videos: <code>arhmm/v1/reels_pooled_all_s1/state_XX.avi</code>; states 4, 6, 11, 13, 21, 22 with cam1 and the treadmill trace: <code>reels_pooled_all_s1_wheel_cam1/</code>. <b>Script:</b> <code>python -m wfield_local.arhmm_reels</code>. <span class="ffile"><b>File:</b> <code>LP_analysis/lp_r4_heatmap_20261013__clean_v36/arhmm/v1/poststroke_pooled_all_s1/page_figs/arhmm_reels_contact_sheet.png</code></span></figcaption></figure>
+<p><b>Model checks.</b> Seed stability (frame agreement after matching states by mean feature profile): pooled seeds .66 / .49, .82 / .80 with the quiet cluster 5-8-19 merged; pre-stroke-only seeds .82 / .64 (one stable quiet state). AR-HMM beats a Gaussian HMM on agreement with independent DAQ labels. Fits and provenance: <code>arhmm/v1/fits/PROVENANCE.txt</code>.</p>
+</section>
+
+<section id="tim" data-toc="4. Task-independent movement" data-kind="l">
+<span class="tag">TIM &middot; FINDINGS 9.4</span>
+<h2>4. Task-independent movement (TIM) <span class="kind l">lick</span></h2>
+<p>Movement not explained by the task (after Yin et al. 2025), per session, in two frames: refit within the session,
+and frozen to the pre-stroke model.</p>
+<div class="take">Unlike Yin et al., within-session TIM does not rise after the stroke: tongue TIM falls acutely in
+3 of 4 animals (less spontaneous licking; PS95 rises). In the frozen frame the acute nose rise (4/4) is a
+contralesional posture shift of the nose (&minus;2.1 / &minus;0.8 / &minus;5.1 / &minus;4.5 px), not more variability.
+This fits the stiller acute state seen here (more quiet syllables) and in the quiet-event results.</div>
+<p class="pending">Figures pending: TIM by epoch, and TIM split by GLM-HMM state and trial class (tables on the share:
+<code>task_independent_movement/v2/sessions</code>).</p>
+</section>
+
+<section id="frozen" data-toc="5. Distance from the pre-stroke repertoire">
+<span class="tag">Frozen pre-stroke AR-HMM &middot; pending</span>
+<h2>5. How far does post-stroke behavior sit from the pre-stroke repertoire?</h2>
+<p class="pending">Pending. Frame-by-frame log-likelihood of each session under the pre-stroke AR-HMM: post-stroke days
+scored by the full pre-stroke fit, pre-stroke days by 8 held-out fits (fold k leaves out each animal's k-th pre day;
+fits done on O2 11-17), so the pre-stroke floor is not in-sample.</p>
+</section>
+
+<section id="methods" data-toc="6. Methods and caveats">
+<h2>6. Methods and caveats</h2>
+<ul>
+<li><b>Sessions and baseline.</b> 107 sessions with decoded syllables (GLM-HMM: 119); epochs from <code>epochs.epoch_of</code>; pre-stroke = August only (<code>config.early_pre</code>).</li>
+<li><b>Statistics.</b> Session markers open (shape = animal); pooled = mean with 95 % CI (nested bootstrap animals &rarr; sessions, <code>analysis_kit.boot_ci</code>). * = paired animal-weighted bootstrap of the change vs each animal's own pre (<code>boot_delta</code>) excludes 0; per-animal tables written beside each figure (<code>*_per_animal.csv</code>).</li>
+<li><b>GLM-HMM emissions are shared across epochs</b>, so per-state outcome rates are not stationary (Fig 1.3); the states are used as an engagement gate.</li>
+<li><b>Near-mid jaw-only</b> cannot be called (spout occludes the chin on cam4; cam1 failed review): no-lick near-mid trials count as no response.</li>
+<li><b>AR-HMM reference fit</b> = pooled_all seed 1 (local refit 11-17, same command as O2); groups from the reviewed <code>state_labels.csv</code>; changing a group there changes every readout here on the next collect.</li>
+<li><b>Reproduce:</b> <code>python -m wfield_local.behavior_states collect</code> then <code>python scripts/states_page_figs.py</code>.</li>
+</ul>
+</section>
+</div></div>
+
+<script>
+(function () {
+  var list = document.getElementById('toclist');
+  document.querySelectorAll('section[data-toc]').forEach(function (s) {
+    var li = document.createElement('li');
+    var a = document.createElement('a'); a.href = '#' + s.id; a.textContent = s.getAttribute('data-toc');
+    var k = s.getAttribute('data-kind');
+    if (k) { var t = document.createElement('span'); t.className = 'kind ' + k; t.textContent = k === 'n' ? 'neural' : 'lick'; a.appendChild(t); }
+    li.appendChild(a);
+    var figs = s.querySelectorAll('figure[id]');
+    if (figs.length) {
+      var ol = document.createElement('ol'); ol.className = 'sub';
+      figs.forEach(function (f) {
+        var t = f.querySelector('.ftitle'); var txt = t ? t.textContent : f.id;
+        var l2 = document.createElement('li'); var a2 = document.createElement('a'); a2.href = '#' + f.id; a2.textContent = txt.length > 70 ? txt.slice(0, 68) + '…' : txt;
+        l2.appendChild(a2); ol.appendChild(l2);
+      });
+      li.appendChild(ol);
+    }
+    list.appendChild(li);
+  });
+  var btn = document.getElementById('tocbtn');
+  function setClosed(c) { document.body.classList.toggle('closed', c); btn.setAttribute('aria-expanded', String(!c)); try { localStorage.setItem('tocClosed', c ? '1' : '0'); } catch (e) {} }
+  var saved = null; try { saved = localStorage.getItem('tocClosed'); } catch (e) {}
+  setClosed(saved === null ? window.innerWidth < 640 : saved === '1');
+  btn.addEventListener('click', function () { setClosed(!document.body.classList.contains('closed')); });
+  list.addEventListener('click', function (e) { if (e.target.closest('a') && window.innerWidth < 640) setClosed(true); });
+  var links = list.querySelectorAll('a');
+  var io = new IntersectionObserver(function (es) { es.forEach(function (en) { if (en.isIntersecting) { links.forEach(function (l) { l.classList.toggle('on', l.getAttribute('href') === '#' + en.target.id); }); } }); }, { rootMargin: '-10% 0px -80% 0px' });
+  document.querySelectorAll('section[data-toc], figure[id]').forEach(function (el) { io.observe(el); });
+})();
+</script>
