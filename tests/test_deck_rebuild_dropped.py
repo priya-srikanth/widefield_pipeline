@@ -71,3 +71,32 @@ def test_tagged_build_reads_15f_from_its_rebuild_file(tmp_path, monkeypatch):
     assert new.read_bytes() in blobs                       # the v3 render is the placed picture
     assert pat in reg.EPOCH_FIGURES_REBUILD_LEGEND
     assert set(reg.EPOCH_FIGURES_REBUILD_FILE) <= {p for p, _t, _l in reg.EPOCH_FIGURES}
+
+
+def test_tagged_build_reads_15f_confusion_from_its_rebuild_file(tmp_path, monkeypatch):
+    """The 15f confusion slot also reads the RESTnlc1 v3 render, with its own rebuild legend (11-18)."""
+    main = "epoch_15f_rest_frozen_restdock05_durmatched_gapmatched.png"
+    pat = "epoch_15f_rest_frozen_restdock05_durmatched_gapmatched_confusion.png"
+    assert reg.EPOCH_FIGURES_REBUILD_FILE[pat] == (
+        "rest15f_restnlc1all_20261117/allpre/rest15f_restnlc1v3wk_allpre_durgap_confusion.png")
+    from PIL import Image
+    ep = tmp_path / "grant" / "epoch"
+    files = {}
+    for p, color in ((main, "red"), (pat, "blue")):
+        f = ep / reg.EPOCH_FIGURES_REBUILD_FILE[p]
+        f.parent.mkdir(parents=True, exist_ok=True)
+        Image.new("RGB", (8, 6), color).save(f)
+        files[p] = f
+    s, _titles = _build(tmp_path, monkeypatch, "T")
+    assert s["figures_present"] == 2                       # the 15f main + confusion slides, nothing else
+    from pptx import Presentation
+    prs = Presentation(str(tmp_path / "deck_T.pptx"))
+    blobs = [sh.image.blob for sl in prs.slides for sh in sl.shapes if sh.shape_type == 13]
+    assert files[pat].read_bytes() in blobs
+    notes = [sl.notes_slide.notes_text_frame.text for sl in prs.slides if sl.has_notes_slide]
+    leg = reg.EPOCH_FIGURES_REBUILD_LEGEND[pat]
+    assert any("Where the frozen rest decoder's errors go" in n for n in notes)
+    # the v3 numbers, not the retired restdock05 / DAQ-only reading (far-contra "holds up", .56 -> .67)
+    assert "pre 4985, acute 1020, subacute 1545, chronic 4114" in leg
+    assert ".40 pre, .22 acute, .32 subacute, .20 chronic" in leg
+    assert "HOLDS UP" not in leg and "0.67" not in leg

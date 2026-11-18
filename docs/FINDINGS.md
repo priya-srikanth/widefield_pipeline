@@ -1435,8 +1435,10 @@ be read with it, and the "rules out generic explanations" argument holds for 3 /
    **Frozen pre-stroke rest decoder on lick-free rest (imaging page Fig 12.1, rebuild, "RESTnlc1 v3"):** rest = restdock05
    minus DAQ licks, cam4 LP licks and cam1-only LP events (non-droplet, med_out_px >= -120 px), -0.5 / +2.0 s; periods
    between two camera working trials at the same spout; duration / lick-gap matched; stored frozen models; June + August
-   pre (34 / 13 / 16 / 42 sessions). Retained per animal (acute / subacute / chronic): PS92 .99 / 3.07 (1 session) / 1.40,
-   PS93 -.09 (1 session) / .42 / .52, PS94 .41 / .43 / .14, PS95 .13 (1 session) / .70 / .55. Change in above-chance
+   pre (34 / 13 / 16 / 42 sessions). Retained per animal (acute / subacute / chronic): PS92 .99 / 3.07 / 1.40,
+   PS93 -.09 / .42 / .52, PS94 .41 / .43 / .14, PS95 .13 / .70 / .55. PS93 acute and PS92 subacute each rest on one
+   session that meets the 40-period minimum (PS93 0818 of 0818-0821, PS92 0824 of 0824 / 0826; the others have 31-39
+   lick-free rest periods); PS95's acute epoch has one recorded session (0817). Change in above-chance
    fraction vs own pre (`boot_delta`, animals -> sessions): acute -.120 [-.188, -.037]*, subacute -.030 [-.118, +.092]
    n.s., chronic -.081 [-.153, -.005]*: the rest code drops acutely, is not different from pre subacutely and stays
    somewhat below pre chronically (borderline: the interval's upper end is -.005); about half the size of the
