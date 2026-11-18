@@ -2283,13 +2283,20 @@ route makes the frozen-encoder movement-vs-mapping separation essential.
    CHECK against LP per-lick direction (aim within spout vs fewer licks at contra spouts) before claiming a persistent
    direction deficit; transition entropy -.20 bits acute. Jaw-only attempts are not a syllable (quiet / slow nose /
    walking at the jaw onset); the chewing group (21 + 22) is peri-lick. Page 3.1-3.5.
-9.4. **Task-independent movement does not rise post-stroke (unlike Yin et al. 2025): PROVISIONAL.** Within-session TIM:
-   tongue falls acutely in 3/4 (less spontaneous licking; PS95 rises); frozen-frame acute nose rise (4/4) = a
-   contralesional nose posture shift (-0.8 to -5.1 px), not variability. Page section 4 (figures pending).
-9.5. **Likelihood under held-out pre-stroke AR-HMM fits: acute higher (+.52 nats / frame), chronic lower (-.66), 4/4:
-   PROVISIONAL, CONFOUNDED.** 8 O2 folds (each animal's k-th pre day left out). The acute rise most likely reflects
-   stillness (quiet frames are predictable); needs a quiet-share control before it reads as distance from the
-   pre-stroke repertoire. Page 5.1.
+9.4. **Task-independent movement does not rise post-stroke (unlike Yin et al. 2025): PROVISIONAL.** Within-session TIM,
+   working trials: pre-cue unchanged in every part; acute response tongue -3.8 px and ITI jaw -2.1 px (stiller).
+   Pre-stroke, pre-cue nose TIM is higher on not-engaged (GLM-HMM) than engaged trials in 4/4 (+2.2..4.3 px; the
+   Yin effect), and that gap does not change after the stroke. Frozen-frame acute nose rise (4/4) = a contralesional
+   posture shift (-0.8 to -5.1 px). Page 4.1 / 4.2.
+9.5. **Chronic movement is less pre-stroke-like; the acute "more pre-like" score is stillness: PROVISIONAL.** 8 O2
+   held-out pre-stroke AR-HMM fits (each animal's k-th pre day left out), per-frame log-likelihood: all frames +.51
+   acute / -.67 chronic, but on MOVEMENT frames (quiet excluded) -.31 acute (n.s.) / -.61 chronic (4/4). Least
+   pre-like chronically: ipsilesional licks -.78, contralesional -.43 (4/4); the cue push is MORE stereotyped than
+   before (+.93, 4/4). The frozen pre-stroke model's syllables, combined into the reviewed groups: contralesional lick
+   bouts -0.10 s subacute and chronic, more ipsilesional / central licks and push chronically, no new states. Page
+   5.1-5.5.
+9.6. **GLM-HMM K: gains plateau after K = 5** (held-out pseudo-R2 K5-8 .470 / .491 / .494 / .499; outcome and lick
+   terms flat from K = 3; the extra states model running). K = 5 stands.
 
 ## 7. Open questions and withdrawn claims (index)
 
