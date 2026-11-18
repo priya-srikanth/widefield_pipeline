@@ -98,6 +98,13 @@ POS_SHORT = {"close_L": "close ipsi", "close_center": "close mid", "close_R": "c
 POS_ORDER = ["close_L", "close_center", "close_R", "far_L", "far_center", "far_R"]   # lesion LEFT: L = ipsi
 
 
+def _apply_mode():
+    """Re-resolve the LP-set globals from LP_ENV (main, and any spawned worker, call this)."""
+    global MASK, _OUT_NAME, MASK_TEXT, OUT_ROOT
+    MASK, _OUT_NAME, MASK_TEXT = _mode()
+    OUT_ROOT = EPOCH_DIR / _OUT_NAME
+
+
 # ------------------------------------------------------------------------------------------------ mask
 def lickfree_rest_lp(session, rest, rate):
     """``(lick-free rest mask, DAQ + LP lick onsets in samples)``: `rest_frozen_decoder_nl.lickfree_rest` with the LP
@@ -151,6 +158,7 @@ def _working_flags(session):
 
 
 def _collect_job(label):
+    _apply_mode()
     from wfield_local import lp_licks
     from wfield_local.locanmf_cue_lick_analysis import SESSIONS
     fp = _cache_path(label)
@@ -309,6 +317,7 @@ _NL_WRITE = nl._write
 def _fit_job(item):
     """One animal (module-level for spawn): `nl.fit_and_score` on its sessions, own stem."""
     an, pre, out = item
+    _apply_mode()
     nl._write = _write_tolerant
     from wfield_local import parallel
     parallel.pin_blas()
@@ -487,10 +496,8 @@ def main(argv=None) -> int:
                          "(cam4 + cam1 events_all = RESTnlc1, 11-17 night)")
     ap.add_argument("--out", type=Path, default=None)
     a = ap.parse_args(argv)
-    global MASK, MASK_TEXT, OUT_ROOT, _OUT_NAME
     os.environ[LP_ENV] = a.lp                      # before any fan-out: spawned workers read it at import
-    MASK, _OUT_NAME, MASK_TEXT = _mode()
-    OUT_ROOT = EPOCH_DIR / _OUT_NAME
+    _apply_mode()
     a.out = a.out or OUT_ROOT
     print(f"LP set: {a.lp} -> mask {MASK}", flush=True)
     import wfield_local
