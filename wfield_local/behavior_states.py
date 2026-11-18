@@ -145,6 +145,66 @@ def glmhmm_engaged(T: pd.DataFrame) -> dict:
     return {lab: set(g.trial_id) for lab, g in T[eng].groupby("label")}
 
 
+#: GLM-HMM STATE colors (Priya 11-18: state colors were too close to the spout colors). Hues kept clear of the spout
+#: hues (`spout_behavior.SIDE_HUE` blue / purple / red) and the epoch colors (`orofacial_cohort.EPOCH_LINE` black /
+#: magenta / gold / teal); engaged states = one green ramp (dark -> light in state order), separable by lightness under
+#: color-vision deficiency; partial = orange; disengaged = gray.
+ROLE_COLORS = {"engaged": ("#00441B", "#41AB5D", "#A1D99B"), "partial": ("#F28E2B", "#B35806"),
+               "disengaged": ("#7F7F7F", "#BDBDBD")}
+
+
+def glmhmm_state_colors(roles: dict) -> dict:
+    """{state: color} from the roles (`ROLE_COLORS`): the n-th state of a role takes that role's n-th shade."""
+    out, n = {}, {r: 0 for r in ROLE_COLORS}
+    for k in sorted(roles):
+        r = roles[k]
+        shades = ROLE_COLORS[r]
+        out[k] = shades[min(n[r], len(shades) - 1)]
+        n[r] += 1
+    return out
+
+
+def glmhmm_params(K: int = GLMHMM_K, design: str = GLMHMM_DESIGN) -> dict | None:
+    """The fitted pooled GLM-HMM (`glm_hmm --pooled-all --k K --params-only`: W, B, A, pi, X_mean, coding), in the state
+    numbering of `glmhmm_table`; None if not written."""
+    import json
+    from wfield_local import glm_hmm
+    sfx = "" if design == "v1" else f"_{design}"
+    f = Path(glm_hmm.out_dir()) / f"params_pooled_all_K{K}{sfx}.json"
+    return json.loads(f.read_text()) if f.exists() else None
+
+
+def glmhmm_select_k(design: str = GLMHMM_DESIGN) -> pd.DataFrame:
+    """Held-out K selection (`glm_hmm --pooled-all --select-k`), every K run (the K1-5 and K6-8 runs share folds)."""
+    from wfield_local import glm_hmm
+    sfx = "" if design == "v1" else f"_{design}"
+    fs = sorted(Path(glm_hmm.out_dir()).glob(f"select_k_pooled_all{sfx}*.csv"))
+    return pd.concat([pd.read_csv(f) for f in fs], ignore_index=True).drop_duplicates(["K", "fold"])
+
+
+def glmhmm_emission(params: dict, pos: str | None = None) -> dict:
+    """Model emission probabilities per state: {output: array [K, n_classes]} at the average input (shared animal
+    offsets at their mean), for spout ``pos`` (a `glm_hmm.POSITIONS` name) or averaged over the input mean."""
+    ns = params["n_shared"]
+    xm = np.asarray(params["X_mean"], float)
+    x = xm[ns:].copy()
+    if pos is not None:
+        P = params["positions"]
+        x[1:len(P)] = 0.0
+        i = P.index(pos)
+        if i > 0:
+            x[i] = 1.0
+    out = {}
+    for j, name in enumerate(params["outputs"]):
+        W = np.asarray(params["W"][j], float)               # [K, C-1, D]
+        off = (np.asarray(params["B"][j], float) @ xm[:ns]) if ns else 0.0
+        eta = np.concatenate([np.zeros((W.shape[0], 1)), W @ x + off], axis=1)
+        eta -= eta.max(1, keepdims=True)
+        pr = np.exp(eta)
+        out[name] = pr / pr.sum(1, keepdims=True)
+    return out
+
+
 def occupancy_per_session(T: pd.DataFrame) -> pd.DataFrame:
     """Mean posterior per state and per role, one row per session (label, animal, epoch)."""
     roles = glmhmm_roles(T)
@@ -184,6 +244,44 @@ def load_session(label: str, tag: str | None = None):
     cols = [str(c) for c in F["features"]]
     z = np.load(st.fits_dir() / f"states_{tag or st.REFERENCE_TAG}" / f"{label}.npz")["z"].astype(int)
     return F["t_daq_s"], F["X"][:, cols.index("run_fwd")], F["X"][:, cols.index("run_back")], z
+
+
+#: features shown for each syllable group's motif (`arhmm_features` columns; tongue_ml / jaw_x / nose_x are signed
+#: + = contralesional); treadmill shown as signed velocity (forward +, backward push -)
+MOTIF_FEATURES = ("tongue_ext", "tongue_ml", "jaw_y", "nose_y", "run")
+MOTIF_WIN_S = (-0.4, 0.8)
+
+
+def motif_traces(item) -> dict | None:
+    """Onset-aligned feature traces of each syllable GROUP in one session: {group: [n_onsets, n_bins, n_features]}
+    means, plus onset counts and bout durations. ``item`` = (label, groups, tag). Bout = a run of the same group."""
+    from wfield_local import arhmm_features as af
+    from wfield_local import arhmm_states as st
+    label, groups, tag = item
+    F = np.load(Path(af.out_dir()) / "sessions" / f"{label}.npz", allow_pickle=True)
+    cols = [str(c) for c in F["features"]]
+    X = F["X"]
+    z = np.load(st.fits_dir() / f"states_{tag or st.REFERENCE_TAG}" / f"{label}.npz")["z"].astype(int)
+    if len(z) != len(X):
+        return None
+    lut = _group_lut(groups)
+    g = np.where(z >= 0, lut[np.maximum(z, 0)], -1)
+    feats = np.stack([X[:, cols.index(c)] if c != "run" else X[:, cols.index("run_fwd")] - X[:, cols.index("run_back")]
+                      for c in MOTIF_FEATURES], axis=1)
+    b0, b1 = (int(round(w * 25)) for w in MOTIF_WIN_S)
+    starts = np.flatnonzero(np.r_[True, g[1:] != g[:-1]])
+    stops = np.r_[starts[1:], len(g)]
+    out = {}
+    for gi, name in enumerate(groups):
+        on = starts[g[starts] == gi]
+        dur = (stops - starts)[g[starts] == gi] / 25.0
+        on = on[(on + b0 >= 0) & (on + b1 < len(g))]
+        if not len(on):
+            continue
+        seg = np.stack([feats[o + b0:o + b1 + 1] for o in on])
+        out[name] = {"mean": np.nanmean(seg, 0), "n": len(on), "dur_med": float(np.median(dur)),
+                     "frac": float(np.mean(g == gi))}
+    return {"label": label, "groups": out}
 
 
 # ------------------------------------------------------------------------------------------------ collector

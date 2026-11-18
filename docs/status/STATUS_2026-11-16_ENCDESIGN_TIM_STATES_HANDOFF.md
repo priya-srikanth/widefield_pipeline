@@ -142,6 +142,23 @@ Run code from a worktree with `PYTHONPATH=$(pwd -W)` (Windows form). AR-HMM mode
 - Open: LP direction cross-check (other window); contra lick bout length vs the kinematics page; merge of the
   branches into main.
 
+## 3d. 11-18 (late morning): page v6 -- identified states / motifs first, change-vs-own-pre figures, new state colors
+
+- **cam1 lick rule (main dc1f1e2d) re-run** on the merge branch: collector + figures; NO headline number moved (push,
+  lick direction, quiet, entropy, TIM, frozen likelihood all as on the page).
+- **Fig 1.1 = the identified GLM-HMM states** (`--only model`): K sweep 1-8, model emission probabilities, model
+  P(attempt) by spout, transition matrix. Parameters were never saved: `glm_hmm --pooled-all --k 5 --params-only`
+  (new) refits with the same seed + cached sequences and writes `params_pooled_all_K5_v2.json` ONLY if the posteriors
+  reproduce the table on disk (max diff 1.1e-16). `behavior_states.glmhmm_params / glmhmm_emission / glmhmm_select_k`.
+  K6-8 sweep copied to the share (`select_k_pooled_all_v2_K6-7-8.csv`).
+- **Fig 3.1 = the AR-HMM motifs** (`--only motifs`, `behavior_states.motif_traces`): per group, reel frames + onset-aligned
+  tongue / jaw / nose / treadmill, 31 pre sessions.
+- **Every by-epoch figure also as change vs own pre** (`<name>_dpre.png`, `delta_panels`; Priya 11-18); the page shows
+  the _dpre version, caption names the levels file.
+- **Colors** (Priya 11-18): spout tick labels black unless spouts overlaid (`_spout_axis(colored=)`); GLM-HMM state
+  palette `behavior_states.ROLE_COLORS` / `glmhmm_state_colors` (greens = engaged, orange = partial, gray = disengaged).
+- Page v6 published (https://claude.ai/artifact/ChbBM9K12WWRohx6nU6rCX); source `docs/results_pages/states/index.html`.
+
 ## 3a. 11-17 ~18:00: held-out pre baseline + pre seed stability
 
 - **Pre-model seed stability** (`arhmm_seed_match_noQ.py`, ref pre_s1): pre_s2 frame agreement .823 / ARI .847; pre_s3

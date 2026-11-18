@@ -497,7 +497,17 @@ def august_on(data: dict) -> list[str]:
     return sorted(lab for lab in data if lab[-4:] >= "0801")
 
 
-def run_pooled(data: dict, K: int) -> pd.DataFrame:
+def model_params(m: "GLMHMM", order, labs, data) -> dict:
+    """The fitted model in ``order`` (the table's state numbering): state weights W, shared offsets B, transitions A,
+    initial pi, the mean input (for predicted emission profiles) and the coding needed to read them."""
+    return {"K": m.K, "labels": list(labs), "W": [w[order].tolist() for w in m.W],
+            "B": [b.tolist() for b in m.B] if m.ns else None, "n_shared": int(m.ns),
+            "A": m.A[np.ix_(order, order)].tolist(), "pi": m.pi[order].tolist(), "ll": m.ll,
+            "X_mean": np.vstack([data[lab][0] for lab in labs]).mean(0).tolist(), "outputs": list(OUTPUTS),
+            "positions": list(POSITIONS), "outcome_mode": outcome_mode(), "n_classes": n_classes()}
+
+
+def run_pooled(data: dict, K: int) -> tuple[pd.DataFrame, dict]:
     """ONE model over ALL animals and ALL August-onward epochs (Priya 11-17: per-animal states are not comparable --
     the quit tail sat in a different state in each animal). Shared emissions = shared state definitions; the
     per-animal bias columns of X absorb each animal's baseline rates, so states are not forced to encode identity
@@ -505,7 +515,7 @@ def run_pooled(data: dict, K: int) -> pd.DataFrame:
     labs = august_on(data)
     m = GLMHMM(K).fit([data[lab][:2] for lab in labs])
     order = m.engagement_order(np.vstack([data[lab][0] for lab in labs]).mean(0))
-    return _table(m, labs, data, "pooled_all", order)
+    return _table(m, labs, data, "pooled_all", order), model_params(m, order, labs, data)
 
 
 def main(argv=None) -> int:
@@ -522,6 +532,8 @@ def main(argv=None) -> int:
     ap.add_argument("--ks", default="1,2,3,4,5", help="--select-k: the K values (folds are fixed, so runs add up)")
     ap.add_argument("--design", default="v2", choices=DESIGNS, help="see DESIGNS (v2 = shared animal offsets, no "
                     "previous-outcome input)")
+    ap.add_argument("--params-only", action="store_true", help="--pooled-all --k K: refit and write the model "
+                    "parameters only, after checking the refit reproduces the posterior table on disk")
     a = ap.parse_args(argv)
     labels = sorted(ak.curated_ids())
     animals = sorted({lab.split("_")[0] for lab in labels})
@@ -540,8 +552,18 @@ def main(argv=None) -> int:
             print(R.groupby("K")[["bits_per_cycle_vs_K1", "pR2_total", *[f"pR2_{o}" for o in OUTPUTS]]].mean().round(4),
                   flush=True)
         for K in ([a.k] if a.k else ([] if a.select_k else [3, 4])):
-            run_pooled(data, K).to_csv(od / f"states_pooled_all_K{K}{sfx}.csv.gz", index=False)
-            print("written", od / f"states_pooled_all_K{K}{sfx}.csv.gz", flush=True)
+            T, params = run_pooled(data, K)
+            if a.params_only:              # same seed + data as the table on disk: write the parameters beside it
+                old = pd.read_csv(od / f"states_pooled_all_K{K}{sfx}.csv.gz")
+                dmax = float(np.abs(old[[f"p_state{k}" for k in range(K)]].to_numpy()
+                                    - T[[f"p_state{k}" for k in range(K)]].to_numpy()).max())
+                print(f"K{K}: max |posterior - table on disk| = {dmax:.2e}", flush=True)
+                if dmax > 1e-6:
+                    raise SystemExit("refit does not reproduce the table on disk; parameters NOT written")
+            else:
+                T.to_csv(od / f"states_pooled_all_K{K}{sfx}.csv.gz", index=False)
+            (od / f"params_pooled_all_K{K}{sfx}.json").write_text(json.dumps(params, indent=1))
+            print("written", od / f"params_pooled_all_K{K}{sfx}.json", flush=True)
         return 0
     if a.select_k and a.per_animal:
         out = []
