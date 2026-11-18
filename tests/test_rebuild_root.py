@@ -282,6 +282,9 @@ RESOLVED = {
     "scripts/rest_migration/lick_bout_structure.py",
     "scripts/rest_migration/quit_prodrome.py",
     "wfield_local/animal_weights.py",
+    "wfield_local/arhmm_features.py",   # AR-HMM features (11-16): oo.root default, ARHMM_OUT override
+    "wfield_local/arhmm_reels.py",      # merge-QC reels (11-17): oo.root default, --out override
+    "wfield_local/arhmm_states.py",     # fits_dir (11-17): oo.root default, ARHMM_FITS override
     "wfield_local/behavior_clip_deck.py",
     "wfield_local/behavior_events.py",
     "wfield_local/crossday_intensity.py",
