@@ -110,7 +110,7 @@ Total: 335 items, 1705 files, 2.21 GB. Full list (from, to, files, bytes): `docs
 Launched 18:11. Lane A C: a1-a9 + c01-c15 all done (finished 21:53). Lane D: d1-d3 done (18:58). Lane B: b01-b18 done
 (23:04); b19_cv_sm_plot (plot-only) held: another window's arhmm scoring jobs (8 x ~4 GB, not ours, not touched) took
 free RAM to 1-2 GB at 22:51, the queue wrote STOP during b18 (nothing killed; b18 finished OK). A background waiter
-re-runs `ONLY=b19_cv_sm_plot SECTIONS=B` once >= 12 GB is free (STOP -> `logs/STOP_lowram_b18_2251.txt`). No step failed.
+re-ran `ONLY=b19_cv_sm_plot SECTIONS=B` once >= 12 GB was free (STOP -> `logs/STOP_lowram_b18_2251.txt`): b19 done 11-18 00:07. All 43 steps done; no step failed.
 
 ## Old vs new
 
