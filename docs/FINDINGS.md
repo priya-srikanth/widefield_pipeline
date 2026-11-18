@@ -1450,8 +1450,12 @@ be read with it, and the "rules out generic explanations" argument holds for 3 /
    Requiring 40 matched periods per post-stroke session instead of 30 changes no outcome. August-only pre (PS92, PS94,
    PS95; PS92 passes the fairness gate at this window): acute -.091*, subacute -.033 n.s., chronic -.090*. cam4-only
    lick removal (no cam1, same settings): acute -.135*, subacute -.049 n.s., chronic -.077 [-.150, +.003] n.s. PS92's
-   lick-free pre-stroke rest accuracy is the lowest (.264 vs null .169); PS92 stays in the statistics. **PROVISIONAL**
-   (docs/status/REST15F_PCT5_SENSITIVITY_20261118.md, docs/status/REST15F_FLOOR30_SENSITIVITY_20261118.md,
+   lick-free pre-stroke rest accuracy is the lowest (.264 vs null .169); PS92 stays in the statistics. The kept cam1-only
+   events were checked in two blind review rounds (11-17: 30 / 40 isolated events outside post-cue were tongue, and every
+   far-from-mouth label was removed by the -120 px guard; 11-18: 29 / 29 short, nearly motionless events from PS95 / PS94
+   post-stroke were tongue at the lips), so the cam1 lick removal is removing real licks. The cam4-only version's weaker
+   subacute / chronic changes fit cam4 missing those licks. **STANDS** (was provisional until the cam1 reviews; Priya 11-18)
+   (docs/status/ENL_ITI_CAM1_CENSUS_20261118.md, docs/status/CAM1_EXTRA_LICKS_CHECK_20261117.md, docs/status/REST15F_PCT5_SENSITIVITY_20261118.md, docs/status/REST15F_FLOOR30_SENSITIVITY_20261118.md,
    docs/status/REST15F_RESTNL_REBUILD_20261117.md, docs/status/RESTNLC1_V3_RERUN_20261117.md).
 10. **Pre-cue (ENL) position code: no consistent acute loss** (up PS92 / PS95, down PS93 / PS94; the slow band accounts
     for PS93's drop). Coding-direction leave-one-out (rebuild re-run 11-17: DAQ lick-gated trials, August pre 32

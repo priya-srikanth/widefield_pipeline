@@ -102,3 +102,9 @@ The all-LP-trial population gives the same picture.
   - The census effect is REAL licks. The current cam4-only ENL / ITI lick-free windows in PS95 chronic (and PS94
     subacute / chronic) contain tongue-at-lips licks that cam4 misses, concentrated at the far spouts. Whether to re-run
     ENL / ITI with cam1 is Priya's call: she leaned away 11-18, and cam2/3 will be added later.
+- **Decisions (Priya 11-18, DECISIONS.md 2026-11-18):**
+  - Fig 12.1 is no longer provisional (Spout (Target) Coding page v65; FINDINGS item 9 STANDS).
+  - **ENL / ITI stay as they are.** Priya: "i don't know that we need to eliminate these little pre-licks, ok to keep as
+    is". No re-run.
+  - The caveat above (small cam1-only licks at the lips inside the windows of PS95 chronic and PS94 subacute / chronic)
+    is recorded; revisit with cam2/3.
