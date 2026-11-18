@@ -1196,6 +1196,22 @@ the scripts, all in the work dir).** r2_full / fold0 / fold1 all ran 300 epochs 
   3-5 px, tongue spikes 11-16 px) are SMALLER than genuine motion, so no epsilon can target them without penalising
   real movement: the temporal loss has little to fix (as 11-04). If run: nose 5, jaw 10, tongue 25, spout 10.
 
+**Round 2 follow-ups (11-18 evening, Priya).**
+* **Rod at the chin.** On the review clips the jaw is called hidden only in the camera on the rod's side (close_L: cam2
+  79 %, cam3 0 %; close_R: cam3 80 %, cam2 0 %; both hidden 0 % at every position), so 3-D keeps the jaw from the other
+  side camera. crop2 had put the jaw ON the rod tip (= spout point). `scratchpad rod_at_chin_clips.png`.
+* **Jaw relabel (Priya, napari).** 77 labeled frames had the spout visible and the jaw blank. 53 sent as ONE batch folder
+  (`lp_stage/jaw_relabel_20261118/labeled-data/jaw_batch`, names `<a|b>_<stem>__<img>`; a = rod away from the chin, 16;
+  b = rod at the chin, 37); the 24 tongue-out / grooming frames stay blank. Priya added 27 jaws (10 a, 17 b) and moved 2
+  spouts; merged cell by cell into the live project (`merge_log.csv`; pre-edit backups in
+  `DeepLabCut/Widefield/label_backups/20261118_jaw_relabel/`). Staged as **r2b** (`lp_stage/lp_side_r2b_20261118`, same
+  folds; jaw labels 303 -> 330), supervised crop2 recipe, training 11-18 evening.
+* **Temporal arm on the r2 labels** (WSL, 11-04 recipe, eps [5, 10, 25, 10], 126 unlabeled clips; r2_full only, the
+  folds were stopped by Priya's call): WORSE than supervised r2 on the 14 clips. Tongue pre-cue confident 0.033 -> 0.106
+  (false tongue before the cue), tongue one-frame spikes 7 -> 34 (max step 52 -> 152 px), jaw spikes 6 -> 12, jaw step
+  p99.9 7.0 -> 9.1, nose max step 2.2 -> 9.0; spout max step 13.9 -> 12.5 (a tie). Same outcome as 11-04: the temporal
+  loss is NOT adopted for the side model. `lp_side_r2_20261118/clip_compare_temporal.txt`.
+
 ## D13. June in 3-D, re-evaluated (11-07, a8; Priya asked why June kinematics cannot use the spout-posed 3-D)
 
 **Why June was dropped (10-18):** a 2-D argument. cam4 was re-set on 08-05, and June differs in perspective, not just
