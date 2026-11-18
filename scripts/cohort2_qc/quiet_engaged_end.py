@@ -6,7 +6,8 @@ quit was censored (no quit detected) -- so imaging after the task stopped counte
 at the LAST CUE + the session's response window. a2 (11-18): in PS92_0828 every Arduino line (sync heartbeat, cue,
 trial_start) stops at 120.3 min while the DAQ and the PCO camera run to 127.5 min, so after that there is no sync and the
 camera alignment is extrapolated -> clean task end = min(last cue + response window, last sync edge) (trial_start is
-not used: it rises at the start of each trial, before its cue). `session_traces` ends engaged at min(quit, task end) when QS_ENGAGED_END=lastcue (default off: old behavior).
+not used: it rises at the start of each trial, before its cue). Then Priya 11-18 (later): the analyzed time ends at the LAST SYNC PULSE -> QS_ENGAGED_END=lastsync
+(primary); QS_ENGAGED_END=lastcue keeps the first rule (superseded); unset = old behavior (quit only).
 
 Writes <cohort1_quiet_spikes>/engaged_end_20261118.csv, one row per session: last edges of cue / trial_start / sync /
 pco_exposure (DAQ s), response window, task_end_s, and the post-task imaging tail (last PCO frame - task end, min);
@@ -64,15 +65,19 @@ def one(label):
     return r
 
 
-def task_end_s(label):
-    """The session's task end (DAQ s) from the table (computed for this one session if missing)."""
+def task_end_s(label, rule="lastcue"):
+    """The session's analyzed-time end (DAQ s) from the table (computed for this one session if missing).
+    rule "lastsync" (Priya 11-18, the PRIMARY rule: "the end of the analyzed time is the LAST SYNC PULSE") = the last
+    rising edge of the sync heartbeat; "lastcue" (first 11-18 rule, superseded) = min(last cue + response window, last
+    sync edge). The two differ by the sync-after-cue gap, at most ~22 s (table: sync stops 0-25 s after the last cue)."""
     import pandas as pd
+    col = {"lastsync": "last_sync_s", "lastcue": "task_end_s"}[rule]
     f = table_path()
     if f.exists():
         T = pd.read_csv(f).set_index("label")
         if label in T.index:
-            return float(T.loc[label, "task_end_s"])
-    return float(one(label)["task_end_s"])
+            return float(T.loc[label, col])
+    return float(one(label)[col])
 
 
 def main():

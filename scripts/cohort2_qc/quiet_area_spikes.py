@@ -110,12 +110,15 @@ def session_traces(label, detrend=True):
         if k < len(bh.cue_samples):
             quit_s = bh.cue_samples[k] / bh.sample_rate
             engaged = ft < quit_s
-    # QS_ENGAGED_END=lastcue (Priya 11-18): engaged also ends at the TASK end = min(last cue + response window, last
+    # QS_ENGAGED_END=lastcue (first 11-18 rule, superseded): engaged also ends at the TASK end = min(last cue + response window, last
     # sync edge) (quiet_engaged_end.py). Without it a censored quit kept the whole recording, so imaging
     # after the task stopped counted as engaged quiet (PS92_0828 7.2-min tail, PS93_0806 pre 12.9 min). Default off.
-    if os.environ.get("QS_ENGAGED_END", "") == "lastcue":
+    # QS_ENGAGED_END=lastsync (Priya 11-18, primary): the analyzed time ends at the last sync pulse (the task controller
+    # stops; after it the camera alignment is extrapolated). lastcue = the first 11-18 rule (superseded).
+    rule = os.environ.get("QS_ENGAGED_END", "")
+    if rule in ("lastcue", "lastsync"):
         from quiet_engaged_end import task_end_s
-        engaged &= ft < task_end_s(label)
+        engaged &= ft < task_end_s(label, rule)
     return X, ft, fs_img, rest, engaged, quit_s
 
 
