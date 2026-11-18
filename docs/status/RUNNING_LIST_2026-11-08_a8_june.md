@@ -722,3 +722,8 @@ PI deck (backup Overview_2026-11-06.bak_pre_a8_renumber_20261116.pptx): FR page 
   pre zone); no unity line ('too busy'); slide title not ITI-only.
 - Done: figure (panels_loclin_first_20261117), goal page v317 (Fig 12.2 + S2, brief card), deck slide 125, FINDINGS 4d0k,
   DECISIONS entry, handoff 00-A8-1117c. Bars identical in both rows; ITI shifted every epoch on every ITI set.
+- Later: figure retitled 'Decoded vs landed lateral position' (page v318); non-linear version -> page Fig 12.2 S2 (v319)
+  + hidden deck slide 126 (deck now 207 slides; every slide after 125 +1). Quiet-event re-run (cam1 far-from-mouth guard,
+  Priya OK via 3c) queued: waiting for 3c's commit on fix/cam1-farmouth-guard-1117 (worktree wf_c1guard1117 has the
+  guard edits + tests/test_cam1_keep_mask.py, uncommitted at 19:2x). Production env: cohort1_quiet_spikes/
+  v2_quiet_lp_20261117/logs/quiet_v2.log. Nothing of a8's running.

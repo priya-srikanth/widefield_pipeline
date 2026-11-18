@@ -56,7 +56,7 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
 
 ## 2. Next, in order
 
-00-A8-1117c. **11-17 LATE (a8) -- START HERE; 00-A8-1117b below is the evening state (still valid for everything else).**
+00-A8-1117c. **11-17 LATE (a8) -- START HERE (state at ~19:30: all published; only the quiet-event re-run is queued, waiting on 3c's commit); 00-A8-1117b below is the evening state (still valid for everything else).**
    Like-for-like curves rebuilt as ONE figure (Priya 11-17): columns cued all / cued first / ITI all / ITI bout-start first
    lick / ITI docked; rows all post licks vs STRICT (post licks only where the animal's own pre curve of the same lick set
    exists). Gaussian-smoothed curves, local-linear reference (DECISIONS 2026-11-17 'Like-for-like curves'); FINDINGS 4d0k.
