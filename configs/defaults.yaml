@@ -271,6 +271,10 @@ segmentation:
                                   #   sedentary mice -> better activity-map SNR. Quiet stays <1 -> 1-3 gap.
     max_gap_s: 0.3
     min_duration_s: 2.0
+  push:                           # peri-cue PUSH = backward treadmill movement (`behavior_states`, Priya 11-17):
+    thresh_back_mm_s: 0.5         #   backward speed above this; pre-stroke backward frames: 53 % of AR-HMM push-
+    cue_window_s: [-0.25, 0.75]   #   state frames vs 0 % of quiet / walk frames. Cue window holds the push peak
+    control_window_s: [-2.0, -1.0]  # (~+0.15 s); control = spout already in place, ~1 s before the cue
   # REST = between trials AND not running AND not licking. Renamed from `quiet` on 2026-09-12
   # because that word briefly meant two different definitions and the retired masks keep the old
   # meaning on disk (Priya: "i worry that having the older things named quiet will get confusing").

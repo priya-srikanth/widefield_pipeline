@@ -2309,9 +2309,13 @@ route makes the frozen-encoder movement-vs-mapping separation essential.
    held-out pre-stroke AR-HMM fits (each animal's k-th pre day left out), per-frame log-likelihood: all frames +.51
    acute / -.67 chronic, but on MOVEMENT frames (quiet excluded) -.31 acute (n.s.) / -.61 chronic (4/4). Least
    pre-like chronically: ipsilesional licks -.78, contralesional -.43 (4/4); the cue push is MORE stereotyped than
-   before (+.93, 4/4). The frozen pre-stroke model's syllables, combined into the reviewed groups: contralesional lick
-   bouts -0.10 s subacute and chronic, more ipsilesional / central licks and push chronically, no new states. Page
-   5.1-5.5.
+   before (+.93, 4/4). The frozen pre-stroke model's syllables, combined into the reviewed groups: more ipsilesional /
+   central licks and push chronically, no new states (page 5.1-5.5). Its whole-session contralesional runs are
+   shorter (-0.10 s), but NOT at the target: on engaged trials contralesional runs at near contra are longer chronically
+   (+0.18 s), lick-group switching does not rise at any spout, and licks per responded trial at the contralesional
+   spouts rise chronically (kinematics: near +2.6, far +1.5). What persists is at far contra: the share of lick frames
+   labeled contralesional -.67 acute, -.35 subacute, -.21 chronic (interval reaching 0) -- part of far-contra licking
+   still reads as central / ipsilesional (`scripts/states_lick_switch_check.py`).
 9.6. **GLM-HMM K: gains plateau after K = 5** (held-out pseudo-R2 K5-8 .470 / .491 / .494 / .499; outcome and lick
    terms flat from K = 3; the extra states model running). K = 5 stands.
 
