@@ -23,6 +23,12 @@ same URL, then re-start the artifact watch. Tick each item here and commit.
 - [ ] **Fig 12.1 rest frozen decoder** (cam4-only run done 11-17: `.../epoch/rest15f_restnl_cam4_20261117/`; cam4+cam1: `.../epoch/rest15f_restnl_20261117/`; Priya OK 11-17: place cam4+cam1 after the overnight RESTnl-cam1 check, cam4 as sensitivity, wording: drops acutely, somewhat below pre chronically, subacute n.s., ~half the old size, status provisional; update the FINDINGS rest line the same way; re-point the deck 15f slot) — decisions made 11-17 (PS92 kept with caveat). Run:
   `.../epoch/rest15f_restnl_20261117/{allpre,augpre}/`, record `docs/status/REST15F_RESTNL_REBUILD_20261117.md`
   (branch analysis/rest15f-rebuild-1117, 308468b5, unpushed). Status would go stands -> provisional.
+  - **11-17 ~22:45 v3 tables seen; Priya approved the final wording.** Use v3 (`rest15f_restnlc1all_20261117/`; cam1 guard
+    applied). June+Aug pre: acute -0.120 [-0.188, -0.037] *, subacute -0.030 n.s., chronic -0.081 [-0.153, -0.005] *
+    = "somewhat below pre, borderline (upper end -0.005)" (v2 had it n.s. at +0.004; cam4-only -0.001). Add: "August-only pre
+    (PS94, PS95): acute and chronic drops hold; subacute no longer excludes zero" (v2 had subacute *). Placement helper
+    started (new branch docs/fig121-v3-1117 for FINDINGS + deck 15f slot). NB the "12.1b" block in the helper's
+    decoder_tables.txt is the unbracketed rest_frozen_decoder_nl run, NOT Fig 12.1.
 
 ## 2. Goal / encoding page — https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d (last known v315)
 
