@@ -17,6 +17,10 @@ body { background:var(--bg); color:var(--fg); font:15px/1.55 "Source Sans 3", sy
 .toc a { color:var(--fg); text-decoration:none; display:block; padding:2px 6px; border-radius:3px }
 .toc a:hover, .toc a.on { background:var(--tag) }
 .toc .sub a { color:var(--muted); font-size:.82rem }
+.tocrow { display:flex; align-items:flex-start; gap:2px }
+.tocrow a { flex:1 }
+.tg { flex:none; width:20px; min-height:22px; border:0; background:none; color:var(--muted); cursor:pointer; padding:0; font-size:.8rem; line-height:22px }
+.tg:empty { visibility:hidden }
 .kind { display:inline-block; font-size:.62rem; letter-spacing:.06em; text-transform:uppercase; padding:0 5px; border-radius:2px; margin-left:4px; vertical-align:1px; border:1px solid currentColor }
 .kind.n { color:var(--neural) } .kind.l { color:var(--lick) }
 .tocbtn { position:fixed; top:calc(env(safe-area-inset-top,0px) + 10px); left:max(10px, env(safe-area-inset-left,0px)); z-index:11; font:600 .8rem "Source Sans 3", sans-serif; background:var(--card); color:var(--fg); border:1px solid var(--rule); border-radius:4px; padding:6px 10px; cursor:pointer }
@@ -210,13 +214,24 @@ stroke stay ~0 % of frames.</p>
     var a = document.createElement('a'); a.href = '#' + s.id; a.textContent = s.getAttribute('data-toc');
     var k = s.getAttribute('data-kind');
     if (k) { var t = document.createElement('span'); t.className = 'kind ' + k; t.textContent = k === 'n' ? 'neural' : 'lick'; a.appendChild(t); }
-    li.appendChild(a);
     var figs = s.querySelectorAll('figure[id]');
+    var row = document.createElement('div'); row.className = 'tocrow';
+    var tg = document.createElement('button'); tg.type = 'button'; tg.className = 'tg';
+    row.appendChild(tg); row.appendChild(a); li.appendChild(row);
     if (figs.length) {
       var ol = document.createElement('ol'); ol.className = 'sub';
+      var key = 'tocOpen:' + s.id, open = false;
+      try { open = localStorage.getItem(key) === '1'; } catch (e) {}
+      function setOpen(o) { ol.hidden = !o; tg.textContent = o ? '▾' : '▸'; tg.setAttribute('aria-expanded', String(o));
+        tg.setAttribute('aria-label', (o ? 'Hide' : 'Show') + ' figures of ' + s.getAttribute('data-toc'));
+        try { localStorage.setItem(key, o ? '1' : '0'); } catch (e) {} }
+      setOpen(open);
+      tg.addEventListener('click', function () { setOpen(ol.hidden); });
       figs.forEach(function (f) {
-        var t = f.querySelector('.ftitle'); var txt = t ? t.textContent : f.id;
-        var l2 = document.createElement('li'); var a2 = document.createElement('a'); a2.href = '#' + f.id; a2.textContent = txt.length > 70 ? txt.slice(0, 68) + '…' : txt;
+        var t2 = f.querySelector('.ftitle');
+        var txt = t2 ? t2.textContent.replace(/^Fig\s*/, 'Fig ') : f.id;
+        txt = txt.replace(/^(Fig [\d.]+)/, '$1 · ');
+        var l2 = document.createElement('li'); var a2 = document.createElement('a'); a2.href = '#' + f.id; a2.textContent = txt;
         l2.appendChild(a2); ol.appendChild(l2);
       });
       li.appendChild(ol);
