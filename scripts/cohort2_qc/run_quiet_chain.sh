@@ -22,7 +22,7 @@
 set -u
 OUTNAME=${1:?usage: run_quiet_chain.sh <OUT_DIRNAME> [jobs]}
 J=${2:-3}
-W=$(cd "$(dirname "$0")/../.." && pwd)
+W=$(cd "$(dirname "$0")/../.." && (pwd -W 2>/dev/null || pwd))   # Windows form (C:/...) for python on this box
 cd "$W" || exit 2
 if ! git diff --quiet || ! git diff --cached --quiet; then echo "refusing: $W has uncommitted changes"; exit 2; fi
 CODE=$(git rev-parse --short HEAD)
