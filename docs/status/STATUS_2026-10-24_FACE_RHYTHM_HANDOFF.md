@@ -98,6 +98,8 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      DECIDED (Priya 11-18): 23.23 STAYS on the pre-rebuild data; keep labcams/cohort1_quiet_spikes/v2_quiet_lp/
      task_events + task_events_followup permanently. The rebuilt follow-up outputs in <syncend>/task_events_followup are
      an unpublished diagnostic (code switches QS_FOLLOWUP_STORED_DECODER, default off).
+     Priya 11-18: the quiet chain (incl. 23.23) may be redone once all 4 cameras' 3-D coordinates exist; revisit then
+     (fresh T13 tables + follow-up from one consistent key avoids tonight's mismatch).
    - FR page v56: Fig 5.6 = a2's cue-aligned factor figure + cue-window stats (Priya "yes" / "add stats").
    - OPEN: (1) caching refactor of the quiet scripts (Priya "yes", after the run: cache session traces + quiet /
      engaged masks, apply the engaged gate at summary time, verify exact reproduction of the syncend tables + timing);
