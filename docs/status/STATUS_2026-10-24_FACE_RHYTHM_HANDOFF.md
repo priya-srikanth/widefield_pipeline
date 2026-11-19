@@ -84,7 +84,12 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      rows, the stored model on camera WORKING rows. ASKED Priya: (a) test with centre_rows=engaged + rebuilt-vs-stored
      p_true check, (b) implement working centring, (c) keep 23.23 pre-rebuild. Local session cache delete was blocked by
      the permission classifier (Priya can delete C:/Users/SabatiniLab/wfield_cache/session_cache_rebuild_20261103).
-     Pre-rebuild labcams/cohort1_quiet_spikes/v2_quiet + v2_quiet_lp: delete once 3c confirms 23.7/23.8/23.23 swapped.
+     Pre-rebuild v2_quiet + v2_quiet_lp DELETED (Priya ok) except v2_quiet_lp/task_events + task_events_followup (23.23).
+     Movement page v326: 23.7/23.8 on the sync-end run (3c). 23.23 OPEN: follow-up now loads the stored rebuild decoders
+     by id (PS93 = stored 7-session model without PS93_0813) with the production camera-working centre (c8c002c2), but
+     its p_true check FAILS vs the stored T13 p_true (median |diff| 0.14; levels ~.45 vs ~.32) although features match
+     (feat_err 0). Suspect the scoring transform (stored T13 run said to be session_z). Log
+     <syncend>/logs/quiet_task_events_followup_working_centre.log. Nothing from it on the page.
    - FR page v56: Fig 5.6 = a2's cue-aligned factor figure + cue-window stats (Priya "yes" / "add stats").
    - OPEN: (1) caching refactor of the quiet scripts (Priya "yes", after the run: cache session traces + quiet /
      engaged masks, apply the engaged gate at summary time, verify exact reproduction of the syncend tables + timing);
