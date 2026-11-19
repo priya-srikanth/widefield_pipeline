@@ -1341,7 +1341,10 @@ o2_inference:                  # WHOLE-SESSION cam4 pose inference on HMS O2 (wf
   # Tesla V100S nodes -- the `lp` env's torch has no Volta (sm_70) kernels ("CUDA error: no kernel image is available"),
   # so a task there dies in ~30 s and the node takes the next one: 43 tasks of array 56464442 failed that way once
   # Gres was opened to any GPU type. RTX 8000 / A40 / A100 (incl. MIG) / L40S all work.
-  exclude_nodes: "compute-g-16-[254-255],compute-g-17-[147-152]"
+  # compute-g-17-168 (2026-11-19, array 60091034 task 44): its L40S reports "CUDA error: uncorrectable ECC error" at
+  # model load (after ~16 min of side-transform encoding). Hardware fault; drop from this list once RC has fixed it.
+  # NOTE: sbatch --exclude / scontrol ExcNodeList REPLACE the list -- always pass the whole string.
+  exclude_nodes: "compute-g-16-[254-255],compute-g-17-[147-152],compute-g-17-168"
   conda_module: "conda/miniforge3/26.9.4-1"
   conda_env: deeplabcut           # Priya's existing O2 env (2025-11 stroke_orofacial O2 runs; PyTorch DLC 3)
   deeplabcut_version: "3.0.1"   # = this desktop's; the runner's numbers are tested against it
