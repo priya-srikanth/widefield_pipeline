@@ -16,15 +16,17 @@ WHAT EACH CAMERA CONTRIBUTES (no lick definition is re-made here):
            `droplet_mask`). Each side view gets its own mouth frame (`side_frame`): origin = the projected mouth zero,
            ``out`` = toward the projected spouts; the lips threshold and cam1's droplet rule (`cam1_licks.droplet_flags`:
            a near-static point away from the mouth opening) are rescaled by the camera's px / mm over cam1's
-           (`pose3d_side.px_per_mm`). The frame-level side droplet rule misses runs this short: on the r2b clips
+           (`pose3d_side.px_per_mm`), as is cam1's far-from-mouth rule (`cam1_licks.FAR_FROM_MOUTH_PX`: a label far
+           behind the mouth line). The frame-level side droplet rule misses runs this short: on the r2b clips
            (PS93 0814, 11-18) four cam2-only 3-4 frame events sat static (range <= 1.3 px) ~7 mm out from the mouth.
 
 FUSION (`fuse`): events of one trial whose spans overlap within `MERGE_TOL_MS` (the 12 ms gap that already bridges
 frames of one lick, `pose3d.lick_events`) are ONE lick: span = union, peak from the first camera of `PEAK_PRIORITY`
-that saw it (cam4's peak is the production one), ``cams`` / ``n_views`` / ``seen_<cam>``. An event flagged ``static``
-(the droplet rule) counts only when another camera's event merges with it -- as cam1's rule applies to cam1-ONLY events
-(a static point another camera calls a lick is the tongue held on the spout); a lick made of static events alone is
-``static`` = True and `lick_train` drops it. `lick_train` keeps licks
+that saw it (cam4's peak is the production one), ``cams`` / ``n_views`` / ``seen_<cam>``. A side event flagged by a
+`GUARDS` rule (``static`` = the droplet rule, ``far`` = cam1's far-from-mouth rule, both rescaled) counts only when
+another camera's event merges with it -- as cam1's rules apply to cam1-ONLY events (a static point another camera calls
+a lick is the tongue held on the spout); a lick made of guarded events alone is ``guarded`` = True and `lick_train`
+drops it. `lick_train` keeps licks
 seen by >= ``min_views`` cameras: 1 = the union (today's cam4 + cam1-only rule extended to four cameras), 2 = two views.
 Times are ms from the trial's cue (every production table carries ``trial_id`` + ``on_ms`` / ``off_ms`` on that clock).
 """
@@ -81,6 +83,7 @@ def side_events(Z: dict, cam: str, span: str = "post") -> pd.DataFrame:
     E = C1.detect(out, lat, np.isfinite(xy).all(1), F.trial_id, t, src, F.stop_ms, F.position, lips_px=lips, span=span)
     E["peak_dist_mm"] = E.peak_dist_px / ppm
     E["static"] = C1.droplet_flags(E, np.ones(len(E), bool), scale=scale) if len(E) else []
+    E["far"] = (E.med_out_px.to_numpy(float) < C1.FAR_FROM_MOUTH_PX * scale) if len(E) else []
     E["cam"] = cam
     return E
 
@@ -111,6 +114,18 @@ def _std(E: pd.DataFrame, cam: str) -> pd.DataFrame:
     return E[EVENT_COLS + extra].reset_index(drop=True)
 
 
+#: event flags that make an event count only when another camera's event merges with it (`side_events`)
+GUARDS = ("static", "far")
+
+
+def _guarded(E: pd.DataFrame) -> np.ndarray:
+    g = np.zeros(len(E), bool)
+    for c in GUARDS:
+        if c in E:
+            g |= E[c].astype(bool).to_numpy()
+    return g
+
+
 def within_frames(E: pd.DataFrame, F: pd.DataFrame) -> pd.DataFrame:
     """The events of ``E`` that overlap the frames of ``F`` (per trial, first .. last ``t_ms``): restricts a whole-session
     table to the clips a side model was run on, so every camera is compared over the same time."""
@@ -124,11 +139,10 @@ def fuse(events: dict, tol_ms: float = MERGE_TOL_MS) -> pd.DataFrame:
     off_ms (union of the merged spans), t_peak_ms (`PEAK_PRIORITY`), cams ("cam1+cam4"), n_views, seen_<cam> for every
     camera in `CAMS`, lick_idx (order in the trial). Events of one trial chain into one lick while each starts within
     ``tol_ms`` of the running end of the lick so far."""
-    parts = [E[EVENT_COLS].assign(static=E["static"].astype(bool).to_numpy() if "static" in E else False)
-             for E in events.values() if len(E)]
+    parts = [E[EVENT_COLS].assign(guarded=_guarded(E)) for E in events.values() if len(E)]
     if not parts:
         return pd.DataFrame(columns=EVENT_COLS[:-1] + ["cams", "n_views"] + [f"seen_{c}" for c in CAMS]
-                            + ["static", "lick_idx"])
+                            + ["guarded", "lick_idx"])
     A = pd.concat(parts, ignore_index=True).sort_values(["trial_id", "on_ms", "off_ms"], kind="mergesort")
     A = A.reset_index(drop=True)
     run_end = A.groupby("trial_id").off_ms.cummax()
@@ -145,7 +159,7 @@ def fuse(events: dict, tol_ms: float = MERGE_TOL_MS) -> pd.DataFrame:
     for c in CAMS:
         U[f"seen_{c}"] = seen[c].to_numpy()
     U["n_views"] = seen.sum(1).to_numpy()
-    U["static"] = g.static.all().to_numpy()
+    U["guarded"] = g.guarded.all().to_numpy()
     U["cams"] = ["+".join(sorted(c for c in CAMS if r[c])) for _, r in seen.iterrows()]
     U = U.reset_index(drop=True)
     U["lick_idx"] = U.groupby("trial_id").cumcount()
@@ -153,17 +167,17 @@ def fuse(events: dict, tol_ms: float = MERGE_TOL_MS) -> pd.DataFrame:
 
 
 def lick_train(U: pd.DataFrame, min_views: int = 1) -> pd.DataFrame:
-    """The fused licks seen by at least ``min_views`` cameras (D2: 1 = the union, 2 = two views), static-only licks
-    (`fuse`) removed."""
-    return U[(U.n_views >= min_views) & ~U.static.astype(bool)].reset_index(drop=True)
+    """The fused licks seen by at least ``min_views`` cameras (D2: 1 = the union, 2 = two views), licks made only of
+    guarded events (`fuse`) removed."""
+    return U[(U.n_views >= min_views) & ~U.guarded.astype(bool)].reset_index(drop=True)
 
 
 def view_table(U: pd.DataFrame) -> pd.DataFrame:
     """Licks per camera combination (the check of what the side views add): n, share, how many no camera of
-    cam1 + cam4 saw (``side_only``) and how many are static-only (dropped by `lick_train`)."""
+    cam1 + cam4 saw (``side_only``) and how many are guarded-only (dropped by `lick_train`)."""
     side_only = ~U.seen_cam4 & ~U.seen_cam1
     T = U.groupby("cams").size().rename("n").to_frame()
-    T["static"] = U[U.static.astype(bool)].groupby("cams").size().reindex(T.index, fill_value=0)
+    T["guarded"] = U[U.guarded.astype(bool)].groupby("cams").size().reindex(T.index, fill_value=0)
     T["share"] = T.n / T.n.sum()
     T["side_only"] = U[side_only].groupby("cams").size().reindex(T.index, fill_value=0)
     return T.sort_values("n", ascending=False)

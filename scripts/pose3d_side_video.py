@@ -55,7 +55,11 @@ def view_from(cam) -> tuple[float, float]:
     return float(np.degrees(np.arcsin(d[2]))), float(np.degrees(np.arctan2(d[1], d[0])))
 
 
-def run(rv, session: str, per_position: int, t0: float, t1: float) -> Path:
+def run(rv, session: str, per_position: int, t0: float, t1: float, trials: list[int] | None = None,
+        preds: str | None = None, tag: str = "") -> Path:
+    """``trials``: render these trial ids instead of ``per_position`` per spout; ``preds``: a side model's video_preds
+    (default `pose3d_side_check.PREDS`); ``tag``: suffix of the output name, so a review render never overwrites the
+    standard clip."""
     import cv2
     import matplotlib
     matplotlib.use("Agg")
@@ -70,7 +74,7 @@ def run(rv, session: str, per_position: int, t0: float, t1: float) -> Path:
     animal, date = session.split(":")
     if _june_factor(date):
         raise SystemExit(f"{session}: June -- side intrinsics not validated, not rendered")
-    Z = PS.fuse_session(rv, animal, date, Path(PREDS), Path(rv.root("dlc")) / CLIPS)
+    Z = PS.fuse_session(rv, animal, date, Path(preds or PREDS), Path(rv.root("dlc")) / CLIPS)
     F, order, g, pts, rig, side = Z["F"], Z["order"], Z["g"], Z["pts"], Z["rig"], Z["side"]
     R = {p: (Z["parts"][p]["X"], None, Z["parts"][p]["views"]) for p in PS.PARTS}
     out = Path(rv.root("dlc")) / "session_poses" / "pose3d_side"
@@ -117,9 +121,9 @@ def run(rv, session: str, per_position: int, t0: float, t1: float) -> Path:
     fig = plt.figure(figsize=(2 * TILE / 100, 1.3 * TILE / 100), dpi=100)
     axes = [fig.add_subplot(1, 2, k + 1, projection="3d") for k in range(2)]
 
-    trials = (F.drop_duplicates("trial_id").groupby("position").head(per_position)
-              .sort_values("position").trial_id.tolist())
-    f_out = out / f"video_4cam_{animal}_{date}.mp4"
+    trials = trials or (F.drop_duplicates("trial_id").groupby("position").head(per_position)
+                        .sort_values("position").trial_id.tolist())
+    f_out = out / f"video_4cam_{animal}_{date}{tag}.mp4"
     vw = None
     for tr in trials:
         rows = np.flatnonzero((F.trial_id.to_numpy() == tr) & (F.t_ms.to_numpy(float) >= t0) & (F.t_ms.to_numpy(float) <= t1))
@@ -204,10 +208,13 @@ def main(argv=None) -> int:
     ap.add_argument("--per-position", type=int, default=1)
     ap.add_argument("--t0", type=float, default=-100.0)
     ap.add_argument("--t1", type=float, default=700.0)
+    ap.add_argument("--trials", type=int, nargs="*", help="trial ids to render (default: --per-position per spout)")
+    ap.add_argument("--preds", help="side model video_preds dir (default: pose3d_side_check.PREDS)")
+    ap.add_argument("--tag", default="", help="output name suffix, e.g. _t540_r2b")
     a = ap.parse_args(argv)
     rv = PathResolver()
     for s in a.sessions:
-        run(rv, s, a.per_position, a.t0, a.t1)
+        run(rv, s, a.per_position, a.t0, a.t1, trials=a.trials, preds=a.preds, tag=a.tag)
     return 0
 
 

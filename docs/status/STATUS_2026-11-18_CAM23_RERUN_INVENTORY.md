@@ -43,8 +43,27 @@ spans: review that clip); 4 cam4-only; 3 cam2 + cam3 + cam4 without cam1; 4 cam2
 the rescaled droplet rule); **0 kept licks that only a side camera saw**. On these clips the side views confirm licks
 rather than add them; whole sessions (more pre-cue / ITI time, more misses) may differ.
 
-Open: the cam1-only events (review), a side far-from-mouth guard (none yet), the clip-edge licks (side frames end at
-+1.5 s), and the whole-session path (`fuse_session(side_bundle=...)` + `production_events`, same functions).
+**Trial 540 reviewed (11-18, four-camera clip `session_poses/pose3d_side/video_4cam_PS93_20260814_t540_r2b.mp4`,
+`scripts/pose3d_side_video.py --trials 540 --preds <r2b> --tag _t540_r2b`):** NOT licks. cam1's tongue label sits on a
+large water drop hanging from the spout tip for the whole trial (the trial after 3 misses: uncollected water); cam4 and
+both side views show no tongue. cam1's droplet rule misses it because the drop wobbles (range 10-24 px vs the rule's
+12, spread 3.5-6 vs 3). **Production impact (census of every cam1 post-cue `_events.csv`, cam1-only events that pass
+`keep_mask`):** 114 of 46,697 last >= 300 ms (97 trials, 27 sessions; pre 67 / acute 32 / subacute 3 / chronic 12
+events); none in 3-D, 3.5 % with a DAQ contact, 1.23 misses in the 3 prior trials vs 0.21 for all cam1-only events,
+closer to the parked spout (median 36 vs 54 px). Those events enter today's LP lick train and can make a trial
+"incomplete". DECISION for Priya: (a) leave it (small), (b) drop cam1-only events >= 300 ms now, or (c) let the
+four-camera fusion decide (a cam1-only event the side views do not see).
+
+**Guards (11-18):** side events carry ``static`` (cam1's droplet rule) and ``far`` (cam1's far-from-mouth rule
+`cam1_licks.FAR_FROM_MOUTH_PX`), both rescaled by px / mm; a guarded event counts only when another camera confirms it.
+On the clips: ``static`` fired on 9 unconfirmed side events (all dropped: 4 cam2-only licks) and on 13 confirmed ones
+(kept); ``far`` fired on none (confirmed side events' median position >= +5.6 px, threshold far behind the mouth).
+
+**Whole-session path:** `python -m scripts.camera_licks session A:YYYYMMDD --bundle <side bundle>` (same functions,
+`fuse_session(side_bundle=...)`, production events unrestricted). Untested until a whole-session side bundle exists.
+
+Open: the trial-540 class of hanging drops (decision above), the clip-edge licks (side frames end at +1.5 s), and the
+first whole-session run.
 
 ## 1. Decisions needed before running (Priya)
 
