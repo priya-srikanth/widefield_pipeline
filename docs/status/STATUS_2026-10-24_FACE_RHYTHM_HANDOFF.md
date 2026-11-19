@@ -100,6 +100,13 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      an unpublished diagnostic (code switches QS_FOLLOWUP_STORED_DECODER, default off).
      Priya 11-18: the quiet chain (incl. 23.23) may be redone once all 4 cameras' 3-D coordinates exist; revisit then
      (fresh T13 tables + follow-up from one consistent key avoids tonight's mismatch).
+   - QUIET RE-RUN = ONE BUILD (Priya 11-18 "ensure ... with a re-run we'll use the correct build"):
+     scripts/cohort2_qc/run_quiet_chain.sh <OUT_DIRNAME> from a CLEAN checkout of main (refuses a dirty tree; code hash
+     in every log). Order: upstream pose / 3-D -> LP licks -> FR series -> attempt_coding precue under the SAME env
+     (WIDEFIELD_LICK_SOURCE=daq; may freeze decoders = rule 10, coordinate with the encoding window) -> run_quiet_chain
+     (preflight refuses if the attempt_coding tables for this key are missing; current key csig-612e95bdd2 has none ->
+     dry run stopped there, as designed). quiet_task_events now FAILS on a missing table (no silent animal drop, no
+     cross-key read); task_events_summarise_prodptrue.py marked DO NOT REUSE. All 11-18 decisions live in code on main.
    - FR page v56: Fig 5.6 = a2's cue-aligned factor figure + cue-window stats (Priya "yes" / "add stats").
    - OPEN: (1) caching refactor of the quiet scripts (Priya "yes", after the run: cache session traces + quiet /
      engaged masks, apply the engaged gate at summary time, verify exact reproduction of the syncend tables + timing);
