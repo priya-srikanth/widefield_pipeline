@@ -89,6 +89,8 @@ def extract(label):
     from scipy.ndimage import uniform_filter1d
     from wfield_local import combined_encoding as ce
     Xr, ft, fs, rest, engaged, _ = session_traces(label, detrend=False)
+    from quiet_area_spikes import analyzed_window
+    win = analyzed_window(label, ft)
     V, ft2, Ub, flat, parea, names, shape, pstat = ce.load_imaging(label)
     T = Xr.shape[1]
     Xd = detrend(Xr, fs)
@@ -113,6 +115,10 @@ def extract(label):
             fr_ev, h, eng, mvp = a[sel, 1].astype(int), a[sel, 2] / sd[gi], a[sel, 3].astype(bool), mvp[sel]
             ok = (fr_ev + tl[0] >= 0) & (fr_ev + tl[-1] < T)
             fr_ev, h, eng, mvp = fr_ev[ok], h[ok], eng[ok], mvp[ok]
+            # quit-period events only inside the analyzed time (before the last sync pulse; Priya 11-18): drop the
+            # non-engaged events from the post-task imaging tail
+            keep = eng | win[fr_ev]
+            fr_ev, h, eng, mvp = fr_ev[keep], h[keep], eng[keep], mvp[keep]
             hb = np.digitize(h, HBINS[1:-1])
             for c in classes():
                 if c[0] != kind:
