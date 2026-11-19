@@ -183,10 +183,25 @@ def _stored_sibling(spec):
     """Load the ONE stored frozen precue decoder whose spec differs from `spec` only in STORED_OK_DIFF (by its stored
     id, never a fit). Raises otherwise."""
     from wfield_local import frozen_models
+    from wfield_local import spout_scaling
+    fallback = set(spout_scaling.centre_fallback())          # no-video sessions (PS93_0813)
     cand = []
     for s in frozen_models.siblings(spec):
         diff = {k for k in set(s["spec"]) | set(spec) if str(s["spec"].get(k)) != str(spec.get(k))}
-        if diff <= STORED_OK_DIFF:
+        # the stored PS93 model was frozen BEFORE the no-video contact fallback existed, so its pre set lacks
+        # PS93_0813 (7 sessions; the model slide 159's T13 used). Accept a training-set difference ONLY when the stored
+        # set = today's set minus configured fallback sessions; the follow-up then scores PS93_0813 with the full model
+        # (it is not a training session of the stored model), and T13 excludes PS93_0813 (no video) anyway.
+        if {"train_labels", "train_sigs"} & diff:
+            want = set(spec.get("train_labels") or [])
+            have = set(s["spec"].get("train_labels") or [])
+            if not (have < want and (want - have) <= fallback):
+                continue
+            diff = diff - {"train_labels", "train_sigs"} | {"train_labels(minus fallback " + ",".join(sorted(want - have)) + ")"}
+            ok = STORED_OK_DIFF | {d for d in diff if d.startswith("train_labels(")}
+        else:
+            ok = STORED_OK_DIFF
+        if diff <= ok:
             cand.append((s, diff))
     if len(cand) != 1:
         raise RuntimeError(f"{spec['animal']}: {len(cand)} stored decoders differ only in {sorted(STORED_OK_DIFF)} "
