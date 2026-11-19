@@ -55,7 +55,10 @@ def view_from(cam) -> tuple[float, float]:
     return float(np.degrees(np.arcsin(d[2]))), float(np.degrees(np.arctan2(d[1], d[0])))
 
 
-def run(rv, session: str, per_position: int, t0: float, t1: float) -> Path:
+def run(rv, session: str, per_position: int, t0: float, t1: float, preds: Path | None = None,
+        out: Path | None = None) -> Path:
+    """``preds``: the side model's clip predictions (default `pose3d_side_check.PREDS`, crop2); ``out``: output folder
+    (default `session_poses/pose3d_side`, where the crop2 renders live -- give another model its own folder)."""
     import cv2
     import matplotlib
     matplotlib.use("Agg")
@@ -70,10 +73,10 @@ def run(rv, session: str, per_position: int, t0: float, t1: float) -> Path:
     animal, date = session.split(":")
     if _june_factor(date):
         raise SystemExit(f"{session}: June -- side intrinsics not validated, not rendered")
-    Z = PS.fuse_session(rv, animal, date, Path(PREDS), Path(rv.root("dlc")) / CLIPS)
+    Z = PS.fuse_session(rv, animal, date, Path(preds or PREDS), Path(rv.root("dlc")) / CLIPS)
     F, order, g, pts, rig, side = Z["F"], Z["order"], Z["g"], Z["pts"], Z["rig"], Z["side"]
     R = {p: (Z["parts"][p]["X"], None, Z["parts"][p]["views"]) for p in PS.PARTS}
-    out = Path(rv.root("dlc")) / "session_poses" / "pose3d_side"
+    out = Path(out) if out else Path(rv.root("dlc")) / "session_poses" / "pose3d_side"
     out.mkdir(parents=True, exist_ok=True)
 
     # per-frame table + coverage: cam1 + cam4 measured vs the four-camera pipeline
@@ -204,10 +207,12 @@ def main(argv=None) -> int:
     ap.add_argument("--per-position", type=int, default=1)
     ap.add_argument("--t0", type=float, default=-100.0)
     ap.add_argument("--t1", type=float, default=700.0)
+    ap.add_argument("--preds", type=Path, default=None, help="side model clip predictions (default crop2)")
+    ap.add_argument("--out", type=Path, default=None, help="output folder (default session_poses/pose3d_side)")
     a = ap.parse_args(argv)
     rv = PathResolver()
     for s in a.sessions:
-        run(rv, s, a.per_position, a.t0, a.t1)
+        run(rv, s, a.per_position, a.t0, a.t1, a.preds, a.out)
     return 0
 
 
