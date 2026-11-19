@@ -110,18 +110,22 @@ def side_cam(video: Path) -> str:
 
 def side_transform(gray: np.ndarray, cam: str) -> np.ndarray:
     """One gray frame (h, w) uint8 -> the side model's input (SIDE_OUT, SIDE_OUT) uint8, exactly as
-    `lp_sidecam.transform_image` (PIL mirror, crop, BILINEAR resize)."""
-    from PIL import Image
-    im = Image.fromarray(gray)
-    if cam == "cam3":
-        im = im.transpose(Image.FLIP_LEFT_RIGHT)
-    if im.size[0] not in SIDE_CROPS:
-        raise SystemExit(f"side frame width {im.size[0]} has no crop (known: {sorted(SIDE_CROPS)})")
-    x0, y0, s = SIDE_CROPS[im.size[0]]
-    im = im.crop((x0, y0, x0 + s, y0 + s))
+    `lp_sidecam.transform_image` (mirror, crop, PIL BILINEAR resize). Mirror + crop are numpy slices (11-18 profile:
+    PIL's fromarray / transpose / crop ran 1330 fps and set the pace of the whole transform; slicing 8950 fps, same
+    pixels); only June's 317 -> 256 resize goes through PIL, so it stays PIL's BILINEAR."""
+    w = gray.shape[1]
+    if w not in SIDE_CROPS:
+        raise SystemExit(f"side frame width {w} has no crop (known: {sorted(SIDE_CROPS)})")
+    x0, y0, s = SIDE_CROPS[w]
+    if cam == "cam3":                                   # mirror, then crop columns x0 .. x0 + s of the MIRRORED frame
+        out = gray[y0:y0 + s, w - 1 - x0::-1][:, :s] if x0 == 0 else gray[y0:y0 + s, ::-1][:, x0:x0 + s]
+    else:
+        out = gray[y0:y0 + s, x0:x0 + s]
     if s != SIDE_OUT:
-        im = im.resize((SIDE_OUT, SIDE_OUT), Image.BILINEAR)
-    return np.asarray(im, dtype=np.uint8)
+        from PIL import Image
+        return np.asarray(Image.fromarray(np.ascontiguousarray(out)).resize((SIDE_OUT, SIDE_OUT), Image.BILINEAR),
+                          dtype=np.uint8)
+    return np.ascontiguousarray(out)
 
 
 def _ffmpeg() -> str:
@@ -146,14 +150,29 @@ def write_side_video(video: Path, dst: Path, cam: str, start: int = 0, stop: int
     ff = subprocess.Popen([_ffmpeg(), "-nostdin", "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "gray",
                            "-s", f"{SIDE_OUT}x{SIDE_OUT}", "-r", str(fps), "-i", "-", "-c:v", "libx264", "-crf", "12",
                            "-preset", "veryfast", "-pix_fmt", "yuv420p", str(dst)], stdin=subprocess.PIPE)
-    n, k = 0, start
-    while stop is None or k < stop:
-        ok, im = cap.read()
-        if not ok:
-            break
-        ff.stdin.write(side_transform(im[..., 0], cam).tobytes())
+    # decode in a background thread (OpenCV releases the GIL while decoding), transform + pipe here: decode is then the
+    # pace (~2700 fps on the desktop) instead of decode + transform in series
+    import queue
+    import threading
+    q: queue.Queue = queue.Queue(maxsize=256)
+    n_read = (stop - start) if stop is not None else None
+
+    def reader():
+        k = 0
+        while n_read is None or k < n_read:
+            ok, im = cap.read()
+            if not ok:
+                break
+            q.put(im[..., 0])
+            k += 1
+        q.put(None)
+    th = threading.Thread(target=reader, daemon=True)
+    th.start()
+    n = 0
+    while (g := q.get()) is not None:
+        ff.stdin.write(side_transform(g, cam).tobytes())
         n += 1
-        k += 1
+    th.join()
     ff.stdin.close()
     if ff.wait() != 0:
         raise SystemExit(f"ffmpeg failed writing {dst}")
