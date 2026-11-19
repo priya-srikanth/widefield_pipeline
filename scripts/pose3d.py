@@ -113,7 +113,9 @@ def run_session(s: str, source: str, four_cam: str | None = None, out_dir: str |
                 row[f"{part}_rejected_{c}"] = st[f"rejected_{c}"]
         row["licks_3d"] = len(L)
         return row
-    S, info = P3.session_3d(_cgroup(rv), rig, c1[0], c1[1], c4[0], c4[1], june_factor=jf)
+    from wfield_local import cam1_licks as C1
+    S, info = P3.session_3d(_cgroup(rv), rig, c1[0], c1[1], c4[0], c4[1], june_factor=jf,
+                            cam1_keep=C1.cam4_lick_windows(rv, animal, date))
     L = P3.lick_peaks(S, rig)
     out = Path(out_dir) if out_dir else pose3d_dir(rv, "2cam")
     out.mkdir(parents=True, exist_ok=True)

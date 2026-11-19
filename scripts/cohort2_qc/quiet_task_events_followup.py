@@ -176,16 +176,32 @@ def predict(model, Z, code):
 #: PS93_0813 fallback, which moves train_fp. Everything else (pre sessions, features, basis, window, hemo, selection)
 #: must match exactly, and the rebuilt-vs-stored p_true check printed by `summarise` shows whether the label matters.
 STORED_OK_DIFF = {"scaling_params", "train_fp"}
+_IDX: dict = {}      # label -> (engaged cue indices, no-lick cue indices) from features_with_indices
 
 
 def _stored_sibling(spec):
     """Load the ONE stored frozen precue decoder whose spec differs from `spec` only in STORED_OK_DIFF (by its stored
     id, never a fit). Raises otherwise."""
     from wfield_local import frozen_models
+    from wfield_local import spout_scaling
+    fallback = set(spout_scaling.centre_fallback())          # no-video sessions (PS93_0813)
     cand = []
     for s in frozen_models.siblings(spec):
         diff = {k for k in set(s["spec"]) | set(spec) if str(s["spec"].get(k)) != str(spec.get(k))}
-        if diff <= STORED_OK_DIFF:
+        # the stored PS93 model was frozen BEFORE the no-video contact fallback existed, so its pre set lacks
+        # PS93_0813 (7 sessions; the model slide 159's T13 used). Accept a training-set difference ONLY when the stored
+        # set = today's set minus configured fallback sessions; the follow-up then scores PS93_0813 with the full model
+        # (it is not a training session of the stored model), and T13 excludes PS93_0813 (no video) anyway.
+        if {"train_labels", "train_sigs"} & diff:
+            want = set(spec.get("train_labels") or [])
+            have = set(s["spec"].get("train_labels") or [])
+            if not (have < want and (want - have) <= fallback):
+                continue
+            diff = diff - {"train_labels", "train_sigs"} | {"train_labels(minus fallback " + ",".join(sorted(want - have)) + ")"}
+            ok = STORED_OK_DIFF | {d for d in diff if d.startswith("train_labels(")}
+        else:
+            ok = STORED_OK_DIFF
+        if diff <= ok:
             cand.append((s, diff))
     if len(cand) != 1:
         raise RuntimeError(f"{spec['animal']}: {len(cand)} stored decoders differ only in {sorted(STORED_OK_DIFF)} "
@@ -222,6 +238,7 @@ def frozen_models_for(animal):
     print(f"[followup] {animal}: frozen precue decoder {status} (window {spec['post_s']} s, "
           f"{spec['n_features']} features, {len(pre_list)} pre sessions)", flush=True)
     raw = {lab: XE[GE == i] for i, lab in enumerate(kept)}
+    _IDX.update(getattr(ft, "indices", {}) or {})          # cue indices per session, for the working-row centre
     return models, kept, set(pre), raw
 
 
@@ -263,14 +280,21 @@ def score_session(lab, models, pre_set, raw, sd, rng):
     mdl = models["loso"].get(lab, models["full"]) if lab in pre_set else models["full"]
     if "pi_train" in models:                     # bal_em: the scoring centre (no labels), production SD
         from wfield_local import spout_scaling
-        if spout_scaling.centre_rows() == "working":
-            # fifth review N1: this script's centre is every engaged row (no camera classes here) -- refuse under the
-            # camera-working centre rather than silently use another centre set
-            raise spout_scaling.BalEmCentreRefused("quiet_task_events_followup: no camera-working center mask available "
-                                                   "(bal_em.centre_rows = working); run with centre_rows = engaged")
         pt = models["pi_train"]
         pi = pt["loso"].get(lab, pt["full"]) if lab in pre_set else pt["full"]
-        mu, sdv = spout_scaling.score_centre(mdl, z["X"], pi)
+        Xc = z["X"]
+        if spout_scaling.centre_rows() == "working":
+            # THE PRODUCTION CENTRE (Priya 11-18 "b ok"; replaces the fifth-review N1 refusal): the camera WORKING engaged
+            # rows, exactly as spout_scaling.scored_frame -> _centre_rows_of (>= MIN_CENTRE_ROWS, else the configured
+            # contact fallback, else refused). Camera classes from the SAME cue indices the pool used (_IDX, filled by
+            # frozen_models_for); the row count must equal the window file's engaged rows (fails loudly otherwise).
+            from wfield_local import trial_classes
+            cls_e = trial_classes.row_classes(lab, _IDX[lab][0])
+            if len(cls_e) != len(z["X"]):
+                raise RuntimeError(f"{lab}: {len(cls_e)} camera-class rows vs {len(z['X'])} engaged window rows")
+            Xc = spout_scaling._centre_rows_of(z["X"], np.ones(len(z["X"]), bool), spout_scaling.centre_mask(cls_e),
+                                               label=lab)
+        mu, sdv = spout_scaling.score_centre(mdl, Xc, pi)
 
     def P(keep, fill="mean", idx=None):
         idx = np.arange(n) if idx is None else idx

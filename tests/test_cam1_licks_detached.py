@@ -34,3 +34,12 @@ def test_runs_split_at_gaps_and_trials():
     assert not C1.detached_static(out, lat, ok2, tid, t).any()
     m = C1.detached_static(out, lat, ok2, tid, t, max_gap_ms=0)        # no bridging: the far part is its own run
     assert m[4:].all() and not m[:4].any()
+
+
+def test_cam4_lick_keeps_a_detached_run():
+    import pandas as pd
+    out, lat, ok, tid, t = _runs((1, [(50.0, 0.0)] * 6), (1, [(55.0, 0.0)] * 6))
+    W = pd.DataFrame({"trial_id": [1], "on_ms": [t[7]], "off_ms": [t[8]]})      # a cam4 lick over the 2nd run
+    keep = C1.keep_frames(pd.DataFrame({"trial_id": tid, "t_ms": t}), W)
+    m = C1.detached_static(out, lat, ok, tid, t, keep=keep)
+    assert m[:6].all() and not m[6:].any()
