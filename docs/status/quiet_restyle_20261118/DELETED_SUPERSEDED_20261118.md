@@ -25,3 +25,12 @@ series), engaged_end_20261118.csv, and the pre-rebuild labcams/cohort1_quiet_spi
   by no deck note and not by the Movement page v324 (3c: the page's v2_quiet_lp refs are the PRE-REBUILD labcams path).
 - Pending (Priya "ok"): pre-rebuild labcams/cohort1_quiet_spikes/v2_quiet + v2_quiet_lp (~8.5 GB) once the page figures
   that still cite them are re-run on the sync-end run.
+
+## 11-18 late night: pre-rebuild quiet runs (Priya "3. ok", once uncited)
+- Movement page v326 cites only v2_quiet_lp/task_events_followup + task_events (Fig 23.23; 3c grep); Spout page
+  (1795029845-db7c) cites no cohort1_quiet_spikes path (3c); deck (208 slides) and FR page cite none (a8).
+- DELETED: labcams/cohort1_quiet_spikes/v2_quiet/ (4.4 GB, DAQ-lick pre-rebuild run) and everything in
+  labcams/cohort1_quiet_spikes/v2_quiet_lp/ (4.1 GB, pre-rebuild LP run) EXCEPT task_events/ + task_events_followup/
+  (kept, ~0.75 GB, until 23.23 moves to the sync-end run) and README.txt. Superseded by
+  rebuild .../cohort1_quiet_spikes/v2_quiet_lp_c1guard_syncend_20261118 (every section-23 figure re-rendered there).
+- Kept: labcams/cohort1_quiet_spikes/{fr_regressed_own, fr_regressed, attempt_effort, sessions, rest_spikes_*} (not in scope).

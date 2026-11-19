@@ -105,6 +105,9 @@ def scale_june_cam4(flat: pd.DataFrame, factor: float, centre) -> pd.DataFrame:
 def cleaned_xy(flat: pd.DataFrame, ix: pd.DataFrame, part: str, cam: str, mouth) -> tuple[np.ndarray, np.ndarray]:
     """(xy (n, 2) absolute image px, NaN where not MEASURED) for ``part`` after that camera's cleaning."""
     from wfield_local import orofacial_clean as oc
+    if cam == "cam1":                    # detached, stationary tongue labels out BEFORE cleaning (`cam1_licks`, 11-18)
+        from wfield_local import cam1_licks as C1
+        flat = C1.mask_detached(flat.reset_index(drop=True), ix.reset_index(drop=True))[0]
     cols = [c for c in flat.columns if c.startswith(("tongue_", "jaw_"))]
     c, pos, _ = oc.clean_windows(flat[cols].reset_index(drop=True), ix.reset_index(drop=True), part,
                                  x0y0=tuple(mouth), cam=cam)
