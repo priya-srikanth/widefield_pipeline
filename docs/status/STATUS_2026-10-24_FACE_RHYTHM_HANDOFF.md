@@ -95,6 +95,9 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      centre. Open suspects: the stored T13 tables were written under the PRE-guard camera classes (csig 3d7bbe921e) and
      an older env; next step = reproduce one session's stored p_true with attempt_coding.run_animal under that key.
      Within-follow-up (same rebuilt decoder) the event effect survives exclusion (log _prodframe). 23.23 stays pre-rebuild.
+     DECIDED (Priya 11-18): 23.23 STAYS on the pre-rebuild data; keep labcams/cohort1_quiet_spikes/v2_quiet_lp/
+     task_events + task_events_followup permanently. The rebuilt follow-up outputs in <syncend>/task_events_followup are
+     an unpublished diagnostic (code switches QS_FOLLOWUP_STORED_DECODER, default off).
    - FR page v56: Fig 5.6 = a2's cue-aligned factor figure + cue-window stats (Priya "yes" / "add stats").
    - OPEN: (1) caching refactor of the quiet scripts (Priya "yes", after the run: cache session traces + quiet /
      engaged masks, apply the engaged gate at summary time, verify exact reproduction of the syncend tables + timing);
