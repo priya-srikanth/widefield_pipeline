@@ -1,0 +1,111 @@
+# Part B: Figs 23.19 (q_steinmetz), 23.20 (q_width), 23.22 (q_effort), 23.14 (q_recovery_link) -> sync-end run.
+# exec'd by s23_check.py / s23_edit.py after rep, set_caption, set_img, set_title, data_block, STARS, RUN, QF, LK, TH, SESS.
+
+SC = "widefield_pipeline <code>scripts/cohort2_qc/"
+BOOT_RULE = ("<b>*</b> = nested animal &rarr; session bootstrap 95% CI of the change vs each animal&rsquo;s own pre excludes 0 (primary); "
+             "&dagger; = mixed model q &lt; .05 (backup, epoch vs August pre, FDR within measure); stars in the top band")
+
+# ---------------------------------------------------------------- Fig 23.19 q_steinmetz
+set_img("q_steinmetz.png", "q_steinmetz_syncend.png")
+set_caption("q_steinmetz",
+    "<b class=\"h\">Fig 23.19 &middot; CONTROL &middot; epileptiform criteria.</b> "
+    "Steinmetz et al. 2017 interictal-like events are large (&gt; ~10 % dF/F), positive only, recur at 0.1&ndash;0.5 Hz with a refractory gap. "
+    "Quiet orofacial events (&gt; 4 &times; pre SD), animal &times; epoch session medians, acute values per animal (PS92, PS93, PS94, PS95): "
+    "UP / DOWN count ratio 0.79, 1.08, 0.97, 0.67 (~1; interictal events would give &gt;&gt; 1; pre 0.65&ndash;1.89); "
+    "inter-event intervals 0.3&ndash;0.5 s observed / Poisson 2.04, 1.20, 1.44, 2.85 and 0.5&ndash;1 s 1.89, 1.29, 1.14, 2.18 "
+    "(all at or above the Poisson expectation, so no refractory gap); IEI CV 0.94, 0.95, 0.83, 0.91 (close to Poisson, not periodic; pre 0.72&ndash;0.90); "
+    "median height 1.6, 2.3, 2.0, 2.6 % dF/F (pre 1.3&ndash;2.3 %), share of events &gt; 10 % = 0 in every animal acutely. "
+    "Only the rate falls in the interictal range: acute UP-event rate 0.23, 0.40, 0.20, 0.16 Hz, inside 0.1&ndash;0.5 Hz, against pre 0.055, 0.076, 0.078, 0.025 Hz, below it. "
+    "Conclusion: the acute events fail the polarity, refractory-gap and size criteria. "
+    "Descriptive criteria check: no epoch statistics, no stars. "
+    "Panels: UP / DOWN count, IEI 0.3&ndash;0.5 s and 0.5&ndash;1 s observed / Poisson, IEI CV, by epoch; markers = sessions (shape = animal, color = epoch), bar = median; dashed line = 1. "
+    "Rate, height and share &gt; 10 % are in the log only. PS94 chronic IEI measures are not computed (too few intervals); this does not touch the acute values. "
+    + data_block() +
+    f" Script {SC}quiet_steinmetz_check.py</code>; outputs <code>steinmetz_check/quiet_steinmetz_check.png</code>, "
+    "<code>steinmetz_check/steinmetz_check_sessions.csv</code>, log <code>logs/quiet_steinmetz_check.log</code>. PROVISIONAL (n = 4).")
+
+# ---------------------------------------------------------------- Fig 23.20 q_width
+set_img("q_width.png", "q_width_syncend.png")
+set_title("q_width",
+          "Event shape on the raw trace: narrower, all in the decay",
+          "Event shape on the raw trace: acute events narrower, mostly in the decay",
+          short="Event shape: acute events narrower, mostly in the decay")
+set_caption("q_width",
+    "<b class=\"h\">Fig 23.20 &middot; NEURAL &middot; event width (raw trace).</b> "
+    "Interpolated half-height crossings on the trace the detector sees (dF/F % minus its 2-s running median), up and down events. "
+    "Orofacial FWHM change vs own pre, acute, per animal: PS92 &minus;0.054, PS93 &minus;0.078, PS94 &minus;0.058, PS95 &minus;0.111 s; "
+    "pooled &minus;0.075 s [&minus;0.103, &minus;0.047], 4/4 <b>*</b> (pre level 0.34 s, so about 22 % narrower). "
+    "Height-matched events (4&ndash;8 &times; pre SD): &minus;0.091 s [&minus;0.116, &minus;0.063], 4/4 <b>*</b>, so the narrowing is not a height effect. "
+    "Both flanks shorten acutely, the decay about three times as much as the rise: orofacial decay &minus;0.049 s [&minus;0.062, &minus;0.036], 4/4 <b>*</b>; "
+    "rise &minus;0.017 s [&minus;0.030, &minus;0.003], 4/4 <b>*</b> (PS92 &minus;0.011, PS93 &minus;0.026, PS94 &minus;0.001, PS95 &minus;0.032). "
+    "Limb acute: FWHM &minus;0.078 s [&minus;0.129, &minus;0.027], decay &minus;0.056 [&minus;0.095, &minus;0.017], rise &minus;0.018 [&minus;0.030, &minus;0.005], all 4/4 <b>*</b>. "
+    "Threshold-free quiet-trace ACF half-time: orofacial acute &minus;0.038 s [&minus;0.068, &minus;0.004], 3/4 <b>*</b> (PS94 +0.003; mixed model q = .07); "
+    "limb &minus;0.033 s [&minus;0.069, +0.004], 3/4, n.s. "
+    "Subacute: orofacial FWHM &minus;0.044 s [&minus;0.065, &minus;0.021] and decay &minus;0.036 s [&minus;0.050, &minus;0.023], 4/4 <b>*</b>; limb unchanged. "
+    "Chronic: no measure differs from pre. Robustness to movement correction: Fig 23.21. "
+    "Panels: rows orofacial / limb; columns FWHM, FWHM of 4&ndash;8 &times; pre SD events, rise, decay, ACF half-time (s), by epoch. "
+    "Open markers = session values (shape = animal, color = epoch); filled square = bootstrap mean &plusmn; 95% CI of the epoch level; "
+    + BOOT_RULE + " (the png draws &dagger; under <b>*</b> where both pass). "
+    + data_block(" ACF half-time: 107 sessions in the mixed model.") +
+    f" Script {SC}quiet_event_width.py</code>; outputs <code>width/quiet_event_width.png</code>, "
+    "<code>width/quiet_event_width_boot_stars.csv</code> (stars, CIs, per-animal changes), <code>width/lmm_width.csv</code>, "
+    "<code>width/quiet_event_width_sessions.csv</code>; logs <code>logs/quiet_event_width.log</code>, <code>logs/quiet_event_width_bootstars.log</code>. "
+    "PROVISIONAL (n = 4).")
+
+# ---------------------------------------------------------------- Fig 23.22 q_effort
+set_img("q_effort.png", "q_effort_syncend.png")
+set_caption("q_effort",
+    "<b class=\"h\">Fig 23.22 &middot; behavior + NEURAL &middot; &lsquo;trying with the body&rsquo; (Priya 11-01).</b> "
+    "Per trial, response window cue &rarr; +3.5 s: fraction running (DAQ treadmill bouts, 3 mm/s), the same minus the pre-cue baseline (cue &minus; 2 s .. cue), "
+    "and limb (SSp-ul + SSp-ll, bilateral), orofacial and whole-cortex dF/F % in cue .. +1.5 s minus cue &minus; 1 .. 0 s. "
+    "Readout = class minus hit within session, animal mean (PS92, PS93, PS94, PS95). "
+    "Jaw-only trials run more than hits: running fraction pre +0.52, &minus;0.02, +0.23, +0.10; acute +0.34, +0.20, +0.13, 0.00 (3/4 each epoch), "
+    "about equally pre-stroke and acute, and the running is already under way at the cue (window minus baseline, jaw-only minus hit: pre +0.07, &minus;0.08, &minus;0.08, &minus;0.03; acute +0.04, +0.03, 0.00, 0.00), "
+    "so a running state goes with a jaw-only reaction rather than running being recruited by the attempt. "
+    "Lick-no-contact trials barely run more than hits: pre +0.22, +0.04, +0.02, +0.07; acute +0.05, +0.01, +0.05, 0.00. "
+    "Limb cortex is lower on failed classes than on hits in 23 of 24 animal &times; class &times; (pre, acute) cells: "
+    "lick-no-contact pre &minus;3.45, &minus;2.78, +0.10, &minus;2.68, acute &minus;2.92, &minus;2.83, &minus;1.79, &minus;1.35 % dF/F (PS94 pre is the exception); "
+    "jaw-only pre &minus;2.59, &minus;2.55, &minus;3.03, &minus;3.78, acute &minus;3.64, &minus;2.75, &minus;2.96, &minus;3.39; "
+    "no-try pre &minus;3.51, &minus;1.99, &minus;3.15, &minus;4.02, acute &minus;4.50, &minus;4.01, &minus;3.93, &minus;4.00. "
+    "The gap is about the same pre and acute for lick-no-contact (mean of animals &minus;2.20 vs &minus;2.22) and jaw-only (&minus;2.99 vs &minus;3.19), "
+    "but about 0.9 % dF/F larger acutely for no-try (&minus;3.17 vs &minus;4.11; 3/4 animals more negative, PS95 unchanged). "
+    "PS95&rsquo;s acute running values are all 0. No sign of extra running or limb activation on failed attempts. No limb video tracking. "
+    "Descriptive: no bootstrap or mixed-model test is computed for this figure, and no stars are drawn. "
+    "Panels: top row all spouts, bottom row far contra; columns running fraction, running minus pre-cue baseline, limb cortex, whole cortex, by class (hit / incomplete = lick-no-contact / jaw_only / no_try) &times; epoch. "
+    "Large marker = mean of animals &plusmn; SEM across animals; small filled = animal (shape; mean over its trials); faded open = sessions (shape = animal, color = class); off-axis session values shown as carets. "
+    "<b>Data:</b> rebuilt base, 107 sessions (pre 31, acute 16, subacute 17, chronic 43; PS93 08-13, which has no behavior video, is not in the session list), 57,048 trials; "
+    "run with the sync-end chain settings (<code>QS_ENGAGED_END=lastsync</code>, code 67d49b99, log <code>v2_quiet_lp_c1guard_syncend_20261118/logs/attempt_effort.log</code>). "
+    "<b>Licks / trial classes:</b> from the encoding window&rsquo;s attempt table (<code>imaging_encoding/qc/trial_attempts.csv</code>): hit = DAQ spout contact; "
+    "lick-no-contact = LP video lick without contact; jaw-only = jaw movement, no lick; no-try. <b>Baseline:</b> hits in the same session. "
+    f"Script {SC}attempt_effort.py</code>; outputs in <code>rebuild_20261103/labcams/&lt;tag&gt;/cohort1_quiet_spikes/attempt_effort/</code> "
+    "(one level above the sync-end run folder): <code>attempt_effort.png</code>, <code>contrast_vs_hit.csv</code>, <code>attempt_effort_trials.csv</code>. "
+    "PROVISIONAL (n = 4).")
+
+# ---------------------------------------------------------------- Fig 23.14 q_recovery_link
+set_img("q_recovery_link.png", "q_recovery_link_syncend.png")
+set_title("q_recovery_link",
+          "Every quiet measure returns toward pre with recovery; none tracks behaviour beyond the shared time course",
+          "Event rate, synchronization and 1&ndash;4 Hz power fall as behavior recovers; synchronization and 1&ndash;4 Hz power also beyond the shared time course (3/4)",
+          short="Sync and 1&ndash;4 Hz power track recovery beyond the time course")
+set_caption("q_recovery_link",
+    "<b class=\"h\">Fig 23.14 &middot; NEURAL + behavior &middot; recovery link.</b> "
+    "Post-stroke sessions: each quiet measure&rsquo;s change vs the animal&rsquo;s own pre against far-contra hit rate / pre; within-animal r, raw and with log(day) removed from both "
+    "(the shared recovery time course); permutation p on the mean of the four animals&rsquo; r (sessions shuffled within animal, 5000 draws); k/4 = animals with the sign of the mean. "
+    "Negative r = the measure falls as behavior recovers. Per animal r (PS92, PS93, PS94, PS95), then mean: "
+    "face-regressed orofacial event rate raw &minus;0.59, &minus;0.84, &minus;0.77, &minus;0.75, mean &minus;0.74, p &lt; .001, 4/4; "
+    "log(day) removed +0.34, &minus;0.42, &minus;0.08, &minus;0.58, mean &minus;0.18, p = .13 (n.s.). "
+    "Orofacial synchronization (log10 PSD 1&ndash;4 / 8&ndash;15 Hz) raw &minus;0.48, &minus;0.51, &minus;0.65, &minus;0.64, mean &minus;0.57, p &lt; .001, 4/4; "
+    "log(day) removed &minus;0.51, &minus;0.55, +0.04, &minus;0.62, mean &minus;0.41, p &lt; .001, 3/4 (PS94 opposite). "
+    "1&ndash;4 Hz power, orofacial ipsi raw mean &minus;0.72, p &lt; .001, 4/4; log(day) removed &minus;0.52, &minus;0.50, +0.18, &minus;0.78, mean &minus;0.40, p &lt; .001, 3/4 (PS94 opposite); "
+    "contra raw &minus;0.65, p &lt; .001, 4/4; log(day) removed &minus;0.37, p = .001, 3/4. "
+    "0.5&ndash;1 Hz power raw &minus;0.51, p &lt; .001, 4/4; log(day) removed &minus;0.30, p = .010, 3/4. "
+    "8&ndash;15 Hz power does not track recovery (ipsi raw &minus;0.01, p = .97; contra &minus;0.10, p = .42; log(day) removed +0.16 / +0.14, n.s.), "
+    "nor does the ipsi &minus; contra synchronization difference (raw &minus;0.15, p = .22; removed &minus;0.02, p = .86). "
+    "Conclusion: event rate, synchronization and 1&ndash;4 Hz power all return toward pre as behavior recovers; for event rate this is the shared time course, "
+    "while synchronization and 1&ndash;4 Hz power also track recovery beyond log(day) in 3 of 4 animals (PS94 opposite), so they are candidate session-level predictors. "
+    "Panels: event rate (log10, face-regressed), orofacial synchronization, synchronization ipsi &minus; contra, 1&ndash;4 Hz ipsi, 8&ndash;15 Hz ipsi, 0.5&ndash;1 Hz power, "
+    "each against far-contra hit rate / pre; markers = sessions (shape = animal), r and p in each panel title. Across-session correlations, not changes vs pre: no bootstrap stars. "
+    + data_block(" This figure uses the 76 post-stroke sessions (acute / subacute / chronic: PS92 5 / 2 / 12, PS93 4 / 3 / 12, PS94 6 / 5 / 8, PS95 1 / 7 / 11); "
+                 "far-contra hit rate from <code>recovery_timing.series</code> (hit = DAQ spout contact). Face video (FaceRhythm) enters only as regressors.") +
+    f" Script {SC}quiet_recovery_link.py</code>; outputs <code>recovery_link/quiet_recovery_link.png</code>, <code>recovery_link/recovery_link.csv</code>, "
+    "<code>recovery_link/recovery_link_sessions.csv</code>; log <code>logs/quiet_recovery_link.log</code>. PROVISIONAL (n = 4).")
