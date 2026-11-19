@@ -405,6 +405,8 @@ OUTCOME_ROWS = ("working", "jaw_only", "no_response")
 
 
 def trial_outcome(cls: str) -> str | None:
+    """The outcome row of a camera trial class: "working" (contact or incomplete, `working_trials.IN_WORKING`),
+    "jaw_only", "no_response", or None (unknown class)."""
     from wfield_local import working_trials as wt
     if cls in wt.WORKING_CLASSES[wt.IN_WORKING]:
         return "working"

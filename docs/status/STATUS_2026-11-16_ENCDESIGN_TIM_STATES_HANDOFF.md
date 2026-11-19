@@ -112,7 +112,7 @@ Run code from a worktree with `PYTHONPATH=$(pwd -W)` (Windows form). AR-HMM mode
   configs/defaults.yaml, lick gate = `trial_classes.camera_engaged_period`, stats = `orofacial_cohort.epoch_tables`).
   `python -m wfield_local.behavior_states collect` -> `arhmm/v1/poststroke_pooled_all_s1/` (csv.gz + traces.npz);
   `python scripts/states_page_figs.py [--only ...]` -> `page_figs/`. Test `tests/test_behavior_states.py`. The scratch
-  scripts (scripts/states_poststroke, share `arhmm/v1/poststroke_s1/`) are SUPERSEDED (folder kept; derived, can go).
+  scripts (scripts/states_poststroke, share `arhmm/v1/poststroke_s1/`) are SUPERSEDED (folder DELETED 11-18 with Priya's OK).
 - **Data on the share now:** features `arhmm/features_v3` (= `arhmm_features.out_dir()`), fits + decoded states
   `arhmm/v1/fits` (`arhmm_states.fits_dir()`, PROVENANCE.txt: pooled_all_s1 = local refit = the REVIEWED reference;
   s2 / s3 / pre_s1-3 = O2; pre_s1_f1..f8 = O2 held-out folds).
@@ -210,7 +210,7 @@ Run code from a worktree with `PYTHONPATH=$(pwd -W)` (Windows form). AR-HMM mode
 
 - **Post-stroke round 2 (Priya OK items 1, 2, 3, 6; dropped 4 = LP lick direction per spout already does it, 5 =
   per-lick kinematics already do it; `poststroke_states2.py`; outputs + scripts copied to share
-  `LP_analysis/<run>/arhmm/v1/poststroke_s1/`).** Engaged = GLM-HMM K5 argmax in {0,1,2}; trial cycle = prev stop ..
+  `LP_analysis/<run>/arhmm/v1/poststroke_s1/`, deleted 11-18; superseded by `poststroke_pooled_all_s1`).** Engaged = GLM-HMM K5 argmax in {0,1,2}; trial cycle = prev stop ..
   stop. (1) engaged cycles: quiet +.11 acute (4/4, Holm) -> not only disengagement; contra lick -.021 acute; ipsi
   +.027 acute, +.020 chronic; push +.017 chronic (4/4, Holm). (2) contra share of LICK frames .44 pre: -.12 acute,
   -.07 subacute, -.07 chronic (4/4 each, Holm) -- chronic deficit persists; CROSS-CHECK against LP per-lick direction
