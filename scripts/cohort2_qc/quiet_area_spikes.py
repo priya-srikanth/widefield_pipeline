@@ -63,6 +63,42 @@ def columns():
     return cols + [f"{g}_{h}" for g in GROUPS for h in ("left", "right")] + list(GROUPS) + ["cortex"]
 
 
+def _quit_time_compute(label):
+    """The session's quit on the DAQ clock (s): the cue of the first trial at or after `session_quit`'s quit; NaN when
+    the quit is censored, the session is unusable, or the quit falls after the last cue. Unchanged from the inline code
+    that `session_traces` carried until 11-18."""
+    from wfield_local.analysis_kit import session_behavior
+    bh = session_behavior(label)
+    if bh is None or bh.quit["censored"]:
+        return float("nan")
+    k = sum(float(r["elapsed_s"]) < float(bh.quit["quit_elapsed_s"]) for r in bh.trials)
+    return float(bh.cue_samples[k] / bh.sample_rate) if k < len(bh.cue_samples) else float("nan")
+
+
+def _quit_code_token():
+    """Hash of the source that decides the quit (session_cache keys see input files, not code)."""
+    import hashlib
+    import inspect
+    from wfield_local import analysis_kit, daq_trials, engagement
+    src = "".join(inspect.getsource(m) for m in (engagement, daq_trials)) + inspect.getsource(
+        analysis_kit.session_behavior) + inspect.getsource(_quit_time_compute)
+    return hashlib.sha1(src.encode()).hexdigest()[:12]
+
+
+def quit_time_s(label, s=None):
+    """`_quit_time_compute`, memoized per session in the session cache (Priya 11-18 "yes" to caching the quiet chain).
+    Profiled 11-18 on PS92_0820: `session_behavior` was 17 of `session_traces`' 20 s (the trial table, lick counts and
+    cue train re-read off the DAQ h5 on the share) and only the quit time is used here; ~7 quiet scripts x 108 sessions
+    paid it on every chain run. Key = the session's inputs (h5, behavior_trials, SVD; session_cache.session_signature)
+    + the behavior yaml block + the source of the quit code. WIDEFIELD_NO_CACHE=1 recomputes."""
+    from wfield_local import config, session_cache
+    s = s or next(x for x in config.load_sessions() if x["label"] == label)
+    env = {k: v for k, v in os.environ.items() if k.startswith("WIDEFIELD_") and k not in ("WIDEFIELD_MAX_JOBS",)}
+    params = {"code": _quit_code_token(), "behavior": repr(sorted(config.defaults().get("behavior", {}).items())),
+              "env": repr(sorted(env.items()))}
+    return session_cache.cached(s, "quiet-quit-s", lambda: _quit_time_compute(label), params=params, verbose=False)
+
+
 def session_traces(label, detrend=True):
     """One session -> (X cols x T detrended dF/F %, ft, fs_img, rest mask, engaged mask, quit_s). Shared with
     quiet_spikes_fr.py (the FaceRhythm-regressed pass) so both passes read the identical traces and rest frames."""
@@ -91,7 +127,6 @@ def session_traces(label, detrend=True):
     if detrend:                              # detrend=False: raw dF/F % (quiet_spikes_v2 injects synthetic events first)
         X = X - median_filter(X, (1, w), mode="nearest")
     T = X.shape[1]
-    from wfield_local.analysis_kit import session_behavior
     animal, mmdd = label.split("_")
     z = np.load(EVENTS / animal / f"2026{mmdd}.npz", allow_pickle=True)
     fs = float(z["fs"])
@@ -103,13 +138,9 @@ def session_traces(label, detrend=True):
         bad = np.load(sw)["bad"][:T].astype(float)
         rest[:len(bad)] &= ~(np.convolve(bad, np.ones(7), "same") > 0)
     engaged = np.ones(T, bool)
-    quit_s = np.nan
-    bh = session_behavior(label)
-    if bh is not None and not bh.quit["censored"]:
-        k = sum(float(r["elapsed_s"]) < float(bh.quit["quit_elapsed_s"]) for r in bh.trials)
-        if k < len(bh.cue_samples):
-            quit_s = bh.cue_samples[k] / bh.sample_rate
-            engaged = ft < quit_s
+    quit_s = quit_time_s(label, s)
+    if np.isfinite(quit_s):
+        engaged = ft < quit_s
     # QS_ENGAGED_END=lastcue (first 11-18 rule, superseded): engaged also ends at the TASK end = min(last cue + response window, last
     # sync edge) (quiet_engaged_end.py). Without it a censored quit kept the whole recording, so imaging
     # after the task stopped counted as engaged quiet (PS92_0828 7.2-min tail, PS93_0806 pre 12.9 min). Default off.
