@@ -211,6 +211,16 @@ D1 = a). Page = the results page that shows it.
       cam2 / cam3; `cohort2_qc/lp_licks.py`; `cohort2_qc/quiet_task_events.py` (pre-cue gate),
       `quiet_lp_sensitivity.py`, `quiet_lick_lfo.py`, `quiet_area_spikes.py`
 - [ ] the restyle / section-23 runners on the sync-end run (a8's current chain)
+- [ ] **HOW to re-run (a8, 11-18):** ONLY via `scripts/cohort2_qc/run_quiet_chain.sh <OUT_DIRNAME>` (on main, b58420f8+)
+      from a clean checkout. It runs the whole chain in order: base chain, section-23 follow-ons, T13 follow-up,
+      restyled deck / page figures. Every 11-18 decision is in the code (last-sync end incl. quit period, k 4, cam1
+      guard, bootstrap stars, stable seed, quit cache). No hand-run pieces, no cross-key patches.
+- [ ] **Prerequisite** (after the new LP licks + FR series): the attempt_coding pre-cue tables under the SAME env / key
+      (`WIDEFIELD_LICK_SOURCE=daq`; may freeze decoders, CLAUDE.md rule 10). The runner's preflight refuses to start
+      without them, and `quiet_task_events` fails on a missing table. Never read T13 p_true across keys
+      (`task_events_summarise_prodptrue.py` is marked do-not-reuse).
+- [ ] Fig 23.23 (T13 follow-up) stays on PRE-rebuild data by Priya's choice (11-18); it moves to the new build only
+      through this runner.
 
 ### I. State space page
 - [ ] `state_space_enl_baseline.py` (LP train), `state_space_rest_baseline.py`, `state_space_rest_decomp.py` (RESTnl),
