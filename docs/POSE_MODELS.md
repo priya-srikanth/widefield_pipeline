@@ -1240,6 +1240,14 @@ the scripts, all in the work dir).** r2_full / fold0 / fold1 all ran 300 epochs 
   `session_poses/<a>_<d>_cam2_full` / `_cam3_full`. Smoke (local, exact flags, bundled runner + model, real AVI span
   under review-clip trial 0): 0.002 px median vs the validated clip predictions; bundle vs local model 3e-5 px. Timing
   (desktop RTX 5060): transform + encode ~1240 fps, opencv predict ~450 fps -> ~2 h per 2.2 M-frame video; 10 h limit.
+  Transform later sped up to ~3220 fps (numpy mirror / crop + threaded decode; byte-identical mp4).
+* **Four-camera clips with r2b (11-18, Priya: keep as presentation examples -> `docs/EXAMPLE_VIDEOS.md`)**:
+  `session_poses/pose3d_side/r2b_20261118/video_4cam_<a>_<d>_fit.mp4`, PS93 0814 / 0821 / 0908 + PS92 0820, PS94 0903,
+  PS95 0821. Per position (cam1 + cam4 -> four cameras; `lp_side_r2b_20261118/coverage_*.csv`): JAW 3-D at close_center
+  0.80-0.83 -> 1.00 (PS93) and 0.15-0.55 -> 1.00 (PS92 / 94 / 95), far_center 0.67 -> 1.00 and 0.26-0.55 -> 1.00, close
+  L / R 0.89-0.94 -> 1.00, agreeing with the two-camera jaw to 0.1-0.6 mm where both exist; TONGUE at the close spouts
+  +10-25 % frames (PS93, cue .. +700 ms: close_L 0.36 -> 0.39, close_R 0.34 -> 0.38, close_center 0.22 -> 0.27), far
+  spouts unchanged. Before the four-camera jaw replaces the "jaw unknown at close_center" rule, review those frames.
 
 ## D13. June in 3-D, re-evaluated (11-07, a8; Priya asked why June kinematics cannot use the spout-posed 3-D)
 
