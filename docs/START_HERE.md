@@ -60,6 +60,8 @@ bootstrap (`analysis_kit.boot_delta`), and the block-permutation null for any la
 - **Handoff:** [`status/STATUS_2026-11-03_TRIAL_GATES_S1_TABLE_HANDOFF.md`](status/STATUS_2026-11-03_TRIAL_GATES_S1_TABLE_HANDOFF.md)
   ("START HERE (window e0, 11-04 late)" block); before 11-03:
   [`status/STATUS_2026-10-21_POSE_CAM1_JAW_HANDOFF.md`](status/STATUS_2026-10-21_POSE_CAM1_JAW_HANDOFF.md)
+- **cam2 / cam3 re-run (from 11-18):** what must be re-run with the four-camera 3-D and lick data, decisions first:
+  [`status/STATUS_2026-11-18_CAM23_RERUN_INVENTORY.md`](status/STATUS_2026-11-18_CAM23_RERUN_INVENTORY.md)
 - **Code:** `pose3d.py`, `pose3d_side.py`, `lp_licks.py`, `lp_multiview.py`, `lp_sidecam.py`, `orofacial_clean.py`;
   O2 runbook [`../runbooks/o2_pose_inference.md`](../runbooks/o2_pose_inference.md)
 
