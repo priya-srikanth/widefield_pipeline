@@ -28,7 +28,7 @@ export WIDEFIELD_TRIAL_STOPPED=both
 export WIDEFIELD_TRIAL_WINDOW=cue_stop
 export WIDEFIELD_WORKING_TRIALS=in_working
 export PYTHONIOENCODING=utf-8
-S=$1; shift; L=${S%.py}
+S=$1; shift; L=${S%.py}${QS_LOG_SUFFIX:-}   # QS_LOG_SUFFIX: keep a re-plot from overwriting the extraction log
 LOGD=$Q/$QS_V2_DIRNAME/logs; mkdir -p "$LOGD"; LOG=$LOGD/$L.log
 cd $W
 {
