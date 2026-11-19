@@ -49,12 +49,19 @@ def test_within_frames_keeps_clip_span():
 def test_static_events_count_only_when_another_camera_confirms():
     s2 = _ev("cam2", [(1, 100, 112, 104), (1, 500, 512, 504)]).assign(static=True)
     U = CL.fuse({"cam4": _ev("cam4", [(1, 90, 150, 120)]), "cam2": s2})
-    assert list(U.static) == [False, True]                    # held on the spout with cam4 / a static label alone
+    assert list(U.guarded) == [False, True]                    # held on the spout with cam4 / a static label alone
     assert list(CL.lick_train(U).on_ms) == [90]
-    assert CL.view_table(U).loc["cam2", "static"] == 1
+    assert CL.view_table(U).loc["cam2", "guarded"] == 1
 
 
 def test_droplet_rule_scales_to_another_view():
     from wfield_local import cam1_licks as C1
     E = pd.DataFrame({"spread_px": [5.0], "range_px": [20.0], "med_out_px": [10.0]})
     assert not C1.droplet_flags(E, [True])[0] and C1.droplet_flags(E, [True], scale=2.0)[0]
+
+
+def test_far_guard_counts_like_static():
+    s3 = _ev("cam3", [(1, 500, 540, 520)]).assign(far=True)
+    U = CL.fuse({"cam3": s3, "cam2": _ev("cam2", [(1, 505, 545, 525)])})
+    assert list(U.guarded) == [False] and len(CL.lick_train(U)) == 1     # confirmed by cam2 -> a lick
+    assert len(CL.lick_train(CL.fuse({"cam3": s3}))) == 0
