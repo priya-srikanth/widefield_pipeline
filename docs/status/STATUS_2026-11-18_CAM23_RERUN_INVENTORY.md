@@ -76,6 +76,15 @@ Wired at both cam1 cleaning sites: `scripts/cam1_licks.py run` (lick events) and
 (76 sessions; code in `cam23_rerun_20261118/code/`): 0 / 118 blind-review tongue runs masked; 9 / 10 no-tongue runs in
 front of the mouth caught; trial 540 1,099 / 1,124 frames; 0.30 % of confident frames masked over 25 sessions, 7.6 % of
 those inside a cam4 lick. NOT caught: no-tongue labels at the mouth line (7 / 24; not separable by position).
+**cam4 keep (Priya 11-18: "are these real? should we keep those with a cam4 correlate?" -- yes):** of 12 sampled
+masked runs inside a cam4 lick, 8 were the real tongue held at the spout, 2 grooming, 2 the label on a drop as the tongue
+retracted; 6 / 6 sampled masked runs without a cam4 lick were a drop or the bare rod (sheets
+`DeepLabCut/Widefield/session_poses/cam1_licks/drop_mask_check_20261118/masked_sheet_{0,1,2}.png`, key beside them;
+code `masked_sheet.py`). So a run overlapping a production cam4 lick (`cam1_licks.cam4_lick_windows`, `licks_all.csv`)
+is never masked: `mask_detached(keep_windows=)`, threaded as ``cam1_keep`` through `pose3d.cleaned_xy` /
+`session_3d` / `pose3d_side.four_camera_points`; passed by `scripts/pose3d.py` production, `pose3d_side.fuse_session`
+and `scripts/cam1_licks.py`. Other (QC) callers without windows mask unprotected and print so. Trial 540 is unchanged
+(1,099 frames masked; cam4 saw no lick); PS93 0814 overall 1,684 -> 1,665 masked frames.
 **Takes effect when cam1 events / 3-D are regenerated (the re-run): do NOT regenerate single sessions before it, or
 the cohort mixes two cam1 definitions.** Bump `lp_licks.LP_VERSION` with that regeneration.
 

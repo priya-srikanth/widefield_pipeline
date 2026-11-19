@@ -180,6 +180,11 @@ def cam1_frame(flat, ix):
 #:     (`FAR_FROM_MOUTH_PX`); the 7 that reach the mouth line are not separable by position;
 #:   * trial 540: 1,099 / 1,124 drop frames masked;
 #:   * 25 sessions: 0.30 % of confident tongue frames masked, 7.6 % of those inside a cam4 lick (on..off).
+#: A run that overlaps a cam4 LP lick (production ``licks_all.csv`` on..off) is NEVER masked (Priya 11-18: "should we keep
+#: those with a cam4 correlate?" -- yes): of 12 sampled masked runs inside a cam4 lick, 8 were the real tongue held at the
+#: spout (label on the tongue in cam1, tongue in cam4), 2 grooming, 2 the label on a drop as the tongue retracted; 6 / 6
+#: sampled masked runs WITHOUT a cam4 lick were a drop or the bare rod (scratch `masked_sheet.py`). As the droplet and
+#: far-from-mouth rules, the mask then acts on cam1-ONLY evidence.
 #: Rejected versions: raw runs without the bridge (35 % of masked frames inside cam4 licks: a lick whose label flickers
 #: at the spout looked detached) and a range < 8 px test on bridged runs (missed trial 540: a long wobbling drop spans
 #: 10-24 px).
@@ -211,26 +216,64 @@ def tongue_runs(out, lat, ok, trial_id, t_ms, max_gap_ms: float = DETACH_MAX_GAP
     return pd.DataFrame(rows, columns=cols)
 
 
-def detached_static(out, lat, ok, trial_id, t_ms, *, detach_out_px: float = DETACH_OUT_PX,
+def detached_static(out, lat, ok, trial_id, t_ms, *, keep=None, detach_out_px: float = DETACH_OUT_PX,
                     spread_px: float = STATIC_SPREAD_PX, max_gap_ms: float = DETACH_MAX_GAP_MS) -> np.ndarray:
     """``bool[n]``: frames of a detached, stationary run (`tongue_runs`; see ``DETACH_OUT_PX``). ``ok`` = confident raw
-    frames."""
+    frames; ``keep`` = frames another camera vouches for (`keep_frames`): a run touching one is not masked."""
     R = tongue_runs(out, lat, ok, trial_id, t_ms, max_gap_ms)
     mask = np.zeros(len(np.asarray(out)), bool)
     okf = np.asarray(ok, bool)
+    kp = np.zeros(len(okf), bool) if keep is None else np.asarray(keep, bool)
     for r in R[(R.min_out > detach_out_px) & (R.spread < spread_px)].itertuples():
-        mask[r.a:r.b + 1] = okf[r.a:r.b + 1]
+        if not kp[r.a:r.b + 1].any():
+            mask[r.a:r.b + 1] = okf[r.a:r.b + 1]
     return mask
 
 
-def mask_detached(flat: pd.DataFrame, ix: pd.DataFrame, to_frame=None) -> tuple[pd.DataFrame, np.ndarray]:
+def keep_frames(ix: pd.DataFrame, windows: pd.DataFrame) -> np.ndarray:
+    """``bool[len(ix)]``: frames of ``ix`` (trial_id, t_ms) inside any window of ``windows`` (trial_id, on_ms, off_ms)."""
+    tid, t = ix.trial_id.to_numpy(), ix.t_ms.to_numpy(float)
+    out = np.zeros(len(t), bool)
+    for tr, g in windows.groupby("trial_id"):
+        k = np.flatnonzero(tid == tr)
+        if len(k):
+            w = g[["on_ms", "off_ms"]].to_numpy(float)
+            out[k] = ((t[k, None] >= w[None, :, 0]) & (t[k, None] <= w[None, :, 1])).any(1)
+    return out
+
+
+def cam4_lick_windows(rv, animal: str, date: str) -> pd.DataFrame | None:
+    """(trial_id, on_ms, off_ms) of every production cam4 LP lick of the session (``licks_all.csv``, the table
+    `lp_licks` reads), or None when the session has none."""
+    from pathlib import Path
+
+    from wfield_local import lp_licks
+    _sd, f4, _f1 = lp_licks._inputs(f"{animal}_{date[4:]}", rv)
+    return pd.read_csv(f4, usecols=["trial_id", "on_ms", "off_ms"]) if Path(f4).exists() else None
+
+
+_NO_KEEP: set = set()
+
+
+def mask_detached(flat: pd.DataFrame, ix: pd.DataFrame, to_frame=None, keep_windows: pd.DataFrame | None = None,
+                  label: str | None = None) -> tuple[pd.DataFrame, np.ndarray]:
     """(copy of ``flat`` with ``tongue_likelihood`` = 0 on `detached_static` frames, the mask): the cam1 tongue as the
-    cleaning should see it (a masked frame is "not visible"). ``to_frame``: `cam1_frame`'s, else computed."""
+    cleaning should see it (a masked frame is "not visible"). ``to_frame``: `cam1_frame`'s, else computed.
+    ``keep_windows``: the cam4 lick windows (`cam4_lick_windows`); runs overlapping one are kept. Without them every
+    detached, stationary run is masked, printed once per ``label``."""
     from wfield_local import orofacial_clean as OC
     to_frame = to_frame or cam1_frame(flat, ix)[2]
     out, lat = to_frame(flat.tongue_x.to_numpy(float), flat.tongue_y.to_numpy(float))
     ok = flat.tongue_likelihood.to_numpy(float) >= float(OC.params("tongue", "cam1")["lk_thr"])
-    m = detached_static(out, lat, ok, ix.trial_id.to_numpy(), ix.t_ms.to_numpy(float))
+    if keep_windows is None:
+        key = label or "<unlabelled cam1 session>"
+        if key not in _NO_KEEP:
+            _NO_KEEP.add(key)
+            print(f"[cam1_licks] {key}: no cam4 lick windows -> detached runs masked without the cam4 keep", flush=True)
+        keep = None
+    else:
+        keep = keep_frames(ix, keep_windows)
+    m = detached_static(out, lat, ok, ix.trial_id.to_numpy(), ix.t_ms.to_numpy(float), keep=keep)
     flat = flat.copy()
     flat.loc[m, "tongue_likelihood"] = 0.0
     return flat, m

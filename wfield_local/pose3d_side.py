@@ -204,7 +204,7 @@ def fuse(g, pts_by_part: dict) -> dict:
 
 
 def four_camera_points(S: pd.DataFrame, info: dict, c1, c4, side: dict, order: list[str],
-                       keep_all: bool = False) -> tuple[pd.DataFrame, dict]:
+                       keep_all: bool = False, cam1_keep: pd.DataFrame | None = None) -> tuple[pd.DataFrame, dict]:
     """The frames shared by cam1 + cam4 (`session_3d`'s pairing) and both side review clips, and per part the
     (n_cams, n, 2) image points in ``order``: cam1 / cam4 as `session_3d` uses them (tongue / jaw after each camera's
     cleaning, MEASURED frames only; nose / spout raw >= `pose3d.STATIC_LK`), side points confident at
@@ -220,7 +220,7 @@ def four_camera_points(S: pd.DataFrame, info: dict, c1, c4, side: dict, order: l
     base = {}
     for part in PARTS:
         if part in P3.CLEANED:
-            a = P3.cleaned_xy(flat1, ix1, part, "cam1", mouth1)[0][i1]
+            a = P3.cleaned_xy(flat1, ix1, part, "cam1", mouth1, cam1_keep=cam1_keep)[0][i1]
             b = P3.cleaned_xy(flat4, ix4, part, "cam4", mouth4)[0][i4]
         else:
             a, b = P3._raw_xy(flat1, part, i1), P3._raw_xy(flat4, part, i4)
@@ -554,7 +554,9 @@ def fuse_session(rv, animal: str, date: str, preds_dir: Path | None = None, clip
         raise FileNotFoundError(f"{animal} {date}: cam1 / cam4 production output missing")
     rig = _rig(rv, animal, date)
     cg = cg or _cgroup(rv)
-    S, info = P3.session_3d(cg, rig, c1[0], c1[1], c4[0], c4[1])
+    from wfield_local import cam1_licks as C1
+    keep = C1.cam4_lick_windows(rv, animal, date)          # cam1 drop mask: keep runs inside a cam4 lick (11-18)
+    S, info = P3.session_3d(cg, rig, c1[0], c1[1], c4[0], c4[1], cam1_keep=keep)
     if side_bundle:
         side = {c: side_windows(rv, side_bundle, animal, date, c) for c in SIDE}
         if any(v is None for v in side.values()):
@@ -566,7 +568,7 @@ def fuse_session(rv, animal: str, date: str, preds_dir: Path | None = None, clip
     order = [c.get_name() for c in g.cameras]
     cams = {c.get_name(): c for c in g.cameras}
     scale = {c: px_per_mm(cams[c]) / px_per_mm(cams["cam4"]) for c in order}
-    F, pts = four_camera_points(S, info, c1, c4, side, order, keep_all=bool(side_bundle))
+    F, pts = four_camera_points(S, info, c1, c4, side, order, keep_all=bool(side_bundle), cam1_keep=keep)
     for c in SIDE:                                    # stage 1: the side tongue / jaw become their CLEANED measured points
         mouth = project(cams[c], np.zeros((1, 3)))[0]
         cl = side_clean(side[c][1], side[c][0], mouth, scale[c])

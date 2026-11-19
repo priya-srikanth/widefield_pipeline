@@ -65,7 +65,9 @@ def run_session(s: str) -> dict:
         return {**row, "error": "no cam1 output"}
     ix, flat = c1[0].reset_index(drop=True), c1[1].reset_index(drop=True)
     fr, med, to_frame = _cam1_frame(flat, ix)
-    flat, _drop = C1.mask_detached(flat, ix, to_frame)          # detached, stationary labels out BEFORE cleaning (11-18)
+    # detached, stationary labels out BEFORE cleaning, keeping runs inside a cam4 lick (11-18)
+    flat, _drop = C1.mask_detached(flat, ix, to_frame, keep_windows=C1.cam4_lick_windows(rv, animal, date),
+                                   label=f"{animal}_{date}")
     cols = [c for c in flat.columns if c.startswith(("tongue_", "jaw_"))]
     c, pos, _ = oc.clean_windows(flat[cols], ix, "tongue", x0y0=tuple(fr.origin), cam="cam1")
     x, y, fm = c.x_final[pos] + c.X0, c.y_final[pos] + c.Y0, c.fill_method[pos]
