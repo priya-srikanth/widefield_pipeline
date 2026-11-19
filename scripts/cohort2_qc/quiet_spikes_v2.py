@@ -166,7 +166,11 @@ def extract(label):
             pk, h = detect(sign * Xd[i], quiet, fs)
             store += [(i, int(p), float(v), int(engaged[p]), int(rest[p])) for p, v in zip(pk, h)]
     # injections (same onsets for every amplitude and column)
-    rng = np.random.default_rng(abs(hash(label)) % (2 ** 32))
+    # STABLE seed (11-18): `hash(label)` of a str is randomized per process (PYTHONHASHSEED), so the injection onsets --
+    # and threshold_sensitivity.csv -- changed on every run (found by the quit-cache reproduction check, which matched
+    # every other output byte for byte). crc32 is fixed across processes and machines.
+    import zlib
+    rng = np.random.default_rng(zlib.crc32(label.encode()))
     cand = np.flatnonzero(qe)
     cand = cand[(cand > 2 * fs) & (cand < T - 3 * fs)]
     on = []
