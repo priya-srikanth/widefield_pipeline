@@ -240,7 +240,9 @@ analysis (PS92–PS95: trials, engagement, licks, epochs, DLC/orofacial tracking
 cohort (PS38–PS55) whose results it still owns; its behavior modules are NOT imported, invoked, or
 kept in sync here. The two rigs differ enough that shared code would be wrong, not merely
 inconvenient: **one moving spout at 6 positions** vs their two fixed L/R spouts, **four Blackfly
-cameras at 250 fps** vs their single 100-fps Flea3 `video2`, and a widefield imaging arm they do not
+cameras at 250 fps** vs their four 250-fps Flea3 cameras of which their 2-D analysis tracks only the
+front `video2` (corrected 2026-11-18: it had said "a single 100-fps Flea3"; their 3-D work is in
+`stroke_orofacial_pipeline` docs/POSE3D_2PRAM.md), and a widefield imaging arm they do not
 have. Where a decision was ported deliberately (the ITI edge matcher, `spout_behavior`'s shape, the
 epoch scaffold) the porting note says so at the call site. Read a result from `pipeline_outputs/` on
 their side as belonging to the OLD cohort; ours land under `Widefield/…` per `configs/paths.yaml`.
