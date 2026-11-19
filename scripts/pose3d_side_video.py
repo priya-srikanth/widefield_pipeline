@@ -57,7 +57,7 @@ def view_from(cam) -> tuple[float, float]:
 
 
 def run(rv, session: str, per_position: int, t0: float, t1: float, preds: Path | None = None,
-        out: Path | None = None, fit: bool = False) -> Path:
+        out: Path | None = None, fit: bool = False, clips: str | None = None) -> Path:
     """``preds``: the side model's clip predictions (default `pose3d_side_check.PREDS`, crop2); ``out``: output folder
     (default `session_poses/pose3d_side`, where the crop2 renders live -- give another model its own folder)."""
     import cv2
@@ -74,7 +74,7 @@ def run(rv, session: str, per_position: int, t0: float, t1: float, preds: Path |
     animal, date = session.split(":")
     if _june_factor(date):
         raise SystemExit(f"{session}: June -- side intrinsics not validated, not rendered")
-    Z = PS.fuse_session(rv, animal, date, Path(preds or PREDS), Path(rv.root("dlc")) / CLIPS)
+    Z = PS.fuse_session(rv, animal, date, Path(preds or PREDS), Path(rv.root("dlc")) / (clips or CLIPS))
     F, order, g, pts, rig, side = Z["F"], Z["order"], Z["g"], Z["pts"], Z["rig"], Z["side"]
     R = {p: (Z["parts"][p]["X"], None, Z["parts"][p]["views"]) for p in PS.PARTS}
     out = Path(out) if out else Path(rv.root("dlc")) / "session_poses" / "pose3d_side"
@@ -231,11 +231,13 @@ def main(argv=None) -> int:
     ap.add_argument("--t1", type=float, default=700.0)
     ap.add_argument("--preds", type=Path, default=None, help="side model clip predictions (default crop2)")
     ap.add_argument("--out", type=Path, default=None, help="output folder (default session_poses/pose3d_side)")
+    ap.add_argument("--clips", default=None, help="side clip folder under DeepLabCut/Widefield (default the 10-27 review "
+                    "clips; inference_check_20261104_partA_clips has PS92 0820, PS94 0903, PS95 0821 / 0907)")
     ap.add_argument("--fit", action="store_true", help="per-camera tile fitted to nose + spouts + all keypoints (*_fit.mp4)")
     a = ap.parse_args(argv)
     rv = PathResolver()
     for s in a.sessions:
-        run(rv, s, a.per_position, a.t0, a.t1, a.preds, a.out, a.fit)
+        run(rv, s, a.per_position, a.t0, a.t1, a.preds, a.out, a.fit, a.clips)
     return 0
 
 
