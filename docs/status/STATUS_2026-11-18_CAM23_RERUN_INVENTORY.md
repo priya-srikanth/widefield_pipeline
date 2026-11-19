@@ -28,6 +28,24 @@ This is a living handoff. Whoever runs the re-run: tick items in section 4 as th
   checked; the lick-template test (`scripts/lick_template_match.py`, Priya 10-07 "very important") was to be revisited
   once the next pose model exists.
 
+## 0b. Lick fusion DRAFT (11-18, a2; Priya: "start drafting code for licks across cameras")
+
+`wfield_local/camera_licks.py` + `scripts/camera_licks.py clips` (dlc env), tests `tests/test_camera_licks.py`. cam4 =
+the production `licks_all.csv`; cam1 = the production `_events_all.csv` through `cam1_licks.keep_mask`; cam2 / cam3 =
+`cam1_licks.detect` on the side tongue after `pose3d_side.fuse_session` (side cleaning + side droplet rule), in a
+per-view mouth frame, with cam1's droplet rule rescaled by px / mm (`cam1_licks.droplet_flags(scale=)`, the only change
+to an existing function). `fuse`: overlapping events of one trial (12 ms) = one lick, with the cameras that saw it;
+`lick_train(min_views=)` = decision D2. Output: `DeepLabCut/Widefield/session_poses/camera_licks/clips_side_r2b_r2_full/`.
+
+**First result, r2b side model on the review clips (7 sessions, 102 trials, cue -0.2 .. +1.5 s, 263 licks):**
+220 (84 %) seen by all four cameras; 16 cam1-only (6 %; median 28 ms, 4 of them one PS93 0814 trial 540 with 556-748 ms
+spans: review that clip); 4 cam4-only; 3 cam2 + cam3 + cam4 without cam1; 4 cam2-only, all static labels (dropped by
+the rescaled droplet rule); **0 kept licks that only a side camera saw**. On these clips the side views confirm licks
+rather than add them; whole sessions (more pre-cue / ITI time, more misses) may differ.
+
+Open: the cam1-only events (review), a side far-from-mouth guard (none yet), the clip-edge licks (side frames end at
++1.5 s), and the whole-session path (`fuse_session(side_bundle=...)` + `production_events`, same functions).
+
 ## 1. Decisions needed before running (Priya)
 
 | # | decision | why it matters | options / default proposed |
@@ -35,7 +53,7 @@ This is a living handoff. Whoever runs the re-run: tick items in section 4 as th
 | D1 | Does the cam4 **2-D** chain (LP run `orofacial_cohort.RUN = lp_r4_heatmap_20261013__clean_v36`) get regenerated in this re-run, under a new run tag? | The spout-rule fix (item 1 above) changes the v36 params digest, so it cannot be patched under v36. A new RUN moves EVERY output folder under `LP_analysis/<RUN>/` (licks, kinematics tables, `arhmm/`, `glm_hmm/`, `imaging_encoding/qc/` s1 snapshot, encoder outputs) | (a) new RUN `..._v37` with the spout fix, everything downstream re-pointed (proposed: one clean regeneration); (b) keep v36 2-D, re-run only 3-D and licks (cheaper; 2-D readouts keep the small, unbiased spout deviation) |
 | D2 | **Lick fusion rule** for four cameras | Defines LP_POST, camera classes, RESTnl, quiet-event exclusion, encoder lick kernels | union of cameras with duplicate merge (as cam1 today: cam1-only events added when not cam4-matched, droplets removed) vs requiring 2 views; droplet / far-from-mouth guards per side camera |
 | D3 | **Lick coverage**: post-cue only (as cam1 `_events.csv` today) or the whole trial window (`events_all`) | Today the ENL lick-free window is cam4-only because cam1 is scored only cue -> stop (`LICK_SOURCE_AUDIT_20261117.md`). Whole-window side licks would make the pre-cue / ITI / rest exclusions four-camera too | proposed: whole trial windows for every camera, so one train serves every window |
-| D4 | **Kinematics in 3-D or 2-D** | The kinematics page mixes cam4 2-D (v36) and cam1 + cam4 3-D readouts | keep the split (2-D for what cam4 measures well, 3-D for direction / depth), or move the headline readouts to the four-camera 3-D |
+| D4 | **Kinematics in 3-D or 2-D** -- DECIDED (Priya 11-18): "kinematics - we'll want mostly 3d" | The kinematics page mixes cam4 2-D (v36) and cam1 + cam4 3-D readouts | the kinematics readouts move to the four-camera 3-D (`pose3d_4cam`); 2-D only where a readout has no 3-D form |
 | D5 | **GLM-HMM / AR-HMM: refit or re-infer** | A refit renumbers states and changes every state figure; re-inferring with the saved parameters keeps the states | proposed: re-infer with the saved parameters (`glm_hmm/v1/params_pooled_all_K5_v2.json`; AR-HMM fits on the share) and report how many trials change state; refit only if the inputs moved a lot |
 | D6 | **Frozen pre-stroke decoders / encoder** | If the working gate's pre-stroke trial set changes, `spec_id` changes and new frozen models get fitted; the old ones stay as the reference (CLAUDE.md rule 10, `FROZEN_MODELS.md` section 7) | re-fit under the new gate as a new spec, keep the old store, compare |
 | D7 | **What counts as "changed enough" to re-render** | 870 files depend on these inputs (section 5); re-rendering everything is days of compute | proposed: measure first (section 3 checks), re-render everything whose inputs changed, and for families where < x % of trials change class, record the change and re-render on the next scheduled render instead |

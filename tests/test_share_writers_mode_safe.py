@@ -36,6 +36,8 @@ BEHAVIOUR = {
     "tongue_nocontact_qc.py", "trial_class_raw_share_fig.py",
     # main's side-camera / 4-camera 3-D scripts (pose only), classified at the 11-05 rebuild merge
     "pose3d_side_check.py", "pose3d_side_loo.py", "pose3d_side_video.py", "side_clean_qc.py", "side_label_offsets.py",
+    # licks across cameras on the side review clips (pose / lick events only), 11-18
+    "camera_licks.py",
     # main's FaceRhythm spout-in-mesh control (video factors only, writes the FR readouts dir), 11-05 merge
     "fr_spout_mesh_control.py",
     # main's within-session decline arm (licks / trials / pose only; writes its own within_session_decline dir), 11-08
