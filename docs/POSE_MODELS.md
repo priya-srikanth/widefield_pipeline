@@ -1211,6 +1211,16 @@ the scripts, all in the work dir).** r2_full / fold0 / fold1 all ran 300 epochs 
   (false tongue before the cue), tongue one-frame spikes 7 -> 34 (max step 52 -> 152 px), jaw spikes 6 -> 12, jaw step
   p99.9 7.0 -> 9.1, nose max step 2.2 -> 9.0; spout max step 13.9 -> 12.5 (a tie). Same outcome as 11-04: the temporal
   loss is NOT adopted for the side model. `lp_side_r2_20261118/clip_compare_temporal.txt`.
+* **r2b results (11-18 evening) -> PRODUCTION CANDIDATE** (`lp_side_r2b_20261118/r2_full/models/side_r2b_r2_full`;
+  `heldout_points_r2b.txt`, `clip_compare_r2b.txt`, `r2b_check.png`). Held-out (135 targets, current labels): false jaw
+  on student-hidden points r1 20/20, r2 7, r2b 6; visible jaw called confident r1 0.91, r2 0.93, r2b 0.98; accuracy on
+  corrected / placed points within ~0.5 px of r1 and r2 (anchoring caveat as above). Clips: jaw pre-cue confident r1
+  0.83, r2 0.78, **r2b 0.95**; June PS95 0606 cam2 / cam3 0.46 / 0.59 (r2) -> **0.91 / 0.93** (the June regression
+  is gone; DLC not needed for it); new jaw calls sit on the chin by eye, at the rod-tip contact when the rod is at the
+  chin (as labeled). Spout max step 16 px (r1 22). Remaining, rare: jaw one-frame spikes 6 -> 27 (median 3.4 px); one
+  jaw on a grooming paw (likelihood 0.69, 106 px jump, PS93 0814 cam2 f2722); tongue / jaw jump between tongue and the
+  water droplet on the rod during licks with a droplet (PS93 0821, up to 49 px; r2 also 52 px). Next: tongue-offset
+  check (`side_label_offsets.py`) with r2b, then the cam2 / cam3 O2 bundle with a local smoke test.
 
 ## D13. June in 3-D, re-evaluated (11-07, a8; Priya asked why June kinematics cannot use the spout-posed 3-D)
 
