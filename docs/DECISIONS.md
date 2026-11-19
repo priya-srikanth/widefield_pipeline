@@ -217,3 +217,6 @@ gaps <= 24 ms joined; min out > 30 px AND spread < 6 px -> not visible), at both
 `pose3d.cleaned_xy`). Evidence and rejected versions in the `cam1_licks` constants block and
 `status/STATUS_2026-11-18_CAM23_RERUN_INVENTORY.md` section 0b. Applies from the cam2 / cam3 re-run (no partial
 regeneration before it).
+Addendum (Priya 11-18, same day): a detached run that overlaps a production cam4 lick is KEPT (8 / 12 sampled such runs
+were the real tongue held at the spout; 6 / 6 sampled runs without a cam4 lick were drops / the rod), so the mask acts
+on cam1-only evidence, like the droplet and far-from-mouth rules. `mask_detached(keep_windows=cam4_lick_windows(...))`.
