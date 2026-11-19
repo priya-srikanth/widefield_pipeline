@@ -51,7 +51,23 @@ def params(kind: str = "dlc", cam: str = "cam4") -> dict:
         if f"model_rel_{cam}" not in lp:
             raise SystemExit(f"no o2_inference.lp.model_rel_{cam} in configs/defaults.yaml")
         p["model_rel"] = lp[f"model_rel_{cam}"]
+        for k in ("reader", "time"):                       # per-camera overrides (`reader_side`, ...)
+            if f"{k}_{cam}" in lp:
+                p[k] = lp[f"{k}_{cam}"]
     return p
+
+
+#: ``--cam side`` (11-18): the shared side model runs on BOTH side cameras' videos in one bundle; each video's camera
+#: is its file-name prefix (``cam2_*.avi`` / ``cam3_*.avi``), and collect writes ``session_poses/<a>_<d>_<cam>_full``.
+SIDE_CAMS = ("cam2", "cam3")
+
+
+def bundle_cams(cam: str) -> tuple[str, ...]:
+    return SIDE_CAMS if cam == "side" else (cam,)
+
+
+def video_cam(video: str) -> str:
+    return Path(video).name.split("_", 1)[0]
 
 
 def true_case(path: Path) -> Path:
@@ -129,14 +145,18 @@ module load {p['conda_module']}
 conda activate {p['conda_env']}
 nvidia-smi || true
 python {b}/o2_lp_runner.py --model {b}/model --video {video_first} --bench 2000
-"""
+""" + (f"""# side bundle: also run the side path end to end on 2000 frames (transform -> mp4 -> predict -> outputs)
+python {b}/o2_lp_runner.py --model {b}/model --video {video_first} --out {b}/logs/smoke_side --side --frames 0:2000 \\
+    --reader {p['reader']} --precision {p['precision']}
+""" if p.get("cam") == "side" else "")
 
 
 def runner_line(p: dict, b: str, video: str, out: str) -> str:
     """The prediction command for one video: DLC (`o2_pose_runner.py`, chunked + prior) or LP (`o2_lp_runner.py`)."""
     if p.get("kind") == "lp":
         return (f"python {b}/o2_lp_runner.py --model {b}/model --video {video} \\\n"
-                f"    --out {out} --reader {p['reader']} --precision {p['precision']}")
+                f"    --out {out} --reader {p['reader']} --precision {p['precision']}"
+                + (" --side" if p.get("cam") == "side" else ""))
     return (f"python {b}/o2_pose_runner.py --bundle {b} --video {video} \\\n"
             f"    --out {out} --batch {p['batch']} --chunk {p['chunk']}")
 
@@ -259,7 +279,9 @@ ssh {user}@o2.hms.harvard.edu
 srun -p short -t 1:00:00 -c 4 --mem=16G --pty bash
 module load {p['conda_module']}
 conda create -y -n {p['conda_env']} python=3.10 && conda activate {p['conda_env']}
-pip install "lightning-pose=={p['lightning_pose_version']}" "opencv-python-headless=={p['opencv_version']}"
+pip install "lightning-pose=={p['lightning_pose_version']}" "opencv-python-headless=={p['opencv_version']}"{''' imageio-ffmpeg
+#   (side bundle: the runner encodes the transformed frames with imageio-ffmpeg's bundled ffmpeg. Env already exists:
+#   conda activate ''' + p['conda_env'] + ''' && pip install imageio-ffmpeg)''' if p.get('cam') == 'side' else ''}
 #   (lightning-pose does NOT install OpenCV; the runner reads the AVIs with it -- the first O2 smoke job, 2026-10-15,
 #   failed on `import cv2`. If the env already exists: conda activate {p['conda_env']} && pip install the second package.)
 exit
@@ -294,7 +316,8 @@ def cmd_bundle(rv, name: str, user: str, sessions: list[tuple[str, str]], refres
         tasks = pd.read_csv(d / "tasks.tsv", sep="\t", dtype=str).drop(columns="task")
         # Same videos, re-SPELT in the on-disk case (`true_case`; bundles made before 2026-10-05 carry
         # paths.yaml's Behavior_Cameras/Widefield, which a case-sensitive O2 path lookup would not find).
-        local = {(a, dt): {v.name: v for v in videos_for(rv, a, dt, cam)} for a, dt in zip(tasks.animal, tasks.date)}
+        local = {(a, dt): {v.name: v for c in bundle_cams(cam) for v in videos_for(rv, a, dt, c)}
+                 for a, dt in zip(tasks.animal, tasks.date)}
         tasks["video_o2"] = [o2_path(local[(a, dt)][v], rv) if v in local[(a, dt)] else o2
                              for a, dt, v, o2 in zip(tasks.animal, tasks.date, tasks.video, tasks.video_o2)]
         tasks.insert(0, "task", np.arange(1, len(tasks) + 1))
@@ -316,7 +339,7 @@ def cmd_bundle(rv, name: str, user: str, sessions: list[tuple[str, str]], refres
         return d
     rows = []
     for animal, date in sessions:
-        vids = videos_for(rv, animal, date, cam)
+        vids = [v for c in bundle_cams(cam) for v in videos_for(rv, animal, date, c)]
         if not vids:
             print(f"   no {cam} video for {animal} {date} -- skipped (see docs/EXPERIMENT_ERRORS.md)")
             continue
@@ -675,19 +698,20 @@ def cmd_collect(rv, name: str, compare: dict | None = None, sessions: list | Non
     d = bundle_dir(rv, name)
     bj = json.loads((d / "bundle.json").read_text(encoding="utf-8"))
     kind, cam = bj.get("kind", "dlc"), bj.get("cam", "cam4")
-    sfx = "" if cam == "cam4" else f"_{cam}"            # session_poses/<a>_<d>[_cam1]_full, like the clips' folders
     tasks = pd.read_csv(d / "tasks.tsv", sep="\t", dtype=str)
+    tasks["cam"] = [video_cam(v) for v in tasks.video] if cam == "side" else cam
     from wfield_local import dlc_project
     sp = dlc_project.project_dir(rv).parent / "session_poses"
     jobs_ = []
-    for (animal, date), g in tasks.groupby(["animal", "date"], sort=True):
+    for (animal, date, vcam), g in tasks.groupby(["animal", "date", "cam"], sort=True):
+        sfx = "" if vcam == "cam4" else f"_{vcam}"      # session_poses/<a>_<d>[_cam1|_cam2|_cam3]_full, as the clips
         # 10-21: --sessions / --missing-only (a full collect rewrites every finished session, ~5 min each)
         if sessions and f"{animal}:{date}" not in sessions:
             continue
         if missing_only and (sp / f"{animal}_{date}{sfx}_full" / "windows_index.csv").exists():
             continue
         clip = (compare or {}).get(f"{animal}:{date}")
-        jobs_.append(_CollectJob((d, kind, cam, sfx, sp, animal, date, list(g["video"]), clip)))
+        jobs_.append(_CollectJob((d, kind, vcam, sfx, sp, animal, date, list(g["video"]), clip)))
     from wfield_local import parallel
     results, failures = parallel.fan_out(jobs_, _collect_session, jobs=jobs, label="session")
     for _job, msg in sorted(results, key=lambda r: (r[0][5], r[0][6])):
@@ -709,8 +733,9 @@ def main(argv=None) -> int:
     b.add_argument("--refresh", action="store_true", help="existing bundle: rewrite only sbatch / COMMANDS / runner")
     b.add_argument("--kind", choices=("dlc", "lp"), default="dlc",
                    help="lp = the production Lightning Pose model (o2_inference.lp.model_rel[_<cam>])")
-    b.add_argument("--cam", default="cam4", choices=("cam4", "cam1"),
-                   help="camera: its videos, alignment templates and LP production model (cam1: lp.model_rel_cam1)")
+    b.add_argument("--cam", default="cam4", choices=("cam4", "cam1", "side"),
+                   help="camera: its videos, alignment templates and LP production model (cam1: lp.model_rel_cam1; "
+                        "side: cam2 + cam3 with the shared side model, lp.model_rel_side)")
     c = sub.add_parser("collect")
     c.add_argument("--name", required=True)
     c.add_argument("--compare", action="append", default=[], metavar="ANIMAL:DATE=CSV",

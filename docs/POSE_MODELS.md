@@ -1221,6 +1221,23 @@ the scripts, all in the work dir).** r2_full / fold0 / fold1 all ran 300 epochs 
   jaw on a grooming paw (likelihood 0.69, 106 px jump, PS93 0814 cam2 f2722); tongue / jaw jump between tongue and the
   water droplet on the rod during licks with a droplet (PS93 0821, up to 49 px; r2 also 52 px). Next: tongue-offset
   check (`side_label_offsets.py`) with r2b, then the cam2 / cam3 O2 bundle with a local smoke test.
+  - Flagged "off" frames checked (Priya): the two jaw dots on torso / air were the PREVIOUS trial's frame (the review
+    clips splice trials; each frame's own jaw is right, `trial_cut_frames.png`). Droplet frames (PS93 0821) in the
+    four-camera fusion: the side jaw on the droplet edge sits 0.1-0.3 mm from the cam1 + cam4 jaw (the real open jaw);
+    r2b's droplet tongue is rejected by `fuse_robust` (4 frames) or the droplet rule (5 frames) -- no wrong 3-D point.
+  - 3-D offsets with r2b (PS93 0814 / 0821 / 0908, `lp_side_r2b_20261118/offset_check/`): side vs cam1 + cam4 --
+    SPOUT 0.88-0.90 mm (r1, mostly +0.8 ap) -> 0.11 mm; jaw 0.27-0.40 -> 0.23-0.31; tongue ap +0.2 (unchanged; the
+    per-session tongue offset); nose dv +0.9-1.0 (definition; the per-session nose offset). Leave-one-camera-out over all
+    four cameras: every camera within spout 0.07-0.09, jaw 0.17-0.29, tongue 0.27-0.35, nose 0.20-0.42 mm of the other
+    three's point.
+* **O2 side bundle (11-18 evening): `o2/lp_side_r2b_prod_20261118`** -- 274 videos (137 sessions x cam2 + cam3, 1.75 TB
+  to stage on scratch), model `lightning-pose/side-2026-11-18/models/side_r2b_r2_full` (best ckpt epoch 184), reader
+  opencv (as the desktop validation). New: `o2_inference bundle --kind lp --cam side`; `o2_lp_runner --side` transforms
+  each frame exactly as training (`side_transform`, pinned to `lp_sidecam.transform_image` by a test) into a temporary
+  mp4 with the review clips' encoder settings, then predicts (outputs in model space); collect writes
+  `session_poses/<a>_<d>_cam2_full` / `_cam3_full`. Smoke (local, exact flags, bundled runner + model, real AVI span
+  under review-clip trial 0): 0.002 px median vs the validated clip predictions; bundle vs local model 3e-5 px. Timing
+  (desktop RTX 5060): transform + encode ~1240 fps, opencv predict ~450 fps -> ~2 h per 2.2 M-frame video; 10 h limit.
 
 ## D13. June in 3-D, re-evaluated (11-07, a8; Priya asked why June kinematics cannot use the spout-posed 3-D)
 

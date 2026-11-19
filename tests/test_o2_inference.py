@@ -274,3 +274,39 @@ def test_frame_daq_seconds_follows_camera_timestamps_across_a_dropped_frame(tmp_
     assert np.allclose(t * 1000, [0, 4, 8, 16, 20])
     with pytest.raises(ValueError):
         cs.frame_daq_seconds(RV(), "PSX", "20260101", {**tpl, "n_cam_frames": 6})
+
+
+def test_side_runner_transform_is_lp_sidecams_pixel_for_pixel():
+    """The O2 runner carries its own copy of the side transform (it imports nothing from the package); it must give the
+    side model exactly the frames it was trained on (`lp_sidecam.transform_image`): cam3 mirrored, crop by width, June
+    800 px resized. 11-18, side model r2b."""
+    from PIL import Image
+
+    from wfield_local import lp_sidecam as LS
+    from wfield_local import o2_lp_runner as lpr
+    assert lpr.SIDE_CROPS == LS.CROPS and lpr.SIDE_OUT == LS.OUT
+    rng = np.random.default_rng(3)
+    for w, h in ((600, 450), (800, 600)):
+        g = rng.integers(0, 256, (h, w), dtype=np.uint8)
+        for cam in ("cam2", "cam3"):
+            want = np.asarray(LS.transform_image(Image.fromarray(g), cam))
+            got = lpr.side_transform(g, cam)
+            assert got.shape == (LS.OUT, LS.OUT) and np.array_equal(got, want), (w, cam)
+    assert lpr.side_cam(Path("cam3_2026-08-14T17_54_30.avi")) == "cam3"
+    with pytest.raises(SystemExit):
+        lpr.side_cam(Path("cam4_2026-08-14T17_54_30.avi"))
+
+
+def test_side_bundle_runs_both_side_cameras_with_the_side_model_and_flag(monkeypatch, tmp_path):
+    lp = {"model_rel": "cam4/model", "model_rel_side": "side/model", "reader": "dali", "reader_side": "opencv",
+          "conda_env": "lp", "precision": "fp32"}
+    monkeypatch.setattr(oi.config, "defaults", lambda: {"o2_inference": {**_P, "lp": lp}})
+    p = oi.params("lp", "side")
+    assert p["model_rel"] == "side/model" and p["reader"] == "opencv" and oi.params("lp")["reader"] == "dali"
+    s = oi.sbatch_text(p, "ab123", "side1", 4)
+    assert "--reader opencv --precision fp32 --side" in s
+    assert "--side" not in oi.sbatch_text(oi.params("lp"), "ab123", "c4", 4)
+    sm = oi.smoke_sbatch_text(p, "ab123", "side1", "/n/scratch/cam2_x.avi")
+    assert "--side --frames 0:2000" in sm
+    assert oi.bundle_cams("side") == ("cam2", "cam3") and oi.bundle_cams("cam4") == ("cam4",)
+    assert oi.video_cam("cam3_2026-08-14T17_54_30.avi") == "cam3"
