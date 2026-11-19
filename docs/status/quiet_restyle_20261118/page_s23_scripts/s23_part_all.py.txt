@@ -1,0 +1,373 @@
+# Part A: Figs 23.3 (q_sync), 23.24 (q_sync_4to8), 23.9 (q_spectrum), 23.10 (q_sdmaps) -> sync-end run.
+# exec'd by s23_check.py after its helpers (rep, set_caption, set_img, set_title, data_block, ...).
+import re as _re
+
+MARK = ("Sessions = open markers (shape = animal, color = epoch); bar = mean of animals; "
+        "<b>*</b> = nested animal &rarr; session bootstrap 95% CI of the change excludes 0 (primary); "
+        "&dagger; = mixed model q &lt; .05 (backup, epoch vs August pre, FDR within measure; drawn under the * where both hold); "
+        "stars in the top band. Pooled values = bootstrap animal-weighted change [95% CI]; k/4 = animals changing in the pooled direction.")
+DROP4 = ("104 of the 108 sessions give a spectrum: PS92 09-11, 09-15, 10-02 (chronic) and PS93 08-12 (pre) have only 1.9&ndash;3.9 min "
+         "of engaged quiet and no band estimate")
+
+# ---------------- 23.3 ----------------
+set_img("q_sync.png", "q_sync_syncend.png")
+set_caption("q_sync",
+    "<b class=\"h\">Fig 23.3 &middot; NEURAL &middot; synchronization index, with the F0 / noise-floor check.</b> "
+    "Index = log10(PSD 1&ndash;4 Hz / PSD 8&ndash;15 Hz) of the quiet trace (dF/F %, Welch 4-s segments), change vs the animal&rsquo;s own "
+    "August pre. <b>Top</b> (quiet_sync_index): the index per area. Acute, per animal (PS92 / PS93 / PS94 / PS95) then pooled: orofacial "
+    "ipsilesional +0.61 / +0.89 / +0.72 / +0.75, +0.74 [0.56, 0.96] (4/4) *; orofacial contralesional +0.52 / +0.70 / +0.65 / +0.40, "
+    "+0.57 [0.38, 0.77] (4/4) *; whole cortex +0.15 / +0.50 / +0.20 / +0.42, +0.32 [0.07, 0.57] (4/4) *; limb ipsilesional "
+    "+0.08 / +0.60 / &minus;0.05 / +0.67, +0.32 [&minus;0.06, 0.67] (3/4) and limb contralesional &minus;0.01 / +0.24 / &minus;0.14 / +0.28, "
+    "+0.09 [&minus;0.19, 0.35] (2/4), both n.s. Orofacial carries the largest acute rise and is near pre chronically (ipsilesional "
+    "+0.13 [&minus;0.11, 0.36], 2/4). Chronically whole cortex (+0.54 / +0.59 / +0.34 / +0.22; +0.42 [0.22, 0.66], 4/4) * and "
+    "contralesional limb (+0.55 / +0.32 / +0.10 / +0.15; +0.28 [0.06, 0.58], 4/4) * rise. "
+    "<b>Bottom</b> (quiet_f0_noise, T22): row 1 = baseline fluorescence F0 (tonic proxy), row 2 = the orofacial ipsi &minus; contra index "
+    "and its variants, row 3 = noise-floor diagnostics. The ipsi &minus; contra index difference (row 2, A) rises acutely, +0.088 / +0.189 / "
+    "+0.066 / +0.353, +0.17 [0.02, 0.34] (4/4) *, but it is <b>not neural</b>: the 8&ndash;15 Hz denominator is dominated by a non-calcium "
+    "7&ndash;11 Hz peak (row 3, middle: pink band; also present at 415 nm; cardiac / brain motion) that is lower on the lesioned side &mdash; "
+    "415 nm 7&ndash;11 Hz power ipsi &minus; contra acute &minus;0.151 / &minus;0.058 / &minus;0.044 / &minus;0.062, &minus;0.079 "
+    "[&minus;0.133, &minus;0.025] (4/4) * (row 2, last panel; also lower chronically, &minus;0.024 [&minus;0.049, &minus;0.003], 4/4 *). "
+    "With a fast band below the peak the laterality holds in only 2/4: 4&ndash;8 Hz (C) &minus;0.031 / +0.167 / &minus;0.037 / +0.162, "
+    "+0.065 [&minus;0.059, 0.182]; floor-subtracted 4&ndash;8 Hz (D) &minus;0.081 / +0.144 / &minus;0.237 (no PS95 value), &minus;0.058 "
+    "[&minus;0.341, 0.175] (2/3); both n.s. (D is lower subacutely, &minus;0.158 [&minus;0.345, &minus;0.008], 4/4 *). Floor subtracted from "
+    "both bands (B) has an acute value for PS92 only; chronically +0.43 / +1.18 / +0.12 / +0.17, +0.47 [0.05, 0.96] (4/4) *. Limb cortex "
+    "shifts the same way and 415 nm 4&ndash;8 Hz power is itself lower ipsilesionally (Fig 23.24). No ipsilesional F0 drop: orofacial "
+    "F470 ipsi &minus; contra acute +0.070 / +0.042 / +0.005 / &minus;0.002, +0.029 [0.001, 0.059] (3/4) *, a small rise; F415 +0.016 "
+    "[0.001, 0.030] (3/4) *; F470/F415 +0.014 [&minus;0.001, 0.037] (3/4) &dagger;. What stands: the acute orofacial 1&ndash;4 Hz power "
+    "rise (bilateral orofacial, log10 change +0.74 / +0.88 / +0.46 / +0.75, 4/4; 415 nm control: Fig 23.11; laterality: Fig 23.13). "
+    + MARK + " n = 4 animals; " + DROP4 + "; F0 uses all 108. " + data_block() +
+    " Scripts widefield_pipeline <code>scripts/cohort2_qc/quiet_sync_index.py</code> (top) and "
+    "<code>scripts/cohort2_qc/quiet_f0_noise.py</code> (bottom); stats <code>sync_index/quiet_sync_index_boot_stars.csv</code>, "
+    "<code>sync_index/lmm_sync.csv</code>, <code>sync_index/sync_sessions.csv</code>, <code>f0_noise/quiet_f0_noise_boot_stars.csv</code>, "
+    "<code>f0_noise/lmm_f0_noise.csv</code>; logs <code>logs/quiet_sync_index_bootstars.log</code>, "
+    "<code>logs/quiet_f0_noise_bootstars.log</code>. PROVISIONAL (n = 4).")
+
+# ---------------- 23.24 ----------------
+_a = s.index('<figure id="f-q_sync_4to8"')
+_e = s.index("</figure>", _a)
+_m = _re.search(r'src="data:image/png;base64,[^"]+" data-file="q_sync_4to8\.png"', s[_a:_e])
+assert _m, "q_sync_4to8 data URI not found"
+rep(_m.group(0), 'src="q_sync_4to8_syncend.png"')
+set_caption("q_sync_4to8",
+    "<b class=\"h\">Fig 23.24 &middot; NEURAL &middot; EXPLORATORY: synchronization laterality with fast bands that avoid the 7&ndash;11 Hz "
+    "non-calcium peak.</b> Index log10(P 1&ndash;4 Hz / P fast) of the quiet engaged trace (same spectra as Fig 23.3), ipsilesional "
+    "&minus; contralesional, change vs the animal&rsquo;s own August pre. Columns: A 8&ndash;15 Hz (T20 as published), B 4&ndash;8 Hz, "
+    "C 4&ndash;7 Hz (entirely below the peak), D 4&ndash;8 Hz minus the 12&ndash;15 Hz floor, E 415 nm power 4&ndash;8 Hz (non-calcium "
+    "control); rows: orofacial, limb, orofacial minus limb. Acute orofacial ipsi &minus; contra, per animal (PS92 / PS93 / PS94 / PS95) "
+    "then pooled: A +0.088 / +0.189 / +0.066 / +0.353, +0.17 [0.02, 0.34] (4/4) *; B &minus;0.031 / +0.167 / &minus;0.037 / +0.162, "
+    "+0.065 [&minus;0.060, 0.183] (2/4: clear in PS93 and PS95 only; PS95 has one acute session); C &minus;0.018 / +0.172 / &minus;0.045 / "
+    "+0.166, +0.069 [&minus;0.048, 0.182] (2/4); D &minus;0.081 / +0.144 / &minus;0.237 (no PS95 value), &minus;0.058 [&minus;0.350, 0.175] "
+    "(2/3); B&ndash;D n.s. The mixed-model acute coefficient keeps 33 % (4&ndash;8 Hz), 30 % (4&ndash;7 Hz) and &minus;37 % "
+    "(floor-subtracted) of the 8&ndash;15 Hz one (figure subtitle). Not orofacial-specific: limb ipsi &minus; contra shifts too, and more "
+    "in the fast bands &mdash; A +0.23 [0.08, 0.38] (4/4) *, B +0.184 / +0.066 / +0.117 / +0.094, +0.115 [0.053, 0.188] (4/4) *, "
+    "C +0.090 [0.032, 0.148] (4/4) * &mdash; and orofacial minus limb laterality is n.s. acutely in every band (A &minus;0.058 "
+    "[&minus;0.203, 0.056], B &minus;0.050 [&minus;0.213, 0.105], C &minus;0.021 [&minus;0.166, 0.120]). 4&ndash;8 Hz is not free of "
+    "non-calcium asymmetry: 415 nm 4&ndash;8 Hz power is lower ipsilesionally acutely (E; orofacial &minus;0.089 / &minus;0.117 / "
+    "&minus;0.015 / &minus;0.027, &minus;0.062 [&minus;0.120, &minus;0.017] (4/4) *; limb &minus;0.090 / &minus;0.087 / &minus;0.081 / "
+    "&minus;0.017, &minus;0.069 [&minus;0.099, &minus;0.033] (4/4) *; limb subacute &dagger;), the sign that raises the index. Outside the "
+    "acute epoch: floor-subtracted 4&ndash;8 Hz laterality is lower subacutely (orofacial &minus;0.158 [&minus;0.355, &minus;0.001], 4/4 *; "
+    "limb, 2 animals with a value, *), and orofacial minus limb 8&ndash;15 Hz laterality is +0.14 [0.02, 0.25] (4/4) * chronically. "
+    "The bilateral orofacial 4&ndash;8 Hz index (not plotted) still rises acutely, +0.176 / +0.307 / +0.303 / +0.669 (4/4; mixed model "
+    "+0.330, q .004; no bootstrap run for this measure), as the 1&ndash;4 Hz power rise predicts. Reading: no neural ipsilesional "
+    "synchronization in any band; the T20 laterality withdrawal stands. " + MARK + " n = 4 animals; " + DROP4 + "; column D is defined "
+    "only where both bands exceed the floor (83 sessions orofacial, 58 limb, 50 orofacial minus limb). " + data_block() +
+    " Script widefield_pipeline <code>scripts/cohort2_qc/quiet_sync_4to8.py</code>; stats <code>sync_4to8/quiet_sync_4to8_boot_stars.csv</code>, "
+    "<code>sync_4to8/lmm.csv</code>, <code>sync_4to8/fraction_surviving.csv</code>, <code>sync_4to8/contrasts_sessions.csv</code>; log "
+    "<code>logs/quiet_sync_4to8_bootstars.log</code>. PROVISIONAL (n = 4).")
+
+# ---------------- 23.9 ----------------
+set_img("q_spectrum.png", "q_spectrum_syncend.png")
+set_title("q_spectrum",
+          "Quiet-period power spectrum: the acute orofacial increase peaks at 2&ndash;3 Hz",
+          "Quiet-period power spectrum: the acute orofacial increase is largest at 1&ndash;3 Hz",
+          short="Acute orofacial quiet power rises most at 1&ndash;3 Hz")
+set_caption("q_spectrum",
+    "<b class=\"h\">Fig 23.9 &middot; NEURAL &middot; quiet-period power spectrum.</b> Welch PSD of the area trace (dF/F %, 4-s segments, "
+    "quiet runs &ge; 4 s, engaged); top = median PSD over sessions per epoch; bottom = power ratio vs the animal&rsquo;s own pre median "
+    "(thin = animals, thick = geometric mean). Columns: orofacial ipsilesional / contralesional, limb ipsilesional / contralesional. "
+    "Acute orofacial power vs own pre by band, per animal (PS92 / PS93 / PS94 / PS95): ipsilesional 1&ndash;3 Hz &times;7.16 / &times;10.16 / "
+    "&times;4.01 / &times;7.50, 3&ndash;8 Hz &times;5.46 / &times;7.67 / &times;2.43 / &times;1.87, 0.5&ndash;1 Hz &times;2.90 / &times;2.85 / "
+    "&times;3.20 / &times;3.45, 0.1&ndash;0.5 Hz &times;3.13 / &times;2.18 / &times;2.72 / &times;2.19, 8&ndash;15 Hz &times;1.59 / "
+    "&times;2.04 / &times;0.80 / &times;1.58; contralesional 1&ndash;3 Hz &times;7.20 / &times;5.50 / &times;3.63 / &times;4.47, 3&ndash;8 Hz "
+    "&times;6.10 / &times;5.43 / &times;2.13 / &times;1.35. The 1&ndash;3 Hz band carries the largest increase in every animal on both "
+    "sides, on a broad &times;1.4&ndash;3.8 rise below 1 Hz; 1&ndash;3 Hz is higher ipsilesionally than contralesionally in PS93, PS94 and "
+    "PS95 (PS92 equal). Subacute orofacial ipsilesional 1&ndash;3 Hz &times;4.40 / &times;4.40 / &times;3.26 / &times;1.81; chronic "
+    "&times;1.10 / &times;1.61 / &times;0.88 / &times;1.27. Limb acute 1&ndash;3 Hz ipsilesional &times;2.33 / &times;7.28 / &times;0.56 / "
+    "&times;5.41 (large in PS93 and PS95 only); the thin chronic limb curve reaching ~&times;19 near 1 Hz is PS92 (0.5&ndash;1 Hz "
+    "&times;13.95 ipsilesional, &times;6.59 contralesional). Descriptive: no test on this figure (power tests: Fig 23.11). Breathing as a "
+    "source: Fig 23.12. n = 4 animals; " + DROP4 + ". " + data_block() +
+    " Script widefield_pipeline <code>scripts/cohort2_qc/quiet_fluct.py</code>; band ratios <code>fluct/quiet_spectrum_bands.csv</code> "
+    "and <code>logs/quiet_fluct.log</code> (&ldquo;power ratio vs pre by band&rdquo;). PROVISIONAL (n = 4).")
+
+# ---------------- 23.10 ----------------
+set_img("q_sdmaps.png", "q_sdmaps_syncend.png")
+set_caption("q_sdmaps",
+    "<b class=\"h\">Fig 23.10 &middot; NEURAL &middot; per-pixel SD of quiet activity.</b> Pixel time course high-passed (linear 2-s "
+    "moving-average high-pass), SD over engaged quiet frames; left = pre SD (dF/F %); other columns = log2(SD / the animal&rsquo;s own pre "
+    "SD), geometric mean over the epoch&rsquo;s sessions; pooled row = mean over animals. Ipsilesional = image left; Allen area edges. "
+    "Black outline = change significant (bootstrap, 2,000 draws, max-statistic family-wise p &lt; 0.05 over 8&times;8-px bins of the eroded "
+    "mask); pooled row animals &rarr; sessions, per-animal rows sessions only (reliability within an animal); not corrected across panels. "
+    "Significant bins of 2022, acute / subacute / chronic: pooled 1316 / 1241 / 1338; PS92 929 / 992 / 1779; PS93 1918 / 1538 / 1786; "
+    "PS94 686 / 1082 / 1034; PS95 not tested acutely (1 acute session) / 798 / 1618. SD grows over most of dorsal cortex in every epoch. "
+    "Acutely the lateral somatosensory hotspots (brightest in the pre SD map) lie outside the pooled outline and fall below pre in PS92 "
+    "(ipsilesional) and PS94 (both sides); chronically PS92 rises over the whole cortex. n = 4 animals, 108 sessions. " + data_block() +
+    " Script widefield_pipeline <code>scripts/cohort2_qc/quiet_fluct.py</code>; bin counts "
+    "<code>fluct/quiet_sd_maps_significance.csv</code>; log <code>logs/quiet_fluct.log</code>. PROVISIONAL (n = 4).")
+# Part B: Figs 23.19 (q_steinmetz), 23.20 (q_width), 23.22 (q_effort), 23.14 (q_recovery_link) -> sync-end run.
+# exec'd by s23_check.py / s23_edit.py after rep, set_caption, set_img, set_title, data_block, STARS, RUN, QF, LK, TH, SESS.
+
+SC = "widefield_pipeline <code>scripts/cohort2_qc/"
+BOOT_RULE = ("<b>*</b> = nested animal &rarr; session bootstrap 95% CI of the change vs each animal&rsquo;s own pre excludes 0 (primary); "
+             "&dagger; = mixed model q &lt; .05 (backup, epoch vs August pre, FDR within measure); stars in the top band")
+
+# ---------------------------------------------------------------- Fig 23.19 q_steinmetz
+set_img("q_steinmetz.png", "q_steinmetz_syncend.png")
+set_caption("q_steinmetz",
+    "<b class=\"h\">Fig 23.19 &middot; CONTROL &middot; epileptiform criteria.</b> "
+    "Steinmetz et al. 2017 interictal-like events are large (&gt; ~10 % dF/F), positive only, recur at 0.1&ndash;0.5 Hz with a refractory gap. "
+    "Quiet orofacial events (&gt; 4 &times; pre SD), animal &times; epoch session medians, acute values per animal (PS92, PS93, PS94, PS95): "
+    "UP / DOWN count ratio 0.79, 1.08, 0.97, 0.67 (~1; interictal events would give &gt;&gt; 1; pre 0.65&ndash;1.89); "
+    "inter-event intervals 0.3&ndash;0.5 s observed / Poisson 2.04, 1.20, 1.44, 2.85 and 0.5&ndash;1 s 1.89, 1.29, 1.14, 2.18 "
+    "(all at or above the Poisson expectation, so no refractory gap); IEI CV 0.94, 0.95, 0.83, 0.91 (close to Poisson, not periodic; pre 0.72&ndash;0.90); "
+    "median height 1.6, 2.3, 2.0, 2.6 % dF/F (pre 1.3&ndash;2.3 %), share of events &gt; 10 % = 0 in every animal acutely. "
+    "Only the rate falls in the interictal range: acute UP-event rate 0.23, 0.40, 0.20, 0.16 Hz, inside 0.1&ndash;0.5 Hz, against pre 0.055, 0.076, 0.078, 0.025 Hz, below it. "
+    "Conclusion: the acute events fail the polarity, refractory-gap and size criteria. "
+    "Descriptive criteria check: no epoch statistics, no stars. "
+    "Panels: UP / DOWN count, IEI 0.3&ndash;0.5 s and 0.5&ndash;1 s observed / Poisson, IEI CV, by epoch; markers = sessions (shape = animal, color = epoch), bar = median; dashed line = 1. "
+    "Rate, height and share &gt; 10 % are in the log only. PS94 chronic IEI measures are not computed (too few intervals); this does not touch the acute values. "
+    + data_block() +
+    f" Script {SC}quiet_steinmetz_check.py</code>; outputs <code>steinmetz_check/quiet_steinmetz_check.png</code>, "
+    "<code>steinmetz_check/steinmetz_check_sessions.csv</code>, log <code>logs/quiet_steinmetz_check.log</code>. PROVISIONAL (n = 4).")
+
+# ---------------------------------------------------------------- Fig 23.20 q_width
+set_img("q_width.png", "q_width_syncend.png")
+set_title("q_width",
+          "Event shape on the raw trace: narrower, all in the decay",
+          "Event shape on the raw trace: acute events narrower, mostly in the decay",
+          short="Event shape: acute events narrower, mostly in the decay")
+set_caption("q_width",
+    "<b class=\"h\">Fig 23.20 &middot; NEURAL &middot; event width (raw trace).</b> "
+    "Interpolated half-height crossings on the trace the detector sees (dF/F % minus its 2-s running median), up and down events. "
+    "Orofacial FWHM change vs own pre, acute, per animal: PS92 &minus;0.054, PS93 &minus;0.078, PS94 &minus;0.058, PS95 &minus;0.111 s; "
+    "pooled &minus;0.075 s [&minus;0.103, &minus;0.047], 4/4 <b>*</b> (pre level 0.34 s, so about 22 % narrower). "
+    "Height-matched events (4&ndash;8 &times; pre SD): &minus;0.091 s [&minus;0.116, &minus;0.063], 4/4 <b>*</b>, so the narrowing is not a height effect. "
+    "Both flanks shorten acutely, the decay about three times as much as the rise: orofacial decay &minus;0.049 s [&minus;0.062, &minus;0.036], 4/4 <b>*</b>; "
+    "rise &minus;0.017 s [&minus;0.030, &minus;0.003], 4/4 <b>*</b> (PS92 &minus;0.011, PS93 &minus;0.026, PS94 &minus;0.001, PS95 &minus;0.032). "
+    "Limb acute: FWHM &minus;0.078 s [&minus;0.129, &minus;0.027], decay &minus;0.056 [&minus;0.095, &minus;0.017], rise &minus;0.018 [&minus;0.030, &minus;0.005], all 4/4 <b>*</b>. "
+    "Threshold-free quiet-trace ACF half-time: orofacial acute &minus;0.038 s [&minus;0.068, &minus;0.004], 3/4 <b>*</b> (PS94 +0.003; mixed model q = .07); "
+    "limb &minus;0.033 s [&minus;0.069, +0.004], 3/4, n.s. "
+    "Subacute: orofacial FWHM &minus;0.044 s [&minus;0.065, &minus;0.021] and decay &minus;0.036 s [&minus;0.050, &minus;0.023], 4/4 <b>*</b>; limb unchanged. "
+    "Chronic: no measure differs from pre. Robustness to movement correction: Fig 23.21. "
+    "Panels: rows orofacial / limb; columns FWHM, FWHM of 4&ndash;8 &times; pre SD events, rise, decay, ACF half-time (s), by epoch. "
+    "Open markers = session values (shape = animal, color = epoch); filled square = bootstrap mean &plusmn; 95% CI of the epoch level; "
+    + BOOT_RULE + " (the png draws &dagger; under <b>*</b> where both pass). "
+    + data_block(" ACF half-time: 107 sessions in the mixed model.") +
+    f" Script {SC}quiet_event_width.py</code>; outputs <code>width/quiet_event_width.png</code>, "
+    "<code>width/quiet_event_width_boot_stars.csv</code> (stars, CIs, per-animal changes), <code>width/lmm_width.csv</code>, "
+    "<code>width/quiet_event_width_sessions.csv</code>; logs <code>logs/quiet_event_width.log</code>, <code>logs/quiet_event_width_bootstars.log</code>. "
+    "PROVISIONAL (n = 4).")
+
+# ---------------------------------------------------------------- Fig 23.22 q_effort
+set_img("q_effort.png", "q_effort_syncend.png")
+set_caption("q_effort",
+    "<b class=\"h\">Fig 23.22 &middot; behavior + NEURAL &middot; &lsquo;trying with the body&rsquo; (Priya 11-01).</b> "
+    "Per trial, response window cue &rarr; +3.5 s: fraction running (DAQ treadmill bouts, 3 mm/s), the same minus the pre-cue baseline (cue &minus; 2 s .. cue), "
+    "and limb (SSp-ul + SSp-ll, bilateral), orofacial and whole-cortex dF/F % in cue .. +1.5 s minus cue &minus; 1 .. 0 s. "
+    "Readout = class minus hit within session, animal mean (PS92, PS93, PS94, PS95). "
+    "Jaw-only trials run more than hits: running fraction pre +0.52, &minus;0.02, +0.23, +0.10; acute +0.34, +0.20, +0.13, 0.00 (3/4 each epoch), "
+    "about equally pre-stroke and acute, and the running is already under way at the cue (window minus baseline, jaw-only minus hit: pre +0.07, &minus;0.08, &minus;0.08, &minus;0.03; acute +0.04, +0.03, 0.00, 0.00), "
+    "so a running state goes with a jaw-only reaction rather than running being recruited by the attempt. "
+    "Lick-no-contact trials barely run more than hits: pre +0.22, +0.04, +0.02, +0.07; acute +0.05, +0.01, +0.05, 0.00. "
+    "Limb cortex is lower on failed classes than on hits in 23 of 24 animal &times; class &times; (pre, acute) cells: "
+    "lick-no-contact pre &minus;3.45, &minus;2.78, +0.10, &minus;2.68, acute &minus;2.92, &minus;2.83, &minus;1.79, &minus;1.35 % dF/F (PS94 pre is the exception); "
+    "jaw-only pre &minus;2.59, &minus;2.55, &minus;3.03, &minus;3.78, acute &minus;3.64, &minus;2.75, &minus;2.96, &minus;3.39; "
+    "no-try pre &minus;3.51, &minus;1.99, &minus;3.15, &minus;4.02, acute &minus;4.50, &minus;4.01, &minus;3.93, &minus;4.00. "
+    "The gap is about the same pre and acute for lick-no-contact (mean of animals &minus;2.20 vs &minus;2.22) and jaw-only (&minus;2.99 vs &minus;3.19), "
+    "but about 0.9 % dF/F larger acutely for no-try (&minus;3.17 vs &minus;4.11; 3/4 animals more negative, PS95 unchanged). "
+    "PS95&rsquo;s acute running values are all 0. No sign of extra running or limb activation on failed attempts. No limb video tracking. "
+    "Descriptive: no bootstrap or mixed-model test is computed for this figure, and no stars are drawn. "
+    "Panels: top row all spouts, bottom row far contra; columns running fraction, running minus pre-cue baseline, limb cortex, whole cortex, by class (hit / incomplete = lick-no-contact / jaw_only / no_try) &times; epoch. "
+    "Large marker = mean of animals &plusmn; SEM across animals; small filled = animal (shape; mean over its trials); faded open = sessions (shape = animal, color = class); off-axis session values shown as carets. "
+    "<b>Data:</b> rebuilt base, 107 sessions (pre 31, acute 16, subacute 17, chronic 43; PS93 08-13, which has no behavior video, is not in the session list), 57,048 trials; "
+    "run with the sync-end chain settings (<code>QS_ENGAGED_END=lastsync</code>, code 67d49b99, log <code>v2_quiet_lp_c1guard_syncend_20261118/logs/attempt_effort.log</code>). "
+    "<b>Licks / trial classes:</b> from the encoding window&rsquo;s attempt table (<code>imaging_encoding/qc/trial_attempts.csv</code>): hit = DAQ spout contact; "
+    "lick-no-contact = LP video lick without contact; jaw-only = jaw movement, no lick; no-try. <b>Baseline:</b> hits in the same session. "
+    f"Script {SC}attempt_effort.py</code>; outputs in <code>rebuild_20261103/labcams/&lt;tag&gt;/cohort1_quiet_spikes/attempt_effort/</code> "
+    "(one level above the sync-end run folder): <code>attempt_effort.png</code>, <code>contrast_vs_hit.csv</code>, <code>attempt_effort_trials.csv</code>. "
+    "PROVISIONAL (n = 4).")
+
+# ---------------------------------------------------------------- Fig 23.14 q_recovery_link
+set_img("q_recovery_link.png", "q_recovery_link_syncend.png")
+set_title("q_recovery_link",
+          "Every quiet measure returns toward pre with recovery; none tracks behaviour beyond the shared time course",
+          "Event rate, synchronization and 1&ndash;4 Hz power fall as behavior recovers; synchronization and 1&ndash;4 Hz power also beyond the shared time course (3/4)",
+          short="Sync and 1&ndash;4 Hz power track recovery beyond the time course")
+set_caption("q_recovery_link",
+    "<b class=\"h\">Fig 23.14 &middot; NEURAL + behavior &middot; recovery link.</b> "
+    "Post-stroke sessions: each quiet measure&rsquo;s change vs the animal&rsquo;s own pre against far-contra hit rate / pre; within-animal r, raw and with log(day) removed from both "
+    "(the shared recovery time course); permutation p on the mean of the four animals&rsquo; r (sessions shuffled within animal, 5000 draws); k/4 = animals with the sign of the mean. "
+    "Negative r = the measure falls as behavior recovers. Per animal r (PS92, PS93, PS94, PS95), then mean: "
+    "face-regressed orofacial event rate raw &minus;0.59, &minus;0.84, &minus;0.77, &minus;0.75, mean &minus;0.74, p &lt; .001, 4/4; "
+    "log(day) removed +0.34, &minus;0.42, &minus;0.08, &minus;0.58, mean &minus;0.18, p = .13 (n.s.). "
+    "Orofacial synchronization (log10 PSD 1&ndash;4 / 8&ndash;15 Hz) raw &minus;0.48, &minus;0.51, &minus;0.65, &minus;0.64, mean &minus;0.57, p &lt; .001, 4/4; "
+    "log(day) removed &minus;0.51, &minus;0.55, +0.04, &minus;0.62, mean &minus;0.41, p &lt; .001, 3/4 (PS94 opposite). "
+    "1&ndash;4 Hz power, orofacial ipsi raw mean &minus;0.72, p &lt; .001, 4/4; log(day) removed &minus;0.52, &minus;0.50, +0.18, &minus;0.78, mean &minus;0.40, p &lt; .001, 3/4 (PS94 opposite); "
+    "contra raw &minus;0.65, p &lt; .001, 4/4; log(day) removed &minus;0.37, p = .001, 3/4. "
+    "0.5&ndash;1 Hz power raw &minus;0.51, p &lt; .001, 4/4; log(day) removed &minus;0.30, p = .010, 3/4. "
+    "8&ndash;15 Hz power does not track recovery (ipsi raw &minus;0.01, p = .97; contra &minus;0.10, p = .42; log(day) removed +0.16 / +0.14, n.s.), "
+    "nor does the ipsi &minus; contra synchronization difference (raw &minus;0.15, p = .22; removed &minus;0.02, p = .86). "
+    "Conclusion: event rate, synchronization and 1&ndash;4 Hz power all return toward pre as behavior recovers; for event rate this is the shared time course, "
+    "while synchronization and 1&ndash;4 Hz power also track recovery beyond log(day) in 3 of 4 animals (PS94 opposite), so they are candidate session-level predictors. "
+    "Panels: event rate (log10, face-regressed), orofacial synchronization, synchronization ipsi &minus; contra, 1&ndash;4 Hz ipsi, 8&ndash;15 Hz ipsi, 0.5&ndash;1 Hz power, "
+    "each against far-contra hit rate / pre; markers = sessions (shape = animal), r and p in each panel title. Across-session correlations, not changes vs pre: no bootstrap stars. "
+    + data_block(" This figure uses the 76 post-stroke sessions (acute / subacute / chronic: PS92 5 / 2 / 12, PS93 4 / 3 / 12, PS94 6 / 5 / 8, PS95 1 / 7 / 11); "
+                 "far-contra hit rate from <code>recovery_timing.series</code> (hit = DAQ spout contact). Face video (FaceRhythm) enters only as regressors.") +
+    f" Script {SC}quiet_recovery_link.py</code>; outputs <code>recovery_link/quiet_recovery_link.png</code>, <code>recovery_link/recovery_link.csv</code>, "
+    "<code>recovery_link/recovery_link_sessions.csv</code>; log <code>logs/quiet_recovery_link.log</code>. PROVISIONAL (n = 4).")
+# Part C: Figs 23.12 (q_breathing), 23.13 (q_hemi_amp), 23.16 (q_lick_lfo) -> sync-end run.
+# exec'd by s23_check.py after its helpers (rep, set_caption, set_img, set_title, data_block, STARS, RUN, QF, LK, TH, SESS).
+
+STAR_RULE = (" <b>*</b> = nested animal &rarr; session bootstrap 95% CI of the change vs the animal&rsquo;s own pre excludes 0 "
+             "(primary); &dagger; = mixed model q &lt; .05 (backup, epoch vs August pre, FDR within measure); stars in the top band.")
+
+# ---------------- 23.12 ----------------
+set_img("q_breathing.png", "q_breathing_syncend.png")
+set_title("q_breathing",
+          "Breathing does not explain it: coherence low and unchanged, no frequency tracking, regressing a breathing proxy out leaves the rise",
+          "Breathing does not explain it: coherence with a breathing proxy stays low (slightly down, never up), and regressing the proxy out leaves the rise",
+          short="Breathing: proxy coherence low; regressing it out leaves the rise")
+set_caption("q_breathing",
+    "<b class=\"h\">Fig 23.12 &middot; CONTROL &middot; breathing.</b> No FaceRhythm factor carries resting breathing, so the "
+    "respiration proxy is the session&rsquo;s face-point PC (of its 20 point PCs) with the most prominent interior 1&ndash;5 Hz "
+    "spectral peak above 1/f, chosen without looking at cortex. Engaged quiet frames with face video are cut into 4-s Hann "
+    "segments (50% overlap); coherence is pooled over all segments of a session, minus a re-paired null (face segments "
+    "randomly re-paired to cortex segments). All values below are changes vs the animal&rsquo;s own pre (PS92, PS93, PS94, PS95), "
+    "then the pooled change [95% CI], k/4. "
+    "<b>Proxy frequency</b> acute: +0.94, +0.13, +0.34, &minus;0.25 Hz; +0.29 Hz [&minus;0.22, 0.95], 3/4 &dagger; "
+    "(mixed model +0.60 Hz, q .031); not starred, and PS95 has one acute session. "
+    "<b>Orofacial coherence with the proxy</b> is low: animal &times; epoch means 0.004&ndash;0.040. Band mean 1.5&ndash;4 Hz "
+    "(minus null) acute: +0.006, &minus;0.004, &minus;0.009, &minus;0.022; &minus;0.007 [&minus;0.019, 0.004], 3/4 (n.s.); "
+    "subacute &minus;0.006 [&minus;0.023, 0.013], 2/4 &dagger;; chronic &minus;0.011 [&minus;0.020, &minus;0.002], 3/3 * "
+    "(PS93 &minus;0.015, PS94 &minus;0.011, PS95 &minus;0.009). It never rises. At the proxy&rsquo;s own peak (&plusmn;0.25 Hz) "
+    "there is no change in any epoch (acute +0.000 [&minus;0.013, 0.015]); the best of the 20 PCs (upward-biased by the max) is "
+    "lower acutely, &minus;0.032 [&minus;0.089, 0.002], 3/4 &dagger;. "
+    "<b>Cortical peak.</b> The orofacial interior 1&ndash;5 Hz peak moves down acutely (animal means pre &rarr; acute 3.38 &rarr; "
+    "2.81, 3.50 &rarr; 3.06, 3.75 &rarr; 3.35, 4.47 &rarr; 2.50 Hz; mixed model &minus;0.64 Hz, q .009; no bootstrap for this "
+    "measure). Across sessions it tracks the proxy peak only in PS94 (Spearman rho +0.51, p .011, 24 sessions); PS92 &minus;0.22, "
+    "PS93 &minus;0.29, PS95 &minus;0.13 (n.s.); pooled mixed-model slope +0.20 Hz/Hz (p .037), carried by PS94. "
+    "<b>Regressing the proxy out</b> (displacement, velocity and square, lags &plusmn;0.3 s, out-of-fold ridge) leaves the "
+    "increase. Orofacial 1&ndash;4 Hz power (log10) acute raw &rarr; regressed: +0.415 &rarr; +0.414, +0.388 &rarr; +0.389, "
+    "+0.578 &rarr; +0.599, +0.749 &rarr; +0.747; pooled +0.53 [0.38, 0.69] &rarr; +0.54 [0.37, 0.70], 4/4 * both; subacute "
+    "+0.29 &rarr; +0.29, 4/4 * both; chronic n.s. (regressed +0.02 [&minus;0.14, 0.17], 2/3). k = 4 event rate "
+    "(log10(/min + 0.2)) acute regressed: +0.46, +0.68, +0.71, +0.83; raw +0.64 [0.50, 0.77] &rarr; regressed +0.67 [0.51, 0.81], "
+    "4/4 * both; subacute +0.34 &rarr; +0.36, 4/4 * both; chronic regressed +0.15 [&minus;0.03, 0.29], 2/3 &dagger; (PS93 +0.24, "
+    "PS94 &minus;0.03, PS95 +0.24; raw +0.10, n.s.). The share of the acute increase left after regression is 1.00&ndash;1.04 "
+    "(power) and 0.93&ndash;1.15 (rate) per animal; ipsilesional and contralesional alike (regressed acute rate, mixed model "
+    "+0.73 / +0.63). "
+    "<b>Figure.</b> Top row: (a) orofacial coherence with the proxy vs frequency (thin = animals, thick = mean of animals, dashed "
+    "= re-paired null, gray = 1.5&ndash;4 Hz), (b) the proxy&rsquo;s velocity spectrum, the orofacial quiet power spectrum "
+    "(reference), (e) cortical peak vs proxy peak per session (dotted = identity). Lower rows: per-session values (not "
+    "differences; panel letters repeat): open markers = sessions (shape = animal, color = epoch), filled = pooled mean with its "
+    "nested bootstrap 95% CI." + STAR_RULE +
+    " <b>n:</b> 68 of the 108 sessions ran (pre 18, acute 14, subacute 16, chronic 20; per animal pre / acute / subacute / chronic "
+    "PS92 2 / 4 / 1 / 0, PS93 1 / 4 / 3 / 2, PS94 7 / 5 / 5 / 7, PS95 8 / 1 / 7 / 11). The other 40 had too few 4-s quiet "
+    "segments (0&ndash;18; every kept session has &ge; 21), and PS93 08-13 has no FaceRhythm. So PS92 has no chronic session, "
+    "PS92 / PS93 pre rest on 2 / 1 sessions, and PS95 acute on one. Caveat: a video proxy is a weak respiration sensor; "
+    "breathing-locked brain motion that is invisible on the face is not excluded. Face video (FaceRhythm / point PCs) enters only "
+    "as the proxy and regressors. "
+    "<b>Data:</b> rebuilt base with the cam1 guard, analyzed time ending at the last sync pulse, " + RUN + "; of " + SESS + ", "
+    "68 analyzed (above). " + QF + " " + LK + " " + TH +
+    " Script widefield_pipeline <code>scripts/cohort2_qc/quiet_breathing.py</code>; stats <code>breathing/lmm_breathing.csv</code>, "
+    "<code>breathing/quiet_breathing_boot_stars.csv</code>, <code>breathing/breathing_frequency_tracking.csv</code>, "
+    "<code>breathing/breathing_power_change_by_animal.csv</code>, <code>breathing/breathing_sessions.csv</code>; log "
+    "<code>logs/quiet_breathing.log</code>. PROVISIONAL (n = 4).")
+
+# ---------------- 23.13 ----------------
+set_img("q_hemi_amp.png", "q_hemi_amp_syncend.png")
+set_caption("q_hemi_amp",
+    "<b class=\"h\">Fig 23.13 &middot; NEURAL &middot; laterality, amplitude, recovery.</b> "
+    "<b>T8 ipsilesional vs contralesional.</b> Face-regressed k = 4 event rate per hemisphere, change vs the animal&rsquo;s own "
+    "pre in log10(rate + 0.2); ipsi &minus; contra of that change, PS92, PS93, PS94, PS95, then pooled [95% CI], k/4. Orofacial "
+    "acute: &minus;0.11, +0.21, +0.07, +0.22; +0.10 [&minus;0.05, 0.22], 3/4; subacute &minus;0.00 [&minus;0.14, 0.12], 1/4; "
+    "chronic +0.04 [&minus;0.07, 0.15], 2/4. Limb acute: &minus;0.49, +0.20, &minus;0.10, +0.13; &minus;0.06 [&minus;0.36, 0.18], "
+    "2/4 (contra &gt; ipsi only in PS92 and PS94; mixed model q .077); subacute &minus;0.11 [&minus;0.26, 0.01], 3/4; chronic "
+    "+0.03 [&minus;0.06, 0.15], 2/4. No star or dagger in any epoch: no ipsilesional bias (a loop / ipsilesional-thalamus origin "
+    "predicts ipsi &gt; contra), and no contralesional bias. "
+    "<b>T11 amplitude (Steinmetz 2017: GCaMP6 interictal events are &gt; ~10% dF/F and cortex-wide).</b> Raw orofacial UP events, "
+    "engaged quiet, k = 4. Median height, animal &times; epoch median of sessions: 1.33&ndash;2.29% dF/F pre, 1.61&ndash;2.58% "
+    "acute, 1.51&ndash;2.30% subacute, 1.46&ndash;2.33% chronic; the per-session maximum (animal &times; epoch median) is "
+    "1.8&ndash;8.4%. Events &gt; 10%, pooled: pre 4 of 1540, acute 0 of 5079, subacute 0 of 1335, chronic 4 of 1712. Per animal "
+    "the share is 0.18&ndash;0.62% pre and 0&ndash;0.05% acute (lower acutely in 4/4); the largest is PS94 chronic (1.08%), all "
+    "others &le; 0.62%. Share of orofacial events with a limb event within &plusmn;0.1 s (synchrony proxy), pre &rarr; acute "
+    "(animal medians): UP events PS92 0.07 &rarr; 0.15, PS93 0.02 &rarr; 0.15, PS94 0.24 &rarr; 0.09, PS95 0.10 &rarr; 0.07 "
+    "(2 up, 2 down); DOWN events 0.20 &rarr; 0.26, 0.15 &rarr; 0.26, 0.06 &rarr; 0.12, 0.03 &rarr; 0.17 (up in 4/4). So acute "
+    "events are not more local than pre; the argument against interictal events rests on their small size and on large events "
+    "not becoming more common. "
+    "<b>T14 recovery link</b> (within animal, post sessions; face-regressed orofacial rate / pre vs far-contra hit rate / pre): "
+    "r &minus;0.59, &minus;0.84, &minus;0.77, &minus;0.74; mean &minus;0.74, permutation p &lt; .001, 4/4. With log(day) removed "
+    "from both: +0.34, &minus;0.41, &minus;0.07, &minus;0.57; mean &minus;0.18, p .13 (3/4 negative). The rate follows the "
+    "recovery time course but adds little beyond the shared trend. "
+    "<b>T15 ordering across animals</b> (descriptive): acute rate &times; pre 5.1, 7.8, 6.6, 6.1; half-recovery day 4.7, 3.9, 7.0, "
+    "7.9; lesion 47, 45, 68, 82%. Spearman rho &minus;0.40 against both (with n = 4 only |rho| = 1 reaches p .083): no ordering. "
+    "<b>Figure.</b> Top: T8 orofacial and limb, bars = mean of animals (dark = ipsilesional, light = contralesional), small filled "
+    "= animals, faded open = sessions; the T11 height histogram (log scale; dashed = 10%). Bottom: T11 synchrony proxy (UP events, "
+    "one marker per session, color = epoch), T14 sessions (shape = animal), T15 animals." + STAR_RULE +
+    " <b>n:</b> 4 animals; T11 108 sessions; T8 107 (PS93 08-13 has no face video, so no face-regressed rate); T14 76 post-stroke "
+    "sessions; permutation = sessions shuffled within animal, 5000 draws. Face video (FaceRhythm) enters only as regressors. " +
+    data_block() +
+    " Script widefield_pipeline <code>scripts/cohort2_qc/quiet_hemi_amp_recovery.py</code>; stats "
+    "<code>hemi_amp_recovery/t8_lmm_ipsi_minus_contra.csv</code>, <code>hemi_amp_recovery/quiet_hemi_amp_recovery_boot_stars.csv</code>, "
+    "<code>hemi_amp_recovery/t8_sessions.csv</code>, <code>hemi_amp_recovery/t11_sessions.csv</code>, "
+    "<code>hemi_amp_recovery/t14_recovery_link.csv</code>, <code>hemi_amp_recovery/t14_sessions.csv</code>, "
+    "<code>hemi_amp_recovery/t15_animals.csv</code>; log <code>logs/quiet_hemi_amp_recovery.log</code>. PROVISIONAL (n = 4).")
+
+# ---------------- 23.16 ----------------
+set_img("q_lick_lfo.png", "q_lick_lfo_syncend.png")
+set_caption("q_lick_lfo",
+    "<b class=\"h\">Fig 23.16 &middot; NEURAL &middot; lick-locked 1&ndash;4 Hz activity.</b> Orofacial cortex (bilateral), whole "
+    "session band-passed 1&ndash;4 Hz (zero-phase) and Hilbert-transformed, windows &minus;0.5..+1.5 s around cued first licks "
+    "(first lick between cue and trial stop) and bout-initiating ITI licks (no lick in the preceding 2 s, outside trials, no cue "
+    "or spout strobe within &minus;2..+0.75 s), engaged part of the session. Lick times: LP video onsets plus DAQ contacts with "
+    "no LP lick within 0.1 s (PS93 08-13: DAQ only). Every value is the session divided by the animal&rsquo;s own August-pre "
+    "median; changes are log10 fold vs own pre, PS92, PS93, PS94, PS95, then pooled [95% CI], k/4. "
+    "<b>Evoked amplitude</b>, cued: acute &minus;0.00, +0.12, +0.13, &minus;0.04; +0.05 [&minus;0.02, 0.13], 2/4 (n.s.); "
+    "subacute +0.14 [0.05, 0.21], 4/4 *; chronic +0.16 [0.09, 0.23], 4/4 *. ITI: +0.15 [0.08, 0.21], 4/4 * acute; +0.10 "
+    "[0.04, 0.16], 4/4 * subacute; +0.12 [0.01, 0.24], 3/4 * chronic. "
+    "<b>Induced power</b>, cued: acute +0.00, +0.50, +0.19, +0.23; +0.23 [0.06, 0.42], 4/4 *; subacute +0.12 [0.07, 0.16], "
+    "4/4 *; chronic +0.08 [&minus;0.04, 0.19], 3/4 &dagger;. ITI: acute +0.25 [0.08, 0.47], 4/4 *; subacute +0.12 [0.03, 0.21], "
+    "4/4 *; chronic +0.16 [&minus;0.02, 0.35], 3/4 (n.s.). "
+    "<b>Inter-trial phase coherence</b> (ITPC, phase consistency across licks, 0&ndash;0.5 s; the panel plots ITPC / own pre), "
+    "cued: acute &minus;0.002 [&minus;0.017, 0.013], 2/4 (unchanged); subacute +0.024 [0.004, 0.046], 3/4 *; chronic +0.039 "
+    "[0.019, 0.060], 4/4 * (+0.025, +0.065, +0.048, +0.016; &times;1.09). ITI ITPC does not change in any epoch. ITPC sits near "
+    "ceiling: cued median 0.78 / 0.77 / 0.83 / 0.85 (pre / acute / subacute / chronic; null ~0.05), ITI 0.65&ndash;0.69. "
+    "In the same sessions quiet 1&ndash;4 Hz power rises (acute +0.72 [0.52, 0.92], subacute +0.43 [0.24, 0.63], both 4/4 *; "
+    "chronic n.s.), so lick-locked low-frequency activity does not fall while quiet power rises. "
+    "<b>Recovery link</b> (bottom row; within animal, 19 post sessions each): cued-lick ITPC vs far-contra hit rate, log(day) "
+    "removed from both: r +0.72, +0.78, +0.28, &minus;0.24; mean +0.38, permutation p .001, 3/4 (PS95 opposite); without the "
+    "log(day) removal +0.63, p &lt; .001, 4/4. "
+    "<b>Pre-lick state</b> (T21, <code>quiet_state_response.py</code>): the higher causal pre-lick 1&ndash;4 Hz power accounts "
+    "for 14% (cued) and 20% (ITI) of the larger acute orofacial lick response (ratio of sums over animals); zero-phase power, which "
+    "leaks the response into the pre-lick window, gives 33&ndash;38%. Reaction time / kinematics not matched. "
+    "<b>Figure.</b> Rows 1&ndash;2 (cued, ITI): evoked amplitude, ITPC, induced power and quiet 1&ndash;4 Hz power, each / own "
+    "pre (log axis, dashed = 1); open markers = sessions (shape = animal, color = epoch), filled = pooled mean with its nested "
+    "bootstrap 95% CI." + STAR_RULE + " Bottom row: cued-lick ITPC across post-stroke days, far-contra hit rate, and the "
+    "log(day)-removed scatter. "
+    "<b>n:</b> 4 animals, 108 sessions (per animal pre 8 each; acute 5 / 4 / 6 / 1; subacute 2 / 3 / 5 / 7; chronic 12 / 12 / 8 / "
+    "11); the ITI model has 107 (PS95 has 18 post sessions with ITI licks). " + data_block() +
+    " Script widefield_pipeline <code>scripts/cohort2_qc/quiet_lick_lfo.py</code>; stats <code>lick_lfo/lmm_lick_lfo.csv</code>, "
+    "<code>lick_lfo/lick_lfo_epochs_boot_stars.csv</code>, <code>lick_lfo/lick_lfo_per_animal.csv</code>, "
+    "<code>lick_lfo/recovery_link.csv</code>, <code>lick_lfo/lick_lfo_sessions.csv</code>, "
+    "<code>state_response/state_response_prediction_summed.csv</code>; figure = <code>lick_lfo/lick_lfo_epochs.png</code> above "
+    "<code>lick_lfo/lick_lfo_recovery.png</code>; logs <code>logs/quiet_lick_lfo.log</code>, "
+    "<code>logs/quiet_state_response.log</code>. PROVISIONAL (n = 4).")
+
+# ---------------- review fixes (main window) ----------------
+rep("Robustness to movement correction: Fig 23.21. ",
+    "On movement-corrected events the orofacial decay does not change (Fig 23.21), so the orofacial narrowing is not robust to movement correction; the limb decay shortens in both. ")
+rep("the ITI model has 107 (PS95 has 18 post sessions with ITI licks). ", "the ITI model has 107. ")
+rep("the argument against interictal events rests on their small size and on large events not becoming more common. ",
+    "the argument against interictal events rests on their small size, on large events not becoming more common, and on the "
+    "balanced up / down polarity with no refractory gap (Fig 23.19). ")
+rep("a 4&ndash;8 Hz band keeps 57 %, n.s.", "a 4&ndash;8 Hz band keeps 33 %, n.s.")
+s = s.replace(" (CORRECTED 11-01)", "")
+s = s.replace("synchronisation", "synchronization").replace("synchronised", "synchronized")

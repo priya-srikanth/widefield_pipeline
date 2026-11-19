@@ -1,0 +1,61 @@
+set_img("q_selection.png", "q_selection_syncend.png")
+set_caption("q_selection",
+    "<b class=\"h\">Fig 23.7 &middot; NEURAL &middot; why the event maps differ: still vs movement events, height-matched, pre vs acute.</b> "
+    "Engaged orofacial events split by face movement: still = FaceRhythm speed below the session&rsquo;s engaged-quiet 90th percentile "
+    "throughout &plusmn;0.3 s, movement = above it; height-matched (4&ndash;6 and 6&ndash;9 &times; the animal&rsquo;s own pre SD, equal "
+    "weight). Rows: pre engaged (4 animals), acute engaged (4 animals), DELTA = acute &minus; pre; columns &minus;0.3, 0, +0.2, +0.5, "
+    "+1.0 s from the event peak; mean of animal means; ipsilesional = image left. DELTA outline = nested animal &rarr; session bootstrap "
+    "(2,000 draws, max-statistic p &lt; .05, 8 &times; 8-px bins); outlines with &gt; 2&times; rim enrichment are suppressed as edge "
+    "artifacts. <b>Top, UP events without face movement:</b> pre-stroke still events are already confined to anterolateral orofacial "
+    "cortex at 0 s, and acutely they look the same (0 s: 8 of 2022 bins, small). The difference is at +0.2 s: the acute map has "
+    "already fallen back over a broad anterior / orofacial-to-lateral band (596 bins) &mdash; shorter events, as in Fig 23.20 &mdash; "
+    "with small or rim-suppressed differences at &minus;0.3, +0.5 and +1.0 s. Spread index (lateral SSp / orofacial at 0 s, session "
+    "medians), pre &rarr; acute: PS92 0.48 &rarr; 0.33, PS93 0.36 &rarr; 0.32, PS94 0.33 &rarr; 0.25, PS95 0.35 &rarr; 0.34 (lower in "
+    "4/4, small except PS92; descriptive, no test). <b>Middle, UP events with face movement:</b> broader, bilateral maps; acute lower at "
+    "+0.2 s (94 bins) and higher at +0.5 s on the contralesional side (109 bins). <b>Bottom, DOWN events without face movement:</b> "
+    "acute differs at 0 s over anterior orofacial cortex (244 bins) and at +0.5 s contralesionally (131 bins). Events behind the maps "
+    "(engaged, heights 4&ndash;9 &times; SD; PS92 / PS93 / PS94 / PS95), pre &rarr; acute: still UP 128 / 85 / 155 / 341 &rarr; 818 / "
+    "823 / 1326 / 410; movement UP 40 / 39 / 261 / 226 &rarr; 70 / 309 / 236 / 61 (pooled counts over unequal numbers of sessions "
+    "&mdash; for rates see Figs 23.1 and 23.4). n = 4 animals, 107 sessions: PS93 08-13 has no face video, so it cannot be split by "
+    "movement and is left out of these maps. " + data_block() +
+    " Script widefield_pipeline <code>scripts/cohort2_qc/quiet_eta_split.py</code> (T1, T3); outputs <code>eta_split/T1_up_still_pre_vs_acute.png</code>, "
+    "<code>T1_up_move_pre_vs_acute.png</code>, <code>T3_down_still_pre_vs_acute.png</code>; significance <code>eta_split/map_significance.csv</code>, "
+    "spread <code>eta_split/spread_sessions.csv</code>. PROVISIONAL (n = 4).")
+
+set_img("q_quit_map.png", "q_quit_map_syncend.png")
+set_title("q_quit_map",
+    "Pre-stroke: the same event type in engaged quiet and in the quit period",
+    "Pre-stroke, still orofacial events are 5.6&ndash;7.4&times; more frequent in the quit period than while engaged, and more local there",
+    short="Pre-stroke: still events 5.6-7.4x more frequent in the quit period")
+set_caption("q_quit_map",
+    "<b class=\"h\">Fig 23.8 &middot; NEURAL &middot; pre-stroke engaged vs quit-period still events.</b> Orofacial UP events with no "
+    "face movement within &plusmn;0.3 s, height-matched (4&ndash;6 and 6&ndash;9 &times; the animal&rsquo;s own pre SD), pre-stroke "
+    "sessions only. Engaged = before the quit and before the last sync pulse; quit period = from the quit to the last sync pulse (imaging "
+    "after the task controller stopped is not counted in either; Priya 11-18); the same quiet-frame definition in both. <b>Rate</b> "
+    "(events / quiet minute, pooled over the animal&rsquo;s pre sessions with face video), engaged vs quit: PS93 3.05 (92 events / 30.2 "
+    "min) vs 17.05 (71 / 4.2 min, one session), &times;5.6; PS94 1.94 (158 / 81.5) vs 14.29 (505 / 35.3 min, 4 of 8 sessions), "
+    "&times;7.4; PS95 0.96 (346 / 359.4) vs 5.41 (307 / 56.7 min, 6 of 8 sessions), &times;5.6; PS92 3.57 engaged and no pre quit "
+    "period (0 min in 8 sessions). Acutely the ENGAGED rate is PS92 14.09, PS93 15.26, PS94 9.85, PS95 7.62 /min &mdash; at or above the "
+    "pre-stroke quit-period rates. Rates are descriptive (pooled, no test); PS93&rsquo;s quit rate rests on one session. <b>Maps</b> "
+    "(rows pre engaged, pre quit, DELTA; 3 animals, PS93&ndash;95; mean of animal means; ipsilesional = image left; DELTA outline = nested "
+    "animal &rarr; session bootstrap, 2,000 draws, max-statistic p &lt; .05, 8 &times; 8-px bins): the same anterolateral orofacial event "
+    "in both states, but quit-period events are more confined &mdash; DELTA at 0 s is positive in the anterolateral orofacial core and "
+    "negative over lateral and posterior cortex (249 of 2022 bins), with smaller differences at +0.2 s (53 bins) and small ones at "
+    "&minus;0.3 and +1.0 s (14 and 19 bins). Spread index (lateral SSp / orofacial at 0 s, session medians), engaged vs quit: PS93 0.36 "
+    "vs 0.19, PS94 0.33 vs 0.19, PS95 0.35 vs 0.21 (descriptive). Pre quit data are sparse and come late in the session. n = 3 animals "
+    "for the maps and quit rates; PS93 08-13 has no face video and is left out. " + data_block() +
+    " Script widefield_pipeline <code>scripts/cohort2_qc/quiet_eta_split.py</code> (T4) and <code>quiet_quit_state.py</code> (code "
+    "9701d914); outputs <code>eta_split/T4_up_still_pre_eng_vs_pre_quit.png</code>, significance <code>eta_split/map_significance.csv</code>, "
+    "spread <code>eta_split/spread_sessions.csv</code>, rates <code>quit_state/still_up_rates_eng_vs_quit.csv</code>, minutes "
+    "<code>quit_state/quit_state_sessions.csv</code>. PROVISIONAL (n = 4).")
+rep("much more frequent in the quit period (Fig 23.8, pre-rebuild run):", "more frequent in the quit period (Fig 23.8):")
+
+rep("Data and lick source:</b> Figs 23.1, 23.2, 23.4&ndash;23.6, 23.11, 23.15, 23.17, 23.18 and 23.21 are on the rebuilt base",
+    "Data and lick source:</b> every figure except 23.23 is on the rebuilt base")
+rep("so imaging after the task controller stopped is not counted; Priya 11-18). Their stars are",
+    "so imaging after the task controller stopped is not counted; the quit period runs from the quit to the last sync pulse; Priya 11-18). Stars are")
+rep(" The other figures are the pre-rebuild run (LP-based quiet frames that still counted cam1-only labels far from the mouth); their captions say so.</p>",
+    " Figs 23.1, 23.2, 23.4&ndash;23.6, 23.11, 23.15, 23.17, 23.18 and 23.21 are in the restyled session-marker layout; the others are "
+    "the analysis scripts&rsquo; own layouts, and their maps carry their own bootstrap outlines. Fig 23.23 is still the pre-rebuild run "
+    "(LP-based quiet frames that still counted cam1-only labels far from the mouth); its caption says so.</p>")
+rep("Selection (Fig 23.7, pre-rebuild run):", "Selection (Fig 23.7):")
