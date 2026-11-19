@@ -75,6 +75,16 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      with WIDEFIELD_LICK_SOURCE=daq. NEXT: 3c builds the old-vs-new list from its captions -> Priya -> page swap ->
      delete pre-rebuild labcams/cohort1_quiet_spikes/v2_quiet + v2_quiet_lp (Priya ok, once uncited). Open: local
      session_cache_rebuild_20261103 (78 GB, 8396/8439 files duplicated on M:) awaits Priya.
+   - 11-18 late night: Movement page v325 (3c) = 11 section-23 figures on the sync-end run with BOOTSTRAP stars
+     (quiet_boot_stars.py, fae48012; * = boot change vs own pre, dagger = LMM). Quit period now ends at the last sync
+     pulse (Priya; analyzed_window, 9701d914): pre quit min PS92 2.7->0, PS93 16.7->4.2, PS94 38.4->35.3, PS95
+     69.5->56.7; T1/T3 unchanged; T4 3 animals; still-UP rates pre quit/eng 5.6-7.4x (table
+     quit_state/still_up_rates_eng_vs_quit.csv), sent to 3c for 23.7/23.8. 23.23 follow-up: stored rebuild decoder
+     loaded by id (QS_FOLLOWUP_STORED_DECODER=1, Priya ok) but scoring refuses -- the script centres on all engaged
+     rows, the stored model on camera WORKING rows. ASKED Priya: (a) test with centre_rows=engaged + rebuilt-vs-stored
+     p_true check, (b) implement working centring, (c) keep 23.23 pre-rebuild. Local session cache delete was blocked by
+     the permission classifier (Priya can delete C:/Users/SabatiniLab/wfield_cache/session_cache_rebuild_20261103).
+     Pre-rebuild labcams/cohort1_quiet_spikes/v2_quiet + v2_quiet_lp: delete once 3c confirms 23.7/23.8/23.23 swapped.
    - FR page v56: Fig 5.6 = a2's cue-aligned factor figure + cue-window stats (Priya "yes" / "add stats").
    - OPEN: (1) caching refactor of the quiet scripts (Priya "yes", after the run: cache session traces + quiet /
      engaged masks, apply the engaged gate at summary time, verify exact reproduction of the syncend tables + timing);

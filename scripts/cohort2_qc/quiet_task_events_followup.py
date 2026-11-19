@@ -171,6 +171,31 @@ def predict(model, Z, code):
     return p
 
 
+#: spec keys allowed to differ when QS_FOLLOWUP_STORED_DECODER=1 loads the stored rebuild decoder (Priya 11-18 "ok").
+#: The stored models were frozen with scaling_params centre_set 'working_rows'; current code writes 'working' plus a
+#: PS93_0813 fallback, which moves train_fp. Everything else (pre sessions, features, basis, window, hemo, selection)
+#: must match exactly, and the rebuilt-vs-stored p_true check printed by `summarise` shows whether the label matters.
+STORED_OK_DIFF = {"scaling_params", "train_fp"}
+
+
+def _stored_sibling(spec):
+    """Load the ONE stored frozen precue decoder whose spec differs from `spec` only in STORED_OK_DIFF (by its stored
+    id, never a fit). Raises otherwise."""
+    from wfield_local import frozen_models
+    cand = []
+    for s in frozen_models.siblings(spec):
+        diff = {k for k in set(s["spec"]) | set(spec) if str(s["spec"].get(k)) != str(spec.get(k))}
+        if diff <= STORED_OK_DIFF:
+            cand.append((s, diff))
+    if len(cand) != 1:
+        raise RuntimeError(f"{spec['animal']}: {len(cand)} stored decoders differ only in {sorted(STORED_OK_DIFF)} "
+                           "-- refusing to guess (rule 10)")
+    s, diff = cand[0]
+    print(f"[followup] {spec['animal']}: STORED decoder {s['dir'].name} (frozen {s['frozen_utc']}), loaded by id; "
+          f"differs only in {sorted(diff)}: stored scaling_params={s['spec'].get('scaling_params')}", flush=True)
+    return frozen_models._read(s["dir"]), f"stored-by-id {s['dir'].name}"
+
+
 def frozen_models_for(animal):
     """(models, kept, pre labels, pooled XE by label) -- the STORED frozen precue decoder of attempt_coding. Load only."""
     from wfield_local import config, frozen_models, joint_locanmf  # noqa: F401
@@ -190,7 +215,10 @@ def frozen_models_for(animal):
 
     def _never():
         raise RuntimeError(f"{animal}: no stored frozen precue decoder for this spec -- refusing to fit (rule 10)")
-    models, status = frozen_models.load_or_fit(spec, _never)
+    if os.environ.get("QS_FOLLOWUP_STORED_DECODER", "") == "1" and frozen_models.find(spec)[0] is None:
+        models, status = _stored_sibling(spec)
+    else:
+        models, status = frozen_models.load_or_fit(spec, _never)
     print(f"[followup] {animal}: frozen precue decoder {status} (window {spec['post_s']} s, "
           f"{spec['n_features']} features, {len(pre_list)} pre sessions)", flush=True)
     raw = {lab: XE[GE == i] for i, lab in enumerate(kept)}

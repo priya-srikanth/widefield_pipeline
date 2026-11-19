@@ -99,6 +99,18 @@ def quit_time_s(label, s=None):
     return session_cache.cached(s, "quiet-quit-s", lambda: _quit_time_compute(label), params=params, verbose=False)
 
 
+def analyzed_window(label, ft):
+    """Frames inside the ANALYZED time (bool, len(ft)): before the task end of QS_ENGAGED_END (lastsync = the last sync
+    pulse, Priya 11-18) when that rule is on, else every frame. `engaged` already ends there; this is for the QUIT side
+    (`quiet & ~engaged & analyzed_window`): Priya 11-18 "yes quit to last sync pulse" -- without it the quit period also
+    swept in the post-task imaging after the last sync pulse, the tail the engaged fix removed."""
+    rule = os.environ.get("QS_ENGAGED_END", "")
+    if rule not in ("lastcue", "lastsync"):
+        return np.ones(len(ft), bool)
+    from quiet_engaged_end import task_end_s
+    return np.asarray(ft) < task_end_s(label, rule)
+
+
 def session_traces(label, detrend=True):
     """One session -> (X cols x T detrended dF/F %, ft, fs_img, rest mask, engaged mask, quit_s). Shared with
     quiet_spikes_fr.py (the FaceRhythm-regressed pass) so both passes read the identical traces and rest frames."""
