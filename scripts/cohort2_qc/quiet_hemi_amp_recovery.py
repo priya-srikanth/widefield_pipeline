@@ -162,6 +162,7 @@ def figure(L, T8, S11, H11, G14, T14, D15, out=None):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import quiet_boot_stars as BS
     from wfield_local import cat_points as cp
     from wfield_local import sig_marks
     from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE
@@ -184,16 +185,18 @@ def figure(L, T8, S11, H11, G14, T14, D15, out=None):
                     a.plot(k + dx - 0.075 + 0.05 * ia, v, cp.animal_marker(an), ls="none", color=EPOCH_LINE[ep],
                            mec="w", mew=0.5, ms=5.5, zorder=4)
             t = T8[(T8.group == g) & T8.term.str.contains(ep)]
-            if len(t) and float(t.q.iloc[0]) < 0.05:
-                sig_marks.star_top(a, k, "**" if float(t.q.iloc[0]) < 0.01 else "*")
+            P = L[L.group == g].pivot_table(index=["label", "animal", "epoch"], columns="side", values="y").reset_index()
+            P["ipsi_minus_contra"] = P["ipsi"] - P["contra"]          # per session; the test = its change vs own pre
+            BS.mark(a, k, P, "ipsi_minus_contra", ep, float(t.q.iloc[0]) if len(t) else np.nan,
+                    panel=f"T8 {g} ipsi - contra")
         a.axhline(0, color="0.5", lw=0.8)
         a.set_xticks([k + dx for k in range(3) for dx in (-0.17, 0.17)], ["ipsi", "contra"] * 3, fontsize=7)
         for k, ep in enumerate(EP[1:]):
             a.text(k, -0.07, ep, transform=a.get_xaxis_transform(), ha="center", va="top", fontsize=9)
         a.set_ylabel("change vs the animal's pre, log10(rate + 0.2)")
         a.set_title(f"T8 {g}: change vs pre, log10(rate + 0.2)\nbar = mean of animals (dark = ipsilesional, light = "
-                    "contralesional); small filled = animals,\nfaded open = sessions; stars = ipsi - contra vs pre "
-                    "(LMM, FDR)", fontsize=8)
+                    "contralesional); small filled = animals,\nfaded open = sessions; ipsi - contra vs pre: * = bootstrap of "
+                    "the change vs own pre, † = LMM (FDR)", fontsize=8)
     ax[0, 0].legend(handles=cp.animal_handles(animals), fontsize=7, loc="lower left", frameon=False)
     a = ax[0, 2]
     for ep in EP:
@@ -244,6 +247,7 @@ def figure(L, T8, S11, H11, G14, T14, D15, out=None):
     fig.tight_layout(rect=(0, 0, 1, 0.95), w_pad=3.0, h_pad=3.0)
     out = OUT / "quiet_hemi_amp_recovery.png" if out is None else out
     fig.savefig(out, dpi=110)
+    BS.save(Path(str(out)).with_name(Path(str(out)).stem + "_boot_stars.csv"))
     plt.close(fig)
     print("wrote", out)
     return plotted

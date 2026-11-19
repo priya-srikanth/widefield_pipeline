@@ -479,6 +479,8 @@ def figure(D, S, T):
     a.set_title(wrap("(e) frequency tracking: does the frequency of the cortical gain follow breathing? (sessions, "
                      "jittered; dotted = identity)"), fontsize=9)
 
+    import quiet_boot_stars as BS
+
     def markers(a, col, title, mm, cc):
         rng = np.random.default_rng(0)
         for x, ep in enumerate(EP):
@@ -491,9 +493,10 @@ def figure(D, S, T):
             if ci is not None:
                 a.errorbar(x + 0.32, ci.point, yerr=[[ci.point - ci.lo], [ci.hi - ci.point]], fmt="o",
                            color=EPOCH_LINE[ep], ms=6, capsize=3, lw=1.6, zorder=5)
-            s = star(T, mm, cc, ep) if x > 0 else None
-            if s:
-                sig_marks.star_top(a, x, s, color=EPOCH_LINE[ep])
+            if x > 0:
+                t = T[(T.measure == mm) & (T.column == cc) & (T.term == f"C(epoch)[T.{ep}]")]
+                BS.mark(a, x, S, col, ep, float(t.q.iloc[0]) if len(t) else np.nan, color=EPOCH_LINE[ep],
+                        panel=f"{mm} {cc} {col}")
         a.set_xticks(range(len(EP)), EP, fontsize=8)
         a.set_title(wrap(title.replace("\n", " ")), fontsize=9)
 
@@ -537,11 +540,12 @@ def figure(D, S, T):
         "spectral peak above 1/f (no FaceRhythm factor is a resting-breathing factor).",
         "Top: thin = animals (shape), thick = mean of animals, gray band = 1.5-4 Hz; dashed = coherence floor from "
         "randomly re-paired segments. Lower rows: open markers = sessions (shape = animal, color = epoch); filled = "
-        "pooled mean, nested animal -> session bootstrap 95% CI; stars = LMM epoch vs August pre, FDR q.",
+        "pooled mean, nested animal -> session bootstrap 95% CI;\n" + BS.FOOT + " (mixed model: epoch vs August pre, FDR).",
     ]
     fig.suptitle("\n".join(textwrap.fill(t, 190) for t in paras), fontsize=9, y=0.995)
     fig.tight_layout(rect=(0, 0.035, 1, 0.935), w_pad=2.5, h_pad=2.0)
     fig.savefig(OUTB / "quiet_breathing.png", dpi=110)
+    BS.save(OUTB / "quiet_breathing_boot_stars.csv")
     print("wrote", OUTB / "quiet_breathing.png")
 
 

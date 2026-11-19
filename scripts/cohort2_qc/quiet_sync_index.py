@@ -72,6 +72,7 @@ def figure(S, T):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import quiet_boot_stars as BS
     from wfield_local import sig_marks
     from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE
     cols = ["orofacial_left", "orofacial_right", "limb_left", "limb_right", "cortex"]
@@ -88,8 +89,8 @@ def figure(S, T):
             m = g.groupby("animal").d_sync.mean()
             a.bar(k, m.mean(), width=0.5, color=EPOCH_LINE[ep], alpha=0.3)
             t = T[(T.measure == "sync") & (T.column == c) & T.term.str.contains(ep)]
-            if len(t) and float(t.q.iloc[0]) < 0.05:
-                sig_marks.star_top(a, k, "**" if float(t.q.iloc[0]) < 0.01 else "*")
+            BS.mark(a, k, S[S.column == c], "d_sync", ep, float(t.q.iloc[0]) if len(t) else np.nan,
+                    color=EPOCH_LINE[ep], panel=f"sync {nm}")
         a.axhline(0, color="0.5", lw=0.8)
         a.set_xticks(range(3))
         a.set_xticklabels(EP[1:], fontsize=8)
@@ -97,10 +98,11 @@ def figure(S, T):
     ax[0].set_ylabel("change vs pre, log10(PSD 1-4 Hz / 8-15 Hz)")
     sig_marks.reserve_headroom(fig)
     fig.suptitle("T20: quiet-period synchronization index (slow / fast power) after the stroke; a less thalamically driven "
-                 "cortex is more synchronized. Sessions (shape = animal), bar = mean of animals; stars = LMM vs pre, FDR",
+                 "cortex is more synchronized. Sessions (shape = animal), bar = mean of animals;\n" + BS.FOOT,
                  fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
     fig.savefig(OUT / "quiet_sync_index.png", dpi=110)
+    BS.save(OUT / "quiet_sync_index_boot_stars.csv")
     print("wrote", OUT / "quiet_sync_index.png")
 
 
