@@ -39,6 +39,24 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
 3. Then tell **sabatinilab-e3** (PI deck) the decoder figures are final: per figure the share PNG path, page Fig N.k,
    script + args, headline numbers, methods text (they asked 10-26 ~22:30; reply sent: not final yet).
 
+### 00-COMPACT-45 (11-18 ~23:30) -- START HERE; additions to 44
+
+- **Movement (Execution) page** https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d = **v326**. Section 23 (quiet-state) is on
+  a8's sync-end quiet run `cohort1_quiet_spikes/v2_quiet_lp_c1guard_syncend_20261118` for every figure except 23.23.
+  - v324: 23.1/2/4/5/6/11/15/17/18/21 (restyled, boot_delta stars). v325: 23.3/9/10/12/13/14/16/19/20/22/24 (scripts' own
+    layouts re-plotted with bootstrap stars, `*_boot_stars.csv` beside each png; code fae48012). v326: 23.7 + 23.8.
+  - 23.8 quit period = quit .. last sync pulse (Priya 11-18, code 9701d914): pre still-UP quit / engaged rate x5.6 / x7.4 /
+    x5.6 (PS93 / 94 / 95; PS93 = 1 session, 4.2 min); PS92 has no pre quit period; acute ENGAGED 7.6-15.3 /min >= pre quit
+    5.4-17.1 /min, so "acute engaged quiet looks like pre-stroke disengagement" stands at a smaller ratio (was 8-60x).
+  - Caption audit + bootstrap corrections: `docs/status/quiet_restyle_20261118/S23_PAGE_CAPTION_AUDIT_20261118.md`; page
+    edit scripts `quiet_restyle_20261118/page_s23_scripts/` (harness `s23_check.py <part>` on the saved page source).
+    Page source for the next edit: session f082ee0c scratchpad `s23_page3.html` (else `Artifact read` the live page).
+- **23.23 BLOCKED** (a8): stored rebuild decoder loads, features match, but rebuilt full-window p_true vs stored T13 p_true
+  differs (median |diff| 0.14; lead: stored run used session_z-scaled models). Options with Priya: fix the transform /
+  working centring, or keep 23.23 pre-rebuild. Until then KEEP `labcams/cohort1_quiet_spikes/v2_quiet_lp/task_events` +
+  `task_events_followup`; the rest of the pre-rebuild v2_quiet / v2_quiet_lp was deleted by a8 with Priya's OK.
+- Spout (Target) page PvraHi cites no v2_quiet paths (its section 15 = frozen copy, images inside the artifact).
+
 ### 00-COMPACT-44 (11-17 ~19:30) -- START HERE; additions to 43 / 42
 Detail: `docs/status/PAGE_PUBLISH_QUEUE_20261117.md` (branch docs/publish-queue-1117, worktree wf_imgswap1117, UNPUSHED).
 

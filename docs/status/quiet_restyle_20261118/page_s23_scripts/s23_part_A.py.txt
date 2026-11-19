@@ -1,0 +1,115 @@
+# Part A: Figs 23.3 (q_sync), 23.24 (q_sync_4to8), 23.9 (q_spectrum), 23.10 (q_sdmaps) -> sync-end run.
+# exec'd by s23_check.py after its helpers (rep, set_caption, set_img, set_title, data_block, ...).
+import re as _re
+
+MARK = ("Sessions = open markers (shape = animal, color = epoch); bar = mean of animals; "
+        "<b>*</b> = nested animal &rarr; session bootstrap 95% CI of the change excludes 0 (primary); "
+        "&dagger; = mixed model q &lt; .05 (backup, epoch vs August pre, FDR within measure; drawn under the * where both hold); "
+        "stars in the top band. Pooled values = bootstrap animal-weighted change [95% CI]; k/4 = animals changing in the pooled direction.")
+DROP4 = ("104 of the 108 sessions give a spectrum: PS92 09-11, 09-15, 10-02 (chronic) and PS93 08-12 (pre) have only 1.9&ndash;3.9 min "
+         "of engaged quiet and no band estimate")
+
+# ---------------- 23.3 ----------------
+set_img("q_sync.png", "q_sync_syncend.png")
+set_caption("q_sync",
+    "<b class=\"h\">Fig 23.3 &middot; NEURAL &middot; synchronization index, with the F0 / noise-floor check.</b> "
+    "Index = log10(PSD 1&ndash;4 Hz / PSD 8&ndash;15 Hz) of the quiet trace (dF/F %, Welch 4-s segments), change vs the animal&rsquo;s own "
+    "August pre. <b>Top</b> (quiet_sync_index): the index per area. Acute, per animal (PS92 / PS93 / PS94 / PS95) then pooled: orofacial "
+    "ipsilesional +0.61 / +0.89 / +0.72 / +0.75, +0.74 [0.56, 0.96] (4/4) *; orofacial contralesional +0.52 / +0.70 / +0.65 / +0.40, "
+    "+0.57 [0.38, 0.77] (4/4) *; whole cortex +0.15 / +0.50 / +0.20 / +0.42, +0.32 [0.07, 0.57] (4/4) *; limb ipsilesional "
+    "+0.08 / +0.60 / &minus;0.05 / +0.67, +0.32 [&minus;0.06, 0.67] (3/4) and limb contralesional &minus;0.01 / +0.24 / &minus;0.14 / +0.28, "
+    "+0.09 [&minus;0.19, 0.35] (2/4), both n.s. Orofacial carries the largest acute rise and is near pre chronically (ipsilesional "
+    "+0.13 [&minus;0.11, 0.36], 2/4). Chronically whole cortex (+0.54 / +0.59 / +0.34 / +0.22; +0.42 [0.22, 0.66], 4/4) * and "
+    "contralesional limb (+0.55 / +0.32 / +0.10 / +0.15; +0.28 [0.06, 0.58], 4/4) * rise. "
+    "<b>Bottom</b> (quiet_f0_noise, T22): row 1 = baseline fluorescence F0 (tonic proxy), row 2 = the orofacial ipsi &minus; contra index "
+    "and its variants, row 3 = noise-floor diagnostics. The ipsi &minus; contra index difference (row 2, A) rises acutely, +0.088 / +0.189 / "
+    "+0.066 / +0.353, +0.17 [0.02, 0.34] (4/4) *, but it is <b>not neural</b>: the 8&ndash;15 Hz denominator is dominated by a non-calcium "
+    "7&ndash;11 Hz peak (row 3, middle: pink band; also present at 415 nm; cardiac / brain motion) that is lower on the lesioned side &mdash; "
+    "415 nm 7&ndash;11 Hz power ipsi &minus; contra acute &minus;0.151 / &minus;0.058 / &minus;0.044 / &minus;0.062, &minus;0.079 "
+    "[&minus;0.133, &minus;0.025] (4/4) * (row 2, last panel; also lower chronically, &minus;0.024 [&minus;0.049, &minus;0.003], 4/4 *). "
+    "With a fast band below the peak the laterality holds in only 2/4: 4&ndash;8 Hz (C) &minus;0.031 / +0.167 / &minus;0.037 / +0.162, "
+    "+0.065 [&minus;0.059, 0.182]; floor-subtracted 4&ndash;8 Hz (D) &minus;0.081 / +0.144 / &minus;0.237 (no PS95 value), &minus;0.058 "
+    "[&minus;0.341, 0.175] (2/3); both n.s. (D is lower subacutely, &minus;0.158 [&minus;0.345, &minus;0.008], 4/4 *). Floor subtracted from "
+    "both bands (B) has an acute value for PS92 only; chronically +0.43 / +1.18 / +0.12 / +0.17, +0.47 [0.05, 0.96] (4/4) *. Limb cortex "
+    "shifts the same way and 415 nm 4&ndash;8 Hz power is itself lower ipsilesionally (Fig 23.24). No ipsilesional F0 drop: orofacial "
+    "F470 ipsi &minus; contra acute +0.070 / +0.042 / +0.005 / &minus;0.002, +0.029 [0.001, 0.059] (3/4) *, a small rise; F415 +0.016 "
+    "[0.001, 0.030] (3/4) *; F470/F415 +0.014 [&minus;0.001, 0.037] (3/4) &dagger;. What stands: the acute orofacial 1&ndash;4 Hz power "
+    "rise (bilateral orofacial, log10 change +0.74 / +0.88 / +0.46 / +0.75, 4/4; 415 nm control: Fig 23.11; laterality: Fig 23.13). "
+    + MARK + " n = 4 animals; " + DROP4 + "; F0 uses all 108. " + data_block() +
+    " Scripts widefield_pipeline <code>scripts/cohort2_qc/quiet_sync_index.py</code> (top) and "
+    "<code>scripts/cohort2_qc/quiet_f0_noise.py</code> (bottom); stats <code>sync_index/quiet_sync_index_boot_stars.csv</code>, "
+    "<code>sync_index/lmm_sync.csv</code>, <code>sync_index/sync_sessions.csv</code>, <code>f0_noise/quiet_f0_noise_boot_stars.csv</code>, "
+    "<code>f0_noise/lmm_f0_noise.csv</code>; logs <code>logs/quiet_sync_index_bootstars.log</code>, "
+    "<code>logs/quiet_f0_noise_bootstars.log</code>. PROVISIONAL (n = 4).")
+
+# ---------------- 23.24 ----------------
+_a = s.index('<figure id="f-q_sync_4to8"')
+_e = s.index("</figure>", _a)
+_m = _re.search(r'src="data:image/png;base64,[^"]+" data-file="q_sync_4to8\.png"', s[_a:_e])
+assert _m, "q_sync_4to8 data URI not found"
+rep(_m.group(0), 'src="q_sync_4to8_syncend.png"')
+set_caption("q_sync_4to8",
+    "<b class=\"h\">Fig 23.24 &middot; NEURAL &middot; EXPLORATORY: synchronization laterality with fast bands that avoid the 7&ndash;11 Hz "
+    "non-calcium peak.</b> Index log10(P 1&ndash;4 Hz / P fast) of the quiet engaged trace (same spectra as Fig 23.3), ipsilesional "
+    "&minus; contralesional, change vs the animal&rsquo;s own August pre. Columns: A 8&ndash;15 Hz (T20 as published), B 4&ndash;8 Hz, "
+    "C 4&ndash;7 Hz (entirely below the peak), D 4&ndash;8 Hz minus the 12&ndash;15 Hz floor, E 415 nm power 4&ndash;8 Hz (non-calcium "
+    "control); rows: orofacial, limb, orofacial minus limb. Acute orofacial ipsi &minus; contra, per animal (PS92 / PS93 / PS94 / PS95) "
+    "then pooled: A +0.088 / +0.189 / +0.066 / +0.353, +0.17 [0.02, 0.34] (4/4) *; B &minus;0.031 / +0.167 / &minus;0.037 / +0.162, "
+    "+0.065 [&minus;0.060, 0.183] (2/4: clear in PS93 and PS95 only; PS95 has one acute session); C &minus;0.018 / +0.172 / &minus;0.045 / "
+    "+0.166, +0.069 [&minus;0.048, 0.182] (2/4); D &minus;0.081 / +0.144 / &minus;0.237 (no PS95 value), &minus;0.058 [&minus;0.350, 0.175] "
+    "(2/3); B&ndash;D n.s. The mixed-model acute coefficient keeps 33 % (4&ndash;8 Hz), 30 % (4&ndash;7 Hz) and &minus;37 % "
+    "(floor-subtracted) of the 8&ndash;15 Hz one (figure subtitle). Not orofacial-specific: limb ipsi &minus; contra shifts too, and more "
+    "in the fast bands &mdash; A +0.23 [0.08, 0.38] (4/4) *, B +0.184 / +0.066 / +0.117 / +0.094, +0.115 [0.053, 0.188] (4/4) *, "
+    "C +0.090 [0.032, 0.148] (4/4) * &mdash; and orofacial minus limb laterality is n.s. acutely in every band (A &minus;0.058 "
+    "[&minus;0.203, 0.056], B &minus;0.050 [&minus;0.213, 0.105], C &minus;0.021 [&minus;0.166, 0.120]). 4&ndash;8 Hz is not free of "
+    "non-calcium asymmetry: 415 nm 4&ndash;8 Hz power is lower ipsilesionally acutely (E; orofacial &minus;0.089 / &minus;0.117 / "
+    "&minus;0.015 / &minus;0.027, &minus;0.062 [&minus;0.120, &minus;0.017] (4/4) *; limb &minus;0.090 / &minus;0.087 / &minus;0.081 / "
+    "&minus;0.017, &minus;0.069 [&minus;0.099, &minus;0.033] (4/4) *; limb subacute &dagger;), the sign that raises the index. Outside the "
+    "acute epoch: floor-subtracted 4&ndash;8 Hz laterality is lower subacutely (orofacial &minus;0.158 [&minus;0.355, &minus;0.001], 4/4 *; "
+    "limb, 2 animals with a value, *), and orofacial minus limb 8&ndash;15 Hz laterality is +0.14 [0.02, 0.25] (4/4) * chronically. "
+    "The bilateral orofacial 4&ndash;8 Hz index (not plotted) still rises acutely, +0.176 / +0.307 / +0.303 / +0.669 (4/4; mixed model "
+    "+0.330, q .004; no bootstrap run for this measure), as the 1&ndash;4 Hz power rise predicts. Reading: no neural ipsilesional "
+    "synchronization in any band; the T20 laterality withdrawal stands. " + MARK + " n = 4 animals; " + DROP4 + "; column D is defined "
+    "only where both bands exceed the floor (83 sessions orofacial, 58 limb, 50 orofacial minus limb). " + data_block() +
+    " Script widefield_pipeline <code>scripts/cohort2_qc/quiet_sync_4to8.py</code>; stats <code>sync_4to8/quiet_sync_4to8_boot_stars.csv</code>, "
+    "<code>sync_4to8/lmm.csv</code>, <code>sync_4to8/fraction_surviving.csv</code>, <code>sync_4to8/contrasts_sessions.csv</code>; log "
+    "<code>logs/quiet_sync_4to8_bootstars.log</code>. PROVISIONAL (n = 4).")
+
+# ---------------- 23.9 ----------------
+set_img("q_spectrum.png", "q_spectrum_syncend.png")
+set_title("q_spectrum",
+          "Quiet-period power spectrum: the acute orofacial increase peaks at 2&ndash;3 Hz",
+          "Quiet-period power spectrum: the acute orofacial increase is largest at 1&ndash;3 Hz",
+          short="Acute orofacial quiet power rises most at 1&ndash;3 Hz")
+set_caption("q_spectrum",
+    "<b class=\"h\">Fig 23.9 &middot; NEURAL &middot; quiet-period power spectrum.</b> Welch PSD of the area trace (dF/F %, 4-s segments, "
+    "quiet runs &ge; 4 s, engaged); top = median PSD over sessions per epoch; bottom = power ratio vs the animal&rsquo;s own pre median "
+    "(thin = animals, thick = geometric mean). Columns: orofacial ipsilesional / contralesional, limb ipsilesional / contralesional. "
+    "Acute orofacial power vs own pre by band, per animal (PS92 / PS93 / PS94 / PS95): ipsilesional 1&ndash;3 Hz &times;7.16 / &times;10.16 / "
+    "&times;4.01 / &times;7.50, 3&ndash;8 Hz &times;5.46 / &times;7.67 / &times;2.43 / &times;1.87, 0.5&ndash;1 Hz &times;2.90 / &times;2.85 / "
+    "&times;3.20 / &times;3.45, 0.1&ndash;0.5 Hz &times;3.13 / &times;2.18 / &times;2.72 / &times;2.19, 8&ndash;15 Hz &times;1.59 / "
+    "&times;2.04 / &times;0.80 / &times;1.58; contralesional 1&ndash;3 Hz &times;7.20 / &times;5.50 / &times;3.63 / &times;4.47, 3&ndash;8 Hz "
+    "&times;6.10 / &times;5.43 / &times;2.13 / &times;1.35. The 1&ndash;3 Hz band carries the largest increase in every animal on both "
+    "sides, on a broad &times;1.4&ndash;3.8 rise below 1 Hz; 1&ndash;3 Hz is higher ipsilesionally than contralesionally in PS93, PS94 and "
+    "PS95 (PS92 equal). Subacute orofacial ipsilesional 1&ndash;3 Hz &times;4.40 / &times;4.40 / &times;3.26 / &times;1.81; chronic "
+    "&times;1.10 / &times;1.61 / &times;0.88 / &times;1.27. Limb acute 1&ndash;3 Hz ipsilesional &times;2.33 / &times;7.28 / &times;0.56 / "
+    "&times;5.41 (large in PS93 and PS95 only); the thin chronic limb curve reaching ~&times;19 near 1 Hz is PS92 (0.5&ndash;1 Hz "
+    "&times;13.95 ipsilesional, &times;6.59 contralesional). Descriptive: no test on this figure (power tests: Fig 23.11). Breathing as a "
+    "source: Fig 23.12. n = 4 animals; " + DROP4 + ". " + data_block() +
+    " Script widefield_pipeline <code>scripts/cohort2_qc/quiet_fluct.py</code>; band ratios <code>fluct/quiet_spectrum_bands.csv</code> "
+    "and <code>logs/quiet_fluct.log</code> (&ldquo;power ratio vs pre by band&rdquo;). PROVISIONAL (n = 4).")
+
+# ---------------- 23.10 ----------------
+set_img("q_sdmaps.png", "q_sdmaps_syncend.png")
+set_caption("q_sdmaps",
+    "<b class=\"h\">Fig 23.10 &middot; NEURAL &middot; per-pixel SD of quiet activity.</b> Pixel time course high-passed (linear 2-s "
+    "moving-average high-pass), SD over engaged quiet frames; left = pre SD (dF/F %); other columns = log2(SD / the animal&rsquo;s own pre "
+    "SD), geometric mean over the epoch&rsquo;s sessions; pooled row = mean over animals. Ipsilesional = image left; Allen area edges. "
+    "Black outline = change significant (bootstrap, 2,000 draws, max-statistic family-wise p &lt; 0.05 over 8&times;8-px bins of the eroded "
+    "mask); pooled row animals &rarr; sessions, per-animal rows sessions only (reliability within an animal); not corrected across panels. "
+    "Significant bins of 2022, acute / subacute / chronic: pooled 1316 / 1241 / 1338; PS92 929 / 992 / 1779; PS93 1918 / 1538 / 1786; "
+    "PS94 686 / 1082 / 1034; PS95 not tested acutely (1 acute session) / 798 / 1618. SD grows over most of dorsal cortex in every epoch. "
+    "Acutely the lateral somatosensory hotspots (brightest in the pre SD map) lie outside the pooled outline and fall below pre in PS92 "
+    "(ipsilesional) and PS94 (both sides); chronically PS92 rises over the whole cortex. n = 4 animals, 108 sessions. " + data_block() +
+    " Script widefield_pipeline <code>scripts/cohort2_qc/quiet_fluct.py</code>; bin counts "
+    "<code>fluct/quiet_sd_maps_significance.csv</code>; log <code>logs/quiet_fluct.log</code>. PROVISIONAL (n = 4).")
