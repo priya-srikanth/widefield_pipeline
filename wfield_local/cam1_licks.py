@@ -148,3 +148,89 @@ def mm_per_px(lat_by_pos: dict, ml_by_pos: dict) -> float:
     camera is foreshortened, so mm values are a SIZE scale, not 3-D distances."""
     d_px = abs(lat_by_pos["far_L"] - lat_by_pos["far_R"])
     return float(abs(ml_by_pos["far_L"] - ml_by_pos["far_R"]) / d_px) if d_px > 0 else float("nan")
+
+
+def cam1_frame(flat, ix):
+    """(spout frame, ruler medians, ``to_frame(x, y) -> (out, lat)`` px) of a cam1 session: origin = the cam1 mouth (the
+    L / R spout-line intersection, `spout_frame.from_medians_lr`, on the ENL no-lick ruler medians), ``out`` = ventral
+    toward the spouts, ``lat`` = + mouse's left. Moved verbatim from `scripts/cam1_licks._cam1_frame` (11-18), which
+    re-exports it."""
+    from wfield_local import spout_frame as SF
+    med = SF.ruler_medians(flat, ix)
+    fr = SF.from_medians_lr(med)
+    sgn = fr.mouse_left_sign or 1
+
+    def to_frame(x, y):
+        dx, dy = np.asarray(x, float) - fr.origin[0], np.asarray(y, float) - fr.origin[1]
+        return -(dx * fr.ap_axis[0] + dy * fr.ap_axis[1]), sgn * (dx * fr.lr_axis[0] + dy * fr.lr_axis[1])
+    return fr, med, to_frame
+
+
+#: DETACHED, STATIONARY TONGUE LABELS (Priya 11-18: "would a rule about it being relatively stationary and 'jumping' from
+#: mouth be helpful?" / "we would want to exclude these before cleaning / interpolating"). A real tongue leaves the
+#: mouth and moves; a water drop hanging on the spout (PS93 0814 trial 540, four-camera review 11-18) or a parked label
+#: appears away from the mouth and sits still. Per run of RAW confident cam1 tongue frames (one trial, likelihood >= the
+#: cam1 tongue ``lk_thr``, gaps <= ``DETACH_MAX_GAP_MS`` joined, `tongue_runs`): MASKED when the run never comes back
+#: within ``DETACH_OUT_PX`` of the mouth line (min ``out`` > it; ``out`` = ventral, toward the spouts) AND its median
+#: distance from its own median point (``spread``) is < ``STATIC_SPREAD_PX``. Applied BEFORE `orofacial_clean`, so the
+#: cleaning's 24 ms bridge cannot stitch a wobbling drop into a long event (trial 540: 556-748 ms "licks").
+#: SET FROM (11-18, scratch `runs_table.py`; 76 sessions = every blind-reviewed session + 6 per animal across epochs):
+#:   * blind-review labels (10-19, review2, review3, 11-17; null controls out): 0 / 118 tongue runs masked; no-tongue
+#:     runs IN FRONT of the mouth 9 / 10 caught (the miss: a droplet wobbling 9 px); the 7 far behind are the far guard's
+#:     (`FAR_FROM_MOUTH_PX`); the 7 that reach the mouth line are not separable by position;
+#:   * trial 540: 1,099 / 1,124 drop frames masked;
+#:   * 25 sessions: 0.30 % of confident tongue frames masked, 7.6 % of those inside a cam4 lick (on..off).
+#: Rejected versions: raw runs without the bridge (35 % of masked frames inside cam4 licks: a lick whose label flickers
+#: at the spout looked detached) and a range < 8 px test on bridged runs (missed trial 540: a long wobbling drop spans
+#: 10-24 px).
+DETACH_OUT_PX = 30.0
+STATIC_SPREAD_PX = 6.0
+#: raw runs are joined across gaps up to this (the cam1 cleaning's own bridge, 24 ms) before the test
+DETACH_MAX_GAP_MS = 24.0
+
+
+def tongue_runs(out, lat, ok, trial_id, t_ms, max_gap_ms: float = DETACH_MAX_GAP_MS) -> pd.DataFrame:
+    """One row per run of confident cam1 tongue frames (one trial, gaps <= ``max_gap_ms`` joined): ``a`` / ``b`` (first /
+    last frame row), n, min_out / max_out (px), range (ptp of the distance from the mouth), spread (median distance from
+    the run's median point), dur_ms. ``out`` / ``lat`` = cam1 frame px (`cam1_frame`)."""
+    out, lat = np.asarray(out, float), np.asarray(lat, float)
+    t, tid = np.asarray(t_ms, float), np.asarray(trial_id)
+    k = np.flatnonzero(np.asarray(ok, bool) & np.isfinite(out) & np.isfinite(lat))
+    cols = ["a", "b", "trial_id", "n", "min_out", "max_out", "range", "spread", "dur_ms"]
+    if not len(k):
+        return pd.DataFrame(columns=cols)
+    brk = np.r_[True, (tid[k[1:]] != tid[k[:-1]]) | (t[k[1:]] - t[k[:-1]] > max_gap_ms + 1.0)]
+    starts = np.flatnonzero(brk)
+    rows = []
+    for i, j in zip(starts, np.r_[starts[1:], len(k)]):
+        kk = k[i:j]
+        xy = np.c_[out[kk], lat[kk]]
+        med = np.median(xy, 0)
+        rows.append((kk[0], kk[-1], tid[kk[0]], len(kk), out[kk].min(), out[kk].max(), float(np.ptp(np.hypot(*xy.T))),
+                     float(np.median(np.hypot(*(xy - med).T))), t[kk[-1]] - t[kk[0]]))
+    return pd.DataFrame(rows, columns=cols)
+
+
+def detached_static(out, lat, ok, trial_id, t_ms, *, detach_out_px: float = DETACH_OUT_PX,
+                    spread_px: float = STATIC_SPREAD_PX, max_gap_ms: float = DETACH_MAX_GAP_MS) -> np.ndarray:
+    """``bool[n]``: frames of a detached, stationary run (`tongue_runs`; see ``DETACH_OUT_PX``). ``ok`` = confident raw
+    frames."""
+    R = tongue_runs(out, lat, ok, trial_id, t_ms, max_gap_ms)
+    mask = np.zeros(len(np.asarray(out)), bool)
+    okf = np.asarray(ok, bool)
+    for r in R[(R.min_out > detach_out_px) & (R.spread < spread_px)].itertuples():
+        mask[r.a:r.b + 1] = okf[r.a:r.b + 1]
+    return mask
+
+
+def mask_detached(flat: pd.DataFrame, ix: pd.DataFrame, to_frame=None) -> tuple[pd.DataFrame, np.ndarray]:
+    """(copy of ``flat`` with ``tongue_likelihood`` = 0 on `detached_static` frames, the mask): the cam1 tongue as the
+    cleaning should see it (a masked frame is "not visible"). ``to_frame``: `cam1_frame`'s, else computed."""
+    from wfield_local import orofacial_clean as OC
+    to_frame = to_frame or cam1_frame(flat, ix)[2]
+    out, lat = to_frame(flat.tongue_x.to_numpy(float), flat.tongue_y.to_numpy(float))
+    ok = flat.tongue_likelihood.to_numpy(float) >= float(OC.params("tongue", "cam1")["lk_thr"])
+    m = detached_static(out, lat, ok, ix.trial_id.to_numpy(), ix.t_ms.to_numpy(float))
+    flat = flat.copy()
+    flat.loc[m, "tongue_likelihood"] = 0.0
+    return flat, m

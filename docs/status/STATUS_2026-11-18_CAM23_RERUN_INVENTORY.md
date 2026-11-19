@@ -62,8 +62,24 @@ On the clips: ``static`` fired on 9 unconfirmed side events (all dropped: 4 cam2
 **Whole-session path:** `python -m scripts.camera_licks session A:YYYYMMDD --bundle <side bundle>` (same functions,
 `fuse_session(side_bundle=...)`, production events unrestricted). Untested until a whole-session side bundle exists.
 
-Open: the trial-540 class of hanging drops (decision above), the clip-edge licks (side frames end at +1.5 s), and the
-first whole-session run.
+**Follow-up (Priya 11-18): "these sound like errors if not in 3d and always after misses (water drop), right?" -- partly.**
+Of the 114 long (>= 300 ms) cam1-only events, 65 had no miss in the 3 prior trials (59 in CONTACT trials, late,
+median 1.8 s after the cue: the tongue / a drop at the spout after drinking; class unaffected, contact = DAQ) and 49
+followed misses (31 trials now "incomplete": 11 with no other lick evidence and 12 with only short cam1-only events ->
+no response, none had a jaw movement; 8 also have a cam4 lick and stay incomplete). ~23 trials would move, 11 acute.
+
+**Rule ADOPTED in code (Priya 11-18: a "stationary and jumping from the mouth" rule, applied "before cleaning /
+interpolating"):** `cam1_licks.mask_detached` -- a run of raw confident cam1 tongue frames (gaps <= 24 ms joined) that
+never comes within +30 px of the mouth line and has a spread < 6 px is set to "not visible" BEFORE `orofacial_clean`.
+Wired at both cam1 cleaning sites: `scripts/cam1_licks.py run` (lick events) and `pose3d.cleaned_xy` (3-D, so also
+`pose3d_side.fuse_session`). `cam1_frame` moved verbatim from the script into `cam1_licks` (re-exported). Evidence
+(76 sessions; code in `cam23_rerun_20261118/code/`): 0 / 118 blind-review tongue runs masked; 9 / 10 no-tongue runs in
+front of the mouth caught; trial 540 1,099 / 1,124 frames; 0.30 % of confident frames masked over 25 sessions, 7.6 % of
+those inside a cam4 lick. NOT caught: no-tongue labels at the mouth line (7 / 24; not separable by position).
+**Takes effect when cam1 events / 3-D are regenerated (the re-run): do NOT regenerate single sessions before it, or
+the cohort mixes two cam1 definitions.** Bump `lp_licks.LP_VERSION` with that regeneration.
+
+Open: the clip-edge licks (side frames end at +1.5 s), and the first whole-session run.
 
 ## 1. Decisions needed before running (Priya)
 

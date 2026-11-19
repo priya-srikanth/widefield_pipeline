@@ -27,6 +27,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from wfield_local.cam1_licks import cam1_frame as _cam1_frame  # noqa: F401  (moved to the library 11-18; re-export)
 from wfield_local.pose3d import pose3d_dir
 
 PROD = {"cam4": "lp_r4_prod_20261015", "cam1": "lp_cam1_ctx_prod_20261019"}
@@ -41,16 +42,6 @@ def _out(rv) -> Path:
     return p
 
 
-def _cam1_frame(flat, ix):
-    from wfield_local import spout_frame as SF
-    med = SF.ruler_medians(flat, ix)
-    fr = SF.from_medians_lr(med)
-    sgn = fr.mouse_left_sign or 1
-
-    def to_frame(x, y):
-        dx, dy = np.asarray(x, float) - fr.origin[0], np.asarray(y, float) - fr.origin[1]
-        return -(dx * fr.ap_axis[0] + dy * fr.ap_axis[1]), sgn * (dx * fr.lr_axis[0] + dy * fr.lr_axis[1])
-    return fr, med, to_frame
 
 
 def run_session(s: str) -> dict:
@@ -74,6 +65,7 @@ def run_session(s: str) -> dict:
         return {**row, "error": "no cam1 output"}
     ix, flat = c1[0].reset_index(drop=True), c1[1].reset_index(drop=True)
     fr, med, to_frame = _cam1_frame(flat, ix)
+    flat, _drop = C1.mask_detached(flat, ix, to_frame)          # detached, stationary labels out BEFORE cleaning (11-18)
     cols = [c for c in flat.columns if c.startswith(("tongue_", "jaw_"))]
     c, pos, _ = oc.clean_windows(flat[cols], ix, "tongue", x0y0=tuple(fr.origin), cam="cam1")
     x, y, fm = c.x_final[pos] + c.X0, c.y_final[pos] + c.Y0, c.fill_method[pos]
