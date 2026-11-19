@@ -271,7 +271,7 @@ def main():
 
 
 def _strip(a, S, col, T, measure, column, title, ylab=None):
-    from wfield_local import sig_marks
+    import quiet_boot_stars as BS
     from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE
     animals = sorted(S.animal.unique())
     G = S[S.epoch != "pre"]
@@ -283,9 +283,8 @@ def _strip(a, S, col, T, measure, column, title, ylab=None):
         m = g.groupby("animal")[col].mean()
         a.bar(k, m.mean(), width=0.55, color=EPOCH_LINE[ep], alpha=0.3)
         t = T[(T.measure == measure) & (T.column == column) & T.term.str.contains(ep)]
-        if len(t) and np.isfinite(t.q.iloc[0]) and float(t.q.iloc[0]) < 0.05:
-            q = float(t.q.iloc[0])
-            sig_marks.star_top(a, k, "***" if q < 0.001 else "**" if q < 0.01 else "*")
+        BS.mark(a, k, S, col, ep, float(t.q.iloc[0]) if len(t) else np.nan, color=EPOCH_LINE[ep],
+                panel=f"{measure} {column}")
     a.axhline(0, color="0.5", lw=0.8)
     a.set_xticks(range(3))
     a.set_xticklabels(EP[1:], fontsize=8)
@@ -299,6 +298,7 @@ def figure(C, K, N, H, Hc, fit, T, PSD, fr):
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     from matplotlib.lines import Line2D
+    import quiet_boot_stars as BS
     from wfield_local import sig_marks
     from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE
     fig = plt.figure(figsize=(21, 13.5))
@@ -366,9 +366,10 @@ def figure(C, K, N, H, Hc, fit, T, PSD, fr):
     fig.suptitle("T22 (cohort1): row 1 = baseline fluorescence F0 per area (tonic proxy; ipsi = lesioned left hemisphere); "
                  "row 2 = T20 orofacial ipsi - contra synchronization contrast with noise-floor / fast-band variants; "
                  "row 3 = noise-floor diagnostics.\nSessions (shape = animal, color = epoch), bar = mean of animals; "
-                 "stars = LMM epoch vs August pre, FDR within measure", fontsize=10)
+                 + "\n" + BS.FOOT + " (mixed model: epoch vs August pre, FDR within measure)", fontsize=10)
     fig.subplots_adjust(left=0.05, right=0.99, top=0.9, bottom=0.08)
     save_png_svg(fig, OUT / "quiet_f0_noise.png", dpi=105)
+    BS.save(OUT / "quiet_f0_noise_boot_stars.csv")
     print("wrote", OUT / "quiet_f0_noise.png")
 
 

@@ -336,6 +336,7 @@ def fig_epochs(S, T):
     import matplotlib.ticker
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import quiet_boot_stars as BS
     from wfield_local import sig_marks
     from wfield_local.analysis_kit import boot_ci
     from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE
@@ -360,9 +361,9 @@ def fig_epochs(S, T):
                 kk = "quiet" if m == "quiet_psd" else kind
                 t = T[(T.model == "epoch") & (T.measure == m) & (T.kind == kk) & (T.column == "orofacial")
                       & (T.term == f"C(epoch)[T.{ep}]")]
-                if x > 0 and len(t) and t.q.iloc[0] < 0.05:
-                    q = t.q.iloc[0]
-                    sig_marks.star_top(a, x, "***" if q < 0.001 else "**" if q < 0.01 else "*", color=EPOCH_LINE[ep])
+                if x > 0:                     # ratio to own pre median -> bootstrap on log10, as the model
+                    BS.mark(a, x, G, col, ep, float(t.q.iloc[0]) if len(t) else np.nan, off=0.0,
+                            color=EPOCH_LINE[ep], panel=f"{kind} {m}")
             a.axhline(1, color="0.6", lw=0.8, ls="--")
             a.set_yscale("log")
             a.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter("%.2g"))
@@ -380,9 +381,10 @@ def fig_epochs(S, T):
                  "zero-phase on the whole session; window -0.5..+1.5 s around " + LICK_LABEL + " onset; ITPC = Hilbert phase "
                  "consistency over 0-0.5 s; induced = single-trial power after removing the trial average. Open "
                  "markers = sessions (shape = animal, color = epoch); filled = pooled mean, nested animal -> session "
-                 "bootstrap 95% CI; stars = mixed model, epoch vs August pre, FDR q.", fontsize=8.5, wrap=True)
+                 "bootstrap 95% CI; " + BS.FOOT + " (mixed model: epoch vs August pre, FDR).", fontsize=8.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.9), w_pad=1.5)
     fig.savefig(LL / "lick_lfo_epochs.png", dpi=110)
+    BS.save(LL / "lick_lfo_epochs_boot_stars.csv")
     plt.close(fig)
     print("wrote", LL / "lick_lfo_epochs.png")
 

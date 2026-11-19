@@ -286,6 +286,7 @@ def fig_slopes(S, T):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import quiet_boot_stars as BS
     from wfield_local import sig_marks
     from wfield_local.analysis_kit import boot_ci
     from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE
@@ -309,9 +310,11 @@ def fig_slopes(S, T):
                 t = T[(T.model == "epoch") & (T.measure == m) & (T.kind == kind) & (T.column == c)]
                 term = "pre_level" if x == 0 else f"C(epoch)[T.{ep}]"
                 t = t[t.term == term]
-                if len(t) and t.q.iloc[0] < 0.05:
-                    q = t.q.iloc[0]
-                    sig_marks.star_top(a, x, "***" if q < 0.001 else "**" if q < 0.01 else "*", color=EPOCH_LINE[ep])
+                qq = float(t.q.iloc[0]) if len(t) else np.nan
+                if x == 0:                    # pre: the slope itself differs from 0 (level test)
+                    BS.mark_level(a, x, G, m, ep, qq, color=EPOCH_LINE[ep], panel=f"{kind} {c} {m}")
+                else:                         # post: the slope differs from the animal's own pre
+                    BS.mark(a, x, G, m, ep, qq, color=EPOCH_LINE[ep], panel=f"{kind} {c} {m}")
             a.axhline(0, color="0.6", lw=0.8, ls="--")
             a.set_xticks(range(len(EP)), EP, fontsize=8)
             a.set_title(_wrap(f"{KIND_LAB[kind]}, {CLAB[c]}: {SLAB[m]}", 40), fontsize=8.5)
@@ -323,12 +326,13 @@ def fig_slopes(S, T):
     sig_marks.reserve_headroom(fig)
     fig.suptitle(_wrap("T21: within-session slope of the lick-evoked response (mean dF/F 0..0.5 s minus -0.5..-0.1 s) on "
                        "pre-lick 1-4 Hz power (-1.0..-0.1 s, z-scored within session). Open markers = sessions (shape = "
-                       "animal, color = epoch); filled = pooled mean, nested animal -> session bootstrap 95% CI. Stars: "
-                       "at PRE = mean pre slope differs from 0 (mixed model pre_level); post epochs = slope differs from "
-                       "pre (epoch model); FDR q within measure. Causal power = forward-only filter, no post-lick leak.",
+                       "animal, color = epoch); filled = pooled mean, nested animal -> session bootstrap 95% CI. * = nested bootstrap "
+                       "95% CI excludes 0 (primary): at PRE the mean pre slope, post epochs the change vs the animal's own "
+                       "pre; † = mixed model q < .05 (pre_level / epoch model, FDR within measure). Causal power = forward-only filter, no post-lick leak.",
                        190), fontsize=9)
     fig.tight_layout(rect=(0, 0, 0.94, 0.955), h_pad=1.6, w_pad=1.2)
     save_png_svg(fig, SR / "state_response_slopes.png", dpi=110)
+    BS.save(SR / "state_response_slopes_boot_stars.csv")
     plt.close(fig)
     print("wrote", SR / "state_response_slopes.png")
 
