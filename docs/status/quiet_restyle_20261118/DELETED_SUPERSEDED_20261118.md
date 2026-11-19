@@ -15,3 +15,13 @@ series), engaged_end_20261118.csv, and the pre-rebuild labcams/cohort1_quiet_spi
 | v2_quiet_lp_20261117/ | 1.5G | pre-guard rebuild run (11-17 deck pass) |
 | v2_quiet_lp_c1guard_20261117/ | 72M | cam1-guard session extraction + k 4.5 summary |
 | engaged_end_20261118.wrong_trialstart.csv | 12K | first task-end table (used trial_start; cut the last trial) |
+
+## Later 11-18 (Priya: "can delete the 13 old ones" [12 on recount], "if superceded and never cited, can delete")
+- presentations/: 12 deck backups deleted (~1.9 GB): Overview_2026-11-06 .bak_pre_a2_s156ylim, _a8_c1guard, _a8_licksrc,
+  _a8_pagerename, _a8_panels, _a8_quietnote, _a8_s126nl, _a8_s27c_rename, _a8_s27rest15f, _a8_swap_20261117,
+  .pptx.bak_pre_a8_quiet_syncend, and PI_overview_2026-11-02_bak_before_s95_1105.pptx. Kept: .bak_pre_rebuild_20261116,
+  .pptx.bak_pre_a8_ps94fix_20261118, .pptx.bak_pre_a8_s158title_20261118.
+- rebuild cohort1_quiet_spikes/v2_quiet_lp/ (71 MB, 11-10 early rebuild v2 render): superseded by the sync-end run; cited
+  by no deck note and not by the Movement page v324 (3c: the page's v2_quiet_lp refs are the PRE-REBUILD labcams path).
+- Pending (Priya "ok"): pre-rebuild labcams/cohort1_quiet_spikes/v2_quiet + v2_quiet_lp (~8.5 GB) once the page figures
+  that still cite them are re-run on the sync-end run.
