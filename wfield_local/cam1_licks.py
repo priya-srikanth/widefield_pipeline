@@ -75,10 +75,12 @@ def detect(out_px, lat_px, present, trial_id, t_ms, src_frame, stop_ms, position
     return E
 
 
-def droplet_flags(E: pd.DataFrame, cam1_only) -> np.ndarray:
-    """True for cam1-only events that look like a water droplet (see ``DROPLET_*``)."""
-    return (np.asarray(cam1_only, bool) & (E.spread_px.to_numpy(float) < DROPLET_SPREAD_PX)
-            & (E.range_px.to_numpy(float) < DROPLET_RANGE_PX) & (E.med_out_px.to_numpy(float) > DROPLET_MOUTH_OUT_PX))
+def droplet_flags(E: pd.DataFrame, cam1_only, scale: float = 1.0) -> np.ndarray:
+    """True for cam1-only events that look like a water droplet (see ``DROPLET_*``). ``scale`` = the camera's px / mm
+    over cam1's, for the same rule on another view's events (`camera_licks.side_events`); 1 = cam1."""
+    return (np.asarray(cam1_only, bool) & (E.spread_px.to_numpy(float) < DROPLET_SPREAD_PX * scale)
+            & (E.range_px.to_numpy(float) < DROPLET_RANGE_PX * scale)
+            & (E.med_out_px.to_numpy(float) > DROPLET_MOUTH_OUT_PX * scale))
 
 
 #: FAR-FROM-MOUTH LABELS (Priya 11-17, approved): a cam1-only event whose median label position sits this far BEHIND the

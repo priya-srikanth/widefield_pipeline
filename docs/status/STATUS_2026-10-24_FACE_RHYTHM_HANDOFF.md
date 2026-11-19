@@ -66,6 +66,15 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      quiet_c1guard/deck_swap_syncend.py, images quiet_c1guard/syncend_crops.py -> swap_inputs/*_syncend.png; backup
      .bak_pre_a8_quiet_syncend_20261118; export QC from a scratch copy.
    - Page section 23 (Movement page): 3c's, messaged with the run + list; a8 does not touch it.
+   - 11-18 night: Movement page v324 = section 23 on the sync-end run (3c, Priya OK). Slide 158 retitled "415 nm power,
+     rate flat" (Priya). Quit-time cache on main (quiet_area_spikes.quit_time_s; reproduction check exact except the
+     injection seed, fixed to crc32 in quiet_spikes_v2); chain 71 vs 75 min. Deleted (Priya OK, list in
+     quiet_restyle_20261118/DELETED_SUPERSEDED_20261118.md): superseded quiet runs, 12 deck backups, early rebuild
+     render; C: input-cache behaviour entries written 11-04..11-08 (250 GB) + temp > 7 d. Section-23 follow-ons
+     re-rendered on the sync-end run (run_all_followons_syncend.sh; paths sent to 3c); 23.23 follow-up re-running
+     with WIDEFIELD_LICK_SOURCE=daq. NEXT: 3c builds the old-vs-new list from its captions -> Priya -> page swap ->
+     delete pre-rebuild labcams/cohort1_quiet_spikes/v2_quiet + v2_quiet_lp (Priya ok, once uncited). Open: local
+     session_cache_rebuild_20261103 (78 GB, 8396/8439 files duplicated on M:) awaits Priya.
    - FR page v56: Fig 5.6 = a2's cue-aligned factor figure + cue-window stats (Priya "yes" / "add stats").
    - OPEN: (1) caching refactor of the quiet scripts (Priya "yes", after the run: cache session traces + quiet /
      engaged masks, apply the engaged gate at summary time, verify exact reproduction of the syncend tables + timing);
