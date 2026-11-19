@@ -1225,9 +1225,11 @@ the scripts, all in the work dir).** r2_full / fold0 / fold1 all ran 300 epochs 
     clips splice trials; each frame's own jaw is right, `trial_cut_frames.png`). Droplet frames (PS93 0821) in the
     four-camera fusion: the side jaw on the droplet edge sits 0.1-0.3 mm from the cam1 + cam4 jaw (the real open jaw);
     r2b's droplet tongue is rejected by `fuse_robust` (4 frames) or the droplet rule (5 frames) -- no wrong 3-D point.
-  - 3-D offsets with r2b (PS93 0814 / 0821 / 0908, `lp_side_r2b_20261118/offset_check/`): side vs cam1 + cam4 --
-    SPOUT 0.88-0.90 mm (r1, mostly +0.8 ap) -> 0.11 mm; jaw 0.27-0.40 -> 0.23-0.31; tongue ap +0.2 (unchanged; the
-    per-session tongue offset); nose dv +0.9-1.0 (definition; the per-session nose offset). Leave-one-camera-out over all
+  - 3-D offsets with r2b (PS93 0814 / 0821 / 0908, `lp_side_r2b_20261118/offset_check/`; r1 re-run through the SAME
+    current code, `offsets_r1_currentcode.csv` -- the share's `pose3d_side/offsets.csv` is from 11-04 12:02, before
+    that afternoon's spout-reference fix, and is NOT comparable): side vs cam1 + cam4, r1 -> r2b -- spout 0.11-0.12 ->
+    0.11 mm (unchanged); jaw 0.27-0.40 -> 0.23-0.31; tongue ap +0.15-0.19 -> +0.20 (the per-session tongue offset);
+    nose dv +0.8-1.05 -> +0.9-1.0 (definition; the per-session nose offset). Leave-one-camera-out over all
     four cameras: every camera within spout 0.07-0.09, jaw 0.17-0.29, tongue 0.27-0.35, nose 0.20-0.42 mm of the other
     three's point.
 * **O2 side bundle (11-18 evening): `o2/lp_side_r2b_prod_20261118`** -- 274 videos (137 sessions x cam2 + cam3, 1.75 TB
