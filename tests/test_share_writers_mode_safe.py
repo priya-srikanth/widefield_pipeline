@@ -47,6 +47,10 @@ BEHAVIOUR = {
     "june_drift_summary_fig.py",
     # main's labeled cam1 + cam4 still pair (production LP pose on raw video frames only; no imaging), 11-09
     "pose_frame_pair.py",
+    # VLS manuscript cohort-2 statistics (11-19/20): behavior / pose tables only; inputs are literal manuscript /
+    # pipeline paths (the hit-rate input is a pinned rebuild run tag, not the current run mode), outputs are new
+    # *_aligned / vls_manuscript files. c2_scalar_family_aligned (6a69f29b) had been left unclassified on main.
+    "c2_scalar_family_aligned.py", "pose3d_phase_from_peak.py",
 }
 INDIRECT = {
     "coupling_vigour_sm.py", "decoder_retention_sessions.py", "lick_correction.py",

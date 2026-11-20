@@ -23924,3 +23924,64 @@ Handoff `docs/status/STATUS_2026-11-16_ENCDESIGN_TIM_STATES_HANDOFF.md` (section
   `tests/test_chronic_epoch.py::test_no_animal_is_pinned_and_the_settled_bar_is_one_sd` (pin contract now tested with
   a local pin), `tests/test_epochs.py SPEC`. The next nightly re-stamps `epoch_boundaries.json` with K_RES 1.0 and
   the new rule text; boundary values do not change.
+
+## 2026-11-20 -- VLS manuscript v41 sync: phase curves and FaceRhythm tables made in the pipeline (PROMPT_pipeline_sync_v41 items 7-11)
+- *Context:* the manuscript (`stroke_orofacial_pipeline_outputs/vls_stroke_paper/`, v41) computed some cohort-2 numbers in
+  its own `manuscript_code/analysis/` scripts and read two FaceRhythm panels back out of readout SVGs. Goal: every number
+  comes from code committed here; the manuscript only plots. Nothing on the share was overwritten; every regenerated
+  table went to a NEW path and was compared with the manuscript's copy (`manuscript_code/data/`, v41 zip).
+- *Item 7, single scalar family:* `scripts/c2_scalar_family_aligned.py` and `analysis_kit.boot_delta` are on main
+  (6a69f29b). New `--out-dir` (write every output into one folder under its usual name). Regenerated from main: all
+  eight outputs BYTE-IDENTICAL to the manuscript / share copies (`c2_scalar_family_aligned.csv`,
+  `C2_{reach_first,speed_all}_stats_aligned.csv`, `aim_*_tests_aligned.csv`, `change_vs_pre_stats_contra_aligned.csv`,
+  `pose3d_change_pooled_contra_aligned.csv`, `epoch_1bdelta_behaviour_by_position_aligned.csv`).
+- *Item 8, lick-phase curves (ported, arithmetic unchanged):* `scripts/pose3d_phase_mouth0.py` (was
+  `analysis/c2_curves_mouth0.py`; sessions fanned out, 119 sessions in ~85 s), `scripts/pose3d_phase_curves.py` (was
+  `c2_phase_curves.py` = `--across animals` and `c2_phase_curves_sessions.py` = `--across sessions`),
+  `scripts/pose3d_phase_from_peak.py` (was `c2_phase_from_peak.py --sig aligned`; adds a per-cluster table). The
+  `_aligned` / `_aligned_clusters` tables come from the existing `scripts/c2_phase_sessions_aligned.py`. Outputs:
+  `DeepLabCut/Widefield/session_poses/pose3d/phase/vls_manuscript/` (manuscript file names). Comparison:
+  - mouth0 curves: every value equal to the manuscript's `c2_curves_mouth0_first_peak.csv.gz` (both `%.5g`; only the
+    session order of the rows differs, now sorted);
+  - `c2_phase_first_{side0,down0,mid0,dist}_phase_sessions.csv`, `c2_pre_ili_ms.csv`, and the 16
+    `*_aligned_clusters.csv`: BYTE-IDENTICAL;
+  - animal-level `c2_phase_*.csv`: equal; session-level `*_sessions.csv` / `*_sessions_aligned.csv`: equal to <= 1.1e-14
+    (summation order), 'sig' bins and every cluster p / q identical.
+  - Parsing: the ported scripts read inputs with `float_precision="round_trip"`. pandas 2.3.3's default parser here
+    reads cohort 1's phase-bin centre 0.006944444444444444 as 0.0069444444444444, which moved every phase bin by
+    ~1e-17 and broke byte identity.
+  - Provenance quirk (for the manuscript record, not changed): `c2_phase_first_{dist,mid0}_peak_sessions.csv` were
+    built from the pipeline's `phase/curves.csv.gz`, but their `_aligned` cluster p values from the mouth0 curves
+    (the two agree to 0.005 mm / deg; same significant clusters, cluster masses differ <= 0.012). Reproduced as made.
+- *Item 9, FaceRhythm per-session shape table:* `face_rhythm_session_shape_tests.session_table` writes the values behind
+  `session_scalars.png` (= manuscript Fig 5E / 5G), one row per session x factor x measure (asym, angle_spatial,
+  angle_spectral, side_spec; pre rows = leave-one-out) with the cell's shuffle p, Holm p within the lick-pair / other
+  family (`p_holm`, the figure's stars) and within epoch x measure (`p_holm_epoch`). Written by every full run, by
+  `--table-only` (stored tests) and by `--export-tables` (re-tests with the full run's draws). Check: the re-tested
+  scalars at 10,000 permutations (seed 0, drift test first as in a full run) are byte-identical to the stored
+  `session_shape_v2/data/session_scalars.csv` (= manuscript `fr_session_scalars_v2.csv`); against the manuscript's
+  SVG read-back `fr_session_scalars_v2_points.csv`: 3,100 rows both, all 128 cells same n and same animals, max |diff|
+  7.6e-7.
+  Side specificity (lick_right = contralesional, lick_left = ipsilesional; delta, Holm): contra -0.376 / -0.249 / -0.134
+  (Holm 0.0024 / 0.0024 / 0.006), ipsi -0.305 / -0.233 / -0.102 (Holm 0.0024 / 0.0028 / 0.204, n.s.). These are the
+  numbers the v41 Results quote. The older `session_shape/session_shape_stats.csv` (`face_rhythm_session_shape.py`,
+  10-25: best-spatial matching, `boot_delta` bootstrap) is the superseded test; the per-session shuffle test has been
+  the main shape test since 11-07 (Priya).
+- *Item 10, FaceRhythm lick-loading change per point (Fig 5D):* `face_rhythm_session_shape_tests.map_point_table` writes
+  the values and rings behind `session_maps_scaled_lick.png` (value in each animal's pre-stroke SD units, t, cluster,
+  cluster p, ring sign, max-statistic p) -> `data/session_maps_scaled_lick_points.csv` (full run and `--export-tables`).
+  Check against the manuscript's SVG read-back `data/fr/fr_lick_loading_change.csv` (7,692 rows = 2 factors x 3 epochs
+  x 1,282 points): rings identical at every point (0 mismatches; cluster counts per panel as the figure titles); values
+  within 0.073 SD after clipping to the figure's color limit. The read-back's resolution is ~0.05 SD (256 color
+  levels) and it assumed a limit of +-6.694 SD where the figure's 98th-percentile limit is 6.673; 152 points (2%) lie
+  beyond the limit, so the read-back saturates them and the table gives their true value.
+  `--export-tables` also re-ran the scalar tests first: byte-identical to the stored table again.
+- *Item 11, lick-aligned face asymmetry (checked, no code change):* the lick window is -0.1 .. +0.2 s around each lick
+  (`face_rhythm_asym_aligned.LICK_WIN`, unchanged since the cache was written in 6107982c, 10-24); halves = contra-half
+  minus ipsi-half log2 change vs the animal's pre, `boot_delta`, Holm via `stats.add_holm(H, ["align", "epoch"])` = the
+  six positions within each alignment x epoch. Recomputing Holm from `p_boot` in `aligned_maps_cache_point.pkl` over
+  that family reproduces the stored `p_holm` exactly (over 18 per alignment or 3 per alignment x position it does
+  not). Lick-aligned far contra -0.676 / -0.437 / -0.375, near contra -0.310 / -0.237 / -0.248, near ipsi chronic
+  +0.125 (Holm 0.004): the v41 text values.
+- *Also:* `tests/test_share_writers_mode_safe.py` classifies `c2_scalar_family_aligned.py` (left unclassified on main
+  by 6a69f29b, so that test failed on main) and `pose3d_phase_from_peak.py` as BEHAVIOR writers.
