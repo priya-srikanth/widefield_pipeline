@@ -23853,3 +23853,42 @@ Handoff `docs/status/STATUS_2026-11-16_ENCDESIGN_TIM_STATES_HANDOFF.md` (section
   - Caveat to keep: in PS95 chronic and in PS94 subacute / chronic, those windows contain small tongue-at-lips licks that
     only cam1 sees, concentrated at the far spouts. The census has the sizes.
   - Revisit when the cam2 / cam3 side cameras are added.
+
+## 2026-11-19 -- Cohort-2 statistics aligned with cohort 1: one scalar BH family; trajectory clusters BH within measure (Priya)
+- *Context:* cohort 1 (stroke_orofacial_pipeline PRs #176/#177; its DECISIONS 2026-11-19 "Cohort-1 statistics aligned with
+  the six-position cohort") now uses this cohort's scalar star (session MWU q < 0.05 AND the paired animal-weighted
+  `analysis_kit.boot_delta` CI excluding 0) and its trajectory cluster test (per-bin Welch t, two-sided p < .05 bin
+  threshold, labels shuffled within animal). Two cohort-2 differences remained: BH ran within each metric, and
+  trajectory clusters were shaded at UNCORRECTED permutation p < .05 (`cluster_permutation` returns only a mask).
+- *Decision (Priya):* (1) ONE BH family across every cohort-2 scalar endpoint reported in the manuscript (cohort 1's
+  single scalar family); (2) every cluster's permutation p, BH-FDR within each measure (one family per lick set x
+  measure x alignment, across positions x epochs; cells with no observed cluster carry no p and are not in the family),
+  bars where q < 0.05.
+- *Code (opt-in; every default unchanged, pinned against frozen copies in `tests/test_c2_stats_alignment.py`):*
+  `orofacial_stats.session_change_tests(fdr_scope="all", deltas_given=...)`, `apply_family_fdr` (pool tables from
+  separate calls), `cluster_permutation_p` (port of stroke_orofacial `c2_aligned_cluster_test`; same RNG stream as
+  `cluster_permutation`, so p_raw < .05 reproduces the old mask exactly; the reference's numbers are pinned),
+  `cluster_mask_from_q`. `cluster_permutation` is kept as is. Drivers: `scripts/c2_scalar_family_aligned.py`,
+  `scripts/c2_phase_sessions_aligned.py`.
+- *Scalar family (162 cells = 9 endpoints x 6 positions x 3 epochs):* hit rate (Fig 3C), latency (3D), first-lick 3-D
+  reach (3E), first-lick angle (3F), all-lick angle (3G), all-lick 3-D speed (3H), all-lick 3-D reach (S9A), licks per
+  responded trial (S11A), ILI (S11B); each on its panel's own session changes. Latency / licks-per-response / ILI rows
+  are REUSED from `change_vs_pre_stats_contra.csv` (already this test; p at 4 significant digits). Not in the family:
+  Face-Rhythm factor amplitude (Fig 4F), the angle-vs-hit-rate and angle-latency correlations.
+- *Result, scalar (starred cells, panel's current rule -> aligned):* hit rate 7 -> 9 (gains near ipsi acute and near
+  contra subacute), latency 6 -> 6, reach first 4 -> 4, angle 17 -> 17, all-lick angle 12 -> 12, speed all 9 -> 9,
+  reach all 4 -> 4, licks/response 13 -> 13, ILI 9 -> 9; total 81 -> 83; no cell loses a star. NB the hit-rate,
+  first-lick angle, all-lick angle and all-lick reach panels did NOT use the MWU rule before (bootstrap CI only, with
+  Holm / Bonferroni double stars for hit rate and angle); first-lick reach and all-lick speed used a post-only
+  bootstrap (manuscript `c2_matched.boot`), now `boot_delta`. Largest family q among aligned stars 0.049.
+- *Result, trajectories (significant clusters, uncorrected -> BH within measure; manuscript files):* first-lick peak
+  mid0 21 -> 21, side0 22 -> 22, down0 32 -> 31 (far mid subacute 48-80 ms), dist 29 -> 28 (far contra acute
+  -80..-56 ms). Other session tables: first norm mid 18 -> 18, mid0 18 -> 18, side 19 -> 19, dist 15 -> 11, down 16 -> 7;
+  first peak side 19 -> 19, down 20 -> 18; all-lick mid 19 -> 19, mid0 19 -> 19, side 20 -> 20, dist 15 -> 11, down 13 -> 11.
+  Parity gate: the recomputed uncorrected mask equals every existing 'sig' row bin for bin before anything is written.
+- *Outputs (new files, `_aligned` suffix, nothing overwritten):* manuscript `data/c2_phase_*_sessions_aligned.csv`
+  (+ `_aligned_clusters.csv`), `data/c2_scalar_family_aligned.csv`, `data/C2_{reach_first,speed_all}_stats_aligned.csv`;
+  `cohort/tables/prepost/stats/change_vs_pre_stats_contra_aligned.csv`; `iti_licks/aim_{by_spout,first_vs_all}_tests_aligned.csv`;
+  rebuild `epoch/data/epoch_1bdelta_behaviour_by_position_aligned.csv`; pose3d `figures/pooled/pose3d_change_pooled_contra_aligned.csv`.
+- *Not changed:* the pipeline's own figures (`orofacial_cohort`, `kinematics_pooled_figs`, K08 scripts) still call the
+  defaults.

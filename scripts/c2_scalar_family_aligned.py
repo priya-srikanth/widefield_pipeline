@@ -1,0 +1,264 @@
+"""Cohort-2 (six-position) scalar endpoints of the VLS manuscript in ONE BH family (Priya 2026-11-19; DECISIONS.md
+"Cohort-2 statistics aligned with cohort 1"), the scope of cohort 1's single scalar family.
+
+Every cohort-2 pre-vs-post scalar endpoint drawn in the manuscript (Fig 3 C-H, S9A, S11 A-B) is tested with the
+cohort's scalar rule, `orofacial_stats.session_change_tests` (two-sided session Mann-Whitney U of post-epoch vs pre
+session changes; paired, animal-weighted nested bootstrap `analysis_kit.boot_delta`, 2,000 draws, seed 0), and the BH
+correction is then applied ONCE across all endpoints x positions x epochs (`orofacial_stats.apply_family_fdr`).
+Aligned star = family q < 0.05 AND the bootstrap 95% CI excludes 0 (`agree == "both"`).
+
+Per endpoint the session values are the panel's own (each source's change from the animal's own pre mean, kept as
+the source defines it: `deltas_given=True`), so only the test and the family change:
+
+  endpoint         panel                     session values (change vs own pre)                     old star in the panel
+  hit_rate         Fig 3C  C2_hit_rate       epoch_1b_behaviour_by_position_sessions (re-centred;   * 95% CI, ** Holm CI (bootstrap
+                                             equal to epoch_1bdelta_..._sessions to 1e-15)          animals->sessions->blocks)
+  latency_ms       Fig 3D  C2_latency_first  REUSED: change_vs_pre_stats_contra.csv rows (pipeline   MWU q (BH within metric) & CI
+  licks_per_resp   S11A    C2_licks_per_resp   session_change_tests already; p and CI unchanged,
+  ili_ms           S11B    C2_ili              stored at 4 significant digits)
+  reach_first      Fig 3E  C2_reach_first    c2_lick3d_session_summary_ungated (n_first >= 20)       MWU q (BH within metric) & a
+  speed_all        Fig 3H  C2_speed_all      c2_lick3d_session_summary_ungated (n_all >= 20)         post-only animals->sessions CI
+  aim              Fig 3F  C2_aim            iti_licks/aim_by_spout_sessions.csv chg                 * 95% CI, ** Bonferroni CI
+  aim_all          Fig 3G  C2_aim_all        iti_licks/aim_first_vs_all_sessions.csv chg_all         * 95% CI (uncorrected)
+  reach_all        S9A     C2_reach_all      pose3d per-session medians (`--reach-sessions`)         * 95% CI
+
+Not in the family (not a pre-vs-post scalar test of a licking / kinematic endpoint): the Face-Rhythm factor amplitude
+(Fig 4F, its own Holm family), angle-vs-hit-rate and angle-latency correlations, the trajectory clusters (their own
+per-measure families; scripts/c2_phase_sessions_aligned.py).
+
+Writes (never overwrites; refuses if present):
+  <manuscript data>/c2_scalar_family_aligned.csv   one row per endpoint x position x epoch: test, family q, old and
+                                                   aligned stars, and the panel each row feeds
+  <manuscript data>/C2_reach_first_stats_aligned.csv, C2_speed_all_stats_aligned.csv  (next to the old *_stats.csv)
+  <stats dir>/change_vs_pre_stats_contra_aligned.csv   (latency / licks_per_resp / ili rows with the family q)
+  <iti_licks>/aim_by_spout_tests_aligned.csv, aim_first_vs_all_tests_aligned.csv
+  <hit dir>/epoch_1bdelta_behaviour_by_position_aligned.csv
+  <reach dir>/pose3d_change_pooled_contra_aligned.csv  (reach_mm rows)
+
+Usage: python scripts/c2_scalar_family_aligned.py [--dry-run]   (paths default to the manuscript's sources)
+"""
+from __future__ import annotations
+
+import argparse
+import sys
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+
+from wfield_local import orofacial_stats as st
+
+SRV = Path("M:/MICROSCOPE/Priya")
+MS_DATA = SRV / "stroke_orofacial_pipeline_outputs/vls_stroke_paper/manuscript_code/data"
+HIT = SRV / ("Widefield/rebuild_20261103/labcams/grant_figures/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_"
+             "sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/epoch/data")
+LPV36 = SRV / "Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36"
+AIM = LPV36 / "imaging_encoding/iti_licks"
+STATS = LPV36 / "cohort/tables/prepost/stats"
+POSE3D = SRV / "DeepLabCut/Widefield/session_poses/pose3d"
+REACH = POSE3D / "figures/pooled"
+
+POS = ["close_ipsi", "close_mid", "close_contra", "far_ipsi", "far_mid", "far_contra"]
+HIT_POS = dict(zip(["nI", "nM", "nC", "fI", "fM", "fC"], POS))
+LR_POS = dict(zip(["close_L", "close_center", "close_R", "far_L", "far_center", "far_R"], POS))   # lesions all left
+EPOCHS = ("acute", "subacute", "chronic")
+PANEL = {"hit_rate": "Fig 3C C2_hit_rate", "latency_ms": "Fig 3D C2_latency_first",
+         "reach_first": "Fig 3E C2_reach_first", "aim": "Fig 3F C2_aim", "aim_all": "Fig 3G C2_aim_all",
+         "speed_all": "Fig 3H C2_speed_all", "reach_all": "S9A C2_reach_all",
+         "licks_per_resp": "S11A C2_licks_per_resp", "ili_ms": "S11B C2_ili"}
+ORDER = list(PANEL)
+
+
+def _excl(lo, hi) -> bool:
+    return bool(np.isfinite(lo) and np.isfinite(hi) and (lo > 0 or hi < 0))
+
+
+def _long(df, val, pos_map=None, pos_col="pos", date_col="date"):
+    d = df.drop(columns=[c for c in ("v",) if c != val and c in df]).rename(columns={val: "v"}).copy()
+    d["pos"] = d[pos_col].map(pos_map) if pos_map else d[pos_col]
+    if date_col not in d:                                   # one row = one session x position (no date in the table)
+        d[date_col] = d.groupby(["animal", "epoch", "pos"]).cumcount().astype(str)
+    return d[["animal", date_col, "epoch", "pos", "v"]].rename(columns={date_col: "date"}).dropna(subset=["v"])
+
+
+def _test(d: pd.DataFrame, name: str) -> pd.DataFrame:
+    r = st.session_change_tests(d.rename(columns={"v": name}), [name], deltas_given=True)
+    return r
+
+
+# --------------------------------------------------------------------------------------------- per-endpoint loaders
+def hit_rate(a):
+    lv = pd.read_csv(a.hit / "epoch_1b_behaviour_by_position_sessions.csv")
+    base = lv[lv.epoch == "pre"].groupby(["animal", "position"]).value.mean()
+    lv["chg"] = lv.value - base.reindex(pd.MultiIndex.from_frame(lv[["animal", "position"]])).to_numpy()
+    dl = pd.read_csv(a.hit / "epoch_1bdelta_behaviour_by_position_sessions.csv")
+    post = lv[lv.epoch != "pre"].reset_index(drop=True)
+    assert len(post) == len(dl) and np.abs(post.chg.to_numpy() - dl.value.to_numpy()).max() < 1e-12, "hit-rate deltas"
+    old = pd.read_csv(a.hit / "epoch_1bdelta_behaviour_by_position.csv")
+    old["pos"] = old.position.map(HIT_POS)
+    old["old_star"] = [2 if _excl(lo, hi) else (1 if _excl(l9, h9) else 0)
+                       for lo, hi, l9, h9 in zip(old.lo_corrected, old.hi_corrected, old.lo95, old.hi95)]
+    old = old.rename(columns={"point": "old_point", "lo95": "old_lo", "hi95": "old_hi"})
+    return _long(lv, "chg", HIT_POS, pos_col="position"), old, old
+
+
+def pipeline_rows(a, metric):
+    """latency_ms / licks_per_resp / ili_ms: the pipeline's own session_change_tests rows, reused."""
+    t = pd.read_csv(a.stats / "change_vs_pre_stats_contra.csv")
+    t = t[t.metric == metric].copy()
+    old = t.assign(old_star=(t.agree == "both").astype(int), old_point=t.boot_change, old_lo=t.boot_lo,
+                   old_hi=t.boot_hi)
+    return None, old, t
+
+
+def lick3d(a, col, ncol, stats_name):
+    S = pd.read_csv(a.ms_data / "c2_lick3d_session_summary_ungated.csv", dtype={"date": str})
+    S["pos"] = S.position.map(LR_POS)
+    d = S[S[ncol] >= 20].copy()                      # kin_v37.c2_endpoints
+    d["v"] = d[col]
+    b = d[d.epoch == "pre"].groupby(["animal", "pos"]).v.mean()
+    d["chg"] = d.v - [b.get((x, p), np.nan) for x, p in zip(d.animal, d.pos)]
+    d = d.dropna(subset=["chg"])
+    old = pd.read_csv(a.ms_data / stats_name)
+    old = old.assign(old_star=(old.agree == "both").astype(int), old_point=old.boot_change, old_lo=old.boot_lo,
+                     old_hi=old.boot_hi)
+    return _long(d, "chg"), old, old
+
+
+def aim(a):
+    s = pd.read_csv(a.aim / "aim_by_spout_sessions.csv")
+    t = pd.read_csv(a.aim / "aim_by_spout_tests.csv")
+    t["old_star"] = [2 if bool(b) else (1 if bool(x) else 0) for b, x in zip(t.sig_bonf, t.sig)]
+    old = t.rename(columns={"mean": "old_point", "lo": "old_lo", "hi": "old_hi"})
+    return _long(s, "chg", date_col="label"), old, t
+
+
+def aim_all(a):
+    s = pd.read_csv(a.aim / "aim_first_vs_all_sessions.csv")
+    t = pd.read_csv(a.aim / "aim_first_vs_all_tests.csv")
+    t["old_star"] = [int(_excl(lo, hi) and e != "pre") for lo, hi, e in zip(t.chg_all_lo, t.chg_all_hi, t.epoch)]
+    old = t.rename(columns={"chg_all": "old_point", "chg_all_lo": "old_lo", "chg_all_hi": "old_hi"})
+    return _long(s, "chg_all", date_col="label"), old, t
+
+
+def reach_all(a):
+    """S9A: the per-session medians behind pose3d_change_pooled_contra.csv (reach_mm; change vs own AUGUST pre),
+    checked against that table's per-animal means before use."""
+    from wfield_local import config
+    S = pd.read_csv(a.reach_sessions, dtype={"date": str})
+    rows = []
+    for lr, p in LR_POS.items():
+        c = f"reach_mm|{lr}"
+        if c in S:
+            rows.append(S[["animal", "date", "epoch", c]].rename(columns={c: "v"}).assign(pos=p))
+    L = pd.concat(rows, ignore_index=True).dropna(subset=["v"])
+    aug = (L.epoch == "pre") & (~L.date.astype(str).map(config.early_pre))
+    L = L[aug | L.epoch.isin(EPOCHS)].copy()
+    b = L[L.epoch == "pre"].groupby(["animal", "pos"]).v.mean()
+    L["chg"] = L.v - [b.get((x, p), np.nan) for x, p in zip(L.animal, L.pos)]
+    L = L.dropna(subset=["chg"])
+    pc = pd.read_csv(a.reach / "pose3d_change_pooled_contra.csv")
+    t = pc[(pc.measure == "reach_mm") & (pc.group != "all")].copy()
+    t["pos"] = t.group.map(LR_POS)
+    am = L[L.epoch != "pre"].groupby(["pos", "epoch", "animal"]).chg.mean().unstack()
+    chk = t.set_index(["pos", "epoch"])[["PS92", "PS93", "PS94", "PS95"]]
+    dev = np.nanmax(np.abs(chk.to_numpy(float) - am.reindex(chk.index)[chk.columns].to_numpy(float)))
+    assert dev < 1e-9, f"reach_all sessions do not reproduce pose3d_change_pooled_contra.csv (max dev {dev})"
+    t["old_star"] = [int(_excl(lo, hi)) for lo, hi in zip(t.lo, t.hi)]
+    old = t.rename(columns={"est": "old_point", "lo": "old_lo", "hi": "old_hi"})
+    return _long(L, "chg"), old, t
+
+
+# ------------------------------------------------------------------------------------------------------------- main
+def build(a):
+    parts, olds, raw_old = [], {}, {}
+    for name in ORDER:
+        if name == "hit_rate":
+            d, old, src = hit_rate(a)
+        elif name in ("latency_ms", "licks_per_resp", "ili_ms"):
+            d, old, src = pipeline_rows(a, name)
+        elif name == "reach_first":
+            d, old, src = lick3d(a, "reach_first", "n_first", "C2_reach_first_stats.csv")
+        elif name == "speed_all":
+            d, old, src = lick3d(a, "speed_all", "n_all", "C2_speed_all_stats.csv")
+        elif name == "aim":
+            d, old, src = aim(a)
+        elif name == "aim_all":
+            d, old, src = aim_all(a)
+        else:
+            d, old, src = reach_all(a)
+        if d is None:                                       # reused pipeline rows
+            r = src[["metric", "pos", "epoch", "n_sessions", "n_pre_sessions", "n_animals", "median_change",
+                     "mean_change", "mwu_U", "p", "boot_change", "boot_lo", "boot_hi", "q_fdr"]].copy()
+            r = st._star_columns(r)
+            r["metric"] = name
+            r["source"] = "reused change_vs_pre_stats_contra.csv"
+        else:
+            r = _test(d, name)
+            r["source"] = "session_change_tests (this script)"
+        olds[name] = old[["pos", "epoch", "old_star", "old_point", "old_lo", "old_hi"]]
+        raw_old[name] = src
+        parts.append(r)
+    T = pd.concat(parts, ignore_index=True)
+    T = T[T.epoch.isin(EPOCHS) & T.pos.isin(POS)].reset_index(drop=True)   # aim tables also carry a weighted row
+    F = st.apply_family_fdr(T)                              # ONE family: all endpoints x positions x epochs
+    F = F.rename(columns={"q_fdr": "q_family"})
+    F["star_aligned"] = (F.agree == "both").astype(int)
+    old = pd.concat([o.assign(metric=k) for k, o in olds.items()], ignore_index=True)
+    F = F.merge(old, on=["metric", "pos", "epoch"], how="left")
+    F["star_metric_rule"] = ((F.q_fdr_metric < st.ALPHA) & F.boot_sig).astype(int)
+    F["panel"] = F.metric.map(PANEL)
+    F["pos"] = pd.Categorical(F.pos, POS, ordered=True)
+    F["metric"] = pd.Categorical(F.metric, ORDER, ordered=True)
+    F = F.sort_values(["metric", "pos", "epoch"]).reset_index(drop=True)
+    F["pos"], F["metric"] = F.pos.astype(str), F.metric.astype(str)
+    return F, raw_old
+
+
+def _write(df: pd.DataFrame, path: Path, dry: bool):
+    if path.exists():
+        sys.exit(f"refusing to overwrite {path}")
+    if dry:
+        print("would write", path)
+        return
+    df.to_csv(path, index=False)
+    print("wrote", path)
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--ms-data", type=Path, default=MS_DATA)
+    ap.add_argument("--hit", type=Path, default=HIT)
+    ap.add_argument("--aim", type=Path, default=AIM)
+    ap.add_argument("--stats", type=Path, default=STATS)
+    ap.add_argument("--reach", type=Path, default=REACH)
+    ap.add_argument("--reach-sessions", type=Path, default=POSE3D / "kinematics/sessions.csv")
+    ap.add_argument("--dry-run", action="store_true")
+    a = ap.parse_args(argv)
+    F, src = build(a)
+    keep = ["metric", "panel", "pos", "epoch", "n_sessions", "n_pre_sessions", "n_animals", "mean_change", "p",
+            "boot_change", "boot_lo", "boot_hi", "q_fdr_metric", "q_family", "headline_sig", "boot_sig", "agree",
+            "star_aligned", "star_metric_rule", "old_star", "old_point", "old_lo", "old_hi", "fdr_family", "source"]
+    targets = [(F[keep], a.ms_data / "c2_scalar_family_aligned.csv")]
+    col = {"q_family": "q_fdr"}
+    for m, fn in (("reach_first", a.ms_data / "C2_reach_first_stats_aligned.csv"),
+                  ("speed_all", a.ms_data / "C2_speed_all_stats_aligned.csv"),
+                  ("hit_rate", a.hit / "epoch_1bdelta_behaviour_by_position_aligned.csv"),
+                  ("aim", a.aim / "aim_by_spout_tests_aligned.csv"),
+                  ("aim_all", a.aim / "aim_first_vs_all_tests_aligned.csv"),
+                  ("reach_all", a.reach / "pose3d_change_pooled_contra_aligned.csv")):
+        targets.append((F[F.metric == m][keep].rename(columns=col), fn))
+    targets.append((F[F.metric.isin(["latency_ms", "licks_per_resp", "ili_ms"])][keep].rename(columns=col),
+                    a.stats / "change_vs_pre_stats_contra_aligned.csv"))
+    for df, path in targets:
+        _write(df, path, a.dry_run)
+    s = F.groupby("metric", sort=False).agg(cells=("p", "size"), old=("old_star", lambda x: int((x > 0).sum())),
+                                            old_2=("old_star", lambda x: int((x == 2).sum())),
+                                            metric_rule=("star_metric_rule", "sum"), aligned=("star_aligned", "sum"))
+    print(s.to_string())
+    print("total", int((F.old_star > 0).sum()), "->", int(F.star_aligned.sum()))
+    return F
+
+
+if __name__ == "__main__":
+    main()
