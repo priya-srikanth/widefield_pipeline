@@ -23892,3 +23892,35 @@ Handoff `docs/status/STATUS_2026-11-16_ENCDESIGN_TIM_STATES_HANDOFF.md` (section
   rebuild `epoch/data/epoch_1bdelta_behaviour_by_position_aligned.csv`; pose3d `figures/pooled/pose3d_change_pooled_contra_aligned.csv`.
 - *Not changed:* the pipeline's own figures (`orofacial_cohort`, `kinematics_pooled_figs`, K08 scripts) still call the
   defaults.
+
+## 2026-11-19 -- Chronic-onset settled threshold 1.0 pre-stroke SD; #11 pin removed (Priya)
+- *Context:* the chronic rule (`epochs.CHRONIC_RULE`: far_R hit rate, engaged trials, one-sided upward drift <= 1.0 x
+  pre-stroke SD and residual about the fit <= k_res x pre-stroke SD, persisting to the last session, not before
+  subacute onset) ran at k_res 0.4 (2026-09-21), which no longer derives PS94 (#11): its recovered band wobbles
+  (residual 0.84 SD from day 25), so since 2026-09-25 PS94's day 25 was a hand pin (`chronic_pinned`). A paper needs
+  one stated rule for all four animals. Review (read-only, with this repo's own derivation):
+  `M:/MICROSCOPE/Priya/stroke_orofacial_pipeline_outputs/vls_stroke_paper/review/c2_chronic_rule_2026-11-19/`
+  (`step1_reproduce.py`, `step2_candidates.py`, `step2_stdout.txt`, `candidate_rules_by_animal.csv`,
+  `all_windows_drift_residual_over_SD.csv`); prompt `vls_stroke_paper/PROMPT_c2_chronic_onset_rule.md`.
+- *Decision (Priya):* `configs/defaults.yaml epochs.chronic.k_res` 0.4 -> **1.0**; PS94's `chronic_pinned` removed from
+  `configs/animals.yaml`. k_drift, one-sided trend, min_tail, accuracy-only series and the SD baseline are unchanged.
+- *Rationale:* one rule, no exceptions, and the SAME boundaries: derived (`epoch_audit.audit()`, 123 sessions, no
+  pin) acute 1-5 / 1-4 / 1-7 / 1, subacute from 7 / 5 / 9 / 2, chronic **11 / 11 / 25 / 15** for PS92-PS95; no session
+  changes epoch, and these equal the last published `labcams/epoch_boundaries.json`. Of the candidates reviewed,
+  k_res 0.5 / 0.6 / August-only SD at 0.4 leave PS94 un-derived, 0.75 gives PS94 39, the robust-SD (MAD) rules
+  move PS92 / PS95 (to none or 29 / 32) and the band rules move PS95 to 11; 1.0 is the first value in the reviewed
+  k_res grid (0.4 / 0.5 / 0.6 / 0.75 / 1.0) that derives all four. Margins (residual / pre SD at the onset window;
+  window before): PS92 0.26 (d9 window fails drift, 1.30), PS93 0.24 (d9 fails drift,
+  1.42), PS94 0.84 vs bar 1.0, every later window <= 0.84 (d22 fails residual 1.31 and drift 1.59), PS95 0.18.
+  STANDING RISK: PS95's day-11 window is now rejected by the DRIFT arm alone (drift/SD 1.02 vs 1.0; its residual 0.41
+  passes at 1.0; at 0.4 both arms rejected it). If that drift eases by ~0.03 SD as sessions accrue, PS95 flips to 11
+  and the nightly audit reports it. PS94's band has 0.16 SD headroom.
+- *Baseline stays June + August pre-stroke BY DESIGN:* the pre-stroke SD for the epoch rule is computed on every
+  pre-stroke session (`epoch_audit.full_cohort()` opens `config.full_pre_ok()`), whereas the other cohort-2 analyses
+  use the August-only baseline (`WIDEFIELD_PRE_FROM 0801`). An August-only baseline at k_res 1.0 would move PS95 to
+  day 11 (review `x_augBaseline_kres1`), so the epoch rule keeps its own baseline.
+- *Enforced at:* `configs/defaults.yaml epochs.chronic.k_res`, `configs/animals.yaml` (PS94 has no `chronic_pinned`),
+  `wfield_local/epochs.derive_chronic_boundaries` (pin branch kept for a future ratified override),
+  `tests/test_chronic_epoch.py::test_no_animal_is_pinned_and_the_settled_bar_is_one_sd` (pin contract now tested with
+  a local pin), `tests/test_epochs.py SPEC`. The next nightly re-stamps `epoch_boundaries.json` with K_RES 1.0 and
+  the new rule text; boundary values do not change.

@@ -1028,7 +1028,7 @@ epochs:                       # recovery-stage boundary RULES. The per-animal bo
                               #   PS93 from failing by 55% of tolerance to failing by 3.6% -- one
                               #   session from flipping an animal, on a cohort that gains a session
                               #   most nights.
-    k_res: 0.4                # SETTLED: residual scatter about the fit <= k_res x pre-stroke SD.
+    k_res: 1.0                # SETTLED: residual scatter about the fit <= k_res x pre-stroke SD.
                               #   A flat FIT through scattered points is a noisy climb: PS95's hit
                               #   rate trends shallowly from day 2 while swinging 72-105%.
                               #   TIGHTENED 1.5 -> 0.5 (2026-09-19, Priya): the residual is the
@@ -1045,6 +1045,13 @@ epochs:                       # recovery-stage boundary RULES. The per-animal bo
                               #   restores PS95 = 15 with margin (d11 resid 0.49 > 0.4) and leaves
                               #   PS92 11 / PS93 11 / PS94 25 unchanged (their plateau residuals are
                               #   0.15-0.25, well clear). See DECISIONS.md.
+                              #   LOOSENED 0.4 -> 1.0 (2026-11-19, Priya) and PS94's hand pin at
+                              #   day 25 REMOVED: one rule for all four animals. At 1.0 the
+                              #   derivation gives PS92 11 / PS93 11 / PS94 25 / PS95 15 -- the same
+                              #   boundaries, no session changes epoch. PS94's day-25 band residual
+                              #   is 0.84 SD (passes); its day-22 window 1.31 (fails). Review:
+                              #   M:/.../vls_stroke_paper/review/c2_chronic_rule_2026-11-19/.
+                              #   The SD stays June + August pre-stroke BY DESIGN. See DECISIONS.md.
     level_min:                # RECOVERED: tail mean, as a fraction of that animal's own baseline.
                               #   SET A SERIES TO null TO DROP ITS BAR. Measured 2026-09-10:
                               #   dropping BOTH bars moves no derived boundary on this cohort (every
