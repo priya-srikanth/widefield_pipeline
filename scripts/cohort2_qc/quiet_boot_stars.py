@@ -9,6 +9,8 @@ the figure as <name>_boot_stars.csv (point, CI, animals in the direction, per-an
 
 S = per-session table with columns animal, epoch, <col>; `panel` must name the table + column uniquely (cache key). off: analyze log10(v + off), for measures whose model is on
 the log scale (rates, power). The draw is seeded per (col, epoch), so a figure re-render reproduces its marks.
+This module only places marks; every CALLER reserves the band with `sig_marks.reserve_headroom(fig)` once the figure is
+drawn (all eight quiet_* callers do; tests/test_sig_marks_top_band checks for the name).
 """
 from __future__ import annotations
 
