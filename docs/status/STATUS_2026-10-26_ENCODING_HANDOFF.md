@@ -51,10 +51,10 @@ for anything that loads imaging. E = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/
   - Caption audit + bootstrap corrections: `docs/status/quiet_restyle_20261118/S23_PAGE_CAPTION_AUDIT_20261118.md`; page
     edit scripts `quiet_restyle_20261118/page_s23_scripts/` (harness `s23_check.py <part>` on the saved page source).
     Page source for the next edit: session f082ee0c scratchpad `s23_page3.html` (else `Artifact read` the live page).
-- **23.23 BLOCKED** (a8): stored rebuild decoder loads, features match, but rebuilt full-window p_true vs stored T13 p_true
-  differs (median |diff| 0.14; lead: stored run used session_z-scaled models). Options with Priya: fix the transform /
-  working centring, or keep 23.23 pre-rebuild. Until then KEEP `labcams/cohort1_quiet_spikes/v2_quiet_lp/task_events` +
-  `task_events_followup`; the rest of the pre-rebuild v2_quiet / v2_quiet_lp was deleted by a8 with Priya's OK.
+- **23.23 stays PRE-REBUILD permanently** (Priya 11-18). The rebuilt full-window p_true did not match the stored T13
+  p_true (median |diff| 0.14; the stored run likely used session_z-scaled models), so 23.23 is not moved to the sync-end
+  run. KEEP `labcams/cohort1_quiet_spikes/v2_quiet_lp/task_events` + `task_events_followup` permanently (they back
+  23.23); the rest of the pre-rebuild v2_quiet / v2_quiet_lp was deleted by a8 with Priya's OK.
 - Spout (Target) page PvraHi cites no v2_quiet paths (its section 15 = frozen copy, images inside the artifact).
 
 ### 00-COMPACT-44 (11-17 ~19:30) -- START HERE; additions to 43 / 42
