@@ -24023,3 +24023,18 @@ Handoff `docs/status/STATUS_2026-11-16_ENCDESIGN_TIM_STATES_HANDOFF.md` (section
   (`M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/...`). EXACTLY equal to the manuscript file
   (every position array and t_ms byte-equal, max |diff| 0; sessions 32/32/31/32/32/32 for close_L / close_center /
   close_R / far_L / far_center / far_R), so the recipe above is the manuscript's.
+
+## 2026-11-20 -- Per-point permutation clusters of the FaceRhythm aligned maps (for Fig 5B rings)
+- *Context (Priya 2026-11-20):* Fig 5B's rings were drawn from `marks` in `aligned_maps_cache_point.pkl` (the 10-24
+  per-point bootstrap rule: boot_delta CI excludes 0 AND animals agree AND BH), while the legend and S14 describe the
+  PERMUTATION clusters of `face_rhythm_aligned_maps.py --perm` (11-07; 10,000 within-animal session shuffles,
+  `face_rhythm.stats.session_shuffle_test`, cluster mass |t| > 2). Per-point cluster membership had not been saved
+  (`aligned_maps_perm_clusters.csv` is cluster-level), so the figure could not use it.
+- *Decision:* `face_rhythm_aligned_maps.py --perm 10000 --perm-points` re-runs ONLY the permutation test (seed 0, same
+  loop order as the 11-07 run, so the same draws) and writes the new
+  `<FR readouts>/master_pre_v1/aligned_maps/data/aligned_maps_perm_points.csv` (align, position, epoch, point, x, y,
+  mean_log2, t, cluster [-1 = none], p_cluster, sig_cluster = the ring, sig_point = max-statistic FWE, n_perm); no figure
+  or other CSV is rewritten; refuses to overwrite. 3 min 10 s.
+- *Check:* all 54 alignment x position x epoch cells reproduce the stored `aligned_maps_perm_clusters.csv` exactly (same
+  cluster keys, n_points, masses, p < .05 calls) and the png titles' counts (e.g. lick far_R acute: 2 clusters,
+  1164 ringed points, max-stat 1035; the old bootstrap marks gave 950). Fig 5B should read `sig_cluster` from this file.
