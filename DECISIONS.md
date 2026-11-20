@@ -23985,3 +23985,29 @@ Handoff `docs/status/STATUS_2026-11-16_ENCDESIGN_TIM_STATES_HANDOFF.md` (section
   +0.125 (Holm 0.004): the v41 text values.
 - *Also:* `tests/test_share_writers_mode_safe.py` classifies `c2_scalar_family_aligned.py` (left unclassified on main
   by 6a69f29b, so that test failed on main) and `pose3d_phase_from_peak.py` as BEHAVIOR writers.
+
+## 2026-11-20 -- Lick-phase curves: mouth0 is the default, both curve versions kept (Priya)
+- *Decision (Priya 2026-11-20):* keep both per-session curve files; the default for the VLS manuscript phase scripts
+  (`scripts/pose3d_phase_curves.py`, `scripts/pose3d_phase_from_peak.py`) is **mouth0**
+  (`<pose3d>/phase/vls_manuscript/curves_mouth0_first_peak.csv.gz`: tongue-in-mouth frames count as 0). The pipeline's
+  `<pose3d>/phase/curves.csv.gz` (in-mouth frames excluded for side / down / out) stays available with
+  `--curves-source pipeline`; `--curves` overrides either. `pose3d_phase_curves.py --kind` now defaults to `peak` with
+  mouth0 (the mouth0 file holds first licks, kind `peak` only; other combinations exit with a pointer to `pipeline`).
+  Both scripts gained `--out-suffix`.
+- *Scope of the protrusion analyses:* they use only licks that occurred; trials without a lick enter the results via
+  the trial-outcome classes (Fig 2B / 4B), not as zero-protrusion curves.
+- *Check of the existing tables:* `c2_phase_first_{dist,mid0}_peak_sessions.csv` had been built from `curves.csv.gz`
+  while their `_aligned` cluster p came from mouth0. Regenerated under the mouth0 default to NEW files
+  `c2_phase_first_{dist,mid0}_peak_sessions_mouth0.csv` (`pose3d_phase_curves.py first dist mid0 --across sessions
+  --out-suffix _mouth0`; old files untouched). Same 2,706 rows, same n_sessions / n_animals; 'sig' masks identical
+  (dist 366 / 738 bins, mid0 647 / 738). Values: dist max |diff| 2.6e-4 (mean rows; median 1.7e-5; |v| up to 1.33),
+  SEM max 6.2e-5; mid0 max |diff| 2.3e-3 (median 1.2e-4; |v| up to 36), SEM max 5.6e-4. No figure change needed beyond
+  pointing the dist / mid0 panels at the `_mouth0` files when they are next rendered.
+
+## 2026-11-20 -- Cohort-2 treadmill review scripts added to the repo
+- `scripts/c2_treadmill_cue_aligned.py`, `scripts/c2_treadmill_extras.py`, `scripts/c2_s13_treadmill_from_fr.py`: copies
+  of the review scripts in `vls_stroke_paper/review/c2_treadmill_2026-11-20/` (cue-aligned treadmill push / walk with
+  the aligned rule; first-95-min check + session lengths; S13 pre-stroke treadmill traces on the FaceRhythm sessions).
+  Only the import path changed (repo root instead of `$WF_REPO`) plus lint-only fixes; refuse-to-overwrite kept;
+  outputs listed in each docstring (`<out_dir>` argument and `$MC/data/`). `c2_treadmill_cue_aligned_first95.py` and
+  the `c2_engagement_tim/` scripts are not added yet (still being run / revised).

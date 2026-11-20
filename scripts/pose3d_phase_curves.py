@@ -6,6 +6,10 @@ manuscript's `manuscript_code/analysis/c2_phase_curves.py` (``--across animals``
 Input: per-session curves -- `<pose3d>/phase/curves.csv.gz` (`scripts.pose3d_phase`; kinds 'norm' = cam4 onset -> offset
 phase and 'peak' = ms from the 3-D extension peak) or the in-mouth-included first-lick curves of
 `scripts/pose3d_phase_mouth0.py` (side0 / down0 / out0 / dist / mid0, kind 'peak').
+DEFAULT (Priya 2026-11-20): ``--curves-source mouth0`` = `<pose3d>/phase/vls_manuscript/curves_mouth0_first_peak.csv.gz`
+(tongue-in-mouth frames count as 0; first licks, kind 'peak' only, so ``--kind`` defaults to 'peak' there).
+``--curves-source pipeline`` = the pipeline's `<pose3d>/phase/curves.csv.gz` (in-mouth frames excluded for side / down /
+out; both kinds, both lick sets; ``--kind`` defaults to 'norm'). Both are kept; ``--curves`` overrides either path.
 Filters (both summaries): kind, lick set, measure, coverage >= 0.5, window (norm: phase 0.1-0.9 = kinematics_pooled_figs
 .PHASE_WIN; peak: -80..+80 ms), early-pre (June) sessions dropped (`config.early_pre`); mid / mid0 / side / side0 signed
 + = contralesional (lesions all left; mid0 is not in the pipeline's SIGNED_3D list, so it is flipped here explicitly).
@@ -23,10 +27,10 @@ changes, labels permuted within animal (`orofacial_cohort.CLUSTER_PERM`), uncorr
 finite in every session (>= 3 bins, >= 2 epoch sessions). The manuscript's bars use the ALIGNED rule (per-cluster p,
 BH-FDR within each measure): run `scripts/c2_phase_sessions_aligned.py <the _sessions.csv> <curves>` on the output.
 
-Default out = `<pose3d>/phase/vls_manuscript/`. Refuses to overwrite.
+Default out = `<pose3d>/phase/vls_manuscript/`; ``--out-suffix S`` inserts S before `.csv`. Refuses to overwrite.
 
-    python scripts/pose3d_phase_curves.py first side0 down0 dist mid0 --kind peak \\
-        --curves <pose3d>/phase/vls_manuscript/curves_mouth0_first_peak.csv.gz --across sessions
+    python scripts/pose3d_phase_curves.py first side0 down0 dist mid0 --across sessions          # mouth0 (default)
+    python scripts/pose3d_phase_curves.py first side down --kind norm --curves-source pipeline
 """
 from __future__ import annotations
 
@@ -46,6 +50,13 @@ EPOCHS = ("acute", "subacute", "chronic")    # scripts.kinematics_pooled_figs.EP
 PHASE_WIN = (0.1, 0.9)                       # scripts.kinematics_pooled_figs.PHASE_WIN (norm kind)
 PEAK_WIN = (-80, 80)                         # ms from the 3-D peak: the in-mouth frames before and after the lick
 SIGNED = ("mid", "mid0", "side", "side0")    # stored + = ipsilesional -> + = contralesional
+#: per-session curve sources under <pose3d> (Priya 2026-11-20: mouth0 is the default, both kept)
+CURVES_SOURCES = {"mouth0": ("phase", "vls_manuscript", "curves_mouth0_first_peak.csv.gz"),
+                  "pipeline": ("phase", "curves.csv.gz")}
+
+
+def curves_path(d3: Path, source: str) -> Path:
+    return Path(d3).joinpath(*CURVES_SOURCES[source])
 
 
 def load_curves(curves, lset: str, meas, kind: str) -> pd.DataFrame:
@@ -98,27 +109,39 @@ def measure_table(C: pd.DataFrame, m: str, across: str) -> pd.DataFrame:
     return pd.concat(rows)
 
 
-def out_name(lset: str, m: str, kind: str, across: str) -> str:
+def out_name(lset: str, m: str, kind: str, across: str, suffix: str = "") -> str:
     return (f"c2_phase_{lset}_{m}" + ("" if kind == "norm" else "_peak")
-            + ("_sessions" if across == "sessions" else "") + ".csv")
+            + ("_sessions" if across == "sessions" else "") + suffix + ".csv")
 
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("lickset", choices=["first", "all"])
     ap.add_argument("measures", nargs="+")
-    ap.add_argument("--kind", choices=["norm", "peak"], default="norm")
+    ap.add_argument("--kind", choices=["norm", "peak"], default=None,
+                    help="default 'peak' with --curves-source mouth0, 'norm' with pipeline")
     ap.add_argument("--across", choices=["animals", "sessions"], default="sessions")
-    ap.add_argument("--curves", type=Path, default=None, help="default <pose3d>/phase/curves.csv.gz")
+    ap.add_argument("--curves-source", choices=sorted(CURVES_SOURCES), default="mouth0",
+                    help="mouth0 (default; in-mouth = 0) or pipeline (<pose3d>/phase/curves.csv.gz, in-mouth excluded)")
+    ap.add_argument("--curves", type=Path, default=None, help="explicit curves file (overrides --curves-source)")
     ap.add_argument("--out-dir", type=Path, default=None, help="default <pose3d>/phase/vls_manuscript")
+    ap.add_argument("--out-suffix", default="", help="inserted before .csv in every output name")
     a = ap.parse_args(argv)
+    kind = a.kind or ("peak" if a.curves_source == "mouth0" else "norm")
+    if a.curves is None and a.curves_source == "mouth0" and (kind != "peak" or a.lickset != "first"):
+        sys.exit("the mouth0 curves hold first licks, kind 'peak' only; use --curves-source pipeline")
     d3 = pose3d_dir()
     out_dir = a.out_dir or d3 / "phase" / "vls_manuscript"
-    outs = {m: out_dir / out_name(a.lickset, m, a.kind, a.across) for m in a.measures}
+    outs = {m: out_dir / out_name(a.lickset, m, kind, a.across, a.out_suffix) for m in a.measures}
     clash = [str(p) for p in outs.values() if p.exists()]
     if clash:
         sys.exit("refusing to overwrite: " + ", ".join(clash))
-    C = load_curves(a.curves or d3 / "phase" / "curves.csv.gz", a.lickset, a.measures, a.kind)
+    curves = a.curves or curves_path(d3, a.curves_source)
+    print("curves:", curves, flush=True)
+    C = load_curves(curves, a.lickset, a.measures, kind)
+    missing = sorted(set(a.measures) - set(C.measure))
+    if missing:
+        sys.exit(f"no curves for {missing} in {curves}")
     out_dir.mkdir(parents=True, exist_ok=True)
     for m in a.measures:
         measure_table(C, m, a.across).to_csv(outs[m], index=False)

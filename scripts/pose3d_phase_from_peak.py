@@ -33,8 +33,13 @@ Outputs (refuses to overwrite; default out = `<pose3d>/phase/vls_manuscript/`):
   c2_phase_first_<measure>_phase_sessions_clusters.csv  (--sig aligned only)
   c2_pre_ili_ms.csv, _c2_phase_check_roundtrip.csv (check 2 below)
 
+Curves (Priya 2026-11-20: mouth0 is the default, both kept): ``--curves-source mouth0`` (default,
+`<pose3d>/phase/vls_manuscript/curves_mouth0_first_peak.csv.gz`, in-mouth = 0) or ``--curves-source pipeline``
+(`<pose3d>/phase/curves.csv.gz`, in-mouth excluded for side / down / out; pass its measure names, e.g. side down mid
+dist). ``--curves`` overrides either. ``--out-suffix S`` inserts S before `.csv` in every output name.
+
     python scripts/pose3d_phase_from_peak.py [--out-dir DIR] [--sig mask|aligned] [--measures side0 down0 mid0 dist]
-        [--curves <pose3d>/phase/vls_manuscript/curves_mouth0_first_peak.csv.gz] [--c1-bins CSV] [--licks CSV]
+        [--curves-source mouth0|pipeline | --curves CSV] [--out-suffix S] [--c1-bins CSV] [--licks CSV]
 """
 from __future__ import annotations
 
@@ -49,6 +54,9 @@ from wfield_local import config
 from wfield_local import orofacial_stats as OS
 from wfield_local.orofacial_cohort import CLUSTER_PERM
 from wfield_local.pose3d import pose3d_dir
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from pose3d_phase_curves import CURVES_SOURCES, curves_path  # noqa: E402
 
 #: cohort 1's phase bins (stroke_orofacial_pipeline phase-aligned trajectories, 3-tier v3)
 C1_BINS = Path("M:/MICROSCOPE/Priya/stroke_orofacial_pipeline_outputs/stats/results/phenotype_pooled/"
@@ -202,19 +210,22 @@ def main(argv=None):
     ap.add_argument("--out-dir", type=Path, default=None, help="default <pose3d>/phase/vls_manuscript")
     ap.add_argument("--sig", choices=["mask", "aligned"], default="aligned")
     ap.add_argument("--measures", nargs="+", default=["side0", "down0", "mid0", "dist"])
-    ap.add_argument("--curves", type=Path, default=None,
-                    help="default <pose3d>/phase/vls_manuscript/curves_mouth0_first_peak.csv.gz")
+    ap.add_argument("--curves-source", choices=sorted(CURVES_SOURCES), default="mouth0",
+                    help="mouth0 (default; in-mouth = 0) or pipeline (<pose3d>/phase/curves.csv.gz, in-mouth excluded)")
+    ap.add_argument("--curves", type=Path, default=None, help="explicit curves file (overrides --curves-source)")
+    ap.add_argument("--out-suffix", default="", help="inserted before .csv in every output name")
     ap.add_argument("--c1-bins", type=Path, default=C1_BINS)
     ap.add_argument("--licks", type=Path, default=None, help="default <pose3d>/kinematics/licks.csv.gz")
     a = ap.parse_args(argv)
     d3 = pose3d_dir()
     out_dir = a.out_dir or d3 / "phase" / "vls_manuscript"
-    curves = a.curves or d3 / "phase" / "vls_manuscript" / "curves_mouth0_first_peak.csv.gz"
-    outs = {m: out_dir / f"c2_phase_first_{m}_phase_sessions.csv" for m in a.measures}
-    cl_outs = {m: out_dir / f"c2_phase_first_{m}_phase_sessions_clusters.csv" for m in a.measures} \
+    curves = a.curves or curves_path(d3, a.curves_source)
+    sfx = a.out_suffix
+    outs = {m: out_dir / f"c2_phase_first_{m}_phase_sessions{sfx}.csv" for m in a.measures}
+    cl_outs = {m: out_dir / f"c2_phase_first_{m}_phase_sessions_clusters{sfx}.csv" for m in a.measures} \
         if a.sig == "aligned" else {}
-    ili_out = out_dir / "c2_pre_ili_ms.csv"
-    chk_out = out_dir / "_c2_phase_check_roundtrip.csv"
+    ili_out = out_dir / f"c2_pre_ili_ms{sfx}.csv"
+    chk_out = out_dir / f"_c2_phase_check_roundtrip{sfx}.csv"
     clash = [p for p in [*outs.values(), *cl_outs.values(), ili_out, chk_out] if p.exists()]
     if clash:
         sys.exit("refusing to overwrite: " + ", ".join(map(str, clash)))
