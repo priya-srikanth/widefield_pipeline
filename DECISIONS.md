@@ -24038,3 +24038,11 @@ Handoff `docs/status/STATUS_2026-11-16_ENCDESIGN_TIM_STATES_HANDOFF.md` (section
 - *Check:* all 54 alignment x position x epoch cells reproduce the stored `aligned_maps_perm_clusters.csv` exactly (same
   cluster keys, n_points, masses, p < .05 calls) and the png titles' counts (e.g. lick far_R acute: 2 clusters,
   1164 ringed points, max-stat 1035; the old bootstrap marks gave 950). Fig 5B should read `sig_cluster` from this file.
+
+## 2026-11-20 -- v41 sync branches merged to main (Priya: "Merge to main when safe")
+- Fast-forward of main (49283ea2) to: `sync41/c2-phase-fr-tables` (1e015216), the mouth0-default / treadmill-scripts
+  commit, a `--no-ff` merge of `ms-v41-c2-outcome-weight-stats` (619f337f + 142086ca; no conflicts; its two scripts
+  classified as behavior writers in `tests/test_share_writers_mode_safe.py`), the Fig 5C FaceRhythm writer and the
+  aligned-maps `--perm-points` option. Full suite on the merged tree: 6523 passed; the only other failure,
+  `test_sig_marks_top_band` on `scripts/cohort2_qc/quiet_boot_stars.py`, is already on origin/main (fae48012) and
+  untouched here. The `c2_engagement_tim/` and two-tone `c1/` review scripts are not added yet (still being revised).
