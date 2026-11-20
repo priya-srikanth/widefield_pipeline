@@ -24011,3 +24011,15 @@ Handoff `docs/status/STATUS_2026-11-16_ENCDESIGN_TIM_STATES_HANDOFF.md` (section
   Only the import path changed (repo root instead of `$WF_REPO`) plus lint-only fixes; refuse-to-overwrite kept;
   outputs listed in each docstring (`<out_dir>` argument and `$MC/data/`). `c2_treadmill_cue_aligned_first95.py` and
   the `c2_engagement_tim/` scripts are not added yet (still being run / revised).
+
+## 2026-11-20 -- Fig 5C FaceRhythm pre-stroke timecourses made in the pipeline (`scripts/fr_pre_timecourses_abs.py`)
+- *Context:* the manuscript's `manuscript_code/data/fr_pre_timecourses_abs.npz` (Fig 5C) had no producer in this repo.
+  Priya approved adding one (2026-11-20).
+- *Recipe:* the factor gallery's "pre-stroke trials by position" (`face_rhythm.factors.report.cmd_report`,
+  `absolute=True`): per PRE-stroke proj session of `fr_cam4_20261021/factors/master_pre_v1` (sorted by file name),
+  `trials x trials_D` (absolute expression), nanmean over the session's trials at each spout position;
+  (sessions x 151 x 12) per position, plus `sessions_<position>` labels.
+- *Result:* written to `<FR readouts>/master_pre_v1/vls_manuscript/fr_pre_timecourses_abs.npz`
+  (`M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/...`). EXACTLY equal to the manuscript file
+  (every position array and t_ms byte-equal, max |diff| 0; sessions 32/32/31/32/32/32 for close_L / close_center /
+  close_R / far_L / far_center / far_R), so the recipe above is the manuscript's.
