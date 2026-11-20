@@ -142,7 +142,12 @@ def main(argv=None) -> int:
     ap.add_argument("--perm", type=int, default=0,
                     help="also the within-animal session permutation test, cluster mass (Priya 11-07): N shuffles")
     ap.add_argument("--drift-control", action="store_true", help="with --perm: early vs late PRE sessions only")
+    ap.add_argument("--perm-points", action="store_true",
+                    help="with --perm: ONLY recompute the permutation test (same seed / order as the full run) and write "
+                         "the per-point table data/aligned_maps[_driftpre]_perm_points.csv; no figure, no other CSV")
     a = ap.parse_args(argv)
+    if a.perm_points and not a.perm:
+        ap.error("--perm-points needs --perm N (10000 for the 11-07 maps)")
     rv = PathResolver()
     root = Path(rv.root("dlc")) / "face_rhythm" / "cam4" / "readouts" / a.set
     out = a.out or root / "aligned_maps"
@@ -153,6 +158,9 @@ def main(argv=None) -> int:
     animal, epoch, label = Z["animal"].astype(str), Z["epoch"].astype(str), Z["label"].astype(str)
     aligns, positions, windows = list(Z["aligns"].astype(str)), list(Z["positions"].astype(str)), Z["windows"]
     mid = float(frr.MASTER_MIDLINE_X)
+    if a.perm_points:     # before any other statistic: the permutation rng is fresh (seed 0) in perm_figures either way
+        perm_figures(a, maps, counts, label, animal, epoch, aligns, positions, windows, home, mid, out)
+        return 0
     contra = home[:, 0] <= mid
     pid, grid = patches(home, mid, *a.grid)
     keep = [q for q in np.unique(pid) if (pid == q).sum() >= a.min_points]
@@ -368,7 +376,13 @@ and per-animal values: data/halves_stats.csv.""")
 def perm_figures(a, maps, counts, label, animal, epoch, aligns, positions, windows, home, mid, out) -> None:
     """Priya 11-07: the permutation version of every aligned map -- per alignment x position x epoch, each animal's
     session log2 maps (pre first), `face_rhythm.stats.session_shuffle_test` (within-animal shuffles, cluster mass |t| > 2,
-    max-statistic); ``--drift-control``: early vs late pre (`face_rhythm.stats.drift_split`) instead of the epochs."""
+    max-statistic); ``--drift-control``: early vs late pre (`face_rhythm.stats.drift_split`) instead of the epochs.
+
+    ``--perm-points`` (2026-11-20, Priya: Fig 5B rings must be the permutation clusters): the same test, same seed and
+    loop order, but writes ONLY ``data/aligned_maps<tag>_perm_points.csv`` -- one row per alignment x position x epoch x
+    mesh point: x, y (master mesh), mean_log2 (the map), t, cluster (-1 = in no cluster), p_cluster (of that cluster),
+    sig_cluster (the ring), sig_point (max-statistic FWE) -- and checks it against the existing
+    ``aligned_maps<tag>_perm_clusters.csv`` (refuses to overwrite)."""
     from wfield_local import face_rhythm_figures as frf
     from wfield_local import figure_layout
     adj = frs.mesh_adjacency(home)
@@ -376,6 +390,11 @@ def perm_figures(a, maps, counts, label, animal, epoch, aligns, positions, windo
     eps = ["late_pre"] if a.drift_control else list(EPOCHS[1:])
     tag = "_driftpre" if a.drift_control else ""
     rows = []
+    pts = []
+    if a.perm_points:
+        pts_out = figure_layout.sidecar_for(out, f"aligned_maps{tag}_perm_points", ".csv")
+        if pts_out.exists():
+            raise SystemExit(f"refusing to overwrite {pts_out}")
     for ai, al in enumerate(aligns):
         R = {}
         for pi, pos in enumerate(positions):
@@ -401,6 +420,17 @@ def perm_figures(a, maps, counts, label, animal, epoch, aligns, positions, windo
                                  "sign": "up" if r["mean"][sel].mean() > 0 else "down", "mass": m, "p_cluster": pc,
                                  "mean_log2": float(r["mean"][sel].mean()), "n_animals": r["n_animals"],
                                  "n_perm": a.perm})
+                if a.perm_points:
+                    lab = np.asarray(r["label"], int)
+                    pc = np.asarray(r["p_cluster"], float)
+                    pts.append(pd.DataFrame({
+                        "align": al, "position": pos, "epoch": ep, "point": np.arange(len(home)),
+                        "x": home[:, 0], "y": home[:, 1], "mean_log2": r["mean"], "t": r["t"], "cluster": lab,
+                        "p_cluster": np.where(lab >= 0, pc[np.clip(lab, 0, max(len(pc) - 1, 0))] if len(pc) else np.nan,
+                                              np.nan),
+                        "sig_cluster": r["sig_cluster"], "sig_point": r["sig_point"], "n_perm": a.perm}))
+        if a.perm_points:
+            continue
         win = windows[ai]
         with frf.style():
             fig, axs = frf.subplots(len(positions), len(eps), figsize=(3.5 * len(eps) + 0.5, 3.1 * len(positions)),
@@ -434,11 +464,38 @@ blue = down) = points in clusters with family-wise p < .05: within-animal sessio
 the null SD, clusters of mesh neighbors with |t| > 2 of one sign, cluster mass against the largest null cluster
 (`face_rhythm.stats.session_shuffle_test`); title also gives the point-level max-statistic count.""")
     C = pd.DataFrame(rows)
+    if a.perm_points:
+        _write_perm_points(pd.concat(pts, ignore_index=True), C, pts_out,
+                           figure_layout.sidecar_for(out, f"aligned_maps{tag}_perm_clusters", ".csv", mkdir=False))
+        return
     C.to_csv(figure_layout.sidecar_for(out, f"aligned_maps{tag}_perm_clusters", ".csv"), index=False,
              float_format="%.4g")
     print(f"PERMUTATION{' DRIFT CONTROL' if a.drift_control else ''}: clusters p < .05")
     print(C[C.p_cluster < .05].groupby(["align", "epoch", "sign"]).n_points.agg(["count", "sum"]).to_string()
           if len(C) else "none")
+
+
+def _write_perm_points(T: pd.DataFrame, C: pd.DataFrame, pts_out: Path, stored: Path) -> None:
+    """Write the per-point table; check it (and this run's cluster table) against the stored cluster table."""
+    T.to_csv(pts_out, index=False, float_format="%.6g")
+    print("wrote", pts_out, len(T), "rows", flush=True)
+    k = ["align", "position", "epoch"]
+    mine = T.groupby(k).agg(n_sig_cluster=("sig_cluster", "sum"), n_sig_point=("sig_point", "sum"))
+    mine["n_clusters_p05"] = C[C.p_cluster < .05].groupby(k).size().reindex(mine.index).fillna(0).astype(int)
+    print(mine.to_string(), flush=True)
+    if not stored.exists():
+        print("no stored cluster table to compare:", stored)
+        return
+    S = pd.read_csv(stored)
+    m = S.merge(C, on=k + ["cluster"], how="outer", suffixes=("_stored", "_new"), indicator=True)
+    same_keys = bool((m._merge == "both").all())
+    d_np = int((m.n_points_stored != m.n_points_new).sum())
+    d_sig = int(((m.p_cluster_stored < .05) != (m.p_cluster_new < .05)).sum())
+    d_mass = float((m.mass_stored - m.mass_new.map(lambda v: float(f"{v:.4g}"))).abs().max())   # stored at %.4g
+    s05 = S[S.p_cluster < .05].groupby(k).n_points.sum()
+    agree = (s05.reindex(mine.index).fillna(0).astype(int) == mine.n_sig_cluster).all()
+    print(f"vs {stored.name}: same cluster keys {same_keys}; n_points differ {d_np}; p<.05 differ {d_sig}; "
+          f"max |mass diff| {d_mass:.3g}; per-cell ringed points = stored sig-cluster points: {bool(agree)}", flush=True)
 
 
 if __name__ == "__main__":

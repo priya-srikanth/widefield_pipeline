@@ -23925,6 +23925,128 @@ Handoff `docs/status/STATUS_2026-11-16_ENCDESIGN_TIM_STATES_HANDOFF.md` (section
   a local pin), `tests/test_epochs.py SPEC`. The next nightly re-stamps `epoch_boundaries.json` with K_RES 1.0 and
   the new rule text; boundary values do not change.
 
+## 2026-11-20 -- VLS manuscript v41 sync: phase curves and FaceRhythm tables made in the pipeline (PROMPT_pipeline_sync_v41 items 7-11)
+- *Context:* the manuscript (`stroke_orofacial_pipeline_outputs/vls_stroke_paper/`, v41) computed some cohort-2 numbers in
+  its own `manuscript_code/analysis/` scripts and read two FaceRhythm panels back out of readout SVGs. Goal: every number
+  comes from code committed here; the manuscript only plots. Nothing on the share was overwritten; every regenerated
+  table went to a NEW path and was compared with the manuscript's copy (`manuscript_code/data/`, v41 zip).
+- *Item 7, single scalar family:* `scripts/c2_scalar_family_aligned.py` and `analysis_kit.boot_delta` are on main
+  (6a69f29b). New `--out-dir` (write every output into one folder under its usual name). Regenerated from main: all
+  eight outputs BYTE-IDENTICAL to the manuscript / share copies (`c2_scalar_family_aligned.csv`,
+  `C2_{reach_first,speed_all}_stats_aligned.csv`, `aim_*_tests_aligned.csv`, `change_vs_pre_stats_contra_aligned.csv`,
+  `pose3d_change_pooled_contra_aligned.csv`, `epoch_1bdelta_behaviour_by_position_aligned.csv`).
+- *Item 8, lick-phase curves (ported, arithmetic unchanged):* `scripts/pose3d_phase_mouth0.py` (was
+  `analysis/c2_curves_mouth0.py`; sessions fanned out, 119 sessions in ~85 s), `scripts/pose3d_phase_curves.py` (was
+  `c2_phase_curves.py` = `--across animals` and `c2_phase_curves_sessions.py` = `--across sessions`),
+  `scripts/pose3d_phase_from_peak.py` (was `c2_phase_from_peak.py --sig aligned`; adds a per-cluster table). The
+  `_aligned` / `_aligned_clusters` tables come from the existing `scripts/c2_phase_sessions_aligned.py`. Outputs:
+  `DeepLabCut/Widefield/session_poses/pose3d/phase/vls_manuscript/` (manuscript file names). Comparison:
+  - mouth0 curves: every value equal to the manuscript's `c2_curves_mouth0_first_peak.csv.gz` (both `%.5g`; only the
+    session order of the rows differs, now sorted);
+  - `c2_phase_first_{side0,down0,mid0,dist}_phase_sessions.csv`, `c2_pre_ili_ms.csv`, and the 16
+    `*_aligned_clusters.csv`: BYTE-IDENTICAL;
+  - animal-level `c2_phase_*.csv`: equal; session-level `*_sessions.csv` / `*_sessions_aligned.csv`: equal to <= 1.1e-14
+    (summation order), 'sig' bins and every cluster p / q identical.
+  - Parsing: the ported scripts read inputs with `float_precision="round_trip"`. pandas 2.3.3's default parser here
+    reads cohort 1's phase-bin centre 0.006944444444444444 as 0.0069444444444444, which moved every phase bin by
+    ~1e-17 and broke byte identity.
+  - Provenance quirk (for the manuscript record, not changed): `c2_phase_first_{dist,mid0}_peak_sessions.csv` were
+    built from the pipeline's `phase/curves.csv.gz`, but their `_aligned` cluster p values from the mouth0 curves
+    (the two agree to 0.005 mm / deg; same significant clusters, cluster masses differ <= 0.012). Reproduced as made.
+- *Item 9, FaceRhythm per-session shape table:* `face_rhythm_session_shape_tests.session_table` writes the values behind
+  `session_scalars.png` (= manuscript Fig 5E / 5G), one row per session x factor x measure (asym, angle_spatial,
+  angle_spectral, side_spec; pre rows = leave-one-out) with the cell's shuffle p, Holm p within the lick-pair / other
+  family (`p_holm`, the figure's stars) and within epoch x measure (`p_holm_epoch`). Written by every full run, by
+  `--table-only` (stored tests) and by `--export-tables` (re-tests with the full run's draws). Check: the re-tested
+  scalars at 10,000 permutations (seed 0, drift test first as in a full run) are byte-identical to the stored
+  `session_shape_v2/data/session_scalars.csv` (= manuscript `fr_session_scalars_v2.csv`); against the manuscript's
+  SVG read-back `fr_session_scalars_v2_points.csv`: 3,100 rows both, all 128 cells same n and same animals, max |diff|
+  7.6e-7.
+  Side specificity (lick_right = contralesional, lick_left = ipsilesional; delta, Holm): contra -0.376 / -0.249 / -0.134
+  (Holm 0.0024 / 0.0024 / 0.006), ipsi -0.305 / -0.233 / -0.102 (Holm 0.0024 / 0.0028 / 0.204, n.s.). These are the
+  numbers the v41 Results quote. The older `session_shape/session_shape_stats.csv` (`face_rhythm_session_shape.py`,
+  10-25: best-spatial matching, `boot_delta` bootstrap) is the superseded test; the per-session shuffle test has been
+  the main shape test since 11-07 (Priya).
+- *Item 10, FaceRhythm lick-loading change per point (Fig 5D):* `face_rhythm_session_shape_tests.map_point_table` writes
+  the values and rings behind `session_maps_scaled_lick.png` (value in each animal's pre-stroke SD units, t, cluster,
+  cluster p, ring sign, max-statistic p) -> `data/session_maps_scaled_lick_points.csv` (full run and `--export-tables`).
+  Check against the manuscript's SVG read-back `data/fr/fr_lick_loading_change.csv` (7,692 rows = 2 factors x 3 epochs
+  x 1,282 points): rings identical at every point (0 mismatches; cluster counts per panel as the figure titles); values
+  within 0.073 SD after clipping to the figure's color limit. The read-back's resolution is ~0.05 SD (256 color
+  levels) and it assumed a limit of +-6.694 SD where the figure's 98th-percentile limit is 6.673; 152 points (2%) lie
+  beyond the limit, so the read-back saturates them and the table gives their true value.
+  `--export-tables` also re-ran the scalar tests first: byte-identical to the stored table again.
+- *Item 11, lick-aligned face asymmetry (checked, no code change):* the lick window is -0.1 .. +0.2 s around each lick
+  (`face_rhythm_asym_aligned.LICK_WIN`, unchanged since the cache was written in 6107982c, 10-24); halves = contra-half
+  minus ipsi-half log2 change vs the animal's pre, `boot_delta`, Holm via `stats.add_holm(H, ["align", "epoch"])` = the
+  six positions within each alignment x epoch. Recomputing Holm from `p_boot` in `aligned_maps_cache_point.pkl` over
+  that family reproduces the stored `p_holm` exactly (over 18 per alignment or 3 per alignment x position it does
+  not). Lick-aligned far contra -0.676 / -0.437 / -0.375, near contra -0.310 / -0.237 / -0.248, near ipsi chronic
+  +0.125 (Holm 0.004): the v41 text values.
+- *Also:* `tests/test_share_writers_mode_safe.py` classifies `c2_scalar_family_aligned.py` (left unclassified on main
+  by 6a69f29b, so that test failed on main) and `pose3d_phase_from_peak.py` as BEHAVIOR writers.
+
+## 2026-11-20 -- Lick-phase curves: mouth0 is the default, both curve versions kept (Priya)
+- *Decision (Priya 2026-11-20):* keep both per-session curve files; the default for the VLS manuscript phase scripts
+  (`scripts/pose3d_phase_curves.py`, `scripts/pose3d_phase_from_peak.py`) is **mouth0**
+  (`<pose3d>/phase/vls_manuscript/curves_mouth0_first_peak.csv.gz`: tongue-in-mouth frames count as 0). The pipeline's
+  `<pose3d>/phase/curves.csv.gz` (in-mouth frames excluded for side / down / out) stays available with
+  `--curves-source pipeline`; `--curves` overrides either. `pose3d_phase_curves.py --kind` now defaults to `peak` with
+  mouth0 (the mouth0 file holds first licks, kind `peak` only; other combinations exit with a pointer to `pipeline`).
+  Both scripts gained `--out-suffix`.
+- *Scope of the protrusion analyses:* they use only licks that occurred; trials without a lick enter the results via
+  the trial-outcome classes (Fig 2B / 4B), not as zero-protrusion curves.
+- *Check of the existing tables:* `c2_phase_first_{dist,mid0}_peak_sessions.csv` had been built from `curves.csv.gz`
+  while their `_aligned` cluster p came from mouth0. Regenerated under the mouth0 default to NEW files
+  `c2_phase_first_{dist,mid0}_peak_sessions_mouth0.csv` (`pose3d_phase_curves.py first dist mid0 --across sessions
+  --out-suffix _mouth0`; old files untouched). Same 2,706 rows, same n_sessions / n_animals; 'sig' masks identical
+  (dist 366 / 738 bins, mid0 647 / 738). Values: dist max |diff| 2.6e-4 (mean rows; median 1.7e-5; |v| up to 1.33),
+  SEM max 6.2e-5; mid0 max |diff| 2.3e-3 (median 1.2e-4; |v| up to 36), SEM max 5.6e-4. No figure change needed beyond
+  pointing the dist / mid0 panels at the `_mouth0` files when they are next rendered.
+
+## 2026-11-20 -- Cohort-2 treadmill review scripts added to the repo
+- `scripts/c2_treadmill_cue_aligned.py`, `scripts/c2_treadmill_extras.py`, `scripts/c2_s13_treadmill_from_fr.py`: copies
+  of the review scripts in `vls_stroke_paper/review/c2_treadmill_2026-11-20/` (cue-aligned treadmill push / walk with
+  the aligned rule; first-95-min check + session lengths; S13 pre-stroke treadmill traces on the FaceRhythm sessions).
+  Only the import path changed (repo root instead of `$WF_REPO`) plus lint-only fixes; refuse-to-overwrite kept;
+  outputs listed in each docstring (`<out_dir>` argument and `$MC/data/`). `c2_treadmill_cue_aligned_first95.py` and
+  the `c2_engagement_tim/` scripts are not added yet (still being run / revised).
+
+## 2026-11-20 -- Fig 5C FaceRhythm pre-stroke timecourses made in the pipeline (`scripts/fr_pre_timecourses_abs.py`)
+- *Context:* the manuscript's `manuscript_code/data/fr_pre_timecourses_abs.npz` (Fig 5C) had no producer in this repo.
+  Priya approved adding one (2026-11-20).
+- *Recipe:* the factor gallery's "pre-stroke trials by position" (`face_rhythm.factors.report.cmd_report`,
+  `absolute=True`): per PRE-stroke proj session of `fr_cam4_20261021/factors/master_pre_v1` (sorted by file name),
+  `trials x trials_D` (absolute expression), nanmean over the session's trials at each spout position;
+  (sessions x 151 x 12) per position, plus `sessions_<position>` labels.
+- *Result:* written to `<FR readouts>/master_pre_v1/vls_manuscript/fr_pre_timecourses_abs.npz`
+  (`M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/...`). EXACTLY equal to the manuscript file
+  (every position array and t_ms byte-equal, max |diff| 0; sessions 32/32/31/32/32/32 for close_L / close_center /
+  close_R / far_L / far_center / far_R), so the recipe above is the manuscript's.
+
+## 2026-11-20 -- Per-point permutation clusters of the FaceRhythm aligned maps (for Fig 5B rings)
+- *Context (Priya 2026-11-20):* Fig 5B's rings were drawn from `marks` in `aligned_maps_cache_point.pkl` (the 10-24
+  per-point bootstrap rule: boot_delta CI excludes 0 AND animals agree AND BH), while the legend and S14 describe the
+  PERMUTATION clusters of `face_rhythm_aligned_maps.py --perm` (11-07; 10,000 within-animal session shuffles,
+  `face_rhythm.stats.session_shuffle_test`, cluster mass |t| > 2). Per-point cluster membership had not been saved
+  (`aligned_maps_perm_clusters.csv` is cluster-level), so the figure could not use it.
+- *Decision:* `face_rhythm_aligned_maps.py --perm 10000 --perm-points` re-runs ONLY the permutation test (seed 0, same
+  loop order as the 11-07 run, so the same draws) and writes the new
+  `<FR readouts>/master_pre_v1/aligned_maps/data/aligned_maps_perm_points.csv` (align, position, epoch, point, x, y,
+  mean_log2, t, cluster [-1 = none], p_cluster, sig_cluster = the ring, sig_point = max-statistic FWE, n_perm); no figure
+  or other CSV is rewritten; refuses to overwrite. 3 min 10 s.
+- *Check:* all 54 alignment x position x epoch cells reproduce the stored `aligned_maps_perm_clusters.csv` exactly (same
+  cluster keys, n_points, masses, p < .05 calls) and the png titles' counts (e.g. lick far_R acute: 2 clusters,
+  1164 ringed points, max-stat 1035; the old bootstrap marks gave 950). Fig 5B should read `sig_cluster` from this file.
+
+## 2026-11-20 -- v41 sync branches merged to main (Priya: "Merge to main when safe")
+- Fast-forward of main (49283ea2) to: `sync41/c2-phase-fr-tables` (1e015216), the mouth0-default / treadmill-scripts
+  commit, a `--no-ff` merge of `ms-v41-c2-outcome-weight-stats` (619f337f + 142086ca; no conflicts; its two scripts
+  classified as behavior writers in `tests/test_share_writers_mode_safe.py`), the Fig 5C FaceRhythm writer and the
+  aligned-maps `--perm-points` option. Full suite on the merged tree: 6523 passed; the only other failure,
+  `test_sig_marks_top_band` on `scripts/cohort2_qc/quiet_boot_stars.py`, is already on origin/main (fae48012) and
+  untouched here. The `c2_engagement_tim/` and two-tone `c1/` review scripts are not added yet (still being revised).
+
 ## 2026-11-20 -- GLM-HMM role share by trial class: definitions (jaw-only question, Priya)
 - *Context:* Priya 11-20: which GLM-HMM role (engaged / partial / disengaged) do jaw-only trials fall into, in the
   six-position cohort (PS92-95; review comment C2 control refits in

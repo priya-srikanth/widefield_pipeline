@@ -49,6 +49,16 @@ BEHAVIOUR = {
     "june_drift_summary_fig.py",
     # main's labeled cam1 + cam4 still pair (production LP pose on raw video frames only; no imaging), 11-09
     "pose_frame_pair.py",
+    # VLS manuscript cohort-2 statistics (11-19/20): behavior / pose tables only; inputs are literal manuscript /
+    # pipeline paths (the hit-rate input is a pinned rebuild run tag, not the current run mode), outputs are new
+    # *_aligned / vls_manuscript files. c2_scalar_family_aligned (6a69f29b) had been left unclassified on main.
+    "c2_scalar_family_aligned.py", "pose3d_phase_from_peak.py",
+    # cohort-2 trial outcomes (Fig 4B) / weight by epoch (Fig 3D), 11-20: trial-class + weight tables only; the class
+    # input is a literal LP v36 imaging_encoding/qc file, outputs are new files under Widefield/manuscript_stats
+    "c2_outcome_stats_aligned.py", "c2_outcome_weight_epoch_stats.py",
+    # Fig 5C input (11-20): FaceRhythm proj files of the frozen master only; writes <FR readouts>/<set>/vls_manuscript/
+    # (the M:/MICROSCOPE literal is the manuscript file it compares against, read-only)
+    "fr_pre_timecourses_abs.py",
 }
 INDIRECT = {
     "coupling_vigour_sm.py", "decoder_retention_sessions.py", "lick_correction.py",

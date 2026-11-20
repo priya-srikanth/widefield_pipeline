@@ -35,7 +35,8 @@ Writes (never overwrites; refuses if present):
   <hit dir>/epoch_1bdelta_behaviour_by_position_aligned.csv
   <reach dir>/pose3d_change_pooled_contra_aligned.csv  (reach_mm rows)
 
-Usage: python scripts/c2_scalar_family_aligned.py [--dry-run]   (paths default to the manuscript's sources)
+Usage: python scripts/c2_scalar_family_aligned.py [--dry-run] [--out-dir DIR]   (paths default to the manuscript's
+sources; --out-dir writes every output into DIR under the same names, e.g. to check a regeneration bit for bit)
 """
 from __future__ import annotations
 
@@ -233,6 +234,10 @@ def main(argv=None):
     ap.add_argument("--stats", type=Path, default=STATS)
     ap.add_argument("--reach", type=Path, default=REACH)
     ap.add_argument("--reach-sessions", type=Path, default=POSE3D / "kinematics/sessions.csv")
+    ap.add_argument("--out-dir", type=Path, default=None,
+                    help="write every output here under its usual file name instead of next to its inputs "
+                         "(regeneration check against the manuscript's copies; inputs are still read from the "
+                         "default / given paths)")
     ap.add_argument("--dry-run", action="store_true")
     a = ap.parse_args(argv)
     F, src = build(a)
@@ -250,6 +255,9 @@ def main(argv=None):
         targets.append((F[F.metric == m][keep].rename(columns=col), fn))
     targets.append((F[F.metric.isin(["latency_ms", "licks_per_resp", "ili_ms"])][keep].rename(columns=col),
                     a.stats / "change_vs_pre_stats_contra_aligned.csv"))
+    if a.out_dir is not None:
+        a.out_dir.mkdir(parents=True, exist_ok=True)
+        targets = [(df, a.out_dir / path.name) for df, path in targets]
     for df, path in targets:
         _write(df, path, a.dry_run)
     s = F.groupby("metric", sort=False).agg(cells=("p", "size"), old=("old_star", lambda x: int((x > 0).sum())),
