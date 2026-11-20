@@ -51,6 +51,9 @@ BEHAVIOUR = {
     # pipeline paths (the hit-rate input is a pinned rebuild run tag, not the current run mode), outputs are new
     # *_aligned / vls_manuscript files. c2_scalar_family_aligned (6a69f29b) had been left unclassified on main.
     "c2_scalar_family_aligned.py", "pose3d_phase_from_peak.py",
+    # cohort-2 trial outcomes (Fig 4B) / weight by epoch (Fig 3D), 11-20: trial-class + weight tables only; the class
+    # input is a literal LP v36 imaging_encoding/qc file, outputs are new files under Widefield/manuscript_stats
+    "c2_outcome_stats_aligned.py", "c2_outcome_weight_epoch_stats.py",
 }
 INDIRECT = {
     "coupling_vigour_sm.py", "decoder_retention_sessions.py", "lick_correction.py",
