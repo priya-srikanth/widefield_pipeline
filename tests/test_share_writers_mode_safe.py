@@ -38,6 +38,8 @@ BEHAVIOUR = {
     "pose3d_side_check.py", "pose3d_side_loo.py", "pose3d_side_video.py", "side_clean_qc.py", "side_label_offsets.py",
     # licks across cameras on the side review clips (pose / lick events only), 11-18
     "camera_licks.py",
+    # GLM-HMM role share by trial class (behavior only; reads the review C2 refits by literal path), 11-20
+    "states_jaw_only_roles.py",
     # main's FaceRhythm spout-in-mesh control (video factors only, writes the FR readouts dir), 11-05 merge
     "fr_spout_mesh_control.py",
     # main's within-session decline arm (licks / trials / pose only; writes its own within_session_decline dir), 11-08

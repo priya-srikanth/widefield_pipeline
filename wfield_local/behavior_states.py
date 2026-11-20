@@ -248,6 +248,59 @@ def glmhmm_engaged(T: pd.DataFrame) -> dict:
     return {lab: {t for t, r in d.items() if r == "engaged"} for lab, d in glmhmm_trial_roles(T).items()}
 
 
+def glmhmm_role_column(T: pd.DataFrame) -> pd.Series:
+    """Per-trial role ('engaged' / 'partial' / 'disengaged') of the most probable state, aligned to ``T``'s index."""
+    roles = glmhmm_roles(T)
+    pc = _pcols(T)
+    return pd.Series([roles[int(pc[i][7:])] for i in T[pc].to_numpy().argmax(1)], index=T.index, name="role")
+
+
+#: ROLE SHARE BY TRIAL CLASS (Priya 11-20: which GLM-HMM role do jaw-only trials fall into?). Trial classes are the
+#: GLM-HMM's own outcome levels (camera classes): attempt = contact + incomplete, jaw-only, no response.
+ROLE_SHARE_CLASSES = {"attempt": ("contact", "incomplete"), "jaw_only": ("jaw_only",), "no_response": ("no_response",)}
+#: Near-middle spout: the spout occludes the chin, so jaw-only cannot be called there and a no-lick trial is classed
+#: no response (FINDINGS 9.1). Role-share readouts drop it for EVERY class, so the three classes share one trial set.
+JAW_BLIND_POSITIONS = ("close_center",)
+#: A session enters a class's share only with at least this many trials of that class (a 1-trial session would put a
+#: 0 / 1 share on the same footing as a 40-trial one).
+ROLE_SHARE_MIN_TRIALS = 5
+
+
+def role_share_sessions(T: pd.DataFrame, role_col: str = "role", exclude_pos=JAW_BLIND_POSITIONS) -> pd.DataFrame:
+    """Per session x trial class (`ROLE_SHARE_CLASSES`): ``n_trials`` and ``share_<role>`` = the fraction of those
+    trials whose most probable state has that role (``T[role_col]``: from `glmhmm_role_column`, or a refit's roles).
+    ``T`` needs label / animal / epoch / cls / position. Trials at ``exclude_pos`` and trials without a role are
+    dropped."""
+    D = T[~T.position.isin(exclude_pos) & T[role_col].isin(ROLES)]
+    rows = []
+    for cname, members in ROLE_SHARE_CLASSES.items():
+        for (lab, an, ep), g in D[D.cls.isin(members)].groupby(["label", "animal", "epoch"], sort=True):
+            r = {"label": lab, "animal": an, "epoch": ep, "cls": cname, "n_trials": len(g)}
+            vc = g[role_col].value_counts(normalize=True)
+            r.update({f"share_{k}": float(vc.get(k, 0.0)) for k in ROLES})
+            rows.append(r)
+    return pd.DataFrame(rows)
+
+
+def role_share_summary(S: pd.DataFrame, min_trials: int = ROLE_SHARE_MIN_TRIALS) -> pd.DataFrame:
+    """Animal-level summary of `role_share_sessions`: per class x epoch (and 'pooled' = every epoch), each animal's
+    mean over its sessions with >= ``min_trials`` trials of the class, then the mean over animals (each animal counts
+    once). Also n_animals / n_sessions / n_trials and the per-animal values (``<role>_<animal>`` columns)."""
+    from wfield_local import orofacial_cohort as oc
+    S = S[S.n_trials >= min_trials]
+    rows = []
+    for cname in ROLE_SHARE_CLASSES:
+        for ep in [*oc.EPOCH_ORDER, "pooled"]:
+            d = S[S.cls == cname] if ep == "pooled" else S[(S.cls == cname) & (S.epoch == ep)]
+            A = d.groupby("animal", sort=True)[[f"share_{k}" for k in ROLES]].mean()
+            r = {"cls": cname, "epoch": ep, "n_animals": len(A), "n_sessions": len(d), "n_trials": int(d.n_trials.sum())}
+            for k in ROLES:
+                r[k] = float(A[f"share_{k}"].mean()) if len(A) else np.nan
+                r.update({f"{k}_{a}": float(v) for a, v in A[f"share_{k}"].items()})
+            rows.append(r)
+    return pd.DataFrame(rows)
+
+
 #: GLM-HMM STATE colors (Priya 11-18: state colors were too close to the spout colors). Hues kept clear of the spout
 #: hues (`spout_behavior.SIDE_HUE` blue / purple / red) and the epoch colors (`orofacial_cohort.EPOCH_LINE` black /
 #: magenta / gold / teal); engaged states = one green ramp (dark -> light in state order), separable by lightness under

@@ -8,6 +8,8 @@ glmhmm_state_curves,1.6,,glmhmm_state_curves.png,1
 glmhmm_state_given_type,1.7,,glmhmm_state_given_type.png,1
 glmhmm_state_curves_by_epoch,1.8,,glmhmm_state_curves_by_epoch.png,1
 glmhmm_state_curves_by_epoch_first95,1.9,,glmhmm_state_curves_by_epoch_first95.png,1
+jaw_only_role_share,1.10,,jaw_only_role_share.png,1
+jaw_only_role_share_epochs,1.11,,jaw_only_role_share_epochs.png,1
 push_by_epoch_lick_period,2.1,,push_by_epoch_lick_period_dpre.png,1
 wheel_cue_aligned_lickgate,2.2,,wheel_cue_aligned_lickgate.png,1
 wheel_cue_aligned_outcome,2.3,,wheel_cue_aligned_outcome.png,1

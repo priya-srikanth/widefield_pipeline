@@ -2310,6 +2310,18 @@ licking, largely by animal; the merge moves the engaged call of 5 of 56,978 tria
    (P peak .39 chronic), jaw-only and no-response trials almost never (<= .01); the residual push on GLM-HMM
    not-engaged trials is the partial state (86 % of those pushes; attempted partial trials .24, subacute + chronic).
    Jaw-only trials happen while walking (2.3-4.7 mm/s). Walking in the cue window: no reliable change. Page 2.1-2.6.
+9.2b. **Jaw-only trials are not engaged trials: mostly disengaged, partly partial; unchanged after the stroke:
+   PROVISIONAL** (Priya 11-20). Share of each trial class in each GLM-HMM role (most probable state), every trial,
+   near-mid spout dropped for every class, sessions with >= 5 trials of the class, mean of animal means. Production
+   K5 v2, pooled: jaw-only .09 engaged / .32 partial / .59 disengaged (disengaged the largest share in 4/4 animals:
+   .67 / .58 / .61 / .49), no response .08 / .18 / .74, attempt .96 / .04 / .005; by epoch jaw-only disengaged
+   .51 pre / .49 acute / .60 subacute / .53 chronic (chronic 3 animals). Two warm-started K5 refits (review C2:
+   outcome observed on ipsi + mid spouts only; any jaw opening = response) keep jaw-only .52 / .47 disengaged and move
+   it into engaged .17 / .25. Change vs own pre of the jaw-only disengaged share: none in any model or epoch
+   (session MWU + BH and boot_delta; production -.03 [-.31, .24] acute, +.09 [-.06, .24] subacute); one star in
+   all: ipsimid jaw-only engaged acute +.22 [.04, .46]. Acute PS95 is the exception (jaw-only .78 partial, .02
+   disengaged). Circular in part (the outcome class is a model output; the init refit is the least circular).
+   Page 1.10-1.11; `scripts/states_jaw_only_roles.py`, `behavior_states.role_share_sessions`.
 9.3. **Movement repertoire on engaged trials: acute stillness and fewer contralesional licks; chronic ipsilesional /
    central licks and push up: PROVISIONAL.** AR-HMM (pooled seed 1, groups from Priya's 11-17 reel review): quiet
    +.11 acute; contralesional lick share of lick frames .44 pre, -.12 acute, -.07 subacute, -.07 chronic (4/4) --

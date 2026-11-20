@@ -23924,3 +23924,19 @@ Handoff `docs/status/STATUS_2026-11-16_ENCDESIGN_TIM_STATES_HANDOFF.md` (section
   `tests/test_chronic_epoch.py::test_no_animal_is_pinned_and_the_settled_bar_is_one_sd` (pin contract now tested with
   a local pin), `tests/test_epochs.py SPEC`. The next nightly re-stamps `epoch_boundaries.json` with K_RES 1.0 and
   the new rule text; boundary values do not change.
+
+## 2026-11-20 -- GLM-HMM role share by trial class: definitions (jaw-only question, Priya)
+- *Context:* Priya 11-20: which GLM-HMM role (engaged / partial / disengaged) do jaw-only trials fall into, in the
+  six-position cohort (PS92-95; review comment C2 control refits in
+  `vls_stroke_paper/review/c2_treadmill_2026-11-20/c2_engagement_tim/`).
+- *Definitions chosen:* (1) a trial's role = the role of its MOST PROBABLE state (argmax; the same call as the
+  page's GLM-HMM gate), not the mean posterior of Fig 1.7; (2) the near-mid spout (`close_center`) is dropped for
+  EVERY class, not only jaw-only, so attempt / jaw-only / no response share one trial set
+  (`behavior_states.JAW_BLIND_POSITIONS`); (3) a session enters a class's share with >= 5 trials of that class
+  (`ROLE_SHARE_MIN_TRIALS`); (4) summaries are animal-weighted (mean over an animal's sessions, then over animals);
+  (5) refit roles come from each refit's own state profiles by the `glmhmm_roles` rule; (6) test = shared rule,
+  `orofacial_stats.session_change_tests`, star = q < .05 AND the boot_delta CI excludes 0.
+- *Cross-check:* trial-pooled shares from these functions equal the review helper's `jaw_only_by_glmhmm_role.csv`
+  (other_spouts rows) exactly, every model x class x epoch.
+- *Enforced at:* `wfield_local/behavior_states.py` (`glmhmm_role_column`, `role_share_sessions`,
+  `role_share_summary`), `scripts/states_jaw_only_roles.py`; states page Figs 1.10-1.11; FINDINGS 9.2b.
