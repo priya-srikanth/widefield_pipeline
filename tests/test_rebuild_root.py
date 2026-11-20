@@ -312,6 +312,10 @@ RESOLVED = {
     "wfield_local/sync_audit.py",
 }
 LITERAL = {
+    # six-position engagement / TIM review scripts (11-20, VLS paper engagement prompt): read the rebuild root by
+    # literal, write only under vls_stroke_paper/review/ on the share
+    "scripts/c2_engagement_tim/s0_camera_working.py",
+    "scripts/c2_engagement_tim/s4_session_tables.py",
     "scripts/cohort2_qc/channel_drift.py",
     "scripts/cohort2_qc/quiet_restyle_figs.py",   # quiet restyle 11-18: same literal rebuild_20261103 root as its siblings
     "scripts/cohort2_qc/cohort1_impact.py",
