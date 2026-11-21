@@ -107,3 +107,27 @@ Mac prompt `vls_stroke_paper/PROMPT_c2_4cam_3d_refresh.md` (Phase A gate -> B ta
   D3 NOTE: the fusion covers the collected TRIAL WINDOWS (strobe - 0.5 s .. stop + 3 s, cut at the next trial; ~99.7 % of
   the video, pilot); the video before the first and after the last trial is not in any camera's windows, so "full
   session" needs those edges added at collect (all cameras) -- not done (a collect-level change; not a 3-D step).
+- ~15:30 PHASE A GATE (dc884bbf `scripts/pose3d_phaseA_gate.py`, dlc env: pandas 2.3.3 / numpy 2.2.6 / scipy 1.15.3 /
+  sklearn 1.7.2), 50 pre-stroke sessions (31 curated August), tables `session_poses/pose3d_4cam_3net_20261121/qc_phaseA/`.
+  1 COVERAGE PASS: tongue 3-D share >= two-camera in 50 / 50 sessions, jaw in 49 / 50 (PS92 0605 jaw 0.992 vs 0.994;
+  its tongue 2.5 % -> 12.3 %). August medians, tongue (all frames) 2cam -> 4cam: PS92 10.1 -> 12.5 %, PS93 12.6 -> 13.0,
+  PS94 11.1 -> 12.3, PS95 5.7 -> 6.2; >= 2-view tongue 6.8 / 9.2 / 8.1 / 3.8 -> 11.2 / 11.3 / 11.4 / 5.6 %; jaw 80-99 ->
+  99.3-99.95 %. Reprojection is larger in cam1 / cam4 by construction (over-determined fit; the 11-04 approved fusion
+  numbers): August tongue cam1 3.0-3.9 -> 5.3-6.7 px, cam4 2.8-3.7 -> 4.2-5.8, side 1.7-2.2; jaw cam1 1.0-1.7 -> 6.8-11.7
+  (cam1 chin label), cam4 0.9-1.6 -> 2.7-5.4, side 1.3-2.4. June cam4 rep 12-16 px (June cam4 rescale) and the two
+  cam3-dropped sessions (PS92 0602 / 0603: cam4 11 px, cam2 5.4) are the worst; 3-D point 2cam vs 4cam on common frames
+  median 0.15-0.20 mm tongue (June 0.28-0.35), 0.26-0.55 mm jaw (PS95 August largest).
+  2 AGREEMENT PASS: own 3-D licks matched (peaks <= 30 ms) 85 % of 2cam / 96 % of 4cam licks (median; min 4cam 0.20 =
+  PS92 0605, 2,874 vs 867 licks); identical cam4 windows 212,401 licks. Per animal r (identical licks) lateral
+  0.986-0.992, midline angle 0.979-0.985, reach 0.966-0.988; mean offset 4cam - 2cam lateral -0.013..+0.037 mm, angle
+  +0.06..+0.46 deg, reach +0.10..+0.18 mm (side views place the tip further out, as at 11-04).
+  3 DECODING PASS (pose3d_vs_cam4.decode, LOSO August pre, identical licks): 2cam 0.805 / 0.674 / 0.862 / 0.737
+  (= production table exactly) -> 4cam 0.886 / 0.706 / 0.875 / 0.801 (PS92-95); own 3-D licks 0.891 / 0.702 / 0.878 /
+  0.810; chance 0.17.
+  4 SUBMOVEMENT PASS on the stated criteria, FLAGGED: 4cam threshold calibrates to theta_sp 40 (2cam 50; theta_ml 50
+  both). Real > noise surrogate in 4 / 4 (cued, mean of animals 0.166 vs 0.048; 2cam 0.159 vs 0.050). Far lateral >
+  close lateral in 3 / 4 (PS93 fails in both runs) BUT the contrast shrinks: 0.211 vs 0.147 (2cam 0.301 vs 0.059); close
+  spouts gain CSMs (close_ipsi 0.078 -> 0.203, close_mid 0.057 -> 0.181), far lose (far_ipsi 0.32 -> 0.23, far_contra
+  0.28 -> 0.20); PS95 close_mid 0.37 > far. The four-camera track changes the CSM measure -> review before step 7
+  (recovery mechanics). Extraction pickles in qc_phaseA/within_lick_correction (not the routed folder, so Phase B cannot
+  reuse them by skip-if-exists); two-camera = cached production extraction, read only.
