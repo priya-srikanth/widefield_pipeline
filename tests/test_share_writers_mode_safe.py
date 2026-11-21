@@ -63,6 +63,7 @@ BEHAVIOUR = {
     # outputs, pinned as literals, read-only, so the output does not vary with the env mode); outputs are new files
     # under Widefield/manuscript_stats and the paper's manuscript_code/data
     "c2_recovery_mechanics_stats.py",
+    "c2_manuscript_correlations.py",   # VLS Fig 4F + angle-latency rho from iti_licks behaviour tables (no imaging input)
     # Fig 5C input (11-20): FaceRhythm proj files of the frozen master only; writes <FR readouts>/<set>/vls_manuscript/
     # (the M:/MICROSCOPE literal is the manuscript file it compares against, read-only)
     "fr_pre_timecourses_abs.py",

@@ -24109,3 +24109,38 @@ Handoff `docs/status/STATUS_2026-11-16_ENCDESIGN_TIM_STATES_HANDOFF.md` (section
   file (it no longer recomputes).
 - *Classified* in `tests/test_share_writers_mode_safe.py` BEHAVIOUR (behavior / pose tables only; literal v36 inputs).
 
+
+## 2026-11-21 -- Six-position manuscript analyses: last paper-only computations ported; refresh runbook (Priya)
+- *Context:* Priya 2026-11-21: the 4-camera / 3-network 3D kinematics will be run soon, so every six-position number in
+  the VLS manuscript must regenerate from code in this repo; the manuscript only plots. Audit of the paper's
+  `manuscript_code` (v18) against this repo:
+  - already here: phase curves / phase-axis tables / cluster tests (`pose3d_phase_mouth0`, `pose3d_phase_curves`,
+    `pose3d_phase_from_peak`, `c2_phase_sessions_aligned`; v41 sync 2026-11-20), the single scalar family
+    (`c2_scalar_family_aligned`), trial-outcome fractions / bootstrap / distribution test and the weight LMM
+    (`c2_outcome_stats_aligned`, `c2_outcome_weight_epoch_stats`, `c2_outcome_distribution_test`), recovery mechanics
+    (`c2_recovery_mechanics_stats`, PR #1), FaceRhythm session / point tables (`face_rhythm_session_shape_tests`,
+    `fr_pre_timecourses_abs`), first-lick delay cells (`revup_behaviour`), engagement (`c2_engagement_tim/s0-s6`);
+  - paper-only until now: the Fig 4F angle - hit-rate correlations (the session join of `make_farcontra_aim_hit.py`,
+    the per-animal Spearman rho in `c2_panels.py aimhit_single`, and the recovered-session estimate quoted in the Fig 4F
+    legend, which no script recorded), and the angle - latency Spearman rho, raw and detrended on log(day), drawn in
+    `c2_angle_latency.py` (the coupling in `revup_behaviour.py` is a different, Pearson / mixed-model test).
+- *Decision:* new `scripts/c2_manuscript_correlations.py` computes both (arithmetic of the paper scripts unchanged;
+  recovered = post-stroke sessions with far-contra hit rate >= 0.9 x the animal's own pre mean; estimate = the
+  ANIMAL-WEIGHTED mean with an animal-then-session nested bootstrap, B = 5000, seed 0). The paper gets plot-only
+  variants `figures/c2_aimhit_plot.py` and `figures/c2_angle_latency_plot.py` that read these tables (new names; the
+  old scripts are kept). New `docs/MANUSCRIPT_C2_REFRESH.md`: the ordered commands from 3D pose to every six-position
+  manuscript table, with the new-names rule and the list of in-text numbers to re-check.
+- *Checks (2026-11-21, Mac, stroke_orofacial env, pandas 3.0.2, PYTHONPATH = worktree):* session join equal to the
+  manuscript's `farcontra_aim_hit_sessions.csv` (107 rows, max |diff| 0); rho 0.733 / 0.901 / 0.793 / 0.647 (PS92-95,
+  p 0.0004 / <1e-4 / 0.0001 / 0.0027) = the Fig 4F legend; recovered sessions 47, animal-weighted -7.26 deg, 95% CI
+  -13.2 to -3.6, animal means -4.5 / -4.8 / -15.9 / -3.9 = the legend's -7.3 [-13.2, -3.6] and -3.9 to -15.9 (the
+  session-pooled mean is -6.8); angle - latency rho -0.66 / -0.62 / -0.78 / -0.64 raw, detrended -0.60 / -0.69 / -0.56 /
+  -0.38 (p 0.007 / 0.001 / 0.013 / 0.11: three of four animals) = the text. Plot-only variants render pixel-identically
+  to the original scripts in the same environment. While auditing, the repo's phase pipeline was re-checked against
+  the manuscript tables: `c2_phase_first_{side0,down0,mid0,dist}_phase_sessions.csv` regenerate with every value,
+  p, q and significant bin identical; mouth0 curves equal on spot-checked sessions.
+- *Outputs (new, refuse to overwrite):* `Widefield/manuscript_stats/c2_correlations/{farcontra_aim_hit_sessions,
+  aim_hit_per_animal, aim_hit_recovered, angle_latency_per_animal}.csv`. Inputs are 3D-kinematic: regenerate with the
+  4-camera tracking (runbook step 8).
+- *Enforced at:* `scripts/c2_manuscript_correlations.py`; `docs/MANUSCRIPT_C2_REFRESH.md`;
+  `tests/test_share_writers_mode_safe.py` (BEHAVIOUR).
