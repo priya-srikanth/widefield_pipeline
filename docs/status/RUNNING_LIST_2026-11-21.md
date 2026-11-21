@@ -82,3 +82,16 @@ Mac prompt `vls_stroke_paper/PROMPT_c2_4cam_3d_refresh.md` (Phase A gate -> B ta
   (`camera_licks session --saved`) does not rebuild the fused session a second time (~8 min / session saved).
 - ~10:35 step 3 started: `scripts.pose3d production --all --four-cam lp_side_r2b_prod_20261118 --jobs 6` (dlc env;
   SOURCE=4cam, TAG=_3net_20261121, v37 + cam1_licks_v37 routing); log `lp_stage/rerun_20261121/logs/pose3d_4cam_full.log`.
+- ~13:40 step 3 DONE: four-camera 3-D for all 126 sessions (same set as the two-camera `pose3d/`), 0 errors,
+  `session_poses/pose3d_4cam_3net_20261121/` (+ summary_production_lp_side_r2b_prod_20261118.csv; side events in
+  `camera_licks/lp_side_r2b_prod_20261118_3net_20261121/`). Median per session: tongue in 3-D 11.6 % of frames (cam1 +
+  cam4 alone 7.7 %), jaw 99.94 % (min PS95 0820 91.4 %), fit residual 0.05 mm. Side gate dropped cam3 in 4 sessions:
+  PS92 0602 / 0603 (as predicted), PS95 0818 (rms600 1.56) and PS95 0820 (rms600 1.26, max over 2.0) -- PS95 0818 / 0820
+  are next to the PS95 cam2 jaw-confidence dip (0819-0827): worth a look at the side camera set-up those days.
+  3-D LICKS: four-camera = 1.015 (August) / 1.009 (June) per cam4 post-cue lick (session medians); two-camera production
+  = 1.113 / 1.255. Peak-to-peak intervals < 40 ms: two-camera 45,282, four-camera 0 (the floor); 40-80 ms: two-camera
+  40,571, four-camera 6,034 (~1 % of cam4 licks: the 40 vs 60-80 ms floor decision above). So the session-level drop vs
+  the two-camera counts (median -8 %, June ~ -21 %) is the two-camera track's fragments, not lost licks. PS92 0605:
+  two-camera 867 licks (cam1 + cam4 tongue 1.5 % of frames) -> four-camera 2,874 (the side views rescue the session).
+  Tables: `lp_stage/rerun_20261121/checks/{pose3d_4cam_vs_2cam,licks_vs_cam4}.csv`.
+- ~13:45 step 4 started: cam1 pass 2 (`in_3d` against the four-camera 3-D), then the fusion (`--saved`).
