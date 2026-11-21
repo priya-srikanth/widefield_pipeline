@@ -62,3 +62,6 @@ Mac prompt `vls_stroke_paper/PROMPT_c2_4cam_3d_refresh.md` (Phase A gate -> B ta
   coupling_vigour_sm, enl_lick_audit, lick_firstlick_extract, lick_vigor_perspout, june_drift_summary_fig, stray_licks,
   pose3d_jaw_depth_model_check, ...) -- they would silently read the 2-cam tables in a 4cam run; (3) runbook step 1 says
   the 4-cam run writes session_poses/pose3d/ and never sets WIDEFIELD_POSE3D_SOURCE=4cam (coordinator fixes the doc).
+- ~08:30 side collect DONE: 270 videos OK (+ PS93 0814 / PS94 0817 from the pilot); `session_poses/<a>_<d>_cam2_full` /
+  `_cam3_full`. Not collected: PS94 0601 and PS95 0601 side views (no side alignment template; both outside the curated
+  set). Task 208 (PS95 0603 cam3, one trailing frame without a timestamp) collected OK.
