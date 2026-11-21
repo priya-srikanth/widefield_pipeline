@@ -150,3 +150,7 @@ Mac prompt `vls_stroke_paper/PROMPT_c2_4cam_3d_refresh.md` (Phase A gate -> B ta
   - Q7: look at examples -> diagnostic running (`qc_phaseA/ps95_side_week/`: daily side-camera frames + side-only licks).
   - Q8: full session = first to last sync pulse (all cameras); collect window to be widened and only the head / tail
     stretches run through 2-D -> 3-D -> fusion.
+- 14:05 (11-21) ILI-floor diagnostic done (eef212a0, `scripts/pose3d_ili_floor_examples.py`; README + figs in
+  `pose3d_4cam_3net_20261121/qc_phaseA/ili_floor_examples/`): 40-60 ms pairs are 85 % fragments of ONE protrusion
+  (retraction median -0.09), 60-80 ms mixed (some true double pumps), controls clean; 60 ms floor -0.57 % licks, 80 ms
+  -0.93 %. Suggested (not adopted) retraction rule instead of a time floor -- decision for Priya.
