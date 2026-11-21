@@ -204,6 +204,11 @@ and no cut when the tongue does not return inside one unbroken run (`event_cuts(
 
 Each layer reads only the layers above it. Do not start a layer until the one above is checked (section 3).
 
+**PRIORITY (Priya 11-21): "when we re run, once we have the 3d data, prioritize the kinematic analyses before downstream
+neural analyses (i'll have to update a pending manuscript)".** After L1a-L2 are checked, run the KINEMATICS branch of
+section 4 first (3-D kinematics tables, kinematics page / figures, the manuscript numbers); neural branches (encoding,
+imaging, state space, quiet events) come after.
+
 | layer | what | code / command | output |
 |---|---|---|---|
 | L0 | cam2 / cam3 whole-session LP (round-2 side model) | O2, Priya runs; runbook `runbooks/o2_pose_inference.md`; side bundle from main | side predictions (model space) |
