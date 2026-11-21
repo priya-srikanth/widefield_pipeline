@@ -61,7 +61,13 @@ from wfield_local import config
 #: v35 = jaw x ceiling 75 + x jump test + bracketed flip rule (x-only) + hidden jaw NaN + inter-lick tongue veto +
 #: jaw-off-tongue (all adopted 2026-10-14 / 15, DECISIONS).
 #: v36 = v35 + the June camera-scale correction (`orofacial_camera`, 2026-10-18): June pose x 0.8853 before cleaning.
-CLEANING_VERSION = "v36"
+#: v37 = v36 + the spout-position rule (Priya 11-04, docs/status/SPOUT_POSITION_AUDIT_2026-11-04.md; executed with the
+#: four-camera re-run, D1 = (a) 11-21): the session spout frame from the NO-LICK ENL medians (`spout_frame.ruler_medians`)
+#: instead of every confident frame of the whole trial windows, and the per-trial spout reference = that session median
+#: of the trial's position (`SpoutFrame.ref_medians`).
+CLEANING_VERSION = "v37"
+#: the spout-frame rule per cleaning version (a v36 re-process must stay byte-compatible with the v36 tree)
+ENL_SPOUT_FROM = "v37"
 PARTS_ORDER = ("nose", "jaw", "tongue", "spout")
 
 
@@ -147,13 +153,32 @@ def _flat(ix_len: int, sel: np.ndarray, parts: list[str]) -> pd.DataFrame:
                          for j, c in enumerate(("x", "y", "likelihood"))})
 
 
+def session_spout_frame(flat: pd.DataFrame, ix: pd.DataFrame, spans, cleaning: str = CLEANING_VERSION):
+    """(SpoutFrame, source) of one session. From `ENL_SPOUT_FROM` on: the no-lick ENL medians (`ruler_medians`, Priya's
+    11-04 rule), with ``ref_medians`` set so the per-trial spout reference is the session median too; a session whose
+    ENL frames cannot build the frame (a needed position has no parked, untouched frames) falls back to the whole-window
+    medians and says so (``source`` = "whole_window_fallback"). Before v37: the whole-window medians, as v36 did."""
+    from wfield_local import spout_frame as SF
+    whole = SF.position_medians(flat[["spout_x", "spout_y", "spout_likelihood"]].to_numpy(), spans)
+    if str(cleaning) < ENL_SPOUT_FROM:
+        return SF.from_medians(whole), "whole_window"
+    med = SF.ruler_medians(flat, ix)
+    try:
+        fr = SF.from_medians(med)
+    except ValueError:
+        fr = SF.from_medians(whole)
+        fr.ref_medians = dict(med) or None
+        return fr, "whole_window_fallback"
+    fr.ref_medians = dict(med)
+    return fr, "enl_no_lick"
+
+
 def process_session(rv, bundle: str, animal: str, date: str, force: bool = False, log=print) -> dict | None:
     """O2 bundle outputs of one session -> its folder in the run: windows, cleaned traces, kinematics tables, QC."""
     import cv2
 
     from wfield_local import kinematics_chain as D
     from wfield_local import camera_sync, o2_inference as oi
-    from wfield_local import spout_frame as SF
     from wfield_local import trial_windows as TW
     bd = oi.bundle_dir(rv, bundle)
     bj = json.loads((bd / "bundle.json").read_text(encoding="utf-8"))
@@ -202,7 +227,7 @@ def process_session(rv, bundle: str, animal: str, date: str, force: bool = False
         sel[:, :, :2] *= px_scale
     flat = _flat(len(ix), sel, parts)
     spans = [(int(gg.index.min()), int(gg.index.max()) + 1, str(gg.position.iloc[0])) for _, gg in ix.groupby("trial_k")]
-    frame = SF.from_medians(SF.position_medians(flat[["spout_x", "spout_y", "spout_likelihood"]].to_numpy(), spans))
+    frame, frame_src = session_spout_frame(flat, ix, spans)
     b = TW.trial_bounds(animal, date, rv)
     stops = dict(zip(b.trial_id, b.stop_s - b.cue_s))
     contacts = D.daq_contacts_ms(animal, date, b, rv)
@@ -239,7 +264,11 @@ def process_session(rv, bundle: str, animal: str, date: str, force: bool = False
            "source_bundle": bundle, "videos": srcs, "n_trials": int(ix.trial_k.nunique()), "n_rows": int(len(ix)),
            "n_licks": int(len(T.per_lick)), "n_precue_licks": int(len(P)), "n_excluded_0_70_licks": int(len(X)), "n_iti_licks": int(len(Q)), "n_contact_licks": int(T.per_lick.get("contact", pd.Series(dtype=bool))
                                                                     .fillna(False).astype(bool).sum()),
-           "px_scale": px_scale, "params_digest": params_digest(), "code_commit": code_commit(),
+           "px_scale": px_scale, "spout_frame_source": frame_src,
+           "spout_ref_source": "enl_session" if frame.ref_medians else "trial",
+           "spout_ref_positions_without_enl": sorted(set(ix.position.astype(str)) - set(frame.ref_medians or {}))
+           if frame.ref_medians else [],
+           "params_digest": params_digest(), "code_commit": code_commit(),
            "created": time.strftime("%Y-%m-%d %H:%M")}
     (sd / "manifest.json").write_text(json.dumps(man, indent=1), encoding="utf-8")
     log(f"{animal} {date}: {man['n_trials']} trials, {man['n_licks']} licks -> {sd}")

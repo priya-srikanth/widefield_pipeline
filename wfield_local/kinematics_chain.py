@@ -48,7 +48,7 @@ def run(pose_csv: Path, idx: pd.DataFrame, frame: SF.SpoutFrame | None, stop_aft
     sfr = tk.SpoutFrame(tuple(frame.origin), tuple(frame.ap_axis)) if frame is not None else None
     # OURS: the model's own spout, laid out like the cleaned tongue arrays (padded clip index), for reach accuracy
     T = tk.from_clean(clean["tongue"][0], trials, spout_frame=sfr, spout_xy=_spout_arrays(clean, df), contacts_ms=contacts_ms,
-                      params_override=params_override)
+                      params_override=params_override, spout_ref_medians=getattr(frame, "ref_medians", None))
     J, _ = jk.jaw_pertrial(clean["jaw"][0].y_final, clean["jaw"][0].fps, trials_df)
     M = tm.classify_from_clean(clean["jaw"][0], clean["tongue"][0], trials_df)
     return T, J, M, clean
@@ -98,7 +98,8 @@ def epoch_licks(clean: dict, idx: pd.DataFrame, frame: SF.SpoutFrame | None, df:
     override["bout_table"] = {"detect_win_ms": big, "plot_win_ms": big}
     T = tk.from_clean(ct, tk.trials_from_frame(trials_df), spout_frame=(
         tk.SpoutFrame(tuple(frame.origin), tuple(frame.ap_axis)) if frame is not None else None),
-        spout_xy=_spout_arrays(clean, df), contacts_ms=contacts, params_override=override)
+        spout_xy=_spout_arrays(clean, df), contacts_ms=contacts, params_override=override,
+        spout_ref_medians=getattr(frame, "ref_medians", None))
     L = T.per_lick.copy()
     if not len(L):
         return L

@@ -1025,17 +1025,33 @@ def phase_mean(ph: pd.DataFrame, var: str, *, by=("phase",), min_coverage: float
     return mu, se
 
 
-def trial_spout_reference(trials: list, spout_xy, fps: float, frame: SpoutFrame | None, *, p: dict) -> pd.DataFrame:
+def trial_spout_reference(trials: list, spout_xy, fps: float, frame: SpoutFrame | None, *, p: dict,
+                          medians: dict | None = None) -> pd.DataFrame:
     """OURS: per trial, the spout tip (median of frames with spout likelihood >= spout_ref.lk_thr from the cue to
     the trial stop, else the fallback window) in image px and in the spout frame: spout_angle_deg =
     atan2(lr, ap) (same convention as the tongue angle), spout_dist_px from the mouth. ``spout_xy`` = (x, y,
-    likelihood) session arrays aligned with the tongue arrays."""
+    likelihood) session arrays aligned with the tongue arrays.
+
+    ``medians`` ({position: (x, y, n)}, v37): the SESSION's no-lick ENL median of the trial's position is the
+    reference instead (Priya 11-04 spout rule, docs/status/SPOUT_POSITION_AUDIT_2026-11-04.md item 2; the per-trial
+    licking-period median carried 1-3 % unbiased noise and single-trial outliers up to 27 px). ``spout_n_frames`` is
+    then the median's frame count; a position with no ENL median falls back to the per-trial median
+    (``spout_ref_source`` says which)."""
     sx, sy, sl = (np.asarray(a, dtype=np.float64) for a in spout_xy)
     thr = float(p["spout_ref"]["lk_thr"])
     fb = p["spout_ref"]["fallback_win_ms"]
     n = len(sx)
     rows = []
+    src = []
     for tr in trials:
+        m = medians.get(str(tr.position)) if medians else None
+        if m is not None:
+            ap, lr = spout_coords(float(m[0]), float(m[1]), frame)
+            rows.append((tr.trial_id, float(m[0]), float(m[1]), float(ap), float(lr),
+                         float(np.degrees(np.arctan2(lr, ap))), int(m[2])))
+            src.append("enl_session")
+            continue
+        src.append("trial")
         c = float(tr.cue_frame)
         stop = TW.stop_ms_of(tr.cue_frame, tr.stop_frame, fps)
         lo_ms, hi_ms = (0.0, stop) if stop is not None else (float(fb[0]), float(fb[1]))
@@ -1050,6 +1066,8 @@ def trial_spout_reference(trials: list, spout_xy, fps: float, frame: SpoutFrame 
     t = pd.DataFrame(rows, columns=["trial_id", "spout_x_img", "spout_y_img", "spout_ap_px", "spout_lr_px",
                                     "spout_angle_deg", "spout_n_frames"])
     t["spout_dist_px"] = np.hypot(t.spout_ap_px, t.spout_lr_px)
+    if medians is not None:
+        t["spout_ref_source"] = src
     return t
 
 
@@ -1079,7 +1097,8 @@ class TongueKinematics:
 def compute_tongue_kinematics(x_final, y_final, fill_method, likelihood, trials: Iterable[Trial] | pd.DataFrame, *,
                               fps: float = 250.0, X0: float | None = None, Y0: float | None = None,
                               spout_frame: SpoutFrame | None = None, params_override: dict | None = None,
-                              spout_xy=None, contacts_ms: dict | None = None) -> TongueKinematics:
+                              spout_xy=None, contacts_ms: dict | None = None,
+                              spout_ref_medians: dict | None = None) -> TongueKinematics:
     """v7 per-trial pipeline + features over a session (the v7 path of their `_build_tongue_pertrial_core`).
 
     ``x_final, y_final, fill_method, likelihood`` are `orofacial_clean.Clean` x_final / y_final / fill_method /
@@ -1124,8 +1143,8 @@ def compute_tongue_kinematics(x_final, y_final, fill_method, likelihood, trials:
     y_g = y_c if y_img is None else np.where(b_c, 0.0, y_img)      # image y for angles (OURS: protrusion mode)
     angle = (per_frame_angle_smoothed(x_c + X0, y_g + Y0, spout_frame, fps, p=p)
              if spout_frame is not None else None)
-    sref = (trial_spout_reference(trials, spout_xy, fps, spout_frame, p=p).set_index("trial_id")
-            if spout_xy is not None else None)
+    sref = (trial_spout_reference(trials, spout_xy, fps, spout_frame, p=p, medians=spout_ref_medians)
+            .set_index("trial_id") if spout_xy is not None else None)
     match_ms = float(p["contact"]["match_ms"])
     match_mode = p["contact"].get("match", "peak")
     span_pad = float(p["contact"].get("span_pad_ms", 8.0))
@@ -1244,9 +1263,10 @@ def compute_tongue_kinematics(x_final, y_final, fill_method, likelihood, trials:
 
 
 def from_clean(clean, trials, *, spout_frame: SpoutFrame | None = None, params_override: dict | None = None,
-               spout_xy=None, contacts_ms: dict | None = None) -> TongueKinematics:
+               spout_xy=None, contacts_ms: dict | None = None,
+               spout_ref_medians: dict | None = None) -> TongueKinematics:
     """`compute_tongue_kinematics` on an `orofacial_clean.Clean` (tongue)."""
     return compute_tongue_kinematics(clean.x_final, clean.y_final, clean.fill_method, clean.lk, trials,
                                      fps=float(clean.fps), X0=float(clean.X0), Y0=float(clean.Y0),
                                      spout_frame=spout_frame, params_override=params_override,
-                                     spout_xy=spout_xy, contacts_ms=contacts_ms)
+                                     spout_xy=spout_xy, contacts_ms=contacts_ms, spout_ref_medians=spout_ref_medians)
