@@ -159,3 +159,12 @@ Mac prompt `vls_stroke_paper/PROMPT_c2_4cam_3d_refresh.md` (Phase A gate -> B ta
   sampled PS95 0818-0827 side-only licks 17 = paw sweeping into view, 2 grooming, 1 water drop, 1 real (close_center);
   near-mouth (<= 4 mm) & >= 20 ms side-only stay ~0.1 % all week (post-hoc rule, 5/5 real kept, 1/36 false).
   Recommend: keep side geometry + gate, add a side-only guard in `camera_licks` before adopting the four-camera train.
+- 11-21 Q4 CSM diagnostic (`scripts/pose3d_csm_examples.py` + `pose3d_csm_fixes.py`, `qc_phaseA/csm_examples/README.md`):
+  close-spout CSM gain = mostly a measure-edge artifact: 33-75 % of four-camera close CSM peaks are on the run's LAST frame
+  (zero-padded `_peaks` edge; tail into the mouth, one-view fills / side-only, labels on the lip); not counting it takes
+  close ipsi / mid 0.20 / 0.18 -> 0.014 / 0.009 (2cam 0.035 / 0.018). Residual view-subset bias after production offsets
+  0.008-0.035 mm (<< 0.16 mm / frame), bias correction no effect; switch replay +1-2 % false CSMs; switch-aware surrogate
+  0.047 -> 0.058 (theta 40 -> 50). Same-threshold pattern persists (H3 out); far loss on the same licks = two-view noise
+  in 2cam (cam1+cam4-only far contra 0.25 vs 4cam 0.16). EM Kalman / RTS smoother FAILS injection (keeps 18-61 % of real
+  pulses) -> not adopted. Recommend: no-last-frame-peak rule in both runs + switch-aware noise control; Priya to decide
+  whether CSM share stays a step-7 primary readout (4cam CSMs 1-3 % under the rule).
