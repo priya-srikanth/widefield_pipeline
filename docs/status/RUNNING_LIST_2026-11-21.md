@@ -95,3 +95,15 @@ Mac prompt `vls_stroke_paper/PROMPT_c2_4cam_3d_refresh.md` (Phase A gate -> B ta
   two-camera 867 licks (cam1 + cam4 tongue 1.5 % of frames) -> four-camera 2,874 (the side views rescue the session).
   Tables: `lp_stage/rerun_20261121/checks/{pose3d_4cam_vs_2cam,licks_vs_cam4}.csv`.
 - ~13:45 step 4 started: cam1 pass 2 (`in_3d` against the four-camera 3-D), then the fusion (`--saved`).
+- ~14:40 step 4 DONE. cam1 pass 2 (`in_3d` against the four-camera 3-D) into `cam1_licks_v37` (125 sessions; events_all
+  1,045,468, in_3d 56.7 %, droplets 6,751). Fusion (`camera_licks session --saved`, ~15 s / session instead of ~8.5 min,
+  D2 revised, trial-window span "all"), 126 sessions, 0 failures, `camera_licks/lp_side_r2b_prod_20261118_3net_20261121/`
+  (`<s>_fused.csv`, `<s>_events.csv`, `<s>_side_events.csv`, `views.csv`). Pooled: 1,103,693 licks; all four cameras
+  76.8 %; cam1-only 7.0 %; cam4-only 2.5 %; guarded-only dropped 5,479; side-only kept 14,696 (1.3 %; session median
+  0.42 %). Outliers: PS93 0805 95 % side-only (no behavior log -> no cam1 / cam4 events; exclude it from fused-train
+  analyses, as it is from the cam4 chain); PS95 August sessions 3-10 % side-only kept (PS95 0820 9.8 %, its cam3 dropped by
+  the gate) -- same PS95 0818-0827 window as the cam2 jaw-confidence dip: look at the PS95 side cameras on those days
+  before trusting PS95 August fused counts.
+  D3 NOTE: the fusion covers the collected TRIAL WINDOWS (strobe - 0.5 s .. stop + 3 s, cut at the next trial; ~99.7 % of
+  the video, pilot); the video before the first and after the last trial is not in any camera's windows, so "full
+  session" needs those edges added at collect (all cameras) -- not done (a collect-level change; not a 3-D step).
