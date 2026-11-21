@@ -24062,3 +24062,50 @@ Handoff `docs/status/STATUS_2026-11-16_ENCDESIGN_TIM_STATES_HANDOFF.md` (section
   (other_spouts rows) exactly, every model x class x epoch.
 - *Enforced at:* `wfield_local/behavior_states.py` (`glmhmm_role_column`, `role_share_sessions`,
   `role_share_summary`), `scripts/states_jaw_only_roles.py`; states page Figs 1.10-1.11; FINDINGS 9.2b.
+
+## 2026-11-21 -- Six-position recovery mechanics: manuscript statistics for a new VLS-paper supplement (Priya)
+- *Context:* the VLS paper's Discussion claimed (from FINDINGS 21-22 and lick_correction) that corrective submovements
+  become rarer, that within-lick correction does not change, that aim recovers between rather than within sessions,
+  that docked between-trial licks share the cued residual bias, and that the lick after a miss corrects more after
+  stroke. Priya (11-21) asked for these as a manuscript supplement, in the six-position panel style and statistics.
+- *Decision:* `scripts/c2_recovery_mechanics_stats.py` reads the existing session tables (nothing upstream recomputed):
+  `within_lick_correction/sessions.csv` (cued, far_contra, all orders / outcomes: e_L, e_E, corr, csm_share,
+  csm_false), `learned_compensation/t3_sessions.csv` (T3 primary = DOCKED ITI licks only: D_off, cued_mean, GAP) and
+  `iti_licks/lick_correction/corr_beh_sessions.csv` (all spouts, order any: step_b). Test =
+  `orofacial_stats.session_change_tests` (manuscript six-position rule; star = agree == both).
+- *FDR (Priya 11-21, following the 2026-11-19 single-family decision; membership amended):* the new endpoint cells
+  (e_L, e_E, corr, csm_share, D_off, GAP, step_b x 3 epochs = 21) JOIN the 162-cell six-position scalar family as ONE
+  BH family (183 cells); the primary q is that pooled q. The noise-surrogate control (csm_false) and the cued reference
+  (cued_mean) are NOT family members (a control and a comparison reference, not endpoints); they are tested with a
+  per-metric BH and labelled `control (outside family; per-metric BH)`. Pooling moves the published q of the 162 cells
+  by at most 0.0062 with 0 star flips; the new cells' stars are identical to the first (per-endpoint) run. The pooled
+  family is written under a NEW name, `c2_scalar_family_aligned_with_recovery.csv`, next to the 11-19
+  `c2_scalar_family_aligned.csv` (paper `manuscript_code/data/`), which is not touched. **The manuscript reads the
+  pooled file** for these cells (and may keep the 11-19 file's q for the 162 cells, whose stars are unchanged).
+- *Inputs (Priya 11-21):* the UNTAGGED v36 imaging_encoding tree (Oct 29-30), the same basis as the other six-position
+  manuscript tables. The rebuild-tagged (`_daqlk`, Nov 11) versions give the same stars (small numeric shifts, e.g.
+  D_off subacute -7.72 vs -7.63). All these inputs are 3D-kinematic (launch / endpoint angles, submovements, landing
+  angles), so they MUST be regenerated with the coming 4-camera / 3-network 3D tracking (refresh map:
+  within_lick_correction.py, learned_compensation.py, lick_correction.py, then this script).
+- *Rule 8:* the per-animal table carries non-NaN pre / epoch session counts. PS95 enters T3 (D_off / cued_mean / GAP)
+  with ONE non-NaN pre session and no acute session, so T3 acute has 3 animals; `n_animals` here counts animals with a
+  non-NaN value (orofacial_stats counts before dropna; not changed).
+- *T1 (aim recovers between rather than within sessions)* is NOT tested by this script; it is the pipeline's own mixed
+  model, `learned_compensation/t1_mixed.csv` (within-session x:post -2.5 [-5.2, 0.3]; overnight second:post +5.8
+  [2.9, 8.6]).
+- *Result (session change, nested bootstrap 95% CI; ** = pooled-family q < .05 and CI excl 0):* launch error -25.7** /
+  -7.0** / -3.2 (CI incl 0) acute / subacute / chronic; endpoint -26.0** / -8.3** / -3.5**; within-lick correction
+  not starred in any epoch; CSM share -0.13** / -0.15** / -0.14**; noise control (outside the family) MWU-only at
+  q .025 subacute and chronic, CI includes 0, not starred; docked ITI D_off -13.7** / -7.7** / -7.5**, cued reference
+  -14.7 / -8.6 / -6.8 (outside the family; both tests agree), GAP not starred; step_b +4.9** / +2.3** / +3.1**.
+  PROVISIONAL (n = 4).
+- *Environment:* run on the Mac in the `stroke_orofacial` conda env (pandas 3.0.2, numpy 2.4.3, scipy 1.17.1) with
+  `PYTHONPATH=<worktree>` (wfield_local resolved to the worktree), not the repo's `locanmf` env; a re-run on the analysis
+  desktop's locanmf env to confirm identical output is advisable (cf. the 11-20 pandas parsing note).
+- *Outputs (new files, refuse to overwrite):* `Widefield/manuscript_stats/c2_recovery_mechanics_v2_{stats,sessions,
+  per_animal}.csv` (supersede the first-run `c2_recovery_mechanics_*.csv`, kept) and
+  `vls_stroke_paper/manuscript_code/data/c2_scalar_family_aligned_with_recovery.csv`. Panels: the paper's
+  `vls_stroke_paper/review/c2_recovery_mechanics_2026-11-21/c2_recovery_mechanics_r2.py`, which reads the v2 stats
+  file (it no longer recomputes).
+- *Classified* in `tests/test_share_writers_mode_safe.py` BEHAVIOUR (behavior / pose tables only; literal v36 inputs).
+
