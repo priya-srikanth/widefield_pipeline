@@ -6,7 +6,12 @@ Mac prompt `vls_stroke_paper/PROMPT_c2_4cam_3d_refresh.md` (Phase A gate -> B ta
 
 ## Decisions needed (Priya) -- newest first
 
-- (none yet)
+- **3-D lick floor: 40 ms applied as authorized, but 40-80 ms looks like fragments too (small).** Pilot four-camera 3-D
+  licks under the adopted split, peak-to-peak intervals (PS93 0814 / PS94 0817): <40 ms 37 / 18 (now merged), 40-60 ms
+  27 / 5, 60-80 ms 22 / 6; cam4's own lick detector has 0 / 0 below 60 ms and 10 / 1 at 60-80 ms; the 3-D median is
+  160 / 168 ms. So ~0.9 % of PS93 3-D licks (40-80 ms) are probably still split. Option: raise the 3-D floor to 60 or
+  80 ms (cam4's empirical minimum) -- a parameter (`pose3d.lick_peaks(min_ili_ms=)`), re-applied from the frames
+  without re-running the 3-D. Running with 40 ms until you decide. Script: `lp_stage/pilot4cam/split/ili_hist.py`.
 
 ## Authorizations (Priya, 11-21 ~05:30)
 
@@ -29,3 +34,10 @@ Mac prompt `vls_stroke_paper/PROMPT_c2_4cam_3d_refresh.md` (Phase A gate -> B ta
 - 05:45 three independent blast-radius reviewers started (forward from inputs / backward from manuscript + pages /
   recent commits + plan audit); reports to `C:/Users/SabatiniLab/lp_stage/blast_radius/`.
 - June side-view spout-fit check running (Priya: same lenses June to August).
+- 06:10 all 274 verified in the bundle's out/ (273 OK + task 208 known off-by-one: the video has one frame past the last
+  timestamp line; frame ids are contiguous, so it is the trailing frame). Local temp folders deleted (48 GB).
+- 06:15 collect for every session started (`o2_inference collect --missing-only --jobs 6`; log
+  `lp_stage/rerun_20261121/logs/collect_side.log`).
+- 06:30 01fa06ad: 40 ms floor in `pose3d.lick_peaks` (merges sub-floor runs over the union of frames; tests) +
+  `WIDEFIELD_POSE3D_TAG` (run tag `_3net_20261121` -> `session_poses/pose3d_4cam_3net_20261121`; never on 2cam).
+- 06:35 Phase A prep agent: parked fixes in the 3-D path + one-session smoke test of the tagged production run.
