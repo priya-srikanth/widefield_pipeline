@@ -24062,3 +24062,18 @@ Handoff `docs/status/STATUS_2026-11-16_ENCDESIGN_TIM_STATES_HANDOFF.md` (section
   (other_spouts rows) exactly, every model x class x epoch.
 - *Enforced at:* `wfield_local/behavior_states.py` (`glmhmm_role_column`, `role_share_sessions`,
   `role_share_summary`), `scripts/states_jaw_only_roles.py`; states page Figs 1.10-1.11; FINDINGS 9.2b.
+
+## 2026-11-21 -- Four-camera re-run decisions D1, D2, D3 and the long cam1-only events (Priya, ~03:00-03:15)
+
+Decisions D1-D3 of `docs/status/STATUS_2026-11-18_CAM23_RERUN_INVENTORY.md` section 1, and the open question in its
+section 0b (long cam1-only "licks" that are water drops):
+
+- **D1 = (a)**: the cam4 2-D chain is regenerated under a NEW LP run tag (v37) with the spout-position fix, and every
+  downstream output is re-pointed to it. Recorded only; not started (it goes with the cam2 / cam3 re-run).
+- **D2 = two views**: a lick counts when at least TWO cameras see it (`camera_licks.lick_train(min_views=2)`). Priya
+  wrote "D2 - 2?", so check it against the whole-session pilot numbers (inventory section 0c) before the production run.
+  This also drops cam4-only and cam1-only licks, which the union rule kept.
+- **Water drops = (c)**: let the four-camera fusion decide. A cam1-only event that no other camera sees is dropped
+  (with D2 = 2 this follows directly). Options (a) leave and (b) drop cam1-only events >= 300 ms now were not taken.
+- **D3 = the full session**: lick events from every camera over the whole session (not only post-cue and not only
+  trial windows), so one lick train serves the cued, ITI, docked and lick-free windows.
