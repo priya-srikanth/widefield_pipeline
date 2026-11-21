@@ -24070,10 +24070,32 @@ section 0b (long cam1-only "licks" that are water drops):
 
 - **D1 = (a)**: the cam4 2-D chain is regenerated under a NEW LP run tag (v37) with the spout-position fix, and every
   downstream output is re-pointed to it. Recorded only; not started (it goes with the cam2 / cam3 re-run).
-- **D2 = two views**: a lick counts when at least TWO cameras see it (`camera_licks.lick_train(min_views=2)`). Priya
+- **D2 = two views** (SUPERSEDED ~04:00 the same night, next entry): a lick counts when at least TWO cameras see it (`camera_licks.lick_train(min_views=2)`). Priya
   wrote "D2 - 2?", so check it against the whole-session pilot numbers (inventory section 0c) before the production run.
   This also drops cam4-only and cam1-only licks, which the union rule kept.
-- **Water drops = (c)**: let the four-camera fusion decide. A cam1-only event that no other camera sees is dropped
+- **Water drops = (c)** (narrowed ~04:00, next entry): let the four-camera fusion decide. A cam1-only event that no other camera sees is dropped
   (with D2 = 2 this follows directly). Options (a) leave and (b) drop cam1-only events >= 300 ms now were not taken.
 - **D3 = the full session**: lick events from every camera over the whole session (not only post-cue and not only
   trial windows), so one lick train serves the cued, ITI, docked and lick-free windows.
+
+## 2026-11-21 -- D2 revised (any camera) and back-to-back lick splitting (Priya, ~04:00)
+
+After the whole-session pilot numbers (inventory section 0c: two views cost 9-16 % of licks, mostly short cam1-only
+events):
+
+- **D2 = any camera** (Priya: "cam 1 DOES capture the tiny tongue at the lips licks so we shouldn't get rid of those,
+  and maybe we'll just use the cam1 rules to get rid of water?"). A fused lick counts when any camera saw it: cam1-only
+  events after cam1's own rules (`cam1_licks.keep_mask`: droplet + far-from-mouth), side-only events only when another
+  camera confirms them (the side `static` / `far` guards), cam4-only licks as today. `camera_licks.lick_train`
+  default `min_views=1`; two views stays available as `min_views=2`.
+- **Water drops = cam1's rules + long unconfirmed cam1-only dropped**: a cam1-only lick lasting >= 300 ms that no
+  other camera sees is dropped (`camera_licks.LONG_CAM1_ONLY_MS`; the wobbling drops cam1's droplet rule misses, 11-18
+  trial 540). Pilot: drops 9 (PS93 0814) and 27 (PS94 0817) licks.
+- **Splitting back-to-back licks** (Priya: "yes can try splitting at other camera lick boundaries - but shouldn't we
+  also be able to tell based on the position the tongue returns to (the 'mouth')?"): both, combined. The anchor
+  cameras (cam4, then cam1 where cam4 does not call the span one lick) set HOW MANY licks; the cut goes where the 3-D
+  tongue returns closest to the mouth between the two peaks; no return inside one unbroken run (a held tongue) -> no
+  split (`camera_licks.event_cuts(events, S=frames)`), in the fusion and in `pose3d.lick_peaks`. The distance-minimum
+  rule alone (`camera_licks.mouth_cuts`) agreed with the camera boundaries on ~30 % of cuts and added cuts inside
+  single licks, so it is kept only for comparison. Numbers: inventory section 0c ("Splitting"). Pilot branch
+  `pilot/side4cam-wholesession`, not merged.

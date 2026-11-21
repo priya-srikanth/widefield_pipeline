@@ -93,9 +93,11 @@ Open: the clip-edge licks (side frames end at +1.5 s), and the first whole-sessi
 ## 0c. 11-21 whole-session pilot (two sessions; branch `pilot/side4cam-wholesession`, not merged)
 
 **Decisions (Priya 11-21 ~03:00-03:15; DECISIONS.md 2026-11-21):** D1 = (a) new cam4 2-D RUN v37 with the spout fix
-(recorded only, not started); D2 = a lick needs TWO camera views (she wrote "D2 - 2?": check against the numbers
-below); water drops (section 0b) = (c), the four-camera fusion decides; D3 = licks from every camera over the FULL
-session.
+(recorded only, not started); D3 = licks from every camera over the FULL session. **D2 REVISED ~04:00** (after the
+numbers below): "cam 1 DOES capture the tiny tongue at the lips licks so we shouldn't get rid of those, and maybe we'll
+just use the cam1 rules to get rid of water?" -> a lick from ANY camera counts (cam1 after `keep_mask`, side views only
+when confirmed, cam4 alone counts), and water drops = cam1's rules plus the narrow form of (c): a cam1-only lick
+>= 300 ms that no other camera sees is dropped (`camera_licks.lick_train` default; two views stays an option).
 
 **What ran** (O2 side run `lp_side_r2b_prod_20261118`; PS93 0814 + PS94 0817, both cam2 / cam3 videos verified):
 1. `python -m wfield_local.o2_inference collect --name lp_side_r2b_prod_20261118 --sessions PS93:20260814 PS94:20260817`
@@ -115,9 +117,11 @@ reprojection 3.4 px; 14,447 droplet frames. PS94 0817: tongue 3.4 % (cam1 + cam4
 frames. Per-lick medians barely move (PS93 reach 4.33 -> 4.41 mm, miss 1.36 -> 1.29, lateral error -0.79 -> -0.74;
 PS94 reach 3.75 -> 3.70, miss 1.01 -> 0.81, lateral 0.36 -> 0.29).
 **But fewer 3-D licks: PS93 5,851 -> 5,599 (-4 %), PS94 1,718 -> 1,618 (-6 %),** while 5,786 / 5,851 and 1,704 / 1,718
-two-camera licks have a four-camera peak within 40 ms. So the extra side frames bridge the gaps between consecutive
-licks and `pose3d.lick_events` (12 ms bridge) merges neighbours. OPEN: fix before the production run (e.g. split a
-3-D lick where cam4's lick table has two licks).
+two-camera licks have a four-camera peak within 40 ms. Two causes (worked out ~04:00, see "Splitting" below): mostly the
+TWO-camera count is inflated -- `pose3d.lick_peaks` breaks a run at any missing frame, and 273 two-camera PS93 "licks"
+are 32 ms fragments of a neighboring cam4 lick split off by a one-frame dropout (8 ms gap in 55 %, tongue 3.8 mm out:
+not a return to the mouth; 270 two-camera inter-lick intervals < 40 ms vs 37 four-camera); the four-camera track
+fills those dropouts. A smaller part is real merging: 62 four-camera runs (40 two-camera) hold two cam4 licks.
 
 **Lick fusion, whole session** (licks; share of all fused licks):
 
@@ -143,20 +147,52 @@ stop 5,297 / 5,904, after stop 649 / 783; PS94 943 / 1,129, 1,573 / 1,803, 74 / 
   PS94 far_center: 188 of its 241 licks are cam1-only. They are either short tongue flicks only the view below sees or
   cam1 false positives at that spout. Review a clip sheet of cam1-only far_center events before adopting D2 = 2.
 - **Fusion merges consecutive licks**: 310 fused PS93 licks contain 2-4 production cam4 licks (cam4 9,994 events ->
-  9,651 fused licks), because a side or cam1 event bridges the gap (`fuse` chaining; `test_fuse_chains_through_a_bridging_event_and_respects_tol`
-  asserts this on purpose). Same effect as the 3-D merge above. Decide: split a fused lick at cam4 (or cam1) lick
-  boundaries.
+  9,651 fused licks). 218 of them because cam4's OWN v36 spans overlap (225 overlapping consecutive pairs; `fuse`
+  chained them with no other camera), the rest bridged by a side / cam1 event. Fixed ~04:00, see "Splitting" below.
 - Side detector fragments licks (about 1,450 PS93 licks hold 2+ events of one side camera): harmless after fusion.
 - 35 side-only licks kept by the union in PS93 (0.3 %); with D2 = 2 they need both side views (4 in PS93, 4 in PS94).
 - One cam3 video (local run, task 208, PS95 0603) has 1 frame more than its timestamp CSV; `collect` checks
   against the video's own frame count, so it will pass. Check that the template timing handles the extra frame.
+
+**Splitting back-to-back licks + D2 revised (11-21 ~04:00, commit d207a12a).** Priya: "yes can try splitting at other
+camera lick boundaries - but shouldn't we also be able to tell based on the position the tongue returns to (the
+'mouth')?" Rules compared on both sessions (`C:/Users/SabatiniLab/lp_stage/pilot4cam/split/compare.py`, log
+`compare.log`; re-fused from the saved `_events.csv` and the pilot 3-D frames, no re-run of `fuse_session`):
+(a) cut at the cam4 (then cam1) lick boundaries (`camera_licks.event_cuts`: middle of the gap or overlap, between the
+peaks); (b) cut at prominent minima of the 3-D tip-to-mouth distance (`camera_licks.mouth_cuts`, prominence 0.5-1.5
+mm, 40 ms peak floor); (a+b) = (a)'s count, placed where the 3-D tongue is closest to the mouth between the two peaks,
+and no cut when the tongue does not return inside one unbroken run (`event_cuts(..., S=frames)`).
+
+| PS93 0814 (PS94 0817) | 3-D licks (2-cam 5,851 / 1,718) | 3-D licks with 2 cam4 peaks | 3-D ILI < 40 ms | fused licks | fused with 2+ cam4 | train, D2 revised |
+|---|---|---|---|---|---|---|
+| no split | 5,599 (1,618) | 62 (0) | 37 (17) | 10,684 (3,071) | 310 (14) | 10,428 (3,043) |
+| (a) boundaries, span midpoint | 5,741 (1,633) | 0 (0) | 84 (30) | 11,050 (3,098) | 0 (0) | 10,794 (3,070) |
+| **(a+b) boundaries at the tongue's return** | **5,661 (1,622)** | **14 (0)** | **37 (18)** | **11,025 (3,098)** | **19 (0)** | **10,768 (3,069)** |
+| (b) alone, 0.75 mm | 5,725 (1,625) | 19 (0) | 39 (18) | 10,813 (3,075) | 253 (14) | 10,557 (3,047) |
+
+- (a) at the span midpoint makes 47 PS93 3-D "licks" of 3-4 frames: the cut lands on the first lick's retracting
+  tongue and the piece's farthest frame sits right after it (ILI 37 -> 84). Placing the cut at the tongue's return
+  removes all of them (37, as uncut).
+- The 14 PS93 3-D runs still holding two cam4 peaks (a+b) are a held tongue: ~3 mm out for 70-120 ms with short cam4
+  events at both ends and no return between them, so no split (Priya's rule).
+- (b) alone agreed poorly with the camera boundaries: of (a)'s 179 cuts inside PS93 3-D runs, 38 had a (b) cut within
+  20 ms (0.75 mm); of (b)'s 126 cuts, 37 had an (a) cut. It splits only 72 of the 310 merged fused licks and adds cuts
+  inside single licks (the tip distance dips and re-extends within one lick). Tongue return between two cam4 licks
+  that shared a run: median 1.37 mm (10 % below 0.77 mm). Kept as an option, not the default.
+- **Recommended and now the default: (a+b)** in `camera_licks.fuse` (scripts/camera_licks) and
+  `pose3d.lick_peaks` (scripts/pose3d `--four-cam`). Four-camera 3-D licks are then -3 % / -6 % vs two-camera,
+  explained by the two-camera fragments above (not by merging).
+- **D2 revised counts** (train = any camera, guarded side-only dropped): PS93 10,768; keeping cam1-only >= 300 ms too
+  10,777 (the rule drops 9); two views 9,788. PS94 3,069; 3,096 (drops 27); 2,595.
+- Still open: whether `lick_peaks` should bridge one-frame dropouts (as `pose3d.lick_events` bridges 12 ms) -- it
+  would remove the two-camera fragments; the four-camera run mostly does not need it.
 
 ## 1. Decisions needed before running (Priya)
 
 | # | decision | why it matters | options / default proposed |
 |---|---|---|---|
 | D1 | **DECIDED 11-21: (a)** Does the cam4 **2-D** chain (LP run `orofacial_cohort.RUN = lp_r4_heatmap_20261013__clean_v36`) get regenerated in this re-run, under a new run tag? | The spout-rule fix (item 1 above) changes the v36 params digest, so it cannot be patched under v36. A new RUN moves EVERY output folder under `LP_analysis/<RUN>/` (licks, kinematics tables, `arhmm/`, `glm_hmm/`, `imaging_encoding/qc/` s1 snapshot, encoder outputs) | (a) new RUN `..._v37` with the spout fix, everything downstream re-pointed (proposed: one clean regeneration); (b) keep v36 2-D, re-run only 3-D and licks (cheaper; 2-D readouts keep the small, unbiased spout deviation) |
-| D2 | **DECIDED 11-21: two views (Priya "D2 - 2?"; see 0c)** **Lick fusion rule** for four cameras | Defines LP_POST, camera classes, RESTnl, quiet-event exclusion, encoder lick kernels | union of cameras with duplicate merge (as cam1 today: cam1-only events added when not cam4-matched, droplets removed) vs requiring 2 views; droplet / far-from-mouth guards per side camera |
+| D2 | **DECIDED 11-21, REVISED ~04:00: any camera (cam1 after its rules, side views when confirmed), cam1-only >= 300 ms dropped (see 0c)** **Lick fusion rule** for four cameras | Defines LP_POST, camera classes, RESTnl, quiet-event exclusion, encoder lick kernels | union of cameras with duplicate merge (as cam1 today: cam1-only events added when not cam4-matched, droplets removed) vs requiring 2 views; droplet / far-from-mouth guards per side camera |
 | D3 | **DECIDED 11-21: the full session, every camera** **Lick coverage**: post-cue only (as cam1 `_events.csv` today) or the whole trial window (`events_all`) | Today the ENL lick-free window is cam4-only because cam1 is scored only cue -> stop (`LICK_SOURCE_AUDIT_20261117.md`). Whole-window side licks would make the pre-cue / ITI / rest exclusions four-camera too | proposed: whole trial windows for every camera, so one train serves every window |
 | D4 | **Kinematics in 3-D or 2-D** -- DECIDED (Priya 11-18): "kinematics - we'll want mostly 3d" | The kinematics page mixes cam4 2-D (v36) and cam1 + cam4 3-D readouts | the kinematics readouts move to the four-camera 3-D (`pose3d_4cam`); 2-D only where a readout has no 3-D form |
 | D5 | **GLM-HMM / AR-HMM: refit or re-infer** | A refit renumbers states and changes every state figure; re-inferring with the saved parameters keeps the states | proposed: re-infer with the saved parameters (`glm_hmm/v1/params_pooled_all_K5_v2.json`; AR-HMM fits on the share) and report how many trials change state; refit only if the inputs moved a lot |
