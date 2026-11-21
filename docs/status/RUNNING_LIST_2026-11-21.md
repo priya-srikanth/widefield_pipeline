@@ -131,3 +131,5 @@ Mac prompt `vls_stroke_paper/PROMPT_c2_4cam_3d_refresh.md` (Phase A gate -> B ta
   0.28 -> 0.20); PS95 close_mid 0.37 > far. The four-camera track changes the CSM measure -> review before step 7
   (recovery mechanics). Extraction pickles in qc_phaseA/within_lick_correction (not the routed folder, so Phase B cannot
   reuse them by skip-if-exists); two-camera = cached production extraction, read only.
+- Phase C: `vls_stroke_paper/READY_desktop_c2_4cam_20261121.md` written (Phase A pass, gate 4 flagged; Phase B NOT run,
+  every table PENDING; 8 questions for Priya; superseded-output list). STOPPED here pending Priya's decisions.
