@@ -69,3 +69,16 @@ Mac prompt `vls_stroke_paper/PROMPT_c2_4cam_3d_refresh.md` (Phase A gate -> B ta
   sessions (= v36), 69 min + 1 min all-licks; all frames from ENL medians. v37 vs v36: licks median 0.0 %, licks_all
   0.01 %, origin 0.8 px median; outlier PS92 0929 (v36 close_R spout median 24 px off -> v36 mouth origin 37.7 px off;
   v37 correct; licks +4 %). Table `lp_stage/rerun_20261121/v37_vs_v36.csv`. RUN not flipped.
+- ~10:30 step 2 DONE (cam1 re-detection, v37): bbbf862e adds opt-in routing `WIDEFIELD_LICK_INPUT_RUN` (cam4 run) +
+  `WIDEFIELD_CAM1_LICKS_DIR` (versioned cam1 folder) to `lp_licks._inputs` / `scripts.cam1_licks` (unset = unchanged;
+  set = in `spec_token`); orofacial_cohort.RUN not flipped. Output `session_poses/cam1_licks_v37` (125 sessions; the
+  production folder has 119). ~90 s / session, 6 parallel. Pass 1 `in_3d` = the 2-cam 3-D (pass 2 after the four-camera
+  3-D). vs production `cam1_licks`: post-cue events median -0.03 % (min -5.1 %), events_all median -0.1 % (min -6.9 %);
+  8 sessions lose > 3 % of events_all (PS94 0823 / 0831, PS95 0812 / 0823 / 0825 / 0827 / 0903 / 0910), all with
+  droplet-flagged events down ~5-15x (e.g. PS95 0812 349 -> 55) and the cam4-matched share up (0.80 -> 0.86): the 11-18
+  detached-static drop mask (`mask_detached`, before cleaning) removing parked labels the production folder predates.
+  Table: `lp_stage/rerun_20261121/checks/cam1_compare_cam1_licks_v37.csv`.
+- 7b88afb9: the 3-D production run writes `<s>_side_events.csv` (tagged camera_licks folder) so the fusion
+  (`camera_licks session --saved`) does not rebuild the fused session a second time (~8 min / session saved).
+- ~10:35 step 3 started: `scripts.pose3d production --all --four-cam lp_side_r2b_prod_20261118 --jobs 6` (dlc env;
+  SOURCE=4cam, TAG=_3net_20261121, v37 + cam1_licks_v37 routing); log `lp_stage/rerun_20261121/logs/pose3d_4cam_full.log`.
