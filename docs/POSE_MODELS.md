@@ -1099,6 +1099,31 @@ four review sessions mapped to raw (`lp_sidecam.to_raw`); reference = production
   the side nose as its own keypoint (or subtract ~0.75 mm dv, but it varies 0.3-1.2 by session).
 * June side (800 x 600, 1.24x face) posed acceptably with the August intrinsics (1.1 px) and gave the same offsets; to be
   confirmed on more June sessions before trusting June side 3-D.
+* **June side views, every session (11-21; Priya: "it's the same lenses june to august").** Spout PnP (`pnp_group`'s
+  SQPnP + LM, 09-11 intrinsics) on the whole-session side medians (`lp_side_r2b_prod_20261118`, `ruler_medians`) for all
+  23 June sessions with side output (PS92 0602-0608, PS93 0605-0608, PS94 0603-0608, PS95 0603-0608; PS94 / PS95 0601
+  have no side windows) against 7 August references. Script + tables: `C:/Users/SabatiniLab/lp_stage/pilot4cam/june_pnp/`
+  (`june_pnp.py`, `pnp_aug.csv`, `pnp_june2.csv`, `offsets.log`).
+  * Reprojection (rms px over the six spouts): August 0.41-1.17 (cam2 median 0.88, cam3 0.55); June 0.52-1.36 (cam2) and
+    0.45-1.07 (cam3) except **PS92 0602 / 0603 cam3, 2.1-2.2 px (max 2.6-2.9)**, which also pose 10 mm off the other June
+    sessions. In 600-px units (June px x 0.75) June is 0.4-1.0, i.e. at or below August.
+  * The frame-size question: the spout spacing is 1.27x (cam2) / 1.29x (cam3) larger in June px, and with the AUGUST K
+    the June cameras pose 1.27-1.28x closer (105 vs 134 mm). With the 09-11 K rescaled to the 800-px frame (x 4/3,
+    principal point included) they pose at 137-141 mm, 3-5 % behind August, with the same reprojection. Same lens and
+    position, finer sampling of the same field, camera ~4 % further back -- which is why the face is ~1.28x (not 1.33x)
+    larger. The two intrinsics hypotheses are indistinguishable from six near-coplanar spouts (focal length and distance
+    trade off), and it does not matter for 3-D: the world rays of every confident side jaw / tongue point agree within
+    **0.01 mm median, 0.07 mm p95** at the mouth between the two (K, pose) pairs.
+  * Orientation: June cameras sit 1-3 deg (cam2) / 2.5-4.7 deg (cam3) from the August median pose (August spread 0-2.8 deg)
+    -- a small set-up difference, absorbed by the per-session PnP.
+  * Offsets (`fuse_session` stats, side keypoint vs the cam1 + cam4 3-D point): June PS93 0607 / PS94 0607 nose dv
+    +0.56 to +1.00 mm, tongue <= 0.29 mm; August PS93 0814 nose dv +1.13 / +1.14, tongue <= 0.19 -- inside the 11-04 ranges
+    (nose 0.29-1.18, tongue 0.12-0.30). Jaw fused in 99.98 % of frames in all three.
+  * **Recommendation:** replace the blanket June skip with a per-session, per-camera gate for ALL sessions: spout
+    reprojection rms <= 1.5 px in 600-px units (rms x 600 / frame width) and max <= 2.0. June passes except PS92 0602 /
+    0603 cam3 (1.6 / 1.65 rms in 600-px units), both outside the curated set (6/6-6/8 + 8/6 on) anyway. Optional
+    tidy-up: scale the 09-11 side K by width / 600 for 800-px sessions, so June camera positions are physical (3-D points
+    are unchanged either way). Pipeline code not changed yet (report first).
 * **Correction 11-04 (Priya: "I thought we were using cam4 spout as truth and building in the cam1 offset").** Against
   the commanded tip (= cam4's keypoint), per position, PS93 0814: `session_3d`'s per-frame spout -1.04 mm ap (it
   triangulates cam1's inferior + cam4's superior edge as one point; identical at all six positions), cam1 + cam4 with
