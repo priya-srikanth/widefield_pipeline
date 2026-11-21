@@ -723,3 +723,222 @@ def run(sids: list | None = None, out: Path | None = None, jobs: int = 6) -> Non
         print(isum.round(3).to_string())
         print("conditional on raw detection (truth series):")
         print(pd.DataFrame(cond).round(3).to_string())
+
+
+# ================================================================================================ gate 4 under the edge rule
+#: GATE 4 RE-RUN UNDER THE EDGE RULE (coordinator 11-21, after the first report): identical counting for real licks AND
+#: both surrogates, both runs. Variants: ``prod`` = the gate-4 count (every zero-padded peak), ``e2`` = no peak counted on
+#: the run's FIRST or LAST frame (both exist only through `_peaks`' zero padding), ``e2f`` = e2 + no peak counted on a
+#: one-view-fill frame (4cam ``tongue_views`` -1; 2cam ``tongue_src`` 2 / 3; the surrogate inherits the lick's frames).
+#: Surrogates as gate 4: T9 = SG(9,3) of the track, iid = T9 + N(0, session SD) (`noise_*` of the gate-4 pickle), false =
+#: CSM(noisy) > CSM(T9) under the same variant; switch-aware (4cam only: subset offsets are measured only there) = iid +
+#: the 10-bin reach-profile bias of each frame's real view set. Threshold per run x variant x surrogate by the prereg rule
+#: (min theta on 30..200 with false <= 0.05, August pre post-cue full_ok licks = every lick here).
+VARIANTS = ("prod", "e2", "e2f")
+
+
+def _counts(P: np.ndarray, k: int, drop: np.ndarray) -> dict:
+    """{variant: tuple of CSM counts over GRID}; ``drop`` = per-frame fill mask."""
+    pk = EX.peaks_idx(EX.speed(P), k)
+    n = len(P)
+    out = {}
+    for v in VARIANTS:
+        if v == "prod":
+            q = pk
+        else:
+            q = [p for p in pk if p[0] not in (0, n - 1) and (v == "e2" or not drop[p[0]])]
+        out[v] = tuple(len(EX.csm_peaks(q, t)) for t in GRID)
+    return out
+
+
+def edge_worker(sid: str) -> dict:
+    EX._env()
+    import within_lick_correction as W
+    from scipy.signal import savgol_filter
+    from wfield_local.paths import PathResolver
+    D = EX.dirs()
+    rv = PathResolver()
+    an, date = sid.split("_")
+    A = pd.read_csv(Path(rv.root("orofacial")) / EX.V36 / "sessions" / an / date / "licks_all.csv",
+                    usecols=["trial_id", "on_ms", "off_ms"])
+    A["lick_uid"] = np.arange(len(A))
+    A = A.set_index("lick_uid")
+    tab = bias_tables(pd.read_pickle(D["out"] / "fused" / f"{sid}.pkl"))
+    rows = []
+    for run in ("2cam", "4cam"):
+        Lk = pd.read_pickle(D[f"{run}_licks"] / f"{sid}.pkl")
+        m = W.working_mask(sid, Lk["trial_id"].to_numpy())
+        Lk = Lk[m & (Lk.context == "post_cue").to_numpy() & Lk.full_ok.to_numpy()]
+        sd = Lk[["noise_ml", "noise_ap", "noise_dv"]].iloc[0].to_numpy(float)
+        S = EX.load_frames(D, run, sid)
+        fill = (S.tongue_views.to_numpy() == -1) if run == "4cam" else np.isin(S.tongue_src.to_numpy(), (2, 3))
+        vc = S.vcode.to_numpy()
+        g = {k: (v.t_ms.to_numpy(float), v[["tongue_ml", "tongue_ap", "tongue_dv"]].to_numpy(float), v.index.to_numpy())
+             for k, v in S.groupby("trial_id")}
+        rng = np.random.default_rng(zlib.crc32((sid + run).encode()))
+        for r in Lk.itertuples():
+            fr = g.get(int(r.trial_id))
+            if fr is None:
+                continue
+            tr = EX.lick_track(W, fr, A.loc[r.lick_uid, "on_ms"], A.loc[r.lick_uid, "off_ms"])
+            if tr is None or len(tr[1]) < 9:
+                continue
+            t, P, ix = tr
+            k = int(np.argmax(np.linalg.norm(P, axis=1)))
+            drop = np.where(ix >= 0, fill[np.clip(ix, 0, None)], False)
+            T9 = savgol_filter(P, 9, 3, axis=0)
+            Tn = T9 + rng.normal(0, 1, T9.shape) * sd
+            row = {"sid": sid, "animal": an, "run": run, "lick_uid": int(r.lick_uid), "pos": r.pos,
+                   **{f"real_{v}": c for v, c in _counts(P, k, drop).items()},
+                   **{f"sm_{v}": c for v, c in _counts(T9, k, drop).items()},
+                   **{f"iid_{v}": c for v, c in _counts(Tn, k, drop).items()}}
+            if run == "4cam":
+                code = np.where(ix >= 0, vc[np.clip(ix, 0, None)], 0)
+                code = np.where((code >= 100) | (code <= 0), 0, code)
+                Tsw = Tn + bias_at(tab, code, T9, "b10")
+                row.update({f"sw_{v}": c for v, c in _counts(Tsw, k, drop).items()})
+            rows.append(row)
+    return {"sid": sid, "rows": rows}
+
+
+def _at(col: pd.Series, th: float) -> np.ndarray:
+    i = GRID.index(int(th))
+    return np.array([x[i] for x in col])
+
+
+def gate4_edge(jobs: int = 6) -> None:
+    from wfield_local import analysis_kit as ak
+    D = EX.dirs()
+    out = D["out"] / "gate4_edge"
+    out.mkdir(parents=True, exist_ok=True)
+    res, fail = ak.fan_sessions(EX.sessions(D), edge_worker, jobs=jobs)
+    if fail:
+        raise SystemExit(f"failed: {[(j, str(e)[:400]) for j, e in fail]}")
+    T = pd.DataFrame([r for _, v in res for r in v["rows"]])
+    T.to_pickle(out / "licks_edge.pkl")
+    # 1. thresholds
+    cal = []
+    for run in ("2cam", "4cam"):
+        R = T[T.run == run]
+        for v in VARIANTS:
+            for sur in ("iid", "sw"):
+                if sur == "sw" and run == "2cam":
+                    continue
+                th, fr = calib(R[f"sm_{v}"], R[f"{sur}_{v}"])
+                cal.append({"run": run, "variant": v, "surrogate": sur, "theta": th, "n_licks": len(R),
+                            **{f"false_at_{t}": fr[GRID.index(t)] for t in (30, 40, 50, 60)}})
+    C = pd.DataFrame(cal)
+    C.to_csv(out / "thresholds.csv", index=False, float_format="%.4f")
+    # 2-3. per session -> per animal (gate-4 aggregation: session cell n >= 10, mean over sessions, pooled = mean of animals)
+    groups = {"all": list(POS_ORDER), **{p: [p] for p in POS_ORDER}}
+    rows = []
+    for c in C.itertuples():
+        R = T[T.run == c.run]
+        for thn, th in (("own", c.theta), ("40", 40.0), ("50", 50.0)):
+            if th is None or (isinstance(th, float) and np.isnan(th)):
+                continue
+            real = _at(R[f"real_{c.variant}"], th) >= 1
+            fa = _at(R[f"{c.surrogate}_{c.variant}"], th) > _at(R[f"sm_{c.variant}"], th)
+            Q = R[["sid", "animal", "pos"]].assign(real=real, false=fa)
+            for gname, ps in groups.items():
+                q = Q[Q.pos.isin(ps)]
+                ss = q.groupby(["animal", "sid"]).agg(n=("real", "size"), real=("real", "mean"), false=("false", "mean"))
+                ss = ss[ss.n >= 10].reset_index()
+                pa = ss.groupby("animal")[["real", "false"]].mean()
+                for an, r in pa.iterrows():
+                    rows.append({"run": c.run, "variant": c.variant, "surrogate": c.surrogate, "theta_kind": thn,
+                                 "theta": th, "group": gname, "animal": an, "real": r.real, "false": r.false})
+    P = pd.DataFrame(rows)
+    P.to_csv(out / "per_animal_groups.csv", index=False, float_format="%.4f")
+    pooled = P.groupby(["run", "variant", "surrogate", "theta_kind", "theta", "group"])[["real", "false"]].mean()
+    pooled.reset_index().to_csv(out / "pooled_groups.csv", index=False, float_format="%.4f")
+    A1 = P[(P.theta_kind == "own") & (P.group == "all")].pivot_table(index=["run", "variant", "surrogate", "theta"],
+                                                                    columns="animal", values=["real", "false"])
+    A1.to_csv(out / "real_vs_false_all_per_animal.csv", float_format="%.4f")
+    W_ = P[P.group.isin(["far_ipsi", "far_contra", "close_ipsi", "close_contra"])].copy()
+    W_["side"] = np.where(W_.group.str.startswith("far"), "far_lateral", "close_lateral")
+    FC = W_.groupby(["run", "variant", "surrogate", "theta_kind", "theta", "animal", "side"]).real.mean().unstack()
+    FC["far_gt_close"] = FC.far_lateral > FC.close_lateral
+    FC = FC.reset_index()
+    FC.to_csv(out / "far_vs_close_per_animal.csv", index=False, float_format="%.4f")
+    with pd.option_context("display.width", 250, "display.max_columns", 40, "display.max_rows", 500):
+        print(C.round(4).to_string())
+        print(A1.round(3).to_string())
+        print(FC[FC.theta_kind == "own"].round(3).to_string())
+        pr = pooled.reset_index()
+        print(pr[pr.theta_kind != "40"].round(3).to_string())
+
+
+def two_cam_epoch_worker(sid: str) -> dict:
+    """Two-camera production track, every epoch: real CSM counts (prod / e2 / e2f) over GRID per full_ok post-cue lick
+    in the camera working period (the manuscript's lick set; no surrogates)."""
+    EX._env()
+    import within_lick_correction as W
+    from wfield_local.paths import PathResolver
+    D = EX.dirs()
+    rv = PathResolver()
+    an, date = sid.split("_")
+    A = pd.read_csv(Path(rv.root("orofacial")) / EX.V36 / "sessions" / an / date / "licks_all.csv",
+                    usecols=["trial_id", "on_ms", "off_ms"])
+    A["lick_uid"] = np.arange(len(A))
+    A = A.set_index("lick_uid")
+    Lk = pd.read_pickle(D["2cam_licks"] / f"{sid}.pkl")
+    m = W.working_mask(sid, Lk["trial_id"].to_numpy())
+    if m is None:
+        return {"sid": sid, "rows": []}
+    Lk = Lk[m & (Lk.context == "post_cue").to_numpy() & Lk.full_ok.to_numpy()]
+    S = EX.load_frames(D, "2cam", sid)
+    fill = np.isin(S.tongue_src.to_numpy(), (2, 3))
+    g = {k: (v.t_ms.to_numpy(float), v[["tongue_ml", "tongue_ap", "tongue_dv"]].to_numpy(float), v.index.to_numpy())
+         for k, v in S.groupby("trial_id")}
+    rows = []
+    for r in Lk.itertuples():
+        fr = g.get(int(r.trial_id))
+        if fr is None:
+            continue
+        tr = EX.lick_track(W, fr, A.loc[r.lick_uid, "on_ms"], A.loc[r.lick_uid, "off_ms"])
+        if tr is None:
+            continue
+        t, P, ix = tr
+        k = int(np.argmax(np.linalg.norm(P, axis=1)))
+        drop = np.where(ix >= 0, fill[np.clip(ix, 0, None)], False)
+        rows.append({"sid": sid, "animal": an, "epoch": r.epoch, "pos": r.pos, "lick_uid": int(r.lick_uid),
+                     **{f"real_{v}": c for v, c in _counts(P, k, drop).items()}})
+    return {"sid": sid, "rows": rows}
+
+
+def two_cam_epochs(jobs: int = 6) -> None:
+    """Would the manuscript two-camera CSM numbers change under e2? Every curated session with a production pickle."""
+    from wfield_local import analysis_kit as ak
+    from wfield_local import config
+    D = EX.dirs()
+    out = D["out"] / "gate4_edge"
+    sids = sorted(f.stem for f in D["2cam_licks"].glob("PS9*.pkl") if f.stem in ak.curated_ids())
+    sids = [s for s in sids if not config.early_pre(s)]
+    res, fail = ak.fan_sessions(sids, two_cam_epoch_worker, jobs=jobs)
+    if fail:
+        raise SystemExit(f"failed: {[(j, str(e)[:400]) for j, e in fail]}")
+    T = pd.DataFrame([r for _, v in res for r in v["rows"]])
+    T.to_pickle(out / "two_cam_all_epochs.pkl")
+    rows = []
+    for v in VARIANTS:
+        for th in (30, 50):
+            q = T.assign(c=_at(T[f"real_{v}"], th) >= 1)
+            for gname, ps in {"all": list(POS_ORDER), "far_contra": ["far_contra"], **{p: [p] for p in POS_ORDER
+                                                                                       if p != "far_contra"}}.items():
+                s = q[q.pos.isin(ps)].groupby(["animal", "epoch", "sid"]).c.agg(["size", "mean"])
+                s = s[s["size"] >= 10].groupby(["animal", "epoch"])["mean"].mean().reset_index()
+                for r in s.itertuples():
+                    rows.append({"variant": v, "theta": th, "group": gname, "animal": r.animal, "epoch": r.epoch,
+                                 "csm_share": r.mean})
+    E = pd.DataFrame(rows)
+    E.to_csv(out / "two_cam_epochs_per_animal.csv", index=False, float_format="%.4f")
+    piv = E[E.group == "all"].pivot_table(index=["variant", "theta", "animal"], columns="epoch", values="csm_share")
+    piv = piv[[e for e in ("pre", "acute", "subacute", "chronic") if e in piv]]
+    for e in ("acute", "subacute", "chronic"):
+        if e in piv:
+            piv[f"d_{e}"] = piv[e] - piv["pre"]
+    piv.to_csv(out / "two_cam_epochs_all_spouts.csv", float_format="%.4f")
+    with pd.option_context("display.width", 250, "display.max_rows", 200):
+        print(len(sids), "sessions")
+        print(piv.round(3).to_string())

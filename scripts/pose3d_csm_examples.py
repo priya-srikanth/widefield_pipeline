@@ -707,7 +707,7 @@ def refuse(jobs: int) -> None:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("step", choices=["extract", "summary", "traces", "frames", "refuse", "fixes"])
+    ap.add_argument("step", choices=["extract", "summary", "traces", "frames", "refuse", "fixes", "gate4e2"])
     ap.add_argument("--jobs", type=int, default=6)
     ap.add_argument("--only", nargs="*", default=None)
     a = ap.parse_args(argv)
@@ -726,6 +726,10 @@ def main(argv=None) -> int:
     elif a.step == "fixes":
         import pose3d_csm_fixes as FX
         FX.run()
+    elif a.step == "gate4e2":
+        import pose3d_csm_fixes as FX
+        FX.gate4_edge(a.jobs)
+        FX.two_cam_epochs(a.jobs)
     else:
         frames()
     return 0
