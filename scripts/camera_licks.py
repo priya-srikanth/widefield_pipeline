@@ -53,7 +53,10 @@ def _clips(rv, animal: str, date: str) -> Path:
 
 
 def _bundle_out(rv, bundle: str) -> Path:
-    p = Path(rv.root("dlc")) / "session_poses" / "camera_licks" / bundle
+    # 11-21: + the 3-D run tag (`pose3d.TAG_ENV`, e.g. _3net_20261121), so a production run never lands on the pilot's
+    # camera_licks/<bundle>/ tables; no tag = the untagged folder, as before
+    from wfield_local.pose3d import pose3d_tag
+    p = Path(rv.root("dlc")) / "session_poses" / "camera_licks" / (bundle + pose3d_tag("4cam"))
     p.mkdir(parents=True, exist_ok=True)
     return p
 

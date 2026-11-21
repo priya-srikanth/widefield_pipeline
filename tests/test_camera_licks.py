@@ -164,3 +164,24 @@ def test_lick_train_d2_revised_drops_long_cam1_only():
     assert len(CL.lick_train(U)) == 2                          # short cam1-only lick kept; 350 ms cam1-only dropped
     assert len(CL.lick_train(U, long_cam1_only_ms=None)) == 3
     assert len(CL.lick_train(U, min_views=2)) == 0
+
+
+def test_bundle_out_carries_the_pose3d_run_tag(tmp_path, monkeypatch):
+    """11-21: the whole-session camera_licks folder takes the 3-D run tag, so a tagged run never overwrites the pilot's
+    untagged camera_licks/<bundle>/ tables; an invalid tag is refused."""
+    import pytest
+
+    from scripts import camera_licks as SCL
+
+    class _RV:
+        def root(self, _k):
+            return str(tmp_path)
+
+    monkeypatch.delenv("WIDEFIELD_POSE3D_TAG", raising=False)
+    assert SCL._bundle_out(_RV(), "bund").name == "bund"
+    monkeypatch.setenv("WIDEFIELD_POSE3D_TAG", "_3net_20261121")
+    p = SCL._bundle_out(_RV(), "bund")
+    assert p.name == "bund_3net_20261121" and p.is_dir()
+    monkeypatch.setenv("WIDEFIELD_POSE3D_TAG", "../x")
+    with pytest.raises(ValueError):
+        SCL._bundle_out(_RV(), "bund")
