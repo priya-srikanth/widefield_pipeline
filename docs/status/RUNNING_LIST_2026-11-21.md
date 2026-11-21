@@ -65,3 +65,7 @@ Mac prompt `vls_stroke_paper/PROMPT_c2_4cam_3d_refresh.md` (Phase A gate -> B ta
 - ~08:30 side collect DONE: 270 videos OK (+ PS93 0814 / PS94 0817 from the pilot); `session_poses/<a>_<d>_cam2_full` /
   `_cam3_full`. Not collected: PS94 0601 and PS95 0601 side views (no side alignment template; both outside the curated
   set). Task 208 (PS95 0603 cam3, one trailing frame without a timestamp) collected OK.
+- ~09:00 STEP 1 (v37 2-D chain) DONE (e11f3978 + DECISIONS entry): `LP_analysis/lp_r4_heatmap_20261013__clean_v37`, 133
+  sessions (= v36), 69 min + 1 min all-licks; all frames from ENL medians. v37 vs v36: licks median 0.0 %, licks_all
+  0.01 %, origin 0.8 px median; outlier PS92 0929 (v36 close_R spout median 24 px off -> v36 mouth origin 37.7 px off;
+  v37 correct; licks +4 %). Table `lp_stage/rerun_20261121/v37_vs_v36.csv`. RUN not flipped.

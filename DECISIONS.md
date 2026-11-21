@@ -24205,3 +24205,34 @@ events):
 - *Enforced at:* `wfield_local/pose3d_side.py` (`side_gate`, `SIDE_GATE_*`), `scripts/pose3d.py`, `wfield_local/run_mode.py`
   (`pose3d_part`), `scripts/camera_licks.py` (`_bundle_out`); tests `test_pose3d_side.py`, `test_camera_licks.py`,
   `test_pose3d_run_tag_routing.py`.
+
+## 2026-11-21 -- D1 executed: cam4 2-D chain v37 with the spout-position rule (Priya 11-04 rule; D1 = (a) 11-21)
+- *Context:* D1 = (a) (Priya 11-21 ~03:15): the cam4 2-D chain is regenerated under a NEW run with the spout fix and
+  everything downstream re-points to it. Rule (Priya 11-04, `docs/status/SPOUT_POSITION_AUDIT_2026-11-04.md`): each
+  session's spout position per spout position = the median spout keypoint over in-trial NO-LICK ENL frames
+  (`spout_frame.ruler_medians`).
+- *Change (e11f3978):* `orofacial_outputs.CLEANING_VERSION` v36 -> **v37** -> run folder
+  `LP_analysis/lp_r4_heatmap_20261013__clean_v37`. (1) The session spout frame (mouth origin / ap axis = tongue zero
+  and every v37 table's spout frame) comes from the ENL medians (`orofacial_outputs.session_spout_frame`; whole-window
+  medians only as a fallback when ENL cannot build the frame, recorded as manifest `spout_frame_source`; v36 behavior
+  kept for a v36 re-process). (2) The per-trial spout reference (`tongue_kinematics.trial_spout_reference` ->
+  licks.csv `spout_angle_deg`, `spout_dist_px`, `tip_to_spout_px`, `reach_frac`, `delta_angle_deg`) = that SESSION ENL
+  median of the trial's position (`SpoutFrame.ref_medians`; the audit's first option), per-trial median only for a
+  position without ENL frames (none in cohort 1). Tests `tests/test_spout_rule_v37.py`. **`orofacial_cohort.RUN` is NOT
+  flipped** (adoption = Priya's OK; reconciled plan decision 2).
+- *Run:* `orofacial_outputs process --bundle lp_r4_prod_20261015 --all --jobs 5` (69 min) + `all-licks --run
+  lp_r4_heatmap_20261013__clean_v37 --all` (1 min): the same 133 sessions as v36 (PS93 0805, PS94 0601, PS95 0601 absent
+  in both: no trial log / no alignment template). All 133 built the frame from ENL medians.
+- *v37 vs v36* (`C:/Users/SabatiniLab/lp_stage/rerun_20261121/v37_vs_v36.csv`, script `compare_v37_v36.py`): post-cue
+  licks median 0.0 % (max 4.0 %, one session), licks_all median 0.01 % (max 2.8 %), pre-cue -0.6 % (max 2.3 %), ITI 0 %
+  (6 sessions 3-6 %, +-5-10 licks on 105-566-lick tables); trials / jaw tables unchanged; spout origin shift median
+  0.79 px (10 sessions > 2 px), ap axis median 0.13 deg (max 0.9); per-lick spout angle median diff -0.16 deg (p90
+  |diff| median 1.2 deg), reach_frac p90 |diff| median 0.04 -- the audit's "small and unbiased", confirmed cohort-wide.
+- *One real v36 error found:* **PS92 0929** -- v36's whole-window close_R median was 24 px off (y 460.4 vs ENL 436.0:
+  the spout pushed / mis-tracked while licking), so the three spout lines met with rms 11 px and the v36 mouth origin
+  sat 37.7 px from the ENL one (rms 0.69 px). v37 post-cue licks +4.0 %, licks_all +2.8 % there. The v37 frame is the
+  correct one; every v36 PS92 0929 tongue-zero quantity carried that offset.
+- *Not done here (later steps):* the ~17 whole-window scripts of audit item 3 (jaw_lateral, movement_encoding_session,
+  session_lick_summary, cam1_lick_aim `from_medians_lr`, whisker_motion, orofacial_heatmaps `spout_ref`) -- downstream
+  analyses re-pointed with the v37 consumers; `LP_analysis/index.csv` (generated, all runs) was rewritten by the producer
+  and now lists v37 rows.
