@@ -16,7 +16,9 @@ cue -0.2 .. +1.5 s, 2 trials per position): `pose3d_side.fuse_session` (side ton
 (`camera_licks.side_events`), the production cam4 / cam1 events restricted to the same clip frames
 (`camera_licks.within_frames`), fused (`camera_licks.fuse`). Writes `session_poses/camera_licks/clips_<model>/`:
 ``<a>_<d>_fused.csv`` (one row per lick), ``<a>_<d>_events.csv`` (every per-camera event), ``views.csv`` (licks per
-camera combination per session) and prints the pooled view table.
+camera combination per session) and prints the pooled view table. Fused licks are split with `camera_licks.event_cuts`
+(anchor cameras + the 3-D tongue's return; 11-21 pilot). `camera_licks.lick_train` applies D2 (revised 11-21: any
+camera, cam1-only >= 300 ms dropped) downstream.
 """
 from __future__ import annotations
 
@@ -72,7 +74,8 @@ def run_session(s: str, preds: str | None = None, bundle: str | None = None) -> 
         ev = {c: CL.within_frames(E, Z["F"]) for c, E in CL.production_events(rv, animal, date, span="all").items()}
         out = _out(rv, Path(preds))
     ev.update({c: CL.side_events(Z, c, span="all") for c in CL.SIDE})
-    U = CL.fuse(ev)
+    # 11-21: split back-to-back licks at the anchor cameras' boundaries, placed where the 3-D tongue returns to the mouth
+    U = CL.fuse(ev, cuts=CL.event_cuts(ev, S=PS.frames_table(Z)))
     pd.concat(ev.values(), ignore_index=True).to_csv(out / f"{animal}_{date}_events.csv", index=False,
                                                      float_format="%.4g")
     U.to_csv(out / f"{animal}_{date}_fused.csv", index=False, float_format="%.4g")

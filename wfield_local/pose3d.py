@@ -532,7 +532,24 @@ def lick_events(S: pd.DataFrame, max_gap_ms: float = 12.0, min_frames: int = 3) 
     return E
 
 
-def lick_peaks(S: pd.DataFrame, rig: dict, min_frames: int = 3, max_rep_px: float | None = None) -> pd.DataFrame:
+def _cut_flags(t: np.ndarray, tid: np.ndarray, cuts: dict | None) -> np.ndarray:
+    """Per frame: does a cut of its trial fall after the previous frame and at or before this one?"""
+    flag = np.zeros(len(t), bool)
+    if not cuts:
+        return flag
+    for tr in np.unique(tid):                       # frames of a trial are contiguous and time-ordered
+        c = cuts.get(int(tr))
+        if c is None or not len(c):
+            continue
+        idx = np.flatnonzero(tid == tr)
+        k = np.searchsorted(t[idx], np.asarray(c, float), side="left")   # first frame at or after each cut
+        k = k[(k > 0) & (k < len(idx))]
+        flag[idx[k]] = True
+    return flag
+
+
+def lick_peaks(S: pd.DataFrame, rig: dict, min_frames: int = 3, max_rep_px: float | None = None,
+               cuts: dict | None = None) -> pd.DataFrame:
     """One row per 3-D lick: a run of >= ``min_frames`` consecutive frames (4 ms apart, one trial, cue .. trial stop)
     with a 3-D tongue (both cameras, or one camera + neighbours: `fill_single_view`; ``share_single_view`` per lick).
     ``max_rep_px`` drops BOTH-camera frames whose tongue reprojection exceeds it in either camera.
@@ -545,11 +562,16 @@ def lick_peaks(S: pd.DataFrame, rig: dict, min_frames: int = 3, max_rep_px: floa
         the sign of the cam1 2-D readout (`scripts.cam1_lick_aim`);
       * ``reach_mm`` / ``ml, ap, dv`` at the frame farthest from the origin (the extension peak; the tongue reaches
         1.5-3 mm BELOW the spout tip there -- the hanging drop -- so dv is part of every lick).
-    The commanded tip = the triangulated spout median to ~0.05 mm (the frame is fitted to it)."""
+    The commanded tip = the triangulated spout median to ~0.05 mm (the frame is fitted to it).
+
+    ``cuts`` ({trial_id: ms from the cue}; `camera_licks.event_cuts` / `camera_licks.mouth_cuts`) also end a run: the
+    four-camera track has fewer gaps, so back-to-back licks can share one run of frames (11-21 pilot); a cut between
+    two frames starts a new lick at the later one."""
     from wfield_local import spout_world as SW
     t, tid = S.t_ms.to_numpy(float), S.trial_id.to_numpy()
     P = S[["tongue_ml", "tongue_ap", "tongue_dv"]].to_numpy(float)
     have = np.isfinite(P).all(1) & (t >= 0) & (t <= S.stop_ms.to_numpy(float))
+    cut_before = _cut_flags(t, tid, cuts)
     src = S.tongue_src.to_numpy() if "tongue_src" in S else np.where(have, 1, 0)
     if max_rep_px is not None:                                  # single-camera frames have no reprojection error
         have &= (src != 1) | ((S.tongue_rep1.to_numpy(float) <= max_rep_px) & (S.tongue_rep4.to_numpy(float) <= max_rep_px))
@@ -560,7 +582,7 @@ def lick_peaks(S: pd.DataFrame, rig: dict, min_frames: int = 3, max_rep_px: floa
             i += 1
             continue
         j = i + 1
-        while j < n and have[j] and tid[j] == tid[i] and abs(t[j] - t[j - 1] - 4.0) < 0.5:
+        while j < n and have[j] and tid[j] == tid[i] and abs(t[j] - t[j - 1] - 4.0) < 0.5 and not cut_before[j]:
             j += 1
         pos = str(S.position.iloc[i])
         if j - i >= min_frames and pos in tgt:

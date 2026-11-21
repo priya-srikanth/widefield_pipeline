@@ -94,7 +94,10 @@ def run_session(s: str, source: str, four_cam: str | None = None, out_dir: str |
         Z = (PS.fuse_session(rv, animal, date, Path(PREDS), Path(rv.root("dlc")) / CLIPS, c1=c1, c4=c4)
              if four_cam == "clips" else PS.fuse_session(rv, animal, date, side_bundle=four_cam, c1=c1, c4=c4))
         S = PS.frames_table(Z)
-        L = P3.lick_peaks(S, rig)
+        # 11-21 pilot: the four-camera track bridges the gaps between back-to-back licks (62 PS93 0814 runs held two
+        # cam4 licks) -> split at the cam4 / cam1 lick boundaries, placed where the tongue returns closest to the mouth
+        from wfield_local import camera_licks as CL
+        L = P3.lick_peaks(S, rig, cuts=CL.event_cuts(CL.production_events(rv, animal, date, span="all"), S=S))
         out = Path(out_dir) if out_dir else pose3d_dir(rv, _four_cam_source())
         out.mkdir(parents=True, exist_ok=True)
         S.to_csv(out / f"{animal}_{date}_frames.csv.gz", index=False, float_format="%.3f")

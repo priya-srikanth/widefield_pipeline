@@ -65,3 +65,79 @@ def test_far_guard_counts_like_static():
     U = CL.fuse({"cam3": s3, "cam2": _ev("cam2", [(1, 505, 545, 525)])})
     assert list(U.guarded) == [False] and len(CL.lick_train(U)) == 1     # confirmed by cam2 -> a lick
     assert len(CL.lick_train(CL.fuse({"cam3": s3}))) == 0
+
+
+# ---- 11-21 pilot: splitting back-to-back licks and D2 as revised (any camera; long cam1-only dropped) ----
+
+def _frames(trial, t0, r_mm):
+    """A pose3d-like frames table: one trial, 4 ms frames from t0, tongue straight out (ml = distance)."""
+    r = np.asarray(r_mm, float)
+    t = t0 + 4.0 * np.arange(len(r))
+    return pd.DataFrame({"trial_id": trial, "position": "far_L", "t_ms": t, "stop_ms": 5000.0,
+                         "tongue_ml": r, "tongue_ap": np.where(np.isnan(r), np.nan, 0.0),
+                         "tongue_dv": np.where(np.isnan(r), np.nan, 0.0),
+                         "tongue_src": 1, "tongue_rep1": 1.0, "tongue_rep4": 1.0})
+
+
+def test_bridged_licks_stay_merged_without_cuts_and_split_with_event_cuts():
+    ev = {"cam4": _ev("cam4", [(1, 0, 50, 20), (1, 90, 120, 100)]), "cam2": _ev("cam2", [(1, 45, 95, 70)])}
+    assert len(CL.fuse(ev)) == 1                               # chaining alone: cam2 bridges the two cam4 licks
+    cuts = CL.event_cuts(ev)
+    np.testing.assert_allclose(cuts[1], [70.0])                # middle of the gap 50 .. 90
+    U = CL.fuse(ev, cuts=cuts)
+    assert list(U.t_peak_ms) == [20, 100] and list(U.off_ms) == [50, 120]
+    assert list(U.cams) == ["cam4", "cam2+cam4"]               # cam2's peak (70) falls in the second piece
+    assert U.iloc[1].on_ms == 70                               # its span clipped at the cut
+
+
+def test_event_cuts_handle_overlapping_cam4_spans_and_cam1_precedence():
+    ev = {"cam4": _ev("cam4", [(1, 312, 388, 320), (1, 344, 464, 432)]),       # v36 spans overlap (PS93 0814)
+          "cam1": _ev("cam1", [(1, 300, 330, 310), (1, 340, 360, 350), (1, 600, 620, 610), (1, 700, 720, 710)])}
+    c = CL.event_cuts(ev)[1]
+    assert np.isclose(c, 366.0).any()                          # middle of the 344 .. 388 overlap, between the peaks
+    assert not ((c > 312) & (c < 366)).any()                   # cam1's 335 cut sits inside a cam4 lick -> dropped
+    assert np.isclose(c, 660.0).any()                          # cam1 cut where cam4 saw nothing
+    assert len(CL.fuse(ev)) == 3 and len(CL.fuse(ev, cuts=CL.event_cuts(ev))) == 4
+
+
+def test_event_cuts_move_to_the_tongue_return_and_skip_a_held_tongue():
+    ev = {"cam4": _ev("cam4", [(1, 0, 40, 20), (1, 60, 120, 100)])}
+    r = [1, 2, 3, 4, 3, 3, 3, 2, 1, 0.5, 1, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3.5, 4, 3]  # 0 .. 104 ms; minimum at 36 ms
+    c = CL.event_cuts(ev, S=_frames(1, 0.0, r))[1]
+    np.testing.assert_allclose(c, [35.5])                      # not the span midpoint (50): the return toward the mouth
+    held = [1, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 2]    # no return: the minimum is the first peak's frame
+    c2 = CL.event_cuts({"cam4": _ev("cam4", [(1, 0, 8, 8), (1, 52, 70, 60)])}, S=_frames(1, 0.0, held))[1]
+    assert c2[0] <= 8                                          # cut at the track edge -> no split inside the run
+    gap = r[:8] + [np.nan] * 3 + r[11:]                        # track broken between the peaks -> cut in the break
+    c3 = CL.event_cuts(ev, S=_frames(1, 0.0, gap).dropna(subset=["tongue_ml"]))[1]
+    assert 28 < c3[0] < 44
+
+
+def test_lick_peaks_splits_a_run_at_cuts():
+    from wfield_local import pose3d as P3
+    rig = {"geometry": None}
+    S = _frames(1, 0.0, [1, 2, 3, 4, 3, 2, 1, 2, 3, 4, 3, 2])
+    import wfield_local.spout_world as SW
+    orig = SW.commanded_world
+    SW.commanded_world = lambda geo, p: np.array([5.0, 0.0, 0.0])
+    try:
+        assert len(P3.lick_peaks(S, rig)) == 1
+        L = P3.lick_peaks(S, rig, cuts={1: np.array([23.5])})
+        assert list(L.t_onset_ms) == [0.0, 24.0] and list(L.t_peak_ms) == [12.0, 36.0]
+    finally:
+        SW.commanded_world = orig
+
+
+def test_mouth_cuts_prominence_and_ili_floor():
+    r = [1, 2, 3, 4, 3, 2, 1.5, 2, 3, 4, 4, 3]                 # a 2.5 mm return between two extensions 24 ms apart
+    S = _frames(1, 0.0, r)
+    assert len(CL.mouth_cuts(S, prominence_mm=1.0, min_ili_ms=20).get(1, [])) == 1
+    assert len(CL.mouth_cuts(S, prominence_mm=3.0).get(1, [])) == 0          # not prominent enough
+    assert len(CL.mouth_cuts(S, prominence_mm=1.0, min_ili_ms=40).get(1, [])) == 0   # peaks < 40 ms apart
+
+
+def test_lick_train_d2_revised_drops_long_cam1_only():
+    U = CL.fuse({"cam1": _ev("cam1", [(1, 0, 20, 10), (1, 100, 450, 200)]), "cam4": _ev("cam4", [(1, 600, 1000, 700)])})
+    assert len(CL.lick_train(U)) == 2                          # short cam1-only lick kept; 350 ms cam1-only dropped
+    assert len(CL.lick_train(U, long_cam1_only_ms=None)) == 3
+    assert len(CL.lick_train(U, min_views=2)) == 0
