@@ -58,6 +58,10 @@ BEHAVIOUR = {
     "c2_outcome_stats_aligned.py", "c2_outcome_weight_epoch_stats.py",
     # one change-in-distribution test per Fig 4B bar (11-20): same inputs as c2_outcome_stats_aligned; new files only
     "c2_outcome_distribution_test.py",
+    # six-position recovery mechanics (VLS paper supplement, 11-21): behavior / pose tables only (within_lick_correction
+    # sessions, learned_compensation T3, lick_correction corr_beh: literal LP v36 imaging_encoding paths, read-only);
+    # outputs are new files under Widefield/manuscript_stats
+    "c2_recovery_mechanics_stats.py",
     # Fig 5C input (11-20): FaceRhythm proj files of the frozen master only; writes <FR readouts>/<set>/vls_manuscript/
     # (the M:/MICROSCOPE literal is the manuscript file it compares against, read-only)
     "fr_pre_timecourses_abs.py",

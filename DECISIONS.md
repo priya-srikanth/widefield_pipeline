@@ -24062,3 +24062,26 @@ Handoff `docs/status/STATUS_2026-11-16_ENCDESIGN_TIM_STATES_HANDOFF.md` (section
   (other_spouts rows) exactly, every model x class x epoch.
 - *Enforced at:* `wfield_local/behavior_states.py` (`glmhmm_role_column`, `role_share_sessions`,
   `role_share_summary`), `scripts/states_jaw_only_roles.py`; states page Figs 1.10-1.11; FINDINGS 9.2b.
+
+## 2026-11-21 -- Six-position recovery mechanics: manuscript statistics for a new VLS-paper supplement (Priya)
+- *Context:* the VLS paper's Discussion claimed (from FINDINGS 21-22 and lick_correction) that corrective submovements
+  become rarer, that within-lick correction does not change, that aim recovers between rather than within sessions,
+  that docked between-trial licks share the cued residual bias, and that the lick after a miss corrects more after
+  stroke. Priya (11-21) asked for these as a manuscript supplement, in the six-position panel style and statistics.
+- *Decision:* `scripts/c2_recovery_mechanics_stats.py` reads the existing session tables (nothing upstream recomputed):
+  `within_lick_correction/sessions.csv` (cued, far_contra, all orders / outcomes: e_L, e_E, corr, csm_share,
+  csm_false), `learned_compensation/t3_sessions.csv` (T3 primary = DOCKED ITI licks only: D_off, cued_mean, GAP) and
+  `iti_licks/lick_correction/corr_beh_sessions.csv` (all spouts, order any: step_b). Test =
+  `orofacial_stats.session_change_tests` (manuscript six-position rule; star = agree == both). Primary FDR family =
+  each endpoint over its 3 post epochs (`fdr_scope="metric"`), because these cells are a separate supplement and
+  pooling them into the 162-cell Fig 3/4 family would move that family's published q; the pooled q
+  (`q_pooled_162`, `apply_family_fdr` over the 162 + new cells, published q untouched) is written as a sensitivity
+  column. No star changes under the pooled family. The pipelines' own primary results (Holm, >= 3/4) are joined.
+- *Result (session change, nested bootstrap 95% CI; ** = q < .05 and CI excl 0):* launch error -25.7** / -7.0** /
+  -3.2 (n.s.) acute / subacute / chronic; endpoint -26.0** / -8.3** / -3.5**; within-lick correction n.s. every
+  epoch; CSM share -0.13** / -0.15** / -0.14** (noise control n.s.); docked ITI D_off -13.7** / -7.7** / -7.5**,
+  cued -14.7** / -8.6** / -6.8**, GAP n.s.; step_b +4.9** / +2.3** / +3.1**. PROVISIONAL (n = 4).
+- *Outputs (new files, refuse to overwrite):* `Widefield/manuscript_stats/c2_recovery_mechanics_{stats,sessions,
+  per_animal}.csv`. Panels: the paper's `manuscript_code/figures/recovery_mechanics/c2_recovery_mechanics.py`.
+- *Classified* in `tests/test_share_writers_mode_safe.py` BEHAVIOUR (behavior / pose tables only; literal v36 inputs).
+
