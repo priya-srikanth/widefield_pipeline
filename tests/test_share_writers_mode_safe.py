@@ -69,7 +69,9 @@ BEHAVIOUR = {
     "fr_pre_timecourses_abs.py",
 }
 INDIRECT = {
-    "coupling_vigour_sm.py", "decoder_retention_sessions.py", "lick_correction.py",
+    # lick_correction.py left the list 11-21: it reads the 3-D table via pose3d_dir() (no share-root literal left) and
+    # writes through il.OUT_W (run_mode.subdir), so the scan no longer trips on it
+    "coupling_vigour_sm.py", "decoder_retention_sessions.py",
     "lick_firstlick_extract.py", "lick_vigor_perspout.py", "precue_class_matched.py", "recovery_timing.py",
     "restw_strict_check.py", "session_pace_table.py",
     # RESTnl cam4 vs cam4cam1 comparison (11-17): writes only under the rebuild root (restnl_cam1_compare_20261117/)

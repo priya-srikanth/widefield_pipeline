@@ -41,3 +41,24 @@ Mac prompt `vls_stroke_paper/PROMPT_c2_4cam_3d_refresh.md` (Phase A gate -> B ta
 - 06:30 01fa06ad: 40 ms floor in `pose3d.lick_peaks` (merges sub-floor runs over the union of frames; tests) +
   `WIDEFIELD_POSE3D_TAG` (run tag `_3net_20261121` -> `session_poses/pose3d_4cam_3net_20261121`; never on 2cam).
 - 06:35 Phase A prep agent: parked fixes in the 3-D path + one-session smoke test of the tagged production run.
+- ~07:45 Phase A prep done (agent). 3-D layer: ENL ruler-median poses + commanded aim already in pose3d / pose3d_side;
+  per-frame spout edge offset (bddf02e7) in HEAD and in the four-camera fuse (spout = cam1 edge offset); commanded 3-D
+  spout table (cf7c4cad, prep_3d_inputs) present. 2-D-only spout items (go with v37): orofacial_outputs.py:184 ->
+  ruler_medians, tongue_kinematics.trial_spout_reference, ~17 whole-window scripts, whisker_motion, heatmaps spout_ref.
+  Close-spout jaw: NOT the 3-D layer -- the 4-cam frames carry it (PS93 0814 cue..stop jaw 3-D 100 % at close_center,
+  >= 3 views 94 %; 2-cam 93 %), the decision sits in jaw_onsets (JAW_UNRELIABLE = close_center mask, source-blind) and
+  trial_classes jaw_judged (L1d / L2, needs a source-aware rule + review). Production lick split = event_cuts(S) + 40 ms
+  floor (PS93 0814: 5624 3-D licks).
+  New: June gate replaces the blanket June skip (side_gate: rms <= 1.5 / max <= 2.0 px600; failing camera dropped);
+  BUG FIXED: the 4-cam path skipped the June cam4 rescale (fuse_session now passes _june_factor); run tag routing:
+  run_mode.pose3d_part (p3d-4cam_3net_20261121, output-only) + camera_licks folder tagged; within_lick_correction /
+  lick_correction read pose3d_dir(). Smoke (tagged folder): PS93 0814 ~12 min, 5624 licks; PS93 0607 + PS92 0602 471 s
+  with --jobs 2 (June cam4 scaled; PS92 0602 cam3 dropped, rms600 1.65 / max 2.14; PS93 0607 both pass 0.41 / 0.52).
+  OPEN for the coordinator: (1) 3-D kinematics (`pose3d_kinematics`) defines licks by the v36 cam4 tables (licks.csv /
+  licks_all.csv on the 3-D track; also reads literal V36) -- the fused four-camera lick train / new split reach
+  kinematics only with a new lick mode (a lick-identity change: lick_uid joins in iti_licks / frozen_encoder /
+  stray_licks / lick_correction key on licks_all rows) -> decision, not built; (2) many downstream scripts still read
+  literal session_poses/pose3d (c2_scalar_family_aligned, c2_engagement_tim/s4, face_prelaunch_aim, kinematic_normality,
+  coupling_vigour_sm, enl_lick_audit, lick_firstlick_extract, lick_vigor_perspout, june_drift_summary_fig, stray_licks,
+  pose3d_jaw_depth_model_check, ...) -- they would silently read the 2-cam tables in a 4cam run; (3) runbook step 1 says
+  the 4-cam run writes session_poses/pose3d/ and never sets WIDEFIELD_POSE3D_SOURCE=4cam (coordinator fixes the doc).

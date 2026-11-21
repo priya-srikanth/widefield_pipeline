@@ -24181,3 +24181,27 @@ events):
   4-camera tracking (runbook step 8).
 - *Enforced at:* `scripts/c2_manuscript_correlations.py`; `docs/MANUSCRIPT_C2_REFRESH.md`;
   `tests/test_share_writers_mode_safe.py` (BEHAVIOUR).
+
+## 2026-11-21 -- Four-camera 3-D: June side views by a per-session gate; June cam4 rescale; run tag routing (Priya)
+- *June side views (Priya: "it's the same lenses june to august"; she asked for the check).* The blanket June skip of the
+  four-camera run (`scripts/pose3d.py`: "June: side-camera intrinsics not validated") is replaced by a PER-SESSION,
+  PER-CAMERA gate for every session (`pose3d_side.side_gate`): a side camera is used only when its spout PnP reprojection
+  over the six parked spouts is rms <= 1.5 px AND max <= 2.0 px in 600-px units (px x 600 / frame width). A failing camera
+  is dropped for that session only (its points are blanked; the session runs on the cameras that pass; summary columns
+  `side_dropped`, `side_rms600_<cam>`, `side_max600_<cam>`). Check (docs/POSE_MODELS.md Part E "June side views, every
+  session", acbeb392): August rms 0.41-1.17 px; June 0.52-1.36 (cam2) / 0.45-1.07 (cam3), i.e. 0.4-1.0 in 600-px units,
+  except PS92 0602 / 0603 cam3 (2.1-2.2 px, 1.6-1.65 in 600-px units; both outside the curated set). August vs rescaled
+  09-11 intrinsics give the same world rays (0.01 mm median, 0.07 p95), so the 09-11 intrinsics are kept (no rescale).
+- *June cam4 in the four-camera path (bug found while wiring the gate).* `pose3d_side.fuse_session` called
+  `pose3d.session_3d` without `june_factor`, so June cam4 points would have entered unscaled (June LP coords are x0.8853;
+  cam4 cleaning thresholds are in August px). It now passes `scripts.pose3d._june_factor(date)`, as the two-camera run
+  does. No production four-camera June output existed before this fix.
+- *Run tag routing.* `WIDEFIELD_POSE3D_TAG` (e.g. `_3net_20261121`) suffixes the four-camera 3-D folder
+  (`session_poses/pose3d_4cam_3net_20261121`) and the whole-session camera_licks folder; `run_mode.pose3d_part`
+  (`p3d-4cam_3net_20261121`, output-only, never a cache key) moves every routed output root of a run on that source
+  (encoding_out_root, run_mode.subdir: within_lick_correction, iti_licks / lick_correction, ...) under its own tag. The
+  default two-camera run is unchanged (no part, no tag). `within_lick_correction.py` and `lick_correction.py` now read
+  the 3-D tables through `pose3d_dir()` (were literal `session_poses/pose3d`).
+- *Enforced at:* `wfield_local/pose3d_side.py` (`side_gate`, `SIDE_GATE_*`), `scripts/pose3d.py`, `wfield_local/run_mode.py`
+  (`pose3d_part`), `scripts/camera_licks.py` (`_bundle_out`); tests `test_pose3d_side.py`, `test_camera_licks.py`,
+  `test_pose3d_run_tag_routing.py`.

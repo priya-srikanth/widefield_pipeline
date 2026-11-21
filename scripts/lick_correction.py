@@ -92,7 +92,8 @@ SEED = 0
 # ------------------------------------------------------------------------------------------------ extraction
 def kin_table() -> pd.DataFrame:
     from wfield_local.paths import PathResolver
-    p = Path(PathResolver().root("dlc")) / "session_poses" / "pose3d" / "kinematics_all" / "licks.csv.gz"
+    from wfield_local.pose3d import pose3d_dir       # 11-21: the selected 3-D source / run tag (`run_mode.pose3d_part`)
+    p = pose3d_dir(PathResolver()) / "kinematics_all" / "licks.csv.gz"
     K = pd.read_csv(p, usecols=["session", "context", "trial_id", "lick_idx", "lick_uid", "position", "contact",
                                 "side_ml", "reach_mm", "out_ap", "down_dv", "miss_mm", "lat_err_mm", "speed_peak",
                                 "epoch"])
@@ -123,7 +124,8 @@ def extract(label: str) -> dict:
     R *= 1e3
     an, date = config.animal_of(label), "2026" + label.split("_")[-1]
     from wfield_local.paths import PathResolver as _PR
-    p = Path(_PR().root("dlc")) / "session_poses" / "pose3d" / "kinematics_all" / "licks.csv.gz"
+    from wfield_local.pose3d import pose3d_dir
+    p = pose3d_dir(_PR()) / "kinematics_all" / "licks.csv.gz"
     K = pd.read_csv(p, usecols=["session", "context", "trial_id", "lick_idx", "lick_uid", "position", "contact",
                                 "side_ml", "reach_mm", "out_ap", "down_dv", "miss_mm", "lat_err_mm", "speed_peak"])
     K = K[(K.session == f"{an}_{date}") & (K.context == "post_cue")].copy()

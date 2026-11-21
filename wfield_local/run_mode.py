@@ -185,7 +185,18 @@ def lickdet_part() -> str:
     return config.LICK_DETECTOR_TAG if others else ""
 
 
+def pose3d_part() -> str:
+    """``p3d-<source><tag>`` (e.g. ``p3d-4cam_3net_20261121``) when the 3-D source is not the adopted two-camera one
+    (`pose3d.SOURCE_ENV` / `pose3d.TAG_ENV`; 11-21 four-camera re-run), "" by default. Every routed output of a run on
+    the four-camera 3-D lands under its own tag (VLS-paper refresh rule: new names only), never over the v36 tables.
+    Output-only: imaging / LocaNMF caches do not depend on the 3-D source."""
+    from wfield_local import pose3d
+    s = pose3d.pose3d_source()
+    return "" if s == "2cam" else f"p3d-{s}{pose3d.pose3d_tag(s)}"
+
+
 _ALL = (("hemo", hemo_part), ("lnmf", lnmf_part), ("drift", drift_part), ("pre", pre_part), ("selection", selection_part),
+        ("pose3d", pose3d_part),
         ("lickdet", lickdet_part), ("emcentre", emcentre_part),
         ("refs", refs_part), ("inmem", inmem_part), ("lptrained", lptrained_part), ("projall", projall_part),
         ("scoring", scoring_part), ("csig", csig_part))

@@ -80,7 +80,8 @@ def _sessions() -> list[str]:
     """Curated PS92-95 sessions present in kinematics_all (= passing the pose3d session gates), as PSxx_YYYYMMDD."""
     from wfield_local import analysis_kit as ak
     from wfield_local.paths import PathResolver
-    p = Path(PathResolver().root("dlc")) / "session_poses" / "pose3d" / "kinematics_all" / "licks.csv.gz"
+    from wfield_local.pose3d import pose3d_dir       # 11-21: the selected 3-D source / run tag (`run_mode.pose3d_part`)
+    p = pose3d_dir(PathResolver()) / "kinematics_all" / "licks.csv.gz"
     have = set(pd.read_csv(p, usecols=["session"]).session.unique())
     cur = ak.curated_ids()
     return sorted(s for s in have & cur if s[:4] in AN)
@@ -158,7 +159,8 @@ def session_licks(sid: str) -> dict:
     from scripts.apparatus_mouth import _rig
     geo = _rig(rv, an, date)["geometry"]
     tgt = {p: np.asarray(SW.commanded_world(geo, p), float) for p in SW.POSITIONS}
-    S = pd.read_csv(Path(rv.root("dlc")) / "session_poses" / "pose3d" / f"{sid}_frames.csv.gz",
+    from wfield_local.pose3d import pose3d_dir
+    S = pd.read_csv(pose3d_dir(rv) / f"{sid}_frames.csv.gz",
                     usecols=["trial_id", "position", "t_ms", "tongue_src", "tongue_ml", "tongue_ap", "tongue_dv"]
                     ).drop_duplicates(["trial_id", "t_ms"]).sort_values(["trial_id", "t_ms"])
     A = pd.read_csv(Path(rv.root("orofacial")) / V36 / "sessions" / an / date / "licks_all.csv",

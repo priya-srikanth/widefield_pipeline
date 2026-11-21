@@ -87,8 +87,8 @@ def run_session(s: str, source: str, four_cam: str | None = None, out_dir: str |
     rig = _rig(rv, animal, date)
     jf = _june_factor(date)
     if four_cam:
-        if jf:
-            return {**row, "error": "June: side-camera intrinsics not validated (four-camera mode skipped)"}
+        # 11-21 (Priya: "it's the same lenses june to august"): no blanket June skip; every session's side cameras pass
+        # the per-session spout gate (`pose3d_side.side_gate`) or are dropped for that session (`side_dropped`)
         from scripts.pose3d_side_check import CLIPS, PREDS
         from wfield_local import pose3d_side as PS
         Z = (PS.fuse_session(rv, animal, date, Path(PREDS), Path(rv.root("dlc")) / CLIPS, c1=c1, c4=c4)
@@ -102,6 +102,10 @@ def run_session(s: str, source: str, four_cam: str | None = None, out_dir: str |
         out.mkdir(parents=True, exist_ok=True)
         S.to_csv(out / f"{animal}_{date}_frames.csv.gz", index=False, float_format="%.3f")
         L.to_csv(out / f"{animal}_{date}_licks.csv", index=False)
+        gate = Z["stats"]["side_gate"]
+        row.update({"side_dropped": "+".join(Z["stats"]["side_dropped"]) or "", "june_cam4_scaled": bool(jf),
+                    **{f"side_rms600_{c}": round(gate[c]["rms600"], 2) for c in PS.SIDE},
+                    **{f"side_max600_{c}": round(gate[c]["max600"], 2) for c in PS.SIDE}})
         row.update({"four_cam": four_cam, "n_frames": len(S), "droplet_frames": Z["stats"]["droplet_frames"],
                     "fit_resid_mm_max": round(Z["stats"]["fit_resid_mm_max"], 3),
                     "tongue_rep1_med_px": round(Z["stats"]["tongue_rep1_med_px"], 1),

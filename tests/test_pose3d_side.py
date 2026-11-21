@@ -87,3 +87,30 @@ def test_side_params_scale_px_thresholds_and_set_the_side_rules():
     assert pt["max_gap_ms"] == 24.0 and pt["interp_veto_interlick"] is False
     assert q["x_flip_step_px"] is None                      # a profile view has no left / right flip
     assert float(base_j["v34"]["y_ceiling_px"]) == float(OC.params("jaw", "cam4")["v34"]["y_ceiling_px"])   # no mutation
+
+
+def test_side_gate_per_camera_in_600px_units():
+    """11-21 (Priya: same lenses June to August): side cameras pass when spout reprojection rms <= 1.5 and max <= 2.0
+    in 600-px units; June frames are 800 px wide, so June px are scaled by 0.75; a failing camera only drops itself."""
+    from wfield_local import pose3d_side as PS
+    pos = ["close_L", "close_center", "close_R", "far_L", "far_center", "far_R"]
+    aug = {"cam2": dict(zip(pos, [0.9] * 6)), "cam3": dict(zip(pos, [0.5] * 6))}
+    g = PS.side_gate(aug, {"cam2": 600, "cam3": 600})
+    assert g["cam2"]["pass"] and g["cam3"]["pass"]
+    # PS92 0602 cam3-like: 2.2 px rms in an 800-px frame -> 1.65 in 600-px units -> fails; cam2 1.3 px -> 0.98 passes
+    june = {"cam2": dict(zip(pos, [1.3] * 6)), "cam3": dict(zip(pos, [2.2] * 6))}
+    g = PS.side_gate(june, {"cam2": 800, "cam3": 800})
+    assert g["cam2"]["pass"] and not g["cam3"]["pass"]
+    assert abs(g["cam3"]["rms600"] - 1.65) < 1e-9
+    # rms fine but one spout off -> the max rule fails it (2.8 px x 0.75 = 2.1 > 2.0)
+    one = {"cam2": dict(zip(pos, [0.5] * 5 + [2.8])), "cam3": dict(zip(pos, [0.5] * 6))}
+    g = PS.side_gate(one, {"cam2": 800, "cam3": 800})
+    assert not g["cam2"]["pass"] and g["cam3"]["pass"]
+
+
+def test_four_cam_production_has_no_blanket_june_skip():
+    from pathlib import Path
+    src = (Path(__file__).resolve().parents[1] / "scripts" / "pose3d.py").read_text(encoding="utf-8")
+    assert "four-camera mode skipped" not in src and "side_dropped" in src
+    side = (Path(__file__).resolve().parents[1] / "wfield_local" / "pose3d_side.py").read_text(encoding="utf-8")
+    assert "june_factor=_june_factor(date)" in side          # June cam4 rescale, as in the two-camera run

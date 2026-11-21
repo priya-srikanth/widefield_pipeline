@@ -536,6 +536,26 @@ def fill_n(g, X: np.ndarray, pts: np.ndarray, used: np.ndarray, trial: np.ndarra
     return X, nv
 
 
+#: PER-SESSION SIDE-CAMERA GATE (Priya 11-21: "it's the same lenses june to august"; check: docs/POSE_MODELS.md Part E
+#: "June side views, every session"). A side camera is used in a session only when its spout PnP reprojection over the
+#: six parked spouts is rms <= 1.5 px AND max <= 2.0 px in 600-px units (px x 600 / frame width; June frames are 800 px).
+#: August 0.41-1.17 rms; June at or below August except PS92 0602 / 0603 cam3 (1.6-1.65 rms in 600-px units). A failing
+#: camera is dropped for that session only (the others carry it); replaces the blanket June skip. Intrinsics stay 09-11.
+SIDE_GATE_RMS_PX600 = 1.5
+SIDE_GATE_MAX_PX600 = 2.0
+
+
+def side_gate(perr: dict, widths: dict, rms_max: float = SIDE_GATE_RMS_PX600, max_max: float = SIDE_GATE_MAX_PX600) -> dict:
+    """{side cam: {"rms600", "max600", "pass"}} from `pose3d.pnp_group`'s per-position reprojection px (``perr``) and
+    the side frame widths (`SIDE_GATE_RMS_PX600`)."""
+    out = {}
+    for c in SIDE:
+        e = np.asarray(list(perr[c].values()) if isinstance(perr[c], dict) else perr[c], float) * 600.0 / float(widths[c])
+        rms, mx = float(np.sqrt(np.mean(e ** 2))), float(np.max(e))
+        out[c] = {"rms600": rms, "max600": mx, "pass": bool(rms <= rms_max and mx <= max_max)}
+    return out
+
+
 def fuse_session(rv, animal: str, date: str, preds_dir: Path | None = None, clips_dir: Path | None = None, cg=None,
                  side_bundle: str | None = None, c1=None, c4=None) -> dict:
     """The whole four-camera pipeline for one session. Side input: the review clips (``preds_dir`` + ``clips_dir``;
@@ -544,7 +564,7 @@ def fuse_session(rv, animal: str, date: str, preds_dir: Path | None = None, clip
     Returns {"F": frames (S rows + side rows), "order", "g" (posed group), "pts" (cleaned image points per part),
     "parts": {part: {"X", "views", "used", "dist", "g" (the part's offset group)}}, "stats", "rig", "side", "S"}."""
     from scripts.apparatus_mouth import _rig
-    from scripts.pose3d import PROD, _cgroup
+    from scripts.pose3d import PROD, _cgroup, _june_factor
     from wfield_local import o2_inference as oi
     from wfield_local import pose3d as P3
     from wfield_local import spout_frame as SF
@@ -556,7 +576,9 @@ def fuse_session(rv, animal: str, date: str, preds_dir: Path | None = None, clip
     cg = cg or _cgroup(rv)
     from wfield_local import cam1_licks as C1
     keep = C1.cam4_lick_windows(rv, animal, date)          # cam1 drop mask: keep runs inside a cam4 lick (11-18)
-    S, info = P3.session_3d(cg, rig, c1[0], c1[1], c4[0], c4[1], cam1_keep=keep)
+    # JUNE cam4 (11-21): the same June rescale as the two-camera run (`scripts.pose3d._june_factor`; June LP coords are
+    # x0.8853, cam4 cleaning thresholds are in August px) -- the four-camera path had silently skipped it
+    S, info = P3.session_3d(cg, rig, c1[0], c1[1], c4[0], c4[1], june_factor=_june_factor(date), cam1_keep=keep)
     if side_bundle:
         side = {c: side_windows(rv, side_bundle, animal, date, c) for c in SIDE}
         if any(v is None for v in side.values()):
@@ -564,7 +586,8 @@ def fuse_session(rv, animal: str, date: str, preds_dir: Path | None = None, clip
     else:
         side = side_session(rv, animal, date, preds_dir, clips_dir, c4[0])
     meds = {"cam1": info["med1"], "cam4": info["med4"], **{c: SF.ruler_medians(side[c][1], side[c][0]) for c in SIDE}}
-    g, _ = pose_all(cg, {c: meds[c] for c in ("cam1", "cam4", "cam2", "cam3")}, rig["geometry"])
+    g, perr = pose_all(cg, {c: meds[c] for c in ("cam1", "cam4", "cam2", "cam3")}, rig["geometry"])
+    gate = side_gate(perr, {c: side_width(rv, animal, date, c) for c in SIDE})
     order = [c.get_name() for c in g.cameras]
     cams = {c.get_name(): c for c in g.cameras}
     scale = {c: px_per_mm(cams[c]) / px_per_mm(cams["cam4"]) for c in order}
@@ -575,6 +598,10 @@ def fuse_session(rv, animal: str, date: str, preds_dir: Path | None = None, clip
         k = F[f"i_{c}"].to_numpy()
         for part in ("tongue", "jaw"):
             pts[part][order.index(c)] = np.where((k >= 0)[:, None], cl[part][np.clip(k, 0, None)], np.nan)
+    for c in SIDE:                                    # a side camera failing the spout gate adds NO points this session
+        if not gate[c]["pass"]:
+            for part in pts:
+                pts[part][order.index(c)] = np.nan
     trial, t = F.trial_id.to_numpy(), F.t_ms.to_numpy(float)
     drop = droplet_mask(pts["tongue"], order, trial, scale)
     pts["tongue"][drop] = np.nan
@@ -582,7 +609,8 @@ def fuse_session(rv, animal: str, date: str, preds_dir: Path | None = None, clip
                "tongue": session_tongue_offsets(g, S, side)}
     parts = {}
     ok_t = np.isfinite(S[["tongue_ml", "tongue_ap", "tongue_dv"]].to_numpy(float)).all(1)
-    stats = {"scale": scale, "nose_offsets": offsets["nose"], "tongue_offsets": offsets["tongue"],
+    stats = {"scale": scale, "nose_offsets": offsets["nose"], "tongue_offsets": offsets["tongue"], "side_gate": gate,
+             "side_dropped": [c for c in SIDE if not gate[c]["pass"]],
              "droplet_frames": int(drop.any(0).sum()),
              # the SESSION GATES of `pose3d.failed_sessions`, exactly as the two-camera run computes them (its spout fit
              # and its cam1 tongue reprojection): the same sessions fail in both sources
