@@ -137,7 +137,7 @@ def _cam1_signature(rv=None) -> str:
     listing of the share per render)."""
     from wfield_local.paths import PathResolver
     import hashlib
-    d = Path((rv or PathResolver()).root("dlc")) / "session_poses" / "cam1_licks"
+    d = cam1_events_dir(rv or PathResolver())
     if str(d) not in _CAM1_SIG:
         h = hashlib.sha1()
         for f in sorted(d.glob("*_events.csv")) if d.exists() else []:
@@ -153,7 +153,7 @@ def spec_token(rv=None) -> str:
     p = attempts_path(rv)
     st = p.stat() if p.exists() else None
     return (f"lp{LP_VERSION}t{LP_DAQ_TOL_MS:g}:{st.st_mtime_ns if st else 0}:{st.st_size if st else 0}"
-            f":cam1-{_cam1_signature(rv)}")
+            f":cam1-{_cam1_signature(rv)}{_routing_token()}")
 
 
 def first_lick_timing(pos, lp_ms, contact_ms, stop_ms, tol_ms: float = LP_DAQ_TOL_MS) -> pd.DataFrame:
@@ -456,13 +456,42 @@ def supplement_token(label: str, rv=None) -> str:
     return f"sup:{st.st_size}:{st.st_mtime_ns}"
 
 
-def _inputs(label: str, rv):
-    """(session dir, cam4 licks_all, cam1 events) paths for one session."""
+#: RE-RUN ROUTING (11-21, four-camera re-run; no adoption of the new run without Priya's OK): the cam4 run folder and
+#: the cam1 event folder `_inputs` reads, so the re-run's producers (cam1 re-detection, the four-camera 3-D lick cuts /
+#: drop-mask keep windows, the fusion) read v37 + a VERSIONED cam1 folder while every other consumer stays on
+#: `orofacial_cohort.RUN` + `session_poses/cam1_licks`. Unset (the default) = byte-identical paths and cache keys; when
+#: set, both values enter `spec_token` (so an LP cache entry built under them can never be served to a default run).
+INPUT_RUN_ENV = "WIDEFIELD_LICK_INPUT_RUN"          # e.g. lp_r4_heatmap_20261013__clean_v37
+CAM1_DIR_ENV = "WIDEFIELD_CAM1_LICKS_DIR"           # folder name under session_poses, e.g. cam1_licks_v37
+
+
+def input_run() -> str:
+    """The cam4 run `_inputs` reads (`INPUT_RUN_ENV`, else `orofacial_cohort.RUN`)."""
     from wfield_local import orofacial_cohort as oc
+    return os.environ.get(INPUT_RUN_ENV, "").strip() or oc.RUN
+
+
+def cam1_events_dir(rv=None) -> Path:
+    """session_poses/<cam1_licks | `CAM1_DIR_ENV`>: the cam1 lick-event folder."""
+    import re
+    from wfield_local.paths import PathResolver
+    name = os.environ.get(CAM1_DIR_ENV, "").strip() or "cam1_licks"
+    if not re.fullmatch(r"cam1_licks[A-Za-z0-9_]*", name):
+        raise ValueError(f"{CAM1_DIR_ENV}={name!r}: expected 'cam1_licks' + optional suffix (e.g. cam1_licks_v37)")
+    return Path((rv or PathResolver()).root("dlc")) / "session_poses" / name
+
+
+def _routing_token() -> str:
+    r, c = os.environ.get(INPUT_RUN_ENV, "").strip(), os.environ.get(CAM1_DIR_ENV, "").strip()
+    return f":run-{r}:c1dir-{c}" if (r or c) else ""
+
+
+def _inputs(label: str, rv):
+    """(session dir, cam4 licks_all, cam1 events) paths for one session (`input_run`, `cam1_events_dir`)."""
     from wfield_local import config, orofacial_outputs as oo
     an, d = label.split("_")
-    sd = oo.session_dir(rv, oc.RUN, an, config.date8(d))
-    return sd, sd / "licks_all.csv", Path(rv.root("dlc")) / "session_poses" / "cam1_licks" / f"{an}_{config.date8(d)}_events.csv"
+    sd = oo.session_dir(rv, input_run(), an, config.date8(d))
+    return sd, sd / "licks_all.csv", cam1_events_dir(rv) / f"{an}_{config.date8(d)}_events.csv"
 
 
 _TIMES: dict = {}

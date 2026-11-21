@@ -37,7 +37,10 @@ CROP, TILE_W = (300, 240), 150
 
 
 def _out(rv) -> Path:
-    p = Path(rv.root("dlc")) / "session_poses" / "cam1_licks"
+    """The cam1 event folder: session_poses/cam1_licks, or the versioned folder of a re-run
+    (`lp_licks.CAM1_DIR_ENV`, 11-21: e.g. cam1_licks_v37), so a re-run never rewrites the folder every v36 analysis reads."""
+    from wfield_local import lp_licks
+    p = lp_licks.cam1_events_dir(rv)
     p.mkdir(parents=True, exist_ok=True)
     return p
 
@@ -80,7 +83,10 @@ def run_session(s: str) -> dict:
     k = C1.mm_per_px(lat_pos, ml_pos) if {"far_L", "far_R"} <= set(med) else np.nan
     for cname in ("peak_dist", "peak_out", "max_out"):
         E[f"{cname}_mm"] = E[f"{cname}_px"] * k
-    sd = Path(rv.root("orofacial")) / V36 / "sessions" / animal / date
+    # cam4 run for cam4_matched / jaw-only trials: v36 (the adopted RUN) unless a re-run routes it
+    # (`lp_licks.INPUT_RUN_ENV`, 11-21: v37 with the spout rule)
+    from wfield_local import lp_licks
+    sd = Path(rv.root("orofacial")) / lp_licks.input_run() / "sessions" / animal / date
     if (sd / "licks.csv").exists():
         C4 = pd.read_csv(sd / "licks.csv")
         E["cam4_matched"] = C1.overlaps(E, C4)
