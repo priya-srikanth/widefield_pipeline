@@ -57,7 +57,25 @@ def pose3d_dir(rv=None, source: str | None = None, root=None):
     if root is None:
         from wfield_local.paths import PathResolver
         root = (rv or PathResolver()).root("dlc")
-    return Path(root) / "session_poses" / SOURCES[pose3d_source(source)]
+    s = pose3d_source(source)
+    return Path(root) / "session_poses" / (SOURCES[s] + pose3d_tag(s))
+
+
+#: RUN TAG (11-21, Priya / VLS-paper refresh: "every output goes to a new name or a new run tag"): a suffix on the 3-D
+#: folder, e.g. ``WIDEFIELD_POSE3D_TAG=_3net_20261121`` -> ``session_poses/pose3d_4cam_3net_20261121``, so a re-run of a
+#: source never lands on an earlier run's tables. Inherited by child processes like `SOURCE_ENV`; never applied to the
+#: default 2cam source (today's adopted tables keep their folder).
+TAG_ENV = "WIDEFIELD_POSE3D_TAG"
+
+
+def pose3d_tag(source: str | None = None) -> str:
+    import os
+    import re
+    s = pose3d_source(source)
+    tag = os.environ.get(TAG_ENV, "") if s != "2cam" else ""
+    if tag and not re.fullmatch(r"_[A-Za-z0-9_]+", tag):
+        raise ValueError(f"{TAG_ENV}={tag!r}: expected '_' + letters / digits / '_' (e.g. _3net_20261121)")
+    return tag
 
 
 STATIC_LK = 0.9            # nose / spout: raw points, both cameras at least this confident
@@ -549,7 +567,7 @@ def _cut_flags(t: np.ndarray, tid: np.ndarray, cuts: dict | None) -> np.ndarray:
 
 
 def lick_peaks(S: pd.DataFrame, rig: dict, min_frames: int = 3, max_rep_px: float | None = None,
-               cuts: dict | None = None) -> pd.DataFrame:
+               cuts: dict | None = None, min_ili_ms: float | None = None) -> pd.DataFrame:
     """One row per 3-D lick: a run of >= ``min_frames`` consecutive frames (4 ms apart, one trial, cue .. trial stop)
     with a 3-D tongue (both cameras, or one camera + neighbours: `fill_single_view`; ``share_single_view`` per lick).
     ``max_rep_px`` drops BOTH-camera frames whose tongue reprojection exceeds it in either camera.
@@ -576,7 +594,7 @@ def lick_peaks(S: pd.DataFrame, rig: dict, min_frames: int = 3, max_rep_px: floa
     if max_rep_px is not None:                                  # single-camera frames have no reprojection error
         have &= (src != 1) | ((S.tongue_rep1.to_numpy(float) <= max_rep_px) & (S.tongue_rep4.to_numpy(float) <= max_rep_px))
     tgt = {p: SW.commanded_world(rig["geometry"], p) for p in SW.POSITIONS}
-    rows, i, n = [], 0, len(S)
+    runs, i, n = [], 0, len(S)
     while i < n:
         if not have[i]:
             i += 1
@@ -584,21 +602,46 @@ def lick_peaks(S: pd.DataFrame, rig: dict, min_frames: int = 3, max_rep_px: floa
         j = i + 1
         while j < n and have[j] and tid[j] == tid[i] and abs(t[j] - t[j - 1] - 4.0) < 0.5 and not cut_before[j]:
             j += 1
+        if j - i >= min_frames:
+            runs.append([i, j])
+        i = j
+    # PHYSIOLOGICAL FLOOR (Priya 11-21: the pipeline-wide `lick_detection.min_ili_ms`, 40 ms = 25 Hz; these mice lick
+    # 5-7 Hz, fastest bouts ~9-11 Hz). Two runs of one trial whose extension peaks are closer than the floor are ONE
+    # lick split by a tracking dropout or a cut, so they are merged and measured over the union of their frames (the
+    # 11-21 pilot: 37 / 18 sub-40 ms intervals on the four-camera track, 270 / 122 on the two-camera one).
+    if min_ili_ms is None:
+        from wfield_local import config as _cfg
+        min_ili_ms = _cfg.lick_min_ili_s() * 1000.0
+    R = np.linalg.norm(np.where(np.isfinite(P), P, 0.0), axis=1)
+    merged = []
+    for a, b in runs:
+        if merged:
+            a0, b0 = merged[-1]
+            if tid[a] == tid[a0]:
+                pk0 = a0 + int(np.argmax(np.where(have[a0:b0], R[a0:b0], -np.inf)))
+                pk1 = a + int(np.argmax(R[a:b]))
+                if t[pk1] - t[pk0] < min_ili_ms:
+                    merged[-1][1] = b
+                    continue
+        merged.append([a, b])
+    rows = []
+    for i, j in merged:
         pos = str(S.position.iloc[i])
-        if j - i >= min_frames and pos in tgt:
-            r = np.linalg.norm(P[i:j], axis=1)
-            k = i + int(np.argmax(r))
+        if pos in tgt:
+            idx = np.arange(i, j)[have[i:j]]          # a merged lick skips the dropout frames between its parts
+            Pi = P[idx]
+            r = np.linalg.norm(Pi, axis=1)
+            k = int(idx[int(np.argmax(r))])
             g = tgt[pos]
-            dm = np.linalg.norm(P[i:j] - g, axis=1)
-            m = i + int(np.argmin(dm))
+            dm = np.linalg.norm(Pi - g, axis=1)
+            m = int(idx[int(np.argmin(dm))])
             out_sign = np.sign(g[0]) if abs(g[0]) > 1e-6 else -1.0        # centre: + = mouse left
             rows.append({"trial_id": int(tid[i]), "position": pos, "t_onset_ms": t[i], "t_peak_ms": t[k],
-                         "n_frames": j - i, "share_single_view": float(np.mean(src[i:j] > 1)),
-                         "reach_mm": float(r[k - i]),
+                         "n_frames": j - i, "share_single_view": float(np.mean(src[idx] > 1)),
+                         "reach_mm": float(np.max(r)),
                          "ml": P[k, 0], "ap": P[k, 1], "dv": P[k, 2],
-                         "miss_mm": float(dm[m - i]), "t_closest_ms": t[m],
+                         "miss_mm": float(np.min(dm)), "t_closest_ms": t[m],
                          "lat_err_mm": float(out_sign * (P[m, 0] - g[0])),
                          "ap_err_mm": float(P[m, 1] - g[1]), "dv_err_mm": float(P[m, 2] - g[2]),
                          "rep1_px": float(S.tongue_rep1.iloc[k]), "rep4_px": float(S.tongue_rep4.iloc[k])})
-        i = j
     return pd.DataFrame(rows)
