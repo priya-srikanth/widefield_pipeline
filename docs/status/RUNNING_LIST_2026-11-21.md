@@ -154,3 +154,8 @@ Mac prompt `vls_stroke_paper/PROMPT_c2_4cam_3d_refresh.md` (Phase A gate -> B ta
   `pose3d_4cam_3net_20261121/qc_phaseA/ili_floor_examples/`): 40-60 ms pairs are 85 % fragments of ONE protrusion
   (retraction median -0.09), 60-80 ms mixed (some true double pumps), controls clean; 60 ms floor -0.57 % licks, 80 ms
   -0.93 %. Suggested (not adopted) retraction rule instead of a time floor -- decision for Priya.
+- 11-21 Q7 PS95 side week (`scripts/pose3d_side_week_check.py`, `qc_phaseA/ps95_side_week/README.md`): side views did NOT
+  move in the week (cam2 <= 2.3 px vs 08-12; cam3 shifted ~9-10 px once on 08-17 in PS95 AND PS94, then stable); of 21
+  sampled PS95 0818-0827 side-only licks 17 = paw sweeping into view, 2 grooming, 1 water drop, 1 real (close_center);
+  near-mouth (<= 4 mm) & >= 20 ms side-only stay ~0.1 % all week (post-hoc rule, 5/5 real kept, 1/36 false).
+  Recommend: keep side geometry + gate, add a side-only guard in `camera_licks` before adopting the four-camera train.
