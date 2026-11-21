@@ -168,3 +168,7 @@ Mac prompt `vls_stroke_paper/PROMPT_c2_4cam_3d_refresh.md` (Phase A gate -> B ta
   in 2cam (cam1+cam4-only far contra 0.25 vs 4cam 0.16). EM Kalman / RTS smoother FAILS injection (keeps 18-61 % of real
   pulses) -> not adopted. Recommend: no-last-frame-peak rule in both runs + switch-aware noise control; Priya to decide
   whether CSM share stays a step-7 primary readout (4cam CSMs 1-3 % under the rule).
+- 11-21 Q4 follow-up, gate 4 under the edge rule (`gate4_edge/`, README Part 3): first/last-frame peaks not counted for real
+  AND surrogates. 4cam real 1.2-3.2 % vs false 0.2-0.9 % per animal (theta at the grid floor, 30), far > close 4/4; the rule
+  also removes 71-89 % of the 2cam CSMs (pre, theta 50; 107-session check) and flattens the acute changes (PS94 / PS95
+  down -> flat), so the manuscript two-camera CSM numbers need an e2 re-run. Recommend: CSMs descriptive only.
