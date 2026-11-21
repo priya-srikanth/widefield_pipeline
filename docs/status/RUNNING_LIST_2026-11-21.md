@@ -133,3 +133,11 @@ Mac prompt `vls_stroke_paper/PROMPT_c2_4cam_3d_refresh.md` (Phase A gate -> B ta
   reuse them by skip-if-exists); two-camera = cached production extraction, read only.
 - Phase C: `vls_stroke_paper/READY_desktop_c2_4cam_20261121.md` written (Phase A pass, gate 4 flagged; Phase B NOT run,
   every table PENDING; 8 questions for Priya; superseded-output list). STOPPED here pending Priya's decisions.
+- Priya's answers to the READY file's questions (11-21 evening):
+  - Q2: ADOPT the four-camera / v37 run as the new cohort default. Flip `orofacial_cohort.RUN` (+ pose3d source / tag
+    default) as one commit once the consumers are rewired and the `lick_uid` key join is in; branch only until she reviews.
+  - Q3 (floor): decide from example traces; diagnostic running (`qc_phaseA/ili_floor_examples/`).
+  - Q4 (submovements): review first; example traces + artifact tests running (`qc_phaseA/csm_examples/`).
+  - Q5 (close-spout jaw): use the four cameras -- replace the source-blind close_center mask in `jaw_onsets` /
+    `trial_classes` jaw_judged with a source-aware rule (four-camera frames judge the jaw there).
+  - Q1: explained; awaiting her choice.
