@@ -141,3 +141,12 @@ Mac prompt `vls_stroke_paper/PROMPT_c2_4cam_3d_refresh.md` (Phase A gate -> B ta
   - Q5 (close-spout jaw): use the four cameras -- replace the source-blind close_center mask in `jaw_onsets` /
     `trial_classes` jaw_judged with a source-aware rule (four-camera frames judge the jaw there).
   - Q1: explained; awaiting her choice.
+- Priya (11-21 evening, cont.). Camera naming: cam4 = FRONT, not bottom.
+  - Q1: (b) -- the fused four-camera train defines the 3-D kinematics lick set, tolerant of missing camera frames (any
+    camera counts per D2; a lick keeps whatever 3-D frames exist; kinematics NaN only where too few 3-D frames).
+  - Q6: PS93 0805 has the h5 + a reconstructed trial table (`behavior_trials`, cam1 recovery). It is in
+    `cross_session_exclude` (outside the curated window), so it does not affect results; its camera lick tables are
+    missing (the cam4 / cam1 chain did not pick up the reconstructed trials) -- low priority.
+  - Q7: look at examples -> diagnostic running (`qc_phaseA/ps95_side_week/`: daily side-camera frames + side-only licks).
+  - Q8: full session = first to last sync pulse (all cameras); collect window to be widened and only the head / tail
+    stretches run through 2-D -> 3-D -> fusion.
