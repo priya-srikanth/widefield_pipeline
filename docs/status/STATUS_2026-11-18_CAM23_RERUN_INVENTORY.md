@@ -90,13 +90,74 @@ the cohort mixes two cam1 definitions.** Bump `lp_licks.LP_VERSION` with that re
 
 Open: the clip-edge licks (side frames end at +1.5 s), and the first whole-session run.
 
+## 0c. 11-21 whole-session pilot (two sessions; branch `pilot/side4cam-wholesession`, not merged)
+
+**Decisions (Priya 11-21 ~03:00-03:15; DECISIONS.md 2026-11-21):** D1 = (a) new cam4 2-D RUN v37 with the spout fix
+(recorded only, not started); D2 = a lick needs TWO camera views (she wrote "D2 - 2?": check against the numbers
+below); water drops (section 0b) = (c), the four-camera fusion decides; D3 = licks from every camera over the FULL
+session.
+
+**What ran** (O2 side run `lp_side_r2b_prod_20261118`; PS93 0814 + PS94 0817, both cam2 / cam3 videos verified):
+1. `python -m wfield_local.o2_inference collect --name lp_side_r2b_prod_20261118 --sessions PS93:20260814 PS94:20260817`
+   (locanmf env): frame counts match the videos; new folders `session_poses/<a>_<d>_cam2_full`, `_cam3_full` (575 and
+   643 trials). 8 min for both sessions (~2 min per video).
+2. `python -m scripts.pose3d production <s> --four-cam lp_side_r2b_prod_20261118 --out
+   session_poses/pose3d_4cam_pilot_20261121` (dlc env), 12 and 7.5 min per session. Written to a PILOT folder, not
+   `pose3d_4cam/`: the production run must carry the parked fixes (section 0), and the cam1 events in use predate
+   `mask_detached` (section 0b). Ran without errors.
+3. `python -m scripts.camera_licks session <s> --bundle lp_side_r2b_prod_20261118` (dlc env), ~8.5 min per session:
+   `session_poses/camera_licks/lp_side_r2b_prod_20261118/<a>_<d>_{fused,events}.csv`, `views.csv`. Summary script:
+   `C:/Users/SabatiniLab/lp_stage/pilot4cam/fusion_summary.py` (logs beside it).
+
+**3-D (four cameras vs today's two):** PS93 0814: 2,203,161 frames (= the two-camera pairing); tongue in 3-D 11.3 % of
+frames (cam1 + cam4 alone 8.3 %, one-view fill 1.6 %); jaw 99.98 %; world fit residual <= 0.04 mm; cam1 tongue
+reprojection 3.4 px; 14,447 droplet frames. PS94 0817: tongue 3.4 % (cam1 + cam4 2.4 %), fit <= 0.10 mm, 71 droplet
+frames. Per-lick medians barely move (PS93 reach 4.33 -> 4.41 mm, miss 1.36 -> 1.29, lateral error -0.79 -> -0.74;
+PS94 reach 3.75 -> 3.70, miss 1.01 -> 0.81, lateral 0.36 -> 0.29).
+**But fewer 3-D licks: PS93 5,851 -> 5,599 (-4 %), PS94 1,718 -> 1,618 (-6 %),** while 5,786 / 5,851 and 1,704 / 1,718
+two-camera licks have a four-camera peak within 40 ms. So the extra side frames bridge the gaps between consecutive
+licks and `pose3d.lick_events` (12 ms bridge) merges neighbours. OPEN: fix before the production run (e.g. split a
+3-D lick where cam4's lick table has two licks).
+
+**Lick fusion, whole session** (licks; share of all fused licks):
+
+| | PS93 0814 | PS94 0817 |
+|---|---|---|
+| fused licks (union) | 10,691 | 3,072 |
+| seen by all four cameras | 8,194 (77 %) | 2,273 (74 %) |
+| cam1-only (median 28 ms; >= 300 ms) | 681 (6.4 %; 9) | 409 (13.3 %; 27) |
+| cam4-only (median 24-28 ms) | 222 (2.1 %) | 71 (2.3 %) |
+| side-only (no cam1 / cam4 event) | 282, 247 guarded (dropped), 35 kept by the union | 6, 1 guarded, 5 kept |
+| train, union (min_views 1) | 10,444 | 3,071 |
+| train, D2 = two views | 9,509 (-935, -9 %) | 2,590 (-481, -16 %) |
+| production cam4 licks seen by >= 1 other camera | 9,429 / 9,651 (98 %) | 2,529 / 2,600 (97 %) |
+
+Coverage (D3): the side windows are the same trial windows as cam1 / cam4 (strobe - 0.5 s .. stop + 3 s, cut at the
+next trial) and cover 99.7 % of PS93's video (2,203,161 / 2,209,339 frames); only the minutes before the first and
+after the last trial are outside. Licks by where they fall (two-view licks / all): PS93 pre-cue 3,564 / 4,004, cue to
+stop 5,297 / 5,904, after stop 649 / 783; PS94 943 / 1,129, 1,573 / 1,803, 74 / 140. So the full-session train
+(D3) needs only the edges added (frames before trial 1 / after the last trial), not a new detector.
+
+**Findings / open questions for Priya:**
+- **D2 = two views costs 9-16 % of licks**, almost all single-view events of 16-44 ms (four-view licks: 76-104 ms).
+  PS94 far_center: 188 of its 241 licks are cam1-only. They are either short tongue flicks only the view below sees or
+  cam1 false positives at that spout. Review a clip sheet of cam1-only far_center events before adopting D2 = 2.
+- **Fusion merges consecutive licks**: 310 fused PS93 licks contain 2-4 production cam4 licks (cam4 9,994 events ->
+  9,651 fused licks), because a side or cam1 event bridges the gap (`fuse` chaining; `test_fuse_chains_through_a_bridging_event_and_respects_tol`
+  asserts this on purpose). Same effect as the 3-D merge above. Decide: split a fused lick at cam4 (or cam1) lick
+  boundaries.
+- Side detector fragments licks (about 1,450 PS93 licks hold 2+ events of one side camera): harmless after fusion.
+- 35 side-only licks kept by the union in PS93 (0.3 %); with D2 = 2 they need both side views (4 in PS93, 4 in PS94).
+- One cam3 video (local run, task 208, PS95 0603) has 1 frame more than its timestamp CSV; `collect` checks
+  against the video's own frame count, so it will pass. Check that the template timing handles the extra frame.
+
 ## 1. Decisions needed before running (Priya)
 
 | # | decision | why it matters | options / default proposed |
 |---|---|---|---|
-| D1 | Does the cam4 **2-D** chain (LP run `orofacial_cohort.RUN = lp_r4_heatmap_20261013__clean_v36`) get regenerated in this re-run, under a new run tag? | The spout-rule fix (item 1 above) changes the v36 params digest, so it cannot be patched under v36. A new RUN moves EVERY output folder under `LP_analysis/<RUN>/` (licks, kinematics tables, `arhmm/`, `glm_hmm/`, `imaging_encoding/qc/` s1 snapshot, encoder outputs) | (a) new RUN `..._v37` with the spout fix, everything downstream re-pointed (proposed: one clean regeneration); (b) keep v36 2-D, re-run only 3-D and licks (cheaper; 2-D readouts keep the small, unbiased spout deviation) |
-| D2 | **Lick fusion rule** for four cameras | Defines LP_POST, camera classes, RESTnl, quiet-event exclusion, encoder lick kernels | union of cameras with duplicate merge (as cam1 today: cam1-only events added when not cam4-matched, droplets removed) vs requiring 2 views; droplet / far-from-mouth guards per side camera |
-| D3 | **Lick coverage**: post-cue only (as cam1 `_events.csv` today) or the whole trial window (`events_all`) | Today the ENL lick-free window is cam4-only because cam1 is scored only cue -> stop (`LICK_SOURCE_AUDIT_20261117.md`). Whole-window side licks would make the pre-cue / ITI / rest exclusions four-camera too | proposed: whole trial windows for every camera, so one train serves every window |
+| D1 | **DECIDED 11-21: (a)** Does the cam4 **2-D** chain (LP run `orofacial_cohort.RUN = lp_r4_heatmap_20261013__clean_v36`) get regenerated in this re-run, under a new run tag? | The spout-rule fix (item 1 above) changes the v36 params digest, so it cannot be patched under v36. A new RUN moves EVERY output folder under `LP_analysis/<RUN>/` (licks, kinematics tables, `arhmm/`, `glm_hmm/`, `imaging_encoding/qc/` s1 snapshot, encoder outputs) | (a) new RUN `..._v37` with the spout fix, everything downstream re-pointed (proposed: one clean regeneration); (b) keep v36 2-D, re-run only 3-D and licks (cheaper; 2-D readouts keep the small, unbiased spout deviation) |
+| D2 | **DECIDED 11-21: two views (Priya "D2 - 2?"; see 0c)** **Lick fusion rule** for four cameras | Defines LP_POST, camera classes, RESTnl, quiet-event exclusion, encoder lick kernels | union of cameras with duplicate merge (as cam1 today: cam1-only events added when not cam4-matched, droplets removed) vs requiring 2 views; droplet / far-from-mouth guards per side camera |
+| D3 | **DECIDED 11-21: the full session, every camera** **Lick coverage**: post-cue only (as cam1 `_events.csv` today) or the whole trial window (`events_all`) | Today the ENL lick-free window is cam4-only because cam1 is scored only cue -> stop (`LICK_SOURCE_AUDIT_20261117.md`). Whole-window side licks would make the pre-cue / ITI / rest exclusions four-camera too | proposed: whole trial windows for every camera, so one train serves every window |
 | D4 | **Kinematics in 3-D or 2-D** -- DECIDED (Priya 11-18): "kinematics - we'll want mostly 3d" | The kinematics page mixes cam4 2-D (v36) and cam1 + cam4 3-D readouts | the kinematics readouts move to the four-camera 3-D (`pose3d_4cam`); 2-D only where a readout has no 3-D form |
 | D5 | **GLM-HMM / AR-HMM: refit or re-infer** | A refit renumbers states and changes every state figure; re-inferring with the saved parameters keeps the states | proposed: re-infer with the saved parameters (`glm_hmm/v1/params_pooled_all_K5_v2.json`; AR-HMM fits on the share) and report how many trials change state; refit only if the inputs moved a lot |
 | D6 | **Frozen pre-stroke decoders / encoder** | If the working gate's pre-stroke trial set changes, `spec_id` changes and new frozen models get fitted; the old ones stay as the reference (CLAUDE.md rule 10, `FROZEN_MODELS.md` section 7) | re-fit under the new gate as a new spec, keep the old store, compare |
