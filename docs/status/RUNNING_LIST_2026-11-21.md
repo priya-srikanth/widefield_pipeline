@@ -172,3 +172,4 @@ Mac prompt `vls_stroke_paper/PROMPT_c2_4cam_3d_refresh.md` (Phase A gate -> B ta
   AND surrogates. 4cam real 1.2-3.2 % vs false 0.2-0.9 % per animal (theta at the grid floor, 30), far > close 4/4; the rule
   also removes 71-89 % of the 2cam CSMs (pre, theta 50; 107-session check) and flattens the acute changes (PS94 / PS95
   down -> flat), so the manuscript two-camera CSM numbers need an e2 re-run. Recommend: CSMs descriptive only.
+- 2026-11-21 side-only guard (Priya: "shape rule, validated"): blind fresh sample of 63 side-only licks -> shape rule (<= 4 mm AND >= 20 ms) keeps 12/25 real, 6/37 false = FAILS, NOT adopted (camera_licks unchanged, no re-run). Two-view fallback 19/25 real, 6/37 false, 0 paws / drops -> Priya to decide. Real side-only licks are mostly cam4/cam1 table gaps (PS93 0805 has no cam4/cam1 events: 6,941 = 47 % of side-only). qc_phaseA/side_only_guard/ (README, blind_sheet/ + blind_answer_key.csv); script 3f250436.

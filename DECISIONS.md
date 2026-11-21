@@ -24236,3 +24236,24 @@ events):
   session_lick_summary, cam1_lick_aim `from_medians_lr`, whisker_motion, orofacial_heatmaps `spout_ref`) -- downstream
   analyses re-pointed with the v37 consumers; `LP_analysis/index.csv` (generated, all runs) was rewritten by the producer
   and now lists v37 rows.
+
+## 2026-11-21 -- Side-only lick guard: Priya chose the shape rule, validated; it FAILED blind validation, not adopted
+- *Context:* the PS95 side-week check (`qc_phaseA/ps95_side_week`, commit a28cef9a) found that most side-only licks in
+  the four-camera fusion (`camera_licks/lp_side_r2b_prod_20261118_3net_20261121`) are the forepaw, grooming or water
+  drops. A shape rule read off its 41 examples kept 5/5 real and 1/36 false: keep a side-only lick only if its side peak
+  is <= 4 mm from the mouth AND it lasts >= 20 ms. *Decision (Priya 11-21):* "shape rule, validated", i.e. adopt it
+  only if it holds on a fresh blind sample. Pre-set failure line: drops > 1 in 5 real, or keeps > 1 in 5 false.
+- *Validation* (`scripts/side_only_guard_check.py`, outputs `pose3d_4cam_3net_20261121/qc_phaseA/side_only_guard/`):
+  - Sample: 63 fresh side-only licks (6 per animal x pre/post + 15 near the thresholds; the 41 excluded), judged by eye
+    from blind strips before the rule was joined; 62 judgeable.
+  - Verdicts: real 25 / paw 14 / grooming 12 / water drop 3 / other 8 (3 of them fragments of an adjacent lick, scored
+    false).
+  - The rule keeps **12/25 real (48 %)** and **6/37 false (16 %)**. It drops full protrusions peaking at 4.0-6.6 mm
+    (7) and real 8-16 ms licks (6). **FAILS -> NOT adopted.** `camera_licks` is unchanged and no fusion was re-run. The
+    unadopted implementation is kept as `NOT_ADOPTED_shape_guard.patch` in that folder.
+- *Proposed fallback (open, for Priya):* two views for side-only licks (cam2 AND cam3 both see it): 19/25 real kept,
+  6/37 false kept, 0/14 paws, 0/3 drops (just under the 80 % sensitivity line).
+- *Upstream finding:* most real side-only licks are licks that cam1 / cam4 tracked but whose production lick tables
+  lack them. PS93 0805 has no cam4 / cam1 events in the fusion at all: 6,941 licks, 47 % of the cohort's side-only
+  licks. The rest are ITI / June stretches elsewhere. This coverage gap should be checked before any side-only rule
+  is fixed.
