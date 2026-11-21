@@ -171,6 +171,48 @@ def predict(model, Z, code):
     return p
 
 
+#: spec keys allowed to differ when QS_FOLLOWUP_STORED_DECODER=1 loads the stored rebuild decoder (Priya 11-18 "ok").
+#: The stored models were frozen with scaling_params centre_set 'working_rows'; current code writes 'working' plus a
+#: PS93_0813 fallback, which moves train_fp. Everything else (pre sessions, features, basis, window, hemo, selection)
+#: must match exactly, and the rebuilt-vs-stored p_true check printed by `summarise` shows whether the label matters.
+STORED_OK_DIFF = {"scaling_params", "train_fp"}
+_IDX: dict = {}      # label -> (engaged cue indices, no-lick cue indices) from features_with_indices
+_CENTRE: dict = {}   # label -> (centre, sd) of production's scored frame (frozen_scored_frame)
+
+
+def _stored_sibling(spec):
+    """Load the ONE stored frozen precue decoder whose spec differs from `spec` only in STORED_OK_DIFF (by its stored
+    id, never a fit). Raises otherwise."""
+    from wfield_local import frozen_models
+    from wfield_local import spout_scaling
+    fallback = set(spout_scaling.centre_fallback())          # no-video sessions (PS93_0813)
+    cand = []
+    for s in frozen_models.siblings(spec):
+        diff = {k for k in set(s["spec"]) | set(spec) if str(s["spec"].get(k)) != str(spec.get(k))}
+        # the stored PS93 model was frozen BEFORE the no-video contact fallback existed, so its pre set lacks
+        # PS93_0813 (7 sessions; the model slide 159's T13 used). Accept a training-set difference ONLY when the stored
+        # set = today's set minus configured fallback sessions; the follow-up then scores PS93_0813 with the full model
+        # (it is not a training session of the stored model), and T13 excludes PS93_0813 (no video) anyway.
+        if {"train_labels", "train_sigs"} & diff:
+            want = set(spec.get("train_labels") or [])
+            have = set(s["spec"].get("train_labels") or [])
+            if not (have < want and (want - have) <= fallback):
+                continue
+            diff = diff - {"train_labels", "train_sigs"} | {"train_labels(minus fallback " + ",".join(sorted(want - have)) + ")"}
+            ok = STORED_OK_DIFF | {d for d in diff if d.startswith("train_labels(")}
+        else:
+            ok = STORED_OK_DIFF
+        if diff <= ok:
+            cand.append((s, diff))
+    if len(cand) != 1:
+        raise RuntimeError(f"{spec['animal']}: {len(cand)} stored decoders differ only in {sorted(STORED_OK_DIFF)} "
+                           "-- refusing to guess (rule 10)")
+    s, diff = cand[0]
+    print(f"[followup] {spec['animal']}: STORED decoder {s['dir'].name} (frozen {s['frozen_utc']}), loaded by id; "
+          f"differs only in {sorted(diff)}: stored scaling_params={s['spec'].get('scaling_params')}", flush=True)
+    return frozen_models._read(s["dir"]), f"stored-by-id {s['dir'].name}"
+
+
 def frozen_models_for(animal):
     """(models, kept, pre labels, pooled XE by label) -- the STORED frozen precue decoder of attempt_coding. Load only."""
     from wfield_local import config, frozen_models, joint_locanmf  # noqa: F401
@@ -190,10 +232,39 @@ def frozen_models_for(animal):
 
     def _never():
         raise RuntimeError(f"{animal}: no stored frozen precue decoder for this spec -- refusing to fit (rule 10)")
-    models, status = frozen_models.load_or_fit(spec, _never)
+    if os.environ.get("QS_FOLLOWUP_STORED_DECODER", "") == "1" and frozen_models.find(spec)[0] is None:
+        models, status = _stored_sibling(spec)
+    else:
+        models, status = frozen_models.load_or_fit(spec, _never)
     print(f"[followup] {animal}: frozen precue decoder {status} (window {spec['post_s']} s, "
           f"{spec['n_features']} features, {len(pre_list)} pre sessions)", flush=True)
     raw = {lab: XE[GE == i] for i, lab in enumerate(kept)}
+    _IDX.update(getattr(ft, "indices", {}) or {})
+    if models.get("trials"):
+        # production's per-session scored-frame centres (the frozen_scored_frame working-trained branch, verbatim
+        # inputs): pool_work rows, kind_centre_fn of score_centre_rows(), LOSO models for the model's pre sessions
+        from wfield_local import spout_scaling
+        from wfield_local.locanmf_frozen_decoder import pool_work, working_row_classes, working_rows
+        work = pool_work(XE, YE, GE, XU, YU, GU, kept, ft, "precue")
+        if work is None:
+            raise RuntimeError(f"{animal}: working-trained model but no camera working pool (pool_work) for the centre")
+        RX, RY, RG = working_rows(work)
+        pre_i = set(kept.index(lab) for lab in models.get("pre_labels", []) if lab in kept)
+
+        def _model_of(i):
+            pt_ = models["pi_train"]
+            if i in pre_i:
+                return models["loso"].get(kept[i], models["full"]), pt_["loso"].get(kept[i], pt_["full"])
+            return models["full"], pt_["full"]
+
+        centre_of = spout_scaling.kind_centre_fn(
+            spout_scaling.score_centre_rows(), RX, RY, RG, working_row_classes(work), label_of=lambda i: kept[i],
+            model_of=_model_of, train_of=lambda i: sorted(pre_i - {i}) if i in pre_i else sorted(pre_i),
+            stats=spout_scaling.pool_stats_of(XE))
+        for i, lab in enumerate(kept):
+            got = centre_of(i)
+            if got is not None:
+                _CENTRE[lab] = got
     return models, kept, set(pre), raw
 
 
@@ -233,16 +304,18 @@ def score_session(lab, models, pre_set, raw, sd, rng):
     # the pooled (cached) engaged features of this session must match too (same mu / sd as the stored run)
     err_pool = float(np.max(np.abs(raw[lab] - ((z["X"] - mu) / sdv)))) if lab in raw else np.nan
     mdl = models["loso"].get(lab, models["full"]) if lab in pre_set else models["full"]
-    if "pi_train" in models:                     # bal_em: the scoring centre (no labels), production SD
-        from wfield_local import spout_scaling
-        if spout_scaling.centre_rows() == "working":
-            # fifth review N1: this script's centre is every engaged row (no camera classes here) -- refuse under the
-            # camera-working centre rather than silently use another centre set
-            raise spout_scaling.BalEmCentreRefused("quiet_task_events_followup: no camera-working center mask available "
-                                                   "(bal_em.centre_rows = working); run with centre_rows = engaged")
-        pt = models["pi_train"]
-        pi = pt["loso"].get(lab, pt["full"]) if lab in pre_set else pt["full"]
-        mu, sdv = spout_scaling.score_centre(mdl, z["X"], pi)
+    if models.get("trials"):
+        # WORKING-TRAINED stored model (production since 11-03/04): score in production's frame, exactly as
+        # locanmf_frozen_decoder.frozen_scored_frame -- the session-z features (raw[lab] above) moved by the session's
+        # scored-frame centre (spout_scaling.kind_centre_fn, kind = score_centre_rows(), default "wt"), computed in
+        # frozen_models_for from the pool's camera working rows. A session with no working rows stays in the z frame,
+        # as in production. Composed into one (mu, sd) on the raw features: ((x - mu0)/sd0 - c)/s = (x - (mu0 + sd0 c))
+        # / (sd0 s). (11-18: the earlier label-free EM centre on raw features did NOT reproduce the stored p_true.)
+        if lab in _CENTRE:
+            c, s_ = _CENTRE[lab]
+            mu, sdv = mu + sdv * np.asarray(c, float), sdv * np.asarray(s_, float)
+    elif "pi_train" in models:
+        raise RuntimeError("follow-up: a bal_em model that is not working-trained -- no production scoring frame here")
 
     def P(keep, fill="mean", idx=None):
         idx = np.arange(n) if idx is None else idx

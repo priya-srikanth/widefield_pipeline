@@ -56,10 +56,13 @@ def view_from(cam) -> tuple[float, float]:
     return float(np.degrees(np.arcsin(d[2]))), float(np.degrees(np.arctan2(d[1], d[0])))
 
 
-def run(rv, session: str, per_position: int, t0: float, t1: float, preds: Path | None = None,
-        out: Path | None = None, fit: bool = False, clips: str | None = None) -> Path:
-    """``preds``: the side model's clip predictions (default `pose3d_side_check.PREDS`, crop2); ``out``: output folder
-    (default `session_poses/pose3d_side`, where the crop2 renders live -- give another model its own folder)."""
+def run(rv, session: str, per_position: int, t0: float, t1: float, trials: list[int] | None = None,
+        preds: str | Path | None = None, tag: str = "", out: Path | None = None, fit: bool = False,
+        clips: str | None = None) -> Path:
+    """``trials``: render these trial ids instead of ``per_position`` per spout; ``preds``: a side model's video_preds
+    (default `pose3d_side_check.PREDS`); ``tag``: suffix of the output name, so a review render never overwrites the
+    standard clip; ``out``: output folder (default `session_poses/pose3d_side`, where the crop2 renders live -- give
+    another model its own folder); ``fit``: per-camera tile fitted to the keypoints; ``clips``: clip folder."""
     import cv2
     import matplotlib
     matplotlib.use("Agg")
@@ -109,8 +112,8 @@ def run(rv, session: str, per_position: int, t0: float, t1: float, preds: Path |
     # cam1 / cam4: centred on the mouth (the nose is far up the frame there); side views: between mouth and nose
     centre = {c: mouth_px[c] if c in ("cam1", "cam4") else (mouth_px[c] + nose_px[c]) / 2 for c in order}
     crop = dict(CROP)
-    trials = (F.drop_duplicates("trial_id").groupby("position").head(per_position)
-              .sort_values("position").trial_id.tolist())
+    trials = trials or (F.drop_duplicates("trial_id").groupby("position").head(per_position)
+                        .sort_values("position").trial_id.tolist())
     if fit:
         # Priya 11-18: the fixed 380 px cam4 tile cut far licks off, the cam1 tile the nose. FIT = per camera, the
         # smallest square holding the nose, the six commanded spouts and every cleaned keypoint / 3-D reprojection of
@@ -144,7 +147,7 @@ def run(rv, session: str, per_position: int, t0: float, t1: float, preds: Path |
     fig = plt.figure(figsize=(2 * TILE / 100, 1.3 * TILE / 100), dpi=100)
     axes = [fig.add_subplot(1, 2, k + 1, projection="3d") for k in range(2)]
 
-    f_out = out / f"video_4cam_{animal}_{date}{'_fit' if fit else ''}.mp4"
+    f_out = out / f"video_4cam_{animal}_{date}{tag}{'_fit' if fit else ''}.mp4"
     vw = None
     for tr in trials:
         rows = np.flatnonzero((F.trial_id.to_numpy() == tr) & (F.t_ms.to_numpy(float) >= t0) & (F.t_ms.to_numpy(float) <= t1))
@@ -229,7 +232,9 @@ def main(argv=None) -> int:
     ap.add_argument("--per-position", type=int, default=1)
     ap.add_argument("--t0", type=float, default=-100.0)
     ap.add_argument("--t1", type=float, default=700.0)
-    ap.add_argument("--preds", type=Path, default=None, help="side model clip predictions (default crop2)")
+    ap.add_argument("--trials", type=int, nargs="*", help="trial ids to render (default: --per-position per spout)")
+    ap.add_argument("--preds", help="side model video_preds dir (default: pose3d_side_check.PREDS)")
+    ap.add_argument("--tag", default="", help="output name suffix, e.g. _t540_r2b")
     ap.add_argument("--out", type=Path, default=None, help="output folder (default session_poses/pose3d_side)")
     ap.add_argument("--clips", default=None, help="side clip folder under DeepLabCut/Widefield (default the 10-27 review "
                     "clips; inference_check_20261104_partA_clips has PS92 0820, PS94 0903, PS95 0821 / 0907)")
@@ -237,7 +242,8 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     rv = PathResolver()
     for s in a.sessions:
-        run(rv, s, a.per_position, a.t0, a.t1, a.preds, a.out, a.fit, a.clips)
+        run(rv, s, a.per_position, a.t0, a.t1, trials=a.trials, preds=a.preds, tag=a.tag, out=a.out, fit=a.fit,
+            clips=a.clips)
     return 0
 
 

@@ -72,7 +72,9 @@ def extract(label):
         print(label, "no face:", e)
         fsp = np.full(len(ft), np.nan)
     hi = np.nanpercentile(fsp, 90) if np.isfinite(fsp).any() else np.nan
-    for name, m in (("eng", quiet & engaged), ("quit", quiet & ~engaged)):
+    # QUIT = after the quit and before the last sync pulse (Priya 11-18; analyzed_window), not the post-task imaging
+    from quiet_area_spikes import analyzed_window
+    for name, m in (("eng", quiet & engaged), ("quit", quiet & ~engaged & analyzed_window(label, ft))):
         bp, secs = band_power(Xr[ci], m, fs)
         out[f"{name}_bp"] = bp
         out[f"{name}_psd_s"] = secs

@@ -114,7 +114,8 @@ EPOCHS = ("pre", "acute", "subacute", "chronic")
 #: trend; a null would still read as "tested and not yet plateaued", not a gap. (History: PS94 read
 #: null for a while because its hit rate recovers then WOBBLES -- the old symmetric/loose-residual
 #: rule never saw it "stop changing"; the one-sided + tight-residual rule locks its final band at
-#: day 25. See DECISIONS.md 2026-09-19.)
+#: day 25. See DECISIONS.md 2026-09-19.) 2026-11-19: settled threshold k_res 1.0 and no animal pinned
+#: -- the same four boundaries now come from one rule (DECISIONS.md 2026-11-19).
 EPOCH_SPEC = config.epoch_spec()
 
 _EP = config.defaults().get("epochs") or {}
@@ -770,6 +771,8 @@ def derive_chronic_boundaries(hit_by_session, licks_by_session, *, position=RULE
             # value (so `epoch_boundaries.json` and every figure use it); `derived_day_raw` keeps the
             # honest derivation for the audit log, and the audit prints the pin so nobody mistakes it
             # for a coincidence. Unpin by dropping `chronic_pinned` from animals.yaml.
+            # 2026-11-19: PS94's pin was REMOVED (k_res 1.0 derives its day 25); no animal is pinned
+            # now, and this branch is kept for a future ratified override.
             entry["derived_day_raw"] = derived
             entry["pinned"] = True
             entry["derived_day"] = stored

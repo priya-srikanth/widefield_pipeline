@@ -1,0 +1,932 @@
+"""BEHAVIORAL STATES after the stroke: the shared readouts of the GLM-HMM ENGAGEMENT states, the AR-HMM MOVEMENT
+SYLLABLES and the treadmill PUSH (Priya 11-17). One collector pass over the sessions builds every per-session and
+per-trial table; the results page (`scripts/states_page_figs.py`) and any later analysis read them from here.
+
+    python -m wfield_local.behavior_states collect [--jobs 8]      # -> out_dir(): csv.gz tables + traces.npz
+    python -m wfield_local.behavior_states reels [--n 8]           # GLM-HMM cue reels -> glmhmm_reels_dir()
+
+EVERY CHOICE IS MADE ONCE, HERE OR UPSTREAM (Priya 11-17: "if we change one thing in the future it will seamlessly
+deploy to downstream analyses"):
+  * models ............ GLM-HMM K / design = GLMHMM_K / GLMHMM_DESIGN (tables written by `glm_hmm`); AR-HMM fit =
+                         `arhmm_states.REFERENCE_TAG`, read from `arhmm_states.fits_dir()`; features from
+                         `arhmm_features.out_dir()`.
+  * state ROLES ........ `glmhmm_roles`: from each state's own posterior-weighted profile (engaged = attempt rate >=
+                         ENGAGED_ATTEMPT; disengaged = the highest no-response rate of the rest; partial = the others),
+                         never hard-coded indices, so a refit or a new K renames nothing downstream.
+  * syllable GROUPS .... `state_groups`: the ``group`` column of the REVIEWED ``state_labels.csv`` beside the model's
+                         reels (`arhmm_reels.reels_dir`). Regroup there; every readout follows.
+  * epochs / baseline .. `epochs.epoch_of` + `config.early_pre` (August-only pre-stroke baseline).
+  * spouts ............. `orofacial_cohort.pos_key` (ipsi / contra from animals.yaml stroke_laterality), order
+                         `orofacial_cohort.POS_ORDER`, names `orofacial_cohort.pos_disp`.
+  * thresholds ......... walking = configs/defaults.yaml segmentation.running.thresh_speed_mm_s (the DAQ running
+                         definition); push = segmentation.push.* (backward speed, cue and control windows).
+  * gates .............. LICK working period = `trial_classes.camera_engaged_period` (first .. last camera lick: a
+                         PERIOD, so it does not select on the trial's own response); GLM-HMM engaged = argmax state has
+                         the "engaged" role.
+  * trial cycle ........ previous trial's stop .. this trial's stop (ITI + pre-cue + response), from the camera trial
+                         table (`trial_classes.session_trials`: cue_daq + stop_ms).
+  * statistics ......... `orofacial_cohort.epoch_tables` (per-animal epoch table + paired animal-weighted
+                         `analysis_kit.boot_delta` vs each animal's OWN pre); levels with `analysis_kit.boot_ci`.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+
+GLMHMM_K = 5                      # Priya 11-17: "let's use k=5" (held-out selection: select_k_pooled_all_v2.csv)
+GLMHMM_DESIGN = "v2"              # shared animal offsets, no previous-outcome input (handoff 11-17)
+#: GLM-HMM states COMBINED in every readout (Priya 11-18: "merge 0 and 1"): K5 states 0 and 1 respond identically and
+#: differ only in spontaneous licking, largely by animal (pre: PS95 75 % state 1, PS93 69 % state 0). A merged state
+#: keeps its first member's number (0 = "0+1"); its posterior = the members' sum, so the argmax / roles / gates follow
+#: (the merge moves the engaged call of 5 of 56,978 trials). The fitted model (`glmhmm_params`) keeps all K states.
+GLMHMM_MERGE = ((0, 1),)
+ENGAGED_ATTEMPT = 0.9             # a GLM-HMM state is ENGAGED when >= 90 % of its trials are attempts (contact /
+                                  #   incomplete); K5 v2: engaged states .99, partial .51, disengaged .04
+LICK_GROUPS = ("lick_ipsi", "lick_central", "lick_contra")
+#: DISPLAY order of the reviewed syllable groups (figures, tables); a group missing here is appended in label order,
+#: so renaming / adding a group in state_labels.csv never breaks a readout
+GROUP_DISPLAY = ("quiet", "nose_slow", "jaw_chew", "lick_ipsi", "lick_central", "lick_contra", "push", "walk_slow",
+                 "walk")
+CUE_ALIGN_S = (-2.0, 4.5)         # cue-aligned traces (Priya 11-17: "-2 to +4.5")
+JAW_HALF_S = 0.15                 # syllables at the jaw onset: +- this
+RESP_MAX_S = 2.0                  # response window for the per-trial syllable composition: cue .. cue + min(stop, 2 s)
+ROLES = ("engaged", "partial", "disengaged")
+WHEEL_CHANNELS = ("fwd", "back", "p_walk", "p_push")
+#: pose features of the cue-aligned traces (`arhmm_features` columns; tongue_ml signed + = contralesional); the
+#: session's FaceRhythm master factors (`fr_*` columns, absolute expression) follow them; names in collect.json
+CUE_FEATURES = ("tongue_ext", "tongue_ml", "jaw_y", "nose_y")
+#: a session contributes a cue-aligned trace of a trial set only with >= this many trials in the set
+MIN_TRACE_TRIALS = 5
+
+
+# ------------------------------------------------------------------------------------------------ shared choices
+
+def session_epoch(label: str) -> str | None:
+    """The session's epoch, or None for a session outside the analysis (no epoch, or pre-stroke before the cohort's
+    August-only baseline cut)."""
+    from wfield_local import config
+    from wfield_local import epochs
+    e = epochs.epoch_of(label)
+    return None if e is None or (e == "pre" and config.early_pre(label)) else e
+
+
+def _seg() -> dict:
+    from wfield_local import config
+    return config.defaults().get("segmentation") or {}
+
+
+def walk_threshold() -> float:
+    """Walking = forward treadmill speed above the DAQ running threshold (mm/s)."""
+    return float(_seg()["running"]["thresh_speed_mm_s"])
+
+
+def walk_window() -> tuple:
+    """(a, b) s after the cue of the WALKING readout (configs/defaults.yaml segmentation.walk.window_s)."""
+    return tuple(float(x) for x in _seg()["walk"]["window_s"])
+
+
+#: CUE-ALIGNED WINDOWS of the trace statistics (Priya 11-18: "cue-aligned AUC"), shared by every cue-aligned trace
+#: figure so they read the same way: pre-cue, early response, late response (s from the cue)
+CUE_WINDOWS_S = (("pre-cue", (-2.0, 0.0)), ("early", (0.0, 1.0)), ("late", (1.0, 4.5)))
+
+
+def cue_window_stats(per: dict, channels: list, names: list, t: np.ndarray, scale: str = "linear",
+                     seed: int = 0) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Windowed statistics of cue-aligned session traces. ``per`` = {label: array [channels, time]} (one trial set),
+    ``t`` = time from the cue. Per session and channel: the mean over each `CUE_WINDOWS_S` window (= AUC / duration;
+    ``scale="log2"`` takes log2 of it, for positive expression). Returns (stats, per_animal): stats = change vs each
+    animal's own pre per (channel, window, epoch) from `analysis_kit.boot_delta` (paired, animal-weighted) with its
+    bootstrap p (`boot_p`) and Holm over the channels within each window x epoch, n_up / n_animals; per_animal = the
+    animal x epoch means (rule 8: the table behind every interval)."""
+    from wfield_local import analysis_kit as ak
+    rows = []
+    for lab, v in per.items():
+        ep = session_epoch(lab)
+        if ep is None:
+            continue
+        for ci, ch in enumerate(channels):
+            for wn, (a, b) in CUE_WINDOWS_S:
+                m = (t >= a) & (t < b)
+                x = float(np.nanmean(v[ch][m]))
+                if scale == "log2":
+                    x = float(np.log2(x)) if x > 0 else np.nan
+                rows.append({"label": lab, "animal": lab.split("_")[0], "epoch": ep, "channel": names[ci],
+                             "window": wn, "value": x})
+    D = pd.DataFrame(rows)
+    A = D.groupby(["channel", "window", "animal", "epoch"]).value.mean().reset_index()
+    rng = np.random.default_rng(seed)
+    out = []
+    for (ch, wn), g in D.groupby(["channel", "window"], sort=False):
+        pre = {a: x.value.dropna().tolist() for a, x in g[g.epoch == "pre"].groupby("animal", sort=True)}
+        for ep in ("acute", "subacute", "chronic"):
+            post = {a: x.value.dropna().tolist() for a, x in g[g.epoch == ep].groupby("animal", sort=True)}
+            pe = {a: v for a, v in pre.items() if v and post.get(a)}
+            po = {a: v for a, v in post.items() if v and a in pe}
+            iv, o = ak.boot_delta(po, pe, rng, draws=True) if len(po) >= 2 else (None, [])
+            d_an = [np.mean(po[a]) - np.mean(pe[a]) for a in po]
+            out.append({"channel": ch, "window": wn, "epoch": ep, "scale": scale,
+                        "point": iv.point if iv else np.nan, "lo": iv.lo if iv else np.nan,
+                        "hi": iv.hi if iv else np.nan, "p_boot": ak.boot_p(o) if iv else np.nan,
+                        "n_up": int(np.sum(np.array(d_an) > 0)), "n_animals": len(po)})
+    S = pd.DataFrame(out)
+    S["p_holm"] = np.nan
+    for _k, g in S.groupby(["window", "epoch"]):
+        S.loc[g.index, "p_holm"] = ak.holm(g.p_boot.to_numpy())
+    S["sig"] = np.where((S.lo > 0) | (S.hi < 0), np.where(S.p_holm < 0.05, "**", "*"), "")
+    return S, A
+
+
+#: COMMON SESSION DURATION for length-matched readouts (Priya 11-18: pre-stroke sessions run longer, so a whole-session
+#: rate mixes in more late-session trials): minutes from the session's first cue. 95 min = about the 10th percentile of
+#: pre / subacute / chronic session lengths; 9 of 107 sessions are shorter and enter whole. Time, not trials, because
+#: quitting is time-driven (STATUS_2026-09-20) and failed acute trials end sooner (acute median 600 trials in 115 min).
+COMMON_SESSION_MIN = 95.0
+
+
+def add_session_time(T: pd.DataFrame, trials: pd.DataFrame) -> pd.DataFrame:
+    """``T`` (label, trial_id) + ``t_min`` = minutes from the session's first cue, from the collector's trial table
+    (``load_collected()["trials"]``, which stores it per trial: no session reload)."""
+    m = trials[["label", "trial_id", "t_min"]].astype({"trial_id": int})
+    return T.astype({"trial_id": int}).merge(m, on=["label", "trial_id"], how="left").set_axis(T.index)
+
+
+def push_params() -> dict:
+    """{'thresh': mm/s backward, 'cue': (a, b) s, 'control': (a, b) s} from configs/defaults.yaml segmentation.push."""
+    p = _seg()["push"]
+    return {"thresh": float(p["thresh_back_mm_s"]), "cue": tuple(float(x) for x in p["cue_window_s"]),
+            "control": tuple(float(x) for x in p["control_window_s"])}
+
+
+def laterality() -> dict:
+    from wfield_local import config
+    return {a: str((v or {}).get("stroke_laterality", "L")) for a, v in config.animals().items()}
+
+
+def out_dir(tag: str | None = None) -> Path:
+    """``LP_analysis/<run>/arhmm/v1/poststroke_<tag>``: the collector's tables and the page figures."""
+    from wfield_local import arhmm_states as st
+    return st.fits_dir().parent / f"poststroke_{tag or st.REFERENCE_TAG}"
+
+
+# ------------------------------------------------------------------------------------------------ GLM-HMM
+
+def glmhmm_state_label(k: int, merge: tuple = GLMHMM_MERGE) -> str:
+    """Display name of state ``k``: "0+1" for a merged state, else "k"."""
+    for g in merge:
+        if k == g[0]:
+            return "+".join(map(str, g))
+    return str(k)
+
+
+def glmhmm_table(K: int = GLMHMM_K, design: str = GLMHMM_DESIGN, merge: bool = True) -> pd.DataFrame:
+    """The per-trial posterior table written by `glm_hmm --pooled-all` (all trials, all epochs), restricted to the
+    analysis sessions, with animal / epoch / pos (ipsi-contra key) columns added. ``merge`` (default): the
+    `GLMHMM_MERGE` states combined (p_state<first> = the members' sum, the others dropped)."""
+    from wfield_local import glm_hmm
+    from wfield_local import orofacial_cohort as oc
+    sfx = "" if design == "v1" else f"_{design}"
+    T = pd.read_csv(Path(glm_hmm.out_dir()) / f"states_pooled_all_K{K}{sfx}.csv.gz")
+    T = T[T.cls != "unknown"].copy()
+    if merge:
+        for g in GLMHMM_MERGE:
+            T[f"p_state{g[0]}"] = T[[f"p_state{k}" for k in g]].sum(1)
+            T = T.drop(columns=[f"p_state{k}" for k in g[1:]])
+    T["epoch"] = T.label.map(session_epoch)
+    T = T[T.epoch.notna()].copy()
+    T["animal"] = T.label.str.split("_").str[0]
+    lat = laterality()
+    T["pos"] = [oc.pos_key(p, lat.get(a, "L")) for p, a in zip(T.position, T.animal)]
+    return T
+
+
+def _pcols(T: pd.DataFrame) -> list[str]:
+    return sorted((c for c in T if c.startswith("p_state")), key=lambda c: int(c[7:]))
+
+
+def glmhmm_profile(T: pd.DataFrame) -> pd.DataFrame:
+    """Per state: posterior-weighted attempt / no-response / jaw-only rates, mean running fraction, occupancy."""
+    att = T.cls.isin(["contact", "incomplete"]).to_numpy(float)
+    nr = T.cls.eq("no_response").to_numpy(float)
+    jo = T.cls.eq("jaw_only").to_numpy(float)
+    run = ((T.run_frac_precue.fillna(0) + T.run_frac_iti.fillna(0)) / 2).to_numpy(float)
+    rows = []
+    for c in _pcols(T):
+        w = T[c].to_numpy(float)
+        rows.append({"state": int(c[7:]), "attempt": np.average(att, weights=w), "no_response": np.average(nr, weights=w),
+                     "jaw_only": np.average(jo, weights=w), "run": np.average(run, weights=w), "occupancy": w.mean()})
+    return pd.DataFrame(rows).set_index("state")
+
+
+def glmhmm_roles(T: pd.DataFrame) -> dict:
+    """{state: 'engaged' | 'partial' | 'disengaged'} from the states' own profiles (module docstring)."""
+    P = glmhmm_profile(T)
+    eng = P.index[P.attempt >= ENGAGED_ATTEMPT].tolist()
+    rest = P.drop(index=eng)
+    dis = [int(rest.no_response.idxmax())] if len(rest) else []
+    return {int(k): ("engaged" if k in eng else "disengaged" if k in dis else "partial") for k in P.index}
+
+
+def glmhmm_trial_states(T: pd.DataFrame) -> dict:
+    """{label: {trial_id: state}}: each trial's most probable state."""
+    pc = _pcols(T)
+    st_ = np.array([int(pc[i][7:]) for i in T[pc].to_numpy().argmax(1)])
+    return {lab: dict(zip(g.trial_id, g.st_)) for lab, g in T.assign(st_=st_).groupby("label")}
+
+
+def glmhmm_trial_roles(T: pd.DataFrame) -> dict:
+    """{label: {trial_id: role}}: the role of each trial's most probable state."""
+    roles = glmhmm_roles(T)
+    return {lab: {t: roles[k] for t, k in d.items()} for lab, d in glmhmm_trial_states(T).items()}
+
+
+def glmhmm_engaged(T: pd.DataFrame) -> dict:
+    """{label: set(trial_id)} of trials whose most probable state has the engaged role."""
+    return {lab: {t for t, r in d.items() if r == "engaged"} for lab, d in glmhmm_trial_roles(T).items()}
+
+
+def glmhmm_role_column(T: pd.DataFrame) -> pd.Series:
+    """Per-trial role ('engaged' / 'partial' / 'disengaged') of the most probable state, aligned to ``T``'s index."""
+    roles = glmhmm_roles(T)
+    pc = _pcols(T)
+    return pd.Series([roles[int(pc[i][7:])] for i in T[pc].to_numpy().argmax(1)], index=T.index, name="role")
+
+
+#: ROLE SHARE BY TRIAL CLASS (Priya 11-20: which GLM-HMM role do jaw-only trials fall into?). Trial classes are the
+#: GLM-HMM's own outcome levels (camera classes): attempt = contact + incomplete, jaw-only, no response.
+ROLE_SHARE_CLASSES = {"attempt": ("contact", "incomplete"), "jaw_only": ("jaw_only",), "no_response": ("no_response",)}
+#: Near-middle spout: the spout occludes the chin, so jaw-only cannot be called there and a no-lick trial is classed
+#: no response (FINDINGS 9.1). Role-share readouts drop it for EVERY class, so the three classes share one trial set.
+JAW_BLIND_POSITIONS = ("close_center",)
+#: A session enters a class's share only with at least this many trials of that class (a 1-trial session would put a
+#: 0 / 1 share on the same footing as a 40-trial one).
+ROLE_SHARE_MIN_TRIALS = 5
+
+
+def role_share_sessions(T: pd.DataFrame, role_col: str = "role", exclude_pos=JAW_BLIND_POSITIONS) -> pd.DataFrame:
+    """Per session x trial class (`ROLE_SHARE_CLASSES`): ``n_trials`` and ``share_<role>`` = the fraction of those
+    trials whose most probable state has that role (``T[role_col]``: from `glmhmm_role_column`, or a refit's roles).
+    ``T`` needs label / animal / epoch / cls / position. Trials at ``exclude_pos`` and trials without a role are
+    dropped."""
+    D = T[~T.position.isin(exclude_pos) & T[role_col].isin(ROLES)]
+    rows = []
+    for cname, members in ROLE_SHARE_CLASSES.items():
+        for (lab, an, ep), g in D[D.cls.isin(members)].groupby(["label", "animal", "epoch"], sort=True):
+            r = {"label": lab, "animal": an, "epoch": ep, "cls": cname, "n_trials": len(g)}
+            vc = g[role_col].value_counts(normalize=True)
+            r.update({f"share_{k}": float(vc.get(k, 0.0)) for k in ROLES})
+            rows.append(r)
+    return pd.DataFrame(rows)
+
+
+def role_share_summary(S: pd.DataFrame, min_trials: int = ROLE_SHARE_MIN_TRIALS) -> pd.DataFrame:
+    """Animal-level summary of `role_share_sessions`: per class x epoch (and 'pooled' = every epoch), each animal's
+    mean over its sessions with >= ``min_trials`` trials of the class, then the mean over animals (each animal counts
+    once). Also n_animals / n_sessions / n_trials and the per-animal values (``<role>_<animal>`` columns)."""
+    from wfield_local import orofacial_cohort as oc
+    S = S[S.n_trials >= min_trials]
+    rows = []
+    for cname in ROLE_SHARE_CLASSES:
+        for ep in [*oc.EPOCH_ORDER, "pooled"]:
+            d = S[S.cls == cname] if ep == "pooled" else S[(S.cls == cname) & (S.epoch == ep)]
+            A = d.groupby("animal", sort=True)[[f"share_{k}" for k in ROLES]].mean()
+            r = {"cls": cname, "epoch": ep, "n_animals": len(A), "n_sessions": len(d), "n_trials": int(d.n_trials.sum())}
+            for k in ROLES:
+                r[k] = float(A[f"share_{k}"].mean()) if len(A) else np.nan
+                r.update({f"{k}_{a}": float(v) for a, v in A[f"share_{k}"].items()})
+            rows.append(r)
+    return pd.DataFrame(rows)
+
+
+#: GLM-HMM STATE colors (Priya 11-18: state colors were too close to the spout colors). Hues kept clear of the spout
+#: hues (`spout_behavior.SIDE_HUE` blue / purple / red) and the epoch colors (`orofacial_cohort.EPOCH_LINE` black /
+#: magenta / gold / teal); engaged states = one green ramp (dark -> light in state order), separable by lightness under
+#: color-vision deficiency, the darkest still clearly green next to the disengaged gray (Priya 11-18); partial = orange;
+#: disengaged = gray.
+ROLE_COLORS = {"engaged": ("#1A9850", "#66BD63", "#A6D96A"), "partial": ("#F28E2B", "#B35806"),
+               "disengaged": ("#7F7F7F", "#BDBDBD")}
+
+
+def glmhmm_state_colors(roles: dict) -> dict:
+    """{state: color} from the roles (`ROLE_COLORS`): the n-th state of a role takes that role's n-th shade, counted over
+    the FITTED numbering (merged-away members included), so a state keeps its color with or without the merge."""
+    full = dict(roles)
+    for g in GLMHMM_MERGE:
+        if g[0] in roles:
+            full.update({m: roles[g[0]] for m in g[1:]})
+    out, n = {}, {r: 0 for r in ROLE_COLORS}
+    for k in sorted(full):
+        r = full[k]
+        shades = ROLE_COLORS[r]
+        out[k] = shades[min(n[r], len(shades) - 1)]
+        n[r] += 1
+    return out
+
+
+def glmhmm_params(K: int = GLMHMM_K, design: str = GLMHMM_DESIGN) -> dict | None:
+    """The fitted pooled GLM-HMM (`glm_hmm --pooled-all --k K --params-only`: W, B, A, pi, X_mean, coding), in the state
+    numbering of `glmhmm_table`; None if not written."""
+    import json
+    from wfield_local import glm_hmm
+    sfx = "" if design == "v1" else f"_{design}"
+    f = Path(glm_hmm.out_dir()) / f"params_pooled_all_K{K}{sfx}.json"
+    return json.loads(f.read_text()) if f.exists() else None
+
+
+def glmhmm_select_k(design: str = GLMHMM_DESIGN) -> pd.DataFrame:
+    """Held-out K selection (`glm_hmm --pooled-all --select-k`), every K run (the K1-5 and K6-8 runs share folds)."""
+    from wfield_local import glm_hmm
+    sfx = "" if design == "v1" else f"_{design}"
+    fs = sorted(Path(glm_hmm.out_dir()).glob(f"select_k_pooled_all{sfx}*.csv"))
+    return pd.concat([pd.read_csv(f) for f in fs], ignore_index=True).drop_duplicates(["K", "fold"])
+
+
+def glmhmm_emission(params: dict, pos: str | None = None) -> dict:
+    """Model emission probabilities per state: {output: array [K, n_classes]} at the average input (shared animal
+    offsets at their mean), for spout ``pos`` (a `glm_hmm.POSITIONS` name) or averaged over the input mean."""
+    ns = params["n_shared"]
+    xm = np.asarray(params["X_mean"], float)
+    x = xm[ns:].copy()
+    if pos is not None:
+        P = params["positions"]
+        x[1:len(P)] = 0.0
+        i = P.index(pos)
+        if i > 0:
+            x[i] = 1.0
+    out = {}
+    for j, name in enumerate(params["outputs"]):
+        W = np.asarray(params["W"][j], float)               # [K, C-1, D]
+        off = (np.asarray(params["B"][j], float) @ xm[:ns]) if ns else 0.0
+        eta = np.concatenate([np.zeros((W.shape[0], 1)), W @ x + off], axis=1)
+        eta -= eta.max(1, keepdims=True)
+        pr = np.exp(eta)
+        out[name] = pr / pr.sum(1, keepdims=True)
+    return out
+
+
+def occupancy_per_session(T: pd.DataFrame) -> pd.DataFrame:
+    """Mean posterior per state and per role, one row per session (label, animal, epoch)."""
+    roles = glmhmm_roles(T)
+    pc = _pcols(T)
+    S = T.groupby(["label", "animal", "epoch"])[pc].mean().reset_index()
+    for r in ROLES:
+        S[r] = S[[f"p_state{k}" for k, v in roles.items() if v == r]].sum(1)
+    return S
+
+
+# ------------------------------------------------------------------------------------------------ AR-HMM
+
+def state_groups(tag: str | None = None) -> dict:
+    """{group: [states]} from the reviewed ``state_labels.csv`` (``group`` column) beside the model's reels."""
+    from wfield_local import arhmm_reels
+    from wfield_local import arhmm_states as st
+    L = pd.read_csv(arhmm_reels.reels_dir(tag or st.REFERENCE_TAG) / "state_labels.csv")
+    L = L[L.group.notna()]
+    G = {g: sorted(int(s) for s in d.state) for g, d in L.groupby("group", sort=False)}
+    order = [g for g in GROUP_DISPLAY if g in G] + [g for g in G if g not in GROUP_DISPLAY]
+    return {g: G[g] for g in order}
+
+
+def _group_lut(groups: dict, n: int = 64) -> np.ndarray:
+    lut = np.full(n, -1)
+    for i, ks in enumerate(groups.values()):
+        lut[ks] = i
+    return lut
+
+
+def load_session(label: str, tag: str | None = None):
+    """(t_daq_s, run_fwd, run_back, z) for one session: features from `arhmm_features.out_dir()`, states from
+    `arhmm_states.fits_dir()`."""
+    from wfield_local import arhmm_features as af
+    from wfield_local import arhmm_states as st
+    F = np.load(Path(af.out_dir()) / "sessions" / f"{label}.npz", allow_pickle=True)
+    cols = [str(c) for c in F["features"]]
+    z = np.load(st.fits_dir() / f"states_{tag or st.REFERENCE_TAG}" / f"{label}.npz")["z"].astype(int)
+    return F["t_daq_s"], F["X"][:, cols.index("run_fwd")], F["X"][:, cols.index("run_back")], z
+
+
+#: features shown for each syllable group's motif (`arhmm_features` columns; tongue_ml / jaw_x / nose_x are signed
+#: + = contralesional); treadmill shown as signed velocity (forward +, backward push -)
+MOTIF_FEATURES = ("tongue_ext", "tongue_ml", "jaw_y", "nose_y", "run")
+MOTIF_WIN_S = (-0.4, 0.8)
+
+
+def motif_traces(item) -> dict | None:
+    """Onset-aligned feature traces of each syllable GROUP in one session: {group: [n_onsets, n_bins, n_features]}
+    means, plus onset counts and bout durations. ``item`` = (label, groups, tag). Bout = a run of the same group."""
+    from wfield_local import arhmm_features as af
+    from wfield_local import arhmm_states as st
+    label, groups, tag = item
+    F = np.load(Path(af.out_dir()) / "sessions" / f"{label}.npz", allow_pickle=True)
+    cols = [str(c) for c in F["features"]]
+    X = F["X"]
+    z = np.load(st.fits_dir() / f"states_{tag or st.REFERENCE_TAG}" / f"{label}.npz")["z"].astype(int)
+    if len(z) != len(X):
+        return None
+    lut = _group_lut(groups)
+    g = np.where(z >= 0, lut[np.maximum(z, 0)], -1)
+    feats = np.stack([X[:, cols.index(c)] if c != "run" else X[:, cols.index("run_fwd")] - X[:, cols.index("run_back")]
+                      for c in MOTIF_FEATURES], axis=1)
+    b0, b1 = (int(round(w * 25)) for w in MOTIF_WIN_S)
+    starts = np.flatnonzero(np.r_[True, g[1:] != g[:-1]])
+    stops = np.r_[starts[1:], len(g)]
+    out = {}
+    for gi, name in enumerate(groups):
+        on = starts[g[starts] == gi]
+        dur = (stops - starts)[g[starts] == gi] / 25.0
+        on = on[(on + b0 >= 0) & (on + b1 < len(g))]
+        if not len(on):
+            continue
+        seg = np.stack([feats[o + b0:o + b1 + 1] for o in on])
+        out[name] = {"mean": np.nanmean(seg, 0), "n": len(on), "dur_med": float(np.median(dur)),
+                     "frac": float(np.mean(g == gi))}
+    return {"label": label, "groups": out}
+
+
+# ------------------------------------------------------------------------------------------------ collector
+
+def _window(t, x, a, b):
+    return x[np.searchsorted(t, a):np.searchsorted(t, b)]
+
+
+#: per-trial OUTCOME rows of the cue-aligned treadmill (Priya 11-18), inside the lick working period: working =
+#: `working_trials.WORKING_CLASSES[IN_WORKING]` (contact + incomplete camera lick), jaw-only, no response
+OUTCOME_ROWS = ("working", "jaw_only", "no_response")
+
+
+def trial_outcome(cls: str) -> str | None:
+    """The outcome row of a camera trial class: "working" (contact or incomplete, `working_trials.IN_WORKING`),
+    "jaw_only", "no_response", or None (unknown class)."""
+    from wfield_local import working_trials as wt
+    if cls in wt.WORKING_CLASSES[wt.IN_WORKING]:
+        return "working"
+    return cls if cls in OUTCOME_ROWS else None
+
+
+def session_readouts(item):
+    """One session (module-level for the process pool): per-trial rows, per-session usage / transitions, and the
+    cue-aligned traces. ``item`` = (label, {trial_id: GLM-HMM state}, {state: role}, groups, tag).
+    Cue-aligned traces per trial set (``keys``): treadmill ``WHEEL_CHANNELS`` (needs a complete wheel trace) and the pose
+    ``CUE_FEATURES`` (NaN-aware: mean over the trials with a value at each time)."""
+    from wfield_local import arhmm_features as af
+    from wfield_local import trial_classes as tc
+    label, trial_state, roles, groups, tag = item
+    T = tc.session_trials(label)
+    if T is None or not len(T):
+        return None
+    T = T.sort_values("trial_id").reset_index(drop=True)
+    t, fwd, back, z = load_session(label, tag)
+    fs = 1.0 / np.median(np.diff(t))
+    Fz = np.load(Path(af.out_dir()) / "sessions" / f"{label}.npz", allow_pickle=True)
+    fcols = [str(c) for c in Fz["features"]]
+    cue_feats = list(CUE_FEATURES) + [c for c in fcols if c.startswith("fr_")]   # + the FaceRhythm master factors
+    P = np.stack([Fz["X"][:, fcols.index(c)] for c in cue_feats])
+    gn = list(groups)
+    g = np.where(z >= 0, _group_lut(groups)[np.maximum(z, 0)], -1)
+    pp, walk, ww = push_params(), walk_threshold(), walk_window()
+    c0 = float(np.nanmin(T.cue_daq.to_numpy(float)))                 # session start = first cue (t_min per trial)
+    period = tc.camera_engaged_period(label, T.cue_daq.to_numpy(float))
+    stop = T.cue_daq.to_numpy(float) + np.nan_to_num(T.stop_ms.to_numpy(float) / 1000.0, nan=RESP_MAX_S)
+    nb = int(round((CUE_ALIGN_S[1] - CUE_ALIGN_S[0]) * fs))
+    keys = (("lick_in", "lick_out", "glm_in", "glm_out") + tuple(f"out_{o}" for o in OUTCOME_ROWS)
+            + tuple(f"role_{r}" for r in ROLES) + tuple(f"state_{k}" for k in sorted(roles)))
+    wheel = {k: np.zeros((len(WHEEL_CHANNELS), nb)) for k in keys}
+    nwheel = dict.fromkeys(keys, 0)
+    feat = {k: np.zeros((len(cue_feats), nb)) for k in keys}
+    nfeat = {k: np.zeros((len(cue_feats), nb)) for k in keys}
+    etho, neth = np.zeros((len(gn), nb)), 0
+    cyc = np.zeros(len(t), bool)
+    rows = []
+    for i, r in T.iterrows():
+        c = float(r.cue_daq)
+        state = trial_state.get(r.trial_id)
+        role = roles.get(state)
+        engaged = role == "engaged"
+        if engaged:
+            a = stop[i - 1] if i > 0 else c - 5.0
+            cyc[np.searchsorted(t, a):np.searchsorted(t, stop[i])] = True
+        bc, bk = _window(t, back, c + pp["cue"][0], c + pp["cue"][1]), _window(t, back, c + pp["control"][0],
+                                                                                  c + pp["control"][1])
+        fc, fk = _window(t, fwd, c + ww[0], c + ww[1]), _window(t, fwd, c + pp["control"][0],
+                                                                                c + pp["control"][1])
+        gr = _window(t, g, c, c + min(stop[i] - c, RESP_MAX_S))
+        gr = gr[gr >= 0]
+        row = {"label": label, "trial_id": r.trial_id, "position": r.position, "cls": r.cls, "t_min": (c - c0) / 60.0,
+               "glm_engaged": engaged, "lick_period": bool(period[i])}
+        if len(bc) >= 0.5 * fs and len(bk) >= 0.5 * fs and np.isfinite(bc).all() and np.isfinite(bk).all():
+            above = np.flatnonzero(bc > pp["thresh"])
+            row.update(push=bool(len(above)), push_control=bool((bk > pp["thresh"]).any()), push_peak=float(bc.max()),
+                       push_latency_s=pp["cue"][0] + above[0] / fs if len(above) else np.nan,
+                       walk_cue=float(np.mean(fc > walk)), walk_control=float(np.mean(fk > walk)))
+        for k, name in enumerate(gn):                                 # syllable composition of the response window
+            row[f"resp:{name}"] = float(np.mean(gr == k)) if len(gr) else np.nan
+        if np.isfinite(r.jaw_onset_ms):                               # syllables at the jaw onset
+            j = c + r.jaw_onset_ms / 1000.0
+            gj = _window(t, g, j - JAW_HALF_S, j + JAW_HALF_S)
+            gj = gj[gj >= 0]
+            for k, name in enumerate(gn):
+                row[f"jaw:{name}"] = float(np.mean(gj == k)) if len(gj) else np.nan
+        rows.append(row)
+        j0 = np.searchsorted(t, c + CUE_ALIGN_S[0])
+        sb, sf, sg = back[j0:j0 + nb], fwd[j0:j0 + nb], g[j0:j0 + nb]
+        ks = ["lick_in" if period[i] else "lick_out", "glm_in" if engaged else "glm_out"]
+        if role:
+            ks += [f"role_{role}", f"state_{state}"]
+        if period[i] and trial_outcome(r.cls):
+            ks.append(f"out_{trial_outcome(r.cls)}")
+        if len(sb) == nb and np.isfinite(sb).all() and np.isfinite(sf).all():
+            x = np.stack([sf, sb, sf > walk, sb > pp["thresh"]])
+            for k in ks:
+                wheel[k] += x
+                nwheel[k] += 1
+        pz = P[:, j0:j0 + nb]
+        if pz.shape[1] == nb:
+            ok = np.isfinite(pz)
+            for k in ks:
+                feat[k] += np.where(ok, pz, 0.0)
+                nfeat[k] += ok
+        if engaged and len(sg) == nb and (sg >= 0).mean() > 0.9:
+            etho[sg[sg >= 0], np.flatnonzero(sg >= 0)] += 1
+            neth += 1
+    use = {"label": label}
+    lick = [gn.index(n) for n in LICK_GROUPS if n in gn]
+    for name, m in (("all", g >= 0), ("engaged", cyc & (g >= 0))):
+        gg = g[m]
+        for k, n in enumerate(gn):
+            use[f"{name}:{n}"] = float(np.mean(gg == k)) if len(gg) else np.nan
+        lk = np.isin(gg, lick)
+        for k in lick:
+            use[f"{name}:share_{gn[k]}"] = float(np.mean(gg[lk] == k)) if lk.sum() else np.nan
+    C = np.zeros((len(gn), len(gn)))                                  # transitions on engaged cycles, runs collapsed
+    gm = np.where(cyc, g, -1)
+    runs = [r_[0] for r_ in np.split(gm, np.flatnonzero(np.diff(gm) != 0) + 1)]
+    for x_, y_ in zip(runs[:-1], runs[1:]):
+        if x_ >= 0 and y_ >= 0:
+            C[x_, y_] += 1
+    return {"trials": pd.DataFrame(rows), "usage": use, "transitions": C,
+            "wheel": {k: (wheel[k] / nwheel[k] if nwheel[k] >= MIN_TRACE_TRIALS else None) for k in keys},
+            "feat": {k: (np.where(nfeat[k] >= MIN_TRACE_TRIALS, feat[k] / np.maximum(nfeat[k], 1), np.nan)
+                         if nfeat[k].max() >= MIN_TRACE_TRIALS else None) for k in keys},
+            "ethogram": etho / neth if neth >= 10 else None, "fs": fs, "cue_features": cue_feats}
+
+
+def transition_table(res: dict, groups: dict, min_out: int = 20) -> pd.DataFrame:
+    """P(next group | current group) per session (rows with < min_out transitions out -> NaN) + transition entropy."""
+    gn = list(groups)
+    rows = []
+    for lab, r in res.items():
+        C = r["transitions"]
+        P = C / np.maximum(C.sum(1, keepdims=True), 1)
+        row = {"label": lab}
+        for i, a in enumerate(gn):
+            for j, b in enumerate(gn):
+                if i != j:
+                    row[f"{a}>{b}"] = P[i, j] if C[i].sum() >= min_out else np.nan
+        p = C.sum(1) / max(C.sum(), 1)
+        row["entropy_bits"] = float(sum(p[i] * -(q[q > 0] * np.log2(q[q > 0])).sum() for i, q in enumerate(P)))
+        rows.append(row)
+    return pd.DataFrame(rows)
+
+
+def collect(tag: str | None = None, jobs: int | None = None) -> Path:
+    """Run `session_readouts` over every analysis session; write the tables + traces to `out_dir`."""
+    from wfield_local import analysis_kit as ak
+    from wfield_local import arhmm_states as st
+    from wfield_local.writeguard import assert_writable
+    tag = tag or st.REFERENCE_TAG
+    T = glmhmm_table()
+    tstates, roles = glmhmm_trial_states(T), glmhmm_roles(T)
+    groups = state_groups(tag)
+    labs = sorted(set(T.label) & {p.stem for p in (st.fits_dir() / f"states_{tag}").glob("*.npz")})
+    res, fail = ak.fan_sessions([(lab, tstates.get(lab, {}), roles, groups, tag) for lab in labs], session_readouts,
+                                jobs=jobs, key=lambda it: it[0])
+    for f in fail:
+        print("  failed:", f)
+    res = {it[0]: r for it, r in res if r is not None}
+    od = out_dir(tag)
+    assert_writable(od)
+    od.mkdir(parents=True, exist_ok=True)
+    meta = lambda D: D.assign(animal=D.label.str.split("_").str[0], epoch=D.label.map(session_epoch))  # noqa: E731
+    meta(pd.concat([r["trials"] for r in res.values()])).to_csv(od / "trials.csv.gz", index=False)
+    meta(pd.DataFrame([r["usage"] for r in res.values()])).to_csv(od / "usage.csv.gz", index=False)
+    meta(transition_table(res, groups)).to_csv(od / "transitions.csv.gz", index=False)
+    meta(occupancy_per_session(T)).to_csv(od / "glmhmm_occupancy.csv.gz", index=False)
+    arr = {}
+    for lab, r in res.items():
+        for kind in ("wheel", "feat"):
+            for k, v in r[kind].items():
+                if v is not None:
+                    arr[f"{kind}|{k}|{lab}"] = v
+        if r["ethogram"] is not None:
+            arr[f"etho|{lab}"] = r["ethogram"]
+    fs = float(np.median([r["fs"] for r in res.values()]))
+    np.savez_compressed(od / "traces.npz", **arr)
+    (od / "collect.json").write_text(json.dumps({
+        "tag": tag, "glmhmm": {"K": GLMHMM_K, "design": GLMHMM_DESIGN, "roles": glmhmm_roles(T)},
+        "groups": groups, "push": push_params(), "walk_mm_s": walk_threshold(), "walk_window_s": walk_window(),
+        "cue_align_s": CUE_ALIGN_S, "cue_features": next(iter(res.values()))["cue_features"],
+        "fs": fs, "n_sessions": len(res), "failed": [str(f) for f in fail]}, indent=1, default=str))
+    print(f"{len(res)} sessions -> {od}")
+    return od
+
+
+def load_collected(tag: str | None = None) -> dict:
+    """The collector's outputs: {'trials', 'usage', 'transitions', 'glmhmm_occupancy': DataFrame, 'traces': npz,
+    'meta': dict}."""
+    od = out_dir(tag)
+    out = {k: pd.read_csv(od / f"{k}.csv.gz") for k in ("trials", "usage", "transitions", "glmhmm_occupancy")}
+    out["traces"] = dict(np.load(od / "traces.npz"))
+    out["meta"] = json.loads((od / "collect.json").read_text())
+    return out
+
+
+def per_session(trials: pd.DataFrame, gate: str | None = None) -> pd.DataFrame:
+    """Per-session push / walking readouts from the trial table; ``gate`` = None (all trials), 'lick_period',
+    '~lick_period', 'glm_engaged' or '~glm_engaged'."""
+    D = trials
+    if gate:
+        col = gate.lstrip("~")
+        D = D[~D[col]] if gate.startswith("~") else D[D[col]]
+    g = D.groupby(["label", "animal", "epoch"])
+    S = pd.DataFrame({"push_rate": g.push.mean(), "push_control_rate": g.push_control.mean(),
+                      "push_peak": g.apply(lambda x: x.push_peak[x.push.astype(bool)].mean(), include_groups=False),
+                      "push_latency_s": g.apply(lambda x: x.push_latency_s[x.push.astype(bool)].median(),
+                                                include_groups=False),
+                      "walk_cue": g.walk_cue.mean(), "walk_control": g.walk_control.mean()})
+    S["push_cue_minus_control"] = S.push_rate - S.push_control_rate
+    return S.reset_index()
+
+
+def syllable_stats(tag: str, ref_tag: str | None = None, min_usage: float = 0.005) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Per-session statistics of ANY decoded AR-HMM fit (e.g. the FROZEN pre-stroke model ``pre_s1`` applied to every
+    session): usage and median dwell (s) per state, transition entropy (runs collapsed) and the share of frames in
+    states rare before the stroke. Returns (per-session table, state names): each state is named by the reviewed
+    group of the reference fit (`state_groups`, default `arhmm_states.REFERENCE_TAG`) it overlaps most, frame by frame,
+    on the same sessions. Pre-stroke days are IN-SAMPLE for a model fit on them (usage, not likelihood, so the bias is
+    small; the held-out folds serve the likelihood)."""
+    from wfield_local import arhmm_model as am
+    from wfield_local import arhmm_states as st
+    ref_tag = ref_tag or st.REFERENCE_TAG
+    groups = state_groups(ref_tag)
+    lut = _group_lut(groups)
+    gn = list(groups)
+    d, dr = st.fits_dir() / f"states_{tag}", st.fits_dir() / f"states_{ref_tag}"
+    labs = sorted(p.stem for p in d.glob("*.npz") if session_epoch(p.stem))
+    Z = {lab: np.load(d / f"{lab}.npz")["z"].astype(int) for lab in labs}
+    K = max(int(z.max()) for z in Z.values()) + 1
+    over = np.zeros((K, len(gn)))
+    for lab in labs:
+        if (dr / f"{lab}.npz").exists():
+            z, zr = Z[lab], np.load(dr / f"{lab}.npz")["z"].astype(int)
+            ok = (z >= 0) & (zr >= 0)
+            g = lut[zr[ok]]
+            np.add.at(over, (z[ok][g >= 0], g[g >= 0]), 1)
+    allz = np.concatenate([z[z >= 0] for z in Z.values()])
+    use_all = np.bincount(allz, minlength=K) / len(allz)
+    live = [k for k in range(K) if use_all[k] >= min_usage]
+    names = pd.DataFrame({"state": live, "group": [gn[int(over[k].argmax())] if over[k].sum() else "?" for k in live],
+                          "group_share": [over[k].max() / max(over[k].sum(), 1) for k in live],
+                          "usage_all": [use_all[k] for k in live]})
+    pre_use = np.bincount(np.concatenate([Z[lab][Z[lab] >= 0] for lab in labs if session_epoch(lab) == "pre"]),
+                          minlength=K)
+    pre_use = pre_use / pre_use.sum()
+    rare = np.flatnonzero(pre_use < min_usage)
+    rows = []
+    for lab in labs:
+        z = Z[lab]
+        zz = z[z >= 0]
+        r = {"label": lab, "animal": lab.split("_")[0], "epoch": session_epoch(lab)}
+        u = np.bincount(zz, minlength=K) / max(len(zz), 1)
+        for k in live:
+            r[f"use_{k}"] = u[k]
+        runs = np.split(z, np.flatnonzero(np.diff(z) != 0) + 1)
+        seq = [(int(q[0]), len(q)) for q in runs if q[0] >= 0]
+        for k in live:
+            dk = [n for s, n in seq if s == k]
+            r[f"dwell_{k}"] = float(np.median(dk)) / am.FS_HZ if dk else np.nan
+        r["dwell_median_s"] = float(np.median([n for _s, n in seq])) / am.FS_HZ if seq else np.nan
+        C = np.zeros((K, K))
+        for (a_, _), (b_, _) in zip(seq[:-1], seq[1:]):
+            C[a_, b_] += 1
+        P = C / np.maximum(C.sum(1, keepdims=True), 1)
+        p = C.sum(1) / max(C.sum(), 1)
+        r["entropy_bits"] = float(sum(p[i] * -(q[q > 0] * np.log2(q[q > 0])).sum() for i, q in enumerate(P)))
+        r["rare_pre_share"] = float(np.isin(zz, rare).mean())
+        rows.append(r)
+    return pd.DataFrame(rows), names
+
+
+def group_stats(tag: str, ref_tag: str | None = None) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """`syllable_stats` COMBINED INTO THE REVIEWED GROUPS (Priya 11-17: merges are applied as groups): every state of
+    ``tag`` joins the group it overlaps most (`syllable_stats` names; states below min usage are dropped), then per
+    session: usage and median bout (s) per group (runs of the same group collapsed) and the group transition entropy.
+    Returns (per-session table, state -> group map)."""
+    from wfield_local import arhmm_model as am
+    from wfield_local import arhmm_states as st
+    _S, N = syllable_stats(tag, ref_tag)
+    gn = list(state_groups(ref_tag))
+    lut = np.full(64, -1)
+    for r in N.itertuples():
+        lut[int(r.state)] = gn.index(r.group) if r.group in gn else -1
+    d = st.fits_dir() / f"states_{tag}"
+    rows = []
+    for p in sorted(d.glob("*.npz")):
+        lab = p.stem
+        if not session_epoch(lab):
+            continue
+        z = np.load(p)["z"].astype(int)
+        g = np.where(z >= 0, lut[np.maximum(z, 0)], -1)
+        gg = g[g >= 0]
+        r = {"label": lab, "animal": lab.split("_")[0], "epoch": session_epoch(lab)}
+        seq = [(int(q[0]), len(q)) for q in np.split(g, np.flatnonzero(np.diff(g) != 0) + 1) if q[0] >= 0]
+        for k, n in enumerate(gn):
+            r[f"use:{n}"] = float(np.mean(gg == k)) if len(gg) else np.nan
+            dk = [m for s, m in seq if s == k]
+            r[f"bout:{n}"] = float(np.median(dk)) / am.FS_HZ if dk else np.nan
+        C = np.zeros((len(gn), len(gn)))
+        for (a_, _), (b_, _) in zip(seq[:-1], seq[1:]):
+            C[a_, b_] += 1
+        P = C / np.maximum(C.sum(1, keepdims=True), 1)
+        pw = C.sum(1) / max(C.sum(), 1)
+        r["entropy_bits"] = float(sum(pw[i] * -(q[q > 0] * np.log2(q[q > 0])).sum() for i, q in enumerate(P)))
+        rows.append(r)
+    return pd.DataFrame(rows), N
+
+
+def tim_trials(frame: str = "within") -> pd.DataFrame:
+    """The per-trial TIM table (`task_independent_movement`, every session, ``frame`` = 'within' | 'frozen') joined
+    with the trial's GLM-HMM role (argmax state; NaN for trials the GLM-HMM table lacks), restricted to the analysis
+    sessions (epoch / August-only pre as everywhere here)."""
+    from wfield_local import task_independent_movement as tim
+    files = sorted((Path(tim.out_dir()) / "sessions").glob(f"*_{frame}.csv.gz"))
+    D = pd.concat([pd.read_csv(f) for f in files], ignore_index=True)
+    D["epoch"] = D.label.map(session_epoch)
+    D = D[D.epoch.notna() & D.trial_id.notna()].copy()
+    D["trial_id"] = D.trial_id.astype(int)
+    T = glmhmm_table()
+    roles = glmhmm_roles(T)
+    pc = _pcols(T)
+    T["role"] = [roles[int(pc[i][7:])] for i in T[pc].to_numpy().argmax(1)]
+    D = D.merge(T[["label", "trial_id", "role"]], on=["label", "trial_id"], how="left")
+    return D
+
+
+def frozen_distance(prefix: str = "pre_s1_f") -> pd.DataFrame:
+    """How LIKELY each session's movement is under the pre-stroke AR-HMM, with an OUT-OF-SAMPLE pre-stroke floor.
+
+    Inputs: ``ll_<prefix><k>.csv`` beside the fold models in `arhmm_states.fits_dir()` (`arhmm_model score`); fold k
+    left out each animal's k-th August pre day (model['held_out']). Each fold model has its own PCA basis, so a
+    likelihood is compared only inside one model: for fold k and animal a, every session the model did NOT fit (the
+    animal's held-out pre day and all its post days) is taken relative to their mean (the anchor A_ka). A post day's
+    score = mean over folds of LL_k - A_ka; a pre day's score = LL_j - A_ja under the one fold j that held it out. The
+    anchor cancels in the change vs pre, so `orofacial_cohort.epoch_tables` gives the change from each animal's own
+    (held-out) pre days. Units: log-likelihood per frame (nats); negative change = less like the pre-stroke repertoire.
+    """
+    from wfield_local import arhmm_states as st
+    L = pd.concat([pd.read_csv(f) for f in sorted(st.fits_dir().glob(f"ll_{prefix}*.csv"))])
+    L = L[~L.in_fit.astype(bool)].copy()
+    L["animal"] = L.label.str.split("_").str[0]
+    L["epoch"] = L.label.map(session_epoch)
+    L = L[L.epoch.notna()]
+    L = L[(L.epoch != "pre") | L.held_out.astype(bool)]                 # pre days only where held out
+    L["rel"] = L.ll_per_frame - L.groupby(["model", "animal"]).ll_per_frame.transform("mean")
+    S = L.groupby(["label", "animal", "epoch"]).agg(ll_rel=("rel", "mean"), n_models=("model", "nunique")).reset_index()
+    return S
+
+
+def frozen_distance_frames(prefix: str = "pre_s1_f", tag: str | None = None) -> pd.DataFrame:
+    """`frozen_distance` from the PER-FRAME scores (``llframe_<model>/<label>.npz``, `arhmm_model score --per-frame`),
+    split by the reviewed syllable group of each frame (reference fit `tag`): one row per session with ``ll_rel`` (all
+    frames, = `frozen_distance`), ``ll_rel_moving`` (every group except quiet: the STILLNESS CONTROL -- quiet frames
+    are easy to predict, so a stiller session scores more pre-like) and ``ll_rel:<group>`` (how pre-like each kind of
+    movement is). Same within-model anchor and held-out-pre rule as `frozen_distance`."""
+    from wfield_local import arhmm_states as st
+    tag = tag or st.REFERENCE_TAG
+    groups = state_groups(tag)
+    lut, gn = _group_lut(groups), list(groups)
+    fits = st.fits_dir()
+    L = pd.concat([pd.read_csv(f) for f in sorted(fits.glob(f"ll_{prefix}*.csv"))])
+    L = L[~L.in_fit.astype(bool)].copy()
+    L["animal"], L["epoch"] = L.label.str.split("_").str[0], L.label.map(session_epoch)
+    L = L[L.epoch.notna() & ((L.epoch != "pre") | L.held_out.astype(bool))]
+    ref = {}
+    rows = []
+    for r in L.itertuples():
+        if r.label not in ref:
+            z = np.load(fits / f"states_{tag}" / f"{r.label}.npz")["z"].astype(int)
+            ref[r.label] = np.where(z >= 0, lut[np.maximum(z, 0)], -1)
+        g = ref[r.label]
+        lp = np.load(fits / f"llframe_{r.model}" / f"{r.label}.npz")["lp"].astype(float)
+        ok = np.isfinite(lp) & (g >= 0)
+        row = {"model": r.model, "label": r.label, "animal": r.animal, "epoch": r.epoch, "all": lp[ok].mean(),
+               "moving": lp[ok & (g != gn.index("quiet"))].mean() if "quiet" in gn else np.nan}
+        for k, n in enumerate(gn):
+            m = ok & (g == k)
+            row[n] = lp[m].mean() if m.sum() >= 50 else np.nan
+        rows.append(row)
+    F = pd.DataFrame(rows)
+    cols = ["all", "moving", *gn]
+    for c in cols:
+        F[c] = F[c] - F.groupby(["model", "animal"])[c].transform("mean")
+    S = F.groupby(["label", "animal", "epoch"])[cols].mean().reset_index()
+    return S.rename(columns={"all": "ll_rel", "moving": "ll_rel_moving", **{n: f"ll_rel:{n}" for n in gn}})
+
+
+#: GLM-HMM cue reels: trials whose state posterior is at least this confident
+REEL_MIN_POST = 0.8
+
+
+def glmhmm_reels_dir(K: int = GLMHMM_K, design: str = GLMHMM_DESIGN) -> Path:
+    from wfield_local import glm_hmm
+    sfx = "" if design == "v1" else f"_{design}"
+    return Path(glm_hmm.out_dir()) / f"reels_pooled_all_K{K}{sfx}"
+
+
+def glmhmm_reel_selection(T: pd.DataFrame, n: int, seed: int = 0) -> pd.DataFrame:
+    """Per GLM-HMM state, ``n`` example trials (posterior >= REEL_MIN_POST), one per session, cycling over animals then
+    epochs (as `arhmm_reels.select`), in a seeded order. Columns: state, label, trial_id, cue_daq, resp_s, clip."""
+    from wfield_local import trial_classes as tc
+    pc = _pcols(T)
+    P = T[pc].to_numpy()
+    ks = [int(c[7:]) for c in pc]
+    T = T.assign(st_=np.array(ks)[P.argmax(1)], pmax=P.max(1))
+    T = T[T.pmax >= REEL_MIN_POST]
+    rng = np.random.default_rng(seed)
+    rows = []
+    for k in ks:
+        D = T[T.st_ == k]
+        order = []
+        cells = {key: list(rng.permutation(sorted(g.label.unique()))) for key, g in D.groupby(["animal", "epoch"])}
+        while cells and len(order) < n:
+            for key in sorted(cells):
+                if cells[key]:
+                    order.append(cells[key].pop())
+            cells = {kk: v for kk, v in cells.items() if v}
+        for lab in order[:n]:
+            g = D[D.label == lab]
+            tid = int(g.trial_id.to_numpy()[rng.integers(len(g))])
+            S = tc.session_trials(lab)
+            r = S[S.trial_id == tid]
+            if not len(r):
+                continue
+            stop = float(r.stop_ms.iloc[0]) / 1000.0
+            rows.append({"state": k, "label": lab, "trial_id": tid, "cue_daq": float(r.cue_daq.iloc[0]),
+                         "resp_s": min(stop if np.isfinite(stop) else RESP_MAX_S, RESP_MAX_S)})
+    S = pd.DataFrame(rows)
+    S["clip"] = S.groupby("state").cumcount()
+    return S
+
+
+def glmhmm_reels(n: int = 8, cams: str = "cam4,cam1", wheel: bool = True, jobs: int = 6) -> Path:
+    """Video reels per GLM-HMM state (`arhmm_reels` cutter: green border = cue .. response end, PAD_S grey either
+    side, treadmill strip with the cue): ``glmhmm_reels_dir()/state_XX.avi``, contact sheet, manifest."""
+    import csv
+    from wfield_local import analysis_kit as ak
+    from wfield_local import arhmm_features as af
+    from wfield_local import arhmm_reels as ar
+    from wfield_local.writeguard import assert_writable
+    S = glmhmm_reel_selection(glmhmm_table(), n)
+    feat = Path(af.out_dir())
+    rows = []
+    for lab, g in S.groupby("label"):
+        t = np.load(feat / "sessions" / f"{lab}.npz", allow_pickle=True)["t_daq_s"]
+        for r in g.itertuples():
+            rows.append({"state": r.state, "label": lab, "trial_id": r.trial_id, "clip": r.clip,
+                         "start_bin": int(np.searchsorted(t, r.cue_daq)),
+                         "stop_bin": int(np.searchsorted(t, r.cue_daq + r.resp_s)), "epoch": session_epoch(lab),
+                         "what": "response"})
+    S = pd.DataFrame(rows)
+    dest = glmhmm_reels_dir()
+    assert_writable(dest)
+    dest.mkdir(parents=True, exist_ok=True)
+    items = [(lab, g.to_dict("records"), str(feat), str(dest), cams.split(","), wheel) for lab, g in S.groupby("label")]
+    res, fails = ak.fan_sessions(items, ar._session_job, jobs=jobs, key=lambda it: it[0])
+    for f in fails:
+        print("  failed:", f)
+    man = pd.DataFrame([r for _it, rr in res for r in rr])
+    man.to_csv(dest / "reels_manifest.csv", index=False, quoting=csv.QUOTE_MINIMAL)
+    ar.stitch(dest, man, n)
+    print(man.status.value_counts().to_string())
+    print("->", dest)
+    return dest
+
+
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser(description=__doc__.split(chr(10) * 2)[0])
+    ap.add_argument("cmd", choices=("collect", "reels"))
+    ap.add_argument("--tag", default=None)
+    ap.add_argument("--jobs", type=int, default=None)
+    ap.add_argument("--n", type=int, default=8, help="reels: clips per GLM-HMM state")
+    a = ap.parse_args(argv)
+    if a.cmd == "collect":
+        collect(a.tag, a.jobs)
+    else:
+        glmhmm_reels(a.n, jobs=a.jobs or 6)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

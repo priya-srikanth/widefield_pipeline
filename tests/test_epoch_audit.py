@@ -74,10 +74,8 @@ def test_a_disagreement_names_the_animal_and_the_boundary(tmp_path, monkeypatch)
     """`disagreements` returns strings, not a boolean, so the nightly log says WHICH animal and
     WHICH boundary moved. A bare flag sends the reader back to a 20-hour log to find out."""
     from wfield_local import config
-    # PS94's chronic is PINNED in the live config (2026-09-25) and so agrees by construction; this
-    # test needs an UNPINNED animal to produce a reported disagreement, so unpin PS94 for it.
-    monkeypatch.setitem(epochs.EPOCH_SPEC, "PS94",
-                        {**epochs.EPOCH_SPEC["PS94"], "chronic_pinned": False})
+    # This test needs an UNPINNED animal to produce a reported disagreement; no animal is pinned in
+    # the live config since 2026-11-19 (PS94's pin removed), so PS94 serves as-is.
     rows = []
     for i, lab in enumerate(sorted(config.pooled_labels("PS94"), key=lambda s: s[-4:])):
         an, mmdd = lab.split("_")

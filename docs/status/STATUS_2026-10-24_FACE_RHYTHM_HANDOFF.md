@@ -57,6 +57,62 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
 ## 2. Next, in order
 
 00-A8-1118. **11-18 (a8) -- START HERE; 00-A8-1117c below holds the record up to 11-17 ~19:45.**
+   **NEWEST (11-18 late): quiet events are on the SYNC-END run, deck swapped.** Run
+   cohort1_quiet_spikes/v2_quiet_lp_c1guard_syncend_20261118 (QS_ENGAGED_END=lastsync = Priya's "the end of the analyzed
+   time is the LAST SYNC PULSE"; common k 4; code 871be8f9; runner quiet_c1guard/run_chain_syncend.sh; restyled figures
+   in its restyled_20261118/). One old-vs-new list: docs/status/quiet_restyle_20261118/QUIET_SYNCEND_OLD_NEW_20261118.md.
+   - Priya 11-18: "yes you can swap the figures and numbers". DONE: deck slides 155-159 + 204 (pictures, movie, notes;
+     158 title "small at 415 nm", 159 title "weaker code pre, acute and chronic"); script
+     quiet_c1guard/deck_swap_syncend.py, images quiet_c1guard/syncend_crops.py -> swap_inputs/*_syncend.png; backup
+     .bak_pre_a8_quiet_syncend_20261118; export QC from a scratch copy.
+   - Page section 23 (Movement page): 3c's, messaged with the run + list; a8 does not touch it.
+   - 11-18 night: Movement page v324 = section 23 on the sync-end run (3c, Priya OK). Slide 158 retitled "415 nm power,
+     rate flat" (Priya). Quit-time cache on main (quiet_area_spikes.quit_time_s; reproduction check exact except the
+     injection seed, fixed to crc32 in quiet_spikes_v2); chain 71 vs 75 min. Deleted (Priya OK, list in
+     quiet_restyle_20261118/DELETED_SUPERSEDED_20261118.md): superseded quiet runs, 12 deck backups, early rebuild
+     render; C: input-cache behaviour entries written 11-04..11-08 (250 GB) + temp > 7 d. Section-23 follow-ons
+     re-rendered on the sync-end run (run_all_followons_syncend.sh; paths sent to 3c); 23.23 follow-up re-running
+     with WIDEFIELD_LICK_SOURCE=daq. NEXT: 3c builds the old-vs-new list from its captions -> Priya -> page swap ->
+     delete pre-rebuild labcams/cohort1_quiet_spikes/v2_quiet + v2_quiet_lp (Priya ok, once uncited). Open: local
+     session_cache_rebuild_20261103 (78 GB, 8396/8439 files duplicated on M:) awaits Priya.
+   - 11-18 late night: Movement page v325 (3c) = 11 section-23 figures on the sync-end run with BOOTSTRAP stars
+     (quiet_boot_stars.py, fae48012; * = boot change vs own pre, dagger = LMM). Quit period now ends at the last sync
+     pulse (Priya; analyzed_window, 9701d914): pre quit min PS92 2.7->0, PS93 16.7->4.2, PS94 38.4->35.3, PS95
+     69.5->56.7; T1/T3 unchanged; T4 3 animals; still-UP rates pre quit/eng 5.6-7.4x (table
+     quit_state/still_up_rates_eng_vs_quit.csv), sent to 3c for 23.7/23.8. 23.23 follow-up: stored rebuild decoder
+     loaded by id (QS_FOLLOWUP_STORED_DECODER=1, Priya ok) but scoring refuses -- the script centres on all engaged
+     rows, the stored model on camera WORKING rows. ASKED Priya: (a) test with centre_rows=engaged + rebuilt-vs-stored
+     p_true check, (b) implement working centring, (c) keep 23.23 pre-rebuild. Local session cache delete was blocked by
+     the permission classifier (Priya can delete C:/Users/SabatiniLab/wfield_cache/session_cache_rebuild_20261103).
+     Pre-rebuild v2_quiet + v2_quiet_lp DELETED (Priya ok) except v2_quiet_lp/task_events + task_events_followup (23.23).
+     Movement page v326: 23.7/23.8 on the sync-end run (3c). 23.23 OPEN: follow-up now loads the stored rebuild decoders
+     by id (PS93 = stored 7-session model without PS93_0813) with the production camera-working centre (c8c002c2), but
+     its p_true check FAILS vs the stored T13 p_true (median |diff| 0.14; levels ~.45 vs ~.32) although features match
+     (feat_err 0). Suspect the scoring transform (stored T13 run said to be session_z). Log
+     <syncend>/logs/quiet_task_events_followup_working_centre.log. Nothing from it on the page.
+     Then (Priya 11-18 "1 ok"): production scored frame (session z + kind_centre_fn wt centre, dead7b25) -> check
+     STILL fails (median |diff| 0.133; corr rebuilt vs stored p_true 0.65, rebuilt ~0.10 higher; rows aligned). Not the
+     centre. Open suspects: the stored T13 tables were written under the PRE-guard camera classes (csig 3d7bbe921e) and
+     an older env; next step = reproduce one session's stored p_true with attempt_coding.run_animal under that key.
+     Within-follow-up (same rebuilt decoder) the event effect survives exclusion (log _prodframe). 23.23 stays pre-rebuild.
+     DECIDED (Priya 11-18): 23.23 STAYS on the pre-rebuild data; keep labcams/cohort1_quiet_spikes/v2_quiet_lp/
+     task_events + task_events_followup permanently. The rebuilt follow-up outputs in <syncend>/task_events_followup are
+     an unpublished diagnostic (code switches QS_FOLLOWUP_STORED_DECODER, default off).
+     Priya 11-18: the quiet chain (incl. 23.23) may be redone once all 4 cameras' 3-D coordinates exist; revisit then
+     (fresh T13 tables + follow-up from one consistent key avoids tonight's mismatch).
+   - QUIET RE-RUN = ONE BUILD (Priya 11-18 "ensure ... with a re-run we'll use the correct build"):
+     scripts/cohort2_qc/run_quiet_chain.sh <OUT_DIRNAME> from a CLEAN checkout of main (refuses a dirty tree; code hash
+     in every log). Order: upstream pose / 3-D -> LP licks -> FR series -> attempt_coding precue under the SAME env
+     (WIDEFIELD_LICK_SOURCE=daq; may freeze decoders = rule 10, coordinate with the encoding window) -> run_quiet_chain
+     (preflight refuses if the attempt_coding tables for this key are missing; current key csig-612e95bdd2 has none ->
+     dry run stopped there, as designed). quiet_task_events now FAILS on a missing table (no silent animal drop, no
+     cross-key read); task_events_summarise_prodptrue.py marked DO NOT REUSE. All 11-18 decisions live in code on main.
+   - FR page v56: Fig 5.6 = a2's cue-aligned factor figure + cue-window stats (Priya "yes" / "add stats").
+   - OPEN: (1) caching refactor of the quiet scripts (Priya "yes", after the run: cache session traces + quiet /
+     engaged masks, apply the engaged gate at summary time, verify exact reproduction of the syncend tables + timing);
+     (2) delete OK pending for superseded quiet folders (k375 follow-ons, k4_20261118 incl. restyled, engend_20261118,
+     v2_quiet_lp_20261117 follow-ons, the c1guard_20261117 k4.5 summary); (3) slide 158 caveat for Priya: the 415
+     response at events rises acutely +0.22 % dF/F (corrected 470 +0.31), mostly PS94.
    **Quiet events are now on the cam1-guard production run.** Priya, late 11-17: "k 3.75 with cam1 fix", then "k 4 iw
    fine" (the follow-on figures keep their fixed k = 4), then "re run both" (154 / 157). Run folder:
    cohort1_quiet_spikes/v2_quiet_lp_c1guard_k375_20261117 (guard code wf_c1guard1117 f3484347; runner
@@ -69,11 +125,23 @@ All under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/ma
      - Goal page section 23: Priya OK'd the swap to the guard-run quiet data (11-18, via 3c); 3c is doing the page
        side from QUIET_C1GUARD_OLD_NEW_20261117.md. a8 does not touch it. Priya accepted the rebuild + guard figures
        there; a8 rendered the k 4 threshold figure for 23.18 (v2_quiet_lp_c1guard_k4_20261118, 95b66db6, path sent to 3c).
-       Restyle of the quiet figures (boot_delta stars, no top spine, open session markers): WAIT for 3c to relay Priya.
+       11-18 later: Priya "use k = 4 for all" + restyle OK (via 3c). DONE, waiting on Priya before any page / deck swap:
+       restyled figures in v2_quiet_lp_c1guard_k4_20261118/restyled_20261118/ (scripts/cohort2_qc/quiet_restyle_figs.py,
+       branch figures/quiet-restyle-1118, worktree wf_qstyle1118, on main 63b74576); star list
+       docs/status/quiet_restyle_20261118/QUIET_RESTYLE_K4_STAR_CHANGES_20261118.md (k alone: 1 LMM star; LMM -> boot: 53 of
+       259 cells). Next if adopted: re-cut deck crops 155-159 / 204 from the restyled renders (new layout).
+     - Slide 27 panel C: Priya "yes add sessions to c" (11-18, typed here) -> 3c re-rendering all three 15f images; swap
+       the slide-27 image when 3c sends the path.
+     - Page rename live (Priya OK): imaging page = "Spout (Target) Coding After Stroke", goal page = "Movement (Execution)
+       Coding After Stroke". Deck notes citing the old names: list from 3c in wf_pagerename
+       docs/status/page_rename_20261118/deck_mentions_Overview_2026-11-06.txt (Priya OK'd updating them). NOT done yet.
      - The attempt_coding csig re-key under the guard: no guard-keyed tables yet.
      - Delete the superseded v2_quiet_lp_20261117 follow-ons and the v2_quiet_lp_c1guard_20261117 k 4.5 summary only on
        Priya's OK.
-     - **NEW SLIDE QUEUED as slide 27, after the position maps 24-26 (Priya OK 11-18, via 3c):** rest frozen decoder
+     - **DONE 11-18: slide 27 added (shown)** = rest frozen decoder, floor 30 + central 90 % (s27_rest15f.py; backup
+       .bak_pre_a8_s27rest15f_20261118; deck now 208 slides, every later slide +1: quiet slides = 155-159 and 204).
+       Title shortened to fit: "Lick-free rest decoder: drops acutely, stays below pre". History below.
+     - (was) **NEW SLIDE QUEUED as slide 27, after the position maps 24-26 (Priya OK 11-18, via 3c):** rest frozen decoder
        (15f), title "Frozen pre-stroke decoder on lick-free rest: drops acutely, borderline below pre chronically".
        - **11-18 change (Priya, via 3c): the PRIMARY is now the FLOOR-30 version** (post-stroke scored sessions need
          >= 30 matched lick-free rest periods; a 40 floor changes no outcome). Floor 30: acute -0.122 [-0.194, -0.040]*,

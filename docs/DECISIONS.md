@@ -206,3 +206,17 @@ post) removes per-area gain changes, which may be part of the stroke effect. Pri
 from z-scored producers (Fig 10.2, 12.5-12.7, 13.3, 16.3-16.5) switch to unscaled producers in the replacement pass.
 Where the two disagree (e.g. cued sagittal subacute -21 % unscaled vs -9 % z-scored) the gap is the part explained by
 per-area gain. Fig 10.2 key statement rewritten the same day (FINDINGS / ENCODING_FINDINGS, unscaled numbers).
+
+## 2026-11-18 -- cam1 tongue: detached, stationary labels masked BEFORE cleaning (Priya)
+
+A cam1 tongue label sitting on a water drop hanging from the spout (PS93 0814 trial 540, four-camera review) became
+seconds-long "licks" after cleaning bridged its wobble, and cam1-only events enter the LP lick train and the camera
+classes (~23 trials incomplete -> no response, 11 acute). Priya: exclude points that are "relatively stationary and
+'jumping' from the mouth", "before cleaning / interpolating". Rule: `cam1_licks.mask_detached` (raw confident runs,
+gaps <= 24 ms joined; min out > 30 px AND spread < 6 px -> not visible), at both cam1 cleaning sites (`scripts/cam1_licks`,
+`pose3d.cleaned_xy`). Evidence and rejected versions in the `cam1_licks` constants block and
+`status/STATUS_2026-11-18_CAM23_RERUN_INVENTORY.md` section 0b. Applies from the cam2 / cam3 re-run (no partial
+regeneration before it).
+Addendum (Priya 11-18, same day): a detached run that overlaps a production cam4 lick is KEPT (8 / 12 sampled such runs
+were the real tongue held at the spout; 6 / 6 sampled runs without a cam4 lick were drops / the rod), so the mask acts
+on cam1-only evidence, like the droplet and far-from-mouth rules. `mask_detached(keep_windows=cam4_lick_windows(...))`.

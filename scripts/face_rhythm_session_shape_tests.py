@@ -28,7 +28,11 @@ and the other units (exploratory), as the pooled-fit null.
 
     python scripts/face_rhythm_session_shape_tests.py [--set master_pre_v1] [--match-rule v2] [--perm 2000]
 -> ``<readouts>/<set>/session_shape_<rule>/``: session_scalars.png, session_loss.png, session_maps_scaled_lick.png,
-session_maps_unambiguous_lick.png, lick_direction.png, data/*.csv.
+session_maps_unambiguous_lick.png, lick_direction.png, data/*.csv (incl. data/session_scalars_per_session.csv, the
+per-session values behind session_scalars.png with each cell's test p and Holm p: `session_table`; and
+data/session_maps_scaled_lick_points.csv, the per-point values and rings behind session_maps_scaled_lick.png:
+`map_point_table`). ``--table-only`` writes the first from the stored tests; ``--export-tables`` re-runs the tests with
+the full run's draws and writes both, leaving every existing output untouched.
 """
 from __future__ import annotations
 
@@ -306,15 +310,21 @@ YLAB = {"asym": "loading asymmetry\n(contra - ipsi), delta", "angle_spatial": "s
         "loss": "recovered (0 / 1),\ndelta vs own pre rate"}
 
 
-def session_values(T: pd.DataFrame, names: list[str], mode: str = "delta") -> pd.DataFrame:
+def session_values(T: pd.DataFrame, names: list[str], mode: str = "delta", ids: bool = False) -> pd.DataFrame:
     """One row per session x unit x measure: the session's value minus its animal's own pre mean (angles: the angle to
     the animal's pre-mean vector minus the animal's mean leave-one-out pre angle). Loss: recovered (0 / 1) minus the
     animal's pre recovery rate (all sessions). PRE sessions (Priya 11-07: show the pre-stroke variability) are scored
     LEAVE-ONE-OUT -- against the mean of the animal's OTHER pre sessions -- so their spread is not shrunk by
     including themselves. ``mode="raw"`` (Priya 11-07: raw and normalized as separate figures): the session's own value
     (asymmetry, side specificity) and the plain angle to the animal's pre-mean vector (pre sessions: leave-one-out
-    angle), no baseline subtracted; no loss rows."""
+    angle), no baseline subtracted; no loss rows. ``ids=True`` keeps each row's session ``key`` and ``date`` (the
+    per-session table, `session_table`); the default drops them, so the existing outputs are unchanged."""
     rows = []
+
+    def _out():
+        V = pd.DataFrame(rows)
+        return V if ids or V.empty else V.drop(columns=["key", "date"])
+
     if mode == "raw":
         for nm in names:
             for an, g in T[(T.unit == nm) & T.recovered].groupby("animal"):
@@ -325,30 +335,34 @@ def session_values(T: pd.DataFrame, names: list[str], mode: str = "delta") -> pd
                     if m == "side_spec" and nm not in OWN_SIDE:
                         continue
                     for r in g.itertuples():
-                        rows.append(dict(unit=nm, animal=an, epoch=r.epoch, measure=m, value=getattr(r, m)))
+                        rows.append(dict(unit=nm, animal=an, epoch=r.epoch, measure=m, value=getattr(r, m),
+                                         key=r.key, date=r.date))
                 for m, col in (("angle_spatial", "vec"), ("angle_spectral", "spec")):
                     P = np.vstack(pre[col].to_numpy())
                     tot = P.sum(0)
                     pm = unit(tot)
                     for i in range(len(P)):
                         rows.append(dict(unit=nm, animal=an, epoch="pre", measure=m,
-                                         value=float(es.deg(float(P[i] @ unit(tot - P[i]))))))
+                                         value=float(es.deg(float(P[i] @ unit(tot - P[i])))),
+                                         key=pre.key.iloc[i], date=pre.date.iloc[i]))
                     for r in g[g.epoch != "pre"].itertuples():
                         rows.append(dict(unit=nm, animal=an, epoch=r.epoch, measure=m,
-                                         value=float(es.deg(float(getattr(r, col) @ pm)))))
-        return pd.DataFrame(rows)
+                                         value=float(es.deg(float(getattr(r, col) @ pm))), key=r.key, date=r.date))
+        return _out()
     for nm in names:
         for an, g in T[T.unit == nm].groupby("animal"):
             pre_all = g[g.epoch == "pre"]
             post_all = g[g.epoch != "pre"]
             rate = pre_all.recovered.mean()
             for r in post_all.itertuples():
-                rows.append(dict(unit=nm, animal=an, epoch=r.epoch, measure="loss", value=float(r.recovered) - rate))
+                rows.append(dict(unit=nm, animal=an, epoch=r.epoch, measure="loss", value=float(r.recovered) - rate,
+                                 key=r.key, date=r.date))
             if len(pre_all) > 1:
                 rec = pre_all.recovered.to_numpy(float)
                 for i in range(len(rec)):
                     rows.append(dict(unit=nm, animal=an, epoch="pre", measure="loss",
-                                     value=rec[i] - np.delete(rec, i).mean()))
+                                     value=rec[i] - np.delete(rec, i).mean(), key=pre_all.key.iloc[i],
+                                     date=pre_all.date.iloc[i]))
             pre, post = pre_all[pre_all.recovered], post_all[post_all.recovered]
             if pre.empty or post.empty:
                 continue
@@ -357,11 +371,13 @@ def session_values(T: pd.DataFrame, names: list[str], mode: str = "delta") -> pd
                     continue
                 base = pre[m].mean()
                 for r in post.itertuples():
-                    rows.append(dict(unit=nm, animal=an, epoch=r.epoch, measure=m, value=getattr(r, m) - base))
+                    rows.append(dict(unit=nm, animal=an, epoch=r.epoch, measure=m, value=getattr(r, m) - base,
+                                     key=r.key, date=r.date))
                 pv = pre[m].to_numpy(float)
                 if len(pv) > 1:
                     for i in range(len(pv)):
-                        rows.append(dict(unit=nm, animal=an, epoch="pre", measure=m, value=pv[i] - np.delete(pv, i).mean()))
+                        rows.append(dict(unit=nm, animal=an, epoch="pre", measure=m, value=pv[i] - np.delete(pv, i).mean(),
+                                         key=pre.key.iloc[i], date=pre.date.iloc[i]))
             for m, col in (("angle_spatial", "vec"), ("angle_spectral", "spec")):
                 P = np.vstack(pre[col].to_numpy())
                 tot = P.sum(0)
@@ -371,11 +387,65 @@ def session_values(T: pd.DataFrame, names: list[str], mode: str = "delta") -> pd
                 pm = unit(tot)
                 for r in post.itertuples():
                     rows.append(dict(unit=nm, animal=an, epoch=r.epoch, measure=m,
-                                     value=float(es.deg(float(getattr(r, col) @ pm))) - loo))
+                                     value=float(es.deg(float(getattr(r, col) @ pm))) - loo, key=r.key, date=r.date))
                 for i in range(len(a_loo) if len(P) > 1 else 0):   # pre: own LOO angle minus the OTHER pre sessions' mean
                     rows.append(dict(unit=nm, animal=an, epoch="pre", measure=m,
-                                     value=float(a_loo[i] - np.delete(a_loo, i).mean()) if len(P) > 2 else np.nan))
-    return pd.DataFrame(rows)
+                                     value=float(a_loo[i] - np.delete(a_loo, i).mean()) if len(P) > 2 else np.nan,
+                                     key=pre.key.iloc[i], date=pre.date.iloc[i]))
+    return _out()
+
+
+TABLE_COLS = ["unit", "family", "measure", "epoch", "animal", "date", "key", "value", "cell_delta", "p", "p_holm",
+              "p_holm_epoch", "n_animals", "n_sessions"]
+
+
+def session_table(T: pd.DataFrame, names: list[str], Rs: pd.DataFrame) -> pd.DataFrame:
+    """The values behind `session_scalars.png` as a table (PROMPT_pipeline_sync_v41 item 9; VLS manuscript Fig 5E / 5G
+    and the Results' side-specificity numbers, which had been read back from the figure's SVG).
+
+    One row per session x unit x measure (asym, angle_spatial, angle_spectral, side_spec): ``value`` = the plotted,
+    normalized value (`session_values` delta mode: post session minus its animal's own pre mean; angles = angle to the
+    animal's pre-mean vector minus its mean leave-one-out pre angle; PRE rows = each pre session scored leave-one-out
+    against its animal's other pre sessions). Test columns, joined from `scalars` (the per-cell test drawn as stars):
+    ``cell_delta`` = mean over animals of (epoch mean - pre mean), ``p`` = within-animal session-label shuffle p,
+    ``p_holm`` = Holm within the family (lick pair: lick_right + lick_left, 24 tests; other: the remaining units) across
+    all epochs x measures (the figure's stars: * < .05, ** < .01), ``p_holm_epoch`` = Holm within epoch x measure x
+    family, ``n_animals`` / ``n_sessions`` = the test's. Pre rows carry no test (NaN)."""
+    V = session_values(T, names, ids=True)
+    V = V[V.measure.isin(SCALARS)]
+    R = Rs.rename(columns={"delta": "cell_delta"})[["epoch", "measure", "unit", "family", "cell_delta", "p", "p_holm",
+                                                     "p_holm_epoch", "n_animals", "n_sessions"]]
+    out = V.merge(R, on=["unit", "epoch", "measure"], how="left")
+    out["family"] = np.where(out.unit.isin(LICK), "lick pair", "other")
+    order = {u: i for i, u in enumerate([u for u in ORDER if u in names] + [u for u in names if u not in ORDER])}
+    out["_u"], out["_m"] = out.unit.map(order), out.measure.map({m: i for i, m in enumerate(SCALARS)})
+    out["_e"] = out.epoch.map({e: i for i, e in enumerate(["pre", *frc.POST_EPOCHS])})
+    return out.sort_values(["_m", "_u", "_e", "animal", "date"], kind="stable")[TABLE_COLS].reset_index(drop=True)
+
+
+def map_point_table(res: dict, units, home: np.ndarray) -> pd.DataFrame:
+    """The values behind a per-point map figure (`face_rhythm_session_loading_perm.figure`; with the SCALED maps =
+    `session_maps_scaled_lick.png`, VLS manuscript Fig 5D, which had been read back from the SVG colors), one row per
+    unit x epoch x mesh point (point = index into the master's ``home``; x, y = its master-face position):
+    ``value`` = mean over animals of (epoch mean - pre mean) of the loading fraction (scaled maps: each animal's change
+    divided per point by its own pre-session SD, i.e. in pre-stroke SD units); ``t`` = value / null SD; ``cluster`` =
+    the point's cluster id (-1 = none) and ``p_cluster`` its family-wise cluster p; ``ring`` = +1 / -1 where the figure
+    draws a red / blue ring (point in a cluster with p < .05; sign of the change, as `face_rhythm_figures.sign_rings`),
+    0 elsewhere; ``p_point`` = max-statistic FWE p."""
+    rows = []
+    for nm in units:
+        for ep in frc.POST_EPOCHS:
+            r = res.get((nm, ep))
+            if r is None:
+                continue
+            lab = np.asarray(r["label"], int)
+            pcl = np.array([r["p_cluster"][c] if c >= 0 else np.nan for c in lab], float)
+            ring = np.where(r["sig_cluster"], np.where(np.asarray(r["mean"], float) > 0, 1, -1), 0)
+            rows.append(pd.DataFrame(dict(unit=nm, epoch=ep, point=np.arange(len(lab)), x=home[:, 0], y=home[:, 1],
+                                          value=r["mean"], t=r["t"], cluster=lab, p_cluster=pcl, ring=ring,
+                                          p_point=r["p_point"], n_animals=r["n_animals"], n_sessions=r["n_sessions"],
+                                          n_pre=r["n_ref"])))
+    return pd.concat(rows, ignore_index=True) if rows else pd.DataFrame()
 
 
 def _row(ax, V: pd.DataFrame, R: pd.DataFrame, units: list[str], pcol: str, zero: bool = True) -> None:
@@ -489,12 +559,24 @@ def main(argv=None) -> int:
     ap.add_argument("--fdir", type=Path, default=None)
     ap.add_argument("--match-rule", choices=sorted(es.MATCH_RULES), default="v2")
     ap.add_argument("--perm", type=int, default=10000)
+    ap.add_argument("--out", type=Path, default=None,
+                    help="output folder (default <readouts>/<set>/session_shape_<rule>); e.g. a scratch folder for "
+                         "--export-tables, whose scalar check always reads the default folder's stored table")
     ap.add_argument("--plot-only", action="store_true",
                     help="redraw the scalar / loss figures from data/session_scalars.csv + session_loss.csv (no tests)")
+    ap.add_argument("--export-tables", action="store_true",
+                    help="re-run the tests in the order of a full run (same seed, so the same draws) up to the scaled "
+                         "maps and write ONLY the two value tables, data/session_scalars_per_session.csv and "
+                         "data/session_maps_scaled_lick_points.csv; checks the re-tested scalars against the stored "
+                         "data/session_scalars.csv first; no figure or existing table is rewritten")
+    ap.add_argument("--table-only", action="store_true",
+                    help="write data/session_scalars_per_session.csv (`session_table`) from the stored "
+                         "data/session_scalars.csv tests, no re-test (refuses to overwrite)")
     a = ap.parse_args(argv)
     es.RULE = a.match_rule
     fdir = a.fdir or frc.default_set_dir(set_name=a.set)
-    out = frc.readouts_dir(a.set) / f"session_shape_{a.match_rule}"
+    default_out = frc.readouts_dir(a.set) / f"session_shape_{a.match_rule}"
+    out = a.out or default_out
     writeguard.assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
     side = lambda s: figure_layout.sidecar_for(out, s, ".csv")  # noqa: E731
@@ -502,6 +584,37 @@ def main(argv=None) -> int:
     pd.set_option("display.width", 230)
     pd.set_option("display.max_rows", 300)
     T, names, home = load_sessions(fdir)
+    if a.export_tables:
+        dsts = [side("session_scalars_per_session"), side("session_maps_scaled_lick_points")]
+        clash = [str(d) for d in dsts if d.exists()]
+        if clash:
+            sys.exit("refusing to overwrite: " + ", ".join(clash))
+        scalars(T, names, a.perm, rng, drift=True)            # the full run's draw order: drift, scalars, loss, maps
+        Rs = scalars(T, names, a.perm, rng)
+        stored = figure_layout.sidecar_for(default_out, "session_scalars", ".csv", mkdir=False)
+        if stored.exists():
+            import io
+            buf = io.StringIO()
+            Rs.to_csv(buf, index=False, float_format="%.4g")
+            crlf, lf = bytes([13, 10]), bytes([10])
+            if buf.getvalue().encode().replace(crlf, lf) != stored.read_bytes().replace(crlf, lf):
+                sys.exit(f"re-tested scalars differ from {stored}; nothing written")
+            print("re-tested scalars == stored session_scalars.csv (byte for byte)")
+        loss(T, names, a.perm, rng)
+        maps(T, list(names), home, a.perm, rng)
+        res_s, _ = maps(T, list(names), home, a.perm, rng, scale=True)
+        session_table(T, names, Rs).to_csv(dsts[0], index=False)
+        map_point_table(res_s, list(LICK), home).to_csv(dsts[1], index=False)
+        for d in dsts:
+            print("->", d)
+        return 0
+    if a.table_only:
+        dst = side("session_scalars_per_session")
+        if dst.exists():
+            sys.exit(f"refusing to overwrite {dst}")
+        session_table(T, names, pd.read_csv(side("session_scalars"))).to_csv(dst, index=False)
+        print("->", dst)
+        return 0
     if a.plot_only:
         figures(pd.read_csv(side("session_scalars")), pd.read_csv(side("session_loss")), session_values(T, names), out,
                 fdir.name, names, Vraw=session_values(T, names, "raw"))
@@ -541,6 +654,7 @@ def main(argv=None) -> int:
           .to_string(index=False))
     import face_rhythm_session_loading_perm as sl
     sl.figure(res_s, list(LICK), home, out, "session_maps_scaled_lick.png", fdir.name + " (scaled by own pre SD)")
+    map_point_table(res_s, list(LICK), home).to_csv(side("session_maps_scaled_lick_points"), index=False)
     sl.figure(res_a, list(LICK), home, out, "session_maps_unambiguous_lick.png",
               fdir.name + f" (unambiguous sessions only, margin >= {AMBIGUOUS})")
 
@@ -554,6 +668,7 @@ def main(argv=None) -> int:
     Dd.to_csv(side("lick_direction"), index=False, float_format="%.4g")
     print("\nLICK DIRECTION shares, delta vs own pre:\n" + Dd.round(3).to_string(index=False))
     figures(Rs, Rl, session_values(T, names), out, fdir.name, names, Vraw=session_values(T, names, "raw"))
+    session_table(T, names, Rs).to_csv(side("session_scalars_per_session"), index=False)
     print("->", out)
     return 0
 

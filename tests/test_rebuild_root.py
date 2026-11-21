@@ -282,6 +282,9 @@ RESOLVED = {
     "scripts/rest_migration/lick_bout_structure.py",
     "scripts/rest_migration/quit_prodrome.py",
     "wfield_local/animal_weights.py",
+    "wfield_local/arhmm_features.py",   # AR-HMM features (11-16): oo.root default, ARHMM_OUT override
+    "wfield_local/arhmm_reels.py",      # merge-QC reels (11-17): oo.root default, --out override
+    "wfield_local/arhmm_states.py",     # fits_dir (11-17): oo.root default, ARHMM_FITS override
     "wfield_local/behavior_clip_deck.py",
     "wfield_local/behavior_events.py",
     "wfield_local/crossday_intensity.py",
@@ -309,7 +312,12 @@ RESOLVED = {
     "wfield_local/sync_audit.py",
 }
 LITERAL = {
+    # six-position engagement / TIM review scripts (11-20, VLS paper engagement prompt): read the rebuild root by
+    # literal, write only under vls_stroke_paper/review/ on the share
+    "scripts/c2_engagement_tim/s0_camera_working.py",
+    "scripts/c2_engagement_tim/s4_session_tables.py",
     "scripts/cohort2_qc/channel_drift.py",
+    "scripts/cohort2_qc/quiet_restyle_figs.py",   # quiet restyle 11-18: same literal rebuild_20261103 root as its siblings
     "scripts/cohort2_qc/cohort1_impact.py",
     "scripts/cohort2_qc/compare_hemo_variants_1029.py",
     "scripts/cohort2_qc/epileptiform_gallery.py",

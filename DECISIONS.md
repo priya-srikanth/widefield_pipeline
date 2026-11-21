@@ -23786,6 +23786,18 @@ Priya 11-03 late: August-only pre everywhere in the rebuild, except june_august_
   color = epoch (`orofacial_cohort.EPOCH_LINE`; June pre gray) via `session_dots`; `pose3d_phase` hides the top spine
   on every 2-D panel (`no_top_spine` in its one save path).
 
+## 2026-11-16 -- Encoding design review: TIM, behavioural states, block permutation (window a2; Priya)
+
+Handoff `docs/status/STATUS_2026-11-16_ENCDESIGN_TIM_STATES_HANDOFF.md` (section 1 lists every decision); design
+`docs/status/ENCODING_DESIGN_TIM_STATES_2026-11-16.md`; audit `docs/status/BLOCK_PERMUTATION_AUDIT_2026-11-16.md`.
+- Instructed vs uninstructed by CONTEXT (response period vs pre-cue / ITI), not by body part; task-aligned vs
+  task-independent is measured (Musall partition), not assigned.
+- Permutation nulls over spout-following labels use BLOCK permutation (`analysis_kit.block_permute`, one definition);
+  first measurement: per-session decoders barely move (engaged arm unchanged; marginal arms reshuffle around 0.05).
+- TIM (Yin et al. 2025) in within-session and frozen-pre frames, response period separate; GLM-HMM states from ALL
+  trials over whole trial cycles, per animal over all epochs; AR-HMM (Hillary Tong's model) ported with this rig's
+  encoder variables at 25 Hz, pooled over animals and epochs, run on O2; state merges = multi-method cosine + video.
+
 ## 2026-11-17 -- ONE cam1 lick rule: water droplets AND far-from-mouth labels out, at every reader (Priya 11-17)
 
 - **Rule (Priya, approved 11-17).** A cam1 event counts as a lick only if both hold:
@@ -23805,3 +23817,248 @@ Priya 11-03 late: August-only pre everywhere in the rebuild, except june_august_
   `session_cache.CACHE_VERSION` is not bumped. Record: `docs/status/CAM1_FARMOUTH_GUARD_CODE_20261117.md`.
 - **Open.** `restw_strict_check` `strict_c1` (a superseded diagnostic arm) still reads every `events_all` row, droplets
   included. Changing it needs a `VERSION` bump that would redo `restw_check_c1v3`.
+
+## 2026-11-18 -- Behavioral states: GLM-HMM states 0 + 1 combined; readouts as change vs own pre (window a2; Priya)
+
+* **GLM-HMM states 0 and 1 are combined in every readout** (Priya 11-18: "merge 0 and 1"). In the K5 v2 fit they attempt
+  and contact identically (attempt >= .99) and differ only in spontaneous pre-cue / ITI licking (.92 / .88 vs .57 / .35),
+  largely by animal (pre: PS95 75 % state 1, PS93 69 % state 0). The fitted model is unchanged (all 5 states, Fig 1.1);
+  readouts sum the members' posteriors (`behavior_states.GLMHMM_MERGE`, applied in `glmhmm_table`), so argmax, roles
+  and the GLM-HMM engaged gate follow: 5 of 56,978 trials change engaged call; role-level numbers unchanged.
+  State colors are assigned over the fitted numbering, so a state keeps its color with or without the merge.
+* **Every by-epoch states figure is shown as change vs each animal's own pre** (`<name>_dpre.png`; levels kept as
+  `<name>.png`), Priya 11-18.
+* **Push is tied to an attempt**: per-trial treadmill readouts are split by trial outcome (working = contact or
+  incomplete camera lick, `working_trials.WORKING_CLASSES`; jaw-only; no response) and by GLM-HMM role.
+* **Engaged period ends at the task end when no quit is detected** (Priya 11-18; quiet-event chain, a8, branch
+  fix/quiet-engaged-end-1118): task end = min(last cue + response window, last sync edge); post-task imaging tails
+  > 2 min in 12 sessions (4 pre). The whole-session AR-HMM readouts (states page 5.1, 5.3-5.5) will adopt the same
+  task end once that rule is on main.
+
+## 2026-11-18 -- Motionless cam1 events are tongue at the lips; Fig 12.1 stands; ENL / ITI keep the cam4 lick train (Priya 11-18)
+- **What was checked.** The ENL / ITI census found that most of the kept cam1-only events behind its larger changes
+  (PS95 chronic, PS94 subacute / chronic, far spouts) were short and nearly motionless: range < 10 px, sitting 0 to 120 px
+  behind the mouth line. Two blind reviews looked at them:
+  - 11-17 (`CAM1_EXTRA_LICKS_CHECK_20261117.md`): 24 / 25 events of this kind were tongue, mostly from PS92 / PS93.
+  - 11-18 (`ENL_ITI_CAM1_CENSUS_20261118.md`): 29 / 29 from PS95 / PS94 post-stroke and PS95 pre were tongue at the lips.
+    The controls behaved as expected: cam4 contact licks 4 / 4 out, flagged droplets 3 / 4 droplet.
+- **Decision 1: `cam1_licks.keep_mask` is unchanged.** It gets no movement floor; the -120 px guard and the droplet flag
+  stay.
+- **Decision 2: Fig 12.1 (frozen rest decoder, RESTnlc1 v3, floor 30, central 90 %) moves from provisional to STANDS.**
+  The cam4-only sensitivity's weaker subacute / chronic changes fit cam4 missing licks at the lips. The page caption names
+  both review rounds (Spout (Target) Coding page v65).
+- **Decision 3: the ENL (pre-cue) and ITI lick-free windows stay on the current lick train.** That train is cam4 LP plus
+  cam1 post-cue (ENL), and cam4 + DAQ (ITI). Priya: "i don't know that we need to eliminate these little pre-licks, ok to
+  keep as is."
+  - Caveat to keep: in PS95 chronic and in PS94 subacute / chronic, those windows contain small tongue-at-lips licks that
+    only cam1 sees, concentrated at the far spouts. The census has the sizes.
+  - Revisit when the cam2 / cam3 side cameras are added.
+
+## 2026-11-19 -- Cohort-2 statistics aligned with cohort 1: one scalar BH family; trajectory clusters BH within measure (Priya)
+- *Context:* cohort 1 (stroke_orofacial_pipeline PRs #176/#177; its DECISIONS 2026-11-19 "Cohort-1 statistics aligned with
+  the six-position cohort") now uses this cohort's scalar star (session MWU q < 0.05 AND the paired animal-weighted
+  `analysis_kit.boot_delta` CI excluding 0) and its trajectory cluster test (per-bin Welch t, two-sided p < .05 bin
+  threshold, labels shuffled within animal). Two cohort-2 differences remained: BH ran within each metric, and
+  trajectory clusters were shaded at UNCORRECTED permutation p < .05 (`cluster_permutation` returns only a mask).
+- *Decision (Priya):* (1) ONE BH family across every cohort-2 scalar endpoint reported in the manuscript (cohort 1's
+  single scalar family); (2) every cluster's permutation p, BH-FDR within each measure (one family per lick set x
+  measure x alignment, across positions x epochs; cells with no observed cluster carry no p and are not in the family),
+  bars where q < 0.05.
+- *Code (opt-in; every default unchanged, pinned against frozen copies in `tests/test_c2_stats_alignment.py`):*
+  `orofacial_stats.session_change_tests(fdr_scope="all", deltas_given=...)`, `apply_family_fdr` (pool tables from
+  separate calls), `cluster_permutation_p` (port of stroke_orofacial `c2_aligned_cluster_test`; same RNG stream as
+  `cluster_permutation`, so p_raw < .05 reproduces the old mask exactly; the reference's numbers are pinned),
+  `cluster_mask_from_q`. `cluster_permutation` is kept as is. Drivers: `scripts/c2_scalar_family_aligned.py`,
+  `scripts/c2_phase_sessions_aligned.py`.
+- *Scalar family (162 cells = 9 endpoints x 6 positions x 3 epochs):* hit rate (Fig 3C), latency (3D), first-lick 3-D
+  reach (3E), first-lick angle (3F), all-lick angle (3G), all-lick 3-D speed (3H), all-lick 3-D reach (S9A), licks per
+  responded trial (S11A), ILI (S11B); each on its panel's own session changes. Latency / licks-per-response / ILI rows
+  are REUSED from `change_vs_pre_stats_contra.csv` (already this test; p at 4 significant digits). Not in the family:
+  Face-Rhythm factor amplitude (Fig 4F), the angle-vs-hit-rate and angle-latency correlations.
+- *Result, scalar (starred cells, panel's current rule -> aligned):* hit rate 7 -> 9 (gains near ipsi acute and near
+  contra subacute), latency 6 -> 6, reach first 4 -> 4, angle 17 -> 17, all-lick angle 12 -> 12, speed all 9 -> 9,
+  reach all 4 -> 4, licks/response 13 -> 13, ILI 9 -> 9; total 81 -> 83; no cell loses a star. NB the hit-rate,
+  first-lick angle, all-lick angle and all-lick reach panels did NOT use the MWU rule before (bootstrap CI only, with
+  Holm / Bonferroni double stars for hit rate and angle); first-lick reach and all-lick speed used a post-only
+  bootstrap (manuscript `c2_matched.boot`), now `boot_delta`. Largest family q among aligned stars 0.049.
+- *Result, trajectories (significant clusters, uncorrected -> BH within measure; manuscript files):* first-lick peak
+  mid0 21 -> 21, side0 22 -> 22, down0 32 -> 31 (far mid subacute 48-80 ms), dist 29 -> 28 (far contra acute
+  -80..-56 ms). Other session tables: first norm mid 18 -> 18, mid0 18 -> 18, side 19 -> 19, dist 15 -> 11, down 16 -> 7;
+  first peak side 19 -> 19, down 20 -> 18; all-lick mid 19 -> 19, mid0 19 -> 19, side 20 -> 20, dist 15 -> 11, down 13 -> 11.
+  Parity gate: the recomputed uncorrected mask equals every existing 'sig' row bin for bin before anything is written.
+- *Outputs (new files, `_aligned` suffix, nothing overwritten):* manuscript `data/c2_phase_*_sessions_aligned.csv`
+  (+ `_aligned_clusters.csv`), `data/c2_scalar_family_aligned.csv`, `data/C2_{reach_first,speed_all}_stats_aligned.csv`;
+  `cohort/tables/prepost/stats/change_vs_pre_stats_contra_aligned.csv`; `iti_licks/aim_{by_spout,first_vs_all}_tests_aligned.csv`;
+  rebuild `epoch/data/epoch_1bdelta_behaviour_by_position_aligned.csv`; pose3d `figures/pooled/pose3d_change_pooled_contra_aligned.csv`.
+- *Not changed:* the pipeline's own figures (`orofacial_cohort`, `kinematics_pooled_figs`, K08 scripts) still call the
+  defaults.
+
+## 2026-11-19 -- Chronic-onset settled threshold 1.0 pre-stroke SD; #11 pin removed (Priya)
+- *Context:* the chronic rule (`epochs.CHRONIC_RULE`: far_R hit rate, engaged trials, one-sided upward drift <= 1.0 x
+  pre-stroke SD and residual about the fit <= k_res x pre-stroke SD, persisting to the last session, not before
+  subacute onset) ran at k_res 0.4 (2026-09-21), which no longer derives PS94 (#11): its recovered band wobbles
+  (residual 0.84 SD from day 25), so since 2026-09-25 PS94's day 25 was a hand pin (`chronic_pinned`). A paper needs
+  one stated rule for all four animals. Review (read-only, with this repo's own derivation):
+  `M:/MICROSCOPE/Priya/stroke_orofacial_pipeline_outputs/vls_stroke_paper/review/c2_chronic_rule_2026-11-19/`
+  (`step1_reproduce.py`, `step2_candidates.py`, `step2_stdout.txt`, `candidate_rules_by_animal.csv`,
+  `all_windows_drift_residual_over_SD.csv`); prompt `vls_stroke_paper/PROMPT_c2_chronic_onset_rule.md`.
+- *Decision (Priya):* `configs/defaults.yaml epochs.chronic.k_res` 0.4 -> **1.0**; PS94's `chronic_pinned` removed from
+  `configs/animals.yaml`. k_drift, one-sided trend, min_tail, accuracy-only series and the SD baseline are unchanged.
+- *Rationale:* one rule, no exceptions, and the SAME boundaries: derived (`epoch_audit.audit()`, 123 sessions, no
+  pin) acute 1-5 / 1-4 / 1-7 / 1, subacute from 7 / 5 / 9 / 2, chronic **11 / 11 / 25 / 15** for PS92-PS95; no session
+  changes epoch, and these equal the last published `labcams/epoch_boundaries.json`. Of the candidates reviewed,
+  k_res 0.5 / 0.6 / August-only SD at 0.4 leave PS94 un-derived, 0.75 gives PS94 39, the robust-SD (MAD) rules
+  move PS92 / PS95 (to none or 29 / 32) and the band rules move PS95 to 11; 1.0 is the first value in the reviewed
+  k_res grid (0.4 / 0.5 / 0.6 / 0.75 / 1.0) that derives all four. Margins (residual / pre SD at the onset window;
+  window before): PS92 0.26 (d9 window fails drift, 1.30), PS93 0.24 (d9 fails drift,
+  1.42), PS94 0.84 vs bar 1.0, every later window <= 0.84 (d22 fails residual 1.31 and drift 1.59), PS95 0.18.
+  STANDING RISK: PS95's day-11 window is now rejected by the DRIFT arm alone (drift/SD 1.02 vs 1.0; its residual 0.41
+  passes at 1.0; at 0.4 both arms rejected it). If that drift eases by ~0.03 SD as sessions accrue, PS95 flips to 11
+  and the nightly audit reports it. PS94's band has 0.16 SD headroom.
+- *Baseline stays June + August pre-stroke BY DESIGN:* the pre-stroke SD for the epoch rule is computed on every
+  pre-stroke session (`epoch_audit.full_cohort()` opens `config.full_pre_ok()`), whereas the other cohort-2 analyses
+  use the August-only baseline (`WIDEFIELD_PRE_FROM 0801`). An August-only baseline at k_res 1.0 would move PS95 to
+  day 11 (review `x_augBaseline_kres1`), so the epoch rule keeps its own baseline.
+- *Enforced at:* `configs/defaults.yaml epochs.chronic.k_res`, `configs/animals.yaml` (PS94 has no `chronic_pinned`),
+  `wfield_local/epochs.derive_chronic_boundaries` (pin branch kept for a future ratified override),
+  `tests/test_chronic_epoch.py::test_no_animal_is_pinned_and_the_settled_bar_is_one_sd` (pin contract now tested with
+  a local pin), `tests/test_epochs.py SPEC`. The next nightly re-stamps `epoch_boundaries.json` with K_RES 1.0 and
+  the new rule text; boundary values do not change.
+
+## 2026-11-20 -- VLS manuscript v41 sync: phase curves and FaceRhythm tables made in the pipeline (PROMPT_pipeline_sync_v41 items 7-11)
+- *Context:* the manuscript (`stroke_orofacial_pipeline_outputs/vls_stroke_paper/`, v41) computed some cohort-2 numbers in
+  its own `manuscript_code/analysis/` scripts and read two FaceRhythm panels back out of readout SVGs. Goal: every number
+  comes from code committed here; the manuscript only plots. Nothing on the share was overwritten; every regenerated
+  table went to a NEW path and was compared with the manuscript's copy (`manuscript_code/data/`, v41 zip).
+- *Item 7, single scalar family:* `scripts/c2_scalar_family_aligned.py` and `analysis_kit.boot_delta` are on main
+  (6a69f29b). New `--out-dir` (write every output into one folder under its usual name). Regenerated from main: all
+  eight outputs BYTE-IDENTICAL to the manuscript / share copies (`c2_scalar_family_aligned.csv`,
+  `C2_{reach_first,speed_all}_stats_aligned.csv`, `aim_*_tests_aligned.csv`, `change_vs_pre_stats_contra_aligned.csv`,
+  `pose3d_change_pooled_contra_aligned.csv`, `epoch_1bdelta_behaviour_by_position_aligned.csv`).
+- *Item 8, lick-phase curves (ported, arithmetic unchanged):* `scripts/pose3d_phase_mouth0.py` (was
+  `analysis/c2_curves_mouth0.py`; sessions fanned out, 119 sessions in ~85 s), `scripts/pose3d_phase_curves.py` (was
+  `c2_phase_curves.py` = `--across animals` and `c2_phase_curves_sessions.py` = `--across sessions`),
+  `scripts/pose3d_phase_from_peak.py` (was `c2_phase_from_peak.py --sig aligned`; adds a per-cluster table). The
+  `_aligned` / `_aligned_clusters` tables come from the existing `scripts/c2_phase_sessions_aligned.py`. Outputs:
+  `DeepLabCut/Widefield/session_poses/pose3d/phase/vls_manuscript/` (manuscript file names). Comparison:
+  - mouth0 curves: every value equal to the manuscript's `c2_curves_mouth0_first_peak.csv.gz` (both `%.5g`; only the
+    session order of the rows differs, now sorted);
+  - `c2_phase_first_{side0,down0,mid0,dist}_phase_sessions.csv`, `c2_pre_ili_ms.csv`, and the 16
+    `*_aligned_clusters.csv`: BYTE-IDENTICAL;
+  - animal-level `c2_phase_*.csv`: equal; session-level `*_sessions.csv` / `*_sessions_aligned.csv`: equal to <= 1.1e-14
+    (summation order), 'sig' bins and every cluster p / q identical.
+  - Parsing: the ported scripts read inputs with `float_precision="round_trip"`. pandas 2.3.3's default parser here
+    reads cohort 1's phase-bin centre 0.006944444444444444 as 0.0069444444444444, which moved every phase bin by
+    ~1e-17 and broke byte identity.
+  - Provenance quirk (for the manuscript record, not changed): `c2_phase_first_{dist,mid0}_peak_sessions.csv` were
+    built from the pipeline's `phase/curves.csv.gz`, but their `_aligned` cluster p values from the mouth0 curves
+    (the two agree to 0.005 mm / deg; same significant clusters, cluster masses differ <= 0.012). Reproduced as made.
+- *Item 9, FaceRhythm per-session shape table:* `face_rhythm_session_shape_tests.session_table` writes the values behind
+  `session_scalars.png` (= manuscript Fig 5E / 5G), one row per session x factor x measure (asym, angle_spatial,
+  angle_spectral, side_spec; pre rows = leave-one-out) with the cell's shuffle p, Holm p within the lick-pair / other
+  family (`p_holm`, the figure's stars) and within epoch x measure (`p_holm_epoch`). Written by every full run, by
+  `--table-only` (stored tests) and by `--export-tables` (re-tests with the full run's draws). Check: the re-tested
+  scalars at 10,000 permutations (seed 0, drift test first as in a full run) are byte-identical to the stored
+  `session_shape_v2/data/session_scalars.csv` (= manuscript `fr_session_scalars_v2.csv`); against the manuscript's
+  SVG read-back `fr_session_scalars_v2_points.csv`: 3,100 rows both, all 128 cells same n and same animals, max |diff|
+  7.6e-7.
+  Side specificity (lick_right = contralesional, lick_left = ipsilesional; delta, Holm): contra -0.376 / -0.249 / -0.134
+  (Holm 0.0024 / 0.0024 / 0.006), ipsi -0.305 / -0.233 / -0.102 (Holm 0.0024 / 0.0028 / 0.204, n.s.). These are the
+  numbers the v41 Results quote. The older `session_shape/session_shape_stats.csv` (`face_rhythm_session_shape.py`,
+  10-25: best-spatial matching, `boot_delta` bootstrap) is the superseded test; the per-session shuffle test has been
+  the main shape test since 11-07 (Priya).
+- *Item 10, FaceRhythm lick-loading change per point (Fig 5D):* `face_rhythm_session_shape_tests.map_point_table` writes
+  the values and rings behind `session_maps_scaled_lick.png` (value in each animal's pre-stroke SD units, t, cluster,
+  cluster p, ring sign, max-statistic p) -> `data/session_maps_scaled_lick_points.csv` (full run and `--export-tables`).
+  Check against the manuscript's SVG read-back `data/fr/fr_lick_loading_change.csv` (7,692 rows = 2 factors x 3 epochs
+  x 1,282 points): rings identical at every point (0 mismatches; cluster counts per panel as the figure titles); values
+  within 0.073 SD after clipping to the figure's color limit. The read-back's resolution is ~0.05 SD (256 color
+  levels) and it assumed a limit of +-6.694 SD where the figure's 98th-percentile limit is 6.673; 152 points (2%) lie
+  beyond the limit, so the read-back saturates them and the table gives their true value.
+  `--export-tables` also re-ran the scalar tests first: byte-identical to the stored table again.
+- *Item 11, lick-aligned face asymmetry (checked, no code change):* the lick window is -0.1 .. +0.2 s around each lick
+  (`face_rhythm_asym_aligned.LICK_WIN`, unchanged since the cache was written in 6107982c, 10-24); halves = contra-half
+  minus ipsi-half log2 change vs the animal's pre, `boot_delta`, Holm via `stats.add_holm(H, ["align", "epoch"])` = the
+  six positions within each alignment x epoch. Recomputing Holm from `p_boot` in `aligned_maps_cache_point.pkl` over
+  that family reproduces the stored `p_holm` exactly (over 18 per alignment or 3 per alignment x position it does
+  not). Lick-aligned far contra -0.676 / -0.437 / -0.375, near contra -0.310 / -0.237 / -0.248, near ipsi chronic
+  +0.125 (Holm 0.004): the v41 text values.
+- *Also:* `tests/test_share_writers_mode_safe.py` classifies `c2_scalar_family_aligned.py` (left unclassified on main
+  by 6a69f29b, so that test failed on main) and `pose3d_phase_from_peak.py` as BEHAVIOR writers.
+
+## 2026-11-20 -- Lick-phase curves: mouth0 is the default, both curve versions kept (Priya)
+- *Decision (Priya 2026-11-20):* keep both per-session curve files; the default for the VLS manuscript phase scripts
+  (`scripts/pose3d_phase_curves.py`, `scripts/pose3d_phase_from_peak.py`) is **mouth0**
+  (`<pose3d>/phase/vls_manuscript/curves_mouth0_first_peak.csv.gz`: tongue-in-mouth frames count as 0). The pipeline's
+  `<pose3d>/phase/curves.csv.gz` (in-mouth frames excluded for side / down / out) stays available with
+  `--curves-source pipeline`; `--curves` overrides either. `pose3d_phase_curves.py --kind` now defaults to `peak` with
+  mouth0 (the mouth0 file holds first licks, kind `peak` only; other combinations exit with a pointer to `pipeline`).
+  Both scripts gained `--out-suffix`.
+- *Scope of the protrusion analyses:* they use only licks that occurred; trials without a lick enter the results via
+  the trial-outcome classes (Fig 2B / 4B), not as zero-protrusion curves.
+- *Check of the existing tables:* `c2_phase_first_{dist,mid0}_peak_sessions.csv` had been built from `curves.csv.gz`
+  while their `_aligned` cluster p came from mouth0. Regenerated under the mouth0 default to NEW files
+  `c2_phase_first_{dist,mid0}_peak_sessions_mouth0.csv` (`pose3d_phase_curves.py first dist mid0 --across sessions
+  --out-suffix _mouth0`; old files untouched). Same 2,706 rows, same n_sessions / n_animals; 'sig' masks identical
+  (dist 366 / 738 bins, mid0 647 / 738). Values: dist max |diff| 2.6e-4 (mean rows; median 1.7e-5; |v| up to 1.33),
+  SEM max 6.2e-5; mid0 max |diff| 2.3e-3 (median 1.2e-4; |v| up to 36), SEM max 5.6e-4. No figure change needed beyond
+  pointing the dist / mid0 panels at the `_mouth0` files when they are next rendered.
+
+## 2026-11-20 -- Cohort-2 treadmill review scripts added to the repo
+- `scripts/c2_treadmill_cue_aligned.py`, `scripts/c2_treadmill_extras.py`, `scripts/c2_s13_treadmill_from_fr.py`: copies
+  of the review scripts in `vls_stroke_paper/review/c2_treadmill_2026-11-20/` (cue-aligned treadmill push / walk with
+  the aligned rule; first-95-min check + session lengths; S13 pre-stroke treadmill traces on the FaceRhythm sessions).
+  Only the import path changed (repo root instead of `$WF_REPO`) plus lint-only fixes; refuse-to-overwrite kept;
+  outputs listed in each docstring (`<out_dir>` argument and `$MC/data/`). `c2_treadmill_cue_aligned_first95.py` and
+  the `c2_engagement_tim/` scripts are not added yet (still being run / revised).
+
+## 2026-11-20 -- Fig 5C FaceRhythm pre-stroke timecourses made in the pipeline (`scripts/fr_pre_timecourses_abs.py`)
+- *Context:* the manuscript's `manuscript_code/data/fr_pre_timecourses_abs.npz` (Fig 5C) had no producer in this repo.
+  Priya approved adding one (2026-11-20).
+- *Recipe:* the factor gallery's "pre-stroke trials by position" (`face_rhythm.factors.report.cmd_report`,
+  `absolute=True`): per PRE-stroke proj session of `fr_cam4_20261021/factors/master_pre_v1` (sorted by file name),
+  `trials x trials_D` (absolute expression), nanmean over the session's trials at each spout position;
+  (sessions x 151 x 12) per position, plus `sessions_<position>` labels.
+- *Result:* written to `<FR readouts>/master_pre_v1/vls_manuscript/fr_pre_timecourses_abs.npz`
+  (`M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/...`). EXACTLY equal to the manuscript file
+  (every position array and t_ms byte-equal, max |diff| 0; sessions 32/32/31/32/32/32 for close_L / close_center /
+  close_R / far_L / far_center / far_R), so the recipe above is the manuscript's.
+
+## 2026-11-20 -- Per-point permutation clusters of the FaceRhythm aligned maps (for Fig 5B rings)
+- *Context (Priya 2026-11-20):* Fig 5B's rings were drawn from `marks` in `aligned_maps_cache_point.pkl` (the 10-24
+  per-point bootstrap rule: boot_delta CI excludes 0 AND animals agree AND BH), while the legend and S14 describe the
+  PERMUTATION clusters of `face_rhythm_aligned_maps.py --perm` (11-07; 10,000 within-animal session shuffles,
+  `face_rhythm.stats.session_shuffle_test`, cluster mass |t| > 2). Per-point cluster membership had not been saved
+  (`aligned_maps_perm_clusters.csv` is cluster-level), so the figure could not use it.
+- *Decision:* `face_rhythm_aligned_maps.py --perm 10000 --perm-points` re-runs ONLY the permutation test (seed 0, same
+  loop order as the 11-07 run, so the same draws) and writes the new
+  `<FR readouts>/master_pre_v1/aligned_maps/data/aligned_maps_perm_points.csv` (align, position, epoch, point, x, y,
+  mean_log2, t, cluster [-1 = none], p_cluster, sig_cluster = the ring, sig_point = max-statistic FWE, n_perm); no figure
+  or other CSV is rewritten; refuses to overwrite. 3 min 10 s.
+- *Check:* all 54 alignment x position x epoch cells reproduce the stored `aligned_maps_perm_clusters.csv` exactly (same
+  cluster keys, n_points, masses, p < .05 calls) and the png titles' counts (e.g. lick far_R acute: 2 clusters,
+  1164 ringed points, max-stat 1035; the old bootstrap marks gave 950). Fig 5B should read `sig_cluster` from this file.
+
+## 2026-11-20 -- v41 sync branches merged to main (Priya: "Merge to main when safe")
+- Fast-forward of main (49283ea2) to: `sync41/c2-phase-fr-tables` (1e015216), the mouth0-default / treadmill-scripts
+  commit, a `--no-ff` merge of `ms-v41-c2-outcome-weight-stats` (619f337f + 142086ca; no conflicts; its two scripts
+  classified as behavior writers in `tests/test_share_writers_mode_safe.py`), the Fig 5C FaceRhythm writer and the
+  aligned-maps `--perm-points` option. Full suite on the merged tree: 6523 passed; the only other failure,
+  `test_sig_marks_top_band` on `scripts/cohort2_qc/quiet_boot_stars.py`, is already on origin/main (fae48012) and
+  untouched here. The `c2_engagement_tim/` and two-tone `c1/` review scripts are not added yet (still being revised).
+
+## 2026-11-20 -- GLM-HMM role share by trial class: definitions (jaw-only question, Priya)
+- *Context:* Priya 11-20: which GLM-HMM role (engaged / partial / disengaged) do jaw-only trials fall into, in the
+  six-position cohort (PS92-95; review comment C2 control refits in
+  `vls_stroke_paper/review/c2_treadmill_2026-11-20/c2_engagement_tim/`).
+- *Definitions chosen:* (1) a trial's role = the role of its MOST PROBABLE state (argmax; the same call as the
+  page's GLM-HMM gate), not the mean posterior of Fig 1.7; (2) the near-mid spout (`close_center`) is dropped for
+  EVERY class, not only jaw-only, so attempt / jaw-only / no response share one trial set
+  (`behavior_states.JAW_BLIND_POSITIONS`); (3) a session enters a class's share with >= 5 trials of that class
+  (`ROLE_SHARE_MIN_TRIALS`); (4) summaries are animal-weighted (mean over an animal's sessions, then over animals);
+  (5) refit roles come from each refit's own state profiles by the `glmhmm_roles` rule; (6) test = shared rule,
+  `orofacial_stats.session_change_tests`, star = q < .05 AND the boot_delta CI excludes 0.
+- *Cross-check:* trial-pooled shares from these functions equal the review helper's `jaw_only_by_glmhmm_role.csv`
+  (other_spouts rows) exactly, every model x class x epoch.
+- *Enforced at:* `wfield_local/behavior_states.py` (`glmhmm_role_column`, `role_share_sessions`,
+  `role_share_summary`), `scripts/states_jaw_only_roles.py`; states page Figs 1.10-1.11; FINDINGS 9.2b.

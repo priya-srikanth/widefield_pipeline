@@ -143,6 +143,7 @@ def figure(S, T):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    import quiet_boot_stars as BS
     from wfield_local import sig_marks
     from wfield_local.analysis_kit import boot_ci
     from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE
@@ -165,19 +166,18 @@ def figure(S, T):
                                color=EPOCH_LINE[ep], ms=6, capsize=3)
             for k, ep in enumerate(EP[1:], 1):
                 t = T[(T.measure == m) & (T.column == c) & (T.model == "epoch") & T.term.str.contains(ep)]
-                if len(t):
-                    q = float(t.q.iloc[0])
-                    if q < 0.05:
-                        sig_marks.star_top(a, k, "**" if q < 0.01 else "*")
+                BS.mark(a, k, G, m, ep, float(t.q.iloc[0]) if len(t) else np.nan, color=EPOCH_LINE[ep],
+                        panel=f"{c} {m}")
             a.set_xticks(range(4))
             a.set_xticklabels(EP, fontsize=8)
             a.set_title(f"{c}: {MEAS[m]}", fontsize=9)
     sig_marks.reserve_headroom(fig)
     fig.suptitle("Are quiet-period events faster after the stroke? v2 events > 4 x pre SD (up + down), engaged quiet; "
-                 "open markers = sessions (shape = animal), square = bootstrap mean +/- 95% CI; stars = LMM epoch vs "
-                 "August pre, FDR", fontsize=9)
+                 "open markers = sessions (shape = animal), square = bootstrap mean +/- 95% CI;\n" + BS.FOOT
+                 + " (mixed model: epoch vs August pre, FDR)", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
     fig.savefig(OUTW / "quiet_event_width.png", dpi=110)
+    BS.save(OUTW / "quiet_event_width_boot_stars.csv")
 
 
 def summarise():

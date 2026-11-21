@@ -382,7 +382,7 @@ outputs live in `*_allpre` folders marked SUPERSEDED (scale-free sensitivity onl
 
 **[`docs/status/STATUS_2026-11-01_QUIET_EVENTS_HANDOFF.md`](docs/status/STATUS_2026-11-01_QUIET_EVENTS_HANDOFF.md)**
 — **START HERE for quiet-period cortical events (cohort1, 11-01).** Orofacial quiet events ~5x acutely, not face
-movement, local to anterolateral orofacial cortex; imaging page section 15; open tests in priority order; and the
+movement, local to anterolateral orofacial cortex; Movement (Execution) Coding page section 23; open tests in priority order; and the
 results-vs-stroke-literature context table (section 6).
 
 **[`docs/status/STATUS_2026-10-24_FACE_RHYTHM_HANDOFF.md`](docs/status/STATUS_2026-10-24_FACE_RHYTHM_HANDOFF.md)**

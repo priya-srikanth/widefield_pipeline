@@ -31,6 +31,15 @@ of status docs is in [`status/README.md`](status/README.md); CLAUDE.md "Current 
 Results pages are claude.ai Artifacts on Priya's account (ask for access). Rewritten 2026-11-17: when you start,
 move or retire a branch, edit its block here in the same commit.
 
+**The two cortical results pages (renamed 2026-11-18, Priya):** **Spout (Target) Coding After Stroke**
+https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV (was "Cortical Spout Coding" / "the imaging page": whether and where cortex carries the
+TARGET spout: position decoders, frozen decoder, specificity, maps, coding directions, RSA, pre-cue code, rest) and
+**Movement (Execution) Coding After Stroke** https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d (was "Attempt Encoding Figures" /
+"the goal page" / "the encoding page": what cortex carries about the EXECUTED movement: encoders, tongue / lick
+read-out, FaceRhythm, state, quiet events). Each page links the other under its h1. Older docs use the old names;
+same URLs. Quiet-period events live on the movement page (section 23); spout page section 15 is a pointer that keeps
+the old figure anchors. Failed attempts appear on both (spout sections 5 / 8, movement sections 8 / 9, cross-linked).
+
 Shared by every branch: trial classes and the working gate (branch D), the August-only pre baseline (CLAUDE.md
 "Current status"), every readout as the change from the animal's OWN pre, significance stars from the nested
 bootstrap (`analysis_kit.boot_delta`), and the block-permutation null for any label that follows the spout blocks
@@ -51,6 +60,8 @@ bootstrap (`analysis_kit.boot_delta`), and the block-permutation null for any la
 - **Handoff:** [`status/STATUS_2026-11-03_TRIAL_GATES_S1_TABLE_HANDOFF.md`](status/STATUS_2026-11-03_TRIAL_GATES_S1_TABLE_HANDOFF.md)
   ("START HERE (window e0, 11-04 late)" block); before 11-03:
   [`status/STATUS_2026-10-21_POSE_CAM1_JAW_HANDOFF.md`](status/STATUS_2026-10-21_POSE_CAM1_JAW_HANDOFF.md)
+- **cam2 / cam3 re-run (from 11-18):** what must be re-run with the four-camera 3-D and lick data, decisions first:
+  [`status/STATUS_2026-11-18_CAM23_RERUN_INVENTORY.md`](status/STATUS_2026-11-18_CAM23_RERUN_INVENTORY.md)
 - **Code:** `pose3d.py`, `pose3d_side.py`, `lp_licks.py`, `lp_multiview.py`, `lp_sidecam.py`, `orofacial_clean.py`;
   O2 runbook [`../runbooks/o2_pose_inference.md`](../runbooks/o2_pose_inference.md)
 
@@ -76,9 +87,9 @@ bootstrap (`analysis_kit.boot_delta`), and the block-permutation null for any la
   (section 2: the newest `00-A8-...` item first)
 - **Code:** `face_rhythm/` (factors, projection, O2), `face_rhythm_outputs.py`, `face_rhythm_readouts.py`, `fr_groups.py`
 
-### F. Neural coding of spout position (decoders, maps, frozen pre-stroke decoders): the imaging page
+### F. Neural coding of spout position (decoders, maps, frozen pre-stroke decoders): the Spout (Target) Coding page
 - **Question:** does cortex carry spout-position information before and after the cue, and how does that change?
-- **Page:** imaging https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV (rebuild chain:
+- **Page:** Spout (Target) Coding After Stroke (the former imaging page) https://claude.ai/artifact/PvraHiF82BFXur1hnNUCeV (rebuild chain:
   [`results_pages/imaging/README.md`](results_pages/imaging/README.md))
 - **Findings:** [`FINDINGS.md`](FINDINGS.md); [`WHERE_THE_CODE_MOVES.md`](WHERE_THE_CODE_MOVES.md);
   [`BEHAVIOURAL_STATE_CONTROL.md`](BEHAVIOURAL_STATE_CONTROL.md); [`FROZEN_MODELS.md`](FROZEN_MODELS.md);
@@ -95,7 +106,7 @@ bootstrap (`analysis_kit.boot_delta`), and the block-permutation null for any la
 
 ### G. Encoding model (Musall-style ridge encoder: task, movement, FaceRhythm, contact)
 - **Question:** how much of cortical activity is task vs movement, and does the stroke change that split?
-- **Page:** encoding (goal question) https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d
+- **Page:** Movement (Execution) Coding After Stroke (the former goal / encoding page) https://claude.ai/artifact/Fnpn2KHknMwh3r13xADH7d
 - **Findings:** [`ENCODING_FINDINGS.md`](ENCODING_FINDINGS.md); [`ENCODER_CEILING.md`](ENCODER_CEILING.md)
 - **Handoff:** [`status/STATUS_2026-10-26_ENCODING_HANDOFF.md`](status/STATUS_2026-10-26_ENCODING_HANDOFF.md)
   (the newest `00-COMPACT-...` block first)
@@ -103,7 +114,8 @@ bootstrap (`analysis_kit.boot_delta`), and the block-permutation null for any la
 
 ### H. Quiet-period cortical events (and the PI deck)
 - **Question:** why do anterolateral orofacial cortical events rise ~5x acutely while the face is still?
-- **Page:** the "quiet-state" section of the encoding page; imaging page section 15
+- **Page:** section 23 ("quiet-state") of the Movement (Execution) Coding page; Spout (Target) Coding section 15 is now
+  only a pointer to it (old figure anchors kept)
 - **Handoff:** [`status/STATUS_2026-11-01_QUIET_EVENTS_HANDOFF.md`](status/STATUS_2026-11-01_QUIET_EVENTS_HANDOFF.md) (the top `>` block first)
 - **Code:** `quiet_periods.py`, `restnl_mask.py`
 

@@ -110,6 +110,7 @@ def figure(K, T, F):
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     from matplotlib.lines import Line2D
+    import quiet_boot_stars as BS
     from wfield_local import sig_marks
     from wfield_local.orofacial_cohort import ANIMAL_MARKER, EPOCH_LINE
     panels = [("I_8_15", "A  1-4 / 8-15 Hz\n(T20 as published)"), ("I_4_8", "B  1-4 / 4-8 Hz\n(requested band)"),
@@ -131,9 +132,8 @@ def figure(K, T, F):
                 am = g.groupby("animal")[c].mean()
                 a.bar(k, am.mean(), width=0.55, color=EPOCH_LINE[ep], alpha=0.3, zorder=0)
                 t = T[(T.measure == m) & (T.column == col) & T.term.str.endswith(f"[T.{ep}]")]
-                if len(t) and np.isfinite(t.q.iloc[0]) and float(t.q.iloc[0]) < 0.05:
-                    q = float(t.q.iloc[0])
-                    sig_marks.star_top(a, k, "***" if q < 0.001 else "**" if q < 0.01 else "*")
+                BS.mark(a, k, K, c, ep, float(t.q.iloc[0]) if len(t) else np.nan, color=EPOCH_LINE[ep],
+                        panel=f"{m} {col}")
             a.axhline(0, color="0.5", lw=0.8)
             a.set_xticks(range(3))
             a.set_xticklabels(EP[1:], fontsize=8)
@@ -151,12 +151,13 @@ def figure(K, T, F):
     sig_marks.reserve_headroom(fig)
     src = "LP-based quiet frames (DAQ contact + LP video licks)" if LICK_SOURCE == "daq+lp" else "DAQ-contact quiet frames"
     fig.suptitle("T20b (EXPLORATORY, PROVISIONAL n = 4): quiet-period synchronization laterality with fast bands that avoid "
-                 "the non-calcium 7-11 Hz peak (T22).\nSessions (shape = animal), color = epoch; stars = LMM vs August pre, "
-                 f"FDR within measure; {src}.\nAcute orofacial ipsi - contra kept vs 8-15 Hz (LMM coefficient ratio): "
+                 "the non-calcium 7-11 Hz peak (T22).\nSessions (shape = animal), color = epoch;\n" + BS.FOOT + " (LMM vs August pre, "
+                 f"FDR within measure); {src}.\nAcute orofacial ipsi - contra kept vs 8-15 Hz (LMM coefficient ratio): "
                  f"4-8 Hz {fo.get('I_4_8', np.nan):.0%}, 4-7 Hz {fo.get('I_4_7', np.nan):.0%}, "
                  f"4-8 floor-subtracted {fo.get('I_4_8fl', np.nan):.0%}", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.9), h_pad=2.0, w_pad=1.5)
     save_png_svg(fig, OUT / "quiet_sync_4to8.png", dpi=110)
+    BS.save(OUT / "quiet_sync_4to8_boot_stars.csv")
     plt.close(fig)
     print("wrote", OUT / "quiet_sync_4to8.png")
 

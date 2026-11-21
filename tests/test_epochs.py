@@ -16,8 +16,6 @@ recovery stage comparable.
 """
 import datetime as dt
 
-import pytest
-
 from wfield_local import config, epochs
 
 #: Priya's specification, transcribed as {animal: (acute days, first subacute day, first chronic
@@ -28,6 +26,8 @@ from wfield_local import config, epochs
 #: tight band and no longer rising" -- the by-eye plateau, on hit rate alone:
 #:   PS92 day 11  -- unchanged; tail locks at 102% of baseline.
 #:   PS93 day 11  -- unchanged.
+#:   (2026-11-19: k_res 0.4 -> 1.0 and PS94's pin removed; the same four values are now derived by
+#:   one rule -- see DECISIONS.md.)
 #:   PS94 day 25  -- was None. Recovers by d9 (~91%) but WOBBLES (77% at d22, 106% at d25); its final
 #:                   band settles at day 25. The one-sided trend lets that declining-but-tight band
 #:                   count; a symmetric drift test rejected it. Biologically sensible (~3.5 weeks).

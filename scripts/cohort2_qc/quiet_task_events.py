@@ -413,9 +413,14 @@ def trial_table(D, sd):
     for an in ANIMALS:
         from wfield_local import attempt_coding as _ac
         f = _ac.out_dir() / attempt_trials_name("precue", an)           # the writer's folder (review N1)
-        if f.exists():
-            x = pd.read_csv(f, usecols=["label", "trial_id", "spout", "cls", "p_true", "method"])
-            P.append(x[x.method == "dom"].drop(columns="method").rename(columns={"spout": "spout_ac", "cls": "cls_ac"}))
+        if not f.exists():
+            # FAIL LOUDLY (11-18): a missing table used to drop that animal silently, and with all four missing the run
+            # was patched by reading another key's tables (task_events_summarise_prodptrue.py), which mixed builds and
+            # broke the 23.23 follow-up check. p_true must come from attempt_coding run under THIS run's key.
+            raise FileNotFoundError(f"T13 p_true: no attempt_coding precue table for {an} under this run's key: {f}. "
+                                    "Run attempt_coding (precue) with the same env first (run_quiet_chain.sh preflight).")
+        x = pd.read_csv(f, usecols=["label", "trial_id", "spout", "cls", "p_true", "method"])
+        P.append(x[x.method == "dom"].drop(columns="method").rename(columns={"spout": "spout_ac", "cls": "cls_ac"}))
     Tr = Tr.merge(pd.concat(P).drop_duplicates(["label", "trial_id"]), on=["label", "trial_id"], how="left")
     return Tr
 

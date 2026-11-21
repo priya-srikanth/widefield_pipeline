@@ -102,9 +102,15 @@ def scale_june_cam4(flat: pd.DataFrame, factor: float, centre) -> pd.DataFrame:
     return out
 
 
-def cleaned_xy(flat: pd.DataFrame, ix: pd.DataFrame, part: str, cam: str, mouth) -> tuple[np.ndarray, np.ndarray]:
-    """(xy (n, 2) absolute image px, NaN where not MEASURED) for ``part`` after that camera's cleaning."""
+def cleaned_xy(flat: pd.DataFrame, ix: pd.DataFrame, part: str, cam: str, mouth,
+               cam1_keep: pd.DataFrame | None = None) -> tuple[np.ndarray, np.ndarray]:
+    """(xy (n, 2) absolute image px, NaN where not MEASURED) for ``part`` after that camera's cleaning. cam1: detached,
+    stationary tongue labels masked first (`cam1_licks.mask_detached`), keeping runs inside the ``cam1_keep`` cam4 lick
+    windows (`cam1_licks.cam4_lick_windows`)."""
     from wfield_local import orofacial_clean as oc
+    if cam == "cam1":                    # detached, stationary tongue labels out BEFORE cleaning (`cam1_licks`, 11-18)
+        from wfield_local import cam1_licks as C1
+        flat = C1.mask_detached(flat.reset_index(drop=True), ix.reset_index(drop=True), keep_windows=cam1_keep)[0]
     cols = [c for c in flat.columns if c.startswith(("tongue_", "jaw_"))]
     c, pos, _ = oc.clean_windows(flat[cols].reset_index(drop=True), ix.reset_index(drop=True), part,
                                  x0y0=tuple(mouth), cam=cam)
@@ -414,7 +420,8 @@ def triangulate(cg,xy1: np.ndarray, xy4: np.ndarray) -> tuple[np.ndarray, np.nda
 
 def session_3d(cg, rig: dict, ix1: pd.DataFrame, flat1: pd.DataFrame, ix4: pd.DataFrame, flat4: pd.DataFrame,
                june_factor: float | None = None, method: str = "pnp",
-               fill_gap_ms: dict | float | None = None, fill_interp: str = "akima") -> tuple[pd.DataFrame, dict]:
+               fill_gap_ms: dict | float | None = None, fill_interp: str = "akima",
+               cam1_keep: pd.DataFrame | None = None) -> tuple[pd.DataFrame, dict]:
     """Per paired frame: trial_id, position, t_ms, stop_ms and per part ``{part}_ml/_ap/_dv`` mm + ``{part}_rep1/_rep4``
     px. ``flat1`` / ``flat4`` RAW image px (``{part}_x/_y/_likelihood``), rows aligned with ``ix1`` / ``ix4``.
     ``june_factor``: scale cam4 about its principal point first (cleaning thresholds are in Aug+ px).
@@ -426,7 +433,9 @@ def session_3d(cg, rig: dict, ix1: pd.DataFrame, flat1: pd.DataFrame, ix4: pd.Da
     None = both cameras only. ``fill_interp`` (default "akima", 10-19): held-out 3-D error, PS92 0807 / 0818, linear ->
     Akima: 8 ms gaps 0.136-0.144 -> 0.127-0.137 mm, 16 ms 0.164-0.176 -> 0.145-0.162, 24 ms 0.220-0.272 -> 0.203-0.231
     (PCHIP in between); largest gain on long cam1-only gaps. Returns (frames, info) -- info carries the world fit,
-    the apparatus mouth in each camera and the spout medians used."""
+    the apparatus mouth in each camera and the spout medians used.``cam1_keep``: the session's cam4 lick windows (`cam1_licks.cam4_lick_windows`) for the cam1 drop mask
+    (`cleaned_xy`).
+    """
     from wfield_local import spout_frame as SF
     from wfield_local import spout_world as SW
     cg = cg.subset_cameras_names(["cam1", "cam4"])
@@ -466,7 +475,7 @@ def session_3d(cg, rig: dict, ix1: pd.DataFrame, flat1: pd.DataFrame, ix4: pd.Da
     cg_spout = edge_shifted(cg) if method == "pnp" else cg
     for part in CLEANED + STATIC:
         if part in CLEANED:
-            a, _ = cleaned_xy(flat1, ix1, part, "cam1", mouth1)
+            a, _ = cleaned_xy(flat1, ix1, part, "cam1", mouth1, cam1_keep=cam1_keep)
             b, _ = cleaned_xy(flat4, ix4, part, "cam4", mouth4)
             a, b = a[i1], b[i4]
         else:

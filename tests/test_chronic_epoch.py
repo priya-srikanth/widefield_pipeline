@@ -171,11 +171,9 @@ def test_it_reports_rather_than_reassigns(monkeypatch):
     END of the series, where every new session lands. PS93 and PS95 are both close enough to
     qualifying that a few more sessions could flip them, and they must flip by someone editing
     EPOCH_SPEC, not by a nightly run quietly redrawing a published panel."""
-    # PS94's chronic is PINNED in the live config (2026-09-25), which is a DIFFERENT contract -- a
-    # pinned boundary agrees by construction. This test is about the UNPINNED reporting path, so
-    # unpin PS94 for it; `test_a_pinned_chronic_agrees_and_keeps_the_advisory` covers the pin.
-    monkeypatch.setitem(epochs.EPOCH_SPEC, "PS94",
-                        {**epochs.EPOCH_SPEC["PS94"], "chronic_pinned": False})
+    # No animal is pinned in the live config (PS94's 2026-09-25 pin was removed 2026-11-19), so this
+    # exercises the UNPINNED reporting path directly; the pin contract is covered by
+    # `test_a_pinned_chronic_agrees_and_keeps_the_advisory`, which pins PS94 locally.
     pre = [l for l in config.phase_labels("pre") if config.animal_of(l) == "PS94"]
     post = sorted((l for l in config.pooled_labels("PS94") if epochs.epoch_of(l) != "pre"),
                   key=lambda x: x.split("_")[-1])
@@ -196,14 +194,16 @@ def test_it_reports_rather_than_reassigns(monkeypatch):
     assert epochs.epoch_of("PS94_0827") == "subacute", "the rule moved a session"
 
 
-def test_a_pinned_chronic_agrees_and_keeps_the_advisory():
+def test_a_pinned_chronic_agrees_and_keeps_the_advisory(monkeypatch):
     """A MANUALLY RATIFIED chronic (animals.yaml `chronic_pinned: true`) is authoritative: the
-    derivation still runs but the stored value wins, so the guard never flags it. PS94 is pinned at
-    day 25 (2026-09-25) because it recovered but wobbles too much to re-derive as a tight plateau,
-    and the terminal-state rule says a chronic once reached should not revert on noise.
+    derivation still runs but the stored value wins, so the guard never flags it. PS94 was pinned at
+    day 25 from 2026-09-25 to 2026-11-19; the live config no longer pins anyone (k_res 1.0 derives
+    25 on its own), but the mechanism stays, so it is exercised here with a LOCAL pin.
 
     The honest derivation is kept in `derived_day_raw` so the audit can still print what behavior
     now says -- the pin hides the disagreement from the GUARD, not from the reader."""
+    monkeypatch.setitem(epochs.EPOCH_SPEC, "PS94",
+                        {**epochs.EPOCH_SPEC["PS94"], "chronic_pinned": True})
     pre = [l for l in config.phase_labels("pre") if config.animal_of(l) == "PS94"]
     post = sorted((l for l in config.pooled_labels("PS94") if epochs.epoch_of(l) != "pre"),
                   key=lambda x: x.split("_")[-1])
@@ -214,7 +214,6 @@ def test_a_pinned_chronic_agrees_and_keeps_the_advisory():
     for i, l in enumerate(post):
         hit[l] = {"far_R": 0.6 if i % 2 else 1.1}          # 60% / 110%, alternating: never settles
         lick[l] = {"far_R": 5.0}
-    assert epochs.EPOCH_SPEC["PS94"].get("chronic_pinned") is True, "PS94 should be pinned in config"
     rep = epochs.derive_chronic_boundaries(hit, lick)["PS94"]
     assert rep["pinned"] is True
     assert rep["agree"] is True, "a pinned boundary agrees by construction"
@@ -223,6 +222,15 @@ def test_a_pinned_chronic_agrees_and_keeps_the_advisory():
     # and the guard does not flag a pinned animal
     assert not any("PS94" in b for b in epoch_audit.disagreements(
         {"available": True, "acute": {}, "chronic": {"PS94": rep}}))
+
+
+def test_no_animal_is_pinned_and_the_settled_bar_is_one_sd():
+    """2026-11-19 (Priya): ONE rule for all four animals. The settled threshold is 1.0 x pre-stroke
+    SD and PS94's hand pin is gone -- its day 25 is derived (band residual 0.84 SD). Re-adding a pin
+    or retuning k_res must be a recorded decision, so it fails here first."""
+    assert epochs.CHRONIC_K_RES == pytest.approx(1.0)
+    assert not any(s.get("chronic_pinned") for s in epochs.EPOCH_SPEC.values()), (
+        {a: s.get("chronic_pinned") for a, s in epochs.EPOCH_SPEC.items()})
 
 
 def test_a_missing_series_is_reported_not_guessed(monkeypatch):

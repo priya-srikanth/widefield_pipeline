@@ -773,8 +773,8 @@ def build_analysis_deck(src: Path, out_path: Path, dates=None, animals=None, tag
               flush=True)
     if _key_found or _key_pages:
         divider("KEY FIGURES — the key-figure cards of each results page",
-                "The Attempt Encoding Figures (goal) page's key figures first, then the key figures Priya chose from "
-                "the Cortical Spout Coding, State-Space Recovery and Licking Kinematics pages (11-17), grouped by page. "
+                "The Movement (Execution) Coding (goal) page's key figures first, then the key figures Priya chose from "
+                "the Spout (Target) Coding, State-Space Recovery and Licking Kinematics pages (11-17), grouped by page. "
                 "Each is THIS run's rebuild render of the page figure where one exists (matched by script and content); "
                 "the notes say which file it is and whether the page shows the same file.")
         for _page, _url, _lab, _kf, _kttl, _klicks, _kcap, _kdate, _krel in _key_found:
