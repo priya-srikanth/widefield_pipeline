@@ -100,6 +100,13 @@ def run_session(s: str, source: str, four_cam: str | None = None, out_dir: str |
         L = P3.lick_peaks(S, rig, cuts=CL.event_cuts(CL.production_events(rv, animal, date, span="all"), S=S))
         out = Path(out_dir) if out_dir else pose3d_dir(rv, _four_cam_source())
         out.mkdir(parents=True, exist_ok=True)
+        if four_cam != "clips":
+            # 11-21 efficiency: the side cameras' 2-D lick events need the fused session (`fuse_session`, the slow
+            # part) but no cam1 / cam4 input, so they are written here once; `scripts.camera_licks session --saved`
+            # then fuses them with the (re-detected) cam1 / cam4 events without rebuilding the session
+            from scripts.camera_licks import _bundle_out
+            SE = pd.concat([CL.side_events(Z, c, span="all") for c in PS.SIDE], ignore_index=True)
+            SE.to_csv(_bundle_out(rv, four_cam) / f"{animal}_{date}_side_events.csv", index=False, float_format="%.4g")
         S.to_csv(out / f"{animal}_{date}_frames.csv.gz", index=False, float_format="%.3f")
         L.to_csv(out / f"{animal}_{date}_licks.csv", index=False)
         gate = Z["stats"]["side_gate"]

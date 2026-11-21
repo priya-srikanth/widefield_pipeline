@@ -185,3 +185,16 @@ def test_bundle_out_carries_the_pose3d_run_tag(tmp_path, monkeypatch):
     monkeypatch.setenv("WIDEFIELD_POSE3D_TAG", "../x")
     with pytest.raises(ValueError):
         SCL._bundle_out(_RV(), "bund")
+
+
+def test_saved_side_events_round_trip_keeps_guards_boolean(tmp_path):
+    """11-21: the four-camera production run writes the side events once; the --saved fusion reads them back per camera
+    with the static / far guards as bool (a CSV round trip gives strings / NaN)."""
+    from scripts.camera_licks import _saved_side
+    E = pd.DataFrame({"trial_id": [1, 1, 2], "on_ms": [0, 50, 10], "off_ms": [20, 70, 30], "t_peak_ms": [10, 60, 20],
+                      "static": [True, False, None], "far": [False, None, True], "cam": ["cam2", "cam3", "cam2"]})
+    E.to_csv(tmp_path / "PS93_20260814_side_events.csv", index=False)
+    ev = _saved_side(tmp_path, "PS93", "20260814")
+    assert set(ev) == {"cam2", "cam3"} and len(ev["cam2"]) == 2
+    assert ev["cam2"].static.dtype == bool and list(ev["cam2"].static) == [True, False]
+    assert list(ev["cam2"].far) == [False, True] and ev["cam3"].far.tolist() == [False]

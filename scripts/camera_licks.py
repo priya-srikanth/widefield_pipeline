@@ -61,13 +61,38 @@ def _bundle_out(rv, bundle: str) -> Path:
     return p
 
 
-def run_session(s: str, preds: str | None = None, bundle: str | None = None) -> dict:
-    """One session: clips (``preds``) or the whole session (``bundle``)."""
+def _saved_side(out: Path, animal: str, date: str) -> dict:
+    """The side events `scripts.pose3d production --four-cam` wrote (``<s>_side_events.csv``), per camera, with the
+    guard columns back to bool."""
+    E = pd.read_csv(out / f"{animal}_{date}_side_events.csv")
+    for c in ("static", "far"):
+        if c in E:
+            E[c] = E[c].astype("boolean").fillna(False).astype(bool)
+    return {c: g.reset_index(drop=True) for c, g in E.groupby("cam")}
+
+
+def run_session(s: str, preds: str | None = None, bundle: str | None = None, saved: bool = False) -> dict:
+    """One session: clips (``preds``) or the whole session (``bundle``). ``saved`` (11-21): the side events and the
+    3-D frames of the four-camera production run (`pose3d.pose3d_dir`) instead of rebuilding the fused session."""
     from wfield_local import camera_licks as CL
     from wfield_local import pose3d_side as PS
     from wfield_local.paths import PathResolver
     rv = PathResolver()
     animal, date = s.split(":")
+    if bundle and saved:
+        from wfield_local.pose3d import pose3d_dir
+        out = _bundle_out(rv, bundle)
+        ev = CL.production_events(rv, animal, date, span="all")
+        ev.update(_saved_side(out, animal, date))
+        S = pd.read_csv(pose3d_dir(rv) / f"{animal}_{date}_frames.csv.gz",
+                        usecols=["trial_id", "t_ms", "stop_ms", "position", "tongue_ml", "tongue_ap", "tongue_dv"])
+        U = CL.fuse(ev, cuts=CL.event_cuts(ev, S=S))
+        pd.concat(ev.values(), ignore_index=True).to_csv(out / f"{animal}_{date}_events.csv", index=False,
+                                                         float_format="%.4g")
+        U.to_csv(out / f"{animal}_{date}_fused.csv", index=False, float_format="%.4g")
+        V = CL.view_table(U).reset_index()
+        V.insert(0, "session", f"{animal}_{date}")
+        return {"views": V, "n_trials": int(S.trial_id.nunique()), "n_events": {c: len(E) for c, E in ev.items()}}
     if bundle:
         Z = PS.fuse_session(rv, animal, date, side_bundle=bundle)
         ev = CL.production_events(rv, animal, date, span="all")
@@ -101,9 +126,12 @@ def main(argv=None) -> int:
     w.add_argument("sessions", nargs="+", help="ANIMAL:YYYYMMDD")
     w.add_argument("--bundle", required=True, help="side O2 bundle name (`pose3d_side.side_windows`)")
     w.add_argument("--jobs", type=int, default=3)
+    w.add_argument("--saved", action="store_true",
+                   help="fuse from the four-camera production run's saved side events + 3-D frames (no rebuild)")
     a = ap.parse_args(argv)
     if a.cmd == "session":
-        sessions, worker, out = a.sessions, _Worker(bundle=a.bundle), _bundle_out(PathResolver(), a.bundle)
+        sessions, worker = a.sessions, _Worker(bundle=a.bundle, saved=a.saved)
+        out = _bundle_out(PathResolver(), a.bundle)
     else:
         sessions, worker = a.sessions or _sessions(a.preds), _Worker(preds=str(a.preds))
         out = _out(PathResolver(), a.preds)
@@ -128,11 +156,11 @@ def main(argv=None) -> int:
 class _Worker:
     """Module-level, picklable worker (`parallel.fan_out` spawns by name)."""
 
-    def __init__(self, preds: str | None = None, bundle: str | None = None):
-        self.preds, self.bundle = preds, bundle
+    def __init__(self, preds: str | None = None, bundle: str | None = None, saved: bool = False):
+        self.preds, self.bundle, self.saved = preds, bundle, saved
 
     def __call__(self, s: str) -> dict:
-        return run_session(s, self.preds, self.bundle)
+        return run_session(s, self.preds, self.bundle, self.saved)
 
 
 if __name__ == "__main__":
