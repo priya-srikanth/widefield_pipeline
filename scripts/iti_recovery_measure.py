@@ -53,16 +53,18 @@ AIM_LABEL = {"first": "FIRST cued lick", "all": "all cued licks"}
 MIN = MIN_LICKS[AIM]                                      # back-compat name
 
 
-def aim_licks() -> pd.DataFrame:
+def aim_licks(preds=None, first_preds=None) -> pd.DataFrame:
     """Per cued lick: animal, label, epoch, pos, ang (deg), off (deg vs the animal's all-pre-lick mean at the spout),
-    first (True = the trial's first post-cue lick, lick_idx 0)."""
-    p = pd.read_csv(il.pred_file("zscore_check/where_preds_z.csv"))
+    first (True = the trial's first post-cue lick, lick_idx 0). ``preds`` / ``first_preds`` (11-22, for
+    `scripts/aim_first_vs_all.py --preds/--first-preds`): explicit where-decoder / first-lick tables; default = this
+    run's `il.pred_file` caches."""
+    p = pd.read_csv(preds or il.pred_file("zscore_check/where_preds_z.csv"))
     p = p[(p.set == "trial") & p.pos.isin(POS)].dropna(subset=["act_lat", "act_sag"]).copy()
     p["ang"] = np.degrees(np.arctan2(p.act_lat, p.act_sag))
     ref = p[p.epoch == "pre"].groupby(["animal", "pos"]).ang.mean()
     p["off"] = p.ang - ref.reindex(pd.MultiIndex.from_arrays([p.animal, p.pos])).to_numpy()
     # first-lick flag: join on (label, landing lateral) -- the first-lick table carries lick_idx, not a lick id
-    F = pd.read_csv(il.pred_file("first_lick_preds.csv.gz"))[["label", "act", "lick_idx"]].drop_duplicates(["label", "act"])
+    F = pd.read_csv(first_preds or il.pred_file("first_lick_preds.csv.gz"))[["label", "act", "lick_idx"]].drop_duplicates(["label", "act"])
     p["k"], F["k"] = p.act_lat.round(6), F.act.round(6)
     p = p.merge(F[["label", "k", "lick_idx"]], on=["label", "k"], how="left").drop(columns="k")
     p["first"] = p.lick_idx == 0
