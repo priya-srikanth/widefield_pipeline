@@ -24335,3 +24335,82 @@ events):
 - **Not adopted:** the retraction rule (offered as an alternative; it would need its own blind check).
 - **Scope:** applies from the next 3-D licks run (Phase B). The `_3net_20261121` lick tables were made at 40 ms and
   are not rewritten.
+
+## 2026-11-22 -- Four-camera re-run: consumer rewiring before Phase B (Priya 11-21 Q1 = (b), Q2, Q5; frame-coverage gate)
+
+Implements section 2 of `docs/status/RERUN_PLAN_RECONCILED_2026-11-21.md` on branch `pilot/side4cam-rewire` (code + tests
+only; no cohort run, nothing written to M:). The adoption itself (RUN / fused / 3-D / cam1 defaults) is ONE separate,
+labelled last commit so it can be reviewed or dropped.
+
+- **One session lick table** (`wfield_local/session_licks.py`). `session_licks(label)` = the fused four-camera train
+  (`WIDEFIELD_FUSED_LICKS=<camera_licks folder>`, or `FUSED_DEFAULT` after adoption, cohort 1 only) through
+  `camera_licks.lick_train` (D2 revised, `keep`, long cam1-only) and the 60 ms video-lick floor, else cam4 `licks_all`
+  (legacy, unchanged). DAQ times are recomputed through cam4's windows (`orofacial_outputs.trial_ms_to_daq`, the function
+  licks_all uses, factored out), never read from the fused CSVs. Consumers that added cam1-only events on top of cam4 do
+  so only on the legacy source.
+- **Video-lick floor on the fused train (decided conservatively).** Priya's 60 ms floor (11-21) covers the 3-D lick peaks
+  and the mouth cuts; the fused train itself had none (0.17 % of kept fused licks are < 60 ms after the previous one, 13
+  sampled sessions). `session_licks.apply_floor` merges them (union span, peak of the higher-priority camera), since the
+  fused train is a video lick set; recorded per lick (`floor_merged`).
+- **Precision bug found.** The 11-21 fused / events CSVs and the 3-D run's side events were written with `%.4g`: 10 ms
+  resolution at 10-100 s from the cue (ITI licks) and ~1 s for `daq_on_s` after 1000 s. Checked on PS93 0814: every
+  cam4-seen fused lick within 10 s of the cue key-matches licks_all, none beyond. Writers now use `%.10g` plus a format
+  manifest; `session_licks` refuses a folder without it (`FusedFormatError`) and `camera_licks` refuses to add tables to
+  an old-format folder. The existing `_3net_20261121*_gapfix` fusion is therefore NOT readable; Phase B re-fuses
+  (`--saved --gapfix --out-tag _gapfix60`). The side events of the 11-21 3-D run keep their rounding (<= 5 ms on side
+  spans of ITI licks, under the 12 ms merge tolerance); only a 3-D re-run removes it -- not done (decision for Priya).
+- **lick_uid -> lick_key.** `lick_key` = trial + PEAK ms (0.1 ms); unique per session (23 v37 sessions, 0 duplicates; the
+  fused train is >= 60 ms apart), and a cam4-seen fused lick keeps cam4's peak, so cam4 and fused rows share it.
+  `pose3d_kinematics` writes it in every mode; `session_licks.rows_for` / `kin_by_row` / `align_kin` join on it and RAISE
+  on a key they cannot place. Tables written before (no lick_key) still join on lick_uid, but only after every row's trial
+  and peak are checked against `t_peak_cam4` (to its 4-significant-digit rounding) -- a changed lick table now raises
+  instead of silently re-pointing. Sites: iti_licks (extract, _more_kin), lick_correction, frozen_encoder, stray_licks,
+  coupling_vigour_sm, enl_lick_audit, iti_first_lick, iti_where_decoder, lick_behaviour_decoder,
+  lick_covariate_reference, lick_cued_ramp, lick_firstlick_extract, lick_vigor_perspout, combined_encoding (_exec_3d,
+  lick_angle_3d: were (trial_id, lick_idx) joins), within_lick_correction / learned_compensation (key when both sides
+  carry it).
+- **Frame-coverage gate** (`wfield_local/frame_coverage.py`; coordinator 11-22 refinement): per trial window (the windows
+  every camera is cut on), coverage on the UNION of the contributing cameras (a 4 ms slot is covered when any camera that
+  feeds the fusion logged a frame in it; a side camera dropped by the 3-D side gate does not count), from each camera's own
+  frame log through its alignment template. `MIN_FRAME_COVERAGE = 0.90`; per trial the union and each camera's coverage
+  and `gate_reason` are recorded (`kinematics_fused/frame_coverage.csv`, skipped licks in `licks_gated.csv.gz`). PS92 0908
+  (read-only check): 69 / 389 trials gated, the four cameras dropping together. Scope (conservative): camera-derived
+  KINEMATICS only (`pose3d_kinematics --licks fused`); trial classes are not gated (a low-coverage trial without a seen lick
+  classes as before) -- open question for Priya.
+- **3-D kinematics on the fused train (Q1 = b).** New `pose3d_kinematics --licks fused` -> `kinematics_fused/`: every fused
+  lick, measured on whatever 3-D frames it has; < 3 frames = row kept with NaN measures; contact = a DAQ contact within the
+  span +- 20 ms (the `combined` rule). `--licks all` stays the cam4 licks_all table (`kinematics_all`); readers of "the
+  whole-session table" go through `session_licks.kin_all_name()` (kinematics_fused under a fused lick set).
+- **Rewired to the fused train when selected:** lp_licks (`_read_times`, LP_VERSION 3 -> 4, `spec_token` + fused
+  signature), trial_classes (licks, span licks, `class_source_signature`; default paths via `lp_licks.input_run` /
+  `cam1_events_dir`), first_lick_latency (`combined` first lick -> trial_attempts), restnl (new lick set `fused`, the
+  default under a fused train, own cache dir), the quiet chain's `lp_licks.lick_times`, revup_behaviour, glm_hmm,
+  face_rhythm_readouts lick rate, iti_licks / lick_correction / within_lick_correction / learned_compensation /
+  stray_licks and the lick-key sites above. The encoder (`combined_encoding`) gets an EXPLICIT
+  `COMBINED_ENCODING_LICKS=fused` mode but keeps cam4 by default even after adoption (neural layer; O2 bundles pin their
+  env; kinematics first).
+- **Close-spout jaw, source-aware (Q5).** jaw_onsets no longer blanks the 3-D jaw at the centre spouts when the 3-D source
+  is four-camera (the 50 % coverage floor stays) and writes `jaw3d_source` / `jaw3d_at_cue`. trial_classes uses the 3-D
+  call ONLY at `JAW_UNJUDGED_POSITIONS` and ONLY when `jaw3d_source == "4cam"`; a 2-cam table keeps the 11-03 default. The
+  3-D onset floor (0.10 mm) is PROVISIONAL (never blind-checked): close-spout jaw-only counts under the four-camera run
+  need a blind check before they are quoted.
+- **Hazards (plan item 4).** Refuse-to-overwrite (`--force` / new folder): jaw_onsets (also `--run`, default input_run;
+  was a literal v36 read + write), s1_trial_class_snapshot (`--out`), trial_attempts, pose3d_kinematics (every mode),
+  glm_hmm `--pooled-all`, cam1_licks into the default cam1 folder. Skip-if-exists now keyed on inputs: iti_licks /
+  lick_correction extracts (`lick_sig`, refused when it differs, as `mask_sig`), revup_behaviour (pickle stores its
+  inputs; a fused train gets its own folder), within_lick_correction (`inputs` column; fused folder), learned_compensation
+  timing (`--redo` no longer the only way), pose_chain (`_stale`: an output older than its cam1 windows), GLM-HMM
+  sequences (`sequence_key`: + class sources + lick set + code).
+- **Runbook command bugs (plan item 5).** learned_compensation accepts `summarize` and exits 1 on an unknown command;
+  c2_phase_sessions_aligned has `--kind` and parses `_sessions_<suffix>.csv`; the c2_* manuscript scripts and the recovery
+  mechanics default to the adopted run's routed tree (one `--enc` holds all three producers); within_lick_correction /
+  learned_compensation write to `orofacial_cohort.RUN`'s tree (were the v36 literal). Runbook rewritten
+  (`docs/MANUSCRIPT_C2_REFRESH.md`).
+- **Paths (plan item 3).** Literal `session_poses/pose3d` reads -> `pose3d_dir()` in 15 scripts; `V36` literals ->
+  `lp_licks.input_run()` / `orofacial_cohort.RUN` in ~30 files; literal `cam1_licks` reads -> `lp_licks.cam1_events_dir`.
+  LEFT literal on purpose: deck_registry / deck_keyfigs (published v36 figures), the 11-21 comparison scripts (csm_fix_*,
+  pose3d_phaseA_gate, pose3d_csm_examples: they compare against the cited v36 / two-camera numbers), glue_before_after,
+  o2_face_rhythm (runs on O2 without wfield_local at import), docstring usage lines.
+- **Adoption mechanics.** `pose3d.ADOPTED_SOURCE` / `ADOPTED_TAG` (the default source + tag, whose routed outputs are
+  untagged; any other source / tag gets `p3d-...`), `lp_licks.CAM1_DEFAULT`, `session_licks.FUSED_DEFAULT` and
+  `orofacial_cohort.RUN` are the constants the adoption commit changes.
