@@ -26,8 +26,10 @@ fusion) and the production 3-D point reprojected (x); the 3-D pose seen from cam
 (commanded spouts as rings, the trial's target filled, 120 ms tongue / jaw trails); and a LICK TIMELINE: trial period
 (pre-cue / cue .. trial stop / ITI), DAQ contacts, each camera's own lick events (cam4, cam1, cam2, cam3; side events
 hollow when a side guard flagged them), the fused lick train (filled = kept, coloured by source; hollow = dropped, with
-its reason) and the 3-D licks (``M`` = two tongue runs merged by the 60 ms video-lick floor), with a moving cursor and
-the current lick's source spelled out. 25 fps from 250 fps video (10x slow motion), H.264 / yuv420p (PowerPoint).
+its reason) and the 3-D licks (``M`` = two tongue runs merged by the 60 ms video-lick floor; `pose3d.lick_peaks` counts
+3-D licks only between the cue and the trial stop, so the row is empty in the ITI), with a moving cursor and the current
+lick's source spelled out. ``used`` = the production table's per-camera reprojection is defined (``<part>_rep_<cam>``);
+on a one-view-fill frame (views = -1) no camera is "used" by that definition, so the one camera's point shows as a ring. 25 fps from 250 fps video (10x slow motion), H.264 / yuv420p (PowerPoint).
 
 TRIAL SELECTION (seeded, `SEED` + crc32 of the session; never chosen by eye):
   * one trial per spout position, cue -100 .. +700 ms. Candidates: every trial window covers the clip; >= 2 KEPT fused
@@ -56,6 +58,7 @@ OUT_FPS = 25
 TRAIL_MS = 120.0
 HOLD_FRAMES = 12
 DLC = Path("M:/MICROSCOPE/Priya/DeepLabCut/Widefield")
+LP = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis")
 PREP_DIR = Path("C:/Users/SabatiniLab/lp_stage/clips_20261122/prep")
 #: the production runs' routing env (copied from their launchers: the 11-21 cohort run, running list "step 3"; the 11-22
 #: sync-span re-run, lp_stage/rerun_20261122/chain.py ENV); `fuse_session` must see the same windows / cam4 lick run
@@ -91,6 +94,14 @@ def load_tables(p3d: Path, lk: Path, animal: str, date: str) -> dict:
     s = f"{animal}_{date}"
     return {"S": pd.read_csv(p3d / f"{s}_frames.csv.gz"), "L": pd.read_csv(p3d / f"{s}_licks.csv"),
             "U": pd.read_csv(lk / f"{s}_fused.csv"), "E": pd.read_csv(lk / f"{s}_events.csv", low_memory=False)}
+
+
+def cue_daq_s(cam4_run: str, animal: str, date: str) -> dict:
+    """{trial_id: DAQ second of the cue} from the cam4 run's windows (``ix_daq_s`` - ``ix_t_daq_ms``: every frame's DAQ
+    time and its DAQ time from the cue), so DAQ contacts / rewards land on the clip's cue clock."""
+    w = np.load(LP / cam4_run / "sessions" / animal / date / "windows.npz", allow_pickle=True)
+    d = pd.DataFrame({"tid": w["ix_trial_id"], "c": w["ix_daq_s"] - w["ix_t_daq_ms"] / 1000.0})
+    return d.groupby("tid").c.median().to_dict()
 
 
 def source_class(r) -> str:
@@ -295,11 +306,12 @@ def _x(t, t0, t1):
     return int(round(STRIP_L + (t - t0) / (t1 - t0) * (W - STRIP_L - 12)))
 
 
-def strip_background(clip: dict, T: dict, daq_ms: np.ndarray, L0: pd.DataFrame, floor_ms: float) -> tuple[np.ndarray, list]:
+def strip_background(clip: dict, T: dict, daq_ms: np.ndarray, L0: pd.DataFrame, floor_ms: float,
+                     rew_ms: np.ndarray) -> tuple[np.ndarray, list]:
     """The timeline (static part) and the fused licks of the clip [(on, off, label, kept)]."""
     import cv2
     tr, t0, t1, stop = clip["trial"], clip["t0"], clip["t1"], clip["stop_ms"]
-    rows = ["trial", "DAQ contact", *CAMS_STRIP, "fused (4 cams)", "3-D licks"]
+    rows = ["trial", "DAQ contact", *CAMS_STRIP, "fused (4 cams)", "3-D (cue-stop)"]
     rh, top = 19, 26
     h = top + rh * len(rows) + 40
     im = np.full((h, W, 3), 18, np.uint8)
@@ -323,9 +335,11 @@ def strip_background(clip: dict, T: dict, daq_ms: np.ndarray, L0: pd.DataFrame, 
     for tl, lab in ((0.0, "cue"), (stop, "stop"), (stop + 3000.0, "old window end")):
         if t0 <= tl <= t1:
             col = (255, 255, 255) if lab == "cue" else (150, 150, 150)
-            for yd in range(top, y["3-D licks"] + rh, 6):
+            for yd in range(top, y["3-D (cue-stop)"] + rh, 6):
                 cv2.line(im, (X(tl), yd), (X(tl), yd + 3), col, 1)
             cv2.putText(im, lab, (X(tl) + 2, top - 4), F_, 0.36, col, 1, cv2.LINE_AA)
+    for t in rew_ms[(rew_ms >= t0) & (rew_ms <= t1)]:                 # water delivery (DAQ reward line)
+        cv2.drawMarker(im, (X(t), yy + rh // 2), (255, 200, 0), cv2.MARKER_TRIANGLE_DOWN, 11, 2, cv2.LINE_AA)
     # DAQ contacts
     for t in daq_ms[(daq_ms >= t0) & (daq_ms <= t1)]:
         cv2.line(im, (X(t), y["DAQ contact"] + 3), (X(t), y["DAQ contact"] + rh - 4), (80, 80, 255), 2)
@@ -364,7 +378,7 @@ def strip_background(clip: dict, T: dict, daq_ms: np.ndarray, L0: pd.DataFrame, 
     # 3-D licks (production table) + merges by the 60 ms floor (>= 2 no-floor licks inside one)
     L = T["L"][T["L"].trial_id == tr]
     l0 = L0[L0.trial_id == tr]
-    y3 = y["3-D licks"]
+    y3 = y["3-D (cue-stop)"]
     for _, l_ in L.iterrows():
         a, b = float(l_.t_onset_ms), float(l_.t_onset_ms) + 4.0 * (int(l_.n_frames) - 1)
         if b < t0 or a > t1:
@@ -377,7 +391,7 @@ def strip_background(clip: dict, T: dict, daq_ms: np.ndarray, L0: pd.DataFrame, 
         if nparts >= 2:
             cv2.putText(im, "M", (X(a) + 2, y3 + 14), F_, 0.4, (0, 0, 0), 1, cv2.LINE_AA)
     # time axis
-    ya = y["3-D licks"] + rh + 2
+    ya = y["3-D (cue-stop)"] + rh + 2
     step = 100 if t1 - t0 <= 1600 else 250
     for t in np.arange(np.ceil(t0 / step) * step, t1 + 1e-6, step):
         cv2.line(im, (X(t), ya), (X(t), ya + 4), (180, 180, 180), 1)
@@ -390,7 +404,7 @@ def strip_background(clip: dict, T: dict, daq_ms: np.ndarray, L0: pd.DataFrame, 
                            ("S2 = side-only, both side views", SRC_COL["side-only, both side views"], True),
                            ("dropped (reason)", (140, 140, 140), False),
                            (f"3-D: M = runs merged by the {floor_ms:.0f} ms floor", (0, 165, 255), True),
-                           ("DAQ contact", (80, 80, 255), True)):
+                           ("DAQ contact", (80, 80, 255), True), ("reward (trial row)", (255, 200, 0), True)):
         cv2.rectangle(im, (xl, ya + 24), (xl + 12, ya + 33), col, -1 if fill else 1)
         cv2.putText(im, lab, (xl + 16, ya + 33), F_, 0.34, (200, 200, 200), 1, cv2.LINE_AA)
         xl += 22 + int(cv2.getTextSize(lab, F_, 0.34, 1)[0][0])
@@ -434,7 +448,8 @@ class H264:
             raise RuntimeError("ffmpeg failed")
 
 
-def render(P: dict, T: dict, clips: list, f_out: Path, daq_s: np.ndarray, epoch: str, stills: Path | None) -> list:
+def render(P: dict, T: dict, clips: list, f_out: Path, daq_s: np.ndarray, rew_s: np.ndarray, cues: dict, epoch: str,
+           stills: Path | None) -> list:
     import cv2
     import matplotlib
     matplotlib.use("Agg")
@@ -446,12 +461,13 @@ def render(P: dict, T: dict, clips: list, f_out: Path, daq_s: np.ndarray, epoch:
     crop, centre = fit_crops(P, clips)
     readers = {c: Reader(P["videos"][c]) for c in order}
     lo, hi, tgt = P["lo"], P["hi"], P["tgt"]
-    fig = plt.figure(figsize=(W / 100, 3.3), dpi=100)
+    fig = plt.figure(figsize=(W / 100, 3.0), dpi=100)
     axes = [fig.add_subplot(1, 2, k + 1, projection="3d") for k in range(2)]
     vw, written = None, []
     F_ = cv2.FONT_HERSHEY_SIMPLEX
     for cl in clips:
-        bg, fused = strip_background(cl, T, daq_s * 1000.0 - cl["cue_daq_ms"], P["L0"], P["floor_ms"])
+        c0 = 1000.0 * cues[cl["trial"]]
+        bg, fused = strip_background(cl, T, daq_s * 1000.0 - c0, P["L0"], P["floor_ms"], rew_s * 1000.0 - c0)
         pos, tr = cl["position"], cl["trial"]
         n = len(cl["rows"])
         first_peak = None
@@ -464,16 +480,23 @@ def render(P: dict, T: dict, clips: list, f_out: Path, daq_s: np.ndarray, epoch:
                 if im is None:
                     im = np.zeros((600, 800, 3), np.uint8)
                     cv2.putText(im, "no frame", (20, 60), F_, 1.0, (0, 0, 255), 2)
+                # the crop is shrunk to the tile, so marker sizes are set in TILE px (scaled by the crop)
+                sc = max(1.0, min(crop[c], *im.shape[:2]) / TILE)
+                for p in PARTS:
+                    r_ = cl["rep"][p][j, k]
+                    if np.isfinite(r_).all():
+                        cv2.drawMarker(im, (int(round(r_[0])), int(round(r_[1]))), BGR[p], cv2.MARKER_TILTED_CROSS,
+                                       int(16 * sc), max(1, int(round(1.5 * sc))), cv2.LINE_AA)
                 for p in PARTS:
                     q = cl["pts"][p][j, k]
                     if np.isfinite(q).all():
                         used = bool(cl["used"][p][j, k])
-                        cv2.circle(im, (int(round(q[0])), int(round(q[1]))), 4 if used else 6, BGR[p],
-                                   -1 if used else 1, cv2.LINE_AA)
-                    r_ = cl["rep"][p][j, k]
-                    if np.isfinite(r_).all():
-                        cv2.drawMarker(im, (int(round(r_[0])), int(round(r_[1]))), BGR[p], cv2.MARKER_TILTED_CROSS,
-                                       13, 2, cv2.LINE_AA)
+                        xy = (int(round(q[0])), int(round(q[1])))
+                        if used:
+                            cv2.circle(im, xy, int(4 * sc), (0, 0, 0), -1, cv2.LINE_AA)
+                            cv2.circle(im, xy, int(3 * sc), BGR[p], -1, cv2.LINE_AA)
+                        else:
+                            cv2.circle(im, xy, int(6 * sc), BGR[p], max(1, int(round(1.5 * sc))), cv2.LINE_AA)
                 cs = min(crop[c], *im.shape[:2])
                 x0 = int(np.clip(centre[c][0] - cs // 2, 0, im.shape[1] - cs))
                 y0 = int(np.clip(centre[c][1] - cs // 2, 0, im.shape[0] - cs))
@@ -529,7 +552,8 @@ def render(P: dict, T: dict, clips: list, f_out: Path, daq_s: np.ndarray, epoch:
             # header
             bar = np.zeros((46, W, 3), np.uint8)
             nv = "  ".join(f"{p} {int(cl['nviews'][p][k])}" for p in PARTS)
-            what = {"trials": "", "bout": "  [lick bout]", "iti": "  [ITI lick bout]"}[cl["kind"]]
+            what = {"trials": "", "bout": "  [lick bout]",
+                    "iti": f"  [ITI bout, {t - cl['stop_ms']:+.0f} ms after trial stop]"}[cl["kind"]]
             cv2.putText(bar, f"{animal}  {date[:4]}-{date[4:6]}-{date[6:]}  {epoch}  trial {tr}  spout {pos}  "
                         f"t = {t:+.0f} ms from cue{what}   10x slow motion (250 fps shown at 25 fps)",
                         (8, 18), F_, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
@@ -543,7 +567,8 @@ def render(P: dict, T: dict, clips: list, f_out: Path, daq_s: np.ndarray, epoch:
                 vw = H264(f_out, frame.shape[1], frame.shape[0])
             vw.write(frame)
             if stills is not None and (k == first_peak or k == n // 2):
-                p_ = stills / f"{f_out.stem}_t{tr}_{'lick' if k == first_peak else 'mid'}_{t:+.0f}ms.png"
+                tt = f"_t{tr}" if cl["kind"] == "trials" else ""
+                p_ = stills / f"{f_out.stem}{tt}_{'lick' if k == first_peak else 'mid'}_{t:+.0f}ms.png"
                 cv2.imwrite(str(p_), frame)
                 written.append(p_)
         for _ in range(HOLD_FRAMES):
@@ -594,6 +619,8 @@ def run_session(item) -> dict:
         raise RuntimeError(f"{session}: recomputed 3-D licks != production _licks.csv {P['lick_check'][1:]}")
     ev = BE.get_or_compute(rv, animal, date)
     daq_s = BE.lick_onsets_s(ev) if ev is not None else np.array([])
+    rew_s = np.asarray(ev["reward_samples"], float) / float(ev["fs"]) if ev is not None else np.array([])
+    cues = cue_daq_s(pr["env"]["WIDEFIELD_LICK_INPUT_RUN"], animal, date)
     epoch = epochs.epoch_of(f"{animal}_{date[4:]}") or "no epoch"
     epoch = {"pre": "pre-stroke"}.get(epoch, epoch)
     out = Path(out)
@@ -608,7 +635,7 @@ def run_session(item) -> dict:
             continue
         tr_tag = "" if kind == "trials" else f"_t{cl[0]['trial']}"
         f_out = out / f"clip4cam_{animal}_{date}_{kind}{tr_tag}.mp4"
-        files += render(P, T, cl, f_out, daq_s, epoch, st_dir)
+        files += render(P, T, cl, f_out, daq_s, rew_s, cues, epoch, st_dir)
         for c in cl:
             U = T["U"]
             u = U[(U.trial_id == c["trial"]) & (U.off_ms >= c["t0"]) & (U.on_ms <= c["t1"])]
