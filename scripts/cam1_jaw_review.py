@@ -25,7 +25,8 @@ import pandas as pd
 
 from wfield_local import pose_windows
 
-V36 = "lp_r4_heatmap_20261013__clean_v36"
+from wfield_local.lp_licks import input_run as _input_run  # noqa: E402
+V36 = _input_run()  # 11-22: the input / adopted cam4 run (lp_licks.input_run; was the literal v36 run, plan item 3)
 POS = ("far_R", "close_center")
 CUT = 0.6
 OFFSETS = (-40, 0, 40)
@@ -37,7 +38,8 @@ def _cands(rv, per: int, rng) -> pd.DataFrame:
     J = pd.read_csv(root / "imaging_encoding" / "qc" / "jaw_onsets.csv", dtype={"date": str})
     J = J[(J.epoch == "acute") & J.position.isin(POS) & J.cam1_moved.notna()]
     keep = []
-    d1 = Path(rv.root("dlc")) / "session_poses" / "cam1_licks"
+    from wfield_local import lp_licks
+    d1 = lp_licks.cam1_events_dir(rv)  # 11-22: the adopted / routed cam1 folder (lp_licks.cam1_events_dir; was the literal cam1_licks)
     for s, g in J.groupby("session"):
         a, d = s.split("_")
         L = pd.read_csv(root / "sessions" / a / d / "licks.csv", usecols=["trial_id"])
@@ -171,7 +173,8 @@ def video_round(rv, per: int, rng) -> tuple[list, list]:
     J = pd.read_csv(root / "imaging_encoding" / "qc" / "jaw_onsets.csv", dtype={"date": str})
     J = J[(J.epoch == "acute") & J.position.isin(SIDE) & J.cam1_moved.notna()]
     pool = []
-    d1c = Path(rv.root("dlc")) / "session_poses" / "cam1_licks"
+    from wfield_local import lp_licks
+    d1c = lp_licks.cam1_events_dir(rv)  # 11-22: the adopted / routed cam1 folder (lp_licks.cam1_events_dir; was the literal cam1_licks)
     for s, g in J.groupby("session"):
         a, d = s.split("_")
         L = pd.read_csv(root / "sessions" / a / d / "licks.csv", usecols=["trial_id"])

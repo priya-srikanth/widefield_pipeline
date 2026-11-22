@@ -64,8 +64,11 @@ ATTEMPT_CLASSES = ("hit", "incomplete")
 #: LP cue <-> DAQ cue match tolerance (s).
 MATCH_TOL_S = 0.02
 #: Bump when the definition above changes (enters every LP cache key).
-LP_VERSION = 3          # 2 (11-04): first-lick timing falls back to the DAQ contact at the close spouts
+LP_VERSION = 4          # 2 (11-04): first-lick timing falls back to the DAQ contact at the close spouts
 #                         3 (11-17): cam1 events through `cam1_licks.keep_mask` (+ far-from-mouth guard, Priya 11-17)
+#                         4 (11-22): the lick train comes from `session_licks` (the fused four-camera train when
+#                           WIDEFIELD_FUSED_LICKS / the adopted default selects it; Priya 11-21 Q1 = (b)); its identity
+#                           (`session_licks.signature`) enters `spec_token`
 #: LP-vs-DAQ timing tolerance, ms (Priya 11-04; wf_attempt docs/status/rebuild_20261103/lp_missed_contact/
 #: LP_MISSED_CONTACT_20261104.md): a first LP lick ONSET more than this after the trial's first DAQ contact (in the
 #: response window, cue + 70 ms .. min(cue + max_rt, stop)) is late -- at a CLOSE spout the contact time is used instead
@@ -152,8 +155,10 @@ def spec_token(rv=None) -> str:
     trial_attempts.csv -- the jaw_onsets reruns -- invalidates every LP entry) + the cam1 event folder's identity."""
     p = attempts_path(rv)
     st = p.stat() if p.exists() else None
+    from wfield_local import session_licks as SL
+    fz = SL.signature(rv)                 # "" on the legacy source: the cam1 part keys it as before
     return (f"lp{LP_VERSION}t{LP_DAQ_TOL_MS:g}:{st.st_mtime_ns if st else 0}:{st.st_size if st else 0}"
-            f":cam1-{_cam1_signature(rv)}{_routing_token()}")
+            f":cam1-{_cam1_signature(rv)}{_routing_token()}" + (f":{fz}" if fz else ""))
 
 
 def first_lick_timing(pos, lp_ms, contact_ms, stop_ms, tol_ms: float = LP_DAQ_TOL_MS) -> pd.DataFrame:
@@ -463,6 +468,9 @@ def supplement_token(label: str, rv=None) -> str:
 #: set, both values enter `spec_token` (so an LP cache entry built under them can never be served to a default run).
 INPUT_RUN_ENV = "WIDEFIELD_LICK_INPUT_RUN"          # e.g. lp_r4_heatmap_20261013__clean_v37
 CAM1_DIR_ENV = "WIDEFIELD_CAM1_LICKS_DIR"           # folder name under session_poses, e.g. cam1_licks_v37
+#: the ADOPTED cam1 event folder (11-22): what `cam1_events_dir` reads with the env unset; the four-camera adoption commit
+#: moves it with `orofacial_cohort.RUN` (the v37 re-detection, `mask_detached`, lives in cam1_licks_v37)
+CAM1_DEFAULT = "cam1_licks_v37_sync60"          # ADOPTED 2026-11-22 (Priya 11-21 Q2); session_poses/cam1_licks stays on disk
 
 
 def input_run() -> str:
@@ -475,7 +483,7 @@ def cam1_events_dir(rv=None) -> Path:
     """session_poses/<cam1_licks | `CAM1_DIR_ENV`>: the cam1 lick-event folder."""
     import re
     from wfield_local.paths import PathResolver
-    name = os.environ.get(CAM1_DIR_ENV, "").strip() or "cam1_licks"
+    name = os.environ.get(CAM1_DIR_ENV, "").strip() or CAM1_DEFAULT
     if not re.fullmatch(r"cam1_licks[A-Za-z0-9_]*", name):
         raise ValueError(f"{CAM1_DIR_ENV}={name!r}: expected 'cam1_licks' + optional suffix (e.g. cam1_licks_v37)")
     return Path((rv or PathResolver()).root("dlc")) / "session_poses" / name
@@ -487,7 +495,9 @@ def _routing_token() -> str:
 
 
 def _inputs(label: str, rv):
-    """(session dir, cam4 licks_all, cam1 events) paths for one session (`input_run`, `cam1_events_dir`)."""
+    """(session dir, cam4 licks_all, cam1 events) paths for one session (`input_run`, `cam1_events_dir`): the RAW
+    per-camera tables. The fusion's producers (`camera_licks.production_events`, cam1 keep windows) read these; a
+    CONSUMER of "the session's licks" goes through `session_licks` (11-22), which is the fused train when selected."""
     from wfield_local import config, orofacial_outputs as oo
     an, d = label.split("_")
     sd = oo.session_dir(rv, input_run(), an, config.date8(d))
@@ -509,13 +519,20 @@ def lp_lick_times(label: str, rv=None) -> tuple[np.ndarray, pd.DataFrame]:
     from wfield_local.paths import PathResolver
     rv = rv or PathResolver()
     sd, f4, f1 = _inputs(label, rv)
+    from wfield_local import session_licks as SL
+    if SL.fused_on():
+        # 11-22 (Priya 11-21 Q1 = (b)): THE fused four-camera train (cam1-only and side-only licks already in it, so
+        # no cam1 events are added on top); cached on the fused table + the cam4 windows that put it on the DAQ clock
+        an, d8 = label.split("_")[0], f4.parent.name
+        f4 = SL.fused_dir(rv) / f"{an}_{d8}_fused.csv"
+        f1 = SL.fused_dir(rv) / SL.MANIFEST
     if not (sd / "windows.npz").exists() or not f4.exists():
-        raise LPUnavailable(f"{label}: no LP lick tables in {sd}")
+        raise LPUnavailable(f"{label}: no LP lick tables in {sd}" + (f" / {f4}" if SL.fused_on() else ""))
     ins = [sd / "windows.npz", f4, f1]
     key = (label, tuple(result_cache.signature(ins, "")))
     if key not in _TIMES:
         import sys
-        ver = f"lp{LP_VERSION}-" + result_cache.code_version(sys.modules[__name__])
+        ver = f"lp{LP_VERSION}-" + result_cache.code_version(sys.modules[__name__]) + SL.signature(rv)
         if len(_TIMES) > 64:
             _TIMES.clear()
         _TIMES[key] = result_cache.cached(session_cache.CACHE_DIR / "lp_licks", f"{label}__times", ins, ver,
@@ -525,7 +542,10 @@ def lp_lick_times(label: str, rv=None) -> tuple[np.ndarray, pd.DataFrame]:
 
 def _read_times(label, sd, f4, f1):
     from wfield_local import orofacial_cohort as oc
+    from wfield_local import session_licks as SL
     cue_t = oc._cue_table(sd).set_index("trial_id")
+    if SL.fused_on():
+        return SL.session_onsets_s(label), cue_t
     t = pd.read_csv(f4, usecols=["daq_on_s"]).daq_on_s.to_numpy(float)
     parts = [t[np.isfinite(t)]]
     if f1.exists():

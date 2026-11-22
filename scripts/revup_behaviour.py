@@ -134,10 +134,56 @@ def _count(sorted_t: np.ndarray, lo, hi) -> np.ndarray:
     return np.searchsorted(sorted_t, hi, side="left") - np.searchsorted(sorted_t, lo, side="left")
 
 
+def sess_dir() -> Path:
+    """The per-session cache folder: `SESS`, + ``_fused_<sha8>`` under a fused lick set (11-22: the lick train is part
+    of what a cached session holds, so another train never reads these pickles)."""
+    from wfield_local import session_licks as SL
+    sig = SL.signature()
+    if not sig:
+        return REV / SESS
+    import hashlib
+    return REV / f"{SESS}_fused_{hashlib.sha1(sig.encode()).hexdigest()[:8]}"
+
+
+def inputs_sig(label: str) -> str:
+    """Identity (name, size, mtime) of the files one session is built from: the session lick table, cam1's events_all,
+    the jaw table and the attempts table. 11-22 (reconciled plan item 4): the cache was keyed on EXISTENCE only, so a
+    regenerated lick / cam1 / jaw table was silently ignored; a pickle whose inputs changed is now rebuilt (pickles
+    written before 11-22 carry no signature and are still read, with a note)."""
+    from wfield_local import config, lp_licks
+    from wfield_local import session_licks as SL
+    from wfield_local.paths import PathResolver
+    rv = PathResolver()
+    an, date = config.animal_of(label), "2026" + label.split("_")[-1]
+    sd = SL._cam4_dir(rv, an, date)
+    fs = [sd / "licks_all.csv"] if not SL.fused_on() else [SL.fused_dir(rv) / f"{an}_{date}_fused.csv",
+                                                          sd / "windows.npz"]
+    fs += [lp_licks.cam1_events_dir(rv) / f"{an}_{date}_events_all.csv", QC / "jaw_onsets.csv", attempts_csv()]
+    parts = []
+    for p in fs:
+        try:
+            st = Path(p).stat()
+            parts.append(f"{Path(p).name}:{st.st_size}:{st.st_mtime_ns}")
+        except OSError:
+            parts.append(f"{Path(p).name}:-")
+    return "|".join(parts)
+
+
+def _cache_ok(f: Path, label: str) -> bool:
+    if not f.exists():
+        return False
+    d = pickle.loads(f.read_bytes())
+    if "inputs" not in d:
+        print(f"  {label}: cached before 11-22 (no input signature) -- reused; delete it to rebuild")
+        return True
+    return d["inputs"] == inputs_sig(label)
+
+
 def session(label: str) -> dict:
-    """One session -> per-trial table + FR arrays; cached at REV/sessions/<label>.pkl (module-level for spawn)."""
-    f = REV / SESS / f"{label}.pkl"
-    if f.exists():
+    """One session -> per-trial table + FR arrays; cached at `sess_dir()`/<label>.pkl, rebuilt when its inputs change
+    (`inputs_sig`) (module-level for spawn)."""
+    f = sess_dir() / f"{label}.pkl"
+    if _cache_ok(f, label):
         return {"label": label, "cached": True}
     from wfield_local import config, dlc_frames, epochs
     from wfield_local import face_rhythm_outputs as fro
@@ -154,7 +200,9 @@ def session(label: str) -> dict:
     nxt = np.where(np.isfinite(nxt) & (nxt > stop), nxt, stop + gap)
     rw = _resp_window(label)
     sd = oo.session_dir(rv, oc.RUN, an, date)
-    A = pd.read_csv(sd / "licks_all.csv", usecols=["daq_on_s", "daq_peak_s"])
+    from wfield_local import session_licks as SL
+    # 11-22: THE session lick table (`session_licks`: the fused four-camera train when selected, else cam4 licks_all)
+    A = SL.session_licks(f"{an}_{date}", rv)[["daq_on_s", "daq_peak_s"]]
     A = A[np.isfinite(A.daq_on_s) & np.isfinite(A.daq_peak_s)].sort_values("daq_peak_s")
     lk = np.sort(A.daq_on_s.to_numpy(float))
     pk, pk_on = A.daq_peak_s.to_numpy(float), A.daq_on_s.to_numpy(float)
@@ -178,7 +226,8 @@ def session(label: str) -> dict:
     n_miss = np.where(np.isfinite(fc), _count(lk, fl, fc), _count(lk, cue, stop))
     n_miss = np.where(np.isfinite(fl), n_miss, 0)
     # cam1 events
-    e1 = Path(rv.root("dlc")) / "session_poses" / "cam1_licks" / f"{an}_{date}_events_all.csv"
+    from wfield_local import lp_licks
+    e1 = lp_licks.cam1_events_dir(rv) / f"{an}_{date}_events_all.csv"
     has_cam1 = e1.exists()
     if has_cam1:
         from wfield_local import cam1_licks as C1        # droplets + far-from-mouth labels out (Priya 11-17)
@@ -260,8 +309,8 @@ def session(label: str) -> dict:
         "p_spont_after_left": 1 - np.exp(-rate * np.clip(nxt - stop, 0, None)) if np.isfinite(rate) else np.nan,
         "coverage": float(cov.get("covered_frac", np.nan))})
     T = _revup(T)
-    REV.joinpath(SESS).mkdir(parents=True, exist_ok=True)
-    f.write_bytes(pickle.dumps({"T": T, "fr": out_fr}))
+    f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_bytes(pickle.dumps({"T": T, "fr": out_fr, "inputs": inputs_sig(label)}))
     return {"label": label, "cached": False, "n": len(T)}
 
 
@@ -324,7 +373,7 @@ def assemble(labels: list[str]) -> tuple[pd.DataFrame, dict]:
     TA = pd.read_csv(attempts_csv(), usecols=["label", "trial_id", "cls", "canonical", "attempted", "day"])
     Ts, F = [], {"cue": [], "lick": [], "prep_cue": []}
     for x in labels:
-        d = pickle.loads((REV / SESS / f"{x}.pkl").read_bytes())
+        d = pickle.loads((sess_dir() / f"{x}.pkl").read_bytes())
         Ts.append(d["T"])
         for k in F:
             F[k].append(d["fr"][k])

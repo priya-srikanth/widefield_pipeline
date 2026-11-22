@@ -118,6 +118,7 @@ def _stub(monkeypatch, tmp_path):
     monkeypatch.setattr(ak, "daq_rate", lambda s: FS)
     monkeypatch.setattr(rnm, "daq_lick_onsets", lambda s, fs: np.array([int(DAQ_LICK_S * FS)]))
     monkeypatch.setattr(rnm, "licks_all_path", lambda label: la)
+    monkeypatch.setenv("WIDEFIELD_FUSED_LICKS", "off")    # the legacy cam4 lick set (adopted default = fused, 11-22)
     return rbp, seen, eng
 
 

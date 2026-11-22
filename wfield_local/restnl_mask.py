@@ -136,6 +136,8 @@ def lickfree_mask(s: dict):
     daq_on = daq_lick_onsets(s, fs)
     cam4 = pd.read_csv(lp, usecols=["daq_on_s"]).daq_on_s.to_numpy(float)
     cam4 = cam4[np.isfinite(cam4)]
+    from wfield_local import restnl_licks as _rl  # [gate-source hook] fused lick set (11-22): the fused train REPLACES
+    cam4 = _rl.fused_onsets(s["label"]) if _rl.is_fused() else cam4  # [gate-source hook] cam4 (no train -> raises)
     from wfield_local import restnl_licks as _rl  # [gate-source hook] [restnl-licks hook: cam4cam1 adds cam1-only LP events, 11-17]
     cam4, _n_c1 = _rl.extend(s["label"], cam4) if _rl.is_c1() else (cam4, None)  # [gate-source hook]
     m_daq2 = floor_runs(rest0 & ~widen(daq_on, n, nb, na), minrun)
@@ -203,6 +205,8 @@ def cache_dir() -> Path:
     from wfield_local import restnl_licks as _rl  # [gate-source hook] [restnl-licks hook] cam4cam1 = its own dir
     if _rl.is_c1():  # [gate-source hook]
         return c.with_name(c.name + "_" + _rl.CACHE_TAG + ("_" + _gs.cache_tag() if _gs.is_lp() else ""))  # [gate-source hook]
+    if _rl.is_fused():  # [gate-source hook] fused lick set (11-22): its own dir
+        return c.with_name(c.name + "_" + _rl.FUSED_CACHE_TAG + ("_" + _gs.cache_tag() if _gs.is_lp() else ""))  # [gate-source hook]
     if _gs.is_lp():  # [gate-source hook] its own baselines, so a gate-LP build never prunes / reads the default ones
         return c.with_name(c.name + "_restnl_" + _gs.cache_tag())  # [gate-source hook]
     return c.with_name(c.name + "_restnl")
@@ -238,6 +242,7 @@ def _key(s: dict) -> str:
              map_collect.stat_sig(licks_all_path(s["label"]))]
     from wfield_local import restnl_licks as _rl  # [gate-source hook] [restnl-licks hook] + cam1 events / LP train code
     parts += [_rl.key_part(s["label"])] if _rl.is_c1() else []  # [gate-source hook]
+    parts += [_rl.fused_key_part(s["label"])] if _rl.is_fused() else []  # [gate-source hook]
     return hashlib.sha1("|".join(parts).encode()).hexdigest()[:16]
 
 
@@ -250,6 +255,8 @@ def _stem(label: str) -> str:
     from wfield_local import restnl_licks as _rl  # [gate-source hook] [restnl-licks hook]
     if _rl.is_c1():  # [gate-source hook]
         return f"{label}__{_rl.CACHE_TAG}" + (f"-{t}" if t else "")  # [gate-source hook]
+    if _rl.is_fused():  # [gate-source hook]
+        return f"{label}__{_rl.FUSED_CACHE_TAG}" + (f"-{t}" if t else "")  # [gate-source hook]
     return f"{label}__restnl" + (f"-{t}" if t else "")
 
 

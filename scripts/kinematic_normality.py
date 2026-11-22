@@ -53,7 +53,11 @@ from wfield_local import run_mode as _rm  # noqa: E402
 OUT = _rm.subdir(E / "kinematic_normality", lp_family=True)   # mode-routed (LP family; default LP folder kept)
 FIG = OUT / "figures"
 FD = OUT / "figdata"
-P3 = Path("M:/MICROSCOPE/Priya/DeepLabCut/Widefield/session_poses/pose3d/kinematics_all")
+# 11-22 (plan item 3): the selected 3-D source / tag and LICK SET (kinematics_fused under the fused train); was the
+# literal two-camera kinematics_all
+from wfield_local import session_licks as _SL  # noqa: E402
+from wfield_local.pose3d import pose3d_dir as _pose3d_dir  # noqa: E402
+P3 = _pose3d_dir() / _SL.kin_all_name()
 AN = ["PS92", "PS93", "PS94", "PS95"]
 EP4 = ["pre", "acute", "subacute", "chronic"]
 POS = ["close_ipsi", "close_mid", "close_contra", "far_ipsi", "far_mid", "far_contra"]     # canonical order

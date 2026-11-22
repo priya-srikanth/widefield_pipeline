@@ -40,11 +40,19 @@ import pandas as pd
 SOURCES = {"2cam": "pose3d", "4cam": "pose3d_4cam",
            "4cam_clips": "pose3d_4cam_clips"}   # 4cam on the side REVIEW CLIPS only (partial windows): tests, never production
 SOURCE_ENV = "WIDEFIELD_POSE3D_SOURCE"
+#: THE ADOPTED 3-D RUN (11-22): the source + run tag every reader / writer uses when ``SOURCE_ENV`` / ``TAG_ENV`` are
+#: unset, and the run whose routed outputs are UNTAGGED (`run_mode.pose3d_part` ""). The adoption of the four-camera run
+#: (Priya 11-21 Q2) changes these two constants in ONE commit (with `orofacial_cohort.RUN` and
+#: `session_licks.FUSED_DEFAULT`); until then the two-camera tables (``session_poses/pose3d``) stay the default.
+# ADOPTED 2026-11-22 (Priya 11-21 Q2, Q8): the WHOLE-SESSION four-camera 3-D run (first..last sync pulse, 60 ms floor;
+# session_poses/pose3d_4cam_3net_20261121_sync60)
+ADOPTED_SOURCE = "4cam"
+ADOPTED_TAG = "_3net_20261121_sync60"
 
 
 def pose3d_source(source: str | None = None) -> str:
     import os
-    s = source or os.environ.get(SOURCE_ENV) or "2cam"
+    s = source or os.environ.get(SOURCE_ENV) or ADOPTED_SOURCE
     if s not in SOURCES:
         raise ValueError(f"3-D source {s!r}: one of {sorted(SOURCES)} ({SOURCE_ENV})")
     return s
@@ -69,10 +77,12 @@ TAG_ENV = "WIDEFIELD_POSE3D_TAG"
 
 
 def pose3d_tag(source: str | None = None) -> str:
+    """The run tag of ``source``: ``TAG_ENV`` when set, else `ADOPTED_TAG` for the adopted source; never on 2cam."""
     import os
     import re
     s = pose3d_source(source)
-    tag = os.environ.get(TAG_ENV, "") if s != "2cam" else ""
+    env = os.environ.get(TAG_ENV)
+    tag = (env if env is not None else (ADOPTED_TAG if s == ADOPTED_SOURCE else "")) if s != "2cam" else ""
     if tag and not re.fullmatch(r"_[A-Za-z0-9_]+", tag):
         raise ValueError(f"{TAG_ENV}={tag!r}: expected '_' + letters / digits / '_' (e.g. _3net_20261121)")
     return tag

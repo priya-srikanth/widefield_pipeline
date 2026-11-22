@@ -56,7 +56,8 @@ POS_LABEL = dict(zip(POS_3D, POS_CAM4))
 from wfield_local.orofacial_cohort import EPOCH_LINE as _EPOCH_LINE  # noqa: E402
 
 ECOL = {e: _EPOCH_LINE[e] for e in EPOCHS}
-V36 = "lp_r4_heatmap_20261013__clean_v36"
+from wfield_local.lp_licks import input_run as _input_run  # noqa: E402
+V36 = _input_run()  # 11-22: the input / adopted cam4 run (lp_licks.input_run; was the literal v36 run, plan item 3)
 
 
 #: lesion-signed 3-D measures (+ = ipsi = mouse LEFT for these left lesions): negated at plot level by ``contra``

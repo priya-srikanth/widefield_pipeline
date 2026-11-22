@@ -50,7 +50,10 @@ from wfield_local import orofacial_stats as st  # noqa: E402
 from wfield_local import writeguard  # noqa: E402
 
 SRV = Path("M:/MICROSCOPE/Priya")
-ENC = SRV / "Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding"
+# 11-22 (plan item 3 / runbook bug: steps 5 / 6 / 8 passed only --out-dir, so every input stayed v36 / two-camera):
+# the DEFAULT follows the adopted run (`orofacial_cohort.RUN`, routed like the producers); pass it explicitly anyway
+from wfield_local import run_mode as _rm  # noqa: E402
+ENC = _rm.encoding_out_root()     # = where within_lick_correction / learned_compensation / iti_licks write (one tree)
 FAMILY = SRV / "stroke_orofacial_pipeline_outputs/vls_stroke_paper/manuscript_code/data/c2_scalar_family_aligned.csv"
 OUT_DIR = SRV / "Widefield/manuscript_stats"
 MS_DATA = FAMILY.parent

@@ -84,11 +84,11 @@ _KIN = {}
 def _kin(session: str) -> pd.DataFrame:
     """3-D kinematics rows of one session; the whole table is read once per worker process."""
     if "all" not in _KIN:
-        from wfield_local.paths import PathResolver
-        p = Path(PathResolver().root("dlc")) / "session_poses" / "pose3d" / "kinematics_all" / "licks.csv.gz"
-        K = pd.read_csv(p, usecols=["session", "lick_uid", "side_ml", "reach_mm"])
+        # 11-22: the selected 3-D source / tag and lick set (`iti_licks.kin_all_path`; was the literal two-camera folder)
+        want = ("session", "lick_key", "lick_uid", "trial_id", "t_peak_cam4", "side_ml", "reach_mm")
+        K = pd.read_csv(il.kin_all_path(), usecols=lambda c: c in want)
         _KIN["all"] = {s: g.drop(columns="session") for s, g in K.groupby("session")}
-    return _KIN["all"].get(session, pd.DataFrame(columns=["lick_uid", "side_ml", "reach_mm"]))
+    return _KIN["all"].get(session, pd.DataFrame(columns=["lick_key", "lick_uid", "side_ml", "reach_mm"]))
 
 
 def worker(label):
@@ -96,15 +96,15 @@ def worker(label):
     K = _kin(f"{label[:4]}_2026{label.split('_')[-1]}")
     from wfield_local import epochs
     from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
     an, date = label[:4], "2026" + label.split("_")[-1]
     ep = epochs.epoch_of(label)
     T = il._behaviour(label).trials.copy()
-    A = pd.read_csv(oo.session_dir(PathResolver(), oc.RUN, an, date) / "licks_all.csv",
-                    usecols=["trial_id", "position", "context", "contact", "daq_on_s", "daq_peak_s"])
-    A["lick_uid"] = np.arange(len(A))
-    K = K.drop_duplicates("lick_uid").set_index("lick_uid")
+    from wfield_local import session_licks as SL
+    # THE session lick table (fused train or cam4 licks_all); kinematics by LICK KEY (11-22; was lick_uid = row)
+    A = SL.session_licks(f"{an}_{date}").reindex(columns=["trial_id", "t_ms", "lick_key", "position", "context",
+                                                           "contact", "daq_on_s", "daq_peak_s"])
+    A["lick_uid"] = np.arange(len(A))            # the row of THIS lick table (lick_key is the stable identity)
+    K = SL.kin_by_row(K, A, label) if len(K) else K.set_index("lick_uid")
     A["angle"] = np.degrees(np.arcsin(np.clip(K.side_ml / K.reach_mm, -1, 1))).reindex(A.lick_uid).to_numpy()
     A["pos"] = [oc.pos_key(p, "L") if isinstance(p, str) and "_" in p else "" for p in A.position]
     on_all = np.sort(A.daq_on_s.dropna().to_numpy(float))
@@ -155,7 +155,7 @@ def worker(label):
                              cued_ang_sq=("angle", lambda v: float(np.nansum(np.square(v)))),
                              cued_contact=("contact", "sum")).reset_index()
     C["label"], C["animal"], C["epoch"] = label, an, ep
-    keep = ["label", "animal", "epoch", "trial_id", "pos", "lick_uid", "daq_on_s", "t_from_strobe", "t_to_cue", "bout",
+    keep = ["label", "animal", "epoch", "trial_id", "pos", "lick_uid", "lick_key", "daq_on_s", "t_from_strobe", "t_to_cue", "bout",
             "bout_start", "continued", "clean_start", "prev_gap", "contact", "angle"]
     return {"E": E[keep], "T": TT, "C": C}
 

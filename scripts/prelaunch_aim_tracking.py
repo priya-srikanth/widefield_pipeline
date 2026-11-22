@@ -39,7 +39,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from wfield_local import mask_keys  # noqa: E402
 from wfield_local import run_mode as _rmode  # noqa: E402
 
-V36 = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36")
+from wfield_local import orofacial_outputs as _oo  # noqa: E402
+from wfield_local.lp_licks import input_run as _input_run  # noqa: E402
+from wfield_local.paths import PathResolver as _PR  # noqa: E402
+V36 = Path(_oo.root(_PR())) / _input_run()   # 11-22: was a literal M:/ v36 path
 E = _rmode.encoding_out_root(V36.name)  # the run's TAGGED encoding tree (coordinator 11-04): outputs + routed inputs
 OUT = Path(os.environ.get("PAT_OUT") or (E / "prelaunch_aim_tracking"))
 FEAT = E / "prelaunch_aim_tracking" / "features"          # feature cache is shared by the smoke test (deterministic)

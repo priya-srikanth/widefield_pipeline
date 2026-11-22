@@ -32,6 +32,10 @@ PREDS = "C:/Users/SabatiniLab/lp_stage/lp_side_r2b_20261118/r2_full/models/side_
 #: side review clip folders under the dlc root (the 10-27 pilot set, `pose3d_side_check.CLIPS`, and the 11-04 Part A set);
 #: a session's clips are the first folder holding ``<a>_<d>/index.csv``
 CLIP_SETS = ("inference_check_20261027_side_pilot/clips", "inference_check_20261104_partA_clips")
+#: 11-22: was "%.4g" -- 4 significant digits kept 10 ms at 10-100 s from the cue (ITI licks) and 1 s of daq_on_s after
+#: 1000 s, so the 11-21 fused / events tables cannot be key-joined or put on the DAQ clock. Folders written since carry
+#: `session_licks.MANIFEST` (format 2); `session_licks.session_licks` refuses a fused folder without it.
+FLOAT_FORMAT = "%.10g"
 
 
 def _out(rv, preds: Path) -> Path:
@@ -98,8 +102,8 @@ def run_session(s: str, preds: str | None = None, bundle: str | None = None, sav
             T = CL.anchor_track_frames(rv, animal, date)
             U = CL.confirm_side_only(U, {c: CL.tracked_frames(U, T.get(c)) for c in CL.CONFIRM_CAMS})
         pd.concat(ev.values(), ignore_index=True).to_csv(out / f"{animal}_{date}_events.csv", index=False,
-                                                         float_format="%.4g")
-        U.to_csv(out / f"{animal}_{date}_fused.csv", index=False, float_format="%.4g")
+                                                         float_format=FLOAT_FORMAT)
+        U.to_csv(out / f"{animal}_{date}_fused.csv", index=False, float_format=FLOAT_FORMAT)
         V = CL.view_table(U).reset_index()
         V.insert(0, "session", f"{animal}_{date}")
         res = {"views": V, "n_trials": int(S.trial_id.nunique()), "n_events": {c: len(E) for c, E in ev.items()}}
@@ -120,8 +124,8 @@ def run_session(s: str, preds: str | None = None, bundle: str | None = None, sav
     # 11-21: split back-to-back licks at the anchor cameras' boundaries, placed where the 3-D tongue returns to the mouth
     U = CL.fuse(ev, cuts=CL.event_cuts(ev, S=PS.frames_table(Z)))
     pd.concat(ev.values(), ignore_index=True).to_csv(out / f"{animal}_{date}_events.csv", index=False,
-                                                     float_format="%.4g")
-    U.to_csv(out / f"{animal}_{date}_fused.csv", index=False, float_format="%.4g")
+                                                     float_format=FLOAT_FORMAT)
+    U.to_csv(out / f"{animal}_{date}_fused.csv", index=False, float_format=FLOAT_FORMAT)
     V = CL.view_table(U).reset_index()
     V.insert(0, "session", f"{animal}_{date}")
     return {"views": V, "n_trials": int(Z["F"].trial_id.nunique()), "n_events": {c: len(E) for c, E in ev.items()}}
@@ -154,6 +158,11 @@ def main(argv=None) -> int:
             ap.error("--gapfix needs --saved and --out-tag (never rewrite the existing fusion folder)")
         sessions, worker = a.sessions, _Worker(bundle=a.bundle, saved=a.saved, gapfix=a.gapfix, out_tag=a.out_tag)
         out = _bundle_out(PathResolver(), a.bundle, a.out_tag)
+        from wfield_local import session_licks as SL
+        if any(out.glob("*_fused.csv")) and not (out / SL.MANIFEST).exists():
+            # 11-22: never mix full-precision tables into a folder of 4-significant-digit ones under one manifest
+            ap.error(f"{out} holds fused tables written before the full-precision format (no {SL.MANIFEST}); "
+                     "write a NEW folder (--out-tag)")
     else:
         sessions, worker = a.sessions or _sessions(a.preds), _Worker(preds=str(a.preds))
         out = _out(PathResolver(), a.preds)
@@ -163,7 +172,18 @@ def main(argv=None) -> int:
     if not res:
         return 1
     V = pd.concat([r["views"] for _s, r in res], ignore_index=True)
-    V.to_csv(out / "views.csv", index=False, float_format="%.4g")
+    V.to_csv(out / "views.csv", index=False, float_format=FLOAT_FORMAT)
+    if a.cmd == "session":
+        # 11-22: the format manifest `session_licks` requires (full-precision tables); records how the folder was made
+        import json
+
+        from wfield_local import session_licks as SL
+        from wfield_local.pose3d import pose3d_dir
+        old = out / SL.MANIFEST
+        prev = set(json.loads(old.read_text(encoding="utf-8")).get("sessions", [])) if old.exists() else set()
+        SL.write_manifest(out, bundle=a.bundle, saved=a.saved, gapfix=a.gapfix, out_tag=a.out_tag,
+                          pose3d_dir=str(pose3d_dir()), min_ili_ms=CL.MIN_ILI_MS,
+                          sessions=sorted(prev | {s for s, _r in res}), failed=sorted(s for s, _e in fail))
     if any("reasons" in r for _s, r in res):
         Rz = pd.concat([r["reasons"] for _s, r in res if "reasons" in r], ignore_index=True)
         Rz.to_csv(out / "reasons.csv", index=False)

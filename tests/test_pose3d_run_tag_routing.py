@@ -8,6 +8,11 @@ from pathlib import Path
 def _clean(monkeypatch):
     for k in ("WIDEFIELD_POSE3D_SOURCE", "WIDEFIELD_POSE3D_TAG"):
         monkeypatch.delenv(k, raising=False)
+    # these tests pin the PRE-adoption routing (2cam adopted, 4cam tagged); since 11-22 the adopted source / tag are
+    # constants (`pose3d.ADOPTED_*`) and the routing for the adopted four-camera run is in test_rerun_rewire_1122
+    from wfield_local import pose3d
+    monkeypatch.setattr(pose3d, "ADOPTED_SOURCE", "2cam")
+    monkeypatch.setattr(pose3d, "ADOPTED_TAG", "")
 
 
 def test_default_2cam_run_is_untagged(monkeypatch):
@@ -37,7 +42,7 @@ def test_within_lick_correction_and_lick_correction_read_pose3d_dir():
     for f in ("within_lick_correction.py", "lick_correction.py"):
         src = (root / f).read_text(encoding="utf-8")
         assert '"session_poses" / "pose3d"' not in src, f
-        assert "pose3d_dir(" in src, f
+        assert "pose3d_dir(" in src or "kin_all_path(" in src, f      # 11-22: + the lick set (iti_licks.kin_all_path)
 
 
 def test_within_lick_correction_out_root_moves_with_the_4cam_tag(monkeypatch):

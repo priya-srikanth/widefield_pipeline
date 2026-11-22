@@ -31,7 +31,8 @@ import pandas as pd
 
 from wfield_local import pose_windows
 
-V36 = "lp_r4_heatmap_20261013__clean_v36"
+from wfield_local.lp_licks import input_run as _input_run  # noqa: E402
+V36 = _input_run()  # 11-22: the input / adopted cam4 run (lp_licks.input_run; was the literal v36 run, plan item 3)
 KEYFRAME_EVERY = 12                                         # cam4 FMP4 encoder GOP (10-21)
 CLIP_FROM, TRACE_FROM, AFTER_STOP = -300.0, -500.0, 200.0     # windows run to the trial's stop + AFTER_STOP
 STEP = 8

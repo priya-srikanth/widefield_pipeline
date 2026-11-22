@@ -41,6 +41,12 @@ def gate_off(monkeypatch):
 @pytest.fixture
 def gate_on(monkeypatch):
     monkeypatch.setenv(gate_source.GATE_SOURCE_ENV, "lp")
+    # the pinned real-data references were made on the v36 cam4 + cam1 lick set (pre-adoption, 11-22): pin those inputs
+    from wfield_local import lp_licks
+    from wfield_local import orofacial_cohort as oc
+    monkeypatch.setattr(oc, "RUN", "lp_r4_heatmap_20261013__clean_v36")
+    monkeypatch.setattr(lp_licks, "CAM1_DEFAULT", "cam1_licks")
+    monkeypatch.setenv("WIDEFIELD_FUSED_LICKS", "off")
 
 
 # ============================================================================================ unit (no I/O)

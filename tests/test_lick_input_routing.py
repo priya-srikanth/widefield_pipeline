@@ -20,7 +20,7 @@ def test_default_routing_is_unchanged(monkeypatch, tmp_path):
     monkeypatch.delenv(L.INPUT_RUN_ENV, raising=False)
     monkeypatch.delenv(L.CAM1_DIR_ENV, raising=False)
     assert L.input_run() == oc.RUN
-    assert L.cam1_events_dir(_RV(tmp_path)) == tmp_path / "dlc" / "session_poses" / "cam1_licks"
+    assert L.cam1_events_dir(_RV(tmp_path)) == tmp_path / "dlc" / "session_poses" / L.CAM1_DEFAULT   # adopted folder
     assert L._routing_token() == ""
 
 

@@ -31,7 +31,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-V36 = "lp_r4_heatmap_20261013__clean_v36"
+from wfield_local.lp_licks import input_run as _input_run  # noqa: E402
+V36 = _input_run()  # 11-22: the input / adopted cam4 run (lp_licks.input_run; was the literal v36 run, plan item 3)
 ANGLE_DEG = 12.0                         # |executed angle| above this = a left / right lick (cam4 image angle)
 MAX_ILI_S = 0.35                         # next lick within this -> an instantaneous frequency
 LAGS = np.arange(-1.0, 1.0 + 1e-9, 0.04)

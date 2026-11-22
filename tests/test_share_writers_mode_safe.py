@@ -31,7 +31,7 @@ BEHAVIOUR = {
     # kinematics_pooled_figs / orofacial_cover_sensitivity / orofacial_robustness_table / pose3d_jaw_crosscheck: no
     # longer here -- they read / write the cam4 cohort through orofacial_cohort.cohort_dir (routed, gate-named; A27 11-06)
     "pose3d.py", "pose3d_crosscheck.py", "pose3d_cue_traces.py",
-    "pose3d_jaw_depth_model_check.py", "pose3d_kinematics.py", "pose3d_phase.py", "pose3d_spout_error.py",
+    "pose3d_kinematics.py", "pose3d_phase.py", "pose3d_spout_error.py",
     "pose3d_vs_cam4.py", "pose_cue_traces.py",   # pose_kinematics_demo: share reads moved to kinematics_chain 11-05
     "tongue_nocontact_qc.py", "trial_class_raw_share_fig.py",
     # main's side-camera / 4-camera 3-D scripts (pose only), classified at the 11-05 rebuild merge
@@ -46,7 +46,6 @@ BEHAVIOUR = {
     "within_session_decline.py",
     # main's June drift-floor summary (FaceRhythm readouts + pose3d june_reference deltas only; writes the FR
     # readouts june_reference dir), 11-09
-    "june_drift_summary_fig.py",
     # main's labeled cam1 + cam4 still pair (production LP pose on raw video frames only; no imaging), 11-09
     "pose_frame_pair.py",
     # VLS manuscript cohort-2 statistics (11-19/20): behavior / pose tables only; inputs are literal manuscript /
@@ -59,10 +58,11 @@ BEHAVIOUR = {
     # one change-in-distribution test per Fig 4B bar (11-20): same inputs as c2_outcome_stats_aligned; new files only
     "c2_outcome_distribution_test.py",
     # six-position recovery mechanics (VLS paper supplement, 11-21): behavior / pose tables only (within_lick_correction
-    # sessions, learned_compensation T3, lick_correction corr_beh: the UNTAGGED (default-mode) LP v36 imaging_encoding
-    # outputs, pinned as literals, read-only, so the output does not vary with the env mode); outputs are new files
-    # under Widefield/manuscript_stats and the paper's manuscript_code/data
-    "c2_recovery_mechanics_stats.py",
+    # sessions, learned_compensation T3, lick_correction corr_beh: read-only; 11-22: the default --enc is the adopted
+    # run's routed tree, `run_mode.encoding_out_root()`, where the three producers write -- it was a literal v36 path
+    # that left every input on v36 when the runbook passed only --out-dir); outputs are new files under
+    # Widefield/manuscript_stats and the paper's manuscript_code/data
+    # (c2_recovery_mechanics_stats.py left the list 11-22: its default --enc is run_mode.encoding_out_root, routed)
     "csm_fix_compare.py",   # 11-21 CSM edge fix: compares regenerated pose-kinematic tables with the cited ones (--out)
     "pose3d_csm_fixes.py", "pose3d_ili_floor_examples.py",   # 11-21 pose 3-D diagnostics into qc_phaseA/ (no imaging)
     "c2_manuscript_correlations.py",   # VLS Fig 4F + angle-latency rho from iti_licks behaviour tables (no imaging input)
@@ -82,9 +82,10 @@ BEHAVIOUR = {
 INDIRECT = {
     # lick_correction.py left the list 11-21: it reads the 3-D table via pose3d_dir() (no share-root literal left) and
     # writes through il.OUT_W (run_mode.subdir), so the scan no longer trips on it
-    "coupling_vigour_sm.py", "decoder_retention_sessions.py",
-    "lick_firstlick_extract.py", "lick_vigor_perspout.py", "precue_class_matched.py", "recovery_timing.py",
-    "restw_strict_check.py", "session_pace_table.py",
+    # 11-22: coupling_vigour_sm, lick_firstlick_extract, lick_vigor_perspout, restw_strict_check, session_pace_table,
+    # june_drift_summary_fig and pose3d_jaw_depth_model_check left the scan -- their literal session_poses/pose3d /
+    # cam1_licks reads now go through pose3d_dir / iti_licks.kin_all_path / lp_licks.cam1_events_dir
+    "decoder_retention_sessions.py", "precue_class_matched.py", "recovery_timing.py",
     # RESTnl cam4 vs cam4cam1 comparison (11-17): writes only under the rebuild root (restnl_cam1_compare_20261117/)
     "restnl_cam1_compare.py",
     # ENL / ITI cam1 census (11-18, read-only counts): writes only under the rebuild root (OUT =

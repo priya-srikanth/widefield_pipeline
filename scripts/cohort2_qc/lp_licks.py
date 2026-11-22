@@ -79,6 +79,18 @@ def lick_times(label: str, return_parts: bool = False):
     import pandas as pd
 
     from wfield_local import cam1_licks as C1
+    from wfield_local import session_licks as SL
+    if SL.fused_on():
+        # 11-22 (Priya 11-21 Q1 = (b)): THE fused four-camera train (every camera, every context; cam1-only and
+        # confirmed side-only licks already in it, the 60 ms video-lick floor applied) instead of cam4 + cam1-only;
+        # the 40 ms dedup still runs (a no-op above the 60 ms floor)
+        try:
+            t = dedup(SL.session_onsets_s(label))
+        except SL.SessionLicksUnavailable as e:
+            _warn(label, f"no fused lick train ({e}); returning no video licks")
+            t = np.zeros(0)
+        parts = {"cam4": 0, "cam1": 0, "cam1_src": "fused", "fused": int(len(t))}
+        return (t, parts) if return_parts else t
     sd, f4, f1, f1a, _, _ = _paths(label)
     if not f4.exists():
         _warn(label, f"no cam4 LP table ({f4}); returning no video licks")

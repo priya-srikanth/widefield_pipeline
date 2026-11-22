@@ -171,7 +171,8 @@ def session_worker(item) -> dict:
     A = A[np.isfinite(A.daq_on_s.to_numpy(float))]
     cam4_on = A.daq_on_s.to_numpy(float)
     cam4_contact = A.contact.astype(str).str.lower().eq("true").to_numpy()
-    c1f = Path(PathResolver().root("dlc")) / "session_poses" / "cam1_licks" / f"{an}_{date}_events_all.csv"
+    from wfield_local import lp_licks
+    c1f = lp_licks.cam1_events_dir(PathResolver()) / f"{an}_{date}_events_all.csv"  # 11-22: the adopted / routed cam1 folder (lp_licks.cam1_events_dir; was the literal cam1_licks)
     c1 = pd.read_csv(c1f, usecols=["daq_on_s", "cam4_matched"]) if c1f.exists() else None
     notes = {}
     try:
