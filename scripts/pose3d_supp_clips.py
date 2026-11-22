@@ -340,7 +340,7 @@ def render_supp(rv, P: dict, T: dict, row: dict, info: dict, out: Path, sfx: str
     tgt = P["tgt"]
     tgt_px = {c: P["spout_px"][c][list(tgt).index(pos_)] for c in order}
     crops = _crops(P, clips, P["nose_px"], P["mouth_px"], tgt_px)
-    v2 = style == "v2"
+    v2 = style in ("v2", "v3")      # v3 (11-22): v2 + cam1 nose only where cam1 tracked it + latency-IQR picks
     if v2:
         HEX = COL_V2
         crops2 = _crops_v2(P, clips)
@@ -400,10 +400,16 @@ def render_supp(rv, P: dict, T: dict, row: dict, info: dict, out: Path, sfx: str
                     sx, sy = tw[c] / box[2], th / box[3]
                     for q in ("nose", "jaw", "spout", "tongue"):
                         xy2, rep3 = cl["pts"][q][j, k], False
-                        if not (np.isfinite(xy2).all() and bool(cl["used"][q][j, k])):
+                        if style == "v3" and q == "nose" and c == "cam1":
+                            # v3 (Priya 11-22): the bottom-view nose is ALWAYS the fused 3-D nose reprojected (smooth;
+                            # never cam1's own point, never switching between the two), marked as Fig 3C v26c
+                            if not np.isfinite(cl["rep"][q][j, k]).all():
+                                continue
+                            xy2, rep3 = cl["rep"][q][j, k], True
+                        elif not (np.isfinite(xy2).all() and bool(cl["used"][q][j, k])):
                             # untracked (or rejected) in this view: the fused 3-D point reprojected, if any -- drawn
                             # only for the nose in the bottom view (cam1 has no nose output), as Fig 3C v26c
-                            if q == "nose" and c == "cam1" and np.isfinite(cl["rep"][q][j, k]).all():
+                            if q == "nose" and c == "cam1" and style == "v2" and np.isfinite(cl["rep"][q][j, k]).all():
                                 xy2, rep3 = cl["rep"][q][j, k], True
                             else:
                                 continue
@@ -514,8 +520,9 @@ def render_supp(rv, P: dict, T: dict, row: dict, info: dict, out: Path, sfx: str
             if v2:
                 # cue + water at 0 (tone and water together; the DAQ reward valve opens rew_ms after the cue)
                 cv2.line(st, (X(0), 2), (X(0), 54), (0, 220, 255), 2)
-                cv2.putText(st, "cue", (X(0) + 4, 30), F_, 0.36, (0, 220, 255), 1, cv2.LINE_AA)
-                if np.isfinite(rew_ms) and abs(rew_ms) > 4.0:
+                cv2.putText(st, "cue" if style == "v2" else "cue + water", (X(0) + 4, 30), F_, 0.36, (0, 220, 255), 1,
+                            cv2.LINE_AA)
+                if style == "v2" and np.isfinite(rew_ms) and abs(rew_ms) > 4.0:
                     cv2.drawMarker(st, (X(rew_ms), 8), (255, 200, 0), cv2.MARKER_TRIANGLE_DOWN, 10, 2, cv2.LINE_AA)
                 if np.isfinite(strobe_ms):
                     txt = (f"<- spout arrived {strobe_ms / 1000:+.1f} s" if strobe_ms < cl["t0"] else "spout arrives")
@@ -532,8 +539,15 @@ def render_supp(rv, P: dict, T: dict, row: dict, info: dict, out: Path, sfx: str
                     cv2.line(st, (X(stp), 2), (X(stp), 54), (200, 200, 200), 1)
                 cv2.putText(st, "ms from cue", (6, 64), F_, 0.33, (170, 170, 170), 1, cv2.LINE_AA)
                 xl = 6
-                for lab, col in ((f"cue + water at 0 (valve {rew_ms:+.0f} ms)" if np.isfinite(rew_ms)
-                                  else "cue at 0", (0, 220, 255)), ("water valve (DAQ)", (255, 200, 0)),
+                # v3 (Priya 11-22): cue and water are functionally simultaneous -> ONE marker at 0 (the DAQ valve
+                # opens 6-12 ms after the cue on ~88 % of trials, 110-130 ms on ~11 %, in every session checked;
+                # auto_reward_delay = 0 in gui_config: controller latency, not a set delay)
+                if style == "v2":
+                    ev_lab = ((f"cue + water at 0 (valve {rew_ms:+.0f} ms)" if np.isfinite(rew_ms) else "cue at 0",
+                               (0, 220, 255)), ("water valve (DAQ)", (255, 200, 0)))
+                else:
+                    ev_lab = (("cue + water (delivered together)", (0, 220, 255)),)
+                for lab, col in (*ev_lab,
                                  ("trial period (spout in place)", (60, 120, 40)), ("spout contact", (80, 80, 255)),
                                  ("3-D lick (first lick bright)", (60, 60, 255)), ("time cursor", (0, 255, 255))):
                     cv2.rectangle(st, (xl, 74), (xl + 12, 83), col, -1)
@@ -560,8 +574,10 @@ def render_supp(rv, P: dict, T: dict, row: dict, info: dict, out: Path, sfx: str
                     cv2.rectangle(bar, (bx1 - 150, 1), (bx1, 23), (0, 220, 255), -1)
                     cv2.rectangle(bar, (bx1 - 150, 1), (bx1, 23), (0, 0, 0), 1)
                     cv2.putText(bar, "CUE + WATER", (bx1 - 140, 18), F_, 0.58, (0, 0, 0), 2, cv2.LINE_AA)
-                cv2.putText(bar, "dots = tracked keypoints used for the 3-D point (white-ringed = reprojected from "
-                            "3-D) | tongue red, jaw blue, spout purple, nose cyan | panels: 3-D, mouth at +",
+                cv2.putText(bar, ("dots = tracked keypoints used for the 3-D point (white-ringed = reprojected from "
+                             "3-D)" if style == "v2" else "dots = keypoints tracked in each view and used for the 3-D "
+                             "point; bottom-view nose = 3-D nose reprojected (white ring)") +
+                            " | tongue red, jaw blue, spout purple, nose cyan | panels: 3-D, mouth at +",
                             (8, 62), F_, 0.4, (220, 220, 220), 1, cv2.LINE_AA)
             else:
                 bar = np.zeros((70, W, 3), np.uint8)
@@ -644,9 +660,9 @@ def title_card(f_out: Path, hw: tuple, R: pd.DataFrame, ep: str, licks: str, sty
     F_ = cv2.FONT_HERSHEY_SIMPLEX
     fg = (0, 0, 0) if ep == "pre" else (255, 255, 255)
     ep_lab = {"pre": "pre-stroke"}.get(ep, ep)
-    if style != "v2":
+    if style not in ("v2", "v3"):
         cv2.putText(im, f"{r.animal}  -  {ep_lab}", (40, int(0.14 * h)), F_, 1.6, fg, 3, cv2.LINE_AA)
-    if style == "v2":
+    if style in ("v2", "v3"):
         cv2.putText(im, f"Mouse {mouse_label(r.animal)}  -  {epoch_title(ep, day)}", (40, int(0.14 * h)), F_, 1.5, fg,
                     3, cv2.LINE_AA)
         lines = ["far contralesional spout",
@@ -655,7 +671,8 @@ def title_card(f_out: Path, hw: tuple, R: pd.DataFrame, ep: str, licks: str, sty
                   else f"change from pre-stroke: {-(r.epoch_median - r.pre_median):+.0f} deg"),
                  "- = ipsilesional; 3-D first-lick direction at peak extension; four-camera licks with 3-D support",
                  ("2 example licks that contacted the spout, from the better-aimed quarter (rule-selected)"
-                  if ep == "pre" else "2 example licks, rule-selected near the epoch median") + "; 10x slow motion"]
+                  if ep == "pre" else "2 example licks, rule-selected near the epoch median")
+                 + (", typical latency" if style == "v3" else "") + "; 10x slow motion"]
         for k, t in enumerate(lines):
             cv2.putText(im, t, (40, int(0.34 * h) + k * 46), F_, 0.85 if k < 3 else 0.62, (235, 235, 235),
                         2 if k < 3 else 1, cv2.LINE_AA)
@@ -724,7 +741,7 @@ def main(argv=None) -> int:
     ap.add_argument("--n", type=int, default=2, help="trials per epoch")
     ap.add_argument("--jobs", type=int, default=2)
     ap.add_argument("--animal", default=ANIMAL)
-    ap.add_argument("--style", choices=("v1", "v2"), default="v1",
+    ap.add_argument("--style", choices=("v1", "v2", "v3"), default="v1",
                     help="v2 = supplementary deliverable (manuscript animal numbers, Fig 3C v26c framing / keypoints); "
                          "per-epoch blocks go to --out/blocks_v2, the combined video + mapping csv to --out")
     ap.add_argument("--licks", choices=("cam4", "fused"), default="cam4",
@@ -741,12 +758,15 @@ def main(argv=None) -> int:
                 print("win copy", win_copy(f))
         return 0
     a.out.mkdir(parents=True, exist_ok=True)
-    sfx = ("" if a.licks == "cam4" else f"_{a.licks}") + ("_v2" if a.style == "v2" else "")
+    vx = a.style in ("v2", "v3")
+    sfx = ("" if a.licks == "cam4" else f"_{a.licks}") + (f"_{a.style}" if vx else "")
     deliv = a.out
-    if a.style == "v2":
-        a.out = a.out / "blocks_v2"
+    if vx:
+        a.out = a.out / f"blocks_{a.style}"
         a.out.mkdir(parents=True, exist_ok=True)
-    R = select(a.n, a.licks, a.animal, pre_rule="contact_q25" if a.style == "v2" else "median")
+    R = select(a.n, a.licks, a.animal, pre_rule="contact_q25" if vx else "median", lat_iqr=a.style == "v3")
+    if a.style == "v3":
+        R["rule"] = R["rule"] + "; " + LAT_RULE
     print(R[["epoch", "session", "epoch_median", "epoch_n", "session_median", "session_n"]].to_string())
     LC.PREP_DIR.mkdir(parents=True, exist_ok=True)
     items = [(r, a.n, str(a.out), str(LC.PREP_DIR), sfx, a.style) for r in R.to_dict("records")
@@ -775,7 +795,7 @@ def main(argv=None) -> int:
         parts = []
         for ep, v in zip(EPOCHS, seq):
             parts += [str(title_card(a.out / f"_title_{a.animal}_{ep}{sfx}.mp4", hw, R, ep, a.licks, a.style)), v]
-        f4 = (deliv / f"SuppVideo_mouse{mouse_label(a.animal)}_far_contralesional_v2.mp4" if a.style == "v2"
+        f4 = (deliv / f"SuppVideo_mouse{mouse_label(a.animal)}_far_contralesional_{a.style}.mp4" if vx
               else a.out / f"supp4cam_{a.animal}_farcontra_allepochs{sfx}.mp4")
         print("all-epochs file from", *seq, sep="\n  ")
         concat(parts, f4)
@@ -783,7 +803,7 @@ def main(argv=None) -> int:
             if Path(q).name.startswith("_title_"):
                 Path(q).unlink()
         vids.append(str(f4))
-        if a.style == "v2":
+        if vx:
             # provenance (NOT in the video): deliverable -> lab ID, sessions, trials, aim errors
             M = pd.DataFrame(rows).assign(deliverable=f4.name, mouse=mouse_label(a.animal), animal_lab_id=a.animal,
                                           block_file=lambda d: d.file)
@@ -797,7 +817,7 @@ def main(argv=None) -> int:
                                      "number is this raw error vs the target; the title cards also give the epoch "
                                      "median's change from the pre-stroke median (the manuscript's Fig 4D quantity is "
                                      "the change from each animal's pre-stroke MEAN, from the where-decoder aim table)")
-            fm = deliv / "SuppVideo_mapping_v2.csv"
+            fm = deliv / f"SuppVideo_mapping_{a.style}.csv"
             if fm.exists():
                 old = pd.read_csv(fm)
                 M = pd.concat([old[old.animal_lab_id != a.animal], M], ignore_index=True)

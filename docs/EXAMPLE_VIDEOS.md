@@ -5,7 +5,39 @@ a video is made for review and Priya marks it as a keeper; never delete a listed
 Paths are under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/` (analysis desktop; `/n/files/Neurobio/MICROSCOPE/Priya/...`
 on O2).
 
-## SUPPLEMENTARY DELIVERABLE v2: far-contralesional videos, Mice 9 / 11 / 12 (2026-11-22) -- CURRENT
+## SUPPLEMENTARY DELIVERABLE v3: far-contralesional videos, Mice 9 / 11 / 12 (2026-11-22) -- CURRENT
+
+v2 (below) plus, at Priya's requests 11-22: (a) the bottom-view (cam1) nose drawn on EVERY frame as the fused 3-D nose
+reprojected (white-ringed, "nose (3-D)"), never cam1's own point and never switching between the two -- the v2 "jump"
+was that switch (cam1 2-D vs reprojection 6.5 px apart; the 3-D nose itself is smooth, see
+`docs/status/POSE3D_JUMP_QC_2026-11-22.md`); (b) first-lick latency (peak time after the cue) within the animal's IQR for
+the epoch, for the pre- and post-stroke picks; (c) cue and water as ONE marker at t = 0 ("cue + water (delivered
+together)"), no valve-offset marker (gui_config auto_reward_delay = 0; the DAQ valve opens 6-12 ms after the cue on ~88 %
+of trials and 110-130 ms on ~11 %, a controller latency, in every PS95 session checked; v2's mouse 12 day-5 picks were
+~120 ms trials).
+
+Deliverables: `session_poses/pose3d_4cam_3net_20261121_sync60/supp_videos_v2_20261122/SuppVideo_mouse{9,11,12}_far_contralesional_v3.mp4`
+(+ `_win.mp4`), `SuppVideo_mapping_v3.csv`, blocks + stills in `blocks_v3/`; copied byte-identical (without `_v3`) to
+`vls_stroke_paper/supplementary_videos/` with `SuppVideo_far_contralesional_mapping.csv` and the README section.
+
+| mouse | size (win) | duration | picks (session: trial error deg, latency ms) |
+|---|---|---|---|
+| 9 (PS92) | 12.2 (15.2) MB | 104.5 s | pre 0813: t29 -15.9 232, t277 -17.5 472; acute 0819: t167 -49.8 836, t106 -49.0 808; subacute 0824: t279 -38.6 720, t22 -39.4 688; chronic 0908: t173 -22.5 400, t84 -23.0 184 |
+| 11 (PS94) | 11.7 (14.6) MB | 83.2 s | pre 0814: t64 -23.8 176, t214 -23.4 192; acute 0821: t47 -63.7 524, t194 -63.2 280; subacute 0825: t86 -45.9 168, t361 -45.1 168; chronic 0924: t474 -45.8 164, t223 -45.3 156 |
+| 12 (PS95) | 12.6 (15.8) MB | 81.2 s | pre 0814: t194 -14.4 152, t146 -14.6 144; acute 0817: t478 -53.4 268, t338 -51.1 332; subacute 0821: t145 -36.3 168, t211 -36.5 144; chronic 0928: t72 -26.1 132, t381 -26.1 128 |
+
+Pre-stroke latency median / IQR: mouse 9 296 / 156-660 ms, mouse 11 192 / 172-236, mouse 12 156 / 144-172. Epoch medians
+unchanged from v2 (table below). `_win` copies: Constrained Baseline 3.1, 1200 x 752, 30 fps, no B-frames.
+
+    python -m scripts.pose3d_supp_clips --animal PS92 --style v3 --licks fused --n 2 --jobs 2 --out <P3D>/supp_videos_v2_20261122
+    (same for PS94, PS95)
+
+DELETED 2026-11-22 (Priya: "you can delete superseded videos"): all v2 mp4s (6 deliverables in `supp_videos_v2_20261122/`
++ 24 blocks in `blocks_v2/`, list in lp_stage/clips_20261122/deleted_v2_mp4.txt), the 6 v2 copies in
+`vls_stroke_paper/supplementary_videos/` (replaced by v3 under the same names), and (by the coordinator) the v1 / cam4-list
+mp4s in `clips_supp_PS94_farcontra_20261122/` and `clips_supp_PS95_farcontra_20261122/`. CSVs and stills of v1 / v2 kept.
+
+## SUPPLEMENTARY DELIVERABLE v2 (2026-11-22) -- videos DELETED 11-22 (superseded by v3; csv / stills kept)
 
 Priya 11-22 (v2): manuscript animal numbers (`vls_stroke_paper/ANIMAL_KEY.csv`: PS92 = 9, PS94 = 11, PS95 = 12), no lab
 IDs / dates / trial numbers in frames, title cards or deliverable names; "Pre-stroke" / "Post-stroke day N (epoch)"; spout
@@ -44,7 +76,7 @@ PS95 pre 0814 t194 -14.4, t146 -14.6; acute 0817 t476, t478; subacute 0821 t145,
     python -m scripts.pose3d_supp_clips --animal PS92 --style v2 --licks fused --n 2 --jobs 2 --out <P3D>/supp_videos_v2_20261122
     (same for PS94, PS95)
 
-## SUPPLEMENTARY DELIVERABLE (v1): one far-contra video per animal, four-camera fused lick list (2026-11-22) -- superseded by v2, kept until Priya compares
+## SUPPLEMENTARY DELIVERABLE (v1): one far-contra video per animal, four-camera fused lick list (2026-11-22) -- videos DELETED 11-22
 
 Priya 11-22: all figures use the four-camera fused lick list, kinematics only on licks with 3-D support; PS95 examples
 too, same rule; the supplement is ONE combined video per animal (epochs pre -> acute -> subacute -> chronic, a 3 s title
@@ -80,7 +112,7 @@ stays 16 deg above pre at chronic; PS95 returns to within 3 deg.
     python -m scripts.pose3d_supp_clips --animal PS94 --licks fused --n 2 --jobs 2 --out <P3D>/clips_supp_PS94_farcontra_20261122
     python -m scripts.pose3d_supp_clips --animal PS95 --licks fused --n 2 --jobs 2 --out <P3D>/clips_supp_PS95_farcontra_20261122
 
-## Supplementary manuscript clips: PS94 far contra licks by epoch, cam4-window list (2026-11-22) -- EARLIER BUILD
+## Supplementary manuscript clips: PS94 far contra licks by epoch, cam4-window list (2026-11-22) -- videos DELETED 11-22
 
 Kept until Priya compares with the fused deliverable above (no epoch banner / title cards; combined file
 `supp4cam_PS94_farcontra_4epochs.mp4`).
