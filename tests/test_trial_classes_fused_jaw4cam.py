@@ -20,7 +20,7 @@ def test_fused_train_replaces_cam4_plus_cam1(tmp_path, monkeypatch):
     # the fused train: trial 2's cam4 lick, trial 6 gains a side-only lick, trial 3's cam1-only lick is gone (not in
     # the train); trial 1 touches the spout (DAQ contact 10 ms inside its span)
     F = _fused_table([(1, 150.0, 220.0, 190.0), (2, 200.0, 260.0, 240.0), (6, 400.0, 450.0, 430.0)])
-    monkeypatch.setattr(SL, "session_licks", lambda label, rv=None: F.copy())
+    monkeypatch.setattr(SL, "session_licks", lambda label, rv=None, include_cam1_only=False: F.copy())
     monkeypatch.setattr(TC, "_daq_contact_onsets", lambda a, d: np.array([10.0 + 0.16]))   # trial 1: cue 10 s
     monkeypatch.setattr(TC, "_paths", lambda v, c: (v36, c1))       # the synthetic tree for trials / jaw / cam1 files
     T = TC.session_trials("PS92_0818", licks="fused").set_index("trial_id")
@@ -70,7 +70,7 @@ def test_tongue_at_lips_grouped_with_jaw_only(tmp_path, monkeypatch):
     F = _fused_table([(1, 150.0, 220.0, 190.0), (2, 200.0, 260.0, 240.0), (2, 300.0, 360.0, 340.0),
                       (6, 400.0, 450.0, 430.0)])
     F["cams"] = ["cam1", "cam1", "cam1+cam4", "cam1"]
-    monkeypatch.setattr(SL, "session_licks", lambda label, rv=None: F.copy())
+    monkeypatch.setattr(SL, "session_licks", lambda label, rv=None, include_cam1_only=False: F.copy())
     monkeypatch.setattr(TC, "_daq_contact_onsets", lambda a, d: np.array([10.0 + 0.16]))   # trial 1 touches
     monkeypatch.setattr(TC, "_paths", lambda v, c: (v36, c1))
     T = TC.session_trials("PS92_0818", licks="fused").set_index("trial_id")

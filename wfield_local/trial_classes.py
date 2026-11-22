@@ -324,7 +324,7 @@ def session_trials(label: str, window: str = DEFAULT_WINDOW, v36: Path | str | N
         # are added on top (E empty); cam1's "saw a tongue, no lick" evidence (``seen``) is unchanged. Spout contact
         # per lick = a DAQ contact onset within the lick's span +- `FUSED_CONTACT_TOL_MS` (the 3-D lick rule of
         # `scripts.pose3d_kinematics.combined_events`); cam4's own ``contact`` column exists only for cam4's licks.
-        F = SL.session_licks(label)
+        F = SL.session_licks(label, include_cam1_only=True)   # 11-22: classes keep cam1-only events (tongue_at_lips)
         L = F[F.trial_id.isin(T.trial_id)][["trial_id", "on_ms", "off_ms", "t_ms"]
                                             + (["cams"] if "cams" in F else [])].reset_index(drop=True)
         L = L[in_win(L, "t_ms")]
@@ -1065,7 +1065,7 @@ def session_span_licks(label: str, cue_s, strobe_s, stop_s, v36: Path | str | No
     if v36 is None and SL.fused_on():
         # 11-22: the fused four-camera train (every camera, every context) -- the same lick set as `session_trials`
         try:
-            cam = SL.session_onsets_s(f"{animal}_{date}", col="daq_peak_s")
+            cam = SL.session_onsets_s(f"{animal}_{date}", col="daq_peak_s", include_cam1_only=True)   # class path
         except SL.SessionLicksUnavailable:
             cam = np.zeros(0)
         return span_lick_matrix(cue_s, strobe_s, stop_s, np.r_[cam, _daq_contact_onsets(animal, date)])

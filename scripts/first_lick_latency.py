@@ -41,7 +41,7 @@ def session_latency(label: str) -> pd.DataFrame:
     if SL.fused_on():
         # 11-22 (Priya 11-21 Q1 = (b)): ``combined`` = the first post-cue lick of the FUSED four-camera train (every
         # camera; cam1-only / side-only licks already in it), not cam4 + the cam1-only events
-        F = SL.session_licks(label, rv)
+        F = SL.session_licks(label, rv, include_cam1_only=True)   # 11-22: trial-class path (trial_attempts) unchanged
         fused = F[F.on_ms >= 0].groupby("trial_id").on_ms.min()
     elif f.exists():
         from wfield_local import cam1_licks as C1

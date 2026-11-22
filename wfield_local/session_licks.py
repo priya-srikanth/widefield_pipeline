@@ -155,6 +155,7 @@ def signature(rv=None) -> str:
         h.update(inspect.getsource(apply_floor).encode())
         h.update(inspect.getsource(fused_table).encode())          # 11-22: lick_idx convention lives here
         h.update(inspect.getsource(renumber_lick_idx).encode())
+        h.update(CAM1_ONLY_RULE.encode() + inspect.getsource(drop_cam1_only).encode())   # 11-22: cam1-only not licks
         h.update(f"floor{CL.MIN_ILI_MS}:long{CL.LONG_CAM1_ONLY_MS}".encode())
         _SIG[str(d)] = h.hexdigest()[:10]
     return f"fused:{run}:{_SIG[str(d)]}"
@@ -339,10 +340,26 @@ def renumber_lick_idx(A: pd.DataFrame, by: list, order: str) -> np.ndarray:
 _MEMO: dict = {}
 
 
-def session_licks(label: str, rv=None) -> pd.DataFrame:
+#: cam1-only events (``cams == "cam1"``: no other camera saw the tongue, so no 3-D point; median reach 1.85 mm, DAQ
+#: contact 0.3 %) are NOT LICKS (Priya 11-22: "cam1-only flicks are not licks"). They are dropped from the fused session
+#: table BEFORE the lick numbering, by default. Only the trial-class path (`trial_classes.session_trials`, its
+#: tongue_at_lips rule, `scripts/first_lick_latency` -> trial_attempts) asks for them (``include_cam1_only=True``), so the
+#: class tables are unchanged. Measured 11-22: cam1-only share post-cue 4.5 %, pre-cue 8.5 %, ITI 16 %.
+CAM1_ONLY_RULE = "drop cams == 'cam1' (not licks) unless include_cam1_only"
+
+
+def drop_cam1_only(A: pd.DataFrame) -> pd.DataFrame:
+    """Rows of a fused table that are licks: without the cam1-only events. Pure (tested)."""
+    if "cams" not in A:
+        return A
+    return A[A.cams.astype(str) != "cam1"]
+
+
+def session_licks(label: str, rv=None, include_cam1_only: bool = False) -> pd.DataFrame:
     """THE session lick table of ``label`` ("PS92_0818" or "PS92_20260818") in the selected source (module
     docstring). `SessionLicksUnavailable` when the source has no table for the session. Memoised per process on the
-    input files' identity; callers get a copy."""
+    input files' identity; callers get a copy. On the fused source, cam1-only events are left out (not licks; see
+    `CAM1_ONLY_RULE`) unless ``include_cam1_only`` (trial-class path only); lick_idx is numbered on the table returned."""
     from wfield_local.paths import PathResolver
     rv = rv or PathResolver()
     an, d = _split(label)
@@ -374,13 +391,21 @@ def session_licks(label: str, rv=None) -> pd.DataFrame:
             U = CL.lick_train(pd.read_csv(f))
             A = fused_table(apply_floor(U), _windows_ix(sd))
         _MEMO[key] = A
+    if run is not None and not include_cam1_only:
+        k2 = key + ("no_cam1_only",)
+        if k2 not in _MEMO:
+            B = drop_cam1_only(_MEMO[key]).copy()
+            B["lick_idx"] = renumber_lick_idx(B, ["trial_id"], "t_ms")
+            _MEMO[k2] = B.reset_index(drop=True)
+        return _MEMO[k2].copy()
     return _MEMO[key].copy()
 
 
-def session_onsets_s(label: str, rv=None, contexts: tuple | None = None, col: str = "daq_on_s") -> np.ndarray:
+def session_onsets_s(label: str, rv=None, contexts: tuple | None = None, col: str = "daq_on_s",
+                     include_cam1_only: bool = False) -> np.ndarray:
     """Sorted finite DAQ times (s) of the session's licks (``col``: daq_on_s | daq_peak_s), optionally only
-    ``contexts`` (`orofacial_outputs.CONTEXTS`)."""
-    A = session_licks(label, rv)
+    ``contexts`` (`orofacial_outputs.CONTEXTS`); ``include_cam1_only`` as `session_licks` (trial-class path only)."""
+    A = session_licks(label, rv, include_cam1_only=include_cam1_only)
     if contexts is not None:
         A = A[A.context.isin(contexts)]
     t = A[col].to_numpy(float)
