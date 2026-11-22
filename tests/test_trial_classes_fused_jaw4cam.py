@@ -60,3 +60,25 @@ def test_close_center_judged_by_four_camera_3d(tmp_path):
 def test_two_camera_3d_call_is_not_used_at_close_center(tmp_path):
     T = _jaw3d(tmp_path, "2cam", 1.0)
     assert T.loc[8, "cls"] == "no_response" and not T.loc[8, "jaw_judged"] and np.isnan(T.loc[8, "jaw_3d"])
+
+
+def test_tongue_at_lips_grouped_with_jaw_only(tmp_path, monkeypatch):
+    """11-22 (Priya: "yes let's group with jaw-only"): a trial whose only post-cue licks in the fused train are
+    cam1-only (no other view, no 3-D) and no DAQ contact -> cls jaw_only, cls_detail tongue_at_lips; a cam1-only lick
+    with a DAQ contact stays contact; one cam1-only lick beside a multi-view lick stays incomplete."""
+    v36, c1 = _session(tmp_path)
+    F = _fused_table([(1, 150.0, 220.0, 190.0), (2, 200.0, 260.0, 240.0), (2, 300.0, 360.0, 340.0),
+                      (6, 400.0, 450.0, 430.0)])
+    F["cams"] = ["cam1", "cam1", "cam1+cam4", "cam1"]
+    monkeypatch.setattr(SL, "session_licks", lambda label, rv=None: F.copy())
+    monkeypatch.setattr(TC, "_daq_contact_onsets", lambda a, d: np.array([10.0 + 0.16]))   # trial 1 touches
+    monkeypatch.setattr(TC, "_paths", lambda v, c: (v36, c1))
+    T = TC.session_trials("PS92_0818", licks="fused").set_index("trial_id")
+    assert T.loc[6, "cls"] == "jaw_only" and T.loc[6, "cls_detail"] == TC.TONGUE_AT_LIPS
+    assert T.loc[1, "cls"] == "contact" and T.loc[1, "cls_detail"] == "contact"
+    assert T.loc[2, "cls"] == "incomplete" and T.loc[2, "cls_detail"] == "incomplete"
+    assert not TC.in_gate(np.array([T.loc[6, "cls"]]), "attempted")[0]
+    keep = T.index.difference([6])
+    assert (T.loc[keep, "cls_detail"] == T.loc[keep, "cls"]).all()
+    L = TC.session_trials("PS92_0818", v36=v36, c1=c1)           # legacy source: no tongue_at_lips label
+    assert (L.cls_detail == L.cls).all()

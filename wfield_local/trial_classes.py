@@ -8,6 +8,12 @@ What each trial is, first match wins, inside the chosen WINDOW:
                or cam1 saw the tongue, but no spout contact                          -> licked and missed
   jaw_only     no lick; the jaw moved after the cue on cam4 OR cam1                  -> a reaction, NOT an attempt
                (Priya's 10-21 blind review: 0 / 24 such trials were attempted licks)
+               ALSO (11-22, Priya: "yes let's group with jaw-only") the TONGUE-AT-THE-LIPS trials of the fused
+               four-camera train: no spout contact and every post-cue lick in the window is cam1-only (fused
+               ``cams`` == "cam1": no other view saw it, so no 3-D point) -- the tongue barely leaves the mouth. Their
+               own label is kept in ``cls_detail`` = "tongue_at_lips" (``cls`` = "jaw_only", so every grouping /
+               gate / figure / outcome table treats them as jaw-only: NOT an attempt). ~181 trials (0.3 %), 179
+               of them "incomplete" before.
   no_response  no lick; the jaw was judged and stayed still                          -> no response at all
                AT close_center neither camera can judge the jaw (cam4's chin is hidden; cam1 failed the 10-21 blind
                review there): a trial with no lick, no contact and no tongue seen is NO_RESPONSE by default (Priya
@@ -78,6 +84,8 @@ import numpy as np
 import pandas as pd
 
 CLASSES = ("contact", "incomplete", "jaw_only", "no_response", "unknown")
+#: ``cls_detail`` label of the tongue-at-the-lips trials (grouped into ``cls`` = "jaw_only"; 11-22)
+TONGUE_AT_LIPS = "tongue_at_lips"
 GATES = {"working": frozenset({"contact", "incomplete", "jaw_only"}),   # jaw-INCLUSIVE, as on main; see `in_sel`
          "camera_lick": frozenset({"contact", "incomplete"}),
          "attempted": frozenset({"contact", "incomplete"}),
@@ -317,7 +325,8 @@ def session_trials(label: str, window: str = DEFAULT_WINDOW, v36: Path | str | N
         # per lick = a DAQ contact onset within the lick's span +- `FUSED_CONTACT_TOL_MS` (the 3-D lick rule of
         # `scripts.pose3d_kinematics.combined_events`); cam4's own ``contact`` column exists only for cam4's licks.
         F = SL.session_licks(label)
-        L = F[F.trial_id.isin(T.trial_id)][["trial_id", "on_ms", "off_ms", "t_ms"]].reset_index(drop=True)
+        L = F[F.trial_id.isin(T.trial_id)][["trial_id", "on_ms", "off_ms", "t_ms"]
+                                            + (["cams"] if "cams" in F else [])].reset_index(drop=True)
         L = L[in_win(L, "t_ms")]
         L["contact"] = _fused_contact(animal, date, L, dict(zip(T.trial_id, T.cue_daq)))
         E = L.iloc[0:0][["trial_id", "on_ms", "contact"]]          # empty, typed like L (no concat warning)
@@ -390,6 +399,14 @@ def session_trials(label: str, window: str = DEFAULT_WINDOW, v36: Path | str | N
                           (T.n_licks.to_numpy() > 0) | t.isin(seen).to_numpy(),
                           moved, judged | (hidden & ~use3)],   # close_center, nothing seen, no 4-cam call -> no_response
                          ["contact", "incomplete", "jaw_only", "no_response"], "unknown")
+    # TONGUE AT THE LIPS (11-22, Priya: group with jaw-only; module docstring): fused train only; a DAQ contact keeps
+    # "contact" (the sensor is primary), so only would-be "incomplete" trials move.
+    T["cls_detail"] = T.cls
+    if use_fused and "cams" in L and len(L):
+        only_c1 = L.cams.astype(str).eq("cam1").groupby(L.trial_id).all()
+        lips = t.map(only_c1).eq(True).to_numpy() & (T.cls == "incomplete").to_numpy()
+        T.loc[lips, "cls"] = "jaw_only"
+        T.loc[lips, "cls_detail"] = TONGUE_AT_LIPS
     # FRAME-COVERAGE GATE ON THE CLASSES (Priya 11-22: "yes leave them out"): a trial whose UNION camera frame coverage
     # is < `frame_coverage.MIN_FRAME_COVERAGE` (0.90; PS92 0908 after min ~104, all four cameras dropping together)
     # cannot show "no lick" / "jaw only" / "no response" from video, so it becomes "unknown" (left out of the counts;
@@ -397,13 +414,15 @@ def session_trials(label: str, window: str = DEFAULT_WINDOW, v36: Path | str | N
     # the cameras. Real-data path only (``frame_gate`` None = on when no explicit v36 tree was handed in).
     gate_on = frame_gate if frame_gate is not None else explicit_tree is None
     T["frame_gated"] = _frame_gated(animal, date, T.trial_id) if gate_on else False
-    T.loc[T.frame_gated.to_numpy(bool) & (T.cls != "contact"), "cls"] = "unknown"
+    gated = T.frame_gated.to_numpy(bool) & (T.cls != "contact").to_numpy()
+    T.loc[gated, "cls"] = "unknown"
+    T.loc[gated, "cls_detail"] = "unknown"
     T["licks_source"] = "fused" if use_fused else "cam4+cam1"
     T["window"] = window
     T["has_cam1"] = has_cam1
     return T[["trial_id", "position", "cue_daq", "strobe_ms", "stop_ms", "cls", "window", "has_cam1", "n_contacts",
               "n_licks", "n_nocontact", "first_lick_ms", "jaw_cam4", "jaw_cam1", "jaw_at_cue", "jaw_onset_ms",
-              "jaw_judged", "jaw_3d", "frame_gated", "licks_source"]]
+              "jaw_judged", "jaw_3d", "frame_gated", "licks_source", "cls_detail"]]
 
 
 def _frame_gated(animal: str, date: str, trial_id: pd.Series) -> np.ndarray:
