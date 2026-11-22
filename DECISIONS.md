@@ -24433,3 +24433,35 @@ A trial whose union camera frame coverage is < 0.90 (`frame_coverage`) and that 
 ## 2026-11-22 -- Adoption points at the WHOLE-SESSION run; encoder default = fused licks
 
 The adoption constants now name the whole-session (first..last sync pulse, 60 ms floor) outputs of the 11-22 re-run instead of the 11-21 trial-window run: `orofacial_cohort.RUN` = `lp_r4_heatmap_20261013__clean_v37_sync60`, `pose3d.ADOPTED_TAG` = `_3net_20261121_sync60`, `lp_licks.CAM1_DEFAULT` = `cam1_licks_v37_sync60`, `session_licks.FUSED_DEFAULT` = `lp_side_r2b_prod_20261118_3net_20261121_sync60_gapfix60` (made by Phase B step 1 at full precision). Encoder (Priya 11-22: "i think we should make combined default? with cam1 restrictions. but side cams help with closer spouts"): `combined_encoding.lick_mode()` = `COMBINED_ENCODING_LICKS` when set, else "fused" whenever a fused train is selected; the fused train already carries the cam1 rules (keep_mask, droplets, cam1-only >= 300 ms dropped) and side-only licks only when both side views see them. O2 bundles must pin COMBINED_ENCODING_LICKS in env.json.
+
+## 2026-11-22 -- Hand-made manuscript tables: producing scripts, each reproduced byte for byte (manuscript v26 handoff)
+
+- *Context:* the v26 handoff ("Methods will be shortened") asks for a committed script behind every table, including three
+  listed as made by hand (11-21 re-run plan, reviews A-C): `c2_lick3d_session_summary_ungated.csv` (Fig 4B, 4E),
+  `aim_first_vs_all_*` (Fig 4D), `pose3d_change_pooled_contra_aligned.csv`. Recipes were reverse-engineered from the
+  hand-made copies and their inputs (provenance: `FIGURE_PROVENANCE_v18.csv`, `manuscript_code/PROVENANCE.md`), then each
+  script was pointed at those same inputs. Validation outputs: `Widefield/manuscript_stats/handmade_repro_20261122/`.
+- *`c2_lick3d_session_summary_ungated` -> `scripts/c2_lick3d_session_summary.py`.* Input: two-camera
+  `session_poses/pose3d/kinematics/licks.csv.gz` (10-23, cam4-window licks). Recipe: session x position, early pre
+  dropped (`config.early_pre`; June), every lick row (no working / engagement / class gate, no minimum n);
+  first = `lick_idx == 0`: n and medians of reach_mm / side_ml / speed_peak; `speed_first5` = median over trials of the
+  per-trial mean speed_peak of licks `lick_idx < 5`, `n_trials5` = those trials; all = every row: n and medians; rows
+  sorted animal, date, position. Result: BYTE-IDENTICAL (642 rows; LF line ends written explicitly). Default input =
+  `pose3d_dir()/kinematics/licks.csv.gz` (adopted run); `--kin-dir kinematics_fused` for the fused train (OPEN: which
+  lick set the paper's 3-D kinematics should use on the new run; the recipe's own set is `kinematics`).
+- *`aim_first_vs_all_{sessions,tests}` -> `scripts/aim_first_vs_all.py`.* Input: v36 `iti_licks/zscore_check/
+  where_preds_z_splitr8.csv` + `first_lick_preds_splitr8.csv.gz` (10-27), aim = `iti_recovery_measure.aim_licks`
+  (now takes explicit paths). Recipe: session x spout, first set (>= 5 licks) and all set (>= 10) each: mean, median, n,
+  chg = mean - animal's mean of pre-session means; inner join; diff = chg_first - chg_all. Tests per spout x epoch:
+  animal-weighted means, 95% CI from `lick_cued_aim_by_spout.boot` (2,000 draws), three independent bootstraps per cell
+  (chg_first, chg_all, diff) on ONE default_rng(0) in spout x epoch order; sig / sig_bonf (18 tests) on the diff CI;
+  per-animal diff. Result: both files BYTE-IDENTICAL. The bootstrap is the committed lick_cued one (no new bootstrap;
+  analysis_kit's `boot_ci` is flat-pool, a different statistic); the manuscript's stars come from the aligned family.
+- *`pose3d_change_pooled_contra_aligned` was not hand-made:* `scripts/c2_scalar_family_aligned.py` writes it (reach_all
+  rows; input `pose3d_change_pooled_contra.csv` from `kinematics_pooled_figs --contra`). Re-run on the 11-19 inputs (v36
+  iti_licks / cohort stats, two-camera pose3d, the regenerated lick3d table via the new `--lick3d`): all eight outputs
+  BYTE-IDENTICAL to the cited copies. `--lick3d` (default `pose3d_dir()/kinematics/c2_lick3d_session_summary_ungated.csv`)
+  replaces the read of the hand-made manuscript copy; old-star `*_stats.csv` still come from `--ms-data`.
+- *New run (preview only, validation folder):* the lick3d summary on `pose3d_4cam_3net_20261121_sync60/kinematics`
+  gives the same 642 session x position rows (107 sessions); medians move slightly (reach r 0.98, speed_first r 0.89).
+  The aim tables wait for the v37_sync60 iti_licks where-decoder caches.
