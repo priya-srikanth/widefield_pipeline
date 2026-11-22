@@ -237,7 +237,7 @@ def _pre_cue_contacts(animal: str, date: str, times: pd.DataFrame) -> set:
 
 def session_trials(label: str, window: str = DEFAULT_WINDOW, v36: Path | str | None = None,
                    c1: Path | str | None = None, jaw_csv: Path | str | None = None,
-                   licks: str | None = None) -> pd.DataFrame | None:
+                   licks: str | None = None, frame_gate: bool | None = None) -> pd.DataFrame | None:
     """EVERY trial of one session (no engagement filter) with its class and the evidence behind it.
 
     label "PS92_0818" or "PS92_20260818". Returns None when the session has no v36 video outputs (no camera-defined
@@ -254,6 +254,7 @@ def session_trials(label: str, window: str = DEFAULT_WINDOW, v36: Path | str | N
     # licks.csv + cam1-only events (the 11-03 rule). Auto = fused when `session_licks.fused_on()` and the caller did not
     # hand in its own v36 tree (an explicit tree = its own lick files: tests, comparisons).
     from wfield_local import session_licks as SL
+    explicit_tree = v36
     use_fused = licks == "fused" or (licks is None and v36 is None and SL.fused_on())
     animal, date = label.split("_")
     date = date if len(date) == 8 else f"2026{date}"
@@ -382,12 +383,31 @@ def session_trials(label: str, window: str = DEFAULT_WINDOW, v36: Path | str | N
                           (T.n_licks.to_numpy() > 0) | t.isin(seen).to_numpy(),
                           moved, judged | (hidden & ~use3)],   # close_center, nothing seen, no 4-cam call -> no_response
                          ["contact", "incomplete", "jaw_only", "no_response"], "unknown")
+    # FRAME-COVERAGE GATE ON THE CLASSES (Priya 11-22: "yes leave them out"): a trial whose UNION camera frame coverage
+    # is < `frame_coverage.MIN_FRAME_COVERAGE` (0.90; PS92 0908 after min ~104, all four cameras dropping together)
+    # cannot show "no lick" / "jaw only" / "no response" from video, so it becomes "unknown" (left out of the counts;
+    # "unknown" neither breaks nor extends a run). A DAQ-contact trial stays "contact": the sensor does not depend on
+    # the cameras. Real-data path only (``frame_gate`` None = on when no explicit v36 tree was handed in).
+    gate_on = frame_gate if frame_gate is not None else explicit_tree is None
+    T["frame_gated"] = _frame_gated(animal, date, T.trial_id) if gate_on else False
+    T.loc[T.frame_gated.to_numpy(bool) & (T.cls != "contact"), "cls"] = "unknown"
     T["licks_source"] = "fused" if use_fused else "cam4+cam1"
     T["window"] = window
     T["has_cam1"] = has_cam1
     return T[["trial_id", "position", "cue_daq", "strobe_ms", "stop_ms", "cls", "window", "has_cam1", "n_contacts",
               "n_licks", "n_nocontact", "first_lick_ms", "jaw_cam4", "jaw_cam1", "jaw_at_cue", "jaw_onset_ms",
-              "jaw_judged", "jaw_3d", "licks_source"]]
+              "jaw_judged", "jaw_3d", "frame_gated", "licks_source"]]
+
+
+def _frame_gated(animal: str, date: str, trial_id: pd.Series) -> np.ndarray:
+    """Per trial (``trial_id``): True when its union camera frame coverage is below the gate (`frame_coverage`); a
+    trial missing from the coverage table (no template / frame log) is not gated (the video-coverage rule of
+    `classify_session` already handles trials outside the video)."""
+    from wfield_local import frame_coverage as FC
+    from wfield_local.paths import PathResolver
+    cov = FC.session_coverage(PathResolver(), animal, date)
+    g = dict(zip(cov.trial_id.astype(int), cov.gated.astype(bool))) if len(cov) else {}
+    return trial_id.astype(int).map(g).fillna(False).astype(bool).to_numpy()
 
 
 #: a fused lick touched the spout when a DAQ contact onset lies within its span +- this (ms; as the 3-D lick events'
@@ -699,7 +719,7 @@ CLASS_CODE_ROOTS = ("session_trials", "jaw_table", "_trial_times", "_pre_cue_con
                     "_effective_coverage", "_classify_guarded", "_breaks", "licks_in_spans",
                     "span_lick_matrix", "touched_by_licks", "_lick_breaks", "session_span_licks", "cue_span_licks",
                     "stop_lick_rule", "stop_kind_for", "_cue_key",
-                    "stop_tail_start")
+                    "stop_tail_start", "_frame_gated")
 
 
 def class_source_signature(v36: Path | str | None = None, c1: Path | str | None = None) -> str:
@@ -738,6 +758,11 @@ def class_source_signature(v36: Path | str | None = None, c1: Path | str | None 
         # + the cam1 lick rule (`cam1_licks.keep_mask`, 11-17): it lives in another module, which the closure above
         # does not follow, so a change to the droplet / far-from-mouth rule must enter here explicitly
         h.update(map_collect.code_digest(map_collect.closure(cam1_licks, "keep_mask")).encode())
+        # + the frame-coverage gate (11-22): another module, so its rule enters explicitly
+        from wfield_local import frame_coverage
+        h.update(map_collect.code_digest(map_collect.closure(frame_coverage, "coverage_table", "trial_windows_s",
+                                                             "_session_coverage", "fusion_cams")).encode())
+        h.update(f"cov>={frame_coverage.MIN_FRAME_COVERAGE}".encode())
         _CLASS_SIG[key] = h.hexdigest()[:10]
     return _CLASS_SIG[key]
 

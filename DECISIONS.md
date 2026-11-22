@@ -24425,3 +24425,7 @@ labelled last commit so it can be reviewed or dropped.
 - `state_space_sim` pins the rebuild's own run (v36): a finished rebuild does not move with the adopted run.
 - Tests that pin the pre-adoption semantics now pin them explicitly (legacy env / constants), not through the defaults.
 - If the whole-session (sync-span) camera re-run is adopted instead, change the four constants to its names first.
+
+## 2026-11-22 -- Frame-coverage gate also on the trial classes (Priya: "yes leave them out")
+
+A trial whose union camera frame coverage is < 0.90 (`frame_coverage`) and that has no DAQ spout contact is class "unknown" (left out of the class counts; "unknown" neither breaks nor extends a run). DAQ-contact trials stay "contact" (the sensor does not depend on the cameras). `trial_classes.session_trials` column `frame_gated`; on for the real-data path, off when a test hands in its own tree. Curated sessions affected: PS92 0908 only (69 of 389 trials, from ~6408 s; the 11-21 non-sync cam4 tables end at trial 321, so the whole-session run is where it bites). The gate rule enters `class_source_signature`.
