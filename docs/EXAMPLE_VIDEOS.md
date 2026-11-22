@@ -44,8 +44,9 @@ Remake (dlc env, worktree root, `MKL_THREADING_LAYER=SEQUENTIAL`, `PYTHONPATH=<w
 ## Four-camera 3-D pose (side model r2b, 2026-11-18) -- SUPERSEDED by the 2026-11-22 clips above
 
 Made before the whole-session cam2 / cam3 run, from PILOT side predictions on short clip folders
-(`scripts/pose3d_side_video.py --fit`). Replaced by the production lick clips above (same six sessions). The files stay
-until Priya has reviewed the new clips; DELETION CANDIDATES after that review:
+(`scripts/pose3d_side_video.py --fit`). Replaced by the production lick clips above (same six sessions). DELETED 2026-11-22 (Priya: "you can delete the superceded clip videos"): the six r2b `_fit.mp4` files, the
+round-1 crop2 renders and `video_4cam_PS93_20260814_t540_r2b.mp4` (9 files). The `fused_*.csv.gz` tables were kept.
+Were:
 `session_poses/pose3d_side/r2b_20261118/video_4cam_{PS93_20260814,PS93_20260821,PS93_20260908,PS92_20260820,PS94_20260903,PS95_20260821}_fit.mp4`
 (+ the `fused_<a>_<d>.csv.gz` tables beside them). The round-1 crop2 renders one folder up
 (`session_poses/pose3d_side/video_4cam_PS93_*.mp4`) are the older model comparison, also superseded.

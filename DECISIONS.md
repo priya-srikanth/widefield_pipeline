@@ -24474,3 +24474,17 @@ The adoption constants now name the whole-session (first..last sync pulse, 60 ms
 - Consequence: jaw_onsets -> trial classes (jaw_only vs no_response at close_center) -> outcome stats, GLM-HMM, engagement
   rebuilt under `_floor020` names; the 0.10 outputs kept as `*_floor010`. The encoder / ITI chain is unaffected (its
   `attempted` gate = hit | incomplete; jaw_only is not an attempt).
+
+
+## 2026-11-22 -- Kinematics only on licks with 3-D support; cam1-only tongue flicks are not licks for kinematics
+Priya 11-22 ("take note of this in the repo ... clarify that tiny licks without visible tongue protrusion in any other
+camera were not included for kinematics"), with the decision that ALL figures use the four-camera (fused) lick list.
+Measured on `pose3d_4cam_3net_20261121_sync60/kinematics_fused/licks.csv.gz` (post-cue): 4.4 % of fused licks are seen
+by cam1 ONLY (11.6 % at far contra, 7.9 % far ipsi, 0.9-4 % elsewhere; pre 3.6 %, acute 5.1 %, subacute 4.0 %, chronic
+5.4 %). They have no 3-D frames (n_3d median 0), reach 1.85 mm (single-view fill), downward travel 0.49 mm (full licks
+~5 mm), spout contact 0.3 %, and come late in the trial (far contra: 2 % of licks 0-4, 16 % of lick 8+): the tongue tip
+at the lips seen from below, hidden behind the lower lip / chin from the front. Rule: reach, speed, angle and phase
+curves use only fused licks with 3-D support (n_3d > 0, i.e. seen by >= 2 cameras). Treatment in lick COUNTS / rates /
+ILI and in trial classes: pending Priya (181 trials, 0.3 %, have ONLY such flicks after the cue; 179 of them are classed
+`incomplete` now -- 77 acute, 64 subacute, 24 chronic, 16 pre). The cam4 long-lick QC
+(docs/status/CAM4_LONG_LICK_2026-11-22.md) is the other half of why cam4 windows were dropped.
