@@ -94,6 +94,23 @@ FIGS = OUT / "figures"
 FD = OUT / "figdata"
 
 
+def _apply_out(path: str | None = None) -> None:
+    """Point OUT / LICKS / FIGS / FD at ``path`` (or re-read WLC_OUT_DIR).
+
+    Spawned workers re-import this module, so a global set only in ``main`` would never reach them. The value travels
+    in the environment instead: ``main`` writes WLC_OUT_DIR before the pool starts, children inherit it, and the
+    import-time ``out_root()`` above re-reads it. This helper is the single place the four globals change.
+    """
+    global OUT, LICKS, FIGS, FD
+    if path is not None:
+        os.environ[OUT_ENV] = str(path)
+    OUT = out_root()
+    LICKS, FIGS, FD = OUT / "licks", OUT / "figures", OUT / "figdata"
+
+
+_apply_out()   # runs at import, i.e. in every spawned worker too: each re-reads the inherited WLC_OUT_DIR
+
+
 # ================================================================================================ per-lick extraction
 #: opt-in (env, inherited by workers): take the session set from the two-camera kinematics_all when the selected 3-D
 #: source has none yet (`_sessions`)
@@ -1169,12 +1186,9 @@ def cmd_plot() -> None:
 
 def main() -> int:
     # coordinator 11-04: routed (out_root under the run tag), no longer refused in a tagged run
-    global OUT, LICKS, FIGS, FD
     argv = sys.argv[1:]
     if "--out" in argv:                                   # 2026-11-21: explicit output dir, inherited by the workers
-        os.environ[OUT_ENV] = argv[argv.index("--out") + 1]
-        OUT = out_root()
-        LICKS, FIGS, FD = OUT / "licks", OUT / "figures", OUT / "figdata"
+        _apply_out(argv[argv.index("--out") + 1])
     vals = {argv[i + 1] for i, a in enumerate(argv[:-1]) if a in ("--out", "--jobs")}
     args = [a for a in argv if not a.startswith("--") and a not in vals]
     cmd = args[0] if args else "run"

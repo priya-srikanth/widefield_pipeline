@@ -158,6 +158,7 @@ def scan(jobs: int) -> None:
     D["out"].mkdir(parents=True, exist_ok=True)
     items = [(a, d, c) for a in ANIMALS for d in DATES for c in SIDE]
     res, fail = parallel.fan_out(items, scan_worker, jobs=jobs, label="session-camera")
+    res = sorted(res, key=lambda r: str(r[0]))  # fan_out returns completion order (CLAUDE.md rule 6)
     if fail:
         raise SystemExit(f"scan failed: {fail}")
     T = pd.DataFrame([r for _, r in res]).sort_values(["animal", "cam", "date"])
@@ -589,6 +590,7 @@ def examples(jobs: int) -> None:
     P.to_csv(D["out"] / "examples_picked.csv", index=False)
     print(P.groupby("group").size())
     res, fail = parallel.fan_out(sorted(P.sid.unique()), example_worker, jobs=jobs, label="session")
+    res = sorted(res, key=lambda r: str(r[0]))  # fan_out returns completion order (CLAUDE.md rule 6)
     if fail:
         print("FAILED:", fail)
     Fe = pd.DataFrame([f for _, fs in res for f in fs]).sort_values(["group", "ex_id"])

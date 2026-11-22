@@ -502,6 +502,7 @@ def strips(jobs: int) -> None:
     B = _blind_dirs()
     P = pd.read_csv(B["out"] / "sample_key.csv")
     res, fail = parallel.fan_out(sorted(P.sid.unique()), strip_worker_new, jobs=jobs, label="session")
+    res = sorted(res, key=lambda r: str(r[0]))  # fan_out returns completion order (CLAUDE.md rule 6)
     if fail:
         print("FAILED:", fail)
     print("strips:", sum(len(x) for _s, x in res), "of", len(P))
