@@ -25,6 +25,12 @@ pixels, chosen on the full frames of that moment so the whole face is inside in 
 in cam1), tiles of equal height and crop-proportional width, the nose ring wherever the nose keypoint is tracked (the
 cam1 network has no nose output, so cam1 shows the nose but cannot mark it), and colour-coded word labels at fixed
 offsets from their keypoint (`LABELS_V26B`, tile pixels) with no leader line; a thin dark outline keeps them legible on fur.
+
+LAYOUT v26c (Priya 11-22 follow-up): as v26b with small FILLED dots instead of open rings, and the nose shown in cam1 by
+REPROJECTING the session's fused 3-D nose (production four-camera fusion: triangulated from the views that tracked it,
+front + both sides here, with the session's solved camera poses and the nose part's view offsets -- the prep's ``rep``)
+into the cam1 image. That dot gets a white outline and the label "nose (3-D)", because cam1 did not track the nose;
+the JSON records the 3-D point, its cam1 projection and the reprojection error in each view that tracked it.
 """
 from __future__ import annotations
 
@@ -49,7 +55,8 @@ CROPS_V26B = {"cam4": (20, 10, 640, 650), "cam1": (110, 50, 420, 520), "cam2": (
 LABELS_V26B = {
     "cam4": {"nose": (40, -10, "left"), "tongue": (-62, -50, "right"), "jaw": (22, 18, "left"),
              "spout": (24, 100, "left")},
-    "cam1": {"tongue": (-58, 10, "right"), "jaw": (26, 20, "left"), "spout": (24, -40, "left")},
+    "cam1": {"tongue": (-58, 10, "right"), "jaw": (26, 20, "left"), "spout": (24, -40, "left"),
+             "nose": (-16, -16, "right")},
     "cam2": {"nose": (-6, -26, "left"), "tongue": (-4, 26, "right"), "jaw": (10, 24, "left"),
              "spout": (-14, -20, "right")},
     "cam3": {"nose": (6, -26, "right"), "tongue": (4, 26, "left"), "jaw": (-10, 24, "right"),
@@ -104,7 +111,7 @@ def main(argv=None) -> int:
     ap.add_argument("--stem", default="S_cam_frames_4view")
     ap.add_argument("--parts", default="tongue,jaw,spout")
     ap.add_argument("--pick", type=int, default=0)
-    ap.add_argument("--layout", default="v26", choices=("v26", "v26b"), help="see LAYOUT v26b")
+    ap.add_argument("--layout", default="v26", choices=("v26", "v26b", "v26c"), help="see LAYOUT v26b / v26c")
     a = ap.parse_args(argv)
     parts = tuple(a.parts.split(","))
     a.out.mkdir(parents=True, exist_ok=True)
@@ -132,7 +139,7 @@ def main(argv=None) -> int:
     order = list(P["order"])
     crop, centre = fit_crops(P, [cl])
 
-    if a.layout == "v26b":
+    if a.layout in ("v26b", "v26c"):
         return render_v26b(a, P, cl, k, cand, parts, plt)
     plt.rcParams.update({"font.family": "sans-serif", "font.sans-serif": ["Arial", "Liberation Sans", "DejaVu Sans"],
                          "pdf.fonttype": 42, "svg.fonttype": "none"})
@@ -204,7 +211,8 @@ def render_v26b(a, P, cl, k, cand, parts, plt) -> int:
     tile_h = (FIG_W - 2 * pad - 3 * gap_in) / sum(asp)
     fig_h = round(tile_h + title_in + pad, 3)
     fig = plt.figure(figsize=(FIG_W, fig_h))
-    info = {"session": a.session, "preset": a.preset, "layout": "v26b", "trial": cl["trial"], "position": cl["position"],
+    filled = a.layout == "v26c"
+    info = {"session": a.session, "preset": a.preset, "layout": a.layout, "trial": cl["trial"], "position": cl["position"],
             "t_from_cue_ms": float(cl["t_ms"][k]), "pick": a.pick, "size_in": [FIG_W, fig_h],
             "rule": __doc__.split("FRAME RULE")[1].split("\n\n")[0], "views": {},
             "candidates": [{"trial": P["clips"][c]["trial"], "position": P["clips"][c]["position"],
@@ -223,14 +231,28 @@ def render_v26b(a, P, cl, k, cand, parts, plt) -> int:
         ax.imshow(g[y0:y0 + ch, x0:x0 + cw], cmap="gray", vmin=0, vmax=255, interpolation="bilinear")
         marked = {}
         for p in draw:
-            px, py = cl["pts"][p][j, k] - (x0, y0)
+            xy2 = cl["pts"][p][j, k]
+            reproj = False
+            if not np.isfinite(xy2).all() and filled and p == "nose" and np.isfinite(cl["rep"][p][j, k]).all():
+                xy2, reproj = cl["rep"][p][j, k], True        # the fused 3-D nose projected into this (untracked) view
+                err = {c: float(np.linalg.norm(cl["rep"][p][order.index(c), k] - cl["pts"][p][order.index(c), k]))
+                       for c in order if cl["used"][p][order.index(c), k]}
+                info["nose_reprojection"] = {"view": cam, "X_world_mm": [float(v) for v in cl["X"][p][k]],
+                                             "projected_px": [float(v) for v in xy2],
+                                             "tracked_views": sorted(err), "reproj_err_px": err}
+            px, py = xy2 - (x0, y0)
             if not np.isfinite(px):
                 continue
-            marked[p] = [float(v) for v in cl["pts"][p][j, k]]
-            ax.plot(px, py, "o", ms=4.2, mfc="none", mec=COL[p], mew=1.0, zorder=3)
+            marked[p] = {"px": [float(v) for v in xy2], "reprojected_from_3d": reproj}
+            if not filled:
+                ax.plot(px, py, "o", ms=4.2, mfc="none", mec=COL[p], mew=1.0, zorder=3)
+            elif reproj:
+                ax.plot(px, py, "o", ms=3.4, mfc=COL[p], mec="white", mew=0.7, zorder=3)
+            else:
+                ax.plot(px, py, "o", ms=2.6, mfc=COL[p], mec=COL[p], mew=0.3, zorder=3)
             dx, dy, ha = LABELS_V26B[cam].get(p, (12, 0, "left"))
-            ax.text(px + dx, py + dy, p, color=COL[p], fontsize=6.2, fontweight="bold", ha=ha, va="center", zorder=4,
-                    path_effects=stroke)
+            ax.text(px + dx, py + dy, p + (" (3-D)" if reproj else ""), color=COL[p], fontsize=6.2, fontweight="bold",
+                    ha=ha, va="center", zorder=4, path_effects=stroke)
         ax.set_xlim(-0.5, cw - 0.5)
         ax.set_ylim(ch - 0.5, -0.5)
         ax.set_xticks([]); ax.set_yticks([])
@@ -243,7 +265,7 @@ def render_v26b(a, P, cl, k, cand, parts, plt) -> int:
         fig.savefig(a.out / f"{a.stem}.{ext}", dpi=600 if ext == "png" else 300)
     plt.close(fig)
     (a.out / f"{a.stem}.json").write_text(json.dumps(info, indent=1))
-    print(f"v26b: {a.session} trial {cl['trial']} {cl['position']} t = {cl['t_ms'][k]:+.0f} ms, {FIG_W} x {fig_h} in "
+    print(f"{a.layout}: {a.session} trial {cl['trial']} {cl['position']} t = {cl['t_ms'][k]:+.0f} ms, {FIG_W} x {fig_h} in "
           f"-> {a.out / a.stem}.*")
     return 0
 
