@@ -45,14 +45,14 @@ centre spouts (PS93 0814: jaw 3-D 100 % of cue..stop frames at close_center, >= 
 NOT blanked; the 50 % coverage floor still applies everywhere. ``jaw3d_source`` (2cam | 4cam) and ``jaw3d_at_cue`` (the
 3-D onset is the cue frame) are written per row, and `trial_classes` uses the 3-D call ONLY at the spouts where both
 2-D cameras are masked and only when ``jaw3d_source`` is 4cam (the per-camera calls stay the classifier elsewhere).
-The 3-D onset floor (0.10 mm) is PROVISIONAL (not blind-checked); see DECISIONS 2026-11-22. Per part P in {jaw, nose}:
+The 3-D onset floor is 0.20 mm (Priya 11-22, blind check JAW3D_BLIND_CHECK_2026-11-22; was 0.10 mm). Per part P in {jaw, nose}:
   P3d_disp_mm      95th percentile of the 3-D displacement (robust size of the movement)
   P3d_rest_mm      the same over the pre-cue frames (that trial's resting noise; compare with disp)
   P3d_down_mm / P3d_up_mm       largest downward / upward displacement (jaw: down = opening, up = clench)
   P3d_back_mm      largest backward displacement (nose: head pulled back)
   P3d_side_ipsi_mm sideways displacement at the largest movement, + = mouse LEFT = ipsilesional (all four animals)
   P3d_moved / P3d_onset_ms  the per-camera onset rule (`jaw_kinematics.jaw_onsets`, sustained 5 / 8 frames, > 4 sd) on
-                   the 3-D displacement, floor 0.10 mm; onset on the DAQ clock (PROVISIONAL: floor not tuned)
+                   the 3-D displacement, floor 0.20 mm; onset on the DAQ clock (blind-checked 11-22)
 """
 from __future__ import annotations
 
@@ -75,7 +75,9 @@ FPS = 250.0
 #: 3-D columns (10-23): positions where the rod hides the face in cam1 -> blank; onset floor in MICROMETRES (the onset
 #: rule's floor parameter is in trace units; the 3-D trace is displacement in um)
 CENTRE = ("close_center", "far_center")
-OVERRIDE_3D = {"degenerate_as_unknown": True, "deflection_threshold_min_px": 100.0}
+#: 0.20 mm (Priya 11-22, after the blind check docs/status/JAW3D_BLIND_CHECK_2026-11-22.md: all 5 false positives were
+#: <= 0.22 mm; 0.20 removes 4 / 5 of them and 3 / 23 true calls). Was 0.10 mm (provisional).
+OVERRIDE_3D = {"degenerate_as_unknown": True, "deflection_threshold_min_px": 200.0}
 
 
 def _laid_out(y: np.ndarray, idx: pd.DataFrame) -> tuple[np.ndarray, pd.DataFrame, np.ndarray]:

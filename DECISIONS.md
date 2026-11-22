@@ -24465,3 +24465,12 @@ The adoption constants now name the whole-session (first..last sync pulse, 60 ms
 - *New run (preview only, validation folder):* the lick3d summary on `pose3d_4cam_3net_20261121_sync60/kinematics`
   gives the same 642 session x position rows (107 sessions); medians move slightly (reach r 0.98, speed_first r 0.89).
   The aim tables wait for the v37_sync60 iti_licks where-decoder caches.
+
+## 2026-11-22 -- 3-D jaw onset floor 0.20 mm (Priya: "0.2 mm jaw floor sounds good")
+- `scripts/jaw_onsets.py` `OVERRIDE_3D` floor 100 -> 200 um. Basis: blind check `docs/status/JAW3D_BLIND_CHECK_2026-11-22.md`
+  (new four-camera close_center jaw_only calls: 23 yes / 12 unclear / 5 no; all 5 false positives <= 0.22 mm, 4 of 5 PS94);
+  0.20 mm removes 4 / 5 false positives and 3 / 23 true calls. Only the 3-D call changes (used at close_center where both
+  2-D cameras are masked); the per-camera cam4 / cam1 floors are unchanged.
+- Consequence: jaw_onsets -> trial classes (jaw_only vs no_response at close_center) -> outcome stats, GLM-HMM, engagement
+  rebuilt under `_floor020` names; the 0.10 outputs kept as `*_floor010`. The encoder / ITI chain is unaffected (its
+  `attempted` gate = hit | incomplete; jaw_only is not an attempt).
