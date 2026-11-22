@@ -138,3 +138,9 @@ def test_session_licks_fused_refuses_old_format_and_reads_new(tmp_path, monkeypa
     A = SL.session_licks("PS92_0818", rv=object())
     assert len(A) == 1 and A.t_ms.iloc[0] == 330 and A.off_ms.iloc[0] == 420 and A.floor_merged.iloc[0] == 1
     np.testing.assert_allclose(SL.session_onsets_s("PS92_0818", rv=object()), [10.3])
+
+
+def test_drop_cam1_only_rows():
+    A = pd.DataFrame({"cams": ["cam1", "cam1+cam4", "cam4", "cam1+cam2"], "x": range(4)})
+    assert SL.drop_cam1_only(A).x.tolist() == [1, 2, 3]
+    assert SL.drop_cam1_only(A.drop(columns="cams")).x.tolist() == [0, 1, 2, 3]       # legacy table: unchanged

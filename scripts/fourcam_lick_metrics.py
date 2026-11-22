@@ -47,7 +47,7 @@ def session_rows(job) -> list[dict]:
     rv = PathResolver()
     sd = oo.session_dir(rv, oc.RUN, animal, date)
     keep, _gate = oc.cohort_keep(animal, date, sd)
-    A = SL.session_licks(f"{animal}_{date}", rv)
+    A = SL.session_licks(f"{animal}_{date}", rv, include_cam1_only=True)   # dropped below, after counting them
     A = A[A.context == "post_cue"]
     c1 = A.cams.astype(str) == "cam1"
     n_c1 = A[c1].groupby("position").size()
