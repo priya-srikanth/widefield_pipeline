@@ -386,6 +386,31 @@ def encoder_context(A: pd.DataFrame) -> np.ndarray:
     return (A.onset_context if "onset_context" in A else A.context).astype(str).to_numpy()
 
 
+def trial_ms_to_daq(ix: pd.DataFrame, trial_id, t_ms, look: pd.Series | None = None) -> np.ndarray:
+    """ABSOLUTE DAQ time (s) of times ``t_ms`` (ms from each row's cue, template time) of trials ``trial_id``, through a
+    windows index ``ix`` (trial_id, t_ms, daq_s: each frame's camera timestamp through the alignment template). ONE
+    definition (11-22): `all_licks_session` (licks_all ``daq_on_s`` / ``daq_peak_s``) and the fused four-camera lick
+    train (`session_licks`) put cue-relative lick times on the DAQ clock the same way. On the 4 ms frame grid: the
+    frame's own DAQ time; off the grid (a gap / window edge): interpolated on the trial's camera clock; just outside the
+    trial's window: the nearest frame's DAQ time + the ms offset (1 ms = 1 ms)."""
+    if look is None:
+        look = ix.drop_duplicates(["trial_id", "t_ms"]).set_index(["trial_id", "t_ms"]).daq_s
+    by_trial = {k: (g.t_ms.to_numpy(float), g.daq_s.to_numpy(float))
+                for k, g in ix.sort_values(["trial_id", "t_ms"]).groupby("trial_id")}
+    tid = np.asarray(trial_id)
+    tt = np.asarray(t_ms, float)
+    k = pd.MultiIndex.from_arrays([tid, np.round(tt / 4.0) * 4.0])
+    v = look.reindex(k).to_numpy(float)
+    for i in np.flatnonzero(~np.isfinite(v) & np.isfinite(tt)):      # off the frame grid (a gap / window edge):
+        g = by_trial.get(tid[i])                                     # interpolate on the trial's camera clock
+        if g is not None and len(g[0]) > 1:
+            v[i] = float(np.interp(tt[i], g[0], g[1], left=np.nan, right=np.nan))
+            if not np.isfinite(v[i]):                                # just outside the window: 1 ms = 1 ms
+                j = 0 if tt[i] < g[0][0] else -1
+                v[i] = g[1][j] + (tt[i] - g[0][j]) / 1000.0
+    return v
+
+
 def all_licks_session(rv, run: str, animal: str, date: str) -> tuple[pd.DataFrame, dict]:
     """``licks_all.csv``: EVERY cam4 lick the v36 windows hold (= `licks.csv` + `licks_precue.csv` +
     `licks_excluded_0_70.csv` + `licks_iti.csv`, the same detector; NO re-detection), one table. Columns: `licks.csv`'s,
@@ -429,22 +454,8 @@ def all_licks_session(rv, run: str, animal: str, date: str) -> tuple[pd.DataFram
     A["context"] = lick_context(A.t_ms, t.strobe_ms.to_numpy(float), t.stop_ms.to_numpy(float))
     A["onset_context"] = onset_context(A.on_ms, t.strobe_ms.to_numpy(float), t.stop_ms.to_numpy(float))
 
-    by_trial = {k: (g.t_ms.to_numpy(float), g.daq_s.to_numpy(float))
-                for k, g in ix.sort_values(["trial_id", "t_ms"]).groupby("trial_id")}
-
-    def daq(tcol):
-        tt = A[tcol].to_numpy(float)
-        k = pd.MultiIndex.from_arrays([A.trial_id.to_numpy(), np.round(tt / 4.0) * 4.0])
-        v = look.reindex(k).to_numpy(float)
-        for i in np.flatnonzero(~np.isfinite(v) & np.isfinite(tt)):      # off the frame grid (a gap / window edge):
-            g = by_trial.get(A.trial_id.iat[i])                          # interpolate on the trial's camera clock
-            if g is not None and len(g[0]) > 1:
-                v[i] = float(np.interp(tt[i], g[0], g[1], left=np.nan, right=np.nan))
-                if not np.isfinite(v[i]):                                # just outside the window: 1 ms = 1 ms
-                    j = 0 if tt[i] < g[0][0] else -1
-                    v[i] = g[1][j] + (tt[i] - g[0][j]) / 1000.0
-        return v
-    A["daq_on_s"], A["daq_peak_s"] = daq("on_ms"), daq("t_ms")
+    A["daq_on_s"] = trial_ms_to_daq(ix, A.trial_id, A.on_ms, look=look)
+    A["daq_peak_s"] = trial_ms_to_daq(ix, A.trial_id, A.t_ms, look=look)
     A = A.sort_values("daq_on_s", kind="stable").reset_index(drop=True)
     man = json.loads((sd / "manifest.json").read_text(encoding="utf-8"))
     n_vid = sum(v["n_frames"] for v in man.get("videos", []))

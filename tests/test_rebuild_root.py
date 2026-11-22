@@ -306,6 +306,9 @@ RESOLVED = {
     "wfield_local/pose_windows.py",
     "wfield_local/publish_basis.py",
     "wfield_local/rebuild_root.py",
+    # session lick table (11-22): writes ONLY the fused folder's format manifest (`write_manifest`, called by
+    # scripts/camera_licks.py into session_poses/camera_licks/<run>/); camera / pose product, no imaging run mode
+    "wfield_local/session_licks.py",
     # (wfield_local/recovery_trajectory.py: ROUTED since review 8B B1b, lp_licks.output_dir)
     "wfield_local/spout_behavior.py",
     "wfield_local/stray_licks.py",

@@ -106,7 +106,10 @@ def run_session(s: str, source: str, four_cam: str | None = None, out_dir: str |
             # then fuses them with the (re-detected) cam1 / cam4 events without rebuilding the session
             from scripts.camera_licks import _bundle_out
             SE = pd.concat([CL.side_events(Z, c, span="all") for c in PS.SIDE], ignore_index=True)
-            SE.to_csv(_bundle_out(rv, four_cam) / f"{animal}_{date}_side_events.csv", index=False, float_format="%.4g")
+            # 11-22: full precision (was "%.4g": 10 ms at 10-100 s from the cue, so side-event spans of ITI licks were
+            # rounded by up to 5 ms; the 11-21 `_3net_20261121` side events carry that rounding)
+            SE.to_csv(_bundle_out(rv, four_cam) / f"{animal}_{date}_side_events.csv", index=False,
+                      float_format="%.10g")
         S.to_csv(out / f"{animal}_{date}_frames.csv.gz", index=False, float_format="%.3f")
         L.to_csv(out / f"{animal}_{date}_licks.csv", index=False)
         gate = Z["stats"]["side_gate"]
