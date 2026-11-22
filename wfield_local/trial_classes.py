@@ -200,8 +200,15 @@ def _daq_contact_onsets(animal: str, date: str) -> np.ndarray:
     from wfield_local import dlc_frames
     from wfield_local.paths import PathResolver
     rv = PathResolver()
-    sid = sorted((Path(rv.root("behavior_out")) / "sessions" / animal / date).glob("*_trials.csv"))[-1].name[:-11]
-    return np.asarray(dlc_frames.lick_onsets(animal, date, sid, rv), float)
+    tr = sorted((Path(rv.root("behavior_out")) / "sessions" / animal / date).glob("*_trials.csv"))
+    if not tr:
+        # 11-22: a session with no behavior-summary table (PS93 0805, the "wonky 8/5", outside the curated set) has no
+        # DAQ contact onsets here; its fused licks then carry contact = False (only ``n_nocontact`` reads it; the class
+        # itself counts DAQ contacts from trials.csv). It crashed every --all reader of the working gate before.
+        import warnings
+        warnings.warn(f"{animal} {date}: no behavior-summary trials table -> no DAQ contact onsets", stacklevel=2)
+        return np.zeros(0, float)
+    return np.asarray(dlc_frames.lick_onsets(animal, date, tr[-1].name[:-11], rv), float)
 
 
 def trial_contact_times(animal: str, date: str, times: pd.DataFrame) -> pd.Series:
