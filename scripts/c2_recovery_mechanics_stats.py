@@ -34,7 +34,7 @@ Writes (refuses to overwrite) under --out-dir (default M:/MICROSCOPE/Priya/Widef
 and under --ms-data (default the paper's manuscript_code/data, next to the 11-19 family file):
   c2_scalar_family_aligned_with_recovery.csv   the pooled family: the 162 cells + the new endpoint cells, family q
 
-Usage: python scripts/c2_recovery_mechanics_stats.py [--enc DIR] [--wlc DIR] [--family CSV] [--out-dir DIR] [--ms-data DIR]
+Usage: python scripts/c2_recovery_mechanics_stats.py [--enc DIR] [--wlc DIR] [--lc DIR] [--family CSV] [--out-dir DIR] [--ms-data DIR]
 """
 from __future__ import annotations
 
@@ -66,11 +66,17 @@ SOURCES = {
 }
 
 
+#: 11-22 (four-camera re-run): learned_compensation output folder if not <enc>/learned_compensation (--lc; set in main)
+_LC: Path | None = None
+
+
 def _src_path(enc: Path, rel: str, wlc: Path | None) -> Path:
     """``enc / rel``, except the within_lick_correction tables when ``--wlc`` names another folder (2026-11-21: the
     CSM edge-fix re-run lives beside the cited tree; the other two sources stay the cited ones)."""
     if wlc is not None and rel.startswith("within_lick_correction/"):
         return wlc / rel.split("/", 1)[1]
+    if _LC is not None and rel.startswith("learned_compensation/"):
+        return _LC / rel.split("/", 1)[1]
     return enc / rel
 
 
@@ -111,7 +117,7 @@ def pipeline_ref(enc: Path, wlc: Path | None = None) -> pd.DataFrame:
     ref.append(h.rename(columns={"delta": "pipe_delta", "lo": "pipe_lo", "hi": "pipe_hi", "p": "pipe_p",
                                  "p_holm": "pipe_p_holm"})[["metric", "epoch", "pipe_delta", "pipe_lo", "pipe_hi",
                                                             "pipe_p", "pipe_p_holm"]])
-    t3 = pd.read_csv(enc / "learned_compensation/t3_boot.csv")
+    t3 = pd.read_csv(_src_path(enc, "learned_compensation/t3_boot.csv", wlc))
     t3 = t3[t3.variant == "docked, theta_E (primary)"]
     ref.append(t3.rename(columns={"delta": "pipe_delta", "lo": "pipe_lo", "hi": "pipe_hi", "p": "pipe_p",
                                   "p_holm": "pipe_p_holm", "n_same": "pipe_n_same"})[
@@ -128,10 +134,14 @@ def main(argv=None) -> int:
     ap.add_argument("--enc", type=Path, default=ENC)
     ap.add_argument("--wlc", type=Path, default=None,
                     help="within_lick_correction output folder if not <enc>/within_lick_correction (e.g. a --out re-run)")
+    ap.add_argument("--lc", type=Path, default=None,
+                    help="learned_compensation output folder if not <enc>/learned_compensation (e.g. LC_OUT_DIR re-run)")
     ap.add_argument("--family", type=Path, default=FAMILY)
     ap.add_argument("--out-dir", type=Path, default=OUT_DIR)
     ap.add_argument("--ms-data", type=Path, default=MS_DATA)
     a = ap.parse_args(argv)
+    global _LC
+    _LC = a.lc
     base = a.out_dir / "c2_recovery_mechanics_v2"
     outs = [Path(f"{base}_{x}.csv") for x in ("stats", "sessions", "per_animal")]
     outs.append(a.ms_data / "c2_scalar_family_aligned_with_recovery.csv")
