@@ -31,6 +31,12 @@ seen by >= ``min_views`` cameras: 1 = the union (today's cam4 + cam1-only rule e
 D2 as revised by Priya 11-21), 2 = two views (an option), and drops cam1-only licks >= `LONG_CAM1_ONLY_MS` (water drops).
 Times are ms from the trial's cue (every production table carries ``trial_id`` + ``on_ms`` / ``off_ms`` on that clock).
 
+SIDE-ONLY CONFIRMATION (11-21 table-gaps rule, `confirm_side_only`; qc_phaseA/table_gaps/README.md): a lick only the side
+views called is kept when cam4 or cam1 TRACKED the tongue during it (`anchor_track_frames`, `track_flags`: >= 2 frames,
+likelihood >= 0.4, tip in front of / below the mouth) although their detectors made no event, else when cam2 AND cam3
+both saw it; a side-only piece that touches a lick the anchor cameras count is a split-off fragment and is dropped.
+``reason`` / ``keep`` per lick; `lick_train` honors ``keep``.
+
 SPLITTING BACK-TO-BACK LICKS (11-21 pilot, PS93 0814 / PS94 0817): chaining overlapping events merges licks that cam4
 counts separately -- 310 fused PS93 licks held 2-4 cam4 licks, 218 of them because cam4's OWN v36 spans overlap (the
 fusion chained them with no other camera) and the rest bridged by a side / cam1 event; in 3-D the four-camera track has
@@ -358,6 +364,8 @@ def lick_train(U: pd.DataFrame, min_views: int = 1, long_cam1_only_ms: float | N
     views kept as an option), licks made only of guarded events (`fuse`) removed, and cam1-only licks lasting
     >= ``long_cam1_only_ms`` removed (None = keep them)."""
     keep = (U.n_views >= min_views) & ~U.guarded.astype(bool)
+    if "keep" in U:                                   # the table-gaps rule (`confirm_side_only`) decided side-only licks
+        keep &= U.keep.astype(bool)
     if long_cam1_only_ms is not None:
         keep &= ~((U.n_views == 1) & U.seen_cam1.astype(bool) & ((U.off_ms - U.on_ms) >= long_cam1_only_ms))
     return U[keep].reset_index(drop=True)
@@ -372,3 +380,156 @@ def view_table(U: pd.DataFrame) -> pd.DataFrame:
     T["share"] = T.n / T.n.sum()
     T["side_only"] = U[side_only].groupby("cams").size().reindex(T.index, fill_value=0)
     return T.sort_values("n", ascending=False)
+
+
+# --------------------------------------------------------------------------------------------- side-only confirmation
+#: TABLE GAPS RULE (Priya 11-21: "go ahead with your table gaps rule"; qc_phaseA/table_gaps/README.md). A lick that only
+#: the side views (cam2 / cam3) called is CONFIRMED when the front (cam4) or below (cam1) camera TRACKED the tongue tip
+#: during it, even though that camera's own lick detector made no event (most real side-only licks: the tongue is in
+#: cam4 / cam1 at likelihood ~1.0, but the cam4 detector / cam1 cleaning did not call a lick). Tracked = at least
+#: ``TRACK_MIN_FRAMES`` frames inside the lick span with raw tongue likelihood >= ``TRACK_LK`` (the cleaning cutoff,
+#: `orofacial_clean` tongue lk_thr) AND a plausible tip: at least ``TRACK_OUT_MIN_PX`` out from the mouth toward the
+#: spouts (in front of / below the mouth, in that camera's mouth frame) and at least ``TRACK_SPOUT_MIN_PX`` from every
+#: parked spout tip (a label parked on the rod is not a tongue). The cameras' own detectors are NOT loosened.
+#: A side-only lick no front / below camera tracked counts only when BOTH side views saw it (``TWO_VIEW``; the blind
+#: sample: no paw and no water drop was seen by both). Values: `scripts/table_gaps_check.py` (validation in the README).
+TRACK_LK = 0.4
+TRACK_MIN_FRAMES = 2
+#: in front of / below the mouth: the tip's ``out`` (px toward the spouts in the camera's mouth frame) >= 0. A label
+#: behind the mouth line (blind sample: a grooming paw at -34 px in cam1) is not a tongue
+TRACK_OUT_MIN_PX = 0.0
+#: the parked-spout test is OFF (0 px): real licks TOUCH the spout (blind-judged real side-only licks came within 2-4.5 px
+#: of a parked tip in cam4 / cam1), so distance to the spout cannot separate a tongue from a label on the rod; parked
+#: labels are left to cam1's detached-static mask (applied, `anchor_track_frames`) and to the side guards
+TRACK_SPOUT_MIN_PX = 0.0
+#: anchor cameras whose tracking can confirm a side-only lick
+CONFIRM_CAMS = ("cam4", "cam1")
+#: ``reason`` values written by `confirm_side_only` (kept = the first three)
+REASONS = ("camera_event", "tracked_cam4", "tracked_cam1", "two_side_views", "cut_fragment", "unconfirmed_one_side_view",
+           "guarded")
+
+
+def track_flags(lk, out_px, spout_d_px, lk_cut: float = TRACK_LK, out_min_px: float = TRACK_OUT_MIN_PX,
+                spout_min_px: float = TRACK_SPOUT_MIN_PX) -> np.ndarray:
+    """``bool[n]`` per frame: the camera tracked a PLAUSIBLE tongue tip (raw likelihood >= ``lk_cut``, ``out_px`` >=
+    ``out_min_px`` from the mouth toward the spouts, >= ``spout_min_px`` from the nearest parked spout tip)."""
+    lk, out, sd = (np.asarray(a, float) for a in (lk, out_px, spout_d_px))
+    return (lk >= lk_cut) & (out >= out_min_px) & ~(sd < spout_min_px)
+
+
+def tracked_frames(U: pd.DataFrame, F: pd.DataFrame, pad_ms: float = 2.0) -> np.ndarray:
+    """Per lick of ``U`` (trial_id, on_ms, off_ms): how many frames of ``F`` (trial_id, t_ms, ``track`` bool) inside
+    on - pad .. off + pad are tracked."""
+    out = np.zeros(len(U), int)
+    if not len(U) or F is None or not len(F):
+        return out
+    G = F[F.track.astype(bool)]
+    by = {k: np.sort(g.t_ms.to_numpy(float)) for k, g in G.groupby("trial_id")}
+    for i, (tid, on, off) in enumerate(zip(U.trial_id.to_numpy(), U.on_ms.to_numpy(float), U.off_ms.to_numpy(float))):
+        t = by.get(tid)
+        if t is not None:
+            out[i] = int(np.searchsorted(t, off + pad_ms, "right") - np.searchsorted(t, on - pad_ms, "left"))
+    return out
+
+
+def side_only_mask(U: pd.DataFrame) -> np.ndarray:
+    """Fused licks no anchor camera (cam4 / cam1) made an event for."""
+    m = np.ones(len(U), bool)
+    for c in CONFIRM_CAMS:
+        m &= ~U[f"seen_{c}"].astype(bool).to_numpy()
+    return m
+
+
+def cut_fragments(U: pd.DataFrame, tol_ms: float = MERGE_TOL_MS) -> np.ndarray:
+    """Side-only licks that TOUCH (within ``tol_ms``) a neighboring lick holding a cam4 / cam1 event: pieces the split
+    (`event_cuts`) cut off a lick the anchor cameras already count (the blind sample's "fragments": the retracting
+    tail of a counted lick). Counting them would count that lick twice."""
+    so = side_only_mask(U)
+    anchored = ~so
+    res = np.zeros(len(U), bool)
+    tid, on, off = U.trial_id.to_numpy(), U.on_ms.to_numpy(float), U.off_ms.to_numpy(float)
+    order = np.lexsort((on, tid))
+    for a, b in zip(order[:-1], order[1:]):
+        if tid[a] != tid[b] or on[b] - off[a] > tol_ms:
+            continue
+        if so[a] and anchored[b]:
+            res[a] = True
+        if so[b] and anchored[a]:
+            res[b] = True
+    return res
+
+
+def confirm_side_only(U: pd.DataFrame, tracked: dict | None = None, min_frames: int = TRACK_MIN_FRAMES,
+                      two_view: bool = True) -> pd.DataFrame:
+    """``U`` + ``reason`` and ``keep`` per fused lick (D2 with the table-gaps rule): a lick with a cam4 / cam1 event
+    -> ``camera_event``; a guarded-only lick -> ``guarded`` (dropped, as `lick_train`); a side-only lick touching an
+    anchored lick -> ``cut_fragment`` (dropped); else confirmed when cam4, then cam1 tracked the tongue in >=
+    ``min_frames`` frames (``tracked`` = {cam: per-lick counts, `tracked_frames`}; ``tracked_<cam>`` columns kept),
+    else when both side views saw it (``two_view``), else ``unconfirmed_one_side_view`` (dropped)."""
+    U = U.copy()
+    so = side_only_mask(U)
+    reason = np.where(so, "unconfirmed_one_side_view", "camera_event").astype(object)
+    tracked = tracked or {}
+    for c in CONFIRM_CAMS:
+        U[f"tracked_{c}"] = np.asarray(tracked.get(c, np.zeros(len(U), int)), int)
+    if two_view:
+        both = U.seen_cam2.astype(bool).to_numpy() & U.seen_cam3.astype(bool).to_numpy()
+        reason[so & both] = "two_side_views"
+    for c in reversed(CONFIRM_CAMS):                       # cam4 written last, so it names the lick when both tracked
+        reason[so & (U[f"tracked_{c}"].to_numpy() >= min_frames)] = f"tracked_{c}"
+    reason[so & cut_fragments(U)] = "cut_fragment"
+    reason[U.guarded.astype(bool).to_numpy()] = "guarded"
+    U["reason"] = reason
+    U["keep"] = np.isin(reason, ("camera_event", "tracked_cam4", "tracked_cam1", "two_side_views"))
+    return U
+
+
+#: the production O2 bundles of the anchor cameras (= `scripts.pose3d.PROD`; the library may not import scripts/, a test
+#: pins the two equal)
+ANCHOR_BUNDLES = {"cam4": "lp_r4_prod_20261015", "cam1": "lp_cam1_ctx_prod_20261019"}
+
+
+def anchor_track_frames(rv, animal: str, date: str, cams: tuple = CONFIRM_CAMS) -> dict:
+    """{cam: DataFrame(trial_id, t_ms, lk, out_px, spout_d_px, track)} per frame of the anchor cameras' windows, from the
+    production O2 predictions (`o2_inference.session_windows`; the same windows every camera uses): raw tongue
+    likelihood, ``out_px`` = tip distance from the mouth toward the spouts in that camera's mouth frame (cam4:
+    `spout_frame.from_medians` on the no-lick ENL ruler medians, June pose x `orofacial_outputs.camera_scale` as v36+;
+    cam1: `cam1_licks.cam1_frame`), ``spout_d_px`` = distance to the nearest parked spout tip (ruler medians), and
+    ``track`` = `track_flags`. A camera without output is absent."""
+    from wfield_local import cam1_licks as C1
+    from wfield_local import o2_inference as oi
+    from wfield_local import orofacial_outputs as oo
+    from wfield_local import spout_frame as SF
+    out = {}
+    for cam in cams:
+        got = oi.session_windows(rv, ANCHOR_BUNDLES[cam], animal, date, cam)
+        if got is None:
+            continue
+        ix, flat = got[0].reset_index(drop=True), got[1].reset_index(drop=True)
+        if cam == "cam4":
+            f = oo.camera_scale(date)
+            if f != 1.0:
+                flat = flat.copy()
+                for c in [c for c in flat.columns if c.endswith(("_x", "_y"))]:
+                    flat[c] = flat[c] * f
+            med = SF.ruler_medians(flat, ix)
+            fr = SF.from_medians(med)
+            o, ap = np.asarray(fr.origin, float), np.asarray(fr.ap_axis, float)
+
+            def to_frame(x, y, o=o, ap=ap):
+                return -((np.asarray(x, float) - o[0]) * ap[0] + (np.asarray(y, float) - o[1]) * ap[1]), None
+        else:
+            _fr, med, to_frame = C1.cam1_frame(flat, ix)
+            # cam1's detached-static labels (`cam1_licks.mask_detached`: a label parked away from the mouth, e.g. on a
+            # drop or the rod) are not a tracked tongue: masked exactly as the cam1 lick detector masks them
+            flat = C1.mask_detached(flat, ix, to_frame, keep_windows=C1.cam4_lick_windows(rv, animal, date),
+                                    label=f"{animal}_{date}")[0]
+        x, y = flat.tongue_x.to_numpy(float), flat.tongue_y.to_numpy(float)
+        o_px = to_frame(x, y)[0]
+        sp = np.array([med[p][:2] for p in med], float)
+        sd = (np.min(np.hypot(x[:, None] - sp[None, :, 0], y[:, None] - sp[None, :, 1]), axis=1) if len(sp)
+              else np.full(len(x), np.inf))
+        lk = flat.tongue_likelihood.to_numpy(float)
+        out[cam] = pd.DataFrame({"trial_id": ix.trial_id.to_numpy(), "t_ms": ix.t_ms.to_numpy(float), "lk": lk,
+                                 "out_px": o_px, "spout_d_px": sd, "track": track_flags(lk, o_px, sd)})
+    return out

@@ -105,7 +105,10 @@ def camera_scale(date: str) -> float:
 
 
 def run_name(scorer: str, cleaning: str = CLEANING_VERSION) -> str:
-    return f"{scorer.lower()}__clean_{cleaning}"
+    """``<scorer>__clean_<version>`` + `o2_inference.span_suffix` (11-21: ``_sync`` = whole-session windows, first to
+    last sync pulse, `o2_inference.SPAN_ENV`; unset = the trial windows, the name unchanged)."""
+    from wfield_local.o2_inference import span_suffix
+    return f"{scorer.lower()}__clean_{cleaning}{span_suffix()}"
 
 
 def session_dir(rv, run: str, animal: str, date: str) -> Path:

@@ -67,6 +67,9 @@ BEHAVIOUR = {
     # Fig 5C input (11-20): FaceRhythm proj files of the frozen master only; writes <FR readouts>/<set>/vls_manuscript/
     # (the M:/MICROSCOPE literal is the manuscript file it compares against, read-only)
     "fr_pre_timecourses_abs.py",
+    # table gaps (11-21): pose / lick tables only (side-only licks, cam4 / cam1 tracking); writes only under
+    # session_poses/pose3d_4cam_3net_20261121/qc_phaseA/table_gaps/ (the MICROSCOPE literal is its output assert)
+    "table_gaps_check.py",
 }
 INDIRECT = {
     # lick_correction.py left the list 11-21: it reads the 3-D table via pose3d_dir() (no share-root literal left) and

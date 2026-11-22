@@ -23,8 +23,7 @@ def daq_contacts_ms(animal: str, date: str, bounds: pd.DataFrame, rv=None) -> di
     from wfield_local import dlc_frames
     from wfield_local.paths import PathResolver
     rv = rv or PathResolver()
-    sid = sorted((Path(rv.root("behavior_out")) / "sessions" / animal / date).glob("*_trials.csv"))[-1].name[:-11]
-    licks = dlc_frames.lick_onsets(animal, date, sid, rv)
+    licks = dlc_frames.lick_onsets(animal, date, _behavior_sid(rv, animal, date), rv)
     return {t: (licks[(licks >= c + CONTACT_FROM_CUE_S) & (licks <= s)] - c) * 1000.0
             for t, c, s in zip(bounds.trial_id, bounds.cue_s, bounds.stop_s)}
 
@@ -181,5 +180,13 @@ def daq_lick_onsets_s(animal: str, date: str, rv=None) -> np.ndarray:
     from wfield_local import dlc_frames
     from wfield_local.paths import PathResolver
     rv = rv or PathResolver()
-    sid = sorted((Path(rv.root("behavior_out")) / "sessions" / animal / date).glob("*_trials.csv"))[-1].name[:-11]
-    return np.asarray(dlc_frames.lick_onsets(animal, date, sid, rv), float)
+    return np.asarray(dlc_frames.lick_onsets(animal, date, _behavior_sid(rv, animal, date), rv), float)
+
+
+def _behavior_sid(rv, animal: str, date: str) -> str | None:
+    """The behavior-summary session id (``<a>_<d>_<hhmmss>`` of its ``_trials.csv``), or None when the session has no
+    behavior log (PS93 0805: empty GUI log, trials reconstructed from the DAQ + the cam1 recovered positions). The lick
+    TIMES come from the DAQ .h5 either way (`dlc_frames.lick_onsets` decodes it; the id is not used to find them), so a
+    missing log no longer stops the chain (11-21: the v37 run failed PS93 0805 here with an IndexError)."""
+    f = sorted((Path(rv.root("behavior_out")) / "sessions" / animal / date).glob("*_trials.csv"))
+    return f[-1].name[:-11] if f else None

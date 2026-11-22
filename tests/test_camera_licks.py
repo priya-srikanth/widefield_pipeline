@@ -198,3 +198,56 @@ def test_saved_side_events_round_trip_keeps_guards_boolean(tmp_path):
     assert set(ev) == {"cam2", "cam3"} and len(ev["cam2"]) == 2
     assert ev["cam2"].static.dtype == bool and list(ev["cam2"].static) == [True, False]
     assert list(ev["cam2"].far) == [False, True] and ev["cam3"].far.tolist() == [False]
+
+
+def _fused(rows):
+    """Fused-lick rows: (trial, on, off, cams)."""
+    U = pd.DataFrame([{"trial_id": t, "on_ms": a, "off_ms": b, "cams": c} for t, a, b, c in rows])
+    for c in CL.CAMS:
+        U[f"seen_{c}"] = U.cams.str.split("+").map(lambda s, c=c: c in s)
+    U["guarded"] = False
+    return U
+
+
+def test_track_flags_needs_confidence_and_a_tip_in_front_of_the_mouth():
+    f = CL.track_flags([0.9, 0.3, 0.9, 0.9], [10.0, 10.0, -5.0, 0.0], [50.0, 50.0, 50.0, np.nan])
+    assert list(f) == [True, False, False, True]                     # lk < 0.4 / behind the mouth line drop; NaN spout ok
+    assert list(CL.track_flags([0.9], [10.0], [3.0], spout_min_px=5.0)) == [False]
+
+
+def test_tracked_frames_counts_tracked_frames_inside_the_span():
+    U = _fused([(1, 100, 140, "cam2"), (2, 0, 20, "cam3")])
+    F = pd.DataFrame({"trial_id": [1, 1, 1, 1, 2], "t_ms": [96.0, 104.0, 120.0, 150.0, 8.0],
+                      "track": [True, True, False, True, True]})
+    assert list(CL.tracked_frames(U, F)) == [1, 1]                    # 96 is outside 100-2; 150 outside 140+2
+    assert list(CL.tracked_frames(U, None)) == [0, 0]
+
+
+def test_confirm_side_only_reasons_in_precedence_order():
+    U = _fused([(1, 0, 40, "cam4"),             # camera event
+                (1, 45, 60, "cam2"),            # touches the cam4 lick -> cut fragment (even if tracked)
+                (1, 300, 340, "cam2"),          # cam4 tracked -> confirmed
+                (1, 500, 540, "cam3"),          # cam1 tracked
+                (1, 700, 740, "cam2+cam3"),     # nobody tracked, both side views
+                (1, 900, 940, "cam2"),          # one side view, untracked -> dropped
+                (2, 0, 30, "cam3")])            # guarded
+    U.loc[6, "guarded"] = True
+    tr = {"cam4": [0, 5, 3, 0, 0, 1, 0], "cam1": [0, 0, 0, 2, 0, 0, 0]}
+    R = CL.confirm_side_only(U, tr)
+    assert list(R.reason) == ["camera_event", "cut_fragment", "tracked_cam4", "tracked_cam1", "two_side_views",
+                              "unconfirmed_one_side_view", "guarded"]
+    assert list(R.keep) == [True, False, True, True, True, False, False]
+    assert set(R.reason) <= set(CL.REASONS)
+    assert not CL.confirm_side_only(U, tr, two_view=False).keep.iloc[4]
+
+
+def test_lick_train_honors_the_table_gaps_keep():
+    U = _fused([(1, 0, 40, "cam4"), (1, 300, 340, "cam2")])
+    U["n_views"] = 1
+    R = CL.confirm_side_only(U, {})
+    assert len(CL.lick_train(R)) == 1 and len(CL.lick_train(U)) == 2
+
+
+def test_anchor_bundles_match_the_3d_production_bundles():
+    from scripts.pose3d import PROD
+    assert CL.ANCHOR_BUNDLES == {c: PROD[c] for c in CL.ANCHOR_BUNDLES}

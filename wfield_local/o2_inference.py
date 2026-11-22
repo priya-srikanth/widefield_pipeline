@@ -503,6 +503,77 @@ def trial_frame_spans_ts(b: pd.DataFrame, daq_v: np.ndarray, n_full: int, pre_s:
     return [tuple(x) for x in spans]
 
 
+#: WHOLE-SESSION WINDOWS (Priya 11-21, D3 / Q8: "full session = first to last sync pulse, for all cameras"). Set to
+#: ``sync`` and `build_windows` widens the trial windows so they tile the video from the FIRST to the LAST
+#: sync pulse on the DAQ (`sync_span_s`): the first trial's window starts at the first pulse, every window runs
+#: to the next window's start (the ITI stretches that ended at stop + 3 s before the next strobe), and the last trial's
+#: window ends at the last pulse. Unset / ``trials`` = the trial windows (strobe - 0.5 s .. stop + 3 s, cut at the next
+#: trial), byte-identical. Every camera's windows come from `build_windows`, so one variable moves cam4, cam1 and the side
+#: views together; consumers that write outputs must route them to a NEW folder (`span_suffix`).
+SPAN_ENV = "WIDEFIELD_WINDOWS_SPAN"
+SPANS = ("trials", "sync")
+
+
+def window_span() -> str:
+    import os
+    s = os.environ.get(SPAN_ENV, "").strip() or "trials"
+    if s not in SPANS:
+        raise ValueError(f"{SPAN_ENV}={s!r}: one of {SPANS}")
+    return s
+
+
+def span_suffix() -> str:
+    """'' for the trial windows; '_sync' for whole-session windows (appended to run / folder names)."""
+    return "" if window_span() == "trials" else f"_{window_span()}"
+
+
+_SYNC_EDGES: dict = {}
+
+
+def daq_sync_edges_s(rv, animal: str, date: str) -> np.ndarray:
+    """Rising edges (DAQ s) of the session DAQ's digital ``sync`` line (`camera_sync.daq_sync_edges` on the session's
+    authoritative .h5, `daq_io.session_h5`), memoised per process (every camera of a session asks)."""
+    key = (animal, date)
+    if key not in _SYNC_EDGES:
+        from wfield_local import camera_sync as cs
+        from wfield_local import daq_io
+        h5 = daq_io.session_h5(animal, date, rv)
+        if h5 is None:
+            raise FileNotFoundError(f"{animal} {date}: no DAQ .h5 for the sync span")
+        e, fs, _n = cs.daq_sync_edges(h5)
+        _SYNC_EDGES.clear()
+        _SYNC_EDGES[key] = np.asarray(e, float) / fs
+    return _SYNC_EDGES[key]
+
+
+def sync_span_s(edges_s: np.ndarray, tpl: dict) -> tuple[float, float] | None:
+    """(first, last) DAQ second of the session's sync pulses (``edges_s``, the DAQ ``sync`` line: the Arduino heartbeat
+    every camera's GPIO also records), clipped to the template's DAQ segment on a split day. Measured 11-21: the
+    template's MATCHED edges are NOT the first / last pulse (PS93 0814: first matched edge 22.5 s, first trial window
+    6.8 s), so the DAQ line itself sets the span. None when no pulse falls in the segment."""
+    e = np.asarray(edges_s, float)
+    seg = tpl.get("segment_daq_sec")
+    if seg is not None:
+        e = e[(e >= float(seg[0])) & (e <= float(seg[1]))]
+    if not len(e):
+        return None
+    return float(e[0]), float(e[-1])
+
+
+def widen_spans(spans: list, f_first: int, f_last: int) -> list:
+    """Trial frame spans [(f0, f1, f_cue), ...] (sorted, already cut at the next trial) -> spans that TILE
+    ``f_first`` .. ``f_last`` (exclusive end): the first window starts at ``f_first`` (never later than it did), each
+    window ends where the next starts, the last ends at ``f_last`` (never earlier than it did). Cue frames unchanged."""
+    if not spans:
+        return spans
+    s = [list(x) for x in spans]
+    s[0][0] = min(s[0][0], max(0, int(f_first)))
+    for k in range(len(s) - 1):
+        s[k][1] = s[k + 1][0]
+    s[-1][1] = max(s[-1][1], int(f_last))
+    return [tuple(x) for x in s]
+
+
 def assign_trials_to_videos(cue_s: np.ndarray, videos: list) -> np.ndarray:
     """Index into ``videos`` [(pose, template, name), ...] of the video that covers each cue: its frame lies inside
     that video, and inside the template's DAQ segment when it has one (split days). -1 = no video covers it."""
@@ -578,6 +649,18 @@ def build_windows(pose, animal: str, date: str, rv, pre_s: float = 0.5, post_s: 
         except (ValueError, FileNotFoundError, OSError) as e:
             print(f"   {animal} {date}: per-frame camera times unavailable ({e}) -- frame-index affine windows")
             daq_v, spans = None, trial_frame_spans(bv, tpl_v, len(pose_v), pre_s, post_s)
+        if window_span() == "sync" and len(spans):
+            ss = sync_span_s(daq_sync_edges_s(rv, animal, date), tpl_v)
+            if ss is None:
+                raise ValueError(f"{animal} {date}: {SPAN_ENV}=sync but no DAQ sync pulse in the {cam} segment")
+            n_v = len(pose_v) if daq_v is None else min(len(pose_v), len(daq_v))
+            if daq_v is None:
+                from wfield_local import dlc_frames as DF
+                f_a, f_b = DF.frame_of(tpl_v, ss[0], 0.0), DF.frame_of(tpl_v, ss[1], 0.0) + 1
+            else:
+                d = np.asarray(daq_v[:n_v], float)
+                f_a, f_b = int(np.searchsorted(d, ss[0], "left")), int(np.searchsorted(d, ss[1], "right"))
+            spans = widen_spans(spans, f_a, min(n_v, f_b))
         for r, (f0, f1, fc) in zip(bv.itertuples(), spans):
             for f in range(f0, f1):
                 if daq_v is None:

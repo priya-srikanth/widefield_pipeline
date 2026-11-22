@@ -310,3 +310,31 @@ def test_side_bundle_runs_both_side_cameras_with_the_side_model_and_flag(monkeyp
     assert "--side --frames 0:2000" in sm
     assert oi.bundle_cams("side") == ("cam2", "cam3") and oi.bundle_cams("cam4") == ("cam4",)
     assert oi.video_cam("cam3_2026-08-14T17_54_30.avi") == "cam3"
+
+
+def test_widen_spans_tiles_first_to_last_sync_pulse():
+    """Q8 (11-21): whole-session windows start at the first sync pulse, run to the next window, end at the last."""
+    spans = [(100, 180, 150), (200, 260, 230), (300, 350, 320)]
+    got = oi.widen_spans(spans, 40, 400)
+    assert got == [(40, 200, 150), (200, 300, 230), (300, 400, 320)]
+    assert oi.widen_spans(spans, 120, 330) == [(100, 200, 150), (200, 300, 230), (300, 350, 320)]  # never shrinks
+    assert oi.widen_spans([], 0, 10) == []
+
+
+def test_window_span_env_and_suffix(monkeypatch):
+    monkeypatch.delenv(oi.SPAN_ENV, raising=False)
+    assert oi.window_span() == "trials" and oi.span_suffix() == ""
+    monkeypatch.setenv(oi.SPAN_ENV, "sync")
+    assert oi.span_suffix() == "_sync"
+    from wfield_local import orofacial_outputs as oo
+    assert oo.run_name("LP_r4_heatmap_20261013").endswith("__clean_" + oo.CLEANING_VERSION + "_sync")
+    monkeypatch.setenv(oi.SPAN_ENV, "bogus")
+    with pytest.raises(ValueError):
+        oi.window_span()
+
+
+def test_sync_span_clips_to_the_template_segment():
+    e = np.array([1.0, 2.0, 50.0, 60.0, 99.0])
+    assert oi.sync_span_s(e, {}) == (1.0, 99.0)
+    assert oi.sync_span_s(e, {"segment_daq_sec": (40.0, 70.0)}) == (50.0, 60.0)
+    assert oi.sync_span_s(e, {"segment_daq_sec": (70.0, 80.0)}) is None

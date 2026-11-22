@@ -61,8 +61,11 @@ def run_session(s: str) -> dict:
     rv = PathResolver()
     animal, date = s.split(":")
     row = {"session": f"{animal}_{date}"}
-    if not list((Path(rv.root("behavior_out")) / "sessions" / animal / date).glob("*_trials.csv")):
-        return {**row, "error": "no behavior session (no _trials.csv; DAQ contacts unavailable)"}   # e.g. PS93 0805
+    # 11-21: the DAQ contacts come from the .h5 (`kinematics_chain.daq_contacts_ms`), not the behavior log, so a session
+    # without a log (PS93 0805: trials reconstructed from the DAQ + the cam1 recovered positions) is processed too
+    from wfield_local import daq_io
+    if daq_io.session_h5(animal, date, rv) is None:
+        return {**row, "error": "no DAQ .h5 (no trials / contacts)"}
     c1 = oi.session_windows(rv, PROD["cam1"], animal, date, "cam1")
     if c1 is None:
         return {**row, "error": "no cam1 output"}
