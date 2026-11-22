@@ -5,6 +5,45 @@ a video is made for review and Priya marks it as a keeper; never delete a listed
 Paths are under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/` (analysis desktop; `/n/files/Neurobio/MICROSCOPE/Priya/...`
 on O2).
 
+## Supplementary manuscript clips: PS94 far contra licks by epoch (2026-11-22)
+
+Folder: `session_poses/pose3d_4cam_3net_20261121_sync60/clips_supp_PS94_farcontra_20261122/` (`clips.csv` = every rendered
+trial with its aim error, rule rank, crop sizes; `checks_vs_production.csv` = the fusion re-run against the production 3-D,
+all 32 part checks agree; `stills/` = the frame at each first-lick peak). Priya 11-22: "4-view clips as supplemental (ensure
+the nose is not cut off in the cam1 view and the tongue isn't cut off in the cam4 view), with the 3d tracking, of a few PS94
+example far contra licks from pre, acute, subacute, and chronic (showing the aim deviation)".
+
+Each frame: four views (cam4 front, cam1 below, cam2 left side, cam3 right side; crops padded, never clipped; cam1 crop
+holds the nose with a margin and the stretch ahead of it, cam4 crop holds every tongue point and the target spout), with
+the cleaned 2-D keypoints and the production 3-D point reprojected; a top-down panel (mouth zero at +, six commanded spouts,
+target filled, dashed = target direction, solid = the first lick's direction from its peak extension on, with its aim
+error); a side panel; a slim timeline (trial period, DAQ contacts, 3-D licks, first lick highlighted). 10x slow motion.
+Aim error = `midline_err_ipsi` of the first lick (degrees out of the midline plane at peak extension, + = toward ipsi;
+`kinematics/licks.csv.gz`, cam4 lick windows on the four-camera 3-D). NOTE: this metric is not 0 before the stroke
+(PS94 pre median +30 deg), so the deviation to read is relative to pre; PS94's chronic median (+46) equals its subacute one
+(+46), i.e. PS94 has not returned to its pre value at far contra.
+
+Selection (rule, not by eye; `scripts/pose3d_supp_clips.py` docstring): pool = PS94 far_R first licks, August-onward,
+>= 15 3-D frames; per epoch the session whose median is closest to the epoch median (>= 20 licks), then that session's
+licks with <= 10 % single-view frames ranked by |aim error - epoch median|, all-licks->=3-cameras trials first; two trials
+per epoch.
+
+| video | session (epoch, day) | trials (first-lick aim error; epoch median) |
+|---|---|---|
+| `supp4cam_PS94_20260814_pre_farcontra.mp4` | PS94 0814 (pre, day -2) | 433 (+29.7), 318 (+29.6); median +29.8, n 673 |
+| `supp4cam_PS94_20260821_acute_farcontra.mp4` | PS94 0821 (acute, day +5) | 135 (+63.8), 258 (+63.7, first lick at +1140 ms); median +63.9, n 260 |
+| `supp4cam_PS94_20260825_subacute_farcontra.mp4` | PS94 0825 (subacute, day +9) | 86 (+45.9), 361 (+45.1); median +46.5, n 401 |
+| `supp4cam_PS94_20260924_chronic_farcontra.mp4` | PS94 0924 (chronic, day +39) | 474 (+45.8), 223 (+45.3); median +45.6, n 734 |
+| `supp4cam_PS94_farcontra_4epochs.mp4` | the four above in sequence | |
+
+Encoding: the `.mp4` files are H.264 Main / level 4.0 / 25 fps; every one also has a `_win.mp4` copy for the default
+Windows players (Constrained Baseline, level 3.1, no B-frames, yuv420p, 1200 x 736, constant 30 fps, avc1, faststart;
+Priya 11-22: earlier clips opened only in VLC).
+
+Remake (dlc env, worktree root, `MKL_THREADING_LAYER=SEQUENTIAL`, `PYTHONPATH=<worktree>`):
+
+    python -m scripts.pose3d_supp_clips --out M:/MICROSCOPE/Priya/DeepLabCut/Widefield/session_poses/pose3d_4cam_3net_20261121_sync60/clips_supp_PS94_farcontra_20261122 --n 2 --jobs 2
+
 ## Four-camera lick clips, production outputs (2026-11-22) -- CURRENT four-camera examples
 
 Folder: `session_poses/pose3d_4cam_3net_20261121_sync60/clips_20261122/` (README.md there: inputs, what each frame shows,
