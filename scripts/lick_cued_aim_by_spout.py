@@ -64,7 +64,8 @@ def session_spout() -> pd.DataFrame:
     g = p.groupby(["animal", "label", "epoch", "pos"]).off.agg(["mean", "size"]).reset_index()
     g = g[g["size"] >= MINN].rename(columns={"mean": "off", "size": "n"})
     w = p.groupby(["animal", "label", "epoch"]).apply(lambda x: rm.weighted(x, MINN)).rename("off").reset_index()
-    w = w.dropna().assign(pos="weighted", n=p.groupby("label").size().reindex(w.label).to_numpy())
+    w = w.dropna()                     # 11-22: n indexed by the KEPT rows' labels (was the pre-dropna w: length mismatch)
+    w = w.assign(pos="weighted", n=p.groupby("label").size().reindex(w.label).to_numpy())
     g = pd.concat([g, w], ignore_index=True)
     base = g[g.epoch == "pre"].groupby(["animal", "pos"]).off.mean()
     g["chg"] = g.off - base.reindex(pd.MultiIndex.from_arrays([g.animal, g.pos])).to_numpy()  # + = contra

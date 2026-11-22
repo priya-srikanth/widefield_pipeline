@@ -153,6 +153,8 @@ def signature(rv=None) -> str:
             h.update(m.read_bytes())
         h.update(inspect.getsource(CL.lick_train).encode())
         h.update(inspect.getsource(apply_floor).encode())
+        h.update(inspect.getsource(fused_table).encode())          # 11-22: lick_idx convention lives here
+        h.update(inspect.getsource(renumber_lick_idx).encode())
         h.update(f"floor{CL.MIN_ILI_MS}:long{CL.LONG_CAM1_ONLY_MS}".encode())
         _SIG[str(d)] = h.hexdigest()[:10]
     return f"fused:{run}:{_SIG[str(d)]}"
@@ -316,10 +318,22 @@ def fused_table(U: pd.DataFrame, ix: pd.DataFrame) -> pd.DataFrame:
     A["daq_peak_s"] = oo.trial_ms_to_daq(ix, A.trial_id, A.t_ms, look=look)
     A = A[A.trial_id.isin(tr.index)]                       # a lick of a trial cam4's windows do not hold: no clock
     A = A.sort_values(["trial_id", "t_ms"], kind="mergesort")
-    A["lick_idx"] = A.groupby("trial_id").cumcount()
+    # lick_idx counts WITHIN (trial, table) in peak order, as licks_all (the legacy whole-session table): lick_idx 0 of
+    # the post-cue table = the trial's first post-cue lick. Until 11-22 it counted across ALL contexts of the trial, so
+    # post-cue lick 0 was usually a pre-cue lick and every "lick_idx == 0 = first post-cue lick" reader
+    # (iti_first_lick, iti_recovery_measure, lick_correction, session_pace_table, ...) lost ~3/4 of its first licks
+    A["lick_idx"] = renumber_lick_idx(A, ["trial_id"], "t_ms")
     A["lick_key"] = lick_key(A.trial_id, A.t_ms)
     A["source"] = "fused"
     return A.sort_values("daq_on_s", kind="stable").reset_index(drop=True)
+
+
+def renumber_lick_idx(A: pd.DataFrame, by: list, order: str) -> np.ndarray:
+    """THE lick_idx convention of the fused train: 0.. within (``by`` + table) in ``order`` (peak) order; rows without a
+    table (none in practice) count within ``by`` alone. Pure (tested). Returns values aligned to ``A``'s index."""
+    keys = list(by) + (["table"] if "table" in A else [])
+    o = A.sort_values(keys + [order], kind="mergesort")
+    return o.groupby(keys, dropna=False).cumcount().reindex(A.index).to_numpy()
 
 
 _MEMO: dict = {}

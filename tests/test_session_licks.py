@@ -92,8 +92,27 @@ def test_fused_table_context_and_daq_clock():
     np.testing.assert_allclose(A.daq_on_s, [10 - 1.2, 10.032, 10.3, 14.0])
     np.testing.assert_allclose(A.daq_peak_s, [10 - 1.15, 10.05, 10.33, 14.02], atol=0.0021)   # nearest frame
     assert A.lick_key.tolist() == ["1:-1150.0", "1:50.0", "1:330.0", "1:4020.0"]
-    assert (A.source == "fused").all() and A.lick_idx.tolist() == [0, 1, 2, 3]
+    # 11-22: lick_idx counts within (trial, table), as licks_all: the post-cue lick is lick 0 of the post-cue table
+    assert (A.source == "fused").all() and A.lick_idx.tolist() == [0, 0, 0, 0]
     assert A.segment.tolist() == ["", "", "", "tail"]          # ITI after the stop = the trial's tail
+
+
+def test_fused_lick_idx_first_post_cue_lick_is_zero():
+    U = _fused([(1, "far_L", -1200, -1100, -1150, True, False, False, False),
+                (1, "far_L", -800, -760, -780, True, False, False, False),
+                (1, "far_L", 300, 360, 330, True, True, False, False),
+                (1, "far_L", 450, 500, 470, True, True, False, False),
+                (1, "far_L", 600, 650, 620, True, True, False, False)])
+    A = SL.fused_table(U, _ix()).sort_values("t_ms")
+    assert A[A.context == "pre_cue"].lick_idx.tolist() == [0, 1]
+    assert A[A.context == "post_cue"].lick_idx.tolist() == [0, 1, 2]
+
+
+def test_renumber_lick_idx_within_table_in_peak_order():
+    A = pd.DataFrame({"session": ["s"] * 5, "trial_id": [1, 1, 1, 2, 2], "table": ["licks_precue", "licks", "licks",
+                                                                                   "licks", "licks"],
+                      "t": [-5.0, 2.0, 1.0, 3.0, 4.0]}, index=[10, 11, 12, 13, 14])
+    assert SL.renumber_lick_idx(A, ["session", "trial_id"], "t").tolist() == [0, 1, 0, 0, 1]
 
 
 def test_session_licks_fused_refuses_old_format_and_reads_new(tmp_path, monkeypatch):
