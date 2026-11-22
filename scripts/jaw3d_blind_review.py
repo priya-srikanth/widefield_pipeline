@@ -375,6 +375,8 @@ def render(out: Path, jobs: int, zoom: bool = False) -> None:
     items = [(s, g[["id", "trial_id", "stop_ms"]].to_dict("records"), out, zoom)
              for s, g in K.groupby("session", sort=True)]
     res, fails = parallel.fan_out(items, render_session, jobs=jobs, label="session")
+    res = sorted(res, key=lambda x: x[0][0])            # completion order -> session order (repo rule 6 / 9)
+    fails = sorted(fails, key=lambda x: x[0][0])
     flat = [d for _it, r in res for d in r]
     for it, msg in fails:
         flat += [dict(id=r["id"], status=f"failed: {msg}") for r in it[1]]
