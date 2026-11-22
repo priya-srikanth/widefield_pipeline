@@ -12,7 +12,7 @@ number drawn here comes from a production run:
 The per-camera CLEANED 2-D keypoints and which of them the robust fusion used are not stored by the production run, so
 `pose3d_side.fuse_session` is re-run for the session under the SAME routing env as the production run (``--preset``);
 the script then CHECKS that its fused 3-D equals the production frames table on every rendered frame (and that the
-recomputed 3-D licks equal `_licks.csv` on the clip trials) and refuses to render if not. The 3-D drawn is always the
+recomputed 3-D licks equal `_licks.csv` on the clip trials, peaks within one frame) and refuses to render if not. The 3-D drawn is always the
 production table's.
 
     conda activate dlc        # MKL_THREADING_LAYER=SEQUENTIAL, PYTHONPATH=<worktree>
@@ -330,7 +330,11 @@ def prep_session(rv, session: str, T: dict, clips: list, floor_ms: float) -> dic
     L60 = P3.lick_peaks(Ssub, Z["rig"], cuts=cuts, min_ili_ms=floor_ms)
     L0 = P3.lick_peaks(Ssub, Z["rig"], cuts=cuts, min_ili_ms=0.0)
     Lp = T["L"][T["L"].trial_id.isin(trs)]
-    same = len(L60) == len(Lp) and np.allclose(L60.t_peak_ms.to_numpy(float), Lp.t_peak_ms.to_numpy(float))
+    # same licks: onsets and lengths exact; the peak may move by one frame (4 ms) because the frames table is stored to
+    # 3 decimals, so two near-equal extension frames can swap (PS94 0903 t463: 352 vs 356 ms)
+    same = (len(L60) == len(Lp) and np.allclose(L60.t_onset_ms.to_numpy(float), Lp.t_onset_ms.to_numpy(float))
+            and np.array_equal(L60.n_frames.to_numpy(), Lp.n_frames.to_numpy())
+            and np.abs(L60.t_peak_ms.to_numpy(float) - Lp.t_peak_ms.to_numpy(float)).max(initial=0) <= 4.0 + 1e-6)
     out["checks"].append({"clip": "3-D licks", "part": "tongue", "frames": len(L60), "same_missing": same,
                           "max_abs_mm": np.nan, "used_agree": np.nan})
     out["lick_check"] = (same, len(L60), len(Lp))
@@ -651,9 +655,30 @@ def run_session(item) -> dict:
     else:
         P = prep_session(rv, session, T, [c for _, cl in sets for c in cl], pr["floor_ms"])
         f_prep.write_bytes(pickle.dumps(P))
-    if not P["lick_check"][0]:
+    if not P["lick_check"][0] and not _lick_check_again(rv, session, T, P):
         raise RuntimeError(f"{session}: recomputed 3-D licks != production _licks.csv {P['lick_check'][1:]}")
     return render_session(rv, session, pr, T, sets, P, out, stills)
+
+
+def _lick_check_again(rv, session: str, T: dict, P: dict) -> bool:
+    """Re-run the 3-D lick check of a cached prep under the current rule (a prep written before the 4 ms peak
+    tolerance)."""
+    from scripts.apparatus_mouth import _rig
+    from wfield_local import camera_licks as CL
+    from wfield_local import pose3d as P3
+    animal, date = session.split(":")
+    trs = sorted({c["trial"] for c in P["clips"]})
+    Ss = T["S"][T["S"].trial_id.isin(trs)].reset_index(drop=True)
+    L60 = P3.lick_peaks(Ss, _rig(rv, animal, date), min_ili_ms=P["floor_ms"],
+                        cuts=CL.event_cuts(CL.production_events(rv, animal, date, span="all"), S=Ss))
+    Lp = T["L"][T["L"].trial_id.isin(trs)]
+    ok = (len(L60) == len(Lp) and np.allclose(L60.t_onset_ms.to_numpy(float), Lp.t_onset_ms.to_numpy(float))
+          and np.array_equal(L60.n_frames.to_numpy(), Lp.n_frames.to_numpy())
+          and np.abs(L60.t_peak_ms.to_numpy(float) - Lp.t_peak_ms.to_numpy(float)).max(initial=0) <= 4.0 + 1e-6)
+    if ok:
+        P["lick_check"] = (True, len(L60), len(Lp))
+        P["checks"] = [c if c["clip"] != "3-D licks" else {**c, "same_missing": True} for c in P["checks"]]
+    return ok
 
 
 def _prep_file(preset: str, animal: str, date: str, t0: float, t1: float, flags: tuple) -> Path:
