@@ -373,6 +373,39 @@ def session_onsets_s(label: str, rv=None, contexts: tuple | None = None, col: st
     return np.sort(t[np.isfinite(t)])
 
 
+#: Which lick set the TRIAL-WINDOW (post-cue) 3-D kinematics readers use (Priya 11-22: "we should use 4 camera licks for
+#: all figures (manuscript and otherwise)"). Unset / "fused" = ``kinematics_fused_postcue`` (the fused four-camera train,
+#: post-cue licks only, lick_idx renumbered within the trial: a drop-in for the cam4 ``kinematics`` folder, written by
+#: `scripts/pose3d_kin_postcue.py`) whenever a fused lick set is in force; "cam4" = the legacy cam4 lick windows
+#: (``kinematics``), kept for comparison. Why: cam4 misses ~6 % of post-cue licks (12 % at far contra, 9 % of
+#: close-centre first licks) and 6.5 % of its windows are fragments that miss the 3-D peak
+#: (docs/status/CAM4_LONG_LICK_2026-11-22.md).
+KIN_ENV = "WIDEFIELD_KIN_LICKS"
+KIN_POSTCUE = "kinematics_fused_postcue"
+
+
+def kin_name() -> str:
+    """The post-cue 3-D kinematics folder in force (`KIN_ENV`): ``kinematics_fused_postcue`` or ``kinematics`` (cam4)."""
+    v = os.environ.get(KIN_ENV, "").strip().lower()
+    if v == "cam4":
+        return "kinematics"
+    if v not in ("", "fused"):
+        raise ValueError(f"{KIN_ENV}={v!r}: expected 'fused' or 'cam4'")
+    return KIN_POSTCUE if fused_on() else "kinematics"
+
+
+def kin_sfx() -> str:
+    """Output-folder suffix of a writer whose result depends on the post-cue lick set: '' on the cam4 windows, '_fused'
+    on the four-camera train, so a fused run never overwrites the cam4 build (phase, cue_traces, figures/pooled)."""
+    return "" if kin_name() == "kinematics" else "_fused"
+
+
+def kin_dir(rv=None) -> Path:
+    """<pose3d>/`kin_name()` -- the folder holding licks.csv.gz / jaw_trials.csv.gz / sessions.csv / by_animal.csv."""
+    from wfield_local.pose3d import pose3d_dir
+    return pose3d_dir(rv) / kin_name()
+
+
 def kin_all_name() -> str:
     """The whole-session 3-D kinematics folder of the selected lick set: ``kinematics_fused`` (fused train,
     `scripts/pose3d_kinematics --licks fused`) or ``kinematics_all`` (legacy cam4 licks_all, ``--licks all``)."""

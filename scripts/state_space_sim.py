@@ -33,6 +33,7 @@ Readouts (session vs session, median over the comparison sessions):
   spread    trial-to-trial spread inside P around each spout mean, ratio
 """
 from __future__ import annotations
+from wfield_local.session_licks import kin_name as _kin_name  # 11-22: fused post-cue unless WIDEFIELD_KIN_LICKS=cam4
 
 import argparse
 import glob
@@ -67,7 +68,7 @@ XTAG = "hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801"           # run_m
 WTAG = XTAG + "_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk"   # run_mode.tag(): tables
 ITI = str(ENCODING / "iti_licks" / XTAG / il.SESS_NAME)                 # per-trial extracts (iti_licks.XOUT / SESS_NAME)
 ITI_W = ENCODING / "iti_licks" / WTAG                                    # run tables (iti_licks.OUT_W): aim, first-lick times
-LICKS3D = pose3d_dir() / "kinematics" / "licks.csv.gz"                   # 3-D first licks (landing join)
+LICKS3D = pose3d_dir() / _kin_name() / "licks.csv.gz"                   # 3-D first licks (landing join)
 # OUTPUTS (11-12, Priya "route outputs by run"): under the rebuild root of PROFILE, beside the encoder tree they are built
 # from -- one run, one folder. Before 11-12 they went to Widefield/state_space_recovery on the share root: outside the
 # rebuild root (its write fence refused them under the profile, so the arm ran with the profile stripped) and shared by

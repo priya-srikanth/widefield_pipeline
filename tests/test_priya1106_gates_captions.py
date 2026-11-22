@@ -121,6 +121,7 @@ def test_jaw_only_figs_writes_to_the_derived_pose_area():
 
 
 def test_cue_traces_keep_ids_and_set(session, monkeypatch, tmp_path):
+    monkeypatch.setenv("WIDEFIELD_KIN_LICKS", "cam4")       # 11-22: the cam4-window folder names (fused adds _fused)
     import pose3d_cue_traces as ct
     from wfield_local import orofacial_cohort as oc
     monkeypatch.setattr(oc, "engagement_keep", lambda *a, **k: ({7}, "reference"))
@@ -174,7 +175,8 @@ def test_summary_fig_rows_are_over_working_trials(session):
     assert r["jaw_far_bias_mm"] == pytest.approx(0.0)
 
 
-def test_spout_error_gated_licks(session, tmp_path):
+def test_spout_error_gated_licks(session, tmp_path, monkeypatch):
+    monkeypatch.setenv("WIDEFIELD_KIN_LICKS", "cam4")       # 11-22: the fixture writes the cam4-window folder
     import pose3d_spout_error as se
     L, _J = _kin_tables()
     (tmp_path / "kinematics").mkdir()

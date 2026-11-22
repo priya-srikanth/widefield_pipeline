@@ -26,6 +26,8 @@ every post-cue lick / every 3-D jaw trial, no gate -- ``WFIELD_KIN_GATE=legacy``
 spout_error_legacygate/, writes figures_legacygate/).
 """
 from __future__ import annotations
+from wfield_local.session_licks import kin_sfx as _kin_sfx
+from wfield_local.session_licks import kin_name as _kin_name  # 11-22: fused post-cue unless WIDEFIELD_KIN_LICKS=cam4
 from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
@@ -245,13 +247,13 @@ def main(argv=None) -> int:
     from wfield_local import trial_classes as tc
     rv = PathResolver()
     d3 = pose3d_dir(rv)
-    SE = pd.read_csv(tc.kin_out_dir(d3, "spout_error") / "per_session.csv", dtype={"date": str})
+    SE = pd.read_csv(tc.kin_out_dir(d3, "spout_error" + _kin_sfx(), "pose3d_spout_error" + _kin_sfx()) / "per_session.csv", dtype={"date": str})
     if tc.kin_gate() == "working":       # A20: the kinematics rows over camera-working-period licks / jaw trials
-        K = gated_sessions(pd.read_csv(d3 / "kinematics" / "licks.csv.gz", dtype={"date": str}),
-                           pd.read_csv(d3 / "kinematics" / "jaw_trials.csv.gz", dtype={"date": str}))
+        K = gated_sessions(pd.read_csv(d3 / _kin_name() / "licks.csv.gz", dtype={"date": str}),
+                           pd.read_csv(d3 / _kin_name() / "jaw_trials.csv.gz", dtype={"date": str}))
     else:
-        K = pd.read_csv(d3 / "kinematics" / "sessions.csv", dtype={"date": str})
-    out = tc.kin_out_dir(d3, "figures", "pose3d_summary_fig")
+        K = pd.read_csv(d3 / _kin_name() / "sessions.csv", dtype={"date": str})
+    out = tc.kin_out_dir(d3, "figures" + _kin_sfx(), "pose3d_summary_fig" + _kin_sfx())
     out.mkdir(exist_ok=True)
     for animal in sorted(set(K.animal)):
         if not a.contra_only:

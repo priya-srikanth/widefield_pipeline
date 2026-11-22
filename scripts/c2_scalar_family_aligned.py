@@ -69,8 +69,12 @@ from wfield_local.pose3d import pose3d_dir as _pose3d_dir  # noqa: E402
 LPV36 = Path(_oo.root(_PR())) / _RUN      # name kept for its readers
 AIM = _oo.encoding_root(_RUN) / "iti_licks"
 STATS = LPV36 / "cohort/tables/prepost/stats"
+from wfield_local import session_licks as _SL  # noqa: E402
 POSE3D = _pose3d_dir()
-REACH = POSE3D / "figures/pooled"
+# 11-22 (Priya: four-camera licks for every figure): the 3-D inputs follow `session_licks.kin_name()` -- the fused
+# post-cue kinematics (kinematics_fused_postcue, figures/pooled_fused) unless WIDEFIELD_KIN_LICKS=cam4
+KIN = POSE3D / _SL.kin_name()
+REACH = POSE3D / ("figures/pooled" + _SL.kin_sfx())
 
 POS = ["close_ipsi", "close_mid", "close_contra", "far_ipsi", "far_mid", "far_contra"]
 HIT_POS = dict(zip(["nI", "nM", "nC", "fI", "fM", "fC"], POS))
@@ -246,8 +250,8 @@ def main(argv=None):
     ap.add_argument("--aim", type=Path, default=AIM)
     ap.add_argument("--stats", type=Path, default=STATS)
     ap.add_argument("--reach", type=Path, default=REACH)
-    ap.add_argument("--reach-sessions", type=Path, default=POSE3D / "kinematics/sessions.csv")
-    ap.add_argument("--lick3d", type=Path, default=POSE3D / "kinematics/c2_lick3d_session_summary_ungated.csv",
+    ap.add_argument("--reach-sessions", type=Path, default=KIN / "sessions.csv")
+    ap.add_argument("--lick3d", type=Path, default=KIN / "c2_lick3d_session_summary_ungated.csv",
                     help="per-session 3-D lick summary (scripts/c2_lick3d_session_summary.py; 11-22: was read from "
                          "--ms-data, the hand-made manuscript copy); the old *_stats.csv stars still come from --ms-data")
     ap.add_argument("--out-dir", type=Path, default=None,

@@ -11,6 +11,7 @@ Output `session_poses/pose3d/crosscheck/jaw_{per_trial.csv.gz, agreement.csv}` (
 rebuild root).
 """
 from __future__ import annotations
+from wfield_local.session_licks import kin_name as _kin_name  # 11-22: fused post-cue unless WIDEFIELD_KIN_LICKS=cam4
 
 
 import numpy as np
@@ -32,7 +33,7 @@ def main(argv=None) -> int:
     from wfield_local.paths import PathResolver
     rv = PathResolver()
     d3 = pose3d_dir(rv)
-    J3 = pd.read_csv(d3 / "kinematics" / "jaw_trials.csv.gz", dtype={"date": str})
+    J3 = pd.read_csv(d3 / _kin_name() / "jaw_trials.csv.gz", dtype={"date": str})
     from wfield_local import orofacial_cohort as oc        # the cohort's gate-named jaw table (A27)
     J4 = pd.read_csv(oc.cohort_dir("tables", "jaw_lateral", run=V36, rv=rv) / "trials.csv", dtype={"date": str})
     J4 = J4[J4.animal.isin(J3.animal.unique())]
