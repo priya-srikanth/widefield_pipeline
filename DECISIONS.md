@@ -24522,3 +24522,21 @@ P(attempt) .09, stay .82) and NOT the manuscript's (partial P(attempt) .57, stay
 Also: a warm start from the manuscript's parameters converges to the new solution, and the manuscript's parameters
 score the new data 5,434 log-lik units worse. The production refit on the 0.20 mm classes (+ tongue_at_lips grouped
 with jaw-only) is in `glm_hmm/v1_floor020`; Priya chose the refit (A), engaged states combined for reporting.
+
+## 2026-11-22 (evening) -- Encoder refit on TRUE four-camera licks (lick mode `fourcam`); supersedes the morning fit
+Priya 11-22 ("i think we need to - do both"): the 08:53-13:00 frozen-encoder fit (COMBINED_ENCODING_LICKS=fused) was
+NOT four-camera: `_load_behaviour` took cam4's licks.csv as the lick events and mode fused only ADDED the fused post-cue
+licks cam4 missed (including the cam1-only flicks Priya ruled are not licks), and with TONGUE=3d the executed angle came
+from the cam4-window kinematics gated by cam4's 2-D trace. New mode `fourcam` (`combined_encoding.LICK_MODES`, now the
+default whenever a fused train is selected): the post-cue lick events ARE the fused table's "licks" rows minus cam1-only
+(`fourcam_licks`, tested), onset = fused daq_on_s; pre-cue / ITI (LICKS_ALL) from the same train; the executed 3-D angle
+= the fused post-cue kinematics (`session_licks.kin_name()` = kinematics_fused_postcue, blank unless >= 2 views) by
+lick_key, not gated by cam4; cam4's 2-D angle / reach (EXEC modes only) by lick_key where cam4 saw the lick;
+`frozen_encoder.lick_landing_weights` (FROZEN_LICKSPOUT / LICKLAND) and `_kin_all` (TE) follow the fused list by
+lick_key. Smoke check (behaviour load): PS93_0814 5,604 post-cue licks (= 5,964 fused "licks" rows minus 360 cam1-only;
+fused mode had 5,605 cam4 + 387 extras), PS94_0821 3,596 (= 3,797 - 201; fused mode 3,577 + 239); fourcam onsets differ
+from cam4's by a median 1-3 ms (the fused onset is the earliest camera's). The refit uses the REBUILT classes (0.20 mm 3-D
+jaw floor, tongue_at_lips grouped with jaw-only; qc/trial_attempts.csv 14:32, attempted 54,402). Morning outputs kept
+under new names: `imaging_encoding/frozen_encoder_gate-attempted_v7g3_t3d_frA_licks-fused_20261122/`,
+`imaging_encoding/iti_licks_licks-fused_20261122/`. Chain: `lp_stage/phaseB_20261122/neural_chain_fourcam.py`
+(worktree `Github/wf_enc4cam`, branch pilot/encoder-fourcam), log `logs/neural_fourcam.log`.

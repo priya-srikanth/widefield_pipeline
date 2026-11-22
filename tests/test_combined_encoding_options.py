@@ -202,11 +202,12 @@ def test_out_dir_names(monkeypatch, env, suffix):
     assert ce.out_dir(None, "movement_first") == Path("ROOT") / "RUN" / "imaging_encoding" / f"movement_first{suffix}"
 
 
-def test_lick_mode_defaults_to_fused_when_selected(monkeypatch):
-    """Priya 11-22: the encoder's default lick set is the fused train whenever one is selected; explicit env wins."""
+def test_lick_mode_defaults_to_fourcam_when_selected(monkeypatch):
+    """Priya 11-22: the encoder's default lick set is the four-camera train itself (fourcam) whenever one is selected;
+    explicit env wins."""
     monkeypatch.delenv(ce.LICKS_ENV, raising=False)
     monkeypatch.setenv("WIDEFIELD_FUSED_LICKS", "lp_side_x_gapfix60")
-    assert ce.lick_mode() == "fused"
+    assert ce.lick_mode() == "fourcam"
     monkeypatch.setenv("WIDEFIELD_FUSED_LICKS", "off")
     assert ce.lick_mode() == "cam4"
     monkeypatch.setenv(ce.LICKS_ENV, "cam4")
@@ -260,3 +261,20 @@ def test_licks_all_invalid_mode(monkeypatch):
     monkeypatch.setenv(ce.LICKS_ALL_ENV, "everything")
     with pytest.raises(ValueError):
         ce.raw_blocks(B, ft)
+
+
+def test_fourcam_licks_drops_cam1_only_and_orders_by_onset():
+    """fourcam lick set (11-22 evening): every fused lick except the cam1-ONLY ones, in daq_on_s order."""
+    import pandas as pd
+    A = pd.DataFrame({"cams": ["cam1+cam4", "cam1", "cam4", "cam2+cam3", "cam1"],
+                      "daq_on_s": [3.0, 1.0, 2.0, 0.5, 4.0], "table": ["licks"] * 5})
+    F = ce.fourcam_licks(A)
+    assert (F.cams != "cam1").all()
+    assert F.daq_on_s.tolist() == [0.5, 2.0, 3.0]
+    assert "fourcam" in ce.LICK_MODES
+
+
+def test_fourcam_has_no_cam1_extra_events():
+    """fourcam: the fused licks are the main lick table, so no cam1 'extra' events are added on top."""
+    import pandas as pd
+    assert ce._cam1_lick_events(None, "PS92", "20260818", pd.DataFrame(), "fourcam") == (None, None)
