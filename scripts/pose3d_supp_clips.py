@@ -40,10 +40,21 @@ import pandas as pd
 
 from scripts import pose3d_lick_clips as LC
 
-ANIMAL, POSITION = "PS94", "far_R"
+ANIMAL, POSITION = "PS94", "far_R"      # default animal; POSITION = far contra for the left-lesioned PS94 / PS95
+#: epoch colours (manuscript `vls_style.EP`, Paul Tol) -> BGR, for the epoch banner and title cards
+EP_BGR = {"pre": (0xBB, 0xBB, 0xBB), "acute": (0x77, 0x33, 0xAA), "subacute": (0xAA, 0x77, 0x44),
+          "chronic": (0x33, 0x88, 0x22)}
+TITLE_S = 3.0          # title card length (s of video)
+
+
+def far_contra(animal: str) -> str:
+    from wfield_local import config
+    lat = str((config.animals().get(animal) or {}).get("stroke_laterality", "L"))
+    return "far_R" if lat == "L" else "far_L"
 PRESET = "3net_20261121_sync60_gapfix60"
 MAX_SINGLE_VIEW = 0.10   # candidate licks: <= 10 % of 3-D frames from one view (rendered licks well tracked)
 KIN = LC.DLC / "session_poses" / "pose3d_4cam_3net_20261121_sync60" / "kinematics" / "licks.csv.gz"
+KIN_FUSED = KIN.parent.parent / "kinematics_fused" / "licks.csv.gz"
 EPOCHS = ("pre", "acute", "subacute", "chronic")
 TILE = 300
 W = 4 * TILE
@@ -53,11 +64,24 @@ NOSE_MARGIN = 90       # px around the nose, cam1 (plus the stretch ahead of it)
 TONGUE_MARGIN = 60     # px around every tongue point and the target spout, cam4
 
 
-def select(n: int) -> pd.DataFrame:
-    """The rule in the module doc -> one row per epoch: session, epoch median, ranked candidate trials."""
+def lick_pool(licks: str = "cam4", animal: str = ANIMAL) -> pd.DataFrame:
+    """PS94 far_R FIRST licks per trial. ``cam4`` = `kinematics/licks.csv.gz` (cam4 lick windows on the four-camera 3-D),
+    first = lowest lick_idx. ``fused`` (Priya 11-22: every figure on the four-camera fused lick list, kinematics only on
+    licks with 3-D support) = `kinematics_fused/licks.csv.gz`, context post_cue, n_3d > 0, cam1-only licks out, first =
+    the earliest fused lick after the cue (daq_peak_s)."""
+    if licks == "fused":
+        A = pd.read_csv(KIN_FUSED)
+        A = A[(A.animal == animal) & (A.position == far_contra(animal)) & (A.context == "post_cue") & (A.n_3d > 0)
+              & (A.cams.astype(str) != "cam1")]
+        return A[A.daq_peak_s == A.groupby(["session", "trial_id"]).daq_peak_s.transform("min")]
     A = pd.read_csv(KIN)
-    A = A[(A.animal == ANIMAL) & (A.position == POSITION)]
-    A = A[A.lick_idx == A.groupby(["session", "trial_id"]).lick_idx.transform("min")]
+    A = A[(A.animal == animal) & (A.position == far_contra(animal))]
+    return A[A.lick_idx == A.groupby(["session", "trial_id"]).lick_idx.transform("min")]
+
+
+def select(n: int, licks: str = "cam4", animal: str = ANIMAL) -> pd.DataFrame:
+    """The rule in the module doc -> one row per epoch: session, epoch median, ranked candidate trials."""
+    A = lick_pool(licks, animal)
     A = A[A.date.astype(str).str[4:] >= "0801"]
     A = A[(A.n_3d >= 15) & np.isfinite(A.midline_err_ipsi)]
     rows = []
@@ -69,7 +93,7 @@ def select(n: int) -> pd.DataFrame:
         sess = (s["median"] - m).abs().sort_values(kind="mergesort").index[0]
         gs = g[(g.session == sess) & (g.share_single_view <= MAX_SINGLE_VIEW)]
         gs = gs.assign(d=(gs.midline_err_ipsi - m).abs()).sort_values(["d", "trial_id"])
-        rows.append({"epoch": ep, "session": sess, "epoch_median": m, "epoch_n": len(g),
+        rows.append({"animal": animal, "position": far_contra(animal), "epoch": ep, "session": sess, "epoch_median": m, "epoch_n": len(g),
                      "session_median": float(s.loc[sess, "median"]), "session_n": int(s.loc[sess, "size"]),
                      "cands": [(int(r.trial_id), float(r.midline_err_ipsi), float(r.t_peak_3d), float(r.midline),
                                 float(r.midline_target), float(r.reach_mm)) for r in gs.itertuples()]})
@@ -87,7 +111,7 @@ def _strict(T: dict, tr: int, t0: float, t1: float) -> bool:
 
 def run_epoch(item) -> dict:
     """Module level (fan_sessions pickles it). item = (row dict, n, out, prep_dir)."""
-    row, n, out, prep_dir = item
+    row, n, out, prep_dir, sfx = item
     os.environ.update(LC.PRESETS[PRESET]["env"])
     from wfield_local.paths import PathResolver
     rv = PathResolver()
@@ -119,7 +143,7 @@ def run_epoch(item) -> dict:
     if not P["lick_check"][0] and not LC._lick_check_again(rv, session, T, P):
         raise RuntimeError(f"{session}: recomputed 3-D licks != production _licks.csv {P['lick_check'][1:]}")
     info = {c[0]: c for c in cands}
-    files = render_supp(rv, P, T, row, info, Path(out))
+    files = render_supp(rv, P, T, row, info, Path(out), sfx)
     return {"rows": files["rows"], "checks": [{"session": session, **c} for c in P["checks"]],
             "video": files["video"], "stills": files["stills"]}
 
@@ -181,7 +205,7 @@ class H264Main(LC.H264):
         self.wh = (w, h)
 
 
-def render_supp(rv, P: dict, T: dict, row: dict, info: dict, out: Path) -> dict:
+def render_supp(rv, P: dict, T: dict, row: dict, info: dict, out: Path, sfx: str = "") -> dict:
     import cv2
     import matplotlib
     matplotlib.use("Agg")
@@ -192,6 +216,7 @@ def render_supp(rv, P: dict, T: dict, row: dict, info: dict, out: Path) -> dict:
     from wfield_local import config, epochs
     from wfield_local.orofacial_cohort import pos_key
     animal, date = P["session"].split(":")
+    pos_ = row["position"]
     ev = BE.get_or_compute(rv, animal, date)
     daq_s = BE.lick_onsets_s(ev) if ev is not None else np.array([])
     cues = LC.cue_daq_s(LC.PRESETS[PRESET]["env"]["WIDEFIELD_LICK_INPUT_RUN"], animal, date)
@@ -202,18 +227,18 @@ def render_supp(rv, P: dict, T: dict, row: dict, info: dict, out: Path) -> dict:
     order = P["order"]
     clips = P["clips"]
     tgt = P["tgt"]
-    tgt_px = {c: P["spout_px"][c][list(tgt).index(POSITION)] for c in order}
+    tgt_px = {c: P["spout_px"][c][list(tgt).index(pos_)] for c in order}
     crops = _crops(P, clips, P["nose_px"], P["mouth_px"], tgt_px)
     readers = {c: Reader(P["videos"][c]) for c in order}
     view_order = [c for c in ("cam4", "cam1", "cam2", "cam3") if c in order]
     jidx = {c: order.index(c) for c in order}
     allpos = np.array(list(tgt.values()))
-    T_ = tgt[POSITION]
+    T_ = tgt[pos_]
     fig, (axt, axs) = plt.subplots(1, 2, figsize=(W / 100, 3.2), dpi=100)
     F_ = cv2.FONT_HERSHEY_SIMPLEX
     out.mkdir(parents=True, exist_ok=True)
     (out / "stills").mkdir(exist_ok=True)
-    f_vid = out / f"supp4cam_{animal}_{date}_{ep}_farcontra.mp4"
+    f_vid = out / f"supp4cam_{animal}_{date}_{ep}_farcontra{sfx}.mp4"
     vw, rows, stills = None, [], []
     L3 = T["L"]
     for cl in clips:
@@ -269,7 +294,7 @@ def render_supp(rv, P: dict, T: dict, row: dict, info: dict, out: Path) -> dict:
                                         (axs, (1, 2, "ap (mm, + = out)", "dv (mm, + = up)"))):
                 ax.cla()
                 for q, cc in tgt.items():
-                    ax.scatter(cc[i], cc[jj], s=60, facecolor=HEX["spout"] if q == POSITION else "none",
+                    ax.scatter(cc[i], cc[jj], s=60, facecolor=HEX["spout"] if q == pos_ else "none",
                                edgecolor="0.35", lw=0.9, zorder=2)
                 ax.scatter(0, 0, s=25, marker="+", color="0.3", zorder=2)
                 if ax is axt:
@@ -325,13 +350,16 @@ def render_supp(rv, P: dict, T: dict, row: dict, info: dict, out: Path) -> dict:
             for tt in np.arange(np.ceil(cl["t0"] / 100) * 100, cl["t1"] + 1e-6, 100):
                 cv2.putText(st, f"{tt:+.0f}", (X(tt) - 12, 64), F_, 0.33, (170, 170, 170), 1, cv2.LINE_AA)
             # header
-            bar = np.zeros((48, W, 3), np.uint8)
+            bar = np.zeros((70, W, 3), np.uint8)
+            bar[:22] = EP_BGR[ep]
+            cv2.putText(bar, f"{animal}   {ep_lab.upper()}   {day_lab}   far contra spout", (8, 16), F_, 0.55,
+                        (0, 0, 0) if ep == "pre" else (255, 255, 255), 1, cv2.LINE_AA)
             cv2.putText(bar, f"{animal}  {date[:4]}-{date[4:6]}-{date[6:]}  {ep_lab}  {day_lab}  trial {tr}  spout far "
-                        f"contra ({POSITION}, {pos_key(POSITION, str((config.animals().get(animal) or {}).get('stroke_laterality', 'L'))).replace('_', ' ')})   t = {t:+.0f} ms from cue   "
-                        f"{SLOW}x slow motion", (8, 19), F_, 0.52, (255, 255, 255), 1, cv2.LINE_AA)
+                        f"contra ({pos_}, {pos_key(pos_, str((config.animals().get(animal) or {}).get('stroke_laterality', 'L'))).replace('_', ' ')})   t = {t:+.0f} ms from cue   "
+                        f"{SLOW}x slow motion", (8, 41), F_, 0.52, (255, 255, 255), 1, cv2.LINE_AA)
             cv2.putText(bar, f"first-lick aim error {err:+.0f} deg (epoch median {row['epoch_median']:+.0f}, n = "
                         f"{row['epoch_n']}; pre-stroke median {row['pre_median']:+.0f}) | dot = 2-D keypoint used, ring = rejected, x = 3-D point "
-                        f"reprojected | nose yellow, jaw green, tongue red, spout blue", (8, 39), F_, 0.4,
+                        f"reprojected | nose yellow, jaw green, tongue red, spout blue", (8, 61), F_, 0.4,
                         (220, 220, 220), 1, cv2.LINE_AA)
             frame = np.vstack([bar, np.hstack(tiles), cv2.resize(im3, (W, int(W * im3.shape[0] / im3.shape[1]))), st])
             if frame.shape[0] % 2:
@@ -346,7 +374,7 @@ def render_supp(rv, P: dict, T: dict, row: dict, info: dict, out: Path) -> dict:
         for _ in range(LC.HOLD_FRAMES):
             vw.write(frame)
         rows.append({"file": f_vid.name, "session": f"{animal}_{date}", "epoch": ep, "day": day, "trial": tr,
-                     "position": POSITION, "t0_ms": cl["t0"], "t1_ms": cl["t1"], "first_lick_peak_ms": round(tpk),
+                     "position": pos_, "t0_ms": cl["t0"], "t1_ms": cl["t1"], "first_lick_peak_ms": round(tpk),
                      "aim_err_deg": round(err, 1), "lick_midline_deg": round(md, 1),
                      "target_midline_deg": round(mdt, 1), "reach_mm": round(reach, 2),
                      "epoch_median_deg": round(row["epoch_median"], 1), "pre_median_deg": round(row["pre_median"], 1), "epoch_n": row["epoch_n"],
@@ -367,6 +395,48 @@ def concat(files: list, f_out: Path) -> None:
                     "18", "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(f_out)], check=True,
                    creationflags=0x08000000)
     lst.unlink()
+
+
+def title_card(f_out: Path, hw: tuple, R: pd.DataFrame, ep: str, licks: str) -> Path:
+    """A TITLE_S-second card before each epoch: animal, epoch, post-stroke day, spout, epoch-median aim error and its
+    change from pre (frame size ``hw`` = the clips')."""
+    import cv2
+
+    from wfield_local import epochs
+    r = R[R.epoch == ep].iloc[0]
+    day = epochs.days_since_stroke(f"{r.animal}_{r.session.split('_')[1][4:]}")
+    h, w = hw
+    im = np.full((h, w, 3), 16, np.uint8)
+    im[: int(0.22 * h)] = EP_BGR[ep]
+    F_ = cv2.FONT_HERSHEY_SIMPLEX
+    fg = (0, 0, 0) if ep == "pre" else (255, 255, 255)
+    ep_lab = {"pre": "pre-stroke"}.get(ep, ep)
+    cv2.putText(im, f"{r.animal}  -  {ep_lab}", (40, int(0.14 * h)), F_, 1.6, fg, 3, cv2.LINE_AA)
+    lines = [f"post-stroke day {day:+d} (session {r.session.split('_')[1]})" if day is not None else r.session,
+             f"far contra spout ({r.position}; lesion left)",
+             f"first-lick aim error, epoch median {r.epoch_median:+.0f} deg (n = {r.epoch_n} first licks)",
+             ("pre-stroke reference" if ep == "pre" else f"change from pre: {r.epoch_median - r.pre_median:+.0f} deg"),
+             "+ = toward ipsi; lick list: " + ("four-camera fused, 3-D supported" if licks == "fused"
+                                              else "cam4 lick windows"),
+             "2 example trials (rule-selected near the epoch median), 10x slow motion"]
+    for k, t in enumerate(lines):
+        cv2.putText(im, t, (40, int(0.34 * h) + k * 46), F_, 0.85 if k < 4 else 0.62, (235, 235, 235),
+                    2 if k < 4 else 1, cv2.LINE_AA)
+    vw = H264Main(f_out, w, h)
+    for _ in range(int(TITLE_S * LC.OUT_FPS)):
+        vw.write(im)
+    vw.close()
+    return f_out
+
+
+def _frame_hw(f) -> tuple:
+    import re
+
+    import imageio_ffmpeg
+    info = subprocess.run([imageio_ffmpeg.get_ffmpeg_exe(), "-hide_banner", "-i", str(f)], capture_output=True,
+                          text=True, creationflags=0x08000000).stderr
+    w, h = map(int, re.search(r"Video:.*?, (\d{2,5})x(\d{2,5})", info).groups())
+    return h, w
 
 
 def win_copy(f: Path) -> Path:
@@ -401,6 +471,11 @@ def main(argv=None) -> int:
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--n", type=int, default=2, help="trials per epoch")
     ap.add_argument("--jobs", type=int, default=2)
+    ap.add_argument("--animal", default=ANIMAL)
+    ap.add_argument("--licks", choices=("cam4", "fused"), default="cam4",
+                    help="lick list for the selection (fused -> outputs suffixed _fused)")
+    ap.add_argument("--epochs", nargs="*", default=list(EPOCHS), help="epochs to render (others: the existing clip "
+                    "of the same suffix, else the unsuffixed cam4-list clip, is used for the 4-epoch file)")
     ap.add_argument("--win-only", action="store_true", help="only write the _win.mp4 copies of the clips in --out")
     a = ap.parse_args(argv)
     if not str(a.out).replace("\\", "/").startswith("M:/MICROSCOPE/Priya/"):
@@ -411,21 +486,42 @@ def main(argv=None) -> int:
                 print("win copy", win_copy(f))
         return 0
     a.out.mkdir(parents=True, exist_ok=True)
-    R = select(a.n)
+    sfx = "" if a.licks == "cam4" else f"_{a.licks}"
+    R = select(a.n, a.licks, a.animal)
     print(R[["epoch", "session", "epoch_median", "epoch_n", "session_median", "session_n"]].to_string())
     LC.PREP_DIR.mkdir(parents=True, exist_ok=True)
-    items = [(r, a.n, str(a.out), str(LC.PREP_DIR)) for r in R.to_dict("records")]
+    items = [(r, a.n, str(a.out), str(LC.PREP_DIR), sfx) for r in R.to_dict("records") if r["epoch"] in a.epochs]
     res, fails = ak.fan_sessions(items, run_epoch, jobs=min(a.jobs, len(items)), key=lambda it: it[0]["session"],
                                   label="epoch")
     by_ep = {v["rows"][0]["epoch"]: v for _, v in res if v["rows"]}
     rows = [r for ep in EPOCHS if ep in by_ep for r in by_ep[ep]["rows"]]
-    pd.DataFrame(rows).to_csv(a.out / "clips.csv", index=False)
+    pd.DataFrame(rows).to_csv(a.out / f"clips{sfx}.csv", index=False)
     pd.DataFrame([c for ep in EPOCHS if ep in by_ep for c in by_ep[ep]["checks"]]).to_csv(
-        a.out / "checks_vs_production.csv", index=False)
+        a.out / f"checks_vs_production{sfx}.csv", index=False)
     vids = [by_ep[ep]["video"] for ep in EPOCHS if ep in by_ep]
-    if len(vids) == len(EPOCHS):
-        concat(vids, a.out / f"supp4cam_{ANIMAL}_farcontra_4epochs.mp4")
-        vids.append(str(a.out / f"supp4cam_{ANIMAL}_farcontra_4epochs.mp4"))
+    seq = []
+    for ep in EPOCHS:
+        if ep in by_ep:
+            seq.append(by_ep[ep]["video"])
+            continue
+        old = (sorted(a.out.glob(f"supp4cam_{a.animal}_*_{ep}_farcontra{sfx}.mp4"))
+               or sorted(a.out.glob(f"supp4cam_{a.animal}_*_{ep}_farcontra.mp4")))
+        if old:
+            seq.append(str(old[0]))
+    if len(seq) == len(EPOCHS):
+        # THE supplementary deliverable (Priya 11-22): one video per animal, epochs in order, a title card before
+        # each epoch, the epoch banner in every frame (the per-epoch clips stay as building blocks)
+        hw = _frame_hw(seq[0])
+        parts = []
+        for ep, v in zip(EPOCHS, seq):
+            parts += [str(title_card(a.out / f"_title_{a.animal}_{ep}{sfx}.mp4", hw, R, ep, a.licks)), v]
+        f4 = a.out / f"supp4cam_{a.animal}_farcontra_allepochs{sfx}.mp4"
+        print("all-epochs file from", *seq, sep="\n  ")
+        concat(parts, f4)
+        for q in parts:
+            if Path(q).name.startswith("_title_"):
+                Path(q).unlink()
+        vids.append(str(f4))
     for v in vids:
         print("win copy", win_copy(Path(v)))
     for ep in EPOCHS:

@@ -5,7 +5,46 @@ a video is made for review and Priya marks it as a keeper; never delete a listed
 Paths are under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/` (analysis desktop; `/n/files/Neurobio/MICROSCOPE/Priya/...`
 on O2).
 
-## Supplementary manuscript clips: PS94 far contra licks by epoch (2026-11-22)
+## SUPPLEMENTARY DELIVERABLE: one far-contra video per animal, four-camera fused lick list (2026-11-22)
+
+Priya 11-22: all figures use the four-camera fused lick list, kinematics only on licks with 3-D support; PS95 examples
+too, same rule; the supplement is ONE combined video per animal (epochs pre -> acute -> subacute -> chronic, a 3 s title
+card before each epoch: animal, epoch, post-stroke day, spout, epoch-median aim error and its change from pre; an epoch
+banner in the epoch colour in every frame). Selection = the rule of the section below, run on
+`kinematics_fused/licks.csv.gz` (context post_cue, n_3d > 0, cam1-only licks out, first lick = the earliest fused lick
+after the cue by daq_peak_s, >= 15 3-D frames for the medians; `python -m scripts.pose3d_supp_clips --licks fused`).
+
+| deliverable | size | duration | `_win.mp4` copy |
+|---|---|---|---|
+| `clips_supp_PS94_farcontra_20261122/supp4cam_PS94_farcontra_allepochs_fused.mp4` | 12.8 MB | 89.1 s | 16.1 MB, Constrained Baseline 3.1, 1200 x 768, 30 fps |
+| `clips_supp_PS95_farcontra_20261122/supp4cam_PS95_farcontra_allepochs_fused.mp4` | 12.6 MB | 80.4 s | 15.9 MB, Constrained Baseline 3.1, 1200 x 768, 30 fps |
+
+Building blocks beside them: `supp4cam_<animal>_<date>_<epoch>_farcontra_fused.mp4` (+ `_win`), `clips_fused.csv`,
+`checks_vs_production_fused.csv` (fusion re-run vs production 3-D: PS94 32/32 part checks agree; PS95 32/32 within
+0.002 mm, one part's used-keypoint agreement 0.9988), `stills/*_fused_*.png` (frame at each first-lick peak).
+
+First-lick aim error (`midline_err_ipsi`, + = toward ipsi), epoch medians, fused list (cam4-window list in brackets):
+
+| animal | pre | acute (change) | subacute (change) | chronic (change) |
+|---|---|---|---|---|
+| PS94 | +29.8 (29.8), n 682 | +63.9 (63.9), +34.1, n 264 | +46.3 (46.5), +16.4, n 408 | +45.6 (45.6), +15.7, n 739 |
+| PS95 | +21.8 (21.9), n 804 | +53.8 (53.8), +32.1, n 39 | +36.4 (36.6), +14.6, n 450 | +25.1 (25.6), +3.3, n 956 |
+
+Selected trials (session, trial, first-lick aim error): PS94 pre 0814 t433 +29.7, t154 +29.6; acute 0821 t135 +63.8,
+t258 +63.7 (first lick at +1140 ms); subacute 0825 t86 +45.9, t361 +45.1; chronic 0924 t474 +45.8, t223 +45.3. PS95 pre 0813
+t33 +21.8, t695 +21.8; acute 0817 t476 +53.8, t478 +53.4 (acute has few far-contra first licks: n 39); subacute 0821
+t145 +36.3, t211 +36.5; chronic 0928 t417 +25.0, t259 +26.0.
+Fused vs cam4-window list: PS94 changes only the second pre trial (t318 -> t154, both +29.6; ranks tied to 0.1 deg); PS95
+chronic moves to session 0928 (cam4 list: 0903), and its other epochs pick different trials at the same aim error. PS94
+stays 16 deg above pre at chronic; PS95 returns to within 3 deg.
+
+    python -m scripts.pose3d_supp_clips --animal PS94 --licks fused --n 2 --jobs 2 --out <P3D>/clips_supp_PS94_farcontra_20261122
+    python -m scripts.pose3d_supp_clips --animal PS95 --licks fused --n 2 --jobs 2 --out <P3D>/clips_supp_PS95_farcontra_20261122
+
+## Supplementary manuscript clips: PS94 far contra licks by epoch, cam4-window list (2026-11-22) -- EARLIER BUILD
+
+Kept until Priya compares with the fused deliverable above (no epoch banner / title cards; combined file
+`supp4cam_PS94_farcontra_4epochs.mp4`).
 
 Folder: `session_poses/pose3d_4cam_3net_20261121_sync60/clips_supp_PS94_farcontra_20261122/` (`clips.csv` = every rendered
 trial with its aim error, rule rank, crop sizes; `checks_vs_production.csv` = the fusion re-run against the production 3-D,
