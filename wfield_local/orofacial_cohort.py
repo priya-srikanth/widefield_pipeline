@@ -76,7 +76,7 @@ import pandas as pd
 
 # ADOPTED 2026-11-22 (Priya 11-21 Q2: the four-camera / v37 run is the new cohort default; one labelled commit):
 # v37 = the v36 cleaning + the ENL spout-position rule (DECISIONS 2026-11-21 "D1 executed"). v36 stays on disk.
-RUN = "lp_r4_heatmap_20261013__clean_v37"
+RUN = "lp_r4_heatmap_20261013__clean_v37_sync60"
 EPOCH_ORDER = ("pre", "acute", "subacute", "chronic")
 POS_ORDER = ("close_ipsi", "close_mid", "close_contra", "far_ipsi", "far_mid", "far_contra")
 METRICS = ("resp_rate", "licks_per_resp", "post_rate_hz", "precue_rate_hz", "precue_trial_frac", "iti_rate_hz",

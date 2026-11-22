@@ -142,12 +142,25 @@ TARGET3D_TABLE_ENV = "COMBINED_ENCODING_TARGET3D_TABLE"
 #:   fused     (11-22, Priya 11-21 Q1 = (b)) the fused four-camera train (`session_licks`, needs a fused lick set):
 #:             its post-cue licks cam4 did NOT see (cam1-only and confirmed side-only) join the lick timing kernel,
 #:             as cam1-only events do under combined; with LICKS_ALL_ENV the pre-cue / ITI lists come from the fused
-#:             train too. EXPLICIT opt-in, also after the adoption commit (the encoder is a neural analysis: Priya 11-21,
-#:             kinematics first; O2 bundles pin their env), so an unset run stays cam4.
+#:             train too. DEFAULT whenever a fused train is selected (Priya 11-22, `lick_mode`); before that it was an
+#:             explicit opt-in. O2 bundles must pin COMBINED_ENCODING_LICKS in env.json (diff against production first).
 #: TIMING ONLY: cam1-only events have no angle / reach (no cam4 trace; no usable 3-D depth below ~1 mm), so they never
 #: enter the executed / target sets. Outputs -> ..._licks-<mode>/.
 LICKS_ENV = "COMBINED_ENCODING_LICKS"
 LICK_MODES = ("cam4", "combined", "lips", "fused")
+
+
+def lick_mode() -> str:
+    """The encoder's lick set: ``COMBINED_ENCODING_LICKS`` when set, else "fused" whenever a fused four-camera train is
+    selected (`session_licks.fused_on`: the adoption default) and "cam4" otherwise. Priya 11-22 ("i think we should
+    make combined default? with cam1 restrictions. but side cams help with closer spouts"): the fused train already
+    carries cam1's rules (`cam1_licks.keep_mask`, droplets, cam1-only >= 300 ms dropped) and side views only when
+    confirmed by both. Set ``COMBINED_ENCODING_LICKS=cam4`` for the previous behavior; O2 bundles pin it in env.json."""
+    v = os.environ.get(LICKS_ENV, "").strip()
+    if v:
+        return v
+    from wfield_local import session_licks as SL
+    return "fused" if SL.fused_on() else "cam4"
 #: BINNED target-vs-executed contest (Priya 10-20, agreed): the continuous contest scales ONE lick kernel by 3-4 smooth
 #: terms, so a win could come from the assumed (quadratic) shape. Here both sides are six FREE lick kernels on the same
 #: licks: lick_bin_tgt = one kernel per spout of the lick's trial; lick_bin_exec = one kernel per EXECUTED bin = the
@@ -648,7 +661,7 @@ def _load_behaviour(animal: str, date: str, rv) -> Behaviour:
                 target_amps = [sml, sap, sdv]
             elif mode == "polar":
                 target_amps = _polar(*target_xyz)
-    extra, lips = _cam1_lick_events(rv, animal, date, cue_t, os.environ.get(LICKS_ENV, "cam4"))
+    extra, lips = _cam1_lick_events(rv, animal, date, cue_t, lick_mode())
     ctx = ctx_contacts = None
     mode_all = os.environ.get(LICKS_ALL_ENV, "")
     if mode_all and mode_all not in LICKS_ALL_MODES:
@@ -667,7 +680,7 @@ def _context_licks(rv, animal: str, date: str, sd: Path, b: pd.DataFrame, contac
     """LICKS_ALL_ENV: ({'pre_cue', 'iti', 'post_extra': onsets} in DAQ s from the cam4 whole-session table licks_all.csv,
     contacts over the whole trial windows (strobe - 0.5 .. stop + 3 s) from the raw DAQ channel)."""
     from wfield_local import orofacial_outputs as oo
-    if os.environ.get(LICKS_ENV, "cam4") == "fused":
+    if lick_mode() == "fused":
         # 11-22: the fused train's pre-cue / ITI licks (onset label, as below). post_extra = its post-cue licks that
         # cam4 saw but cam4's licks.csv does not hold (the pre-cue / ITI tables' post-cue onsets below), by lick_key;
         # the post-cue licks cam4 did not see are already in the lick kernel (`_cam1_lick_events`, mode fused)
@@ -2366,8 +2379,8 @@ def out_dir(rv, order: str) -> Path:
                                                          + ("_matched" if os.environ.get(MATCH_ENV) else "")
                                                          + (f"_exec-{os.environ[EXEC_ENV]}" if os.environ.get(EXEC_ENV)
                                                             else "")
-                                                         + (f"_licks-{os.environ[LICKS_ENV]}"
-                                                            if os.environ.get(LICKS_ENV, "cam4") != "cam4" else "")
+                                                         + (f"_licks-{lick_mode()}"
+                                                            if lick_mode() != "cam4" else "")
                                                          + ("_bins" if os.environ.get(BINS_ENV) else "")
                                                          + (f"_bw{bins_width():g}" if os.environ.get(BINS_ENV)
                                                             and bins_width() != 1.0 else "")

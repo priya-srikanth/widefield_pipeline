@@ -194,11 +194,24 @@ def test_out_dir_names(monkeypatch, env, suffix):
     from wfield_local import orofacial_outputs as oo
     for k in (ce.ONLY_ENV, ce.EXEC_ENV, ce.LICKS_ENV, ce.BINS_ENV, ce.MATCH_ENV, ce.SUFFIX_ENV, ce.VIDEO_ENV, ce.FR_ENV, ce.FR_POINTS_ENV, ce.FR_SHARE_ENV):
         monkeypatch.delenv(k, raising=False)
+    monkeypatch.setenv("WIDEFIELD_FUSED_LICKS", "off")      # names without a fused train (adoption default: below)
     for k, v in env.items():
         monkeypatch.setenv(k, v)
     monkeypatch.setattr(oo, "root", lambda rv: Path("ROOT"))
     monkeypatch.setattr(ce, "_run", lambda: "RUN")
     assert ce.out_dir(None, "movement_first") == Path("ROOT") / "RUN" / "imaging_encoding" / f"movement_first{suffix}"
+
+
+def test_lick_mode_defaults_to_fused_when_selected(monkeypatch):
+    """Priya 11-22: the encoder's default lick set is the fused train whenever one is selected; explicit env wins."""
+    monkeypatch.delenv(ce.LICKS_ENV, raising=False)
+    monkeypatch.setenv("WIDEFIELD_FUSED_LICKS", "lp_side_x_gapfix60")
+    assert ce.lick_mode() == "fused"
+    monkeypatch.setenv("WIDEFIELD_FUSED_LICKS", "off")
+    assert ce.lick_mode() == "cam4"
+    monkeypatch.setenv(ce.LICKS_ENV, "cam4")
+    monkeypatch.setenv("WIDEFIELD_FUSED_LICKS", "lp_side_x_gapfix60")
+    assert ce.lick_mode() == "cam4"
 
 
 def test_soft_exec_bins_sum_to_zero_and_weights(monkeypatch, tmp_path):

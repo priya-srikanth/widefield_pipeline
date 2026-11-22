@@ -44,9 +44,10 @@ SOURCE_ENV = "WIDEFIELD_POSE3D_SOURCE"
 #: unset, and the run whose routed outputs are UNTAGGED (`run_mode.pose3d_part` ""). The adoption of the four-camera run
 #: (Priya 11-21 Q2) changes these two constants in ONE commit (with `orofacial_cohort.RUN` and
 #: `session_licks.FUSED_DEFAULT`); until then the two-camera tables (``session_poses/pose3d``) stay the default.
-# ADOPTED 2026-11-22 (Priya 11-21 Q2): the four-camera 3-D run of 11-21 (session_poses/pose3d_4cam_3net_20261121)
+# ADOPTED 2026-11-22 (Priya 11-21 Q2, Q8): the WHOLE-SESSION four-camera 3-D run (first..last sync pulse, 60 ms floor;
+# session_poses/pose3d_4cam_3net_20261121_sync60)
 ADOPTED_SOURCE = "4cam"
-ADOPTED_TAG = "_3net_20261121"
+ADOPTED_TAG = "_3net_20261121_sync60"
 
 
 def pose3d_source(source: str | None = None) -> str:
