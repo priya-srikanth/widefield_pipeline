@@ -106,9 +106,20 @@ def camera_scale(date: str) -> float:
 
 def run_name(scorer: str, cleaning: str = CLEANING_VERSION) -> str:
     """``<scorer>__clean_<version>`` + `o2_inference.span_suffix` (11-21: ``_sync`` = whole-session windows, first to
-    last sync pulse, `o2_inference.SPAN_ENV`; unset = the trial windows, the name unchanged)."""
+    last sync pulse, `o2_inference.SPAN_ENV`; unset = the trial windows, the name unchanged) + `RUN_LABEL_ENV`
+    (11-22: a free label so a re-run never lands in an earlier run's folder, e.g. ``60`` -> ``..._v37_sync60`` for the
+    60 ms-floor whole-session re-run; unset = unchanged)."""
+    import os
+    import re
+
     from wfield_local.o2_inference import span_suffix
-    return f"{scorer.lower()}__clean_{cleaning}{span_suffix()}"
+    lab = os.environ.get(RUN_LABEL_ENV, "").strip()
+    if lab and not re.fullmatch(r"[A-Za-z0-9_]+", lab):
+        raise ValueError(f"{RUN_LABEL_ENV}={lab!r}: letters / digits / '_' only")
+    return f"{scorer.lower()}__clean_{cleaning}{span_suffix()}{lab}"
+
+
+RUN_LABEL_ENV = "WIDEFIELD_RUN_LABEL"
 
 
 def session_dir(rv, run: str, animal: str, date: str) -> Path:

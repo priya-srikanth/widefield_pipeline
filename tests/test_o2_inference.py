@@ -328,6 +328,12 @@ def test_window_span_env_and_suffix(monkeypatch):
     assert oi.span_suffix() == "_sync"
     from wfield_local import orofacial_outputs as oo
     assert oo.run_name("LP_r4_heatmap_20261013").endswith("__clean_" + oo.CLEANING_VERSION + "_sync")
+    monkeypatch.setenv(oo.RUN_LABEL_ENV, "60")
+    assert oo.run_name("LP_r4_heatmap_20261013") == f"lp_r4_heatmap_20261013__clean_{oo.CLEANING_VERSION}_sync60"
+    monkeypatch.setenv(oo.RUN_LABEL_ENV, "../x")
+    with pytest.raises(ValueError):
+        oo.run_name("LP_r4_heatmap_20261013")
+    monkeypatch.delenv(oo.RUN_LABEL_ENV)
     monkeypatch.setenv(oi.SPAN_ENV, "bogus")
     with pytest.raises(ValueError):
         oi.window_span()
