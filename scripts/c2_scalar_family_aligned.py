@@ -260,7 +260,10 @@ def main(argv=None):
     ap.add_argument("--aim", type=Path, default=AIM)
     ap.add_argument("--stats", type=Path, default=STATS)
     ap.add_argument("--reach", type=Path, default=REACH)
-    ap.add_argument("--reach-sessions", type=Path, default=KIN / "sessions.csv")
+    ap.add_argument("--reach-sessions", type=Path, default=REACH / "pose3d_sessions.csv",
+                    help="per-session 3-D medians behind --reach (11-22: the GATED table kinematics_pooled_figs writes "
+                         "beside pose3d_change_pooled_contra.csv; the ungated <kin>/sessions.csv fails the check under "
+                         "the working gate)")
     ap.add_argument("--lick3d", type=Path, default=KIN / "c2_lick3d_session_summary_ungated.csv",
                     help="per-session 3-D lick summary (scripts/c2_lick3d_session_summary.py; 11-22: was read from "
                          "--ms-data, the hand-made manuscript copy); the old *_stats.csv stars still come from --ms-data")
