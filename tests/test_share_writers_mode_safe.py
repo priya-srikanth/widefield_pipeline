@@ -72,6 +72,12 @@ BEHAVIOUR = {
     # table gaps (11-21): pose / lick tables only (side-only licks, cam4 / cam1 tracking); writes only under
     # session_poses/pose3d_4cam_3net_20261121/qc_phaseA/table_gaps/ (the MICROSCOPE literal is its output assert)
     "table_gaps_check.py",
+    # whole-session 60 ms re-run vs 11-21 (11-22): pose / lick tables only (no imaging); writes
+    # session_poses/pose3d_4cam_3net_20261121_sync60/qc_sync60/ (the MICROSCOPE literal is its output assert)
+    "sync60_compare.py",
+    # four-camera lick example clips (11-22): production pose / lick tables + raw video only (no imaging); writes the
+    # clips, stills and README tables into the --out folder it is given (under the four-camera 3-D folder)
+    "pose3d_lick_clips.py",
 }
 INDIRECT = {
     # lick_correction.py left the list 11-21: it reads the 3-D table via pose3d_dir() (no share-root literal left) and
