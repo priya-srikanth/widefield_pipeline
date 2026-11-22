@@ -24540,3 +24540,21 @@ jaw floor, tongue_at_lips grouped with jaw-only; qc/trial_attempts.csv 14:32, at
 under new names: `imaging_encoding/frozen_encoder_gate-attempted_v7g3_t3d_frA_licks-fused_20261122/`,
 `imaging_encoding/iti_licks_licks-fused_20261122/`. Chain: `lp_stage/phaseB_20261122/neural_chain_fourcam.py`
 (worktree `Github/wf_enc4cam`, branch pilot/encoder-fourcam), log `logs/neural_fourcam.log`.
+
+
+## 2026-11-22 -- Four-camera licks for every figure; cam1-only events are not licks (Priya 11-22)
+
+Priya: "yes we should use 4 camera licks for all figures (manuscript and otherwise) - switch 4B/E to B"; "cam1-only
+flicks are not licks". Why: cam4 misses ~6 % of post-cue licks (12 % far contra, 9 % of close-centre first licks) and 6.5 %
+of its windows are fragments missing the 3-D peak, inflating the post-stroke first-lick reach increase
+(docs/status/CAM4_LONG_LICK_2026-11-22.md). Implemented (docs/status/FOURCAM_LICKS_EVERYWHERE_2026-11-22.md):
+- `session_licks.kin_name()` / `kin_dir()` / `kin_sfx()`: post-cue 3-D readers use `kinematics_fused_postcue`
+  (`scripts/pose3d_kin_postcue.py`); `WIDEFIELD_KIN_LICKS=cam4` for the cam4 windows; `_fused` output suffixes.
+- Kinematics only from licks seen by >= 2 cameras (rows kept for counts); a first lick without 3-D support is NOT
+  replaced by the second.
+- Fused lick_idx counts within (trial, table), as licks_all (was across all contexts: post-cue lick 0 was a pre-cue lick).
+- `session_licks` drops cam1-only events by default; the trial-class path (session_trials, tongue_at_lips,
+  session_span_licks, first_lick_latency) opts in, so classes are unchanged.
+- Fig 4A latency / licks per responded trial / ILI on the fused train (`scripts/fourcam_lick_metrics.py`; latency =
+  first-lick ONSET), read by `c2_scalar_family_aligned --lick-stats`.
+- Stays cam4: frozen_encoder's FROZEN_LICKSPOUT posterior (cam4 (trial_id, lick_idx) join), QC / comparison scripts.
