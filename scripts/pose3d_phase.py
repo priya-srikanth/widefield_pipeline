@@ -129,7 +129,7 @@ def session_curves(job) -> list[dict]:
     ver = result_cache.code_version(sys.modules[__name__], K, extra=tc.kin_gate_signature())
 
     def compute():
-        g, _J, row = K.session_result((f"{animal}:{date}", "cam4"))
+        g, _J, row = K.session_result((f"{animal}:{date}", "cam4"))[:3]    # 11-22: session_result returns (L, J, row, gated, coverage)
         g = tc.gate_kin_licks(g.assign(session=s))       # camera working period (A20); legacy: every post-cue lick
         C = pd.read_csv(lk, usecols=["trial_id", "lick_idx", "on_ms", "off_ms"])
         g = g.merge(C, on=["trial_id", "lick_idx"], how="left").dropna(subset=["on_ms", "off_ms", "t_peak_3d"])
