@@ -324,7 +324,9 @@ W("sessions_hit_by_position.csv", H)
 import iti_recovery_measure as rm  # noqa: E402
 p = rm.aim_licks()
 p = p[p["first"]].copy()
-L3 = pd.read_csv(r"M:/MICROSCOPE/Priya/DeepLabCut/Widefield/session_poses/pose3d/kinematics/licks.csv.gz",
+# 11-22 (plan item 3): the selected 3-D source / run tag (WIDEFIELD_POSE3D_SOURCE / _TAG); was the literal two-camera folder
+from wfield_local.pose3d import pose3d_dir as _pose3d_dir  # noqa: E402
+L3 = pd.read_csv(_pose3d_dir() / "kinematics" / "licks.csv.gz",
                  usecols=["trial_id", "side_ml", "out_ap", "down_dv", "session"])
 L3["label"] = L3.session.str[:5] + L3.session.str[-4:]
 L3["k"], L3["s"] = L3.side_ml.round(3), np.hypot(L3.out_ap, L3.down_dv).round(3)

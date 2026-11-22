@@ -16,6 +16,9 @@ rows, whose `v` is the aligned mask; added columns on 'sig' rows: `v_uncorrected
 Also writes `<same name>_aligned_clusters.csv` (one row per observed cluster).
 
 Usage: python scripts/c2_phase_sessions_aligned.py <sessions.csv> <curves.csv(.gz)> [--kind peak|norm]
+(11-22: ``--kind`` existed only in this line until the runbook used it and the parser rejected it; it now overrides the
+kind read from the file name. The file name may carry a suffix after ``_sessions`` -- e.g. ``_sessions_NEW.csv`` from
+``pose3d_phase_curves --out-suffix _NEW`` -- which the old fixed-length parse read as measure ``<m>_peak_sess``.)
 """
 from __future__ import annotations
 
@@ -36,15 +39,21 @@ SIGNED = ("mid", "mid0", "side", "side0")  # + = contralesional (c2_phase_curves
 
 
 def _parse_name(p: Path):
-    stem = p.name[len("c2_phase_"):-len("_sessions.csv")]
+    """(lick set, measure, kind) from ``c2_phase_<lickset>_<measure>[_peak]_sessions[<suffix>].csv``."""
+    import re
+    m_ = re.fullmatch(r"c2_phase_(.+)_sessions(_[A-Za-z0-9]+)?\.csv", p.name)
+    if not m_:
+        raise ValueError(f"{p.name}: expected c2_phase_<lickset>_<measure>[_peak]_sessions[_suffix].csv")
+    stem = m_.group(1)
     lset, rest = stem.split("_", 1)
     kind = "peak" if rest.endswith("_peak") else "norm"
     meas = rest[:-len("_peak")] if kind == "peak" else rest
     return lset, meas, kind
 
 
-def run(sessions_csv: Path, curves: Path, n_perm: int = CLUSTER_PERM):
-    lset, m, kind = _parse_name(sessions_csv)
+def run(sessions_csv: Path, curves: Path, n_perm: int = CLUSTER_PERM, kind: str | None = None):
+    lset, m, kind_ = _parse_name(sessions_csv)
+    kind = kind or kind_
     out = sessions_csv.with_name(sessions_csv.stem + "_aligned.csv")
     out_cl = sessions_csv.with_name(sessions_csv.stem + "_aligned_clusters.csv")
     for o in (out, out_cl):
@@ -129,8 +138,10 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("sessions_csv", type=Path)
     ap.add_argument("curves", type=Path)
+    ap.add_argument("--kind", choices=("peak", "norm"), default=None,
+                    help="curve kind (default: from the file name, '_peak' = peak)")
     a = ap.parse_args(argv)
-    run(a.sessions_csv, a.curves)
+    run(a.sessions_csv, a.curves, kind=a.kind)
 
 
 if __name__ == "__main__":

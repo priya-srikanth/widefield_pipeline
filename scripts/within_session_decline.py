@@ -46,9 +46,11 @@ import pandas as pd  # noqa: E402
 
 OUT = Path("M:/MICROSCOPE/Priya/Widefield/within_session_decline")
 TAB, FIG = OUT / "tables", OUT / "figures"
-LICKS = Path("M:/MICROSCOPE/Priya/DeepLabCut/Widefield/session_poses/pose3d/kinematics/licks.csv.gz")
-BEH = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/"
-           "disengagement/sessions")
+# 11-22 (plan item 3): the selected 3-D source and the adopted run (were the literal two-camera pose3d / v36 paths)
+from wfield_local import orofacial_outputs as _oo  # noqa: E402
+from wfield_local.pose3d import pose3d_dir as _pose3d_dir  # noqa: E402
+LICKS = _pose3d_dir() / "kinematics" / "licks.csv.gz"
+BEH = _oo.encoding_root() / "disengagement" / "sessions"
 AIM = Path("M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/"
            "imaging_encoding/iti_licks/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-"
            "endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/aim_deficit_sessions.csv")

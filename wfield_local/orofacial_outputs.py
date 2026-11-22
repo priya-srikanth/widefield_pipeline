@@ -559,14 +559,15 @@ def main(argv=None) -> int:
     p.add_argument("--jobs", type=int, default=4, help="parallel sessions (each holds ~1-2 GB)")
     sub.add_parser("index")
     q = sub.add_parser("all-licks", help="licks_all.csv per session: every cam4 lick + context + absolute DAQ time")
-    q.add_argument("--run", default="lp_r4_heatmap_20261013__clean_v36", help="run folder")
+    q.add_argument("--run", default=None, help="run folder (default: the adopted orofacial_cohort.RUN; 11-22: was the literal v36 run)")
     q.add_argument("--sessions", nargs="*", default=None, help="animal:date (default: every processed CURATED session)")
     q.add_argument("--all", action="store_true", help="every processed session, not just the curated cohort")
     q.add_argument("--jobs", type=int, default=4)
     a = ap.parse_args(argv)
     rv = PathResolver()
     if a.cmd == "all-licks":
-        run = a.run
+        from wfield_local import orofacial_cohort as _oc
+        run = a.run or _oc.RUN
         sess = sorted((p.parent.name, p.name) for p in (root(rv) / run / "sessions").glob("*/*")
                       if (p / "licks.csv").exists() and (p / "windows.npz").exists())
         if a.sessions:

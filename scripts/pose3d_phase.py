@@ -123,7 +123,8 @@ def session_curves(job) -> list[dict]:
     rv = PathResolver()
     animal, date = s.split("_")
     d3 = pose3d_dir(rv)
-    V36 = Path(rv.root("orofacial")) / "lp_r4_heatmap_20261013__clean_v36" / "sessions"
+    from wfield_local.lp_licks import input_run
+    V36 = Path(rv.root("orofacial")) / input_run() / "sessions"   # 11-22: was the literal v36 run
     fr, lk = d3 / f"{s}_frames.csv.gz", V36 / animal / date / "licks.csv"
     ver = result_cache.code_version(sys.modules[__name__], K, extra=tc.kin_gate_signature())
 

@@ -76,8 +76,16 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--window", default="cue_stop", choices=("cue_stop", "trial"))
     ap.add_argument("--jobs", type=int, default=8)
+    ap.add_argument("--out", type=Path, default=None, help="write the snapshot HERE (a new folder) instead of the "
+                    "adopted run's imaging_encoding/qc")
+    ap.add_argument("--force", action="store_true", help="overwrite an existing snapshot (refused otherwise)")
     a = ap.parse_args(argv)
-    out = oo.encoding_root(oc.RUN, PathResolver()) / "qc"
+    out = a.out or oo.encoding_root(oc.RUN, PathResolver()) / "qc"
+    if (out / f"s1_trial_classes_{a.window}.csv.gz").exists() and not a.force:
+        # 11-22 (reconciled plan item 4): `working_trials` (every gated branch) reads this snapshot; it was always
+        # rewritten in place
+        raise SystemExit(f"{out / f's1_trial_classes_{a.window}.csv.gz'} exists: --force to overwrite, or --out <new>")
+    out.mkdir(parents=True, exist_ok=True)
     writeguard.assert_writable(out)
     cur = set(ak.curated_labels())
     labels = [s["label"] for s in F.SESSIONS if not config.early_pre(s["label"]) and s["label"] in cur]

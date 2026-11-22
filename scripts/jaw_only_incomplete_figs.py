@@ -49,7 +49,8 @@ import numpy as np
 import pandas as pd
 from wfield_local.pose3d import pose3d_dir
 
-V36 = "lp_r4_heatmap_20261013__clean_v36"
+from wfield_local.lp_licks import input_run as _input_run  # noqa: E402
+V36 = _input_run()  # 11-22: the input / adopted cam4 run (lp_licks.input_run; was the literal v36 run, plan item 3)
 POS = ("close_L", "close_center", "close_R", "far_L", "far_center", "far_R")     # = canonical order (lesions left: L = ipsi)
 LAB = {"close_L": "close ipsi", "close_center": "close mid", "close_R": "close contra", "far_L": "far ipsi",
        "far_center": "far mid", "far_R": "far contra"}
@@ -415,7 +416,8 @@ def main(argv=None) -> int:
         import os
         os.environ[DENOM_ENV] = WORKING_DENOM
     rv = PathResolver()
-    c1 = Path(rv.root("dlc")) / "session_poses" / "cam1_licks"
+    from wfield_local import lp_licks
+    c1 = lp_licks.cam1_events_dir(rv)  # 11-22: the adopted / routed cam1 folder (lp_licks.cam1_events_dir; was the literal cam1_licks)
     d3 = pose3d_dir(rv)
     v36 = Path(rv.root("orofacial")) / V36 / "sessions"
     from wfield_local import run_mode

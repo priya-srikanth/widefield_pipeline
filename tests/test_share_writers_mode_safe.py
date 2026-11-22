@@ -59,9 +59,10 @@ BEHAVIOUR = {
     # one change-in-distribution test per Fig 4B bar (11-20): same inputs as c2_outcome_stats_aligned; new files only
     "c2_outcome_distribution_test.py",
     # six-position recovery mechanics (VLS paper supplement, 11-21): behavior / pose tables only (within_lick_correction
-    # sessions, learned_compensation T3, lick_correction corr_beh: the UNTAGGED (default-mode) LP v36 imaging_encoding
-    # outputs, pinned as literals, read-only, so the output does not vary with the env mode); outputs are new files
-    # under Widefield/manuscript_stats and the paper's manuscript_code/data
+    # sessions, learned_compensation T3, lick_correction corr_beh: read-only; 11-22: the default --enc is the adopted
+    # run's routed tree, `run_mode.encoding_out_root()`, where the three producers write -- it was a literal v36 path
+    # that left every input on v36 when the runbook passed only --out-dir); outputs are new files under
+    # Widefield/manuscript_stats and the paper's manuscript_code/data
     "c2_recovery_mechanics_stats.py",
     "csm_fix_compare.py",   # 11-21 CSM edge fix: compares regenerated pose-kinematic tables with the cited ones (--out)
     "pose3d_csm_fixes.py", "pose3d_ili_floor_examples.py",   # 11-21 pose 3-D diagnostics into qc_phaseA/ (no imaging)

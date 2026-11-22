@@ -52,7 +52,8 @@ FIGS = S.ROOT / f"page_figs{S.RSFX}"
 from wfield_local.paths import PathResolver  # noqa: E402
 
 PRIYA = Path(PathResolver().root("microscope"))   # was the literal M:/MICROSCOPE/Priya (drive letters move)
-JAW = PRIYA / "DeepLabCut/Widefield/session_poses/pose3d/kinematics/jaw_trials.csv.gz"
+from wfield_local.pose3d import pose3d_dir as _pose3d_dir  # noqa: E402
+JAW = _pose3d_dir() / "kinematics" / "jaw_trials.csv.gz"     # 11-22: the selected 3-D source (was literal pose3d/)
 FR = PRIYA / "DeepLabCut/Widefield/o2/fr_cam4_20261021/factors/master_pre_v1/proj"
 EVENTS = PRIYA / "Behavior_logs/Widefield/behavior_summary/events"
 WIN = (-1.0, 0.7)

@@ -83,9 +83,13 @@ def worker(label: str) -> dict:
 def tracking_counts(labels) -> pd.DataFrame:
     from wfield_local import config
     from wfield_local.paths import PathResolver
-    p = Path(PathResolver().root("dlc")) / "session_poses" / "pose3d" / "kinematics_all" / "licks.csv.gz"
-    K = pd.read_csv(p, usecols=["session", "table", "context", "lick_uid", "lick_idx", "side_ml"])
-    K = K[(K.table == "licks") & (K.context == "post_cue") & np.isfinite(K.side_ml)].drop_duplicates(["session", "lick_uid"])
+    from wfield_local import session_licks as SL
+    from wfield_local.pose3d import pose3d_dir
+    # 11-22: the selected 3-D source / tag and lick set (was the literal two-camera kinematics_all)
+    p = pose3d_dir(PathResolver()) / SL.kin_all_name() / "licks.csv.gz"
+    K = pd.read_csv(p, usecols=lambda c: c in ("session", "table", "context", "lick_uid", "lick_key", "lick_idx", "side_ml"))
+    ident = "lick_key" if "lick_key" in K else "lick_uid"
+    K = K[(K.table == "licks") & (K.context == "post_cue") & np.isfinite(K.side_ml)].drop_duplicates(["session", ident])
     sid = {f"{config.animal_of(x)}_2026{x.split('_')[-1]}": x for x in labels}
     K = K[K.session.isin(sid)].assign(label=lambda d: d.session.map(sid))
     return pd.DataFrame({"n_pc_tracked": K.groupby("label").size(),

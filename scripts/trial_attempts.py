@@ -188,6 +188,8 @@ def main(argv=None) -> int:
     ap.add_argument("--out", type=Path, default=None,
                     help="write the three tables HERE instead of run_mode.attempts_dir() (a comparison build; nothing "
                          "registered, the run's table untouched)")
+    ap.add_argument("--force", action="store_true", help="overwrite the run's registered tables (refused otherwise; "
+                    "11-22: lp_licks / the camera gate / the deficit models read them -- a comparison build uses --out)")
     ap.add_argument("--labels", nargs="+", default=None,
                     help="build ONLY these session labels (e.g. PS92_0606; default: every curated session). Needs --out: "
                          "a partial table is never written over the run's registered one")
@@ -200,6 +202,10 @@ def main(argv=None) -> int:
     if a.run != oc.RUN:
         raise SystemExit("trial_attempts: --run other than the adopted run is not routed (attempts_dir is the adopted run's)")
     out = a.out or run_mode.attempts_dir()
+    if (out / "trial_attempts.csv").exists() and not a.force:
+        # 11-22 (reconciled plan item 4): never rewritten in place by accident; the lick-set / class change of the
+        # four-camera adoption goes to the NEW run's tree (RUN flip) or to --out
+        raise SystemExit(f"trial_attempts: {out / 'trial_attempts.csv'} exists: --force to overwrite, or --out <new>")
     out.mkdir(parents=True, exist_ok=True)
     if run_mode.tag() and a.out is None:
         for n in run_mode.ATTEMPTS_FILES:              # selection-keyed tables: registered data files (writeguard)

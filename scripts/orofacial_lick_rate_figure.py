@@ -23,8 +23,11 @@ ROOT = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis")
 
 def main(argv=None):
     ap = argparse.ArgumentParser()
-    ap.add_argument("--run", default="lp_r4_heatmap_20261013__clean_v36")
+    ap.add_argument("--run", default=None)   # None = orofacial_cohort.RUN (11-22; was the literal v36 run)
     a = ap.parse_args(argv)
+    if a.run is None:
+        from wfield_local import orofacial_cohort as _oc
+        a.run = _oc.RUN
     base = ROOT / a.run / "cohort"
     tables, figs = base / "tables" / "prepost", base / "figures" / "prepost"
     Pm = pd.read_csv(tables / "position_metrics.csv", dtype={"date": str})

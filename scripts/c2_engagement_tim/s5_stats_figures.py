@@ -179,7 +179,9 @@ for (meas, m, tset, e), g in CMP.groupby(["metric", "match", "trials", "epoch"])
 W("engaged_only_pattern_by_epoch.csv", pd.DataFrame(pat))
 
 # ------------------------------------------------------------------ per-animal time course: disengagement vs far-contra hit
-days = pd.read_csv(r"M:\MICROSCOPE\Priya\Widefield\LP_analysis\lp_r4_heatmap_20261013__clean_v36\imaging_encoding\iti_licks\aim_by_spout_sessions.csv")[["label", "day"]].drop_duplicates("label")
+# 11-22 (plan item 3): the adopted run's table (was a literal v36 path; only the session -> day map is read)
+from wfield_local import orofacial_outputs as _oo  # noqa: E402
+days = pd.read_csv(_oo.encoding_root() / "iti_licks" / "aim_by_spout_sessions.csv")[["label", "day"]].drop_duplicates("label")
 days["label8"] = days.label.str[:5] + "2026" + days.label.str[-4:]
 e = E[(E.match == PRIMARY) & (E.model == "production")][["label", "animal", "epoch", "disengaged", "engaged"]]
 h = H[(H.match == PRIMARY) & (H.trials == "all") & (H.pos == "far_contra")][["label", "hit_rate"]]

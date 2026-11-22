@@ -53,10 +53,17 @@ SRV = Path("M:/MICROSCOPE/Priya")
 MS_DATA = SRV / "stroke_orofacial_pipeline_outputs/vls_stroke_paper/manuscript_code/data"
 HIT = SRV / ("Widefield/rebuild_20261103/labcams/grant_figures/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_"
              "sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/epoch/data")
-LPV36 = SRV / "Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36"
-AIM = LPV36 / "imaging_encoding/iti_licks"
+# 11-22 (plan item 3): DEFAULT inputs follow the adopted run / selected 3-D source (were the literal v36 run and the
+# literal two-camera pose3d folder: run with only --out-dir, every input silently stayed v36 / two-camera); the
+# manuscript refresh passes every input explicitly anyway (runbook)
+from wfield_local import orofacial_outputs as _oo  # noqa: E402
+from wfield_local.orofacial_cohort import RUN as _RUN  # noqa: E402
+from wfield_local.paths import PathResolver as _PR  # noqa: E402
+from wfield_local.pose3d import pose3d_dir as _pose3d_dir  # noqa: E402
+LPV36 = Path(_oo.root(_PR())) / _RUN      # name kept for its readers
+AIM = _oo.encoding_root(_RUN) / "iti_licks"
 STATS = LPV36 / "cohort/tables/prepost/stats"
-POSE3D = SRV / "DeepLabCut/Widefield/session_poses/pose3d"
+POSE3D = _pose3d_dir()
 REACH = POSE3D / "figures/pooled"
 
 POS = ["close_ipsi", "close_mid", "close_contra", "far_ipsi", "far_mid", "far_contra"]
