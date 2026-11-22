@@ -15,6 +15,7 @@ from pathlib import Path
 sys.path.insert(0, os.path.expanduser(os.environ.get("WF_REPO", "~/Github/widefield_pipeline")))
 import pandas as pd  # noqa: E402
 from wfield_local import behavior_states as B  # noqa: E402
+import trial_scaffold  # noqa: E402  (collector trials, or the 11-22 fallback for a run without them)
 
 OUT = Path(sys.argv[1])
 f = OUT / "jaw_only_by_glmhmm_role.csv"
@@ -24,7 +25,7 @@ G = B.glmhmm_table()
 roles = B.glmhmm_roles(G)
 pc = B._pcols(G)
 G["role_production"] = [roles[int(pc[i][7:])] for i in G[pc].to_numpy().argmax(1)]
-G = B.add_session_time(G, B.load_collected()["trials"])
+G = B.add_session_time(G, trial_scaffold.trials(OUT))
 for v in ("ipsimid", "init"):
     R = pd.read_csv(OUT / f"glmhmm_refit_{v}_K5.csv.gz", usecols=["label", "trial_id", "role"])
     G = G.merge(R.rename(columns={"role": f"role_{v}"}), on=["label", "trial_id"], how="left")
