@@ -85,7 +85,8 @@ def _post_cue_licks(s: str, sd: Path) -> pd.DataFrame:
     if _lick_sfx():
         from wfield_local import session_licks as SL
         A = SL.session_licks(s)
-        return A.loc[A.context == "post_cue", ["trial_id", "on_ms"]].reset_index(drop=True)
+        A = A[(A.context == "post_cue") & (A.cams.astype(str) != "cam1")]   # cam1-only events are not licks (Priya 11-22)
+        return A[["trial_id", "on_ms"]].reset_index(drop=True)
     return (pd.read_csv(sd / "licks.csv", usecols=["trial_id", "on_ms"]) if (sd / "licks.csv").exists()
             else pd.DataFrame(columns=["trial_id", "on_ms"]))
 
