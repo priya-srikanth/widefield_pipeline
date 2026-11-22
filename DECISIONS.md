@@ -24414,3 +24414,14 @@ labelled last commit so it can be reviewed or dropped.
 - **Adoption mechanics.** `pose3d.ADOPTED_SOURCE` / `ADOPTED_TAG` (the default source + tag, whose routed outputs are
   untagged; any other source / tag gets `p3d-...`), `lp_licks.CAM1_DEFAULT`, `session_licks.FUSED_DEFAULT` and
   `orofacial_cohort.RUN` are the constants the adoption commit changes.
+
+## 2026-11-22 -- ADOPTION (separate, droppable commit): the four-camera / v37 run is the cohort-1 default (Priya 11-21 Q2)
+
+- `orofacial_cohort.RUN` = `lp_r4_heatmap_20261013__clean_v37`; `pose3d.ADOPTED_SOURCE` / `ADOPTED_TAG` = 4cam /
+  `_3net_20261121` (so `session_poses/pose3d_4cam_3net_20261121` is read with no env, and its routed outputs are
+  untagged); `lp_licks.CAM1_DEFAULT` = `cam1_licks_v37`; `session_licks.FUSED_DEFAULT` =
+  `lp_side_r2b_prod_20261118_3net_20261121_gapfix60` (cohort 1 only) -- that folder is made by Phase B step 1; until then
+  fused consumers raise instead of falling back. The v36 / two-camera / cam1_licks outputs stay on disk untouched.
+- `state_space_sim` pins the rebuild's own run (v36): a finished rebuild does not move with the adopted run.
+- Tests that pin the pre-adoption semantics now pin them explicitly (legacy env / constants), not through the defaults.
+- If the whole-session (sync-span) camera re-run is adopted instead, change the four constants to its names first.

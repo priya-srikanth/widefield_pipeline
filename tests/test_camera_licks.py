@@ -182,6 +182,9 @@ def test_bundle_out_carries_the_pose3d_run_tag(tmp_path, monkeypatch):
         def root(self, _k):
             return str(tmp_path)
 
+    from wfield_local import pose3d
+    monkeypatch.setattr(pose3d, "ADOPTED_SOURCE", "2cam")        # the pre-adoption semantics (no default tag)
+    monkeypatch.setattr(pose3d, "ADOPTED_TAG", "")
     monkeypatch.delenv("WIDEFIELD_POSE3D_TAG", raising=False)
     assert SCL._bundle_out(_RV(), "bund").name == "bund"
     monkeypatch.setenv("WIDEFIELD_POSE3D_TAG", "_3net_20261121")

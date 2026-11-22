@@ -8,6 +8,11 @@ from pathlib import Path
 def _clean(monkeypatch):
     for k in ("WIDEFIELD_POSE3D_SOURCE", "WIDEFIELD_POSE3D_TAG"):
         monkeypatch.delenv(k, raising=False)
+    # these tests pin the PRE-adoption routing (2cam adopted, 4cam tagged); since 11-22 the adopted source / tag are
+    # constants (`pose3d.ADOPTED_*`) and the routing for the adopted four-camera run is in test_rerun_rewire_1122
+    from wfield_local import pose3d
+    monkeypatch.setattr(pose3d, "ADOPTED_SOURCE", "2cam")
+    monkeypatch.setattr(pose3d, "ADOPTED_TAG", "")
 
 
 def test_default_2cam_run_is_untagged(monkeypatch):

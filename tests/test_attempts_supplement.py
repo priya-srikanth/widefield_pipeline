@@ -73,8 +73,9 @@ def test_labels_needs_out():
 
 
 # ------------------------------------------------------------------------------------------------ switch unset
-def test_unset_keys_identical_even_with_a_supplement_file_present(lp_env):
+def test_unset_keys_identical_even_with_a_supplement_file_present(lp_env, monkeypatch):
     tmp, reg, cache = lp_env
+    monkeypatch.setenv("WIDEFIELD_FUSED_LICKS", "off")    # the legacy cam4 lick set (adopted default = fused, 11-22)
     tok0, tag0 = lp_licks.spec_token(), lp_licks.cache_tag()
     _table(tmp / "june.csv", ["PS92_0606"])                              # present on disk, switch unset: ignored
     assert lp_licks.supplement_path() is None

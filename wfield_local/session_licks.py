@@ -50,7 +50,10 @@ import pandas as pd
 FUSED_ENV = "WIDEFIELD_FUSED_LICKS"
 #: the ADOPTED fused train folder (under session_poses/camera_licks); None = the legacy cam4 + cam1-only lick set. Set by
 #: the adoption commit only (Priya 11-21 Q2: "one commit once the consumers are rewired and the lick_uid key join is in").
-FUSED_DEFAULT: str | None = None
+#: ADOPTED 2026-11-22 (Priya 11-21 Q1 = (b), Q2): the Phase B re-fusion (full precision, 60 ms floor, table-gaps rule;
+#: `scripts.camera_licks session --saved --gapfix --out-tag _gapfix60`). Until that folder exists every fused consumer
+#: raises (SessionLicksUnavailable) rather than falling back to cam4.
+FUSED_DEFAULT: str | None = "lp_side_r2b_prod_20261118_3net_20261121_gapfix60"
 OFF_VALUES = ("off", "none", "legacy", "0")
 #: fused-folder format: 2 = full-precision CSVs (``%.10g``) + `MANIFEST`. Folders without the manifest (11-21) are refused.
 FORMAT_VERSION = 2

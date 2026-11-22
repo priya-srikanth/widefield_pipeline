@@ -95,6 +95,7 @@ def test_cache_names_default_unchanged(monkeypatch):
     from wfield_local import restnl_mask as rnm
     from wfield_local import run_mode
     monkeypatch.setattr(run_mode, "cache_tag", lambda: "")
+    monkeypatch.setenv("WIDEFIELD_FUSED_LICKS", "off")    # the legacy cam4 lick set (adopted default = fused, 11-22)
     monkeypatch.delenv(rl.ENV, raising=False)
     monkeypatch.delenv("WIDEFIELD_GATE_SOURCE", raising=False)
     d4, s4 = rnm.cache_dir(), rnm._stem("PS92_0810")

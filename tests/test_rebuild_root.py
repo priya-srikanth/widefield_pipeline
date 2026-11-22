@@ -80,7 +80,8 @@ def test_profile_rebuild_root_resolves_and_fences(tmp_path):
         assert out["roots"][n].replace("\\", "/").lower().startswith(R), (n, out["roots"][n])
     for n in ("labcams", "orofacial"):                                   # INPUT roots stay where they are
         assert not out["roots"][n].replace("\\", "/").lower().startswith(R), n
-    assert out["enc"].lower().startswith(R) and out["enc"].endswith("lp_r4_heatmap_20261013__clean_v36/imaging_encoding")
+    from wfield_local.orofacial_cohort import RUN                 # 11-22: the adopted run (v37), not a v36 literal
+    assert out["enc"].lower().startswith(R) and out["enc"].endswith(f"{RUN}/imaging_encoding")
     for k in ("grant", "fw", "enc"):
         assert out["writes"][k] == "refused", (k, out["writes"])           # the audit hook: any Python open()
         assert out["writes"][k + "_guard"] is False, k                    # and writeguard agree

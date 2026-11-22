@@ -470,7 +470,7 @@ INPUT_RUN_ENV = "WIDEFIELD_LICK_INPUT_RUN"          # e.g. lp_r4_heatmap_2026101
 CAM1_DIR_ENV = "WIDEFIELD_CAM1_LICKS_DIR"           # folder name under session_poses, e.g. cam1_licks_v37
 #: the ADOPTED cam1 event folder (11-22): what `cam1_events_dir` reads with the env unset; the four-camera adoption commit
 #: moves it with `orofacial_cohort.RUN` (the v37 re-detection, `mask_detached`, lives in cam1_licks_v37)
-CAM1_DEFAULT = "cam1_licks"
+CAM1_DEFAULT = "cam1_licks_v37"          # ADOPTED 2026-11-22 (Priya 11-21 Q2); session_poses/cam1_licks stays on disk
 
 
 def input_run() -> str:

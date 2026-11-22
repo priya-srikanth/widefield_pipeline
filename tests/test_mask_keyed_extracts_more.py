@@ -49,6 +49,7 @@ def test_firstlick_full(masks, tmp_path, monkeypatch):
 
 
 def test_lick_correction(masks, tmp_path, monkeypatch):
+    monkeypatch.setenv("WIDEFIELD_FUSED_LICKS", "off")    # the legacy cam4 lick set (adopted default = fused, 11-22)
     import lick_correction as m
     monkeypatch.setattr(m, "SESS", tmp_path)
     _stale_and_legacy(masks, tmp_path / "L.npz", lambda: m.extract("L"))
