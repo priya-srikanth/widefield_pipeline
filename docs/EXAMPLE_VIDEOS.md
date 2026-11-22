@@ -5,7 +5,46 @@ a video is made for review and Priya marks it as a keeper; never delete a listed
 Paths are under `M:/MICROSCOPE/Priya/DeepLabCut/Widefield/` (analysis desktop; `/n/files/Neurobio/MICROSCOPE/Priya/...`
 on O2).
 
-## SUPPLEMENTARY DELIVERABLE: one far-contra video per animal, four-camera fused lick list (2026-11-22)
+## SUPPLEMENTARY DELIVERABLE v2: far-contralesional videos, Mice 9 / 11 / 12 (2026-11-22) -- CURRENT
+
+Priya 11-22 (v2): manuscript animal numbers (`vls_stroke_paper/ANIMAL_KEY.csv`: PS92 = 9, PS94 = 11, PS95 = 12), no lab
+IDs / dates / trial numbers in frames, title cards or deliverable names; "Pre-stroke" / "Post-stroke day N (epoch)"; spout
+"far contralesional"; Fig 3C v26c framing (`fig3c_four_view_strip.CROPS_V26B`, grown with a 30 px margin to hold every
+keypoint of the epoch's clips at the v26c aspect) and keypoint style (small filled dots, word labels, white-ringed =
+reprojected from 3-D); "spout contact" row; dotted first-lick direction vs dashed target direction; cue + water marker at
+0 with the DAQ water-valve time marked separately (6-12 ms after the cue in most trials, 116-122 ms in PS95 0821),
+spout arrival (strobe) and departure (trial stop), "CUE + WATER" badge for 200 ms of real time, persistent t-from-cue
+readout; aim error signed + = contralesional (manuscript convention; columns `*_deg_pos_contra`).
+
+Deliverables: `session_poses/pose3d_4cam_3net_20261121_sync60/supp_videos_v2_20261122/SuppVideo_mouse{9,11,12}_far_contralesional_v2.mp4`
+(+ `_win.mp4`), `SuppVideo_mapping_v2.csv` (lab ID, session, trial, aim errors, rule, crops, cue -> valve ms, strobe / stop),
+building blocks + stills in `blocks_v2/`. Copied (byte-identical, without `_v2`) to
+`stroke_orofacial_pipeline_outputs/vls_stroke_paper/supplementary_videos/` with `SuppVideo_far_contralesional_mapping.csv`
+and a README section with suggested legends.
+
+| mouse | size (win) | duration | pre (contact) | acute | subacute | chronic |
+|---|---|---|---|---|---|---|
+| 9 (PS92) | 15.1 (18.8) MB | 126.6 s | -20 (73 %) | -50 (-30), day 2 | -38 (-17), day 7 | -23 (-3), day 22 |
+| 11 (PS94) | 12.0 (15.1) MB | 89.1 s | -30 (74 %) | -64 (-34), day 5 | -46 (-16), day 9 | -46 (-16), day 39 |
+| 12 (PS95) | 12.3 (15.3) MB | 80.4 s | -22 (40 %) | -54 (-32), day 1, n 39 | -36 (-15), day 5 | -25 (-3), day 43 |
+
+(epoch-median first-lick aim error vs target, deg, + = contralesional; change from the pre-stroke median in brackets)
+
+Rules: pre-stroke = first licks that CONTACTED the spout (DAQ), all four views (cams = all four, <= 10 % single-view
+frames); session = the pre session (>= 20 contacted first licks) whose 25th percentile of ipsilesional error is closest
+to the epoch's; the two licks closest to that 25th percentile (better-aimed quarter). Post-stroke = session whose median
+is closest to the epoch median; the two licks closest to it (<= 10 % single-view). Why the pre rule changed: the measure
+is not 0 at a hit -- pre far-contra first licks that contact the spout still end a median 18-28 deg medial of the spout
+direction (PS94: 74 % contact, only 0.9 % within 15 deg of the target; PS95: 40 % contact, 24 % within 15 deg), so the
+pre "median" lick looked abnormal although it hit. Selected trials (session, trial, error): PS92 pre 0813 t138 -16.0,
+t29 -15.9; acute 0819 t167 -49.8, t198 -50.0; subacute 0824 t279 -38.6, t22 -39.4; chronic 0908 t173 -22.5, t84 -23.0.
+PS94 pre 0814 t160 -23.7, t64 -23.8; acute 0821 t135, t258; subacute 0825 t86, t361; chronic 0924 t474, t223 (as below).
+PS95 pre 0814 t194 -14.4, t146 -14.6; acute 0817 t476, t478; subacute 0821 t145, t211; chronic 0928 t417, t259.
+
+    python -m scripts.pose3d_supp_clips --animal PS92 --style v2 --licks fused --n 2 --jobs 2 --out <P3D>/supp_videos_v2_20261122
+    (same for PS94, PS95)
+
+## SUPPLEMENTARY DELIVERABLE (v1): one far-contra video per animal, four-camera fused lick list (2026-11-22) -- superseded by v2, kept until Priya compares
 
 Priya 11-22: all figures use the four-camera fused lick list, kinematics only on licks with 3-D support; PS95 examples
 too, same rule; the supplement is ONE combined video per animal (epochs pre -> acute -> subacute -> chronic, a 3 s title
