@@ -40,6 +40,8 @@ TRIAL SELECTION (seeded, `SEED` + crc32 of the session; never chosen by eye):
     after the cue: clip = first peak - 150 .. +1350 ms (1.5 s).
   * ``--iti``: >= 4 consecutive kept fused licks peak-to-peak <= 250 ms, all after the trial stop (ITI); preferred
     where the sync-span windows reach beyond the old trial windows (stop + 3 s), so the whole-session coverage shows.
+  * ``--merge``: a 3-D lick that the video-lick floor made from >= 2 tongue runs (peaks closer than the floor), every
+    fused lick in the clip kept: clip = its onset - 250 .. + 450 ms (the ``M`` marker in the 3-D row).
 """
 from __future__ import annotations
 
@@ -151,6 +153,31 @@ def trial_candidates(T: dict, session: str, t0: float, t1: float) -> dict:
             lst += [(int(t), rule) for t in rng.permutation(c)] if len(c) else []
         out[pos] = lst
     return out
+
+
+def merge_candidates(rv, T: dict, session: str, floor_ms: float) -> list:
+    """Seeded list of (trial_id, onset_ms, n_runs) 3-D licks merged by the floor (module doc): `pose3d.lick_peaks` with
+    the production cuts and no floor, against the production `_licks.csv`."""
+    from scripts.apparatus_mouth import _rig
+    from wfield_local import camera_licks as CL
+    from wfield_local import pose3d as P3
+    animal, date = session.split(":")
+    S = T["S"]
+    L0 = P3.lick_peaks(S, _rig(rv, animal, date), cuts=CL.event_cuts(CL.production_events(rv, animal, date, span="all"),
+                                                                     S=S), min_ili_ms=0.0)
+    U = T["U"]
+    out = []
+    for tid, l in T["L"].groupby("trial_id"):
+        l0 = L0[L0.trial_id == tid]
+        u = U[U.trial_id == tid]
+        for r in l.itertuples():
+            a, b = float(r.t_onset_ms), float(r.t_onset_ms) + 4.0 * (int(r.n_frames) - 1)
+            n = int(((l0.t_peak_ms >= a) & (l0.t_peak_ms <= b)).sum())
+            w = u[(u.off_ms >= a - 250) & (u.on_ms <= a + 450)]
+            if n >= 2 and len(w) and w.keep.astype(bool).all():
+                out.append((int(tid), a, n))
+    rng = _rng(session + "_merge")
+    return [out[k] for k in rng.permutation(len(out))]
 
 
 def bout_candidates(T: dict, session: str, n_min: int = 7, ili_max: float = 220.0, iti: bool = False) -> list:
@@ -553,7 +580,8 @@ def render(P: dict, T: dict, clips: list, f_out: Path, daq_s: np.ndarray, rew_s:
             bar = np.zeros((46, W, 3), np.uint8)
             nv = "  ".join(f"{p} {int(cl['nviews'][p][k])}" for p in PARTS)
             what = {"trials": "", "bout": "  [lick bout]",
-                    "iti": f"  [ITI bout, {t - cl['stop_ms']:+.0f} ms after trial stop]"}[cl["kind"]]
+                    "iti": f"  [ITI bout, {t - cl['stop_ms']:+.0f} ms after trial stop]",
+                    "merge": f"  [3-D lick merged by the {P['floor_ms']:.0f} ms floor]"}[cl["kind"]]
             cv2.putText(bar, f"{animal}  {date[:4]}-{date[4:6]}-{date[6:]}  {epoch}  trial {tr}  spout {pos}  "
                         f"t = {t:+.0f} ms from cue{what}   10x slow motion (250 fps shown at 25 fps)",
                         (8, 18), F_, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
@@ -583,7 +611,7 @@ def render(P: dict, T: dict, clips: list, f_out: Path, daq_s: np.ndarray, rew_s:
 
 def run_session(item) -> dict:
     """Module level (fan_sessions pickles it). item = (session, preset, out, t0, t1, bout, iti, stills, trials)."""
-    session, preset, out, t0, t1, bout, iti, stills, do_trials = item
+    session, preset, out, t0, t1, bout, iti, stills, do_trials, merge = item
     os.environ.update(PRESETS[preset]["env"])
     import pickle
 
@@ -608,8 +636,13 @@ def run_session(item) -> dict:
                               "cands": [(tr, a - 150.0, min(e + 250.0, a + 1350.0),
                                          f"ITI bout: {n} licks{', beyond old window' if bb else ''}")
                                         for tr, a, e, n, bb in b]}]))
+    if merge:
+        m = merge_candidates(rv, T, session, pr["floor_ms"])
+        sets.append(("merge", [{"name": "merge", "kind": "merge",
+                                "cands": [(tr, a - 250.0, a + 450.0, f"3-D lick merged from {n} runs by the floor")
+                                          for tr, a, n in m]}]))
     PREP_DIR.mkdir(parents=True, exist_ok=True)
-    f_prep = PREP_DIR / f"{preset}_{animal}_{date}_{t0:+.0f}_{t1:+.0f}{'_tr' if do_trials else ''}{'_b' if bout else ''}{'_i' if iti else ''}.pkl"
+    f_prep = PREP_DIR / f"{preset}_{animal}_{date}_{t0:+.0f}_{t1:+.0f}{'_tr' if do_trials else ''}{'_b' if bout else ''}{'_i' if iti else ''}{'_m' if merge else ''}.pkl"
     if f_prep.exists():
         P = pickle.loads(f_prep.read_bytes())
     else:
@@ -658,6 +691,7 @@ def main(argv=None) -> int:
     ap.add_argument("--t1", type=float, default=700.0)
     ap.add_argument("--bout", nargs="*", default=[], help="sessions that also get a lick-bout clip")
     ap.add_argument("--iti", nargs="*", default=[], help="sessions that also get an ITI lick-bout clip")
+    ap.add_argument("--merge", nargs="*", default=[], help="sessions that also get a floor-merged 3-D lick clip")
     ap.add_argument("--no-trials", nargs="*", default=[], help="sessions rendered for --bout / --iti only")
     ap.add_argument("--stills", action="store_true", help="also write PNG stills (first lick peak + mid clip)")
     ap.add_argument("--jobs", type=int, default=2)
@@ -666,22 +700,25 @@ def main(argv=None) -> int:
     if o.upper().startswith(("M:", "N:")) and not o.startswith("M:/MICROSCOPE/Priya/"):
         raise SystemExit("--out on a share must be under M:/MICROSCOPE/Priya/")
     a.out.mkdir(parents=True, exist_ok=True)
-    items = [(s, a.preset, str(a.out), a.t0, a.t1, s in a.bout, s in a.iti, a.stills, s not in a.no_trials)
+    items = [(s, a.preset, str(a.out), a.t0, a.t1, s in a.bout, s in a.iti, a.stills, s not in a.no_trials,
+              s in a.merge)
              for s in a.sessions]
     res, fails = ak.fan_sessions(items, run_session, jobs=min(a.jobs, len(items)))
     rows = [r for _, v in res for r in v["rows"]]
     checks = [r for _, v in res for r in v["checks"]]
-    # one table per folder over every invocation: this run's sessions replace their old rows
-    done = {s.replace(":", "_") for s in a.sessions}
-    for name, new, col in (("clips.csv", rows, "session"), ("checks_vs_production.csv", checks, "session")):
+    # one table per folder over every invocation: rows of the clips this run wrote replace their old rows
+    for name, new, key in (("clips.csv", rows, ["session", "file", "position"]),
+                           ("checks_vs_production.csv", checks, ["session", "clip", "part"])):
         D = pd.DataFrame(new)
         f = a.out / name
         if f.exists() and f.stat().st_size > 2:
             old = pd.read_csv(f)
-            old = old[~old[col].astype(str).str.replace(":", "_").isin(done)]
+            if len(D):
+                k_old = old[key].astype(str).agg("|".join, axis=1)
+                old = old[~k_old.isin(set(D[key].astype(str).agg("|".join, axis=1)))]
             D = pd.concat([old, D], ignore_index=True)
         if len(D):
-            D = D.sort_values(col, kind="mergesort")
+            D = D.sort_values(key[:2], kind="mergesort")
         D.to_csv(f, index=False)
     for _, v in res:
         for f in v["stills"]:
