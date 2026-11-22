@@ -24290,3 +24290,30 @@ events):
   theta 15 mm/s; far-contra acute +0.11 with the surrogate +0.07, chronic -0.03 (Holm n.s.). Kept separate.
 - *Environment:* analysis desktop, `dlc` env (pandas 2.3.3, numpy 2.2.6, scipy 1.15.3), `PYTHONPATH=<worktree>`,
   `MKL_THREADING_LAYER=SEQUENTIAL`; it reproduces the cited `c2_recovery_mechanics_v2_stats.csv` exactly.
+
+## 2026-11-21 -- Table gaps: why real licks were "side-only"; side-only licks need BOTH side views (Priya: "go ahead with your table gaps rule")
+
+- *Context:* the side-only guard check found that most real side-only licks (no cam4 / cam1 lick event) were tracked by
+  cam4 / cam1 but missing from their lick tables. Priya OK'd fixing the table gaps (D2: any camera counts, side-only
+  needs confirmation; D3 / Q8: full session = first to last sync pulse).
+- *Diagnosis (all 14,696 side-only licks, `scripts/table_gaps_check.py`, qc_phaseA/table_gaps/README.md):* 47.2 % PS93
+  0805 (no cam4 / cam1 tables: the 2-D chain needed the behavior log's `_trials.csv`); 35.9 % not tracked by cam4 nor
+  cam1 (blind: 61 / 62 false, mostly paws); 11.6 % tracked but not called a lick (cam4 detector 1,164: 765 with another
+  cam4 lick within 100 ms; cam1 droplet / far rule 521, cleaning 330, detached mask 107); 5.2 % pieces split off a lick
+  cam4 / cam1 already count; 1 lick outside the windows.
+- *First rule NOT adopted:* "confirmed if cam4 or cam1 tracked the tongue (>= 2 frames, lk >= 0.4, tip in front of the
+  mouth)". New blind sample of 30 licks it added: 13 real, 9 grooming, 5 paw, 1 drop, 2 unsure (one side view: 2 real /
+  13 false). cam4 labels a paw near the mouth as tongue at lk ~1.
+- *Adopted (code; fusion `_gapfix`):* `camera_licks.confirm_side_only`: a side-only lick is kept only when cam2 AND cam3
+  saw it; pieces touching a counted lick (`cut_fragment`) dropped; tracking written as `tracked_cam4` / `tracked_cam1`.
+  Blind (113 judged outside PS93 0805, pieces aside): 19 / 25 real kept, 8 / 85 false kept, 0 / 46 paws, 0 / 9 drops.
+  cam4 / cam1 detectors unchanged. Fusion `camera_licks/lp_side_r2b_prod_20261118_3net_20261121_gapfix/` (126
+  sessions): 125 sessions (0805 aside) side-only 7,755 -> 1,432 kept (session median 0.42 % -> 0.08 % of licks; PS95
+  August week 2.4-9.9 % -> <= 0.33 %); kept licks -0.58 %; every lick with a cam4 / cam1 event unchanged. Adoption into
+  the fused train is Priya's call (README "Open").
+- *PS93 0805:* `kinematics_chain` reads DAQ licks / contacts without the behavior log; cam4 / cam1 / 3-D / fusion built in
+  the new `_sync` folders (still in `cross_session_exclude`).
+- *Full session:* `o2_inference` `WIDEFIELD_WINDOWS_SPAN=sync` (windows tile first .. last DAQ sync pulse; run name
+  `_sync`). Measured: the trial windows already cover the sync span to within a median 0.91 s per session (head 0 s,
+  tail 0 s); the "~10 s head / minutes of tail" outside the windows is video outside the DAQ recording. Cohort re-run
+  (~6.6 h) NOT launched; Priya to decide.

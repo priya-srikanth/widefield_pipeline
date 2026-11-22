@@ -563,7 +563,7 @@ def _compare_one(f_old: Path, f_new: Path) -> dict:
     row.update({f"before_{k}": v for k, v in composition(Ko).items()})
     row.update({f"after_{k}": v for k, v in composition(Kn).items()})
     so = CL.side_only_mask(Un) & ~Un.guarded.astype(bool).to_numpy()
-    for r in ("tracked_cam4", "tracked_cam1", "two_side_views", "cut_fragment", "unconfirmed_one_side_view"):
+    for r in ("two_side_views", "cut_fragment", "one_view_tracked", "unconfirmed_one_side_view"):
         row[f"side_only_{r}"] = int((so & (Un.reason == r).to_numpy()).sum())
     return row
 
