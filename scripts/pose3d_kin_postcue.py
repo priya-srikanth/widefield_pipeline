@@ -19,6 +19,9 @@ without recomputing any 3-D:
   by_animal.csv     `pose3d_kinematics.by_animal` (rule 8) on that sessions table.
 Frame-coverage-gated trials are already absent from the fused table (`kinematics_fused/licks_gated.csv.gz`).
 
+CAM1-ONLY EVENTS ARE NOT LICKS (Priya 11-22): rows with ``cams == 'cam1'`` are dropped from the primary folder before
+the numbering (counts and first lick); the ``_allviews`` folder keeps them (comparison).
+
 3-D SUPPORT (coordinator 11-22): 6.0 % of fused post-cue licks are seen by ONE camera (cam1 only 4.5 %, cam4 only 1.5 %);
 cam1-only licks have median 0 3-D frames, reach 1.85 mm, DAQ contact 0.3 % and come late in the trial, so kinematics must
 not be read from them. PRIMARY folder (``kinematics_fused_postcue``): every lick row is KEPT (lick counts unchanged) but
@@ -51,9 +54,13 @@ def _spans(job) -> pd.DataFrame:
                          "off_ms": A.off_ms.to_numpy(float)})
 
 
-def postcue_licks(L: pd.DataFrame, spans: pd.DataFrame | None = None) -> pd.DataFrame:
-    """Post-cue rows of a fused kinematics lick table, lick_idx renumbered within (session, trial). Pure (tested)."""
+def postcue_licks(L: pd.DataFrame, spans: pd.DataFrame | None = None, drop_cam1_only: bool = True) -> pd.DataFrame:
+    """Post-cue rows of a fused kinematics lick table, lick_idx renumbered within (session, trial). ``drop_cam1_only``
+    (Priya 11-22: cam1-only events are "not licks") removes ``cams == 'cam1'`` rows BEFORE the numbering, so the first
+    lick is the first real lick. Pure (tested)."""
     P = L[L.context == "post_cue"].copy()
+    if drop_cam1_only and "cams" in P:
+        P = P[P.cams.astype(str) != "cam1"]
     P["lick_idx_fused"] = P.lick_idx
     P = P.sort_values(["session", "trial_id", "t_peak_cam4", "lick_idx_fused"], kind="mergesort")
     P["lick_idx"] = P.groupby(["session", "trial_id"]).cumcount()
@@ -112,12 +119,15 @@ def main(argv=None) -> int:
     for s, e in fails:
         print(f"{s}: span read FAILED {e}")
     spans = pd.concat([d for _, d in res], ignore_index=True)
-    P0 = postcue_licks(L, spans)
+    P0 = postcue_licks(L, spans)                                   # cam1-only events dropped (not licks)
+    P0all = postcue_licks(L, spans, drop_cam1_only=False)
+    print(f"cam1-only post-cue events dropped from the primary folder: {len(P0all) - len(P0)}")
     miss = P0.on_ms.isna() & P0.lick_key.notna()
     print(f"{len(L)} fused licks -> {len(P0)} post-cue ({P0.session.nunique()} sessions); span missing for {int(miss.sum())}")
     S_fused = pd.read_csv(src / "sessions.csv", dtype={"date": str})
-    for o, P, rule in ((out, mask_single_view(P0), f"kinematics only where n_views >= {MIN_VIEWS} (rows kept)"),
-                       (out.with_name(out.name + ALLVIEWS_SUFFIX), mask_single_view(P0, 0), "single-view kinematics kept")):
+    for o, P, rule in ((out, mask_single_view(P0), f"cam1-only events dropped; kinematics only where n_views >= {MIN_VIEWS} (rows kept)"),
+                       (out.with_name(out.name + ALLVIEWS_SUFFIX), mask_single_view(P0all, 0),
+                        "cam1-only events and single-view kinematics kept")):
         o.mkdir(parents=True, exist_ok=True)
         if (o / "licks.csv.gz").exists() and not a.force:
             raise SystemExit(f"{o / 'licks.csv.gz'} exists: --force to overwrite")

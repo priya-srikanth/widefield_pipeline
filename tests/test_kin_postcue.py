@@ -10,7 +10,8 @@ def _fused():
         "context": ["pre_cue", "post_cue", "post_cue", "iti", "post_cue", "post_cue"],
         "t_peak_cam4": [-300, 200, 330, 5000, 150, 290], "lick_key": ["1:-300.0", "1:200.0", "1:330.0", "1:5000.0",
                                                                      "2:150.0", "2:290.0"],
-        "n_views": [2, 1, 3, 2, 2, 2], "n_3d": [10, 0, 12, 9, 8, 7], "cam4_matched": [True, False, True, True, True, True],
+        "n_views": [2, 1, 3, 2, 2, 2], "cams": ["cam1+cam4", "cam4", "cam1+cam2+cam4", "cam1+cam4", "cam1+cam4",
+                                               "cam1+cam4"], "n_3d": [10, 0, 12, 9, 8, 7], "cam4_matched": [True, False, True, True, True, True],
         "reach_mm": [4.0, 1.8, 5.0, 4.4, 4.5, 4.6], "speed_peak": [150.0, 90.0, 180.0, 160.0, 170.0, 175.0],
         "t_peak_3d": [-300.0, 196.0, 330.0, 5000.0, 150.0, 290.0]})
 
@@ -59,3 +60,13 @@ def test_summary_counts_both_ways():
     P["session"] = "PS92_20260810"
     S = summarise(P).iloc[0]
     assert (S.n_first, S.n_first_rows, S.n_all, S.n_all_rows) == (1, 2, 3, 4)
+
+
+def test_cam1_only_events_are_not_licks():
+    from scripts.pose3d_kin_postcue import postcue_licks
+    L = _fused()
+    L.loc[1, "cams"] = "cam1"                             # trial 1's first post-cue event: cam1 only
+    P = postcue_licks(L)
+    t1 = P[P.trial_id == 1]
+    assert len(t1) == 1 and t1.lick_idx.tolist() == [0] and t1.lick_key.tolist() == ["1:330.0"]   # next real lick = first
+    assert len(postcue_licks(L, drop_cam1_only=False)) == 4
