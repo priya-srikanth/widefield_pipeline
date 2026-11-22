@@ -149,15 +149,16 @@ def job(item):
             a[bad[:n]] = np.nan
         res.update(fr_t=t25, fr_all=drop5(sa), fr_contra=drop5(sc), fr_ipsi=drop5(si))
         res.update({f"fr_{k}": v for k, v in label_frames(t25, W, licks, fc).items()})
+    no_tim = bool(os.environ.get("S1_NO_TIM"))
     pj = FDIR / "proj" / f"{key}.npz"
-    if pj.exists():
+    if pj.exists() and not no_tim:
         with np.load(pj, allow_pickle=True) as z:
             pc, tpc = z["points_pc"].astype(np.float32), z["points_t_daq_s"].astype(float)
         res.update(pc_t=tpc, pc=pc.astype(np.float16))
         res.update({f"pc_{k}": v for k, v in label_frames(tpc, W, licks, fc).items()})
     # ---- tp (TIM traces, mouth frame)
-    sd = tim.session_dir(label)
-    if (sd / "windows.npz").exists() and (sd / "clean.npz").exists():
+    sd = None if no_tim else tim.session_dir(label)
+    if sd is not None and (sd / "windows.npz").exists() and (sd / "clean.npz").exists():
         G = tim.frame_table(sd)
         cmap = dict(zip(TR.trial_id, TR.cue_daq))
         tt = G.trial_id.map(cmap).to_numpy(float) + G.t_ms.to_numpy(float) / 1000.0
@@ -178,10 +179,17 @@ def main():
     ap.add_argument("cache")
     ap.add_argument("--jobs", type=int, default=4)
     ap.add_argument("--labels", nargs="*")
+    ap.add_argument("--no-tim", action="store_true",
+                    help="skip the TIM-only streams (pc = FaceRhythm point PCs, tp = TIM traces; read only by s2)")
     a = ap.parse_args()
+    if a.no_tim:
+        os.environ["S1_NO_TIM"] = "1"           # inherited by the pool workers
     from wfield_local import behavior_states as B
+    import trial_scaffold
     Path(a.cache).mkdir(parents=True, exist_ok=True)
-    labels = a.labels or sorted(lab for lab in B.load_collected()["trials"].label.unique() if B.session_epoch(lab))
+    pool_labels = (B.load_collected()["trials"].label.unique() if trial_scaffold.collected_available()
+                   else trial_scaffold.glmhmm_labels())
+    labels = a.labels or sorted(lab for lab in pool_labels if B.session_epoch(lab))
     from multiprocessing import Pool
     import time
     t0 = time.time()

@@ -5,7 +5,10 @@ session change from the animal's own August-pre mean; session Mann-Whitney U (po
 animal-weighted nested bootstrap (`analysis_kit.boot_delta`, 2,000 draws, seed 0); ONE Benjamini-Hochberg family per
 measure family (fdr_scope="all" within the call; families listed in tests_ALL.csv ``family``); star = q < 0.05 AND
 95 % CI excludes 0 (``agree == "both"``). Primary time match = first95; first74 and unmatched reported alongside.
-Usage: WF_REPO=... MC=... python s5_stats_figures.py <out_dir>
+Usage: WF_REPO=... MC=... python s5_stats_figures.py <out_dir> [--no-tim]
+--no-tim (11-22, manuscript v26: TIM removed from the paper; s2 not run, s4 run with --no-tim): every TIM family, the
+composite general-movement index (needs TIM and the treadmill rates), the TIM state contrasts and the TIM LMM are
+skipped; the main figure is drawn without its TIM rows. Everything else is unchanged.
 """
 import os
 import sys
@@ -21,6 +24,9 @@ from wfield_local import orofacial_stats as st  # noqa: E402
 from wfield_local import behavior_states as B  # noqa: E402
 
 OUT = Path(sys.argv[1])
+NO_TIM = "--no-tim" in sys.argv[2:]
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import trial_scaffold  # noqa: E402  (collector trials, or the 11-22 fallback for a run without them)
 EPS = ["pre", "acute", "subacute", "chronic"]
 POST = EPS[1:]
 POS6 = ["close_ipsi", "close_mid", "close_contra", "far_ipsi", "far_mid", "far_contra"]
@@ -57,14 +63,15 @@ def tests(S, metrics, family, match, extra=None):
 
 
 E = rd("sessions_engagement.csv")
-TP = rd("sessions_tim_pipeline.csv")
-TN = rd("sessions_tim_new.csv")
+TP = None if NO_TIM else rd("sessions_tim_pipeline.csv")
+TN = None if NO_TIM else rd("sessions_tim_new.csv")
 M = rd("sessions_motion.csv")
-TRD = rd("sessions_treadmill_rates.csv")
+TRD = None if NO_TIM else rd("sessions_treadmill_rates.csv")
 H = rd("sessions_hit_by_position.csv")
-A = rd("sessions_aim_by_position.csv")
+A = rd("sessions_aim_by_position.csv") if (OUT / "sessions_aim_by_position.csv").exists() else None   # 11-22: s4 skips it without ITI-lick preds
 for D_ in (E, TP, TN, M, TRD):
-    D_["pos"] = "all"
+    if D_ is not None:
+        D_["pos"] = "all"
 
 ROLES = list(B.ROLES)
 TIM_DLC = [f"timDLC_{p}_{q}" for p in ("precue", "response") for q in ("tongue", "jaw", "nose")]
@@ -84,12 +91,13 @@ for m in ("first95", "first74", "all"):
     for mod in ("refit_ipsimid", "refit_init"):
         if (e.model == mod).any():
             tests(e[e.model == mod], ROLES, f"F1r engagement occupancy ({mod})", m)
-    tn = TN[(TN.match == m) & (TN.state == "all") & (TN.trials == "working")]
-    tests(tn, TIM_DLC, "F2 TIM DLC (new windows; pre-cue E-G, response H-J)", m)
-    tests(tn, TIM_DLC_ITI, "F2b TIM DLC ITI (docked)", m)
-    tests(tn, TIM_FR, "F3 TIM FaceRhythm (new windows)", m)
-    tp = TP[(TP.match == m) & (TP.state == "all")]
-    tests(tp, TIM_PIPE, "F2c TIM DLC pipeline-default periods (check)", m)
+    if not NO_TIM:
+        tn = TN[(TN.match == m) & (TN.state == "all") & (TN.trials == "working")]
+        tests(tn, TIM_DLC, "F2 TIM DLC (new windows; pre-cue E-G, response H-J)", m)
+        tests(tn, TIM_DLC_ITI, "F2b TIM DLC ITI (docked)", m)
+        tests(tn, TIM_FR, "F3 TIM FaceRhythm (new windows)", m)
+        tp = TP[(TP.match == m) & (TP.state == "all")]
+        tests(tp, TIM_PIPE, "F2c TIM DLC pipeline-default periods (check)", m)
     mm = M[(M.match == m) & (M.state == "all")]
     tests(mm, ME, "F4 motion energy (keypoint + FaceRhythm whole face)", m)
     tests(mm, ME_HALF, "F4b FaceRhythm ME face halves", m)
@@ -97,65 +105,73 @@ for m in ("first95", "first74", "all"):
     tests(mm, RUN, "F6 running", m)
 # state splits (primary match only)
 for rs in ("engaged", "not_engaged", "disengaged"):
-    tn = TN[(TN.match == PRIMARY) & (TN.state == rs) & (TN.trials == "alltrials")]
-    tests(tn, TIM_DLC + TIM_FR, f"F7 TIM within {rs} trials (all trial classes)", PRIMARY, {"state": rs})
+    if not NO_TIM:
+        tn = TN[(TN.match == PRIMARY) & (TN.state == rs) & (TN.trials == "alltrials")]
+        tests(tn, TIM_DLC + TIM_FR, f"F7 TIM within {rs} trials (all trial classes)", PRIMARY, {"state": rs})
     mm = M[(M.match == PRIMARY) & (M.state == rs)]
     tests(mm, ME + [s for s in STILL if not s.endswith("session")] + ["run_iti_mean_speed", "run_iti_frac"],
           f"F8 motion within {rs} trials", PRIMARY, {"state": rs})
-tn = TN[(TN.match == PRIMARY) & (TN.state == "all") & (TN.trials == "alltrials")]
-tests(tn, TIM_DLC + TIM_FR, "F7 TIM all trial classes (reference for F7)", PRIMARY, {"state": "all"})
-tn = TN[(TN.match == PRIMARY) & (TN.state == "engaged") & (TN.trials == "working")]
-tests(tn, TIM_DLC + TIM_FR, "F7w TIM engaged working trials", PRIMARY, {"state": "engaged"})
+def tim_and_composite():
+    global CZ, COMP
+    tn = TN[(TN.match == PRIMARY) & (TN.state == "all") & (TN.trials == "alltrials")]
+    tests(tn, TIM_DLC + TIM_FR, "F7 TIM all trial classes (reference for F7)", PRIMARY, {"state": "all"})
+    tn = TN[(TN.match == PRIMARY) & (TN.state == "engaged") & (TN.trials == "working")]
+    tests(tn, TIM_DLC + TIM_FR, "F7w TIM engaged working trials", PRIMARY, {"state": "engaged"})
 
-# ------------------------------------------------------------------ composite
-def zpre(S, cols):
-    out = S[["label", "animal", "epoch", "date"]].copy()
-    for c in cols:
-        pre = S[S.epoch == "pre"].groupby("animal")[c].agg(["mean", "std"])
-        out[c] = (S[c] - S.animal.map(pre["mean"])) / S.animal.map(pre["std"])
-    return out
+    # ------------------------------------------------------------------ composite
+    def zpre(S, cols):
+        out = S[["label", "animal", "epoch", "date"]].copy()
+        for c in cols:
+            pre = S[S.epoch == "pre"].groupby("animal")[c].agg(["mean", "std"])
+            out[c] = (S[c] - S.animal.map(pre["mean"])) / S.animal.map(pre["std"])
+        return out
 
 
-COMP = {"DLC": ["timDLC_precue_tongue", "timDLC_precue_jaw", "timDLC_precue_nose"],
-        "FaceRhythm": ["timFR_precue_face", "me_fr_all_iti"],
-        "treadmill": ["walk_control", "push_control_rate"]}
-comp_rows = []
-for m in ("first95", "first74", "all"):
-    tn = TN[(TN.match == m) & (TN.state == "all") & (TN.trials == "working")][["label", "animal", "epoch", "date"] + COMP["DLC"] + ["timFR_precue_face"]]
-    mm = M[(M.match == m) & (M.state == "all")][["label", "me_fr_all_iti"]]
-    tr = TRD[TRD.match == m][["label", "walk_control", "push_control_rate"]]
-    S = tn.merge(mm, on="label", how="outer").merge(tr, on="label", how="outer")
-    S["animal"] = S.label.str.split("_").str[0]; S["epoch"] = S.label.map(B.session_epoch); S["date"] = S.label.str.split("_").str[1]
-    Z = zpre(S, sum(COMP.values(), []))
-    for mod, cols in COMP.items():
-        Z[f"mod_{mod}"] = Z[cols].mean(1)
-    Z["composite"] = Z[[f"mod_{k}" for k in COMP]].mean(1)
-    Z["match"] = m
-    comp_rows.append(Z)
-CZ = pd.concat(comp_rows, ignore_index=True)
-CZ["pos"] = "all"
-W("sessions_composite_z.csv", CZ)
-for m in ("first95", "first74", "all"):
-    z = CZ[CZ.match == m]
-    tests(z, ["composite"], "F9 composite general-movement index", m)
-    tests(z, [f"mod_{k}" for k in COMP] + sum(COMP.values(), []), "F9s composite modalities + components (supplement)", m)
-z = CZ[CZ.match == PRIMARY]
-cr = []
-for subset, zz in (("all sessions", z), ("post sessions", z[z.epoch != "pre"])):
-    for a_, b_ in (("DLC", "FaceRhythm"), ("DLC", "treadmill"), ("FaceRhythm", "treadmill")):
-        x, y = zz[f"mod_{a_}"], zz[f"mod_{b_}"]
-        ok = x.notna() & y.notna()
-        r, p = spearmanr(x[ok], y[ok])
-        # within-animal (each animal's sessions centered on its own mean)
-        xc = (x - x.groupby(zz.animal).transform("mean"))[ok]; yc = (y - y.groupby(zz.animal).transform("mean"))[ok]
-        rw, pw = spearmanr(xc, yc)
-        cr.append({"subset": subset, "pair": f"{a_} vs {b_}", "n_sessions": int(ok.sum()), "spearman_r": r, "p": p,
-                   "within_animal_r": rw, "within_animal_p": pw})
-W("composite_modality_correlations.csv", pd.DataFrame(cr))
+    COMP = {"DLC": ["timDLC_precue_tongue", "timDLC_precue_jaw", "timDLC_precue_nose"],
+            "FaceRhythm": ["timFR_precue_face", "me_fr_all_iti"],
+            "treadmill": ["walk_control", "push_control_rate"]}
+    comp_rows = []
+    for m in ("first95", "first74", "all"):
+        tn = TN[(TN.match == m) & (TN.state == "all") & (TN.trials == "working")][["label", "animal", "epoch", "date"] + COMP["DLC"] + ["timFR_precue_face"]]
+        mm = M[(M.match == m) & (M.state == "all")][["label", "me_fr_all_iti"]]
+        tr = TRD[TRD.match == m][["label", "walk_control", "push_control_rate"]]
+        S = tn.merge(mm, on="label", how="outer").merge(tr, on="label", how="outer")
+        S["animal"] = S.label.str.split("_").str[0]; S["epoch"] = S.label.map(B.session_epoch); S["date"] = S.label.str.split("_").str[1]
+        Z = zpre(S, sum(COMP.values(), []))
+        for mod, cols in COMP.items():
+            Z[f"mod_{mod}"] = Z[cols].mean(1)
+        Z["composite"] = Z[[f"mod_{k}" for k in COMP]].mean(1)
+        Z["match"] = m
+        comp_rows.append(Z)
+    CZ = pd.concat(comp_rows, ignore_index=True)
+    CZ["pos"] = "all"
+    W("sessions_composite_z.csv", CZ)
+    for m in ("first95", "first74", "all"):
+        z = CZ[CZ.match == m]
+        tests(z, ["composite"], "F9 composite general-movement index", m)
+        tests(z, [f"mod_{k}" for k in COMP] + sum(COMP.values(), []), "F9s composite modalities + components (supplement)", m)
+    z = CZ[CZ.match == PRIMARY]
+    cr = []
+    for subset, zz in (("all sessions", z), ("post sessions", z[z.epoch != "pre"])):
+        for a_, b_ in (("DLC", "FaceRhythm"), ("DLC", "treadmill"), ("FaceRhythm", "treadmill")):
+            x, y = zz[f"mod_{a_}"], zz[f"mod_{b_}"]
+            ok = x.notna() & y.notna()
+            r, p = spearmanr(x[ok], y[ok])
+            # within-animal (each animal's sessions centered on its own mean)
+            xc = (x - x.groupby(zz.animal).transform("mean"))[ok]; yc = (y - y.groupby(zz.animal).transform("mean"))[ok]
+            rw, pw = spearmanr(xc, yc)
+            cr.append({"subset": subset, "pair": f"{a_} vs {b_}", "n_sessions": int(ok.sum()), "spearman_r": r, "p": p,
+                       "within_animal_r": rw, "within_animal_p": pw})
+    W("composite_modality_correlations.csv", pd.DataFrame(cr))
+
+
+CZ = None
+if not NO_TIM:
+    tim_and_composite()
 
 # ------------------------------------------------------------------ hit rate / aim by position: all vs engaged-only
 cmp_rows = []
-for meas, D_, col in (("hit_rate", H, "hit_rate"), ("aim_off", A, "aim_off")):
+for meas, D_, col in (("hit_rate", H, "hit_rate"), *((("aim_off", A, "aim_off"),) if A is not None else ())):
     for m in ("first95", "all"):
         for tset in sorted(D_.trials.unique()):
             d = D_[(D_.match == m) & (D_.trials == tset)].copy()
@@ -181,8 +197,14 @@ W("engaged_only_pattern_by_epoch.csv", pd.DataFrame(pat))
 # ------------------------------------------------------------------ per-animal time course: disengagement vs far-contra hit
 # 11-22 (plan item 3): the adopted run's table (was a literal v36 path; only the session -> day map is read)
 from wfield_local import orofacial_outputs as _oo  # noqa: E402
-days = pd.read_csv(_oo.encoding_root() / "iti_licks" / "aim_by_spout_sessions.csv")[["label", "day"]].drop_duplicates("label")
-days["label8"] = days.label.str[:5] + "2026" + days.label.str[-4:]
+_daysf = _oo.encoding_root() / "iti_licks" / "aim_by_spout_sessions.csv"
+if _daysf.exists():
+    days = pd.read_csv(_daysf)[["label", "day"]].drop_duplicates("label")
+    days["label8"] = days.label.str[:5] + "2026" + days.label.str[-4:]
+else:                     # 11-22: run without iti_licks tables -> the same day count from `epochs.days_since_stroke`
+    from wfield_local import epochs as _ep  # noqa: E402
+    days = pd.DataFrame({"label8": sorted(E.label.unique())})
+    days["day"] = [_ep.days_since_stroke(lab[:5] + lab[-4:]) for lab in days.label8]
 e = E[(E.match == PRIMARY) & (E.model == "production")][["label", "animal", "epoch", "disengaged", "engaged"]]
 h = H[(H.match == PRIMARY) & (H.trials == "all") & (H.pos == "far_contra")][["label", "hit_rate"]]
 tc_ = e.merge(h, on="label", how="left").merge(days[["label8", "day"]], left_on="label", right_on="label8", how="left")
@@ -217,7 +239,7 @@ G = B.glmhmm_table()
 roles = B.glmhmm_roles(G)
 pc = B._pcols(G)
 G["role"] = [roles[int(pc[i][7:])] for i in G[pc].to_numpy().argmax(1)]
-G = B.add_session_time(G, B.load_collected()["trials"])
+G = B.add_session_time(G, trial_scaffold.trials(OUT))
 G = G[~(G.t_min > 95)]
 POSN = {"close_L": "close_ipsi", "close_center": "close_mid", "close_R": "close_contra", "far_L": "far_ipsi",
         "far_center": "far_mid", "far_R": "far_contra"}
@@ -275,8 +297,9 @@ def nested_mean(by_animal, rng, nb=2000):
 
 rng = np.random.default_rng(0)
 yr = []
-for src, D_, cols in (("TIM", TN[(TN.match == PRIMARY) & (TN.trials == "alltrials")], TIM_DLC + TIM_DLC_ITI + TIM_FR),
-                      ("ME", M[(M.match == PRIMARY)], ME)):
+for src, D_, cols in ((() if NO_TIM else (("TIM", TN[(TN.match == PRIMARY) & (TN.trials == "alltrials")],
+                                             TIM_DLC + TIM_DLC_ITI + TIM_FR),))
+                      + (("ME", M[(M.match == PRIMARY)], ME),)):
     for contrast in ("disengaged", "not_engaged"):
         a_ = D_[D_.state == contrast].set_index("label"); b_ = D_[D_.state == "engaged"].set_index("label")
         for c in cols:
@@ -294,22 +317,23 @@ for src, D_, cols in (("TIM", TN[(TN.match == PRIMARY) & (TN.trials == "alltrial
                            "ci_excludes_0": bool(lo > 0 or hi < 0), "frac_sessions_positive": float(np.mean(dd > 0)),
                            "engaged_level_mean": float(b_.loc[labs, c].mean())})
 W("yin_state_contrasts.csv", pd.DataFrame(yr))
-# LMM: session x role cells, TIM ~ epoch (+ role), animal random intercept
-import statsmodels.formula.api as smf  # noqa: E402
-lm = []
-cells = TN[(TN.match == PRIMARY) & (TN.trials == "alltrials") & TN.state.isin(ROLES)].copy()
-for c in TIM_DLC + TIM_FR:
-    d = cells[["animal", "epoch", "state", c]].dropna().rename(columns={c: "y"})
-    for form in ("y ~ C(epoch, Treatment('pre'))", "y ~ C(epoch, Treatment('pre')) + C(state, Treatment('engaged'))"):
-        try:
-            f = smf.mixedlm(form, d, groups=d.animal).fit(method="lbfgs")
-        except Exception as ex:  # noqa: BLE001
-            lm.append({"metric": c, "model": form, "error": str(ex)}); continue
-        for e in POST:
-            t_ = f"C(epoch, Treatment('pre'))[T.{e}]"
-            lm.append({"metric": c, "model": "epoch + state" if "state" in form else "epoch only", "epoch": e,
-                       "coef": f.params.get(t_), "se": f.bse.get(t_), "p": f.pvalues.get(t_), "n_cells": len(d)})
-W("tim_lmm_epoch_with_state_covariate.csv", pd.DataFrame(lm))
+if not NO_TIM:
+    # LMM: session x role cells, TIM ~ epoch (+ role), animal random intercept
+    import statsmodels.formula.api as smf  # noqa: E402
+    lm = []
+    cells = TN[(TN.match == PRIMARY) & (TN.trials == "alltrials") & TN.state.isin(ROLES)].copy()
+    for c in TIM_DLC + TIM_FR:
+        d = cells[["animal", "epoch", "state", c]].dropna().rename(columns={c: "y"})
+        for form in ("y ~ C(epoch, Treatment('pre'))", "y ~ C(epoch, Treatment('pre')) + C(state, Treatment('engaged'))"):
+            try:
+                f = smf.mixedlm(form, d, groups=d.animal).fit(method="lbfgs")
+            except Exception as ex:  # noqa: BLE001
+                lm.append({"metric": c, "model": form, "error": str(ex)}); continue
+            for e in POST:
+                t_ = f"C(epoch, Treatment('pre'))[T.{e}]"
+                lm.append({"metric": c, "model": "epoch + state" if "state" in form else "epoch only", "epoch": e,
+                           "coef": f.params.get(t_), "se": f.bse.get(t_), "p": f.pvalues.get(t_), "n_cells": len(d)})
+    W("tim_lmm_epoch_with_state_covariate.csv", pd.DataFrame(lm))
 
 # ME vs P(engaged)
 mvp = M[(M.match == PRIMARY) & (M.state == "all")][["label", "me_kp_iti", "me_fr_all_iti", "me_kp_precue", "me_fr_all_precue"]] \
@@ -367,55 +391,81 @@ def letter(ax, s):
 
 
 e95 = E[(E.match == PRIMARY) & (E.model == "production")]
-tn95 = TN[(TN.match == PRIMARY) & (TN.state == "all") & (TN.trials == "working")]
 m95 = M[(M.match == PRIMARY) & (M.state == "all")]
-cz95 = CZ[CZ.match == PRIMARY]
-fig, axs = plt.subplots(4, 5, figsize=(7.0, 7.4))
-L = iter("ABCDEFGHIJKLMNOPQRST")
-for i, r in enumerate(ROLES):
-    delta_panel(axs[0, i], e95, r, "F1 engagement occupancy (production K5)", f"{r} occupancy\n(Δ, first 95 min)"); letter(axs[0, i], next(L))
-ax = axs[0, 3]; letter(ax, next(L))
-for e in EPS:
-    d = mvp[mvp.epoch == e]
-    ax.scatter(d.engaged, d.me_kp_iti, s=5, color=S.EP[e], alpha=0.75, lw=0, label=e)
-ax.set_xlabel("P(engaged)", fontsize=6.2); ax.set_ylabel("keypoint ME, ITI\n(z vs own pre)", fontsize=6.2)
-ax = axs[0, 4]; letter(ax, next(L)); delta_panel(ax, cz95, "composite", "F9 composite general-movement index",
-                                                 "general-movement index\n(Δ z, 3 modalities)")
-CP.epoch_legend(axs[0, 3], loc="upper left", ncol=1)
-for j, (row, per) in enumerate(((1, "precue"), (2, "response"))):  # noqa: B007
-    for i, q in enumerate(("tongue", "jaw", "nose")):
-        delta_panel(axs[row, i], tn95, f"timDLC_{per}_{q}", "F2 TIM DLC (new windows; pre-cue E-G, response H-J)",
-                    f"TIM {q}, {'pre-cue' if per == 'precue' else 'response'}\n(Δ px)")
-        letter(axs[row, i], next(L))
-    delta_panel(axs[row, 3], tn95, f"timFR_{per}_face", "F3 TIM FaceRhythm (new windows)",
-                f"FaceRhythm TIM, {'pre-cue' if per == 'precue' else 'response'}\n(Δ px, 20 point PCs)")
-    letter(axs[row, 3], next(L))
-delta_panel(axs[1, 4], tn95, "timDLC_iti_jaw", "F2b TIM DLC ITI (docked)", "TIM jaw, ITI docked\n(Δ px)"); letter(axs[1, 4], next(L))
-delta_panel(axs[2, 4], tn95, "timFR_iti_face", "F3 TIM FaceRhythm (new windows)", "FaceRhythm TIM, ITI\n(Δ px)"); letter(axs[2, 4], next(L))
-for i, (mt, fam, yl) in enumerate((("me_kp_iti", "F4 motion energy (keypoint + FaceRhythm whole face)", "keypoint ME, ITI\n(Δ z)"),
-                                   ("me_fr_all_iti", "F4 motion energy (keypoint + FaceRhythm whole face)", "FaceRhythm ME, ITI\n(Δ z)"),
-                                   ("run_mean_speed", "F6 running", "forward speed, session\n(Δ mm/s)"),
-                                   ("run_bouts_per_min", "F6 running", "running bouts / min\n(Δ)"),
-                                   ("still_kp_iti", "F5 stillness", "stillness, ITI keypoint\n(Δ fraction)"))):
-    delta_panel(axs[3, i], m95, mt, fam, yl); letter(axs[3, i], next(L))
-fig.subplots_adjust(left=0.08, right=0.99, bottom=0.04, top=0.97, wspace=0.95, hspace=0.45)
-S.save(fig, str(OUT / "C2_engagement_tim_movement"))
-WRITTEN.append("C2_engagement_tim_movement.(pdf|png|svg)")
+ME_ROW = (("me_kp_iti", "F4 motion energy (keypoint + FaceRhythm whole face)", "keypoint ME, ITI\n(Δ z)"),
+          ("me_fr_all_iti", "F4 motion energy (keypoint + FaceRhythm whole face)", "FaceRhythm ME, ITI\n(Δ z)"),
+          ("run_mean_speed", "F6 running", "forward speed, session\n(Δ mm/s)"),
+          ("run_bouts_per_min", "F6 running", "running bouts / min\n(Δ)"),
+          ("still_kp_iti", "F5 stillness", "stillness, ITI keypoint\n(Δ fraction)"))
+if NO_TIM:
+    # v26: engagement + motion energy / running / stillness only (no TIM rows, no composite)
+    fig, axs = plt.subplots(2, 5, figsize=(7.0, 3.8))
+    L = iter("ABCDEFGHIJ")
+    for i, r in enumerate(ROLES):
+        delta_panel(axs[0, i], e95, r, "F1 engagement occupancy (production K5)", f"{r} occupancy\n(Δ, first 95 min)"); letter(axs[0, i], next(L))
+    ax = axs[0, 3]; letter(ax, next(L))
+    for e in EPS:
+        d = mvp[mvp.epoch == e]
+        ax.scatter(d.engaged, d.me_kp_iti, s=5, color=S.EP[e], alpha=0.75, lw=0, label=e)
+    ax.set_xlabel("P(engaged)", fontsize=6.2); ax.set_ylabel("keypoint ME, ITI\n(z vs own pre)", fontsize=6.2)
+    CP.epoch_legend(axs[0, 3], loc="upper left", ncol=1)
+    axs[0, 4].axis("off")
+    for i, (mt, fam, yl) in enumerate(ME_ROW):
+        delta_panel(axs[1, i], m95, mt, fam, yl); letter(axs[1, i], next(L))
+    fig.subplots_adjust(left=0.08, right=0.99, bottom=0.06, top=0.95, wspace=0.95, hspace=0.45)
+    S.save(fig, str(OUT / "C2_engagement_movement"))
+    WRITTEN.append("C2_engagement_movement.(pdf|png|svg)")
+else:
+    tn95 = TN[(TN.match == PRIMARY) & (TN.state == "all") & (TN.trials == "working")]
+    m95 = M[(M.match == PRIMARY) & (M.state == "all")]
+    cz95 = CZ[CZ.match == PRIMARY]
+    fig, axs = plt.subplots(4, 5, figsize=(7.0, 7.4))
+    L = iter("ABCDEFGHIJKLMNOPQRST")
+    for i, r in enumerate(ROLES):
+        delta_panel(axs[0, i], e95, r, "F1 engagement occupancy (production K5)", f"{r} occupancy\n(Δ, first 95 min)"); letter(axs[0, i], next(L))
+    ax = axs[0, 3]; letter(ax, next(L))
+    for e in EPS:
+        d = mvp[mvp.epoch == e]
+        ax.scatter(d.engaged, d.me_kp_iti, s=5, color=S.EP[e], alpha=0.75, lw=0, label=e)
+    ax.set_xlabel("P(engaged)", fontsize=6.2); ax.set_ylabel("keypoint ME, ITI\n(z vs own pre)", fontsize=6.2)
+    ax = axs[0, 4]; letter(ax, next(L)); delta_panel(ax, cz95, "composite", "F9 composite general-movement index",
+                                                     "general-movement index\n(Δ z, 3 modalities)")
+    CP.epoch_legend(axs[0, 3], loc="upper left", ncol=1)
+    for j, (row, per) in enumerate(((1, "precue"), (2, "response"))):  # noqa: B007
+        for i, q in enumerate(("tongue", "jaw", "nose")):
+            delta_panel(axs[row, i], tn95, f"timDLC_{per}_{q}", "F2 TIM DLC (new windows; pre-cue E-G, response H-J)",
+                        f"TIM {q}, {'pre-cue' if per == 'precue' else 'response'}\n(Δ px)")
+            letter(axs[row, i], next(L))
+        delta_panel(axs[row, 3], tn95, f"timFR_{per}_face", "F3 TIM FaceRhythm (new windows)",
+                    f"FaceRhythm TIM, {'pre-cue' if per == 'precue' else 'response'}\n(Δ px, 20 point PCs)")
+        letter(axs[row, 3], next(L))
+    delta_panel(axs[1, 4], tn95, "timDLC_iti_jaw", "F2b TIM DLC ITI (docked)", "TIM jaw, ITI docked\n(Δ px)"); letter(axs[1, 4], next(L))
+    delta_panel(axs[2, 4], tn95, "timFR_iti_face", "F3 TIM FaceRhythm (new windows)", "FaceRhythm TIM, ITI\n(Δ px)"); letter(axs[2, 4], next(L))
+    for i, (mt, fam, yl) in enumerate((("me_kp_iti", "F4 motion energy (keypoint + FaceRhythm whole face)", "keypoint ME, ITI\n(Δ z)"),
+                                       ("me_fr_all_iti", "F4 motion energy (keypoint + FaceRhythm whole face)", "FaceRhythm ME, ITI\n(Δ z)"),
+                                       ("run_mean_speed", "F6 running", "forward speed, session\n(Δ mm/s)"),
+                                       ("run_bouts_per_min", "F6 running", "running bouts / min\n(Δ)"),
+                                       ("still_kp_iti", "F5 stillness", "stillness, ITI keypoint\n(Δ fraction)"))):
+        delta_panel(axs[3, i], m95, mt, fam, yl); letter(axs[3, i], next(L))
+    fig.subplots_adjust(left=0.08, right=0.99, bottom=0.04, top=0.97, wspace=0.95, hspace=0.45)
+    S.save(fig, str(OUT / "C2_engagement_tim_movement"))
+    WRITTEN.append("C2_engagement_tim_movement.(pdf|png|svg)")
 
-# supplement: composite components
-cols = [f"mod_{k}" for k in COMP] + sum(COMP.values(), [])
-fig, axs = plt.subplots(2, 5, figsize=(7.0, 3.6))
-for ax, c in zip(axs.flat, cols):
-    delta_panel(ax, cz95, c, "F9s composite modalities + components (supplement)", c.replace("_", " ") + "\n(Δ z)")
-for ax in axs.flat[len(cols):]:
-    ax.axis("off")
-fig.subplots_adjust(left=0.08, right=0.99, bottom=0.05, top=0.95, wspace=0.95, hspace=0.45)
-S.save(fig, str(OUT / "C2_composite_components"))
-WRITTEN.append("C2_composite_components.(pdf|png|svg)")
+    # supplement: composite components
+    cols = [f"mod_{k}" for k in COMP] + sum(COMP.values(), [])
+    fig, axs = plt.subplots(2, 5, figsize=(7.0, 3.6))
+    for ax, c in zip(axs.flat, cols):
+        delta_panel(ax, cz95, c, "F9s composite modalities + components (supplement)", c.replace("_", " ") + "\n(Δ z)")
+    for ax in axs.flat[len(cols):]:
+        ax.axis("off")
+    fig.subplots_adjust(left=0.08, right=0.99, bottom=0.05, top=0.95, wspace=0.95, hspace=0.45)
+    S.save(fig, str(OUT / "C2_composite_components"))
+    WRITTEN.append("C2_composite_components.(pdf|png|svg)")
 
 # supplement: engaged-only hit rate / aim by position
 fig, axs = plt.subplots(2, 2, figsize=(7.0, 4.0))
-for col, (meas, D_, yl) in enumerate((("hit_rate", H, "hit rate (Δ)"), ("aim_off", A, "first-lick aim offset (Δ deg, + = contra)"))):
+for col, (meas, D_, yl) in enumerate((("hit_rate", H, "hit rate (Δ)"),
+                                      *((("aim_off", A, "first-lick aim offset (Δ deg, + = contra)"),) if A is not None else ()))):
     for row, tset in enumerate(("all", "engaged")):
         ax = axs[row, col]
         d = D_[(D_.match == PRIMARY) & (D_.trials == tset)].copy()
