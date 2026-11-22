@@ -30,6 +30,30 @@ Manuscript inputs of record: `HANDOFF_to_CC_2026-11-22_manuscript_v26.md` + `PRO
 - extra_chain: pose3d_cue_traces -> kinematics_pooled_figs.
 - phaseb: glmhmm, lc_run; jaw blind check agent.
 
+## Four-camera licks everywhere (Priya 11-22; branch pilot/fourcam-licks-everywhere, doc docs/status/FOURCAM_LICKS_EVERYWHERE_2026-11-22.md)
+- Post-cue 3-D readers default to `kinematics_fused_postcue` (cam1-only events dropped, lick_idx 0 = first real lick,
+  kinematics only from >= 2 views); `WIDEFIELD_KIN_LICKS=cam4` = the cam4 windows. Lick-set-dependent outputs carry
+  `_fused`. Source fixes: fused lick_idx within (trial, table) (b58e682b); cam1-only not licks at the session_licks source,
+  class path opts in, classes byte-identical on 10 sessions (2a159eb5).
+- New tables: `kinematics_fused_postcue[/_allviews]/c2_lick3d_session_summary_ungated.csv` (Fig 4B / 4E),
+  `phase/vls_manuscript_20261122_fused/` (Fig 4G-I), `phase_fused/`, `cue_traces_fused/`, `figures/pooled_fused/`;
+  `manuscript_stats/c2_4cam_sync60_20261122/`: `change_vs_pre_stats_contra_fourcam.csv` (+ position / per-animal tables,
+  Fig 4A), `c2_protrusion_vs_reach_{sessions,stats,per_animal}.csv`, `family_lickset_check/{cam4,fourcam}/` (scalar
+  family with ONLY the lick inputs swapped; aim / hit inputs held at the manuscript's v36 / 11-03 tables -- a lick-set
+  check, not the final family).
+- Scalar family stars (manuscript / cam4 sync60 / four-camera): reach_first 4 / 3 / 4, speed_all 9 / 8 / 11, reach_all
+  4 / 6 / 11, latency 6 / 6 / 7, licks_per_resp 13 / 13 / 13, ili 9 / 9 / 9; aim, aim_all, hit unchanged (no star moved
+  through the family FDR). Flips: first-lick reach far_mid acute gained (-0.48 mm), close_contra chronic lost (manuscript
+  had it); all-lick speed close_mid subacute + chronic gained, far_contra subacute regained; all-lick reach gained
+  close_ipsi subacute + chronic, close_mid acute + subacute, far_mid chronic (all reductions, >= 3 of 4 animals); latency
+  far_mid acute gained.
+- Fig 4G-I aim (side0 / mid0) clusters identical; dist / down0 lose the close_R acute (+ subacute) increase clusters.
+- Fig 4A claims hold: chronic licks / responded trial up at 5 / 6 spouts, all 4 animals (+0.7 / +3.4 / +2.6 / +3.9);
+  ILI up acutely at all 6 spouts (+15 to +27 ms), chronic only close_contra (+4 ms).
+- Decision needed: first-pass outputs `*_pass1_cam1kept` (cam1-only rows kept) and the old `kinematics_fused/licks_*_20261122`
+  backups are delete candidates after review; `kinematics_fused/sessions.csv` still pools cam1-only rows (no manuscript
+  reader).
+
 ## Superseded / delete candidates (after review)
 - `pose3d_4cam_3net_20261121_sync60/kinematics_fused/c2_lick3d_session_summary_ungated.csv` (all contexts incl. pre-cue / ITI; wrong population).
 - `clips_20261122/*_main.mp4` (re-encode test copies) if Priya confirms the originals open.
