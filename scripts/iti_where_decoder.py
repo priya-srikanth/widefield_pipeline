@@ -144,15 +144,13 @@ def coords(label: str, t: np.ndarray) -> np.ndarray:
     Sagittal = sqrt(out_ap^2 + down_dv^2): the tongue's extension out of the mouth excluding its lateral part (licks run
     mostly DOWN, so out_ap alone misses most of it); lateral / sagittal = tan(encoder exec_angle)."""
     from wfield_local import config
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
     an, date = config.animal_of(label), "2026" + label.split("_")[-1]
-    A = pd.read_csv(oo.session_dir(PathResolver(), oc.RUN, an, date) / "licks_all.csv", usecols=["daq_peak_s"])
+    from wfield_local import session_licks as SL
+    A = SL.session_licks(f"{an}_{date}")             # THE session lick table (11-22)
     uid = pd.Series(np.arange(len(A)), index=A.daq_peak_s.to_numpy(float))
     uid = uid[~uid.index.duplicated()]
     K = _K()
-    K = K[K.session == f"{an}_{date}"].drop_duplicates("lick_uid").set_index("lick_uid")
+    K = SL.kin_by_row(K[K.session == f"{an}_{date}"], A, label)          # by LICK KEY (11-22; was lick_uid = row)
     u = uid.reindex(np.asarray(t, float)).to_numpy()
     out = np.full((len(t), 5), np.nan)
     ok = np.isfinite(u)
@@ -168,7 +166,9 @@ _KC = {}
 
 def _K():
     if "K" not in _KC:
-        _KC["K"] = il.lick_table()[["session", "lick_uid", "side_ml", "out_ap", "down_dv", "reach_mm"]]
+        K = il.lick_table()
+        _KC["K"] = K[[c for c in ("session", "lick_key", "lick_uid", "trial_id", "t_peak_cam4", "side_ml", "out_ap",
+                                  "down_dv", "reach_mm") if c in K]]
     return _KC["K"]
 
 

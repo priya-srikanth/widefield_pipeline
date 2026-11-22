@@ -102,10 +102,10 @@ _KC: dict = {}
 
 def _ktab() -> pd.DataFrame:
     if "K" not in _KC:
-        from wfield_local.paths import PathResolver
-        p = Path(PathResolver().root("dlc")) / "session_poses" / "pose3d" / "kinematics_all" / "licks.csv.gz"
-        _KC["K"] = pd.read_csv(p, usecols=["session", "lick_uid", "trial_id", "reach_mm", "speed_peak", "ang3d_err",
-                                           "miss_mm"])
+        # 11-22: the selected 3-D source / tag (`pose3d_dir`; was the literal two-camera folder) and lick set
+        # (`iti_licks.kin_all_path`: kinematics_fused under the fused train)
+        want = ("session", "lick_key", "lick_uid", "trial_id", "t_peak_cam4", "reach_mm", "speed_peak", "ang3d_err", "miss_mm")
+        _KC["K"] = pd.read_csv(il.kin_all_path(), usecols=lambda c: c in want)
     return _KC["K"]
 
 
@@ -118,9 +118,12 @@ def session_kin(label: str, times: dict) -> dict:
     rv = PathResolver()
     an, date = config.animal_of(label), "2026" + label.split("_")[-1]
     sd = oo.session_dir(rv, oc.RUN, an, date)
-    A = pd.read_csv(sd / "licks_all.csv", usecols=["daq_on_s", "daq_peak_s", "on_ms", "off_ms", "protrusion_max_px"])
+    from wfield_local import session_licks as SL
+    # THE session lick table (fused train or cam4 licks_all); kinematics by LICK KEY (11-22; was lick_uid = row)
+    A = SL.session_licks(f"{an}_{date}", rv).reindex(columns=["trial_id", "t_ms", "lick_key", "daq_on_s", "daq_peak_s",
+                                                               "on_ms", "off_ms", "protrusion_max_px"])
     K = _ktab()
-    K = K[K.session == f"{an}_{date}"].drop_duplicates("lick_uid").set_index("lick_uid")
+    K = SL.kin_by_row(K[K.session == f"{an}_{date}"], A, label)
     row = pd.Series(np.arange(len(A)), index=A.daq_peak_s.to_numpy(float))
     row = row[~row.index.duplicated()]
     on = np.sort(A.daq_on_s.to_numpy(float)[np.isfinite(A.daq_on_s.to_numpy(float))])

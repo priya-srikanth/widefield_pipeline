@@ -90,13 +90,16 @@ SEED = 0
 
 
 # ------------------------------------------------------------------------------------------------ extraction
+#: the kinematics columns this script reads (lick_key since 11-22; lick_uid / t_peak_cam4 for pre-key tables)
+KCOLS = ("session", "context", "trial_id", "lick_idx", "lick_uid", "lick_key", "t_peak_cam4", "position",
+                       "contact", "side_ml", "reach_mm", "out_ap", "down_dv", "miss_mm", "lat_err_mm", "speed_peak",
+                       "epoch")
+
+
 def kin_table() -> pd.DataFrame:
-    from wfield_local.paths import PathResolver
-    from wfield_local.pose3d import pose3d_dir       # 11-21: the selected 3-D source / run tag (`run_mode.pose3d_part`)
-    p = pose3d_dir(PathResolver()) / "kinematics_all" / "licks.csv.gz"
-    K = pd.read_csv(p, usecols=["session", "context", "trial_id", "lick_idx", "lick_uid", "position", "contact",
-                                "side_ml", "reach_mm", "out_ap", "down_dv", "miss_mm", "lat_err_mm", "speed_peak",
-                                "epoch"])
+    # 11-21: the selected 3-D source / run tag (`run_mode.pose3d_part`); 11-22: the selected LICK SET's whole-session
+    # table (`iti_licks.kin_all_path`: kinematics_fused under the fused four-camera train, else kinematics_all)
+    K = pd.read_csv(il.kin_all_path(), usecols=lambda c: c in KCOLS)
     K = K[K.context == "post_cue"].copy()
     K["label"] = K.session.str[:4] + "_" + K.session.str[-4:]
     return K
@@ -106,12 +109,10 @@ def extract(label: str) -> dict:
     """One imaging session -> SESS/<label>.npz: area traces at LAGS_X around EVERY post-cue lick's exact DAQ peak."""
     from wfield_local import combined_encoding as ce
     from wfield_local import config, epochs
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
     f = SESS / f"{label}.npz"
     if f.exists():
         mask_keys.check_npz(f)                    # stale-read guard (11-09)
+        il.check_extract_licks(f)                 # ... and the lick set / kinematics table it was built on (11-22)
         return {"label": label, "cached": True}
     t0 = time.time()
     V, ft, Ub, flat, parea, names, shape, pstat = ce.load_imaging(label)
@@ -123,19 +124,17 @@ def extract(label: str) -> dict:
     R -= Q @ (Q.T @ R)
     R *= 1e3
     an, date = config.animal_of(label), "2026" + label.split("_")[-1]
-    from wfield_local.paths import PathResolver as _PR
-    from wfield_local.pose3d import pose3d_dir
-    p = pose3d_dir(_PR()) / "kinematics_all" / "licks.csv.gz"
-    K = pd.read_csv(p, usecols=["session", "context", "trial_id", "lick_idx", "lick_uid", "position", "contact",
-                                "side_ml", "reach_mm", "out_ap", "down_dv", "miss_mm", "lat_err_mm", "speed_peak"])
+    from wfield_local import session_licks as SL
+    K = pd.read_csv(il.kin_all_path(), usecols=lambda c: c in KCOLS)
     K = K[(K.session == f"{an}_{date}") & (K.context == "post_cue")].copy()
-    A = pd.read_csv(oo.session_dir(PathResolver(), oc.RUN, an, date) / "licks_all.csv",
-                    usecols=["context", "daq_on_s", "daq_peak_s", "contact"])
-    uid = K.lick_uid.to_numpy(int)
+    # THE session lick table (fused train or cam4 licks_all), joined by LICK KEY (11-22: was lick_uid = a row number of
+    # licks_all.csv, which re-pointed silently when the table changed; `session_licks.rows_for` raises instead)
+    A = SL.session_licks(f"{an}_{date}")
+    uid = SL.rows_for(K, A, label)
     if not (A.context.to_numpy()[uid] == K.context.to_numpy()).all():
-        raise RuntimeError(f"{label}: lick_uid join to licks_all.csv does not match on context")
-    if not (A.contact.astype(bool).to_numpy()[uid] == K.contact.astype(bool).to_numpy()).all():
-        raise RuntimeError(f"{label}: contact flag differs between licks_all and kinematics_all")
+        raise RuntimeError(f"{label}: lick-key join to the session lick table does not match on context")
+    if "contact" in A and not (A.contact.astype(bool).to_numpy()[uid] == K.contact.astype(bool).to_numpy()).all():
+        raise RuntimeError(f"{label}: contact flag differs between licks_all and the kinematics table")
     K["daq_peak_s"] = A.daq_peak_s.to_numpy(float)[uid]
     K["daq_on_s"] = A.daq_on_s.to_numpy(float)[uid]
     lo, hi = ft[0] - LAGS_X[0], ft[-1] - LAGS_X[-1]
@@ -144,10 +143,13 @@ def extract(label: str) -> dict:
     X = il._sample(R, ft, t, LAGS_X).astype(np.float16)
     SESS.mkdir(parents=True, exist_ok=True)
     meta = {c: K[c].to_numpy() for c in ["trial_id", "lick_idx", "lick_uid", "side_ml", "reach_mm", "out_ap",
-                                          "down_dv", "miss_mm", "lat_err_mm", "speed_peak", "daq_on_s"]}
+                                          "down_dv", "miss_mm", "lat_err_mm", "speed_peak", "daq_on_s"] if c in K}
+    meta["lick_key"] = (K.lick_key if "lick_key" in K else pd.Series(SL.lick_key(A.trial_id.to_numpy()[uid],
+                                                                                A.t_ms.to_numpy(float)[uid]))
+                        ).to_numpy(dtype=str)
     np.savez_compressed(f, cols=np.array(cols), X=X, t=t, lags=LAGS_X, contact=K.contact.astype(bool).to_numpy(),
                         position=K.position.to_numpy(dtype=str), epoch=epochs.epoch_of(label), animal=an, **meta,
-                        **mask_keys.stamp())
+                        lick_sig=il._lick_sig(), **mask_keys.stamp())
     return {"label": label, "n": len(t), "s": round(time.time() - t0, 1)}
 
 
@@ -177,14 +179,16 @@ def _is_aug_pre(label: str, epoch: str) -> bool:
 
 
 def _exact(label: str) -> pd.DataFrame:
-    """lick_uid -> exact DAQ peak time (licks_all.csv; the kinematics table rounds daq_peak_s to 4 significant digits)."""
+    """lick_key (and the legacy lick_uid = row) -> exact DAQ peak time, from THE session lick table (`session_licks`;
+    the kinematics table rounds daq_peak_s to 4 significant digits). ``trial_id`` / ``t_ms`` let a pre-key join be
+    checked."""
     from wfield_local import config
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
+    from wfield_local import session_licks as SL
     an, date = config.animal_of(label), "2026" + label.split("_")[-1]
-    A = pd.read_csv(oo.session_dir(PathResolver(), oc.RUN, an, date) / "licks_all.csv", usecols=["daq_peak_s"])
-    return pd.DataFrame({"label": label, "lick_uid": np.arange(len(A)), "t": A.daq_peak_s.to_numpy(float)})
+    A = SL.session_licks(f"{an}_{date}")
+    return pd.DataFrame({"label": label, "lick_uid": np.arange(len(A)), "lick_key": A.lick_key.to_numpy(),
+                         "t": A.daq_peak_s.to_numpy(float), "a_trial": A.trial_id.to_numpy(),
+                         "a_t_ms": A.t_ms.to_numpy(float)})
 
 
 def beh_licks() -> tuple[pd.DataFrame, float, pd.DataFrame]:
@@ -205,7 +209,18 @@ def beh_licks() -> tuple[pd.DataFrame, float, pd.DataFrame]:
     if fail:
         raise RuntimeError(f"exact times failed: {fail[:5]}")
     T = pd.concat([v for _k, v in res], ignore_index=True)
-    K = K.merge(T, on=["label", "lick_uid"], how="left", validate="many_to_one")
+    if "lick_key" in K:                                  # 11-22: by key (a key cannot point at another lick)
+        K = K.merge(T.drop(columns="lick_uid"), on=["label", "lick_key"], how="left", validate="many_to_one")
+        if K.t.isna().any():
+            raise RuntimeError(f"{int(K.t.isna().sum())} kinematics licks have no row in their session lick table")
+    else:                                                # a pre-key table: the row join, CHECKED on trial and peak
+        K = K.merge(T.drop(columns="lick_key"), on=["label", "lick_uid"], how="left", validate="many_to_one")
+        bad = (K.a_trial != K.trial_id) | ((K.a_t_ms - K.t_peak_cam4).abs()
+                                           > np.maximum(0.6, 5.1e-4 * K.t_peak_cam4.abs()))
+        if bad.any():
+            raise RuntimeError(f"{int(bad.sum())} lick_uid rows point at another lick (the lick table changed since the "
+                               "kinematics were written); rebuild pose3d_kinematics (lick_key since 11-22)")
+    K = K.drop(columns=["a_trial", "a_t_ms"])
     K["angle"] = np.degrees(np.arcsin(np.clip(K.side_ml / K.reach_mm, -1, 1)))
     sgn = float(np.sign(K[K.aug_pre & (K.pos == "far_contra")].angle.mean()))
     K["angle"] *= sgn

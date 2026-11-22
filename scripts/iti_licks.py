@@ -267,10 +267,44 @@ REFIT_TAG = "PER-SESSION decoder (refit within each session, cross-validated)"
 TGT_LAB = {"direction": "lateral tongue-tip position (3-D, mm)",
            "relative": "lateral position relative to the reference spout"}
 
+def kin_all_path() -> Path:
+    """The whole-session 3-D kinematics table of the selected lick set (`session_licks.kin_all_name`: kinematics_fused
+    for the fused four-camera train, else kinematics_all; 11-22)."""
+    from wfield_local import session_licks as SL
+    return pose3d_dir() / SL.kin_all_name() / "licks.csv.gz"
+
+
 def lick_table() -> pd.DataFrame:
-    p = pose3d_dir() / "kinematics_all" / "licks.csv.gz"
-    return pd.read_csv(p, usecols=["session", "context", "lick_uid", "side_ml", "out_ap", "down_dv", "position",
-                                   "trial_id", "reach_mm", "speed_peak"])
+    want = ("session", "context", "lick_uid", "lick_key", "t_peak_cam4", "side_ml", "out_ap", "down_dv", "position",
+            "trial_id", "reach_mm", "speed_peak")
+    return pd.read_csv(kin_all_path(), usecols=lambda c: c in want)
+
+
+def _lick_sig() -> str:
+    """Identity of the lick inputs an extract is built from (11-22, reconciled plan item 4: the skip-if-exists extracts
+    kept a session built on another lick set / kinematics table): the lick set (`session_licks.signature`, "" on the
+    legacy source) + the whole-session kinematics table (name, size, mtime)."""
+    from wfield_local import session_licks as SL
+    p = kin_all_path()
+    st = p.stat() if p.exists() else None
+    return f"{SL.signature()}|{p.parent.name}:{st.st_size if st else 0}:{st.st_mtime_ns if st else 0}"
+
+
+def check_extract_licks(f) -> None:
+    """REFUSE a skip-if-exists extract built on another lick set / kinematics table (11-22; as `check_extract_masks`).
+    Files written since carry ``lick_sig``; older files have none and are accepted only on the legacy lick set (they
+    were built on it). Never deletes: move the stale folder aside and re-extract."""
+    from wfield_local import session_licks as SL
+    z = np.load(f, allow_pickle=False)
+    have = str(z["lick_sig"]) if "lick_sig" in z.files else None
+    if have is None:
+        if not SL.fused_on():
+            return
+        raise RuntimeError(f"{f}: an extract without lick_sig (built on the cam4 lick set before 11-22) under the fused "
+                           f"lick set. Move {Path(f).parent} aside and re-extract.")
+    if have != _lick_sig():
+        raise RuntimeError(f"{f}: built on lick inputs {have}, current are {_lick_sig()}. Move {Path(f).parent} aside "
+                           "and re-extract.")
 
 
 def roi_masks(parea, pstat, names, flat, shape, frac: dict | None = None) -> dict:
@@ -341,6 +375,7 @@ def extract(item) -> dict:
     f = Path(out) / SESS_NAME / f"{label}.npz"
     if f.exists():
         check_extract_masks(f)
+        check_extract_licks(f)
         return {"label": label, "cached": True}
     V, ft, Ub, flat, parea, names, shape, pstat = ce.load_imaging(label)
     M = roi_masks(parea, pstat, names, flat, shape)
@@ -355,16 +390,15 @@ def extract(item) -> dict:
     an, date = config.animal_of(label), "2026" + label.split("_")[-1]
     K = lick_table()
     K = K[K.session == f"{an}_{date}"].copy()
-    # FULL-PRECISION TIMES: the kinematics_all table stores daq_peak_s to 4 significant digits (0.1 s resolution after
-    # 100 s, 1 s after 1000 s); lick_uid = the row of the session's licks_all.csv, which has the exact DAQ onset / peak
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
-    A = pd.read_csv(oo.session_dir(PathResolver(), oc.RUN, an, date) / "licks_all.csv",
-                    usecols=["context", "segment", "daq_on_s", "daq_peak_s"])
-    uid = K.lick_uid.to_numpy(int)
+    # FULL-PRECISION TIMES: the kinematics table stores daq_peak_s to 4 significant digits (0.1 s resolution after
+    # 100 s, 1 s after 1000 s); the exact DAQ onset / peak come from THE session lick table (`session_licks`: the fused
+    # train or cam4 licks_all), joined by LICK KEY (11-22: was lick_uid = a row number of licks_all.csv, which re-pointed
+    # silently when the table changed; `session_licks.rows_for` raises on any key it cannot place)
+    from wfield_local import session_licks as SL
+    A = SL.session_licks(f"{an}_{date}")
+    uid = SL.rows_for(K, A, label)
     if not (A.context.to_numpy()[uid] == K.context.to_numpy()).all():
-        raise RuntimeError(f"{label}: lick_uid join to licks_all.csv does not match on context")
+        raise RuntimeError(f"{label}: lick-key join to the session lick table does not match on context")
     K["daq_peak_s"] = A.daq_peak_s.to_numpy(float)[uid]
     K["daq_on_s"] = A.daq_on_s.to_numpy(float)[uid]
     # ITI licks carry the label of the trial WINDOW they fall in: "tail" = after that trial's response window (label =
@@ -446,6 +480,7 @@ def extract(item) -> dict:
         # epoch "" (not None) before WIDEFIELD_PRE_FROM: a None is saved as an object array (_load, 11-08)
         f, cols=np.array(cols), epoch=epochs.epoch_of(label) or "", animal=an, clock_med_s=clock,
         mask_sig=_mask_sig(),                     # the brain / stat masks the ROI traces were built on (11-09)
+        lick_sig=_lick_sig(),                     # the lick set + kinematics table it was built on (11-22)
         bout_peth=_sample(R, ft, to[bout], LAGS_P).astype(f16), bout_side=iti.side_ml.to_numpy(float)[bout], bout_gap=gap[bout],
         # bout_pos = the trial-WINDOW label (the UPCOMING trial for 'lead' licks) -- NOT a spout to group by; use
         # bout_prev_pos = the PREVIOUS trial's spout, the rule of iti_pos (10-28; files before then lack it:
@@ -1754,17 +1789,20 @@ def _more_kin(label: str, t_on: np.ndarray) -> pd.DataFrame:
     lick has no 3-D row. (Priya 10-26: regress the response on "FR plus tongue kinematics plus jaw kinematics"; jaw is
     not in the per-lick tables -- per-trial only -- so it is not here yet.)"""
     from wfield_local import config
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
+    from wfield_local import session_licks as SL
     an, date = config.animal_of(label), "2026" + label.split("_")[-1]
-    A = pd.read_csv(oo.session_dir(PathResolver(), oc.RUN, an, date) / "licks_all.csv",
-                    usecols=["daq_on_s", "on_ms", "off_ms", "max_retract_velocity_y_px_per_s"])
-    if "K" not in _KFULL:
-        pth = pose3d_dir() / "kinematics_all" / "licks.csv.gz"
-        _KFULL["K"] = pd.read_csv(pth, usecols=["session", "lick_uid", "side_ml", "out_ap", "down_dv"])
+    A = SL.session_licks(f"{an}_{date}")
+    if "max_retract_velocity_y_px_per_s" not in A:          # a cam4 2-D measure: the fused train has none
+        A["max_retract_velocity_y_px_per_s"] = np.nan
+    pth = kin_all_path()
+    if _KFULL.get("path") != str(pth):
+        _KFULL["K"] = pd.read_csv(pth, usecols=lambda c: c in ("session", "lick_uid", "lick_key", "trial_id",
+                                                               "t_peak_cam4", "side_ml", "out_ap", "down_dv"))
+        _KFULL["path"] = str(pth)
     K = _KFULL["K"]
-    K = K[K.session == f"{an}_{date}"].drop_duplicates("lick_uid").set_index("lick_uid")
+    K = K[K.session == f"{an}_{date}"].drop_duplicates("lick_key" if "lick_key" in K else "lick_uid")
+    # kinematics row -> lick-table row by LICK KEY (11-22; `session_licks.rows_for`), re-indexed by the lick-table row
+    K = K.set_axis(SL.rows_for(K, A, label), axis=0)
     uid = pd.Series(np.arange(len(A)), index=A.daq_on_s.to_numpy(float))
     uid = uid[~uid.index.duplicated()]
     u = uid.reindex(np.asarray(t_on, float)).to_numpy()

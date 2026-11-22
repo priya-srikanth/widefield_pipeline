@@ -16,10 +16,13 @@ Inputs (read-only): <v36>/imaging_encoding/within_lick_correction/licks_scored.c
 iti_licks/iti_dock_audit.csv, <v36>/sessions/<an>/<date>/{licks_all.csv, windows.npz}, the session gui_config (spout
 geometry).
 Usage (bash env per the repo):
-  python scripts/learned_compensation.py run [--jobs 3]   per-session timing extraction + trial / ITI tables
-  python scripts/learned_compensation.py summarize        per-animal tables, boot_delta, mixed models, figdata
+  python scripts/learned_compensation.py run [--jobs 3] [--redo]   per-session timing extraction + trial / ITI tables
+  python scripts/learned_compensation.py summarise | summarize     per-animal tables, boot_delta, mixed models, figdata
   python scripts/learned_compensation.py plot             figures from figdata only (also: any command --plot-only)
-Outputs: <v36>/imaging_encoding/learned_compensation/
+  (no command = all; an unknown command EXITS 1 -- until 11-22 "summarize" fell through and exited 0 doing nothing)
+Outputs: <run>/imaging_encoding/learned_compensation/ (run = the adopted `orofacial_cohort.RUN`, routed by run_mode; the
+per-session lick windows from THE session lick table `session_licks`; 11-22: both were the literal v36 run).
+The per-session timing pickles are rebuilt when their inputs change (`timing_inputs`), not only with --redo (11-22).
 """
 from __future__ import annotations
 
@@ -42,8 +45,20 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from wfield_local import lp_licks as _lp_licks  # noqa: E402
 from wfield_local import run_mode as _rmode  # noqa: E402
 
-V36 = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36")
-E = _rmode.encoding_out_root(V36.name)  # the run's TAGGED encoding tree (coordinator 11-04: REDO, routed)
+def _run_dir() -> Path:
+    """<orofacial root>/<cam4 input run> (`lp_licks.input_run`; 11-22: was a literal M:/ v36 path)."""
+    from wfield_local import orofacial_outputs as oo
+    from wfield_local.paths import PathResolver
+    return Path(oo.root(PathResolver())) / _lp_licks.input_run()
+
+
+def _adopted() -> str:
+    from wfield_local import orofacial_cohort as oc
+    return oc.RUN
+
+
+V36 = _run_dir()          # name kept for its readers (lick_iti_matched_markers); it is the INPUT run, not always v36
+E = _rmode.encoding_out_root(_adopted())  # the ADOPTED run's TAGGED encoding tree (coordinator 11-04: REDO, routed)
 OUT = E / "learned_compensation"
 FIG = OUT / "figures"
 FD = OUT / "figdata"
@@ -78,7 +93,7 @@ def session_timing(item) -> dict:
     angles of the session's commanded positions. Module-level for spawn."""
     sid, label = item
     f = TIM / f"{sid}.pkl"
-    if f.exists() and "--redo" not in sys.argv:
+    if f.exists() and "--redo" not in sys.argv and _timing_ok(f, sid):
         return {"sid": sid, "cached": True}
     from scripts.apparatus_mouth import _rig
     from wfield_local import orofacial_cohort as oc
@@ -95,7 +110,8 @@ def session_timing(item) -> dict:
     Tr = ix.groupby("trial_id").agg(cue_daq=("cue", "median"), stop_ms=("stop_ms", "first"),
                                     position=("position", "first")).reset_index()
     Tr["stop_daq"] = Tr.cue_daq + Tr.stop_ms / 1000.0
-    A = pd.read_csv(sd / "licks_all.csv", usecols=["context", "daq_on_s"])
+    from wfield_local import session_licks as SL
+    A = SL.session_licks(sid)[["context", "daq_on_s", "lick_key"]].copy()      # THE session lick table (11-22)
     A["lick_uid"] = np.arange(len(A))
     o = A.dropna(subset=["daq_on_s"]).sort_values("daq_on_s")
     gap = pd.Series(np.r_[np.inf, np.diff(o.daq_on_s.to_numpy(float))], index=o.index)
@@ -105,13 +121,37 @@ def session_timing(item) -> dict:
     for p in SW.POSITIONS:
         T = np.asarray(SW.commanded_world(geo, p), float)
         phi[oc.pos_key(p, "L")] = float(np.degrees(np.arcsin(np.clip(T[0] / np.linalg.norm(T), -1, 1))))
-    out = {"sid": sid, "label": label, "trials": Tr, "licks": A[["lick_uid", "context", "daq_on_s", "gap"]], "phi": phi}
+    out = {"sid": sid, "label": label, "trials": Tr, "licks": A[["lick_uid", "lick_key", "context", "daq_on_s", "gap"]],
+           "phi": phi, "inputs": timing_inputs(sid)}
     TIM.mkdir(parents=True, exist_ok=True)
     tmp = f.with_suffix(".tmp")
     with open(tmp, "wb") as fh:
         pickle.dump(out, fh)
     tmp.replace(f)
     return {"sid": sid, "n_trials": len(Tr)}
+
+
+def timing_inputs(sid: str) -> str:
+    """Identity of a session's timing inputs: the session lick table + cam4 windows (name, size, mtime) + the lick set."""
+    from wfield_local import session_licks as SL
+    an, d8 = sid.split("_")
+    sd = V36 / "sessions" / an / d8
+    fs = [sd / "windows.npz"] + ([SL.fused_dir() / f"{sid}_fused.csv"] if SL.fused_on() else [sd / "licks_all.csv"])
+    parts = [SL.signature()]
+    for p in fs:
+        try:
+            st = p.stat()
+            parts.append(f"{p.name}:{st.st_size}:{st.st_mtime_ns}")
+        except OSError:
+            parts.append(f"{p.name}:-")
+    return "|".join(parts)
+
+
+def _timing_ok(f: Path, sid: str) -> bool:
+    """Reuse a timing pickle only when its stored inputs match (pre-11-22 pickles carry none: reused, as before)."""
+    with open(f, "rb") as fh:
+        d = pickle.load(fh)
+    return "inputs" not in d or d["inputs"] == timing_inputs(sid)
 
 
 def _load_timing(sid: str) -> dict:
@@ -132,7 +172,8 @@ def cmd_run(jobs: int) -> None:
     for d in (OUT, FIG, FD, TIM):
         d.mkdir(parents=True, exist_ok=True)
     t0 = time.time()
-    LS = pd.read_csv(E / "within_lick_correction" / "licks_scored.csv.gz", usecols=LS_COLS, low_memory=False)
+    LS = pd.read_csv(E / "within_lick_correction" / "licks_scored.csv.gz", low_memory=False,
+                     usecols=lambda c: c in LS_COLS or c == "lick_key")     # lick_key: tables written since 11-22
     LS = LS[LS.animal.isin(AN) & LS.epoch.isin(EPS)]
     LS = LS[(LS.epoch != "pre") | (~LS.label.map(config.early_pre))].copy()      # August-only pre (already so; asserted)
     LS["onset_ok"] = _b(LS.onset_ok)
@@ -179,7 +220,10 @@ def cmd_run(jobs: int) -> None:
     for sid, g in I.groupby("sid", sort=True):
         tm = _load_timing(sid)
         lab = tm["label"]
-        g = g.merge(tm["licks"][["lick_uid", "daq_on_s", "gap"]], on="lick_uid", how="left")
+        # 11-22: by LICK KEY when both sides carry it (licks_scored + timing written since); else the row join of
+        # tables built from the same licks_all (pre-11-22)
+        on = "lick_key" if ("lick_key" in g and "lick_key" in tm["licks"]) else "lick_uid"
+        g = g.merge(tm["licks"][[on, "daq_on_s", "gap"]], on=on, how="left", validate="many_to_one")
         Tr = tm["trials"].sort_values("stop_daq").reset_index(drop=True)
         x = g.daq_on_s.to_numpy(float)
         st = Tr.stop_daq.to_numpy(float)
@@ -1027,6 +1071,10 @@ def main() -> int:
     if "--plot-only" in a or cmd == "plot":
         cmd_plot()
         return 0
+    if cmd == "summarize":                 # 11-22: the runbook's spelling; it used to fall through and exit 0
+        cmd = "summarise"
+    if cmd not in ("run", "summarise", "all"):
+        raise SystemExit(f"learned_compensation: unknown command {cmd!r} (run | summarise / summarize | plot | all)")
     if cmd in ("run", "all"):
         cmd_run(jobs)
     if cmd in ("summarise", "all"):

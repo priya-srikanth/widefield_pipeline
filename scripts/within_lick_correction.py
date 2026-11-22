@@ -48,7 +48,14 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import lick_correction as lc  # noqa: E402
 
-V36 = "lp_r4_heatmap_20261013__clean_v36"
+#: 11-22: the cam4 run whose tree holds this script's outputs = the ADOPTED run (`orofacial_cohort.RUN`, as
+#: iti_licks / lick_correction write theirs; it was the literal v36 run, so after an adoption the three recovery-mechanics
+#: tables would have landed in two trees). The per-lick windows come from THE session lick table (`session_licks`).
+def _run() -> str:
+    from wfield_local import orofacial_cohort as oc
+    return oc.RUN
+
+
 AN = ["PS92", "PS93", "PS94", "PS95"]
 EPS = ["pre", "acute", "subacute", "chronic"]
 POS = ["close_ipsi", "close_mid", "close_contra", "far_ipsi", "far_mid", "far_contra"]
@@ -85,11 +92,11 @@ def out_root() -> Path:
     if os.environ.get(OUT_ENV, "").strip():
         return Path(os.environ[OUT_ENV].strip())
     from wfield_local import run_mode
-    return run_mode.encoding_out_root(V36) / "within_lick_correction"
+    return run_mode.encoding_out_root(_run()) / "within_lick_correction"
 
 
 OUT = out_root()
-LICKS = OUT / "licks"
+LICKS = OUT / "licks"                 # re-pointed by _apply_out (licks_name) below
 FIGS = OUT / "figures"
 FD = OUT / "figdata"
 
@@ -105,7 +112,18 @@ def _apply_out(path: str | None = None) -> None:
     if path is not None:
         os.environ[OUT_ENV] = str(path)
     OUT = out_root()
-    LICKS, FIGS, FD = OUT / "licks", OUT / "figures", OUT / "figdata"
+    LICKS, FIGS, FD = OUT / licks_name(), OUT / "figures", OUT / "figdata"
+
+
+def licks_name() -> str:
+    """The per-lick pickle folder: ``licks``, + ``_fused_<sha8>`` under a fused lick set (11-22: the lick windows are
+    part of what a pickle holds, so another lick set never reads these)."""
+    from wfield_local import session_licks as SL
+    sig = SL.signature()
+    if not sig:
+        return "licks"
+    import hashlib
+    return f"licks_fused_{hashlib.sha1(sig.encode()).hexdigest()[:8]}"
 
 
 _apply_out()   # runs at import, i.e. in every spawned worker too: each re-reads the inherited WLC_OUT_DIR
@@ -122,7 +140,8 @@ def _sessions() -> list[str]:
     from wfield_local import analysis_kit as ak
     from wfield_local.paths import PathResolver
     from wfield_local.pose3d import pose3d_dir       # 11-21: the selected 3-D source / run tag (`run_mode.pose3d_part`)
-    p = pose3d_dir(PathResolver()) / "kinematics_all" / "licks.csv.gz"
+    from wfield_local import session_licks as SL
+    p = pose3d_dir(PathResolver()) / SL.kin_all_name() / "licks.csv.gz"     # 11-22: the selected lick set's table
     if not p.exists() and os.environ.get(SESSIONS_2CAM_ENV) == "1":
         # 11-21: the four-camera 3-D has frames but no kinematics_all yet (Phase B not run). Opt-in only: the TWO-camera
         # gate-passing session set, restricted to sessions with frames in the selected source, so both runs score the
@@ -218,7 +237,8 @@ def session_licks(sid: str) -> dict:
     from wfield_local import spout_world as SW
     from wfield_local.paths import PathResolver
     f = LICKS / f"{sid}.pkl"
-    if f.exists() and "--redo" not in sys.argv and _peaks_version(f) == PEAKS_VERSION:
+    if (f.exists() and "--redo" not in sys.argv and _peaks_version(f) == PEAKS_VERSION
+            and _inputs_ok(f, sid)):
         return {"sid": sid, "cached": True}       # a pickle of an older peak measure is re-extracted (PEAKS_VERSION)
     t0 = time.time()
     rv = PathResolver()
@@ -230,8 +250,17 @@ def session_licks(sid: str) -> dict:
     S = pd.read_csv(pose3d_dir(rv) / f"{sid}_frames.csv.gz",
                     usecols=["trial_id", "position", "t_ms", "tongue_src", "tongue_ml", "tongue_ap", "tongue_dv"]
                     ).drop_duplicates(["trial_id", "t_ms"]).sort_values(["trial_id", "t_ms"])
-    A = pd.read_csv(Path(rv.root("orofacial")) / V36 / "sessions" / an / date / "licks_all.csv",
-                    usecols=["trial_id", "position", "lick_idx", "on_ms", "off_ms", "context", "contact"])
+    # 11-22: THE session lick table (`session_licks`: the fused four-camera train when selected, Priya 11-21 Q1 = (b);
+    # else cam4 licks_all of the input run -- was the literal v36 run). lick_uid = its row (old readers), lick_key = the
+    # identity joins use. The fused train has no cam4 ``contact`` column: a DAQ contact within the span +- 20 ms
+    # (`pose3d_kinematics.fused_lick_table`, the same rule as the 3-D kinematics table)
+    from wfield_local import session_licks as SL
+    if SL.fused_on():
+        from scripts.pose3d_kinematics import fused_lick_table
+        A = fused_lick_table(rv, an, date)
+    else:
+        A = SL.session_licks(sid, rv)
+    A = A[["trial_id", "position", "lick_idx", "on_ms", "off_ms", "context", "contact", "lick_key"]].copy()
     A["lick_uid"] = np.arange(len(A))
     A = A[A.context.isin(["post_cue", "iti"])]
     g = {k: (v.t_ms.to_numpy(float), v[["tongue_ml", "tongue_ap", "tongue_dv"]].to_numpy(float),
@@ -263,7 +292,8 @@ def session_licks(sid: str) -> dict:
         lag_on, lag_off = t[0] - r.on_ms, r.off_ms - t[-1]
         onset_ok = lag_on <= ONSET_TOL
         full_ok = bool(onset_ok and lag_off <= ONSET_TOL and n >= MIN_CSM_FR)
-        row = {"sid": sid, "lick_uid": int(r.lick_uid), "trial_id": int(r.trial_id), "lick_idx": int(r.lick_idx),
+        row = {"sid": sid, "lick_uid": int(r.lick_uid), "lick_key": r.lick_key, "trial_id": int(r.trial_id),
+               "lick_idx": int(r.lick_idx),
                "context": r.context, "position": r.position, "pos": oc.pos_key(r.position, "L"),
                "contact": bool(r.contact) if pd.notna(r.contact) else False, "lick_ms": r.off_ms - r.on_ms,
                "n_win": nw, "n_run": n, "lag_on": lag_on, "lag_off": lag_off, "onset_ok": bool(onset_ok),
@@ -310,6 +340,7 @@ def session_licks(sid: str) -> dict:
     L = pd.DataFrame(rows)
     L["noise_ml"], L["noise_ap"], L["noise_dv"] = sd
     L["peaks_v"] = PEAKS_VERSION
+    L["inputs"] = inputs_sig(sid)                 # 11-22: what the pickle was built from (`_inputs_ok`)
     L["epoch"] = epochs.epoch_of(_label(sid))
     L["animal"], L["label"] = an, _label(sid)
     LICKS.mkdir(parents=True, exist_ok=True)
@@ -334,6 +365,38 @@ def working_mask(sid: str, trial_id) -> np.ndarray | None:
     if not has:
         return None
     return np.array([bool(wk.get(int(t), False)) for t in np.asarray(trial_id)], bool)
+
+
+def inputs_sig(sid: str) -> str:
+    """Identity of a session's per-lick inputs (11-22, reconciled plan item 4: the skip-if-exists pickles were kept when
+    the 3-D frames or the lick table changed): the 3-D frames + the session lick table (name, size, mtime) + the lick
+    set (`session_licks.signature`)."""
+    from wfield_local import lp_licks
+    from wfield_local import session_licks as SL
+    from wfield_local.paths import PathResolver
+    from wfield_local.pose3d import pose3d_dir
+    rv = PathResolver()
+    an, date = sid.split("_")
+    fs = [pose3d_dir(rv) / f"{sid}_frames.csv.gz"]
+    fs += ([SL.fused_dir(rv) / f"{sid}_fused.csv"] if SL.fused_on() else
+           [Path(rv.root("orofacial")) / lp_licks.input_run() / "sessions" / an / date / "licks_all.csv"])
+    parts = [SL.signature()]
+    for p in fs:
+        try:
+            st = p.stat()
+            parts.append(f"{p.name}:{st.st_size}:{st.st_mtime_ns}")
+        except OSError:
+            parts.append(f"{p.name}:-")
+    return "|".join(parts)
+
+
+def _inputs_ok(f: Path, sid: str) -> bool:
+    """A cached pickle is reused only when its stored ``inputs`` match (`inputs_sig`); pickles written before 11-22 carry
+    none and are reused as before (their folder is the legacy lick set's)."""
+    d = pd.read_pickle(f)
+    if "inputs" not in d or not len(d):
+        return True
+    return str(d["inputs"].iloc[0]) == inputs_sig(sid)
 
 
 def _peaks_version(f: Path) -> int:
@@ -411,7 +474,12 @@ def neural_session(item) -> dict:
     M["next_ili"] = np.where(has, (nx.t - M.t).astype(float), 0.0)
     W = pd.read_pickle(LICKS / f"{sid}.pkl")
     W = W[(W.context == "post_cue")]
-    D = M.merge(W, on="lick_uid", how="inner", suffixes=("", "_w"))
+    # 11-22: by LICK KEY when both tables carry it (lick_correction npz + these pickles, written since); else the row
+    # join of tables written together from the same licks_all (the pre-11-22 extracts)
+    on = "lick_key" if ("lick_key" in z.files and "lick_key" in W) else "lick_uid"
+    if on == "lick_key":
+        M["lick_key"] = z["lick_key"].astype(str)
+    D = M.merge(W, on=on, how="inner", suffixes=("", "_w"))
     D["theta_L"] *= sgn
     D["theta_E"] *= sgn
     D["e_L"] = D.theta_L - [tg.get((an, p), (np.nan, np.nan))[0] for p in D.pos]
@@ -728,7 +796,7 @@ def cmd_summarise() -> None:
     else:
         for c in ("csm", "csm_lo", "csm_hi", "csm_lat", "csm_false"):
             L[c] = np.nan
-    keep = [c for c in L.columns if not c.startswith(("pk_", "sur_", "path_"))]
+    keep = [c for c in L.columns if not c.startswith(("pk_", "sur_", "path_")) and c != "inputs"]
     L[keep].to_csv(OUT / "licks_scored.csv.gz", index=False, float_format="%.5g")
     S = sessions_table(L)
     S.to_csv(OUT / "sessions.csv", index=False)
@@ -1202,7 +1270,7 @@ def main() -> int:
         cmd_summarise()
         cmd_plot()
     else:
-        raise SystemExit(f"unknown subcommand {cmd}")
+        raise SystemExit(f"unknown subcommand {cmd} (run | summarise / summarize | plot)")
     return 0
 
 
