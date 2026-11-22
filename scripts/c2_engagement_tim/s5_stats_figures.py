@@ -68,7 +68,7 @@ TN = None if NO_TIM else rd("sessions_tim_new.csv")
 M = rd("sessions_motion.csv")
 TRD = None if NO_TIM else rd("sessions_treadmill_rates.csv")
 H = rd("sessions_hit_by_position.csv")
-A = rd("sessions_aim_by_position.csv")
+A = rd("sessions_aim_by_position.csv") if (OUT / "sessions_aim_by_position.csv").exists() else None   # 11-22: s4 skips it without ITI-lick preds
 for D_ in (E, TP, TN, M, TRD):
     if D_ is not None:
         D_["pos"] = "all"
@@ -171,7 +171,7 @@ if not NO_TIM:
 
 # ------------------------------------------------------------------ hit rate / aim by position: all vs engaged-only
 cmp_rows = []
-for meas, D_, col in (("hit_rate", H, "hit_rate"), ("aim_off", A, "aim_off")):
+for meas, D_, col in (("hit_rate", H, "hit_rate"), *((("aim_off", A, "aim_off"),) if A is not None else ())):
     for m in ("first95", "all"):
         for tset in sorted(D_.trials.unique()):
             d = D_[(D_.match == m) & (D_.trials == tset)].copy()
@@ -197,8 +197,14 @@ W("engaged_only_pattern_by_epoch.csv", pd.DataFrame(pat))
 # ------------------------------------------------------------------ per-animal time course: disengagement vs far-contra hit
 # 11-22 (plan item 3): the adopted run's table (was a literal v36 path; only the session -> day map is read)
 from wfield_local import orofacial_outputs as _oo  # noqa: E402
-days = pd.read_csv(_oo.encoding_root() / "iti_licks" / "aim_by_spout_sessions.csv")[["label", "day"]].drop_duplicates("label")
-days["label8"] = days.label.str[:5] + "2026" + days.label.str[-4:]
+_daysf = _oo.encoding_root() / "iti_licks" / "aim_by_spout_sessions.csv"
+if _daysf.exists():
+    days = pd.read_csv(_daysf)[["label", "day"]].drop_duplicates("label")
+    days["label8"] = days.label.str[:5] + "2026" + days.label.str[-4:]
+else:                     # 11-22: run without iti_licks tables -> the same day count from `epochs.days_since_stroke`
+    from wfield_local import epochs as _ep  # noqa: E402
+    days = pd.DataFrame({"label8": sorted(E.label.unique())})
+    days["day"] = [_ep.days_since_stroke(lab[:5] + lab[-4:]) for lab in days.label8]
 e = E[(E.match == PRIMARY) & (E.model == "production")][["label", "animal", "epoch", "disengaged", "engaged"]]
 h = H[(H.match == PRIMARY) & (H.trials == "all") & (H.pos == "far_contra")][["label", "hit_rate"]]
 tc_ = e.merge(h, on="label", how="left").merge(days[["label8", "day"]], left_on="label", right_on="label8", how="left")
@@ -458,7 +464,8 @@ else:
 
 # supplement: engaged-only hit rate / aim by position
 fig, axs = plt.subplots(2, 2, figsize=(7.0, 4.0))
-for col, (meas, D_, yl) in enumerate((("hit_rate", H, "hit rate (Δ)"), ("aim_off", A, "first-lick aim offset (Δ deg, + = contra)"))):
+for col, (meas, D_, yl) in enumerate((("hit_rate", H, "hit rate (Δ)"),
+                                      *((("aim_off", A, "first-lick aim offset (Δ deg, + = contra)"),) if A is not None else ()))):
     for row, tset in enumerate(("all", "engaged")):
         ax = axs[row, col]
         d = D_[(D_.match == PRIMARY) & (D_.trials == tset)].copy()

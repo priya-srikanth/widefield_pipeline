@@ -332,35 +332,44 @@ for m, N in MATCH.items():
 H = base(pd.concat(rows, ignore_index=True))
 W("sessions_hit_by_position.csv", H)
 
-import iti_recovery_measure as rm  # noqa: E402
-p = rm.aim_licks()
-p = p[p["first"]].copy()
-# 11-22 (plan item 3): the selected 3-D source / run tag (WIDEFIELD_POSE3D_SOURCE / _TAG); was the literal two-camera folder
-from wfield_local.pose3d import pose3d_dir as _pose3d_dir  # noqa: E402
-L3 = pd.read_csv(_pose3d_dir() / "kinematics" / "licks.csv.gz",
-                 usecols=["trial_id", "side_ml", "out_ap", "down_dv", "session"])
-L3["label"] = L3.session.str[:5] + L3.session.str[-4:]
-L3["k"], L3["s"] = L3.side_ml.round(3), np.hypot(L3.out_ap, L3.down_dv).round(3)
-p["k"], p["s"] = p.act_lat.round(3), p.act_sag.round(3)
-p = p.merge(L3.drop_duplicates(["label", "k", "s"])[["label", "k", "s", "trial_id", "session"]], on=["label", "k", "s"], how="left")
-print(f"aim first licks matched to trial ids: {p.trial_id.notna().sum()} of {len(p)}", flush=True)
-p = p.dropna(subset=["trial_id"])
-p["label8"] = p.session
-p["role"] = [role_of.get((l, int(t)), "none") for l, t in zip(p.label8, p.trial_id)]
-for v, d in REFIT_ROLE.items():
-    p[f"role_{v}"] = [d.get((l, int(t)), "none") for l, t in zip(p.label8, p.trial_id)]
-p["t_min"] = [tmin_of.get((l, int(t)), np.nan) for l, t in zip(p.label8, p.trial_id)]
-rows = []
-for m, N in MATCH.items():
-    for tset, sel in (("all", None), ("engaged", ("role", "engaged")),
-                      *[(f"engaged_{v}", (f"role_{v}", "engaged")) for v in REFIT_ROLE]):
-        D_ = p[~(p.t_min > N)]
-        if sel:
-            D_ = D_[D_[sel[0]] == sel[1]]
-        g = D_.groupby(["label8", "pos"]).off.agg(["mean", "size"]).reset_index()
-        g = g[g["size"] >= rm.MIN_LICKS["first"]].rename(columns={"label8": "label", "mean": "aim_off", "size": "n"})
-        g["match"], g["trials"] = m, tset
-        rows.append(g)
-A = base(pd.concat(rows, ignore_index=True))
-A = A[A.epoch.notna()]
-W("sessions_aim_by_position.csv", A)
+# first-lick aim by position needs the run's ITI-lick predictions (`iti_recovery_measure.aim_licks`); 11-22: a run
+# without them (the adopted four-camera run before its iti_licks re-run) skips this table instead of failing
+def aim_table():
+    import iti_recovery_measure as rm  # noqa: E402
+    p = rm.aim_licks()
+    p = p[p["first"]].copy()
+    # 11-22 (plan item 3): the selected 3-D source / run tag (WIDEFIELD_POSE3D_SOURCE / _TAG); was the literal two-camera folder
+    from wfield_local.pose3d import pose3d_dir as _pose3d_dir  # noqa: E402
+    L3 = pd.read_csv(_pose3d_dir() / "kinematics" / "licks.csv.gz",
+                     usecols=["trial_id", "side_ml", "out_ap", "down_dv", "session"])
+    L3["label"] = L3.session.str[:5] + L3.session.str[-4:]
+    L3["k"], L3["s"] = L3.side_ml.round(3), np.hypot(L3.out_ap, L3.down_dv).round(3)
+    p["k"], p["s"] = p.act_lat.round(3), p.act_sag.round(3)
+    p = p.merge(L3.drop_duplicates(["label", "k", "s"])[["label", "k", "s", "trial_id", "session"]], on=["label", "k", "s"], how="left")
+    print(f"aim first licks matched to trial ids: {p.trial_id.notna().sum()} of {len(p)}", flush=True)
+    p = p.dropna(subset=["trial_id"])
+    p["label8"] = p.session
+    p["role"] = [role_of.get((l, int(t)), "none") for l, t in zip(p.label8, p.trial_id)]
+    for v, d in REFIT_ROLE.items():
+        p[f"role_{v}"] = [d.get((l, int(t)), "none") for l, t in zip(p.label8, p.trial_id)]
+    p["t_min"] = [tmin_of.get((l, int(t)), np.nan) for l, t in zip(p.label8, p.trial_id)]
+    rows = []
+    for m, N in MATCH.items():
+        for tset, sel in (("all", None), ("engaged", ("role", "engaged")),
+                          *[(f"engaged_{v}", (f"role_{v}", "engaged")) for v in REFIT_ROLE]):
+            D_ = p[~(p.t_min > N)]
+            if sel:
+                D_ = D_[D_[sel[0]] == sel[1]]
+            g = D_.groupby(["label8", "pos"]).off.agg(["mean", "size"]).reset_index()
+            g = g[g["size"] >= rm.MIN_LICKS["first"]].rename(columns={"label8": "label", "mean": "aim_off", "size": "n"})
+            g["match"], g["trials"] = m, tset
+            rows.append(g)
+    A = base(pd.concat(rows, ignore_index=True))
+    A = A[A.epoch.notna()]
+    W("sessions_aim_by_position.csv", A)
+
+
+try:
+    aim_table()
+except FileNotFoundError as ex:
+    print(f"sessions_aim_by_position.csv SKIPPED (input missing: {ex.filename})", flush=True)
