@@ -162,7 +162,12 @@ POST_RULE = ("post-stroke epochs: session = the one (>= 20 first licks) whose me
              "median; its first licks with <= 10 % single-view 3-D frames ranked by distance from the epoch median")
 
 
-def select(n: int, licks: str = "cam4", animal: str = ANIMAL, pre_rule: str = "median") -> pd.DataFrame:
+LAT_RULE = ("latency: first-lick peak time after the cue (t_peak_3d) within the interquartile range of that animal's "
+            "first licks in the same epoch (pre-stroke: all pre-stroke far-contralesional first licks)")
+
+
+def select(n: int, licks: str = "cam4", animal: str = ANIMAL, pre_rule: str = "median",
+           lat_iqr: bool = False) -> pd.DataFrame:
     """The rule in the module doc -> one row per epoch: session, epoch median, ranked candidate trials.
     ``pre_rule`` = "contact_q25" (style v2, Priya 11-22): the pre epoch uses `PRE_RULE_V2` instead."""
     A = lick_pool(licks, animal)
@@ -172,6 +177,8 @@ def select(n: int, licks: str = "cam4", animal: str = ANIMAL, pre_rule: str = "m
     for ep in EPOCHS:
         g = A[A.epoch == ep]
         m = float(g.midline_err_ipsi.median())
+        lq = np.percentile(g.t_peak_3d.dropna(), [25, 50, 75])
+        in_lat = (g.t_peak_3d >= lq[0]) & (g.t_peak_3d <= lq[2]) if lat_iqr else pd.Series(True, index=g.index)
         if ep == "pre" and pre_rule == "contact_q25":
             c = g[g.contact.astype(str).isin(["True", "1", "1.0"])]
             q = float(np.percentile(c.midline_err_ipsi, 25))
@@ -180,22 +187,23 @@ def select(n: int, licks: str = "cam4", animal: str = ANIMAL, pre_rule: str = "m
             s = s[s["size"] >= 20]
             sess = (s["q25"] - q).abs().sort_values(kind="mergesort").index[0]
             gs = c[(c.session == sess) & (c.share_single_view <= MAX_SINGLE_VIEW)
-                   & (c.cams.astype(str) == "cam1+cam2+cam3+cam4") if "cams" in c else (c.session == sess)]
+                   & (c.cams.astype(str) == "cam1+cam2+cam3+cam4") & in_lat.loc[c.index]]
             gs = gs.assign(d=(gs.midline_err_ipsi - q).abs()).sort_values(["d", "trial_id"])
             rows.append({"animal": animal, "position": far_contra(animal), "epoch": ep, "session": sess,
                          "epoch_median": m, "epoch_n": len(g), "session_median": float(s.loc[sess, "q25"]),
                          "session_n": int(s.loc[sess, "size"]), "rule": PRE_RULE_V2, "target_value": q,
-                         "contact_frac": float(len(c) / len(g)),
+                         "contact_frac": float(len(c) / len(g)), "lat_q25_50_75": lq.round(0).tolist(),
                          "cands": [(int(r.trial_id), float(r.midline_err_ipsi), float(r.t_peak_3d), float(r.midline),
                                     float(r.midline_target), float(r.reach_mm)) for r in gs.itertuples()]})
             continue
         s = g.groupby("session").midline_err_ipsi.agg(["median", "size"])
         s = s[s["size"] >= 20]
         sess = (s["median"] - m).abs().sort_values(kind="mergesort").index[0]
-        gs = g[(g.session == sess) & (g.share_single_view <= MAX_SINGLE_VIEW)]
+        gs = g[(g.session == sess) & (g.share_single_view <= MAX_SINGLE_VIEW) & in_lat]
         gs = gs.assign(d=(gs.midline_err_ipsi - m).abs()).sort_values(["d", "trial_id"])
         rows.append({"animal": animal, "position": far_contra(animal), "epoch": ep, "session": sess,
                      "epoch_median": m, "epoch_n": len(g), "rule": POST_RULE, "target_value": m,
+                     "lat_q25_50_75": lq.round(0).tolist(),
                      "session_median": float(s.loc[sess, "median"]), "session_n": int(s.loc[sess, "size"]),
                      "cands": [(int(r.trial_id), float(r.midline_err_ipsi), float(r.t_peak_3d), float(r.midline),
                                 float(r.midline_target), float(r.reach_mm)) for r in gs.itertuples()]})
