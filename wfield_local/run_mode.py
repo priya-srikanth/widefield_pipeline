@@ -190,9 +190,14 @@ def pose3d_part() -> str:
     (`pose3d.SOURCE_ENV` / `pose3d.TAG_ENV`; 11-21 four-camera re-run), "" by default. Every routed output of a run on
     the four-camera 3-D lands under its own tag (VLS-paper refresh rule: new names only), never over the v36 tables.
     Output-only: imaging / LocaNMF caches do not depend on the 3-D source."""
+    # 11-22: "" for the ADOPTED source + tag (`pose3d.ADOPTED_SOURCE` / `ADOPTED_TAG`), so the adopted run's outputs are
+    # untagged whichever source it is; any other source / tag (incl. 2cam once the four-camera run is adopted) is tagged
     from wfield_local import pose3d
     s = pose3d.pose3d_source()
-    return "" if s == "2cam" else f"p3d-{s}{pose3d.pose3d_tag(s)}"
+    t = pose3d.pose3d_tag(s)
+    if s == pose3d.ADOPTED_SOURCE and t == (pose3d.ADOPTED_TAG if s != "2cam" else ""):
+        return ""
+    return f"p3d-{s}{t}"
 
 
 _ALL = (("hemo", hemo_part), ("lnmf", lnmf_part), ("drift", drift_part), ("pre", pre_part), ("selection", selection_part),

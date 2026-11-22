@@ -12,7 +12,6 @@ Output: <run>/imaging_encoding/qc/first_lick_latency.csv (per trial) + a per ani
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -32,11 +31,19 @@ def session_latency(label: str) -> pd.DataFrame:
     b = TW.trial_bounds(a, d, rv)
     pos = dict(zip(b.trial_id.astype(int), [oc.pos_key(p, "L") for p in b.pos_name]))
     stop = dict(zip(b.trial_id.astype(int), (b.stop_s - b.cue_s).to_numpy(float) * 1000))
-    L = pd.read_csv(oo.session_dir(rv, oc.RUN, a, d) / "licks.csv", usecols=["trial_id", "on_ms"])
+    from wfield_local import lp_licks
+    from wfield_local import session_licks as SL
+    L = pd.read_csv(oo.session_dir(rv, lp_licks.input_run(), a, d) / "licks.csv", usecols=["trial_id", "on_ms"])
     cam4 = L[L.on_ms >= 0].groupby("trial_id").on_ms.min()
-    f = Path(rv.root("dlc")) / "session_poses" / "cam1_licks" / f"{a}_{d}_events.csv"
+    f = lp_licks.cam1_events_dir(rv) / f"{a}_{d}_events.csv"
     cam1 = None
-    if f.exists():
+    fused = None
+    if SL.fused_on():
+        # 11-22 (Priya 11-21 Q1 = (b)): ``combined`` = the first post-cue lick of the FUSED four-camera train (every
+        # camera; cam1-only / side-only licks already in it), not cam4 + the cam1-only events
+        F = SL.session_licks(label, rv)
+        fused = F[F.on_ms >= 0].groupby("trial_id").on_ms.min()
+    elif f.exists():
         from wfield_local import cam1_licks as C1
         E = pd.read_csv(f, usecols=lambda c: c in ("trial_id", "on_ms", "cam4_matched", "droplet", "spread_px",
                                                    "range_px", "med_out_px"))
@@ -48,9 +55,11 @@ def session_latency(label: str) -> pd.DataFrame:
         c4 = cam4.get(t, np.nan)
         c1 = cam1.get(t, np.nan) if cam1 is not None else np.nan
         ct = [x for x in np.asarray(con.get(t, []), float) if x >= 0]
+        comb = (fused.get(t, np.nan) if fused is not None
+                else (np.nanmin([c4, c1]) if cam1 is not None else np.nan))
         rows.append({"label": label, "trial_id": t, "pos": pos[t], "stop_ms": stop[t], "cam4": c4,
-                     "combined": np.nanmin([c4, c1]) if cam1 is not None else np.nan,
-                     "contact": min(ct) if ct else np.nan, "has_cam1": cam1 is not None})
+                     "combined": comb, "contact": min(ct) if ct else np.nan,
+                     "has_cam1": cam1 is not None or fused is not None})
     out = pd.DataFrame(rows)
     # the lick time lick-aligned frames use (Priya 11-04): LP, or the DAQ contact at a close spout when LP missed / was
     # late by > lp_licks.LP_DAQ_TOL_MS; far-spout late LP = grooming_suspect (count / drop as a sensitivity)

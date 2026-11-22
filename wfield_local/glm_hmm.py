@@ -274,10 +274,8 @@ def session_sequence(label: str, animals) -> tuple[np.ndarray, np.ndarray, pd.Da
     CYCLE: the ITI before the trial (previous stop .. strobe), its pre-cue (strobe .. cue) and its response (cue ..
     stop). Licks = every camera lick (LP licks_all, DAQ time); running = the canonical DAQ running bouts."""
     from wfield_local import behavior_events as be
-    from wfield_local import orofacial_outputs as oo
     from wfield_local import trial_classes as tc
     from wfield_local.paths import PathResolver
-    from wfield_local import orofacial_cohort as oc
     S = tc.session_trials(label)
     if S is None or len(S) < 20:
         return None
@@ -289,8 +287,9 @@ def session_sequence(label: str, animals) -> tuple[np.ndarray, np.ndarray, pd.Da
         return None
     fs = float(ev["fs"])
     rs, rp = np.asarray(ev["running_starts"]) / fs, np.asarray(ev["running_stops"]) / fs
-    L = pd.read_csv(Path(oo.session_dir(rv, oc.RUN, animal, date)) / "licks_all.csv", usecols=["daq_on_s"])
-    lk = np.sort(L.daq_on_s.dropna().to_numpy(float))
+    # 11-22: THE session lick table (`session_licks`: the fused four-camera train when selected, else cam4 licks_all)
+    from wfield_local import session_licks as SL
+    lk = SL.session_onsets_s(label, rv)
 
     def any_lick(a, b):
         if not (np.isfinite(a) and np.isfinite(b)) or b <= a:
@@ -479,12 +478,29 @@ def apply_design(data: dict, design: str, n_animals: int) -> dict:
     return out
 
 
-def load_cached(labels, animals, od: Path) -> dict:
-    """`load_all` with a pickle in the output dir keyed by the label set + outcome mode (reloading 120 sessions costs
-    minutes and does not change between design / K runs)."""
+def sequence_key(labels) -> str:
+    """Cache key of the per-session sequences: the label set + outcome mode AND (11-22, reconciled plan item 4: a
+    refit after the classes / licks changed reused the OLD sequences, keyed on labels only) the identity of what the
+    sequences are built from -- the trial classes' sources (`trial_classes.class_source_signature`: cam4 run tables,
+    cam1 events, jaw_onsets, class code) and the lick set (`session_licks.signature`, "" on the legacy source) -- plus
+    this module's code."""
     import hashlib
+    import inspect
+    import sys
+
+    from wfield_local import session_licks as SL
+    from wfield_local import trial_classes as tc
+    src = inspect.getsource(sys.modules[__name__])
+    parts = ["|".join(labels), outcome_mode(), tc.class_source_signature(), SL.signature(),
+             hashlib.sha1(src.encode()).hexdigest()[:10]]
+    return hashlib.sha1("#".join(parts).encode()).hexdigest()[:10]
+
+
+def load_cached(labels, animals, od: Path) -> dict:
+    """`load_all` with a pickle in the output dir keyed by `sequence_key` (reloading 120 sessions costs minutes and does
+    not change between design / K runs)."""
     import pickle
-    key = hashlib.sha1(("|".join(labels) + outcome_mode()).encode()).hexdigest()[:10]
+    key = sequence_key(labels)
     f = od / f"sequences_v1_{key}.pkl"
     if f.exists():
         return pickle.loads(f.read_bytes())
@@ -534,6 +550,8 @@ def main(argv=None) -> int:
                     "previous-outcome input)")
     ap.add_argument("--params-only", action="store_true", help="--pooled-all --k K: refit and write the model "
                     "parameters only, after checking the refit reproduces the posterior table on disk")
+    ap.add_argument("--force", action="store_true", help="--pooled-all: overwrite an existing states / params table "
+                    "(refused otherwise; GLMHMM_OUT=<new folder> writes a new one)")
     a = ap.parse_args(argv)
     labels = sorted(ak.curated_ids())
     animals = sorted({lab.split("_")[0] for lab in labels})
@@ -561,7 +579,12 @@ def main(argv=None) -> int:
                 if dmax > 1e-6:
                     raise SystemExit("refit does not reproduce the table on disk; parameters NOT written")
             else:
-                T.to_csv(od / f"states_pooled_all_K{K}{sfx}.csv.gz", index=False)
+                f = od / f"states_pooled_all_K{K}{sfx}.csv.gz"
+                if f.exists() and not a.force:
+                    # 11-22 (reconciled plan item 4): the production states / params feed the engagement / TIM
+                    # chain; a refit on new classes or licks goes to a new GLMHMM_OUT unless replacing on purpose
+                    raise SystemExit(f"{f} exists: --force to overwrite, or GLMHMM_OUT=<new folder>")
+                T.to_csv(f, index=False)
             (od / f"params_pooled_all_K{K}{sfx}.json").write_text(json.dumps(params, indent=1))
             print("written", od / f"params_pooled_all_K{K}{sfx}.json", flush=True)
         return 0

@@ -14,7 +14,8 @@ own stop); onset = the first suprathreshold frame of the first window where that
 Trial windows are laid end to end with NaN gaps (no snippet reaches a neighbour); the onset frame's ``t_daq_ms`` (camera
 timestamp through the alignment template, ms from the DAQ cue) is the onset time.
 
-Output `<v36 run>/imaging_encoding/qc/jaw_onsets.csv`, one row per trial: session, animal, date, epoch, trial_id,
+Output `<run>/imaging_encoding/qc/jaw_onsets.csv` (``--run``, default `lp_licks.input_run()` = the adopted
+`orofacial_cohort.RUN`; 11-22: it was the literal v36 run, read AND written), one row per trial: session, animal, date, epoch, trial_id,
 position, cam4_moved / cam1_moved (1 / 0 / NaN = cannot judge), cam4_onset_ms / cam1_onset_ms, jaw_onset_ms + jaw_onset_cam
 (the EARLIER of the cameras that saw a movement), onset_at_cue (the jaw was already deflected at the cue frame:
 onset 0 -- not an after-cue movement), cam4_reonset_ms / cam1_reonset_ms / jaw_reonset_ms + jaw_reonset_cam (at-cue
@@ -38,7 +39,13 @@ the jaw-moved classifier: on her 24 reviewed trials (side spouts) 3-D caught 5 /
 From `session_poses/pose3d/<s>_frames.csv.gz` (both cameras + one-camera fill, mm, stage frame: ml + = mouse right,
 ap + = forward, dv + = up); per trial, displacement from the pre-cue (-500 .. 0 ms) median over cue .. stop.
 BLANK at close_center / far_center (the rod crosses the face in cam1: 3-D jaw / nose < 15 % of pre-cue frames) and
-where < 50 % of the window has a 3-D point. Per part P in {jaw, nose}:
+where < 50 % of the window has a 3-D point -- for the TWO-camera 3-D only. SOURCE-AWARE since 11-22 (Priya 11-21 Q5:
+"use the four cameras"): on the FOUR-camera 3-D (`pose3d.pose3d_source() == "4cam"`) the side views see the jaw at the
+centre spouts (PS93 0814: jaw 3-D 100 % of cue..stop frames at close_center, >= 3 views 94 %), so those positions are
+NOT blanked; the 50 % coverage floor still applies everywhere. ``jaw3d_source`` (2cam | 4cam) and ``jaw3d_at_cue`` (the
+3-D onset is the cue frame) are written per row, and `trial_classes` uses the 3-D call ONLY at the spouts where both
+2-D cameras are masked and only when ``jaw3d_source`` is 4cam (the per-camera calls stay the classifier elsewhere).
+The 3-D onset floor (0.10 mm) is PROVISIONAL (not blind-checked); see DECISIONS 2026-11-22. Per part P in {jaw, nose}:
   P3d_disp_mm      95th percentile of the 3-D displacement (robust size of the movement)
   P3d_rest_mm      the same over the pre-cue frames (that trial's resting noise; compare with disp)
   P3d_down_mm / P3d_up_mm       largest downward / upward displacement (jaw: down = opening, up = clench)
@@ -56,7 +63,6 @@ import numpy as np
 import pandas as pd
 from wfield_local.pose3d import pose3d_dir
 
-V36 = "lp_r4_heatmap_20261013__clean_v36"
 CAM1_JAW_CUT = 0.6                      # as trial_attempts.CAM1_JAW_CUT
 #: close_center: chin hidden in cam4 AND the cam1 jaw point jumps under the rod (blind review 10-21: cam1 call at chance)
 #: -> both cameras masked there (encoding window masks it too)
@@ -126,12 +132,20 @@ def _extras(y: np.ndarray, ix: pd.DataFrame, cam: str) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def centre_blanked(source: str | None = None) -> tuple:
+    """Positions whose 3-D jaw / nose columns are blanked: `CENTRE` on the two-camera 3-D (the rod crosses the face in
+    cam1), none on the four-camera 3-D (the side views see it; Q5, 11-22)."""
+    from wfield_local.pose3d import pose3d_source
+    return () if pose3d_source(source).startswith("4cam") else CENTRE
+
+
 def _threed(s: str, root_d: str) -> pd.DataFrame | None:
     """Per trial 3-D jaw / nose displacement columns (module docstring, 10-23); None without 3-D frames."""
     from wfield_local import jaw_kinematics as jk
     f = pose3d_dir(root=root_d) / f"{s}_frames.csv.gz"
     if not f.exists():
         return None
+    blank = centre_blanked()
     cols = ["trial_id", "position", "t_ms", "stop_ms", "t_daq_ms"] + [f"{p}_{a}" for p in ("jaw", "nose")
                                                                      for a in ("ml", "ap", "dv")]
     F = pd.read_csv(f, usecols=cols).drop_duplicates(["trial_id", "t_ms"]).sort_values(["trial_id", "t_ms"])
@@ -148,7 +162,7 @@ def _threed(s: str, root_d: str) -> pd.DataFrame | None:
             ok = np.isfinite(X[k]).all(1)
             pre, win = (t >= -500) & (t < 0) & ok, (t >= 0) & (t <= st)
             r = {"trial_id": int(tid)}
-            if str(g.position.iloc[0]) in CENTRE or pre.sum() < 20 or (win & ok).sum() < max(20, 0.5 * win.sum()):
+            if str(g.position.iloc[0]) in blank or pre.sum() < 20 or (win & ok).sum() < max(20, 0.5 * win.sum()):
                 rows.append(r)
                 continue
             D = X[k] - np.median(X[k][pre], axis=0)
@@ -172,6 +186,8 @@ def _threed(s: str, root_d: str) -> pd.DataFrame | None:
         has = R[f"{part}3d_disp_mm"].notna()
         R[f"{part}3d_moved"] = O.jaw_pass_qc.reindex(R.index).where(has)
         R[f"{part}3d_onset_ms"] = O.onset_ms.reindex(R.index).where(has & (R[f"{part}3d_moved"] == 1))
+        # the 3-D movement was already under way at the cue frame (as the per-camera ``onset_at_cue``)
+        R[f"{part}3d_at_cue"] = (O.onset_frames.reindex(R.index) == 0) & has & (R[f"{part}3d_moved"] == 1)
         out[part] = R
     return out["jaw"].join(out["nose"], how="outer")
 
@@ -199,9 +215,9 @@ def session(job) -> pd.DataFrame:
     import sys
 
     from wfield_local import jaw_kinematics, result_cache
-    s, root_o, root_d = job
+    s, root_o, root_d, run = job
     a, d = s.split("_")
-    sd = Path(root_o) / V36 / "sessions" / a / d
+    sd = Path(root_o) / run / "sessions" / a / d
     d1 = Path(root_d) / "session_poses" / f"{s}_cam1_full"
     from wfield_local import daq_io
     try:
@@ -210,17 +226,18 @@ def session(job) -> pd.DataFrame:
         h5 = None
     inputs = [sd / "windows.npz", sd / "clean.npz", d1 / "windows_index.csv", d1 / "windows_LP.csv"] + \
         ([Path(h5)] if h5 else []) + [pose3d_dir(root=root_d) / f"{s}_frames.csv.gz"]
-    ver = result_cache.code_version(jaw_kinematics, sys.modules[__name__])
-    return result_cache.cached(Path(root_o) / V36 / "imaging_encoding" / "qc" / "_cache" / "jaw_onsets", s, inputs, ver,
+    from wfield_local.pose3d import pose3d_source
+    ver = result_cache.code_version(jaw_kinematics, sys.modules[__name__], extra=pose3d_source())
+    return result_cache.cached(Path(root_o) / run / "imaging_encoding" / "qc" / "_cache" / "jaw_onsets", s, inputs, ver,
                                lambda: _session(job))
 
 
 def _session(job) -> pd.DataFrame:
-    s, root_o, root_d = job
+    s, root_o, root_d, run = job
     from wfield_local import epochs
     from wfield_local import pose_windows as pw
     a, d = s.split("_")
-    sd = Path(root_o) / V36 / "sessions" / a / d
+    sd = Path(root_o) / run / "sessions" / a / d
     w = np.load(sd / "windows.npz", allow_pickle=False)
     ix4 = pd.DataFrame({k: w[f"ix_{k}"] for k in ("trial_id", "position", "t_ms", "t_daq_ms", "stop_ms", "daq_s")})
     y4 = np.load(sd / "clean.npz")["jaw_y"].astype(float)
@@ -287,9 +304,13 @@ def _session(job) -> pd.DataFrame:
     # APPENDED 10-23: 3-D jaw / nose (descriptive; module docstring)
     T3 = _threed(s, root_d)
     for part in ("jaw", "nose"):
-        for c in ("disp_mm", "rest_mm", "down_mm", "up_mm", "back_mm", "side_ipsi_mm", "moved", "onset_ms"):
+        for c in ("disp_mm", "rest_mm", "down_mm", "up_mm", "back_mm", "side_ipsi_mm", "moved", "onset_ms", "at_cue"):
             col = f"{part}3d_{c}"
             out[col] = out.trial_id.map(T3[col]) if T3 is not None and col in T3 else np.nan
+    out["jaw3d_at_cue"] = out.jaw3d_at_cue.fillna(False).astype(bool)
+    out["nose3d_at_cue"] = out.nose3d_at_cue.fillna(False).astype(bool)
+    from wfield_local.pose3d import pose3d_source
+    out["jaw3d_source"] = "4cam" if pose3d_source().startswith("4cam") else "2cam"     # read by trial_classes (Q5)
     return out.drop(columns=["cam4_onset_frames", "cam1_onset_frames"])
 
 
@@ -301,22 +322,35 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--jobs", type=int, default=3)
     ap.add_argument("--sessions", nargs="*", default=None, metavar="ANIMAL:YYYYMMDD")
-    ap.add_argument("--all", action="store_true", help="every v36 session, not just the curated cohort")
+    ap.add_argument("--all", action="store_true", help="every session of the run, not just the curated cohort")
+    ap.add_argument("--run", default=None, help="LP run whose cam4 tables are read and whose imaging_encoding/qc "
+                                                 "gets the table (default: lp_licks.input_run() = the adopted run)")
     ap.add_argument("--out", type=Path, default=None, help="write here instead (checks; the default file is WATCHED)")
+    ap.add_argument("--force", action="store_true", help="overwrite an existing output file (refused otherwise)")
     a = ap.parse_args(argv)
+    from wfield_local import lp_licks
+    from wfield_local import orofacial_outputs as oo
+    run = a.run or lp_licks.input_run()
     rv = PathResolver()
     ro, rd = Path(rv.root("orofacial")), Path(rv.root("dlc"))
-    sess = sorted(f"{p.parent.name}_{p.name}" for p in (ro / V36 / "sessions").glob("*/*")
+    out = a.out or oo.encoding_root(run, rv) / "qc" / "jaw_onsets.csv"
+    if out.exists() and not a.force:
+        # 11-22 (reconciled plan item 4): the default table is WATCHED by trial_classes / trial_attempts; never
+        # overwritten silently -- a new run (--run) writes its own tree, a check writes --out
+        raise SystemExit(f"jaw_onsets: {out} exists; pass --force to overwrite it or --out <new file>")
+    from wfield_local.pose3d import pose3d_dir
+    print(f"jaw_onsets: run {run}, 3-D {pose3d_dir(rv)} -> {out}")
+    sess = sorted(f"{p.parent.name}_{p.name}" for p in (ro / run / "sessions").glob("*/*")
                   if (p / "clean.npz").exists())
     if a.sessions:
         sess = [s for s in sess if s.replace("_", ":", 1) in a.sessions]
     elif not a.all:
         sess = [s for s in sess if s in ak.curated_ids()]
-    res, fails = ak.fan_sessions([(s, str(ro), str(rd)) for s in sess], session, jobs=a.jobs, key=lambda j: j[0])
+    res, fails = ak.fan_sessions([(s, str(ro), str(rd), run) for s in sess], session, jobs=a.jobs,
+                                 key=lambda j: j[0])
     for s, e in fails:
         print(f"{s}: FAILED {e}")
     T = pd.concat([r for _, r in res], ignore_index=True)
-    out = a.out or ro / V36 / "imaging_encoding" / "qc" / "jaw_onsets.csv"
     out.parent.mkdir(parents=True, exist_ok=True)
     T.to_csv(out, index=False, float_format="%.2f")
     pd.set_option("display.width", 220)

@@ -37,7 +37,7 @@ def test_within_lick_correction_and_lick_correction_read_pose3d_dir():
     for f in ("within_lick_correction.py", "lick_correction.py"):
         src = (root / f).read_text(encoding="utf-8")
         assert '"session_poses" / "pose3d"' not in src, f
-        assert "pose3d_dir(" in src, f
+        assert "pose3d_dir(" in src or "kin_all_path(" in src, f      # 11-22: + the lick set (iti_licks.kin_all_path)
 
 
 def test_within_lick_correction_out_root_moves_with_the_4cam_tag(monkeypatch):

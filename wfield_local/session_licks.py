@@ -75,10 +75,14 @@ class LickJoinError(RuntimeError):
 
 # --------------------------------------------------------------------------------------------- source selection
 def fused_run() -> str | None:
-    """The fused-train folder in force (`FUSED_ENV`, else `FUSED_DEFAULT`), or None = legacy."""
+    """The fused-train folder in force (`FUSED_ENV`, else `FUSED_DEFAULT` -- for COHORT 1 only: the fused train is a
+    PS92-95 product and cohort 2 is never pooled with it), or None = legacy."""
     v = os.environ.get(FUSED_ENV)
     if v is None or not v.strip():
-        return FUSED_DEFAULT
+        if FUSED_DEFAULT is None:
+            return None
+        from wfield_local import config
+        return FUSED_DEFAULT if config.cohort() == "cohort1" else None
     v = v.strip()
     if v.lower() in OFF_VALUES:
         return None
@@ -196,6 +200,38 @@ def rows_for(K: pd.DataFrame, A: pd.DataFrame, label: str = "") -> np.ndarray:
     return uid
 
 
+#: kinematics columns a key join needs (``lick_key``; ``lick_uid`` / ``trial_id`` / ``t_peak_cam4`` for pre-key tables)
+KIN_JOIN_COLS = ("lick_key", "lick_uid", "trial_id", "t_peak_cam4")
+
+
+def kin_by_row(K: pd.DataFrame, A: pd.DataFrame, label: str = "") -> pd.DataFrame:
+    """One session's kinematics ``K`` re-indexed by the ROW of lick table ``A`` each kinematics row belongs to
+    (`rows_for`): the drop-in for the old ``K.drop_duplicates("lick_uid").set_index("lick_uid")``, which trusted that
+    lick_uid still pointed at the same row of A."""
+    K = K.drop_duplicates("lick_key" if "lick_key" in K else "lick_uid")
+    return K.set_axis(rows_for(K, A, label), axis=0)
+
+
+def align_kin(L: pd.DataFrame, K: pd.DataFrame, cols: list, label: str = "") -> pd.DataFrame:
+    """``K[cols]`` (one session's 3-D kinematics rows) aligned to the rows of lick table ``L`` (trial_id, t_ms, lick_idx),
+    NaN where a lick has no kinematics row (fewer than 3 3-D frames is a legitimate miss). By ``lick_key`` when ``K``
+    has it -- a key cannot point at the wrong lick. A pre-key ``K`` joins on (trial_id, lick_idx) as before, but every
+    matched row must agree on the peak (``t_peak_cam4`` vs ``L.t_ms``, to its 4-significant-digit rounding);
+    `LickJoinError` otherwise (a kinematics table from another lick table / run)."""
+    if "lick_key" in K:
+        Kk = K.drop_duplicates("lick_key").set_index("lick_key")
+        return Kk.reindex(lick_key(L.trial_id, L.t_ms))[cols].reset_index(drop=True)
+    J = L[["trial_id", "lick_idx", "t_ms"]].reset_index(drop=True).merge(
+        K.drop_duplicates(["trial_id", "lick_idx"]), on=["trial_id", "lick_idx"], how="left")
+    if "t_peak_cam4" in J:
+        a, k = J.t_ms.to_numpy(float), J.t_peak_cam4.to_numpy(float)
+        bad = np.isfinite(k) & (np.abs(a - k) > np.maximum(0.6, 5.1e-4 * np.abs(k)))
+        if bad.any():
+            raise LickJoinError(f"{label}: {int(bad.sum())} kinematics rows joined on (trial_id, lick_idx) have another "
+                                "lick's peak -- the kinematics were built on a different lick table; rebuild them")
+    return J[cols]
+
+
 # --------------------------------------------------------------------------------------------- the video-lick floor
 def apply_floor(U: pd.DataFrame, min_ili_ms: float | None = None) -> pd.DataFrame:
     """Merge fused licks of one trial whose PEAKS are closer than ``min_ili_ms`` (default `camera_licks.MIN_ILI_MS`,
@@ -267,6 +303,11 @@ def fused_table(U: pd.DataFrame, ix: pd.DataFrame) -> pd.DataFrame:
     A["context"] = oo.lick_context(A.t_ms, t.strobe_ms.to_numpy(float), t.stop_ms.to_numpy(float))
     A["onset_context"] = oo.onset_context(A.on_ms, t.strobe_ms.to_numpy(float), t.stop_ms.to_numpy(float))
     A["table"] = A.context.map(CONTEXT_TABLE).to_numpy()
+    # ITI segment, as licks_all's ITI table: "lead" = before this trial's spout arrives (peak < strobe; the window
+    # label is the UPCOMING trial), "tail" = after its stop; blank outside the ITI
+    iti = A.context.to_numpy() == "iti"
+    lead = A.t_ms.to_numpy(float) < t.strobe_ms.to_numpy(float)
+    A["segment"] = np.where(iti, np.where(lead, "lead", "tail"), "")
     look = ix.drop_duplicates(["trial_id", "t_ms"]).set_index(["trial_id", "t_ms"]).daq_s
     A["daq_on_s"] = oo.trial_ms_to_daq(ix, A.trial_id, A.on_ms, look=look)
     A["daq_peak_s"] = oo.trial_ms_to_daq(ix, A.trial_id, A.t_ms, look=look)

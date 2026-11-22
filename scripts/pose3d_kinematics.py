@@ -37,6 +37,20 @@ retracted), so every target-relative column (miss / *_err / ang3d_err / *_target
 absolute angles (midline, frontal, sagittal) are kept. ``contact`` is the v36 column where it was measured, else False.
 The 3-D frames cover the cam1 windows (previous stop .. this stop), so most pre-cue / ITI licks have 3-D; a lick with < 3
 3-D frames is dropped as in the other modes. Output kinematics_all/.
+``--licks fused`` (11-22; Priya 11-21 Q1 = (b): "the fused four-camera train defines the 3-D kinematics lick set,
+tolerant of missing camera frames"): EVERY lick of the fused four-camera train (`session_licks.session_licks`, every
+context, columns as kinematics_all + ``cams`` / ``n_views`` / ``seen_<cam>``), measured on whatever 3-D frames the lick
+has: a lick with < 3 3-D frames is KEPT with NaN measures (``n_3d`` says why) instead of dropped, so the table holds the
+whole lick set. ``contact`` = a DAQ contact onset within the lick span +- 20 ms (as ``combined``); ``cam4_matched`` =
+cam4 saw it; ``t_peak_cam4`` = the fused lick's peak (cam4's where cam4 saw it). FRAME-COVERAGE GATE
+(`frame_coverage`): licks of trials whose UNION camera frame coverage is < `frame_coverage.MIN_FRAME_COVERAGE` (0.90)
+are skipped and written to ``licks_gated.csv.gz`` with ``gate_reason``; ``frame_coverage.csv`` holds every trial's union
+and per-camera coverage. Needs a fused lick set (WIDEFIELD_FUSED_LICKS or the adopted default). Output
+kinematics_fused/.
+EVERY lick row carries ``lick_key`` (11-22, `session_licks.lick_key`: trial + peak at 0.1 ms) -- join on it, never on
+``lick_uid`` (a row number of licks_all.csv, kept only for old readers; `session_licks.rows_for`).
+Lick tables come from `lp_licks.input_run()` (= the adopted `orofacial_cohort.RUN`; 11-22: was the literal v36 run).
+Every mode REFUSES to overwrite an existing output folder's licks.csv.gz unless ``--force`` (11-22).
 Output `session_poses/pose3d/kinematics/`: licks.csv.gz, jaw_trials.csv.gz, sessions.csv (per session x position medians +
 jaw FAR_DIR), by_animal.csv (each animal's post sessions minus its AUGUST pre median -- rule 8, printed first).
 """
@@ -49,8 +63,11 @@ import numpy as np
 import pandas as pd
 from wfield_local.pose3d import pose3d_dir
 
-V36 = "lp_r4_heatmap_20261013__clean_v36"
 OPEN_MM = 1.5
+OUT_NAMES = {"cam4": "kinematics", "combined": "kinematics_combined", "all": "kinematics_all",
+             "fused": "kinematics_fused"}
+#: fused mode: a lick touched the spout when a DAQ contact onset is within its span +- this (as ``combined``)
+CONTACT_TOL_MS = 20.0
 JAW_WIN_MS = (70.0, 3500.0)   # cue + 70 ms .. the TRIAL'S stop (end of its response window, usually 3500 ms; Priya 10-19);
                               # the second value is only the fallback when stop is missing (cam4 jaw_lateral used 3000)
 TARGET_COLS = ["miss_mm", "lat_err_mm", "ap_err_mm", "dv_err_mm", "ang3d_err", "midline_target", "midline_err_ipsi",
@@ -66,22 +83,34 @@ def rest_points(S: pd.DataFrame) -> dict:
     return {p: pre[[f"{p}_ml", f"{p}_ap", f"{p}_dv"]].median().to_numpy(float) for p in ("nose", "jaw")}
 
 
-def session_licks(S: pd.DataFrame, C: pd.DataFrame, geo: dict, E: np.ndarray) -> pd.DataFrame:
+def session_licks(S: pd.DataFrame, C: pd.DataFrame, geo: dict, E: np.ndarray, keep_short: bool = False) -> pd.DataFrame:
+    """One row per lick of ``C`` with >= 3 3-D tongue frames in its span; ``keep_short`` (fused mode, Q1 11-21:
+    "kinematics NaN only where too few 3-D frames") keeps the others too, with NaN measures and their ``n_3d``."""
     from wfield_local import spout_world as SW
     tgt = {p: SW.commanded_world(geo, p) for p in SW.POSITIONS}
     has_src = "tongue_src" in S
     g = {k: (v.t_ms.to_numpy(float), v[["tongue_ml", "tongue_ap", "tongue_dv"]].to_numpy(float),
              v.tongue_src.to_numpy() if has_src else None) for k, v in S.groupby("trial_id")}
     rows = []
-    extra = [c for c in ("context", "table", "daq_peak_s", "lick_uid") if c in C]
+    extra = [c for c in ("context", "table", "daq_peak_s", "lick_uid", "lick_key", "cams", "n_views", "seen_cam4",
+                         "seen_cam1", "seen_cam2", "seen_cam3") if c in C]
     for r in C.itertuples():
         f = g.get(r.trial_id)
-        if f is None or r.position not in tgt:
+        if r.position not in tgt or (f is None and not keep_short):
             continue
+        if f is None:
+            f = (np.zeros(0), np.zeros((0, 3)), None)
         sel = (f[0] >= r.on_ms - 0.5) & (f[0] <= r.off_ms + 0.5)
         P = f[1][sel]
         ok = np.isfinite(P).all(1)
         if ok.sum() < 3:
+            if keep_short:
+                ct = getattr(r, "contact", False)
+                rows.append({"trial_id": r.trial_id, "lick_idx": r.lick_idx, "position": r.position,
+                             **{c: getattr(r, c) for c in extra},
+                             "contact": ct is True or ct == 1 or (isinstance(ct, str) and ct == "True"),
+                             "cam4_matched": bool(getattr(r, "cam4_matched", True)), "t_peak_cam4": r.t_ms,
+                             "n_3d": int(ok.sum())})
             continue
         t, P = f[0][sel][ok], P[ok]
         src = f[2][sel][ok] if has_src else np.ones(len(P))
@@ -117,9 +146,40 @@ def session_licks(S: pd.DataFrame, C: pd.DataFrame, geo: dict, E: np.ndarray) ->
                      "ap_err_mm": float(P[m, 1] - T[1]), "dv_err_mm": float(P[m, 2] - T[2]),
                      "speed_peak": float(np.nanmax(sp[:k + 1])) if np.isfinite(sp[:k + 1]).any() else np.nan})
     L = pd.DataFrame(rows)
+    if keep_short and len(L):
+        L = L.reindex(columns=list(dict.fromkeys(list(L.columns) + LICK_MEASURES + TARGET_COLS + ["t_peak_3d"])))
     if "context" in L:
         L.loc[L.context == "iti", TARGET_COLS] = np.nan
     return L
+
+
+def fused_lick_table(rv, animal: str, date: str) -> pd.DataFrame:
+    """The session's fused-train licks (`session_licks.session_licks`) as `session_licks` (above) reads them:
+    ``contact`` from the DAQ (a contact onset within the span +- `CONTACT_TOL_MS`), ``cam4_matched`` = cam4 saw it."""
+    import scripts.pose_kinematics_demo as D
+    from wfield_local import session_licks as SL
+    from wfield_local import trial_windows as TW
+    C = SL.session_licks(f"{animal}_{date}", rv)
+    cont = D.daq_contacts_ms(animal, date, TW.trial_bounds(animal, date, rv), rv)
+    C["contact"] = [bool(((c := np.asarray(cont.get(r.trial_id, []), float)) >= r.on_ms - CONTACT_TOL_MS).any()
+                         and ((c >= r.on_ms - CONTACT_TOL_MS) & (c <= r.off_ms + CONTACT_TOL_MS)).any())
+                    for r in C.itertuples()]
+    C["cam4_matched"] = C.seen_cam4.astype(bool)
+    return C
+
+
+def gate_by_coverage(L: pd.DataFrame, cov: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """(licks kept, licks gated) by the per-trial frame-coverage table ``cov`` (`frame_coverage.coverage_table`): a lick
+    of a ``gated`` trial is skipped, with that trial's ``gate_reason`` / ``cov_union``. A trial absent from ``cov`` (no
+    trial bounds) is kept. Pure (tested)."""
+    if not len(L):
+        return L, L.assign(gate_reason=pd.Series(dtype=str), cov_union=pd.Series(dtype=float))
+    g = cov.set_index("trial_id")
+    bad = L.trial_id.map(g.gated).eq(True).to_numpy()
+    G = L[bad].copy()
+    G["gate_reason"] = G.trial_id.map(g.gate_reason).to_numpy()
+    G["cov_union"] = G.trial_id.map(g.cov_union).to_numpy()
+    return L[~bad].reset_index(drop=True), G.reset_index(drop=True)
 
 
 def combined_events(rv, S: pd.DataFrame, C4: pd.DataFrame, animal: str, date: str) -> pd.DataFrame:
@@ -158,9 +218,39 @@ def session_jaw(S: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def lick_input(rv, animal: str, date: str, mode: str) -> list[Path]:
+    """The lick-table files a mode reads (the cache inputs): cam4 licks.csv / licks_all.csv of `lp_licks.input_run()`,
+    or the fused table + the cam4 windows that put it on the DAQ clock + the fused folder's manifest."""
+    from wfield_local import lp_licks
+    from wfield_local import session_licks as SL
+    sd = Path(rv.root("orofacial")) / lp_licks.input_run() / "sessions" / animal / date
+    if mode == "fused":
+        fd = SL.fused_dir(rv)
+        return [fd / f"{animal}_{date}_fused.csv", sd / "windows.npz", fd / SL.MANIFEST]
+    return [sd / ("licks_all.csv" if mode == "all" else "licks.csv")]
+
+
 def session_result(job) -> tuple:
-    """(licks, jaw trials, session row) for ONE session -- the unit the run fans out over (10-21: it held every session's
-    frames at once, ~12 GB, serially). CACHED on the 3-D frames + v36 licks.csv (`result_cache`)."""
+    """(licks, jaw trials, session row, gated licks, coverage) for ONE session -- the unit the run fans out over (10-21:
+    it held every session's frames at once, ~12 GB, serially). CACHED on the 3-D frames + the lick table
+    (`result_cache`); the frame-coverage gate (fused mode) is applied after the cache, from its own cached table."""
+    L, J, row = _cached_result(job)
+    s, mode = job
+    if mode != "fused":
+        return L, J, row, None, None
+    from wfield_local import frame_coverage as FC
+    from wfield_local.paths import PathResolver
+    animal, date = s.split(":")
+    cov = FC.session_coverage(PathResolver(), animal, date)
+    L, G = gate_by_coverage(L, cov)
+    row = {**row, "licks_3d": int((L.n_3d >= 3).sum()) if len(L) else 0, "licks_gated": len(G),
+           "trials_gated": int(cov.gated.sum()), "cov_union_min": float(cov.cov_union.min()) if len(cov) else np.nan}
+    if len(J):
+        J = J.assign(frame_gated=J.trial_id.map(cov.set_index("trial_id").gated).eq(True))
+    return L, J, row, G, cov
+
+
+def _cached_result(job) -> tuple:
     import sys
 
     from wfield_local import pose3d, result_cache, spout_world
@@ -170,14 +260,16 @@ def session_result(job) -> tuple:
     animal, date = s.split(":")
     d3 = pose3d_dir(rv)
     fr = d3 / f"{animal}_{date}_frames.csv.gz"
-    lk = Path(rv.root("orofacial")) / V36 / "sessions" / animal / date / ("licks_all.csv" if mode == "all" else "licks.csv")
-    ver = result_cache.code_version(sys.modules[__name__], pose3d, spout_world, extra=mode)
+    lk = lick_input(rv, animal, date, mode)
+    from wfield_local import camera_licks, session_licks
+    mods = (sys.modules[__name__], pose3d, spout_world) + ((session_licks, camera_licks) if mode == "fused" else ())
+    ver = result_cache.code_version(*mods, extra=mode + (session_licks.signature(rv) if mode == "fused" else ""))
     # ROUTED like every other 3-D kinematics cache (`trial_classes.kin_cache_dir`): the old place without a rebuild root,
     # <root>/session_poses_derived/<tag>/... under one. 11-06: the 10-26 entries went stale with pose3d.py (11-04), and the
     # recompute's write to the unrouted session_poses/pose3d/_cache was refused by the rebuild fence (k_spout_error).
     from wfield_local import trial_classes as tc
-    return result_cache.cached(tc.kin_cache_dir(d3, f"kinematics_{mode}"), f"{animal}_{date}", [fr, lk], ver,
-                               lambda: _session_result(rv, s, mode, fr, lk))
+    return result_cache.cached(tc.kin_cache_dir(d3, f"kinematics_{mode}"), f"{animal}_{date}", [fr, *lk], ver,
+                               lambda: _session_result(rv, s, mode, fr, lk[0]))
 
 
 def _session_result(rv, s, mode, fr, lk) -> tuple:
@@ -187,14 +279,20 @@ def _session_result(rv, s, mode, fr, lk) -> tuple:
     S = pd.read_csv(fr).drop_duplicates(["trial_id", "t_ms"])
     rest = rest_points(S)
     E = np.zeros(3)                                   # the spout mouth zero = the frame's origin (Priya 10-19)
-    C = pd.read_csv(lk)
-    if mode == "all":
-        C["lick_uid"] = np.arange(len(C))
+    from wfield_local import session_licks as SL
+    if mode == "fused":
+        C = fused_lick_table(rv, animal, date)
+    else:
+        C = pd.read_csv(lk)
+        if mode == "all":
+            C["lick_uid"] = np.arange(len(C))         # legacy readers only; join on lick_key (11-22)
+        C["lick_key"] = SL.lick_key(C.trial_id, C.t_ms)
     if mode == "combined":
         C = combined_events(rv, S, C, animal, date)
+        C["lick_key"] = SL.lick_key(C.trial_id, C.t_ms)       # the 3-D events' own peaks
     geo = _rig(rv, animal, date)["geometry"]
     ep = epochs.epoch_of(f"{animal}_{date[4:]}")
-    L, J = session_licks(S, C, geo, E), session_jaw(S)
+    L, J = session_licks(S, C, geo, E, keep_short=mode == "fused"), session_jaw(S)
     for X in (L, J):
         X["animal"], X["date"], X["session"], X["epoch"] = animal, date, f"{animal}_{date}", ep
     row = {"session": f"{animal}_{date}", "animal": animal, "date": date, "epoch": ep,
@@ -224,21 +322,34 @@ def main(argv=None) -> int:
     from wfield_local.paths import PathResolver
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("sessions", nargs="*", metavar="ANIMAL:YYYYMMDD")
-    ap.add_argument("--licks", choices=["cam4", "combined", "all"], default="cam4",
+    ap.add_argument("--licks", choices=list(OUT_NAMES), default="cam4",
                     help="cam4 = the cam4 production lick events (default); combined = events from the 3-D track "
                          "(`pose3d.lick_events`), flagged cam4_matched, DAQ contact; output kinematics_combined/; all = every "
-                         "cam4 lick of the windows (licks_all.csv: + pre-cue + ITI, ``context``); output kinematics_all/")
+                         "cam4 lick of the windows (licks_all.csv: + pre-cue + ITI, ``context``); output kinematics_all/; "
+                         "fused = every lick of the fused four-camera train (session_licks; frame-coverage gate); output "
+                         "kinematics_fused/")
     ap.add_argument("--all", action="store_true", help="every session with 3-D frames, not just the curated cohort")
     ap.add_argument("--jobs", type=int, default=3, help="sessions in parallel (~1 GB each)")
     ap.add_argument("--out", type=Path, default=None, help="output folder (checks)")
+    ap.add_argument("--force", action="store_true", help="overwrite an existing output folder's tables")
     a = ap.parse_args(argv)
+    from wfield_local import lp_licks
+    from wfield_local import session_licks as SL
+    if a.licks == "fused" and not SL.fused_on():
+        raise SystemExit(f"--licks fused needs a fused lick set ({SL.FUSED_ENV}=<camera_licks folder>)")
     rv = PathResolver()
     d3 = pose3d_dir(rv)
+    run = lp_licks.input_run()
     cur = None if a.all else ak.curated_ids()
     sess = a.sessions or sorted(f.name.replace("_frames.csv.gz", "").replace("_", ":", 1) for f in d3.glob("PS*_frames.csv.gz")
                                 if cur is None or f.name.replace("_frames.csv.gz", "") in cur)
-    out = a.out or d3 / {"cam4": "kinematics", "combined": "kinematics_combined", "all": "kinematics_all"}[a.licks]
+    out = a.out or d3 / OUT_NAMES[a.licks]
+    if (out / "licks.csv.gz").exists() and not a.force:
+        # 11-22 (reconciled plan item 4): these tables are read by iti_licks / lick_correction / the phase scripts;
+        # a re-run writes a NEW folder (--out, or a new WIDEFIELD_POSE3D_TAG) unless it means to replace them
+        raise SystemExit(f"{out / 'licks.csv.gz'} exists: pass --force to overwrite, or --out <new folder>")
     out.mkdir(exist_ok=True, parents=True)
+    print(f"3-D {d3}; licks: {a.licks} ({SL.describe() if a.licks == 'fused' else 'cam4 run ' + run}) -> {out}")
     bad = P3.failed_sessions(d3)                      # spout fit / camera-timing gates (`pose3d.failed_sessions`)
     keep = []
     for s in sess:
@@ -246,20 +357,33 @@ def main(argv=None) -> int:
         if f"{animal}_{date}" in bad:
             print(f"{s}: {bad[f'{animal}_{date}']} -- skipped")
             continue
-        if not (Path(rv.root("orofacial")) / V36 / "sessions" / animal / date / "licks.csv").exists():
-            print(f"{s}: no v36 licks -- skipped")
+        need = lick_input(rv, animal, date, a.licks) if a.licks == "fused" else \
+            [Path(rv.root("orofacial")) / run / "sessions" / animal / date / "licks.csv"]
+        if not all(p.exists() for p in need):
+            print(f"{s}: no lick table ({', '.join(p.name for p in need if not p.exists())}) -- skipped")
             continue
         keep.append(s)
     res, fails = ak.fan_sessions([(s, a.licks) for s in keep], session_result, jobs=a.jobs, key=lambda j: j[0])
     for j, e in fails:
         print(f"{j[0]}: FAILED {e}")
-    LL, JJ, SS = [], [], []
-    for (s, _m), (L, J, row) in res:
+    LL, JJ, SS, GG, CC = [], [], [], [], []
+    for (s, _m), (L, J, row, G, cov) in res:
         LL.append(L)
         JJ.append(J)
         SS.append(row)
-        print(f"{s} ({row['epoch']}): {len(L)} / {row['cam4_licks']} cam4 licks with >= 3 3-D frames; {len(J)} jaw trials")
+        if G is not None:
+            GG.append(G)
+            CC.append(cov)
+        gtxt = f"; {row['licks_gated']} licks gated (frame coverage)" if "licks_gated" in row else ""
+        print(f"{s} ({row['epoch']}): {row['licks_3d']} / {row['cam4_licks']} licks with >= 3 3-D frames; "
+              f"{len(J)} jaw trials{gtxt}")
     L, J, S = pd.concat(LL, ignore_index=True), pd.concat(JJ, ignore_index=True), pd.DataFrame(SS)
+    if CC:                    # fused mode: every trial's union / per-camera coverage, and the skipped licks with why
+        pd.concat(CC, ignore_index=True).to_csv(out / "frame_coverage.csv", index=False, float_format="%.4f")
+        Gs = pd.concat(GG, ignore_index=True)
+        if "daq_peak_s" in Gs:
+            Gs["daq_peak_s"] = Gs["daq_peak_s"].map("{:.4f}".format)
+        Gs.to_csv(out / "licks_gated.csv.gz", index=False, float_format="%.4g")
     if "daq_peak_s" in L:                                # absolute DAQ time: %.4g kept 0.1 s after 100 s, 1 s after
         L["daq_peak_s"] = L["daq_peak_s"].map("{:.4f}".format)   # 1000 s (found 10-25); keep it to 0.1 ms
     L.to_csv(out / "licks.csv.gz", index=False, float_format="%.4g")

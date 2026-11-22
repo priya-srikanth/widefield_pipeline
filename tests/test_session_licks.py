@@ -93,6 +93,7 @@ def test_fused_table_context_and_daq_clock():
     np.testing.assert_allclose(A.daq_peak_s, [10 - 1.15, 10.05, 10.33, 14.02], atol=0.0021)   # nearest frame
     assert A.lick_key.tolist() == ["1:-1150.0", "1:50.0", "1:330.0", "1:4020.0"]
     assert (A.source == "fused").all() and A.lick_idx.tolist() == [0, 1, 2, 3]
+    assert A.segment.tolist() == ["", "", "", "tail"]          # ITI after the stop = the trial's tail
 
 
 def test_session_licks_fused_refuses_old_format_and_reads_new(tmp_path, monkeypatch):
