@@ -40,13 +40,17 @@ import pandas as pd
 NAME = "c2_lick3d_session_summary_ungated.csv"
 KEY = ["animal", "date", "session", "epoch", "position"]
 COLS = KEY + ["n_first", "reach_first", "side_first", "speed_first", "speed_first5", "n_trials5", "n_all", "reach_all",
-              "side_all", "speed_all"]
+              "side_all", "speed_all", "n_first_rows", "n_all_rows"]
 FIRST5 = 5
 
 
-def default_licks(kin_dir: str = "kinematics") -> Path:
+def default_licks(kin_dir: str | None = None) -> Path:
+    """``<pose3d_dir()>/<kin_dir>/licks.csv.gz``; default folder = `session_licks.kin_name()` (11-22: the fused
+    four-camera post-cue table, ``kinematics_fused_postcue``; ``WIDEFIELD_KIN_LICKS=cam4`` or ``--kin-dir kinematics``
+    for the cam4 windows)."""
+    from wfield_local import session_licks as SL
     from wfield_local.pose3d import pose3d_dir
-    return pose3d_dir() / kin_dir / "licks.csv.gz"
+    return pose3d_dir() / (kin_dir or SL.kin_name()) / "licks.csv.gz"
 
 
 def summarise(L: pd.DataFrame) -> pd.DataFrame:
@@ -57,9 +61,14 @@ def summarise(L: pd.DataFrame) -> pd.DataFrame:
     for key, d in L.groupby(KEY, sort=True):
         f = d[d.lick_idx == 0]
         t5 = d[d.lick_idx < FIRST5].groupby("trial_id").speed_peak.mean()
-        rows.append(dict(zip(KEY, key), n_first=len(f), reach_first=f.reach_mm.median(), side_first=f.side_ml.median(),
-                         speed_first=f.speed_peak.median(), speed_first5=t5.median(), n_trials5=len(t5), n_all=len(d),
-                         reach_all=d.reach_mm.median(), side_all=d.side_ml.median(), speed_all=d.speed_peak.median()))
+        # n_first / n_all = licks WITH 3-D kinematics (finite reach): on the cam4 tables every row had them, so this is
+        # the recipe's n; on the fused post-cue tables a lick without 3-D support keeps its row with NaN measures, and
+        # n_first_rows / n_all_rows count every lick (11-22: counts reported both ways)
+        rows.append(dict(zip(KEY, key), n_first=int(f.reach_mm.notna().sum()), reach_first=f.reach_mm.median(),
+                         side_first=f.side_ml.median(), speed_first=f.speed_peak.median(), speed_first5=t5.median(),
+                         n_trials5=len(t5), n_all=int(d.reach_mm.notna().sum()), reach_all=d.reach_mm.median(),
+                         side_all=d.side_ml.median(), speed_all=d.speed_peak.median(), n_first_rows=len(f),
+                         n_all_rows=len(d)))
     S = pd.DataFrame(rows, columns=COLS)
     return S.sort_values(["animal", "date", "position"], kind="stable").reset_index(drop=True)
 
@@ -73,9 +82,10 @@ def per_animal(S: pd.DataFrame) -> pd.DataFrame:
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     g = ap.add_mutually_exclusive_group()
-    g.add_argument("--kin-dir", default="kinematics",
-                   help="pose3d_kinematics output folder under pose3d_dir() (kinematics = cam4 windows, the recipe's "
-                        "set; kinematics_fused = the fused four-camera train)")
+    g.add_argument("--kin-dir", default=None,
+                   help="3-D kinematics folder under pose3d_dir() (default session_licks.kin_name(): "
+                        "kinematics_fused_postcue = the fused four-camera train, post-cue; kinematics = cam4 windows, "
+                        "the manuscript's 11-19 recipe). NOT kinematics_fused: it holds pre-cue / ITI licks too")
     g.add_argument("--licks", type=Path, default=None, help="explicit 3-D lick table (licks.csv.gz)")
     ap.add_argument("--out", type=Path, default=None, help=f"output CSV (default: <licks folder>/{NAME})")
     ap.add_argument("--force", action="store_true", help="overwrite an existing output")

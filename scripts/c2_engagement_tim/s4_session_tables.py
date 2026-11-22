@@ -28,6 +28,7 @@ STATE SPLIT: the same per-session means over trials (frames) whose owner trial's
 disengaged ('not_engaged' = partial + disengaged).
 Usage: WF_REPO=... MC=... python s4_session_tables.py <cache_dir> <out_dir> [--no-tim]
 """
+from wfield_local.session_licks import kin_name as _kin_name  # 11-22: fused post-cue unless WIDEFIELD_KIN_LICKS=cam4
 import os
 import sys
 from pathlib import Path
@@ -340,7 +341,7 @@ def aim_table():
     p = p[p["first"]].copy()
     # 11-22 (plan item 3): the selected 3-D source / run tag (WIDEFIELD_POSE3D_SOURCE / _TAG); was the literal two-camera folder
     from wfield_local.pose3d import pose3d_dir as _pose3d_dir  # noqa: E402
-    L3 = pd.read_csv(_pose3d_dir() / "kinematics" / "licks.csv.gz",
+    L3 = pd.read_csv(_pose3d_dir() / _kin_name() / "licks.csv.gz",
                      usecols=["trial_id", "side_ml", "out_ap", "down_dv", "session"])
     L3["label"] = L3.session.str[:5] + L3.session.str[-4:]
     L3["k"], L3["s"] = L3.side_ml.round(3), np.hypot(L3.out_ap, L3.down_dv).round(3)

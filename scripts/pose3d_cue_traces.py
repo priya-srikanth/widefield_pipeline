@@ -68,7 +68,26 @@ def out_dir(d3: Path, align: str) -> Path:
     """Default output folder: ``<d3>/<cue_traces|lick_traces>`` (``_legacygate`` under the legacy gate); under a rebuild
     root the routed pose area (`trial_classes.kin_out_dir`; the session_poses tree is an input tree)."""
     from wfield_local import trial_classes as tc
-    return tc.kin_out_dir(d3, ALIGN[align]["dir"], f"pose3d_cue_traces_{align}")
+    sfx = _lick_sfx()
+    return tc.kin_out_dir(d3, ALIGN[align]["dir"] + sfx, f"pose3d_cue_traces_{align}{sfx}")
+
+
+def _lick_sfx() -> str:
+    """'' on the cam4 windows, '_fused' on the four-camera train (11-22: every figure on four-camera licks; the lick
+    set picks which trials are 'licked' and, for --align first_lick, the alignment time)."""
+    from wfield_local import session_licks as SL
+    return SL.kin_sfx()
+
+
+def _post_cue_licks(s: str, sd: Path) -> pd.DataFrame:
+    """(trial_id, on_ms) of the session's post-cue licks in the lick set in force: the fused four-camera train
+    (`session_licks`, context post_cue) or the cam4 licks.csv."""
+    if _lick_sfx():
+        from wfield_local import session_licks as SL
+        A = SL.session_licks(s)
+        return A.loc[A.context == "post_cue", ["trial_id", "on_ms"]].reset_index(drop=True)
+    return (pd.read_csv(sd / "licks.csv", usecols=["trial_id", "on_ms"]) if (sd / "licks.csv").exists()
+            else pd.DataFrame(columns=["trial_id", "on_ms"]))
 
 
 def data_line(align: str = "cue") -> str:
@@ -108,9 +127,12 @@ def session_traces(job) -> list[dict]:
     beh = sorted(glob.glob(str(Path(PathResolver().root("behavior_out")) / "sessions" / animal / date
                                / f"{animal}_{date}_*_trials.csv")))
     inputs = [Path(d3) / f"{s}_frames.csv.gz", Path(v36) / animal / date / "licks.csv"] + [Path(b) for b in beh]
+    if _lick_sfx():
+        from wfield_local import session_licks as SL
+        inputs.append(SL.fused_dir() / f"{s}_fused.csv")
     ver = result_cache.code_version(sys.modules[__name__], oc, extra=(align, oc.ENGAGEMENT_GATE, oc.ENGAGED_ONLY,
-                                                                      tc.kin_gate_signature()))
-    return result_cache.cached(tc.kin_cache_dir(d3, f"cue_traces_{align}"), s, inputs, ver,
+                                                                      tc.kin_gate_signature(), _lick_sfx()))
+    return result_cache.cached(tc.kin_cache_dir(d3, f"cue_traces_{align}{_lick_sfx()}"), s, inputs, ver,
                                lambda: _session_traces(job))
 
 
@@ -126,8 +148,7 @@ def _session_traces(job) -> list[dict]:
     S = S.drop_duplicates(["trial_id", "t_ms"])
     if keep is not None:
         S = S[S.trial_id.isin(keep)]
-    Lk = (pd.read_csv(sd / "licks.csv", usecols=["trial_id", "on_ms"]) if (sd / "licks.csv").exists()
-          else pd.DataFrame(columns=["trial_id", "on_ms"]))
+    Lk = _post_cue_licks(s, sd)
     licked = set(Lk.trial_id)
     first = Lk.groupby("trial_id").on_ms.min()
     P = S[["tongue_ml", "tongue_ap", "tongue_dv"]].to_numpy(float)

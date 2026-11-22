@@ -369,6 +369,8 @@ def lick_landing_weights(B, animal: str, date: str, rv, width: float = 1.0) -> n
         raise ValueError(f"{animal}_{date}: lick table has {len(L)} rows, behavior {len(B.lick_on_s)} licks")
     path = os.environ.get(ce.EXEC3D_TABLE_ENV)
     if not path:
+        # STAYS on the cam4 windows (11-22 four-camera rewire): this joins the cam4 licks.csv above on (trial_id,
+        # lick_idx), which only the cam4 kinematics table shares; moving it needs a lick_key join (open item)
         path = pose3d_dir() / "kinematics" / "licks.csv.gz"
     K = pd.read_csv(path, usecols=["session", "trial_id", "lick_idx", "side_ml", "out_ap", "down_dv"])
     K = K[K.session == f"{animal}_{date}"].drop_duplicates(["trial_id", "lick_idx"])

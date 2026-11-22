@@ -316,6 +316,22 @@ def _session_result(rv, s, mode, fr, lk) -> tuple:
     return L, J, row
 
 
+def by_animal(S: pd.DataFrame) -> pd.DataFrame:
+    """Rule 8: each animal's post sessions minus its AUGUST pre median, per position, before any pooling (also used by
+    `scripts/pose3d_kin_postcue.py`)."""
+    S = S.assign(date=S.date.astype(str))
+    num = [c for c in S.columns if "|" in c or c.startswith(("jaw_far", "nose_", "jaw_ml", "jaw_ap", "jaw_dv"))]
+    base = S[(S.epoch == "pre") & (S.date >= "20260801")].groupby("animal")[num].median()
+    rows = []
+    for r in S[S.epoch.isin(["acute", "subacute", "chronic"])].itertuples(index=False):
+        if r.animal not in base.index:
+            continue
+        b = base.loc[r.animal]
+        rows.append({"animal": r.animal, "session": r.session, "epoch": r.epoch,
+                     **{c: S.loc[S.session == r.session, c].iloc[0] - b[c] for c in num}})
+    return pd.DataFrame(rows)
+
+
 def main(argv=None) -> int:
     from wfield_local import analysis_kit as ak
     from wfield_local import pose3d as P3
@@ -389,17 +405,7 @@ def main(argv=None) -> int:
     L.to_csv(out / "licks.csv.gz", index=False, float_format="%.4g")
     J.to_csv(out / "jaw_trials.csv.gz", index=False, float_format="%.4g")
     S.to_csv(out / "sessions.csv", index=False)
-    # rule 8: each animal's post sessions minus its AUGUST pre median, per position, before any pooling
-    num = [c for c in S.columns if "|" in c or c.startswith(("jaw_far", "nose_", "jaw_ml", "jaw_ap", "jaw_dv"))]
-    base = S[(S.epoch == "pre") & (S.date >= "20260801")].groupby("animal")[num].median()
-    rows = []
-    for r in S[S.epoch.isin(["acute", "subacute", "chronic"])].itertuples(index=False):
-        if r.animal not in base.index:
-            continue
-        b = base.loc[r.animal]
-        rows.append({"animal": r.animal, "session": r.session, "epoch": r.epoch,
-                     **{c: S.loc[S.session == r.session, c].iloc[0] - b[c] for c in num}})
-    B = pd.DataFrame(rows)
+    B = by_animal(S)
     B.to_csv(out / "by_animal.csv", index=False)
     if len(B):
         show = ["jaw_far_dir_mm", "nose_ap", "nose_dv"] + [f"{m}|{p}" for m in ("miss_mm", "lat_err_mm", "ang3d_err", "frontal_err_ipsi", "sagittal_err", "reach_mm", "out_ap",

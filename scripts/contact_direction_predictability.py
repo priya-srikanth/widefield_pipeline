@@ -11,12 +11,13 @@ Usage: python scripts/contact_direction_predictability.py
 Output: <E>/qc/contact_direction_predictability.csv
 """
 from __future__ import annotations
+from wfield_local.session_licks import kin_name as _kin_name  # 11-22: fused post-cue unless WIDEFIELD_KIN_LICKS=cam4
 
 import numpy as np
 import pandas as pd
 from wfield_local.pose3d import pose3d_dir
 
-KIN = str(pose3d_dir() / "kinematics" / "licks.csv.gz")
+KIN = str(pose3d_dir() / _kin_name() / "licks.csv.gz")
 DIR = ["abs_midline", "abs_frontal", "abs_sagittal", "midline_err_ipsi"]
 SETS = {"direction": DIR, "reach": ["reach_mm"], "direction+reach": DIR + ["reach_mm"]}
 

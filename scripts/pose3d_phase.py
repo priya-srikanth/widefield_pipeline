@@ -21,6 +21,8 @@ dist over one cycle, +-76 ms, dot = peak), ``phase_<a>.png`` (midline angle and 
 out) planes, spouts marked).
 """
 from __future__ import annotations
+from wfield_local.session_licks import kin_sfx as _kin_sfx
+from wfield_local.session_licks import kin_name as _kin_name  # 11-22: fused post-cue unless WIDEFIELD_KIN_LICKS=cam4
 from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
@@ -128,6 +130,27 @@ def session_curves(job) -> list[dict]:
     fr, lk = d3 / f"{s}_frames.csv.gz", V36 / animal / date / "licks.csv"
     ver = result_cache.code_version(sys.modules[__name__], K, extra=tc.kin_gate_signature())
 
+    if _kin_name() != "kinematics":
+        # 11-22 (Priya: four-camera licks for every figure): the fused post-cue table already holds each lick's 3-D
+        # measures, its span (on_ms / off_ms = the window those measures were taken over) and lick_idx from 0 within the
+        # trial; licks without 3-D support have NaN t_peak_3d and drop out here (a first lick the 3-D cannot measure is
+        # not replaced by the second)
+        kf = d3 / _kin_name() / "licks.csv.gz"
+
+        def compute_fused():
+            g = _fused_licks(str(kf))
+            g = g[g.session == s]
+            if g.empty:
+                return []
+            g = tc.gate_kin_licks(g).dropna(subset=["on_ms", "off_ms", "t_peak_3d"])
+            S = _frames(d3, s)
+            ep = g.epoch.iloc[0]
+            out = []
+            for lset, gg in (("all", g), ("first", g[g.lick_idx == 0])):
+                out += [{**r, "animal": animal, "date": date, "epoch": ep, "lickset": lset} for r in _session(S, s, gg)]
+            return out
+        return result_cache.cached(tc.kin_cache_dir(d3, "phase_" + _kin_name()), s, [fr, kf], ver, compute_fused)
+
     def compute():
         g, _J, row = K.session_result((f"{animal}:{date}", "cam4"))[:3]    # 11-22: session_result returns (L, J, row, gated, coverage)
         g = tc.gate_kin_licks(g.assign(session=s))       # camera working period (A20); legacy: every post-cue lick
@@ -141,6 +164,17 @@ def session_curves(job) -> list[dict]:
                     for r in _session(S, s, gg)]
         return out
     return result_cache.cached(tc.kin_cache_dir(d3, "phase"), s, [fr, lk], ver, compute)
+
+
+_FUSED_MEMO: dict = {}
+
+
+def _fused_licks(path: str) -> pd.DataFrame:
+    """The fused post-cue kinematics table, read once per worker process."""
+    if path not in _FUSED_MEMO:
+        _FUSED_MEMO[path] = pd.read_csv(path, usecols=["session", "trial_id", "lick_idx", "position", "t_peak_3d",
+                                                       "on_ms", "off_ms", "epoch"], dtype={"session": str})
+    return _FUSED_MEMO[path]
 
 
 def _epoch_curves(P: pd.DataFrame, animal: str, kind: str, m: str, pre_from: str) -> dict:
@@ -401,7 +435,7 @@ def main(argv=None) -> int:
     d3 = pose3d_dir(rv)
     from wfield_local import trial_classes as tc
     if a.contra:
-        out = a.out or tc.kin_out_dir(d3, "phase")
+        out = a.out or tc.kin_out_dir(d3, "phase" + _kin_sfx(), "pose3d_phase" + _kin_sfx())
         PP = pd.read_csv(out / "curves.csv.gz", dtype={"date": str})
         xl = "normalised lick phase (0 = onset, 1 = offset)"
         for animal in sorted(PP.animal.unique()):
@@ -414,7 +448,7 @@ def main(argv=None) -> int:
                               f"{animal}: {who}{what} through the lick; SIGN: + = CONTRALESIONAL (mouse right), "
                               "flipped at plot level\n" + _how("norm", lset, mouth), a.pre_from, sign=-1.0)
                     print("->", f)
-        L = pd.read_csv(d3 / "kinematics" / "licks.csv.gz", dtype={"date": str})
+        L = pd.read_csv(d3 / _kin_name() / "licks.csv.gz", dtype={"date": str})
         for animal in sorted(PP.animal.unique()):                   # oblique 3-D views, ml named + = contra
             last = sorted(L[L.animal == animal].date.astype(str).unique())[-1]
             geo = _rig(rv, animal, last)["geometry"]
@@ -422,14 +456,14 @@ def main(argv=None) -> int:
             fig_traj3d(PP[PP.lickset == "all"], animal, geo, f, a.pre_from, "all", contra=True)
             print("->", f)
         return 0
-    L = pd.read_csv(d3 / "kinematics" / "licks.csv.gz", dtype={"date": str})
+    L = pd.read_csv(d3 / _kin_name() / "licks.csv.gz", dtype={"date": str})
     res, fails = ak.fan_sessions(sorted(L.session.unique()), session_curves, jobs=a.jobs)
     for s, e in fails:
         print(f"{s}: FAILED {e}")
     PP = pd.DataFrame([r for _, rr in res for r in rr])
     P = PP[PP.lickset == "all"]
     PF = PP[PP.lickset == "first"]
-    out = a.out or tc.kin_out_dir(d3, "phase")
+    out = a.out or tc.kin_out_dir(d3, "phase" + _kin_sfx(), "pose3d_phase" + _kin_sfx())
     out.mkdir(exist_ok=True, parents=True)
     PP.to_csv(out / "curves.csv.gz", index=False, float_format="%.4g")
     (out / "data_line.txt").write_text(data_line() + chr(10), encoding="utf-8")

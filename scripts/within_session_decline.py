@@ -32,6 +32,7 @@ STAGES:  python scripts/within_session_decline.py extract [--jobs 6]   -> OUT/tr
 OUT = M:/MICROSCOPE/Priya/Widefield/within_session_decline/. Exploratory, n = 4 animals.
 """
 from __future__ import annotations
+from wfield_local.session_licks import kin_name as _kin_name  # 11-22: fused post-cue unless WIDEFIELD_KIN_LICKS=cam4
 
 import argparse
 import os
@@ -49,7 +50,7 @@ TAB, FIG = OUT / "tables", OUT / "figures"
 # 11-22 (plan item 3): the selected 3-D source and the adopted run (were the literal two-camera pose3d / v36 paths)
 from wfield_local import orofacial_outputs as _oo  # noqa: E402
 from wfield_local.pose3d import pose3d_dir as _pose3d_dir  # noqa: E402
-LICKS = _pose3d_dir() / "kinematics" / "licks.csv.gz"
+LICKS = _pose3d_dir() / _kin_name() / "licks.csv.gz"
 BEH = _oo.encoding_root() / "disengagement" / "sessions"
 AIM = Path("M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/"
            "imaging_encoding/iti_licks/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-"

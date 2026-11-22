@@ -42,6 +42,7 @@ dist). ``--curves`` overrides either. ``--out-suffix S`` inserts S before `.csv`
         [--curves-source mouth0|pipeline | --curves CSV] [--out-suffix S] [--c1-bins CSV] [--licks CSV]
 """
 from __future__ import annotations
+from wfield_local.session_licks import kin_name as _kin_name  # 11-22: fused post-cue unless WIDEFIELD_KIN_LICKS=cam4
 
 import argparse
 import sys
@@ -229,7 +230,7 @@ def main(argv=None):
     clash = [p for p in [*outs.values(), *cl_outs.values(), ili_out, chk_out] if p.exists()]
     if clash:
         sys.exit("refusing to overwrite: " + ", ".join(map(str, clash)))
-    ili = pre_ili_ms(a.licks or d3 / "kinematics" / "licks.csv.gz")
+    ili = pre_ili_ms(a.licks or d3 / _kin_name() / "licks.csv.gz")
     print(ili.to_string(index=False), flush=True)
     centres = phase_bins(a.c1_bins)
     print(f"{len(centres)} phase bins from cohort 1", flush=True)

@@ -53,6 +53,7 @@ Outputs: <LP_analysis>/<run>/imaging_encoding/<order>/sessions/<label>.npz (+ .j
 `scripts/combined_encoding_figures.py`.
 """
 from __future__ import annotations
+from wfield_local.session_licks import kin_name as _kin_name  # 11-22: fused post-cue unless WIDEFIELD_KIN_LICKS=cam4
 
 import argparse
 import glob
@@ -394,7 +395,7 @@ def lick_angle_3d(L: pd.DataFrame, session: str) -> np.ndarray:
     """Per-lick 3-D lateral angle out of the sagittal plane (deg; pose3d `midline`), NaN without a 3-D peak."""
     path = os.environ.get(EXEC3D_TABLE_ENV)
     if not path:
-        path = pose3d_dir() / "kinematics" / "licks.csv.gz"
+        path = pose3d_dir() / _kin_name() / "licks.csv.gz"
     K = pd.read_csv(path, usecols=lambda c: c in ("session", "trial_id", "lick_idx", "lick_key", "t_peak_cam4",
                                                   "side_ml", "out_ap", "down_dv"))
     K = K[K.session == session]
@@ -569,7 +570,7 @@ def load_behaviour(animal: str, date: str, rv) -> Behaviour:
     if os.environ.get(TONGUE_ENV, "") == "3d":                  # a rewritten 3-D frame / lick table makes a new entry
         src.append(pose3d_frames_path(rv, animal, date))
         src.append(os.environ.get(EXEC3D_TABLE_ENV) or
-                   pose3d_dir(rv) / "kinematics" / "licks.csv.gz")
+                   pose3d_dir(rv) / _kin_name() / "licks.csv.gz")
     return _cached("behaviour", f"{animal}_{date}", src, lambda: _load_behaviour(animal, date, rv))
 
 
@@ -779,7 +780,7 @@ def _exec_3d(L: pd.DataFrame, ang: np.ndarray, reach: np.ndarray, mode: str, ses
         raise ValueError(f"{EXEC_ENV}={mode!r}; expected one of {EXEC_MODES}")
     path = os.environ.get(EXEC3D_TABLE_ENV)
     if not path:
-        path = pose3d_dir() / "kinematics" / "licks.csv.gz"
+        path = pose3d_dir() / _kin_name() / "licks.csv.gz"
     K = pd.read_csv(path, usecols=lambda c: c in ("session", "trial_id", "lick_idx", "lick_key", "t_peak_cam4",
                                                   "reach_mm", "side_ml", "out_ap", "down_dv"))
     K = K[K.session == session]
