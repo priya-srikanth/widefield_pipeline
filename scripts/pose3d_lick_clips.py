@@ -718,7 +718,9 @@ def main(argv=None) -> int:
                 old = old[~k_old.isin(set(D[key].astype(str).agg("|".join, axis=1)))]
             D = pd.concat([old, D], ignore_index=True)
         if len(D):
-            D = D.sort_values(key[:2], kind="mergesort")
+            D["_r"] = D.get("position", pd.Series("", index=D.index)).map(
+                {q: i for i, q in enumerate(POS_ORDER)}).fillna(len(POS_ORDER))       # canonical spout order
+            D = D.sort_values([*key[:2], "_r"], kind="mergesort").drop(columns="_r")
         D.to_csv(f, index=False)
     for _, v in res:
         for f in v["stills"]:
