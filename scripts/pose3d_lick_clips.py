@@ -671,8 +671,18 @@ def main(argv=None) -> int:
     res, fails = ak.fan_sessions(items, run_session, jobs=min(a.jobs, len(items)))
     rows = [r for _, v in res for r in v["rows"]]
     checks = [r for _, v in res for r in v["checks"]]
-    pd.DataFrame(rows).to_csv(a.out / "clips.csv", index=False)
-    pd.DataFrame(checks).to_csv(a.out / "checks_vs_production.csv", index=False)
+    # one table per folder over every invocation: this run's sessions replace their old rows
+    done = {s.replace(":", "_") for s in a.sessions}
+    for name, new, col in (("clips.csv", rows, "session"), ("checks_vs_production.csv", checks, "session")):
+        D = pd.DataFrame(new)
+        f = a.out / name
+        if f.exists() and f.stat().st_size > 2:
+            old = pd.read_csv(f)
+            old = old[~old[col].astype(str).str.replace(":", "_").isin(done)]
+            D = pd.concat([old, D], ignore_index=True)
+        if len(D):
+            D = D.sort_values(col, kind="mergesort")
+        D.to_csv(f, index=False)
     for _, v in res:
         for f in v["stills"]:
             print("still", f)
