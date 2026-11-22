@@ -457,6 +457,7 @@ def _blind_dirs() -> dict:
 def pick(n: int = N_NEW) -> None:
     """Blind sample of the licks the rule CONFIRMS by tracking (reason tracked_cam4 / tracked_cam1) in the gap-fixed
     fusion, round robin over animals, minus every lick already judged and minus PS93 0805 (its tables are rebuilt)."""
+    from wfield_local import camera_licks as CL
     D = dirs()
     seen = set(_verdicts(D).ex_id)
     rows = []
@@ -465,7 +466,10 @@ def pick(n: int = N_NEW) -> None:
         if "reason" not in U:
             continue
         sid = f.name[:13]
-        U = U[U.reason.isin(["tracked_cam4", "tracked_cam1"])].copy()
+        # the FIRST version's confirmed-by-tracking set (side-only, not a fragment / guarded, cam4 or cam1 tracked >= 2
+        # frames): the 11-21 sample was drawn from that run, where these were reason tracked_cam4 / tracked_cam1
+        trk = (U.tracked_cam4 >= CL.TRACK_MIN_FRAMES) | (U.tracked_cam1 >= CL.TRACK_MIN_FRAMES)
+        U = U[CL.side_only_mask(U) & trk & ~U.reason.isin(["cut_fragment", "guarded"])].copy()
         U["sid"], U["animal"] = sid, sid[:4]
         rows.append(U)
     A = pd.concat(rows, ignore_index=True)

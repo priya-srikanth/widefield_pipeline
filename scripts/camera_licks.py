@@ -94,7 +94,7 @@ def run_session(s: str, preds: str | None = None, bundle: str | None = None, sav
         S = pd.read_csv(pose3d_dir(rv) / f"{animal}_{date}_frames.csv.gz",
                         usecols=["trial_id", "t_ms", "stop_ms", "position", "tongue_ml", "tongue_ap", "tongue_dv"])
         U = CL.fuse(ev, cuts=CL.event_cuts(ev, S=S))
-        if gapfix:                     # 11-21 table-gaps rule: side-only licks confirmed by cam4 / cam1 TRACKING
+        if gapfix:                     # 11-21 table-gaps rule (`camera_licks.confirm_side_only`)
             T = CL.anchor_track_frames(rv, animal, date)
             U = CL.confirm_side_only(U, {c: CL.tracked_frames(U, T.get(c)) for c in CL.CONFIRM_CAMS})
         pd.concat(ev.values(), ignore_index=True).to_csv(out / f"{animal}_{date}_events.csv", index=False,
@@ -144,8 +144,9 @@ def main(argv=None) -> int:
     w.add_argument("--saved", action="store_true",
                    help="fuse from the four-camera production run's saved side events + 3-D frames (no rebuild)")
     w.add_argument("--gapfix", action="store_true",
-                   help="table-gaps rule (11-21): confirm side-only licks by cam4 / cam1 tracking, else two side views "
-                        "(`camera_licks.confirm_side_only`; adds reason / keep); needs --saved and --out-tag")
+                   help="table-gaps rule (11-21): a side-only lick counts only when cam2 AND cam3 saw it; split-off "
+                        "fragments dropped; cam4 / cam1 tracking written (`camera_licks.confirm_side_only`; adds reason "
+                        "/ keep); needs --saved and --out-tag")
     w.add_argument("--out-tag", default="", help="suffix of a NEW output folder, e.g. _gapfix")
     a = ap.parse_args(argv)
     if a.cmd == "session":

@@ -32,10 +32,10 @@ D2 as revised by Priya 11-21), 2 = two views (an option), and drops cam1-only li
 Times are ms from the trial's cue (every production table carries ``trial_id`` + ``on_ms`` / ``off_ms`` on that clock).
 
 SIDE-ONLY CONFIRMATION (11-21 table-gaps rule, `confirm_side_only`; qc_phaseA/table_gaps/README.md): a lick only the side
-views called is kept when cam4 or cam1 TRACKED the tongue during it (`anchor_track_frames`, `track_flags`: >= 2 frames,
-likelihood >= 0.4, tip in front of / below the mouth) although their detectors made no event, else when cam2 AND cam3
-both saw it; a side-only piece that touches a lick the anchor cameras count is a split-off fragment and is dropped.
-``reason`` / ``keep`` per lick; `lick_train` honors ``keep``.
+views called is kept when cam2 AND cam3 both saw it; a side-only piece that touches a lick the anchor cameras count is a
+split-off fragment and is dropped. cam4 / cam1 TRACKING during the lick (`anchor_track_frames`, `track_flags`) is
+measured and written, but does not confirm on its own: that first version failed its blind check (paws / grooming that
+cam4 labels as tongue). ``reason`` / ``keep`` per lick; `lick_train` honors ``keep``.
 
 SPLITTING BACK-TO-BACK LICKS (11-21 pilot, PS93 0814 / PS94 0817): chaining overlapping events merges licks that cam4
 counts separately -- 310 fused PS93 licks held 2-4 cam4 licks, 218 of them because cam4's OWN v36 spans overlap (the
@@ -383,16 +383,18 @@ def view_table(U: pd.DataFrame) -> pd.DataFrame:
 
 
 # --------------------------------------------------------------------------------------------- side-only confirmation
-#: TABLE GAPS RULE (Priya 11-21: "go ahead with your table gaps rule"; qc_phaseA/table_gaps/README.md). A lick that only
-#: the side views (cam2 / cam3) called is CONFIRMED when the front (cam4) or below (cam1) camera TRACKED the tongue tip
-#: during it, even though that camera's own lick detector made no event (most real side-only licks: the tongue is in
-#: cam4 / cam1 at likelihood ~1.0, but the cam4 detector / cam1 cleaning did not call a lick). Tracked = at least
+#: TABLE GAPS RULE (Priya 11-21: "go ahead with your table gaps rule"; qc_phaseA/table_gaps/README.md). Most real
+#: side-only licks are licks the front (cam4) / below (cam1) camera TRACKED but whose lick detector made no event. The
+#: first version CONFIRMED a side-only lick by that tracking; its blind check FAILED (30 new tracking-confirmed licks:
+#: 13 real, 9 grooming, 5 paw, 1 water drop, 2 unsure -- cam4 labels a paw near the mouth as tongue at likelihood ~1).
+#: ADOPTED: a side-only lick counts only when BOTH side views (cam2 AND cam3) saw it (``two_side_views``); one side view
+#: is dropped whether or not cam4 / cam1 tracked something (``one_view_tracked``: 13 / 15 false in the blind check;
+#: ``unconfirmed_one_side_view``); a side-only piece touching a lick the anchor cameras count is a split-off fragment
+#: (``cut_fragment``, dropped). Tracking is still measured and written (``tracked_cam4`` / ``tracked_cam1`` frames) and
+#: `confirm_side_only(track_confirms=True)` restores the failed version for comparison. Tracked = at least
 #: ``TRACK_MIN_FRAMES`` frames inside the lick span with raw tongue likelihood >= ``TRACK_LK`` (the cleaning cutoff,
-#: `orofacial_clean` tongue lk_thr) AND a plausible tip: at least ``TRACK_OUT_MIN_PX`` out from the mouth toward the
-#: spouts (in front of / below the mouth, in that camera's mouth frame) and at least ``TRACK_SPOUT_MIN_PX`` from every
-#: parked spout tip (a label parked on the rod is not a tongue). The cameras' own detectors are NOT loosened.
-#: A side-only lick no front / below camera tracked counts only when BOTH side views saw it (``TWO_VIEW``; the blind
-#: sample: no paw and no water drop was seen by both). Values: `scripts/table_gaps_check.py` (validation in the README).
+#: `orofacial_clean` tongue lk_thr) AND a tip at least ``TRACK_OUT_MIN_PX`` out from the mouth toward the spouts (in that
+#: camera's mouth frame). The cameras' own detectors are NOT loosened. Numbers: `scripts/table_gaps_check.py`, README.
 TRACK_LK = 0.4
 TRACK_MIN_FRAMES = 2
 #: in front of / below the mouth: the tip's ``out`` (px toward the spouts in the camera's mouth frame) >= 0. A label
@@ -405,8 +407,8 @@ TRACK_SPOUT_MIN_PX = 0.0
 #: anchor cameras whose tracking can confirm a side-only lick
 CONFIRM_CAMS = ("cam4", "cam1")
 #: ``reason`` values written by `confirm_side_only` (kept = the first three)
-REASONS = ("camera_event", "tracked_cam4", "tracked_cam1", "two_side_views", "cut_fragment", "unconfirmed_one_side_view",
-           "guarded")
+REASONS = ("camera_event", "two_side_views", "tracked_cam4", "tracked_cam1", "cut_fragment", "one_view_tracked",
+           "unconfirmed_one_side_view", "guarded")
 
 
 def track_flags(lk, out_px, spout_d_px, lk_cut: float = TRACK_LK, out_min_px: float = TRACK_OUT_MIN_PX,
@@ -460,23 +462,33 @@ def cut_fragments(U: pd.DataFrame, tol_ms: float = MERGE_TOL_MS) -> np.ndarray:
 
 
 def confirm_side_only(U: pd.DataFrame, tracked: dict | None = None, min_frames: int = TRACK_MIN_FRAMES,
-                      two_view: bool = True) -> pd.DataFrame:
+                      two_view: bool = True, track_confirms: bool = False) -> pd.DataFrame:
     """``U`` + ``reason`` and ``keep`` per fused lick (D2 with the table-gaps rule): a lick with a cam4 / cam1 event
     -> ``camera_event``; a guarded-only lick -> ``guarded`` (dropped, as `lick_train`); a side-only lick touching an
-    anchored lick -> ``cut_fragment`` (dropped); else confirmed when cam4, then cam1 tracked the tongue in >=
-    ``min_frames`` frames (``tracked`` = {cam: per-lick counts, `tracked_frames`}; ``tracked_<cam>`` columns kept),
-    else when both side views saw it (``two_view``), else ``unconfirmed_one_side_view`` (dropped)."""
+    anchored lick -> ``cut_fragment`` (dropped); else kept when both side views saw it (``two_view``:
+    ``two_side_views``); else ``one_view_tracked`` when cam4 / cam1 tracked the tongue in >= ``min_frames`` frames
+    (``tracked`` = {cam: per-lick counts, `tracked_frames`}; ``tracked_<cam>`` columns kept) and
+    ``unconfirmed_one_side_view`` when not -- both dropped. ``track_confirms`` = the FIRST version (failed its blind
+    check, not adopted): tracking confirms on its own (``tracked_cam4`` / ``tracked_cam1``, kept)."""
     U = U.copy()
     so = side_only_mask(U)
     reason = np.where(so, "unconfirmed_one_side_view", "camera_event").astype(object)
     tracked = tracked or {}
     for c in CONFIRM_CAMS:
         U[f"tracked_{c}"] = np.asarray(tracked.get(c, np.zeros(len(U), int)), int)
-    if two_view:
-        both = U.seen_cam2.astype(bool).to_numpy() & U.seen_cam3.astype(bool).to_numpy()
-        reason[so & both] = "two_side_views"
-    for c in reversed(CONFIRM_CAMS):                       # cam4 written last, so it names the lick when both tracked
-        reason[so & (U[f"tracked_{c}"].to_numpy() >= min_frames)] = f"tracked_{c}"
+    trk = np.zeros(len(U), bool)
+    for c in CONFIRM_CAMS:
+        trk |= U[f"tracked_{c}"].to_numpy() >= min_frames
+    both = U.seen_cam2.astype(bool).to_numpy() & U.seen_cam3.astype(bool).to_numpy()
+    if track_confirms:
+        if two_view:
+            reason[so & both] = "two_side_views"
+        for c in reversed(CONFIRM_CAMS):                   # cam4 written last, so it names the lick when both tracked
+            reason[so & (U[f"tracked_{c}"].to_numpy() >= min_frames)] = f"tracked_{c}"
+    else:
+        reason[so & trk] = "one_view_tracked"
+        if two_view:
+            reason[so & both] = "two_side_views"
     reason[so & cut_fragments(U)] = "cut_fragment"
     reason[U.guarded.astype(bool).to_numpy()] = "guarded"
     U["reason"] = reason

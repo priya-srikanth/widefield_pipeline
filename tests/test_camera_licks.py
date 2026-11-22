@@ -226,18 +226,23 @@ def test_tracked_frames_counts_tracked_frames_inside_the_span():
 def test_confirm_side_only_reasons_in_precedence_order():
     U = _fused([(1, 0, 40, "cam4"),             # camera event
                 (1, 45, 60, "cam2"),            # touches the cam4 lick -> cut fragment (even if tracked)
-                (1, 300, 340, "cam2"),          # cam4 tracked -> confirmed
-                (1, 500, 540, "cam3"),          # cam1 tracked
-                (1, 700, 740, "cam2+cam3"),     # nobody tracked, both side views
+                (1, 300, 340, "cam2"),          # one side view, cam4 tracked -> dropped (failed blind check)
+                (1, 500, 540, "cam3+cam2"),     # both side views (tracked or not) -> kept
+                (1, 700, 740, "cam2+cam3"),     # both side views, nobody tracked -> kept
                 (1, 900, 940, "cam2"),          # one side view, untracked -> dropped
                 (2, 0, 30, "cam3")])            # guarded
     U.loc[6, "guarded"] = True
     tr = {"cam4": [0, 5, 3, 0, 0, 1, 0], "cam1": [0, 0, 0, 2, 0, 0, 0]}
     R = CL.confirm_side_only(U, tr)
-    assert list(R.reason) == ["camera_event", "cut_fragment", "tracked_cam4", "tracked_cam1", "two_side_views",
+    assert list(R.reason) == ["camera_event", "cut_fragment", "one_view_tracked", "two_side_views", "two_side_views",
                               "unconfirmed_one_side_view", "guarded"]
-    assert list(R.keep) == [True, False, True, True, True, False, False]
+    assert list(R.keep) == [True, False, False, True, True, False, False]
     assert set(R.reason) <= set(CL.REASONS)
+    assert list(R.tracked_cam4) == tr["cam4"]
+    # the first version (not adopted): tracking confirms on its own
+    F = CL.confirm_side_only(U, tr, track_confirms=True)
+    assert list(F.reason[:6]) == ["camera_event", "cut_fragment", "tracked_cam4", "tracked_cam1", "two_side_views",
+                                  "unconfirmed_one_side_view"]
     assert not CL.confirm_side_only(U, tr, two_view=False).keep.iloc[4]
 
 
