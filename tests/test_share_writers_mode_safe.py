@@ -63,6 +63,8 @@ BEHAVIOUR = {
     # outputs, pinned as literals, read-only, so the output does not vary with the env mode); outputs are new files
     # under Widefield/manuscript_stats and the paper's manuscript_code/data
     "c2_recovery_mechanics_stats.py",
+    "csm_fix_compare.py",   # 11-21 CSM edge fix: compares regenerated pose-kinematic tables with the cited ones (--out)
+    "pose3d_csm_fixes.py", "pose3d_ili_floor_examples.py",   # 11-21 pose 3-D diagnostics into qc_phaseA/ (no imaging)
     "c2_manuscript_correlations.py",   # VLS Fig 4F + angle-latency rho from iti_licks behaviour tables (no imaging input)
     # Fig 5C input (11-20): FaceRhythm proj files of the frozen master only; writes <FR readouts>/<set>/vls_manuscript/
     # (the M:/MICROSCOPE literal is the manuscript file it compares against, read-only)

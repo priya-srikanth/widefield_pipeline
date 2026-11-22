@@ -15,21 +15,28 @@ SIGN CONVENTIONS (every table / figure):
   g_w     OLS slope of corr on -e_L (+ spout FE): 1 = endpoint fully back on the pre pattern, 0 = keeps launch error.
   CSM     corrective submovements = sum over the two phases (before / after the extension peak) of max(0, speed peaks
           - 1), prominence >= theta_s (noise-calibrated on August pre, `csm_threshold.json`); CSM_lat on |v_ml|.
+          A speed peak = an INTERIOR local maximum of the real speed trace (2026-11-21 fix, `_peaks`): until then the
+          trace was zero-padded, so a track cut while the tongue was still accelerating / decelerating counted its
+          first / last frame as a "peak" (truncation, not a submovement; 71-89 % of the two-camera pre CSMs).
   csm_false  share of licks where a noise surrogate (smooth track + the session's noise) gains a CSM.
   hyp_mm  max projection of the tip on the direction of the commanded target spout minus the spout distance (- = short).
   HEMISPHERE (neural): c = contralesional = '_right', i = ipsilesional = '_left'.
 
-Usage (bash env per the repo; outputs only under <v36>/imaging_encoding/within_lick_correction/):
-  python scripts/within_lick_correction.py run [--jobs 3] [--redo]   per-lick extraction (pre first -> threshold ->
-                                                                       post) + neural per-session fits
-  python scripts/within_lick_correction.py summarize                 session cells, per-animal tables, boot_delta,
-                                                                       recovery link; writes figdata
+Usage (bash env per the repo; outputs only under <v36>/imaging_encoding/within_lick_correction/, or --out DIR):
+  python scripts/within_lick_correction.py run [--jobs 3] [--redo] [--out DIR]   per-lick extraction (pre first ->
+                                                                       threshold -> post) + neural per-session fits
+  python scripts/within_lick_correction.py summarise [--out DIR]     session cells, per-animal tables, boot_delta,
+                                                                       recovery link; writes figdata ("summarize" is
+                                                                       accepted as the same verb)
+  --out DIR (2026-11-21): read / write every output under DIR instead of the routed default (env WLC_OUT_DIR,
+  inherited by the spawned workers), so a re-run never lands on the tables the manuscript cites.
   python scripts/within_lick_correction.py plot   (or any subcommand with --plot-only)   figures from figdata only
 """
 from __future__ import annotations
 from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import json
+import os
 import sys
 import time
 import zlib
@@ -54,7 +61,11 @@ TOWARD_MIN = 5.0        # deg
 CLEAN_CORR = 10.0       # deg: |corr| below this and no CSM = "clean" lick (neural N2)
 MIN_N = 10
 DT = 0.004
-GRID = list(range(30, 201, 10))
+#: CSM threshold grid (mm/s). Prereg: 30, 40, ..., 200. Extended DOWN to 10 in steps of 5 on 2026-11-21 with the
+#: `_peaks` edge fix: once first / last-frame "peaks" stop counting, the surrogate false rate is already <= FALSE_MAX at
+#: 30 (the 11-21 gate-4 edge re-run landed on the grid floor), so the prereg rule (smallest theta with false <= FALSE_MAX)
+#: could not find its real minimum on the old grid. Every old grid value is still on the new one.
+GRID = list(range(10, 201, 5))
 FALSE_MAX = 0.05
 AREAS_N = ["ALM", "tjM1", "SSp-m", "SSp-n", "SSs"]
 WINS = {"w0.0-0.2": (0.0, 0.2), "w0.2-0.35": (0.2, 0.35)}
@@ -63,8 +74,16 @@ TAUS = (0.0, 0.6)
 SEED = 0
 
 
+#: --out DIR (main) sets this env var, so spawned workers (which re-import this module) resolve the same OUT / LICKS
+OUT_ENV = "WLC_OUT_DIR"
+
+
 def out_root() -> Path:
     # coordinator 11-04: routed -- <imaging_encoding>/<tag>/within_lick_correction in a tagged run
+    # 2026-11-21: an explicit output dir (--out / WLC_OUT_DIR) wins: the CSM-fix re-run writes beside, never over, the
+    # tables the manuscript cites
+    if os.environ.get(OUT_ENV, "").strip():
+        return Path(os.environ[OUT_ENV].strip())
     from wfield_local import run_mode
     return run_mode.encoding_out_root(V36) / "within_lick_correction"
 
@@ -76,13 +95,27 @@ FD = OUT / "figdata"
 
 
 # ================================================================================================ per-lick extraction
+#: opt-in (env, inherited by workers): take the session set from the two-camera kinematics_all when the selected 3-D
+#: source has none yet (`_sessions`)
+SESSIONS_2CAM_ENV = "WLC_SESSIONS_FROM_2CAM"
+
+
 def _sessions() -> list[str]:
     """Curated PS92-95 sessions present in kinematics_all (= passing the pose3d session gates), as PSxx_YYYYMMDD."""
     from wfield_local import analysis_kit as ak
     from wfield_local.paths import PathResolver
     from wfield_local.pose3d import pose3d_dir       # 11-21: the selected 3-D source / run tag (`run_mode.pose3d_part`)
     p = pose3d_dir(PathResolver()) / "kinematics_all" / "licks.csv.gz"
-    have = set(pd.read_csv(p, usecols=["session"]).session.unique())
+    if not p.exists() and os.environ.get(SESSIONS_2CAM_ENV) == "1":
+        # 11-21: the four-camera 3-D has frames but no kinematics_all yet (Phase B not run). Opt-in only: the TWO-camera
+        # gate-passing session set, restricted to sessions with frames in the selected source, so both runs score the
+        # same sessions on the same cam4 v36 lick windows
+        two = pose3d_dir(PathResolver(), source="2cam") / "kinematics_all" / "licks.csv.gz"
+        have = {s for s in pd.read_csv(two, usecols=["session"]).session.unique()
+                if (p.parent.parent / f"{s}_frames.csv.gz").exists()}
+        print(f"{p} missing -> {SESSIONS_2CAM_ENV}=1: two-camera session set with frames here ({len(have)})", flush=True)
+    else:
+        have = set(pd.read_csv(p, usecols=["session"]).session.unique())
     cur = ak.curated_ids()
     return sorted(s for s in have & cur if s[:4] in AN)
 
@@ -124,16 +157,33 @@ def _track(t: np.ndarray, P: np.ndarray, src: np.ndarray):
     return t[a:b], P[a:b], src[a:b]
 
 
+#: Version of the per-lick peak measure stored in LICKS/<sid>.pkl (`peaks_v`). Bump it whenever `_peaks` changes: the
+#: pickles store only the prominences (no frame index), so counts cannot be corrected from them and a stale pickle must
+#: be re-extracted (the skip-if-exists in `session_licks` and `load_licks` both check it). v1 (no column) = zero-padded
+#: trace (Oct 30 production); v2 = interior maxima of the real trace (2026-11-21).
+PEAKS_VERSION = 2
+
+
 def _peaks(x: np.ndarray, k: int) -> tuple[tuple, tuple]:
-    """Prominences of the local maxima of x (zero-padded) before / after frame k."""
+    """Prominences of the INTERIOR local maxima of x before / after frame k (a maximum exactly at k is in neither).
+
+    2026-11-21 fix (Priya: "yes fix the measure"): the trace is NOT padded. Until then it was zero-padded
+    (``np.r_[0, x, 0]``), so the first or last tracked frame became a "peak" whenever speed was still rising toward the
+    edge of the run -- a track cut short by tracking loss (tail into the mouth, one-view frames), not a submovement. The
+    padding also inflated prominences (the base could fall to the padded 0). Effect (session_poses/
+    pose3d_4cam_3net_20261121/qc_phaseA/csm_examples README Part 3, gate4_edge/): 71-89 % of the two-camera August-pre
+    CSMs were such edge peaks and the PS94 / PS95 acute drop disappeared. Now a peak needs a real frame on BOTH sides
+    (find_peaks on the unpadded trace never returns index 0 or n - 1; the explicit mask keeps that true whatever scipy
+    does with plateaus) and its prominence is measured on the real trace. Used identically for the real lick and both
+    noise surrogates (`session_licks`)."""
     from scipy.signal import find_peaks, peak_prominences
-    xp = np.r_[0.0, x, 0.0]
-    pk, _ = find_peaks(xp)
+    x = np.asarray(x, float)
+    pk, _ = find_peaks(x)
+    pk = pk[(pk > 0) & (pk < len(x) - 1)]
     if not len(pk):
         return (), ()
-    pr = peak_prominences(xp, pk)[0]
-    idx = pk - 1
-    return (tuple(np.round(pr[idx < k], 2)), tuple(np.round(pr[idx > k], 2)))
+    pr = peak_prominences(x, pk)[0]
+    return (tuple(np.round(pr[pk < k], 2)), tuple(np.round(pr[pk > k], 2)))
 
 
 def csm_count(pre: tuple, post: tuple, th: float) -> int:
@@ -151,8 +201,8 @@ def session_licks(sid: str) -> dict:
     from wfield_local import spout_world as SW
     from wfield_local.paths import PathResolver
     f = LICKS / f"{sid}.pkl"
-    if f.exists() and "--redo" not in sys.argv:
-        return {"sid": sid, "cached": True}
+    if f.exists() and "--redo" not in sys.argv and _peaks_version(f) == PEAKS_VERSION:
+        return {"sid": sid, "cached": True}       # a pickle of an older peak measure is re-extracted (PEAKS_VERSION)
     t0 = time.time()
     rv = PathResolver()
     an, date = sid.split("_")
@@ -242,6 +292,7 @@ def session_licks(sid: str) -> dict:
         rows.append(row)
     L = pd.DataFrame(rows)
     L["noise_ml"], L["noise_ap"], L["noise_dv"] = sd
+    L["peaks_v"] = PEAKS_VERSION
     L["epoch"] = epochs.epoch_of(_label(sid))
     L["animal"], L["label"] = an, _label(sid)
     LICKS.mkdir(parents=True, exist_ok=True)
@@ -268,10 +319,23 @@ def working_mask(sid: str, trial_id) -> np.ndarray | None:
     return np.array([bool(wk.get(int(t), False)) for t in np.asarray(trial_id)], bool)
 
 
-def load_licks(sids: list[str], cols: list[str] | None = None) -> pd.DataFrame:
+def _peaks_version(f: Path) -> int:
+    """`peaks_v` of a per-lick pickle (1 = written before the column existed, i.e. the zero-padded measure)."""
+    d = pd.read_pickle(f)
+    return int(d["peaks_v"].iloc[0]) if "peaks_v" in d and len(d) else 1
+
+
+def load_licks(sids: list[str], cols: list[str] | None = None, allow_stale: bool = False) -> pd.DataFrame:
+    """Per-lick pickles cut to the camera working period. Refuses pickles whose stored peaks (`pk_*` / `sur_*`) come
+    from an older `_peaks` (PEAKS_VERSION) unless ``allow_stale`` (reading the Oct 30 measure on purpose)."""
     out = []
     for s in sids:
         d = pd.read_pickle(LICKS / f"{s}.pkl")
+        if "pk_sp" in d and not allow_stale:
+            v = int(d["peaks_v"].iloc[0]) if "peaks_v" in d and len(d) else 1
+            if v != PEAKS_VERSION:
+                raise SystemExit(f"{LICKS / s}.pkl: peak measure v{v}, current v{PEAKS_VERSION} -> re-extract with "
+                                 f"`run` (a stale pickle is re-extracted automatically)")
         m = working_mask(s, d["trial_id"].to_numpy())
         if m is None:
             _NO_CAMERA.add(s)
@@ -428,6 +492,11 @@ def cmd_run(jobs: int) -> None:
     sgn, TG = L.attrs["sgn"], L.attrs["TG"]
     tg ={(a, p): (float(x), float(y)) for a, p, x, y in zip(TG.animal, TG.pos, TG.tgt_L, TG.tgt_E)}
     items = imaging_items(sgn, tg, cal["theta_sp"])
+    if not items:
+        # 11-21: a run whose imaging lick tables are not built (the four-camera 3-D before Phase B: lick_correction's
+        # sessions/*.npz under the run tag) has no neural part; the kinematic tables do not need it
+        print(f"no imaging sessions under {lc.SESS} -> neural per-session fits skipped", flush=True)
+        return
     res, fail = ak.fan_sessions(items, neural_session, jobs=jobs, key=lambda x: x[0])
     if fail:
         raise SystemExit(f"neural failed: {[f[0][0] if isinstance(f[0], tuple) else f for f in fail][:3]}")
@@ -664,11 +733,15 @@ def cmd_summarise() -> None:
     H.to_csv(OUT / "primary_holm.csv", index=False)
     print("\n== PRIMARY (far contra, cued, any order / outcome), boot_delta vs August pre + Holm over 9 ==")
     print(H.round(3).to_string(index=False), flush=True)
-    aim = pd.read_csv(lc.OUT / "corr_session_aim.csv").set_index("label").aim
-    TR = lc.track(S[(S.context == "cued") & (S.group == "far_contra") & (S.order.isin(["any", "first", "later"]))
-                    & (S.outcome == "any")], ["group", "order"],
-                  ["e_L", "e_E", "corr", "toward", "g_w", "csm_share", "csm_excess"], aim)
-    TR.to_csv(OUT / "track.csv", index=False)
+    TR = None
+    if (lc.OUT / "corr_session_aim.csv").exists():
+        aim = pd.read_csv(lc.OUT / "corr_session_aim.csv").set_index("label").aim
+        TR = lc.track(S[(S.context == "cued") & (S.group == "far_contra") & (S.order.isin(["any", "first", "later"]))
+                        & (S.outcome == "any")], ["group", "order"],
+                      ["e_L", "e_E", "corr", "toward", "g_w", "csm_share", "csm_excess"], aim)
+        TR.to_csv(OUT / "track.csv", index=False)
+    else:          # 11-21: no aim table under this run tag (four-camera 3-D before Phase B) -> no recovery link
+        print(f"no {lc.OUT / 'corr_session_aim.csv'} -> track.csv (recovery link) skipped", flush=True)
     # mean normalised paths (far contra + far ipsi, cued, onset-scored), per animal x epoch x spout
     pp = L[(L.context == "post_cue") & L.pos.isin(["far_contra", "far_ipsi", "far_mid"]) & L.path_ml.notna()]
     PATH = []
@@ -1096,7 +1169,14 @@ def cmd_plot() -> None:
 
 def main() -> int:
     # coordinator 11-04: routed (out_root under the run tag), no longer refused in a tagged run
-    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    global OUT, LICKS, FIGS, FD
+    argv = sys.argv[1:]
+    if "--out" in argv:                                   # 2026-11-21: explicit output dir, inherited by the workers
+        os.environ[OUT_ENV] = argv[argv.index("--out") + 1]
+        OUT = out_root()
+        LICKS, FIGS, FD = OUT / "licks", OUT / "figures", OUT / "figdata"
+    vals = {argv[i + 1] for i, a in enumerate(argv[:-1]) if a in ("--out", "--jobs")}
+    args = [a for a in argv if not a.startswith("--") and a not in vals]
     cmd = args[0] if args else "run"
     if "--plot-only" in sys.argv or cmd == "plot":
         cmd_plot()
@@ -1104,7 +1184,7 @@ def main() -> int:
     jobs = min(int(sys.argv[sys.argv.index("--jobs") + 1]) if "--jobs" in sys.argv else 3, 3)
     if cmd == "run":
         cmd_run(jobs)
-    elif cmd == "summarise":
+    elif cmd in ("summarise", "summarize"):
         cmd_summarise()
         cmd_plot()
     else:

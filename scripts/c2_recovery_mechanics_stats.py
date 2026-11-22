@@ -34,7 +34,7 @@ Writes (refuses to overwrite) under --out-dir (default M:/MICROSCOPE/Priya/Widef
 and under --ms-data (default the paper's manuscript_code/data, next to the 11-19 family file):
   c2_scalar_family_aligned_with_recovery.csv   the pooled family: the 162 cells + the new endpoint cells, family q
 
-Usage: python scripts/c2_recovery_mechanics_stats.py [--enc DIR] [--family CSV] [--out-dir DIR] [--ms-data DIR]
+Usage: python scripts/c2_recovery_mechanics_stats.py [--enc DIR] [--wlc DIR] [--family CSV] [--out-dir DIR] [--ms-data DIR]
 """
 from __future__ import annotations
 
@@ -63,10 +63,18 @@ SOURCES = {
 }
 
 
-def load(enc: Path) -> dict[str, pd.DataFrame]:
+def _src_path(enc: Path, rel: str, wlc: Path | None) -> Path:
+    """``enc / rel``, except the within_lick_correction tables when ``--wlc`` names another folder (2026-11-21: the
+    CSM edge-fix re-run lives beside the cited tree; the other two sources stay the cited ones)."""
+    if wlc is not None and rel.startswith("within_lick_correction/"):
+        return wlc / rel.split("/", 1)[1]
+    return enc / rel
+
+
+def load(enc: Path, wlc: Path | None = None) -> dict[str, pd.DataFrame]:
     out = {}
     for src, (rel, _) in SOURCES.items():
-        d = pd.read_csv(enc / rel)
+        d = pd.read_csv(_src_path(enc, rel, wlc))
         if src == "within_lick_correction":
             d = d[(d.context == "cued") & (d.group == "far_contra") & (d.order == "any") & (d.outcome == "any")]
             d = d.assign(pos="far_contra")
@@ -93,10 +101,10 @@ def per_animal(D: dict[str, pd.DataFrame]) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def pipeline_ref(enc: Path) -> pd.DataFrame:
+def pipeline_ref(enc: Path, wlc: Path | None = None) -> pd.DataFrame:
     """The pipeline's own primary results, for reference (its boot / Holm / n_same columns, renamed pipe_*)."""
     ref = []
-    h = pd.read_csv(enc / "within_lick_correction/primary_holm.csv")
+    h = pd.read_csv(_src_path(enc, "within_lick_correction/primary_holm.csv", wlc))
     ref.append(h.rename(columns={"delta": "pipe_delta", "lo": "pipe_lo", "hi": "pipe_hi", "p": "pipe_p",
                                  "p_holm": "pipe_p_holm"})[["metric", "epoch", "pipe_delta", "pipe_lo", "pipe_hi",
                                                             "pipe_p", "pipe_p_holm"]])
@@ -115,6 +123,8 @@ def pipeline_ref(enc: Path) -> pd.DataFrame:
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--enc", type=Path, default=ENC)
+    ap.add_argument("--wlc", type=Path, default=None,
+                    help="within_lick_correction output folder if not <enc>/within_lick_correction (e.g. a --out re-run)")
     ap.add_argument("--family", type=Path, default=FAMILY)
     ap.add_argument("--out-dir", type=Path, default=OUT_DIR)
     ap.add_argument("--ms-data", type=Path, default=MS_DATA)
@@ -125,7 +135,7 @@ def main(argv=None) -> int:
     clash = [str(p) for p in outs if p.exists()]
     if clash:
         sys.exit(f"refusing to overwrite {', '.join(clash)}")
-    D = load(a.enc)
+    D = load(a.enc, a.wlc)
     PA = per_animal(D)
     print(PA.round(3).to_string(index=False))                       # rule 8: per animal first
     T = []
@@ -157,7 +167,7 @@ def main(argv=None) -> int:
     T["fdr_family"] = "six-position scalar family (162 + recovery)"
     T.loc[is_ctl, "fdr_family"] = "control (outside family; per-metric BH)"
     T["star"] = (T.agree == "both").astype(int)
-    T = T.merge(pipeline_ref(a.enc), on=["metric", "epoch"], how="left", validate="many_to_one")
+    T = T.merge(pipeline_ref(a.enc, a.wlc), on=["metric", "epoch"], how="left", validate="many_to_one")
     for d in (a.out_dir, a.ms_data):
         writeguard.assert_writable(d)
     a.out_dir.mkdir(parents=True, exist_ok=True)
