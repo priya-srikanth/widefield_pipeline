@@ -483,7 +483,10 @@ def render(P: dict, T: dict, clips: list, f_out: Path, daq_s: np.ndarray, rew_s:
     import matplotlib.pyplot as plt
 
     from scripts.pose3d_side_video import BGR, HEX, TILE, Reader
+    from wfield_local import config
+    from wfield_local.orofacial_cohort import pos_key
     animal, date = P["session"].split(":")
+    lat = str((config.animals().get(animal) or {}).get("stroke_laterality", "L"))
     order = P["order"]
     crop, centre = fit_crops(P, clips)
     readers = {c: Reader(P["videos"][c]) for c in order}
@@ -582,8 +585,8 @@ def render(P: dict, T: dict, clips: list, f_out: Path, daq_s: np.ndarray, rew_s:
             what = {"trials": "", "bout": "  [lick bout]",
                     "iti": f"  [ITI bout, {t - cl['stop_ms']:+.0f} ms after trial stop]",
                     "merge": f"  [3-D lick merged by the {P['floor_ms']:.0f} ms floor]"}[cl["kind"]]
-            cv2.putText(bar, f"{animal}  {date[:4]}-{date[4:6]}-{date[6:]}  {epoch}  trial {tr}  spout {pos}  "
-                        f"t = {t:+.0f} ms from cue{what}   10x slow motion (250 fps shown at 25 fps)",
+            cv2.putText(bar, f"{animal}  {date[:4]}-{date[4:6]}-{date[6:]}  {epoch}  trial {tr}  spout {pos} ({pos_key(pos, lat).replace('_', ' ')})  "
+                        f"t = {t:+.0f} ms from cue{what}   10x slow motion",
                         (8, 18), F_, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
             cv2.putText(bar, f"dot = keypoint used, ring = rejected, x = production 3-D reprojected | nose yellow, jaw "
                         f"green, tongue red, spout blue | 3-D views: {nv}", (8, 38), F_, 0.4, (220, 220, 220), 1,
