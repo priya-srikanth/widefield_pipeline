@@ -8,8 +8,12 @@ jaw_only. This script samples them, renders RAW-video review sheets without the 
 
     conda activate dlc      # MKL_THREADING_LAYER=SEQUENTIAL, PYTHONPATH=<worktree>
     python -m scripts.jaw3d_blind_review sample  --out <folder>          # key.csv (DO NOT OPEN before scoring)
-    python -m scripts.jaw3d_blind_review render  --out <folder> --jobs 2 # sheets/, strips/
-    python -m scripts.jaw3d_blind_review unblind --out <folder>          # scores.csv + key.csv -> summary
+    python -m scripts.jaw3d_blind_review render  --out <folder> --jobs 2 # sheets/, strips/ (pass 1)
+    python -m scripts.jaw3d_blind_review render  --out <folder> --zoom   # strips_zoom/ (pass 2: native chin + diff)
+    python -m scripts.jaw3d_blind_review unblind --out <folder>          # key + scores.csv + scores_zoom.csv -> summary
+
+Result 11-22 (pass 2, primary; README.md in the output folder): A 23 yes / 12 unclear / 5 no, B 7 / 16 / 17, C 11 / 8 / 1;
+the 5 clear false positives all have 3-D displacement <= 0.22 mm. Pass 1 (0.5x crops) was too insensitive (C 3 / 20 yes).
 
 GROUPS (seeded `SEED`, stratified by animal x epoch, round-robin over the strata):
   A  close_center, new class jaw_only, v36 class no_response (the 3-D call made it jaw_only)       ``--n-a`` (40)
@@ -51,6 +55,7 @@ SIDE_CROP = (200, 160)        # raw px (w, h) around the side jaw point, scaled 
 CAM4_CROP = (300, 240)
 CAM1_CROP, CAM1_CENTER = (260, 208), (300, 390)
 TILE = (100, 80)
+ZOOM_SIDE, ZOOM_CAM4, DIFF_GAIN = (100, 80), (150, 120), 2.5     # pass 2: side crops 1:1 raw px
 JAW_CUT = 0.6
 OTHER = ("close_L", "close_R", "far_L", "far_R")
 
@@ -207,7 +212,8 @@ def _jaw_center(flat: pd.DataFrame, rows: np.ndarray, rows_all: np.ndarray) -> t
 
 def render_session(item) -> list[dict]:
     """Module-level worker: (session, key rows as records, out folder) -> one status dict per trial."""
-    session, recs, out = item
+    session, recs, out = item[:3]
+    zoom = bool(item[3]) if len(item) > 3 else False
     os.environ.update(ENV)
     import cv2
     from wfield_local import o2_inference as oi
@@ -260,6 +266,14 @@ def render_session(item) -> list[dict]:
         if not np.isfinite(center["cam4"][0]):
             center["cam4"] = (340, 400)
         missing = {c: int((f < 0).sum()) for c, f in fr.items()}
+        if zoom:
+            fr.pop("cam1")
+            ims = {c: _read(vids[c], fr[c]) for c in fr}
+            (out / "strips_zoom").mkdir(exist_ok=True)
+            cv2.imwrite(str(out / "strips_zoom" / f"{r['id']}.png"), _zoom_strip(r["id"], tg, fr, ims, center))
+            status.append(dict(id=r["id"], status="ok", n_frames=len(tg), end_ms=end,
+                               **{f"missing_{c}": v for c, v in missing.items()}))
+            continue
         ims = {c: _read(vids[c], fr[c]) for c in fr}
         size = {"cam2": SIDE_CROP, "cam3": SIDE_CROP, "cam4": CAM4_CROP, "cam1": CAM1_CROP}
         tiles = {c: [_crop(ims[c].get(int(f)), center[c], size[c]) if np.isfinite(center[c][0]) and f >= 0
@@ -274,6 +288,27 @@ def render_session(item) -> list[dict]:
                            **{f"missing_{c}": v for c, v in missing.items()},
                            **{f"center_{c}": f"{center[c][0]:.0f},{center[c][1]:.0f}" for c in center}))
     return status
+
+
+def _zoom_strip(sid: str, tg: np.ndarray, fr: dict, ims: dict, center: dict) -> np.ndarray:
+    """PASS 2 (zoom): side views at NATIVE resolution on the chin (``ZOOM_SIDE`` raw px around the side jaw point,
+    shifted 10 px forward / up; tile = 1:1), each followed by a DIFFERENCE row = |frame - median of the pre-cue frames|
+    x ``DIFF_GAIN`` (both 5 x 5 Gaussian-blurred first, to damp whiskers) (raw video only, no tracking or call drawn); cam4 ``ZOOM_CAM4`` around its jaw point."""
+    tiles = {}
+    for c in ("cam2", "cam3"):
+        cx, cy = center[c]                       # pass-1 centre = jaw + (-/+30, -20): undo, then (-/+10, -10)
+        cc = (cx + (20 if c == "cam2" else -20), cy + 10)
+        crops = [(_crop(ims[c].get(int(f)), cc, ZOOM_SIDE) if np.isfinite(cx) and f >= 0 else None) for f in fr[c]]
+        tiles[c] = crops
+        import cv2
+        sm = [cv2.GaussianBlur(x, (5, 5), 0).astype(float) if x is not None else None for x in crops]  # damp whiskers
+        pre = [x for x, t in zip(sm, tg) if x is not None and t < 0]
+        ref = np.median(np.stack(pre), axis=0) if pre else None
+        tiles[f"{c} diff"] = [(np.clip(np.abs(x - ref) * DIFF_GAIN, 0, 255).astype(np.uint8)
+                               if x is not None and ref is not None else None) for x in sm]
+    tiles["cam4"] = [_crop(ims["cam4"].get(int(f)), center["cam4"], ZOOM_CAM4) if f >= 0 else None
+                     for f in fr["cam4"]]
+    return _layout(sid, tg, tiles, ("cam2", "cam2 diff", "cam3", "cam3 diff", "cam4"))
 
 
 def _layout(sid: str, tg: np.ndarray, tiles: dict, cams: tuple) -> np.ndarray:
@@ -296,7 +331,8 @@ def _layout(sid: str, tg: np.ndarray, tiles: dict, cams: tuple) -> np.ndarray:
         blocks.append(tl)
         for c in cams:
             row = np.full((th + 2, W), 255, np.uint8)
-            cv2.putText(row, c, (4, th // 2 + 4), cv2.FONT_HERSHEY_SIMPLEX, 0.45, 0, 1, cv2.LINE_AA)
+            for li, word in enumerate(c.split()):
+                cv2.putText(row, word, (4, th // 2 + 4 + 14 * li), cv2.FONT_HERSHEY_SIMPLEX, 0.45, 0, 1, cv2.LINE_AA)
             for j, im in enumerate(tiles[c][sl]):
                 x = lab_w + j * (tw + 2)
                 row[1:1 + th, x:x + tw] = im if im is not None else 40
@@ -333,29 +369,38 @@ def _trace(st: pd.DataFrame, tg: np.ndarray, width: int) -> np.ndarray:
     return cv2.resize(im, (width, im.shape[0]))
 
 
-def render(out: Path, jobs: int) -> None:
+def render(out: Path, jobs: int, zoom: bool = False) -> None:
     from wfield_local import parallel
     K = pd.read_csv(out / "key.csv", dtype={"date": str})
-    items = [(s, g[["id", "trial_id", "stop_ms"]].to_dict("records"), out) for s, g in K.groupby("session", sort=True)]
+    items = [(s, g[["id", "trial_id", "stop_ms"]].to_dict("records"), out, zoom)
+             for s, g in K.groupby("session", sort=True)]
     res, fails = parallel.fan_out(items, render_session, jobs=jobs, label="session")
     flat = [d for _it, r in res for d in r]
     for it, msg in fails:
         flat += [dict(id=r["id"], status=f"failed: {msg}") for r in it[1]]
-    pd.DataFrame(flat).sort_values("id").to_csv(out / "render_status.csv", index=False)
+    pd.DataFrame(flat).sort_values("id").to_csv(out / ("render_status_zoom.csv" if zoom else "render_status.csv"),
+                                                index=False)
     print(f"rendered {sum(d.get('status') == 'ok' for d in flat)} / {len(K)} sheets")
 
 
 # ------------------------------------------------------------------------------------------------ unblinding
 
 def unblind(out: Path) -> None:
+    """key.csv + scores.csv (pass 1) + scores_zoom.csv (pass 2, primary) -> unblinded.csv and the summary tables.
+    ``onset_match``: the reviewer's onset within 250 ms of ``jaw3d_onset_ms`` (yes / unclear rows)."""
     K = pd.read_csv(out / "key.csv", dtype={"date": str})
-    S = pd.read_csv(out / "scores.csv")
-    D = K.merge(S[["id", "score"]], on="id", how="left")
+    p1 = pd.read_csv(out / "scores.csv")[["id", "score"]].rename(columns={"score": "score_p1"})
+    z = pd.read_csv(out / "scores_zoom.csv").rename(columns={"score": "score_zoom", "onset_ms": "rev_onset_ms",
+                                                              "kind": "rev_kind"})
+    D = K.merge(p1, on="id").merge(z[["id", "score_zoom", "confidence", "rev_onset_ms", "rev_kind", "note"]], on="id")
+    ok = (D.score_zoom != "no") & D.jaw3d_onset_ms.notna() & D.rev_onset_ms.notna()
+    D["onset_match"] = np.where(ok, (D.rev_onset_ms - D.jaw3d_onset_ms).abs() <= 250, np.nan)
     D.to_csv(out / "unblinded.csv", index=False)
-    print(pd.crosstab(D.group, D.score, margins=True).to_string())
-    print(pd.crosstab([D.group, D.animal], D.score).to_string())
+    for col in ("score_zoom", "score_p1"):
+        print(pd.crosstab(D.group, D[col], margins=True).to_string())
+        print(pd.crosstab([D.group, D.animal], D[col]).to_string())
     a = D[D.group == "A"]
-    print(a.groupby("score").jaw3d_disp_mm.describe().to_string())
+    print(pd.crosstab(pd.cut(a.jaw3d_disp_mm, [0, 0.2, 0.3, 0.5, 5]), a.score_zoom).to_string())
 
 
 def main(argv=None) -> int:
@@ -363,6 +408,7 @@ def main(argv=None) -> int:
     ap.add_argument("cmd", choices=("sample", "render", "unblind"))
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--jobs", type=int, default=2)
+    ap.add_argument("--zoom", action="store_true", help="render pass 2 (strips_zoom/: native-resolution chin + diff)")
     ap.add_argument("--n-a", type=int, default=40)
     ap.add_argument("--n-b", type=int, default=40)
     ap.add_argument("--n-c", type=int, default=20)
@@ -370,7 +416,7 @@ def main(argv=None) -> int:
     if a.cmd == "sample":
         sample(a.out, a.n_a, a.n_b, a.n_c)
     elif a.cmd == "render":
-        render(a.out, a.jobs)
+        render(a.out, a.jobs, a.zoom)
     else:
         unblind(a.out)
     return 0
