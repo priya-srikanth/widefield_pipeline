@@ -101,7 +101,9 @@ def session_classes(label: str, v36: Path | str | None = None, c1: Path | str | 
     from `trial_classes.session_trials` (window "cue_stop" by default, Priya 11-03; "trial" = from the strobe). None
     when the session has no video outputs (no DAQ fallback, so the two definitions are never mixed silently)."""
     T = TC.session_trials(label, window=window, v36=v36, c1=c1)
-    return None if T is None else T[["trial_id", "position", "cue_daq", "cls", "has_cam1"]]
+    # + cls_detail (11-22: "tongue_at_lips" inside cls = jaw_only) when the classifier writes it
+    return None if T is None else T[["trial_id", "position", "cue_daq", "cls", "has_cam1"]
+                                    + (["cls_detail"] if "cls_detail" in T else [])]
 
 
 def cue_classes(table: pd.DataFrame | None, cue_s: np.ndarray, tol: float = CUE_MATCH_S) -> np.ndarray:

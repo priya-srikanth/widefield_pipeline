@@ -24497,3 +24497,18 @@ attempted training set changes by ~16 pre-stroke trials of ~50k); (d) GLM-HMM: k
 report the three engaged states COMBINED as "engaged" beside "running, not trying" and "disengaged" (licky vs quiet
 engaged share is about half between-animal: PS95 63 % quiet, PS92 8 %); per-animal substate split in the supplement.
 Fig 3C legend: the cam1 nose is a 3-D reprojection (rod hides it from below).
+
+## 2026-11-22 -- "tongue_at_lips" trials grouped with jaw_only (Priya: "yes let's group with jaw-only")
+- A trial with no DAQ spout contact whose ONLY post-cue licks in the fused four-camera train are cam1-only (fused
+  `cams` == "cam1": no other view saw it, so no 3-D point; the tongue barely leaves the mouth) was "incomplete" (an
+  attempt). It is now `cls` = "jaw_only" (a reaction, NOT an attempt: every grouping, the attempted gate, figures,
+  outcome statistics and the GLM-HMM outcome output treat it as jaw-only) with its own label kept in `cls_detail` =
+  "tongue_at_lips" (`trial_classes.session_trials`, carried into the s1 snapshot). ~181 trials (0.3 %), 179 of them
+  "incomplete" before; a DAQ contact keeps "contact". Fused train only (the legacy cam4+cam1 source is unchanged).
+  `session_trials` is in `CLASS_CODE_ROOTS`, so `class_source_signature` (and every class cache) changes with it.
+  Test: tests/test_trial_classes_fused_jaw4cam.py::test_tongue_at_lips_grouped_with_jaw_only.
+- The frozen ENCODER is NOT refitted for this (Priya's OK): its attempted training set changes by ~16 pre-stroke trials.
+  The 11-22 encoder fit (gate-attempted_v7g3_t3d_frA, v37_sync60 frozen store) stays.
+- GLM-HMM (Priya 11-22): keep the refit on the new classes (option A). Report the three engaged states (0, 1, 2) as ONE
+  "engaged" group; state 3 = "running, not trying", state 4 = "disengaged, still"; the per-animal split of the engaged
+  substates is a supplement table (the licky vs quiet share is ~half between-animal). The 5-state fit stays underneath.
