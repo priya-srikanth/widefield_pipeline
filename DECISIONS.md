@@ -24488,3 +24488,12 @@ curves use only fused licks with 3-D support (n_3d > 0, i.e. seen by >= 2 camera
 ILI and in trial classes: pending Priya (181 trials, 0.3 %, have ONLY such flicks after the cue; 179 of them are classed
 `incomplete` now -- 77 acute, 64 subacute, 24 chronic, 16 pre). The cam4 long-lick QC
 (docs/status/CAM4_LONG_LICK_2026-11-22.md) is the other half of why cam4 windows were dropped.
+
+## 2026-11-22 -- cam1-only flicks are not licks; flick-only trials grouped with jaw-only; engaged GLM-HMM states combined
+Priya 11-22: (a) cam1-only tongue flicks (see the entry above) do NOT count as licks for lick counts, rates or ILI;
+(b) a trial whose only post-cue tongue events are such flicks (181 trials, 0.3 %) gets the label `tongue_at_lips` and is
+GROUPED WITH jaw_only (a reaction, not an attempt) everywhere; (c) the frozen encoder is NOT refit for this (its
+attempted training set changes by ~16 pre-stroke trials of ~50k); (d) GLM-HMM: keep the refit on the new classes, and
+report the three engaged states COMBINED as "engaged" beside "running, not trying" and "disengaged" (licky vs quiet
+engaged share is about half between-animal: PS95 63 % quiet, PS92 8 %); per-animal substate split in the supplement.
+Fig 3C legend: the cam1 nose is a 3-D reprojection (rod hides it from below).
