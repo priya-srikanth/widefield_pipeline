@@ -24512,3 +24512,13 @@ Fig 3C legend: the cam1 nose is a 3-D reprojection (rod hides it from below).
 - GLM-HMM (Priya 11-22): keep the refit on the new classes (option A). Report the three engaged states (0, 1, 2) as ONE
   "engaged" group; state 3 = "running, not trying", state 4 = "disengaged, still"; the per-animal split of the engaged
   substates is a supplement table (the licky vs quiet share is ~half between-animal). The 5-state fit stays underneath.
+
+## 2026-11-22 -- GLM-HMM state change comes from the trial classes, not the lick list (attribution test)
+Refit (K5, design v2, same sessions) with the NEW classes (0.10 mm floor) but the OLD cam4 lick list for the pre-cue /
+ITI lick outputs (`glm_hmm/v1_test_cam4licks_floor010`, WIDEFIELD_FUSED_LICKS=off): the same five states as the
+four-camera-lick refit (engaged x3; "running, not trying" P(attempt) .17, stay .55, run-high .62; "disengaged, still"
+P(attempt) .09, stay .82) and NOT the manuscript's (partial P(attempt) .57, stay .88). So the new trial classes
+(mainly close-center no-response -> jaw-only from the four-camera jaw, and the coverage gate) moved the lower states.
+Also: a warm start from the manuscript's parameters converges to the new solution, and the manuscript's parameters
+score the new data 5,434 log-lik units worse. The production refit on the 0.20 mm classes (+ tongue_at_lips grouped
+with jaw-only) is in `glm_hmm/v1_floor020`; Priya chose the refit (A), engaged states combined for reporting.
