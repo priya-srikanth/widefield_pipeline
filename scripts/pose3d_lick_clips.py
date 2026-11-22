@@ -78,6 +78,17 @@ PRESETS = {
                 "WIDEFIELD_LICK_INPUT_RUN": "lp_r4_heatmap_20261013__clean_v37_sync60",
                 "WIDEFIELD_CAM1_LICKS_DIR": "cam1_licks_v37_sync60", "WIDEFIELD_POSE3D_SOURCE": "4cam",
                 "WIDEFIELD_POSE3D_TAG": "_3net_20261121_sync60"}},
+    # the ADOPTED fused train (session_licks.FUSED_DEFAULT, 11-22): the same sync60 3-D, re-fused at full precision
+    # (the `_gapfix` CSVs hold 4 significant digits); prep (the fusion re-run) is shared with the preset above whenever the
+    # clip selection comes out the same (`_prep_file`)
+    "3net_20261121_sync60_gapfix60": {
+        "p3d": "pose3d_4cam_3net_20261121_sync60",
+        "licks": f"{SIDE_BUNDLE}_3net_20261121_sync60_gapfix60", "floor_ms": 60.0,
+        "prep_compat": "3net_20261121_sync60",
+        "env": {"WIDEFIELD_WINDOWS_SPAN": "sync", "WIDEFIELD_RUN_LABEL": "60",
+                "WIDEFIELD_LICK_INPUT_RUN": "lp_r4_heatmap_20261013__clean_v37_sync60",
+                "WIDEFIELD_CAM1_LICKS_DIR": "cam1_licks_v37_sync60", "WIDEFIELD_POSE3D_SOURCE": "4cam",
+                "WIDEFIELD_POSE3D_TAG": "_3net_20261121_sync60"}},
 }
 PARTS = ("nose", "jaw", "tongue", "spout")
 CAMS_STRIP = ("cam4", "cam1", "cam2", "cam3")
@@ -618,13 +629,51 @@ def run_session(item) -> dict:
     os.environ.update(PRESETS[preset]["env"])
     import pickle
 
-    from wfield_local import behavior_events as BE
-    from wfield_local import epochs
     from wfield_local.paths import PathResolver
     rv = PathResolver()
     animal, date = session.split(":")
     pr = PRESETS[preset]
     T = load_tables(DLC / "session_poses" / pr["p3d"], DLC / "session_poses" / "camera_licks" / pr["licks"], animal, date)
+    flags = (do_trials, bout, iti, merge)
+    sets = build_sets(rv, T, session, t0, t1, flags, pr["floor_ms"])
+    PREP_DIR.mkdir(parents=True, exist_ok=True)
+    f_prep = _prep_file(preset, animal, date, t0, t1, flags)
+    if "prep_compat" in pr and not f_prep.exists():
+        old = PRESETS[pr["prep_compat"]]
+        f_old = _prep_file(pr["prep_compat"], animal, date, t0, t1, flags)
+        if f_old.exists() and old["p3d"] == pr["p3d"]:
+            T_old = dict(T, U=pd.read_csv(DLC / "session_poses" / "camera_licks" / old["licks"] / f"{animal}_{date}_fused.csv"))
+            if _same_sets(sets, build_sets(rv, T_old, session, t0, t1, flags, old["floor_ms"])):
+                f_prep = f_old
+                print(f"  {session}: clip selection identical to {pr['prep_compat']} -> its fusion prep reused")
+    if f_prep.exists():
+        P = pickle.loads(f_prep.read_bytes())
+    else:
+        P = prep_session(rv, session, T, [c for _, cl in sets for c in cl], pr["floor_ms"])
+        f_prep.write_bytes(pickle.dumps(P))
+    if not P["lick_check"][0]:
+        raise RuntimeError(f"{session}: recomputed 3-D licks != production _licks.csv {P['lick_check'][1:]}")
+    return render_session(rv, session, pr, T, sets, P, out, stills)
+
+
+def _prep_file(preset: str, animal: str, date: str, t0: float, t1: float, flags: tuple) -> Path:
+    do_trials, bout, iti, merge = flags
+    return PREP_DIR / (f"{preset}_{animal}_{date}_{t0:+.0f}_{t1:+.0f}{'_tr' if do_trials else ''}{'_b' if bout else ''}"
+                       f"{'_i' if iti else ''}{'_m' if merge else ''}.pkl")
+
+
+def _same_sets(a: list, b: list, tol_ms: float = 10.0) -> bool:
+    """Same clip specs: names, kinds, candidate trials + rules in the same order, windows within ``tol_ms``."""
+    fa = [(k, s["name"], c) for k, ss in a for s in ss for c in s["cands"]]
+    fb = [(k, s["name"], c) for k, ss in b for s in ss for c in s["cands"]]
+    return len(fa) == len(fb) and all(
+        x[0] == y[0] and x[1] == y[1] and x[2][0] == y[2][0] and x[2][3] == y[2][3]
+        and abs(x[2][1] - y[2][1]) <= tol_ms and abs(x[2][2] - y[2][2]) <= tol_ms for x, y in zip(fa, fb))
+
+
+def build_sets(rv, T: dict, session: str, t0: float, t1: float, flags: tuple, floor_ms: float) -> list:
+    """[(kind, [clip spec, ...])]: every clip's seeded candidate list (module doc, TRIAL SELECTION)."""
+    do_trials, bout, iti, merge = flags
     sets = []
     cands = trial_candidates(T, session, t0, t1) if do_trials else {}
     sets.append(("trials", [{"name": pos, "kind": "trials", "cands": [(tr, t0, t1, r) for tr, r in cands.get(pos, [])]}
@@ -640,19 +689,17 @@ def run_session(item) -> dict:
                                          f"ITI bout: {n} licks{', beyond old window' if bb else ''}")
                                         for tr, a, e, n, bb in b]}]))
     if merge:
-        m = merge_candidates(rv, T, session, pr["floor_ms"])
+        m = merge_candidates(rv, T, session, floor_ms)
         sets.append(("merge", [{"name": "merge", "kind": "merge",
                                 "cands": [(tr, a - 250.0, a + 450.0, f"3-D lick merged from {n} runs by the floor")
                                           for tr, a, n in m]}]))
-    PREP_DIR.mkdir(parents=True, exist_ok=True)
-    f_prep = PREP_DIR / f"{preset}_{animal}_{date}_{t0:+.0f}_{t1:+.0f}{'_tr' if do_trials else ''}{'_b' if bout else ''}{'_i' if iti else ''}{'_m' if merge else ''}.pkl"
-    if f_prep.exists():
-        P = pickle.loads(f_prep.read_bytes())
-    else:
-        P = prep_session(rv, session, T, [c for _, cl in sets for c in cl], pr["floor_ms"])
-        f_prep.write_bytes(pickle.dumps(P))
-    if not P["lick_check"][0]:
-        raise RuntimeError(f"{session}: recomputed 3-D licks != production _licks.csv {P['lick_check'][1:]}")
+    return sets
+
+
+def render_session(rv, session: str, pr: dict, T: dict, sets: list, P: dict, out, stills: bool) -> dict:
+    from wfield_local import behavior_events as BE
+    from wfield_local import epochs
+    animal, date = session.split(":")
     ev = BE.get_or_compute(rv, animal, date)
     daq_s = BE.lick_onsets_s(ev) if ev is not None else np.array([])
     rew_s = np.asarray(ev["reward_samples"], float) / float(ev["fs"]) if ev is not None else np.array([])
