@@ -54,6 +54,47 @@ Manuscript inputs of record: `HANDOFF_to_CC_2026-11-22_manuscript_v26.md` + `PRO
   backups are delete candidates after review; `kinematics_fused/sessions.csv` still pools cam1-only rows (no manuscript
   reader).
 
+## Jaw floor 0.20 mm + tongue_at_lips rebuild (Priya 11-22; commits 29f5bd8a, 4e91696b; driver lp_stage/phaseB_20261122/floor020_chain.py + floor020_glm_chain.py)
+- **Classes** (qc/s1_trial_classes_cue_stop.csv.gz, qc/trial_attempts.csv; the 0.10 tables kept as `*_floor010`): 384 of
+  57,601 trials changed vs the 0.10 build. 201 close_center jaw_only -> no_response (the floor; the blind-check estimate was
+  251). 182 incomplete -> jaw_only, all `cls_detail` = tongue_at_lips (far_L 47, far_R 36, close_R 35, far_center 33,
+  close_L 20, close_center 11). 1 unknown -> jaw_only. Counts: incomplete 2,235 -> 2,053; jaw_only 4,214 -> 4,196;
+  no_response 3,725 -> 3,926; contact 46,800 unchanged. Attempted 54,598 -> 54,402. Re-checked after the cam1-only source drop
+  (b0b473dd): both tables regenerate byte-identical.
+- **Outcome stats** (`manuscript_stats/c2_4cam_sync60_20261122/outcomes_floor020`, `outcome_weight_floor020`): 35 starred cells
+  (manuscript 35, 0.10 build 36). Vs the manuscript, 2 flips: jaw_only close_center acute is gained; no_resp far_L subacute is
+  lost. Vs the 0.10 build, jaw_only close_center subacute loses the star it had gained. n unchanged. Pooled close_center acute
+  jaw_only fraction is 0.138 at 0.10 and 0.096 at 0.20 (manuscript 0, two-camera); no_resp is 0.073 at 0.10 and 0.115 at 0.20
+  (manuscript 0.216). The outcome scripts read the classes only, not session_licks.
+- **GLM-HMM** refit (`glm_hmm/v1_floor020`; the flick-including partial run is in `v1_floor020_withflicks`): the same state
+  structure as the 0.10 refit. State 3 is "running, not trying": P(attempt) 0.13, P(running pre-cue) 0.62, self 0.54,
+  -> state 4 0.40. State 4 is "disengaged, still": P(attempt) 0.08, P(no_resp) 0.51, self 0.82. Engaged states 0-2 have
+  P(attempt) >= 0.97. Its pre-cue and ITI lick rates in states 3 and 4 are lower than in the 0.10 refit (0.05 / 0.04 vs
+  0.11 / 0.15), because the cam1-only flicks are no longer licks.
+  The manuscript's state 3 was a half-licking state (P(attempt) 0.57, P(running) 0.17).
+  Grouped occupancy (engaged = 0+1+2; `engagement_floor020/glmhmm_grouped_occupancy_by_epoch.csv`):
+
+  | epoch | engaged | running, not trying | disengaged, still |
+  |---|---|---|---|
+  | pre | 0.934 | 0.021 | 0.045 |
+  | acute | 0.651 | 0.092 | 0.257 |
+  | subacute | 0.758 | 0.087 | 0.155 |
+  | chronic | 0.947 | 0.013 | 0.039 |
+
+  The supplement table of engaged substates per animal is `glmhmm_engaged_substates_by_animal_epoch.csv`. Between-animal
+  fraction of the pre-session variance of each substate's share: 0.68, 0.38 and 0.81.
+- **S22** (`engagement_floor020`, no TIM):
+  - G (occupancy; engaged = 0+1+2): partial subacute gains a star (+0.042, q 0.0003), as in the 0.10 build. The other cells are
+    unchanged: acute engaged -0.177 (manuscript -0.223), acute partial +0.047 (manuscript +0.110), acute disengaged +0.130.
+  - I (face motion energy): no flips, identical to the 0.10 build.
+  - Other flips vs the manuscript: F10 hit close_ipsi subacute lost; F11 P(dis) close_contra, close_ipsi and close_mid acute
+    and far_mid subacute lost, far_mid acute gained; F11 noteng far_ipsi subacute gained; F8 within-not-engaged me_kp_response
+    acute lost, still_tread_iti subacute gained.
+  - Jaw-only trials in the disengaged state: 59 % pooled (acute 57 %, chronic 69 %), vs 63 % acute in the 0.10 build and the
+    manuscript's 62 %. Partial share is 29 %.
+
 ## Superseded / delete candidates (after review)
+- `glm_hmm/v1_floor020_withflicks` (partial GLM-HMM run stopped 11-22: superseded by the cam1-only source drop; sequences pickle only).
+- `imaging_encoding/qc_check_flicks/` (class re-check copies, byte-identical to qc/).
 - `pose3d_4cam_3net_20261121_sync60/kinematics_fused/c2_lick3d_session_summary_ungated.csv` (all contexts incl. pre-cue / ITI; wrong population).
 - `clips_20261122/*_main.mp4` (re-encode test copies) if Priya confirms the originals open.
