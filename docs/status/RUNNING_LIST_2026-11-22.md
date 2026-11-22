@@ -19,7 +19,14 @@ Manuscript inputs of record: `HANDOFF_to_CC_2026-11-22_manuscript_v26.md` + `PRO
 - Clips: `pose3d_4cam_3net_20261121_sync60/clips_20261122/` (docs/EXAMPLE_VIDEOS.md).
 
 ## Running
-- neural_chain: frozen encoder frame (~5 h) -> ITI chain -> aim tables -> lick_correction.
+- **neural_chain_fourcam (evening, supersedes neural_chain)**: frozen encoder on TRUE four-camera licks
+  (`COMBINED_ENCODING_LICKS=fourcam`, cam1-only out, 3-D angle from kinematics_fused_postcue by lick_key) on the
+  rebuilt 0.20 mm / tongue_at_lips classes -> ITI chain -> aim tables -> lick_correction. Runner
+  `lp_stage/phaseB_20261122/neural_chain_fourcam.py` (worktree `Github/wf_enc4cam`), log `logs/neural_fourcam.log`.
+  The morning fused-mode outputs were moved aside to `imaging_encoding/*_licks-fused_20261122` (superseded; delete
+  candidates after review); the smoke extract to `imaging_encoding/iti_licks_smoke_fourcam_20261122` (delete candidate).
+- ~~neural_chain: frozen encoder frame (~5 h) -> ITI chain -> aim tables -> lick_correction.~~ (stopped 14:31 at
+  aim_by_spout; superseded by neural_chain_fourcam)
 - extra_chain: pose3d_cue_traces -> kinematics_pooled_figs.
 - phaseb: glmhmm, lc_run; jaw blind check agent.
 
