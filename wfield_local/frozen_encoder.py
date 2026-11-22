@@ -363,14 +363,28 @@ def lick_landing_weights(B, animal: str, date: str, rv, width: float = 1.0) -> n
 
     ce = _ce()
     from wfield_local import orofacial_outputs as oo
+    if ce.lick_mode() == "fourcam":
+        # 11-22 evening: the fourcam lick rows (same rows / order as `combined_encoding._load_behaviour` builds them)
+        # joined to the fused post-cue 3-D kinematics by LICK KEY (no cam4 windows, no (trial_id, lick_idx) join)
+        from wfield_local import session_licks as SL
+        A = ce._fourcam_table(rv, animal, date)
+        L = A[(A["table"] == "licks") & A.trial_id.isin(set(B.trials.trial_id))].reset_index(drop=True)
+        if len(L) != len(B.lick_on_s):
+            raise ValueError(f"{animal}_{date}: fourcam lick table has {len(L)} rows, behavior {len(B.lick_on_s)} licks")
+        path = os.environ.get(ce.EXEC3D_TABLE_ENV) or (pose3d_dir() / SL.kin_name() / "licks.csv.gz")
+        K = pd.read_csv(path, usecols=lambda c: c in ("session", "trial_id", "lick_idx", "lick_key", "t_peak_cam4",
+                                                      "side_ml", "out_ap", "down_dv"))
+        K = K[K.session == f"{animal}_{date}"]
+        X = SL.align_kin(L, K, ["side_ml", "out_ap", "down_dv"], f"{animal}_{date}").to_numpy(float)
+        return _landing_weights_xyz(X, animal, width)
     L = pd.read_csv(oo.session_dir(rv, ce._run(), animal, date) / "licks.csv")
     L = L[L.trial_id.isin(set(B.trials.trial_id))]
     if len(L) != len(B.lick_on_s):
         raise ValueError(f"{animal}_{date}: lick table has {len(L)} rows, behavior {len(B.lick_on_s)} licks")
     path = os.environ.get(ce.EXEC3D_TABLE_ENV)
     if not path:
-        # STAYS on the cam4 windows (11-22 four-camera rewire): this joins the cam4 licks.csv above on (trial_id,
-        # lick_idx), which only the cam4 kinematics table shares; moving it needs a lick_key join (open item)
+        # cam4 lick modes: joins the cam4 licks.csv above on (trial_id, lick_idx), which only the cam4 kinematics table
+        # shares (the fourcam mode above uses the fused table by lick_key)
         path = pose3d_dir() / "kinematics" / "licks.csv.gz"
     K = pd.read_csv(path, usecols=["session", "trial_id", "lick_idx", "side_ml", "out_ap", "down_dv"])
     K = K[K.session == f"{animal}_{date}"].drop_duplicates(["trial_id", "lick_idx"])
@@ -406,7 +420,9 @@ _KIN_ALL = {}
 def _kin_all(rv):
     """The whole-session 3-D lick table (pose3d/kinematics_all/licks.csv.gz), read once per process."""
     import pandas as pd
-    path = pose3d_dir(rv) / "kinematics_all" / "licks.csv.gz"
+    # fourcam lick mode: the fused whole-session table (cam1-only rows are absent from the fourcam lick list anyway)
+    name = "kinematics_fused" if _ce().lick_mode() == "fourcam" else "kinematics_all"
+    path = pose3d_dir(rv) / name / "licks.csv.gz"
     if path not in _KIN_ALL:
         _KIN_ALL[path] = pd.read_csv(path, usecols=lambda c: c in ("session", "lick_uid", "lick_key", "trial_id",
                                                                    "t_peak_cam4", "context", "side_ml", "out_ap",
