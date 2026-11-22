@@ -24257,3 +24257,36 @@ events):
   lack them. PS93 0805 has no cam4 / cam1 events in the fusion at all: 6,941 licks, 47 % of the cohort's side-only
   licks. The rest are ITI / June stretches elsewhere. This coverage gap should be checked before any side-only rule
   is fixed.
+
+## 2026-11-21 -- Corrective submovements: edge-peak fix in `within_lick_correction._peaks`; the paper reports what the data show (Priya)
+- *Bug:* `_peaks` zero-padded the speed trace (`np.r_[0, x, 0]`), so the first or last tracked frame of a lick counted
+  as a speed peak whenever speed was still rising toward the edge of the run -- a track cut short by tracking loss
+  (tail into the mouth, one-view frames, side-only), not a submovement; the padding also inflated every prominence.
+  Found by the four-camera CSM diagnostic (`session_poses/pose3d_4cam_3net_20261121/qc_phaseA/csm_examples/`, README
+  Part 3, `gate4_edge/`; scripts `pose3d_csm_examples.py`, `pose3d_csm_fixes.py` 83e4fc06 / 9439ab4c): 71-89 % of the
+  two-camera pre-stroke CSMs were edge peaks, the PS94 / PS95 acute drop disappeared, and the prereg threshold rule
+  landed on the 30 mm/s grid floor.
+- *Decision (Priya 11-21):* "yes fix the measure". A peak is an interior local maximum of the real trace, prominence on
+  the real trace, identically for real licks and both noise surrogates. Grid extended to 10-200 mm/s (step 5) so the
+  prereg rule (smallest theta with surrogate false rate <= 0.05) finds its minimum. `PEAKS_VERSION` 2 in every per-lick
+  pickle: stale pickles are re-extracted / refused (they store prominences only, so counts cannot be corrected).
+  Code 025237ec (test `tests/test_within_lick_csm_edge.py`).
+- *Effect on the current manuscript basis (two-camera v36 3-D, re-run under new names; tables + comparison
+  `Widefield/manuscript_stats/csmfix_20261121/`, README there):* theta_sp 50 -> 20 mm/s (9.1 % of real August-pre licks
+  vs 15.6 %; at 50 mm/s only 1.6 % keep a CSM). Pre-stroke validation still passes (real > surrogate 4/4, 0.094 vs
+  0.028; far lateral > close lateral 3/4, PS93 fails as before). S16 far-contra csm_share: acute -0.13** -> +0.16 (CI
+  touches 0, not starred; its noise surrogate rises +0.08, starred as a control), subacute -0.15** -> +0.00 (n.s.),
+  chronic -0.14** -> -0.07** (surrogate also -0.02, starred as a control; share minus surrogate -0.04, 4/4). 4 star
+  flips in S16 (all CSM), 2 in the pooled family (csm_share acute / subacute), 0 in the 162 published scalar cells
+  (max |q shift| 0.006), no n changes; every non-CSM cell unchanged. A control (current code on the Oct 30 pickles)
+  reproduces the cited tables (2 borderline flips of 3,168 boot cells), so the changes are the fix.
+- *Paper (Priya 11-21):* the paper reports what the data show -- no significant corrective-submovement change with our
+  method. The fixed measure gives no acute / subacute change and an acute rise of the noise surrogate; the chronic
+  decrease still meets the star rule but its noise control decreases too, so it is not read as a loss of corrections.
+  Items to redo (S16E, S16 legend, the six-position Results sentence, the Discussion sentence, Methods 50 mm/s / 15.6 % /
+  0.28-0.33 vs 0.04-0.08) are listed in the csmfix README.
+- *Four-camera:* same fixed measure on `pose3d_4cam_3net_20261121`, cam4 v36 lick windows (the fused four-camera train is
+  not wired yet), `imaging_encoding/p3d-4cam_3net_20261121_daqlk/within_lick_correction_cam4v36licks_csmfix_20261121/`:
+  theta 15 mm/s; far-contra acute +0.11 with the surrogate +0.07, chronic -0.03 (Holm n.s.). Kept separate.
+- *Environment:* analysis desktop, `dlc` env (pandas 2.3.3, numpy 2.2.6, scipy 1.15.3), `PYTHONPATH=<worktree>`,
+  `MKL_THREADING_LAYER=SEQUENTIAL`; it reproduces the cited `c2_recovery_mechanics_v2_stats.csv` exactly.
