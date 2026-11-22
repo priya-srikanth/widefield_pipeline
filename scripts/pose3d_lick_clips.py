@@ -28,8 +28,8 @@ fusion) and the production 3-D point reprojected (x); the 3-D pose seen from cam
 hollow when a side guard flagged them), the fused lick train (filled = kept, coloured by source; hollow = dropped, with
 its reason) and the 3-D licks (``M`` = two tongue runs merged by the 60 ms video-lick floor; `pose3d.lick_peaks` counts
 3-D licks only between the cue and the trial stop, so the row is empty in the ITI), with a moving cursor and the current
-lick's source spelled out. ``used`` = the production table's per-camera reprojection is defined (``<part>_rep_<cam>``);
-on a one-view-fill frame (views = -1) no camera is "used" by that definition, so the one camera's point shows as a ring. 25 fps from 250 fps video (10x slow motion), H.264 / yuv420p (PowerPoint).
+lick's source spelled out. ``used`` = the production table's per-camera reprojection is defined (``<part>_rep_<cam>``;
+a one-view fill, views = -1, shows its one camera's point as used). 25 fps from 250 fps video (10x slow motion), H.264 / yuv420p (PowerPoint).
 
 TRIAL SELECTION (seeded, `SEED` + crc32 of the session; never chosen by eye):
   * one trial per spout position, cue -100 .. +700 ms. Candidates: every trial window covers the clip; >= 2 KEPT fused
