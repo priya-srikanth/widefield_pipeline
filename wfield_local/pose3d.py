@@ -566,6 +566,10 @@ def _cut_flags(t: np.ndarray, tid: np.ndarray, cuts: dict | None) -> np.ndarray:
     return flag
 
 
+#: Floor between 3-D (video) lick peaks; see `lick_peaks`. Separate from the DAQ `lick_detection.min_ili_ms` (40 ms).
+POSE3D_MIN_ILI_MS = 60.0
+
+
 def lick_peaks(S: pd.DataFrame, rig: dict, min_frames: int = 3, max_rep_px: float | None = None,
                cuts: dict | None = None, min_ili_ms: float | None = None) -> pd.DataFrame:
     """One row per 3-D lick: a run of >= ``min_frames`` consecutive frames (4 ms apart, one trial, cue .. trial stop)
@@ -605,13 +609,14 @@ def lick_peaks(S: pd.DataFrame, rig: dict, min_frames: int = 3, max_rep_px: floa
         if j - i >= min_frames:
             runs.append([i, j])
         i = j
-    # PHYSIOLOGICAL FLOOR (Priya 11-21: the pipeline-wide `lick_detection.min_ili_ms`, 40 ms = 25 Hz; these mice lick
-    # 5-7 Hz, fastest bouts ~9-11 Hz). Two runs of one trial whose extension peaks are closer than the floor are ONE
-    # lick split by a tracking dropout or a cut, so they are merged and measured over the union of their frames (the
-    # 11-21 pilot: 37 / 18 sub-40 ms intervals on the four-camera track, 270 / 122 on the two-camera one).
+    # VIDEO-LICK FLOOR (`POSE3D_MIN_ILI_MS`, 60 ms; Priya 11-21 evening). Two runs of one trial whose extension peaks are
+    # closer than the floor are ONE lick split by a tracking dropout or a cut, so they are merged and measured over the
+    # union of their frames. It was the DAQ floor (`lick_detection.min_ili_ms`, 40 ms) until the 11-21 examples
+    # (qc_phaseA/ili_floor_examples): 83 % of 40-60 ms 3-D pairs barely retract between the peaks (85 % have a fragment
+    # peak), while real double pumps start at ~60 ms. The DAQ detector keeps 40 ms: an electrical contact has no
+    # dropout to split it.
     if min_ili_ms is None:
-        from wfield_local import config as _cfg
-        min_ili_ms = _cfg.lick_min_ili_s() * 1000.0
+        min_ili_ms = POSE3D_MIN_ILI_MS
     R = np.linalg.norm(np.where(np.isfinite(P), P, 0.0), axis=1)
     merged = []
     for a, b in runs:

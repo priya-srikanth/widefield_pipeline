@@ -159,9 +159,9 @@ ANCHORS = ("cam4", "cam1")
 #: at the lips still split. A comparison rule only (11-21 pilot: the median tongue return between two cam4 licks that
 #: shared one 3-D run was 1.37 mm, 10 % below 0.77 mm; 0.75 split 72 of 310 merged fused licks): see the module doc.
 MOUTH_PROMINENCE_MM = 0.75
-#: physiological floor between lick peaks (`configs/defaults.yaml lick_detection.min_ili_ms`): a cut leaving two
-#: peaks closer than this is not made
-MIN_ILI_MS = 40.0
+#: floor between video lick peaks (= `pose3d.POSE3D_MIN_ILI_MS`, 60 ms, Priya 11-21; the DAQ detector keeps 40 ms):
+#: a cut leaving two peaks closer than this is not made
+MIN_ILI_MS = 60.0
 
 
 def event_cuts(events: dict, anchors: tuple = ANCHORS, S: pd.DataFrame | None = None) -> dict:

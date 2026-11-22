@@ -24317,3 +24317,21 @@ events):
   `_sync`). Measured: the trial windows already cover the sync span to within a median 0.91 s per session (head 0 s,
   tail 0 s); the "~10 s head / minutes of tail" outside the windows is video outside the DAQ recording. Cohort re-run
   (~6.6 h) NOT launched; Priya to decide.
+
+## 2026-11-21 -- Video (3-D) lick floor = 60 ms (Priya: "60 ms is good"); the DAQ detector keeps 40 ms
+
+- **Decision:** two 3-D lick peaks of one trial closer than 60 ms are one lick (merged over the union of their frames).
+  `pose3d.POSE3D_MIN_ILI_MS = 60` is the `lick_peaks` default, and `camera_licks.MIN_ILI_MS = 60` (no mouth cut leaves
+  two peaks closer than that). The DAQ `lick_detection.min_ili_ms` stays 40 ms: an electrical contact has no tracking
+  dropout to split it.
+- **Why** (`qc_phaseA/ili_floor_examples/`, all 126 sessions):
+  - 40-60 ms pairs: 83 % retract < 20 % toward the mouth between the peaks, 85 % have a fragment peak, and the
+    untracked gap between them is median 1 frame. They are one protrusion split in two.
+  - 60-80 ms pairs are mixed. They include real double pumps (PS92 0809 t43, PS95 0810 t316) that an 80 ms floor
+    would delete.
+  - Counts: -0.57 % of 3-D licks vs 40 ms. Check the outliers PS95 0818 (-4.6 %) and PS92 0605 (-5.7 %).
+  - cam4's 2-D detector calls two licks in 42 % of pre-stroke but 11 % of post-stroke 40-60 ms pairs, while the 3-D
+    shape does not change. That is one reason not to define the 3-D lick set from cam4 calls.
+- **Not adopted:** the retraction rule (offered as an alternative; it would need its own blind check).
+- **Scope:** applies from the next 3-D licks run (Phase B). The `_3net_20261121` lick tables were made at 40 ms and
+  are not rewritten.

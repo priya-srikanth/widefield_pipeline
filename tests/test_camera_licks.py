@@ -125,14 +125,14 @@ def test_lick_peaks_splits_a_run_at_cuts():
         # peaks 24 ms apart: below the physiological floor, so only split with the floor off (min_ili_ms=0)
         L = P3.lick_peaks(S, rig, cuts={1: np.array([23.5])}, min_ili_ms=0.0)
         assert list(L.t_onset_ms) == [0.0, 24.0] and list(L.t_peak_ms) == [12.0, 36.0]
-        assert len(P3.lick_peaks(S, rig, cuts={1: np.array([23.5])})) == 1      # default 40 ms floor merges them
+        assert len(P3.lick_peaks(S, rig, cuts={1: np.array([23.5])})) == 1      # default 60 ms floor merges them
     finally:
         SW.commanded_world = orig
 
 
 def test_lick_peaks_floor_merges_a_dropout_fragment_and_keeps_real_licks():
-    """11-21 (Priya): the 40 ms floor merges two runs of one lick split by a one-frame dropout (peaks < 40 ms apart),
-    measured over the union of their frames, and never merges two real licks (peaks >= 40 ms apart)."""
+    """11-21 (Priya): the 60 ms video floor merges two runs of one lick split by a one-frame dropout (peaks < 60 ms
+    apart), measured over the union of their frames, and never merges two real licks (peaks >= 60 ms apart)."""
     from wfield_local import pose3d as P3
     rig = {"geometry": None}
     import wfield_local.spout_world as SW
@@ -144,9 +144,14 @@ def test_lick_peaks_floor_merges_a_dropout_fragment_and_keeps_real_licks():
         assert len(P3.lick_peaks(S, rig, min_ili_ms=0.0)) == 2
         L = P3.lick_peaks(S, rig)
         assert len(L) == 1 and L.t_peak_ms.iloc[0] == 20.0 and L.reach_mm.iloc[0] == 4.5
-        two = [1, 2, 3, 4, 3, 2, 1] + [np.nan] * 4 + [1, 2, 3, 4, 3, 2, 1]   # peaks 12 / 56 ms (44 ms apart) -> two licks
+        two = [1, 2, 3, 4, 3, 2, 1] + [np.nan] * 4 + [1, 2, 3, 4, 3, 2, 1]   # peaks 12 / 56 ms (44 ms apart)
         S2 = _frames(1, 0.0, two).dropna(subset=["tongue_ml"])
-        assert len(P3.lick_peaks(S2, rig)) == 2
+        assert len(P3.lick_peaks(S2, rig)) == 1                          # under the 60 ms floor -> one lick
+        assert len(P3.lick_peaks(S2, rig, min_ili_ms=40.0)) == 2
+        two = [1, 2, 3, 4, 3, 2, 1] + [np.nan] * 9 + [1, 2, 3, 4, 3, 2, 1]   # peaks 12 / 76 ms (64 ms apart) -> two licks
+        S3 = _frames(1, 0.0, two).dropna(subset=["tongue_ml"])
+        assert len(P3.lick_peaks(S3, rig)) == 2
+        assert P3.POSE3D_MIN_ILI_MS == 60.0 and CL.MIN_ILI_MS == 60.0
     finally:
         SW.commanded_world = orig
 
