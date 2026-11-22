@@ -49,7 +49,7 @@ def _spans(job) -> pd.DataFrame:
     """(session, lick_key, on_ms, off_ms) of one session's fused licks (module level: fanned out)."""
     from wfield_local import session_licks as SL
     s = job
-    A = SL.session_licks(s)
+    A = SL.session_licks(s, include_cam1_only=True)     # spans of every fused row (the _allviews folder keeps cam1-only)
     return pd.DataFrame({"session": s, "lick_key": A.lick_key.astype(str), "on_ms": A.on_ms.to_numpy(float),
                          "off_ms": A.off_ms.to_numpy(float)})
 
