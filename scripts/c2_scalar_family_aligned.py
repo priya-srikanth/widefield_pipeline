@@ -123,6 +123,15 @@ def hit_rate(a):
 def pipeline_rows(a, metric):
     """latency_ms / licks_per_resp / ili_ms: the pipeline's own session_change_tests rows, reused."""
     t = pd.read_csv(a.stats / "change_vs_pre_stats_contra.csv")
+    if getattr(a, "lick_stats", None) is not None:
+        # 11-22 (Priya: four-camera licks for every figure): the fused-train rows (scripts/fourcam_lick_metrics.py);
+        # the cam4 cohort rows above stay the comparison ("old") -- same tests, same draws
+        t4 = pd.read_csv(a.lick_stats)
+        t4 = t4[t4.metric == metric].copy()
+        old = t.assign(old_star=(t.agree == "both").astype(int), old_point=t.boot_change, old_lo=t.boot_lo,
+                       old_hi=t.boot_hi)
+        old = old[old.metric == metric]
+        return None, old, t4
     t = t[t.metric == metric].copy()
     old = t.assign(old_star=(t.agree == "both").astype(int), old_point=t.boot_change, old_lo=t.boot_lo,
                    old_hi=t.boot_hi)
@@ -210,7 +219,8 @@ def build(a):
                      "mean_change", "mwu_U", "p", "boot_change", "boot_lo", "boot_hi", "q_fdr"]].copy()
             r = st._star_columns(r)
             r["metric"] = name
-            r["source"] = "reused change_vs_pre_stats_contra.csv"
+            r["source"] = ("change_vs_pre_stats_contra_fourcam.csv (fused train)" if a.lick_stats is not None
+                           else "reused change_vs_pre_stats_contra.csv")
         else:
             r = _test(d, name)
             r["source"] = "session_change_tests (this script)"
@@ -254,6 +264,10 @@ def main(argv=None):
     ap.add_argument("--lick3d", type=Path, default=KIN / "c2_lick3d_session_summary_ungated.csv",
                     help="per-session 3-D lick summary (scripts/c2_lick3d_session_summary.py; 11-22: was read from "
                          "--ms-data, the hand-made manuscript copy); the old *_stats.csv stars still come from --ms-data")
+    ap.add_argument("--lick-stats", type=Path, default=None,
+                    help="latency_ms / licks_per_resp / ili_ms rows from the FUSED four-camera train "
+                         "(change_vs_pre_stats_contra_fourcam.csv, scripts/fourcam_lick_metrics.py; 11-22) instead of "
+                         "the cam4 cohort rows of --stats (which stay the comparison 'old' columns)")
     ap.add_argument("--out-dir", type=Path, default=None,
                     help="write every output here under its usual file name instead of next to its inputs "
                          "(regeneration check against the manuscript's copies; inputs are still read from the "
