@@ -63,6 +63,9 @@ def aim_licks(preds=None, first_preds=None) -> pd.DataFrame:
     p["ang"] = np.degrees(np.arctan2(p.act_lat, p.act_sag))
     ref = p[p.epoch == "pre"].groupby(["animal", "pos"]).ang.mean()
     p["off"] = p.ang - ref.reindex(pd.MultiIndex.from_arrays([p.animal, p.pos])).to_numpy()
+    if "lick_idx" in p.columns:     # 11-22: a kinematics-built table (aim_tables_from_kinematics) carries lick_idx itself
+        p["first"] = p.lick_idx == 0
+        return p
     # first-lick flag: join on (label, landing lateral) -- the first-lick table carries lick_idx, not a lick id
     F = pd.read_csv(first_preds or il.pred_file("first_lick_preds.csv.gz"))[["label", "act", "lick_idx"]].drop_duplicates(["label", "act"])
     p["k"], F["k"] = p.act_lat.round(6), F.act.round(6)
