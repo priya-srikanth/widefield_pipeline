@@ -187,3 +187,10 @@ Mac prompt `vls_stroke_paper/PROMPT_c2_4cam_3d_refresh.md` (Phase A gate -> B ta
   CSVs are 4-significant-digit (ITI times 10 ms) -> refused by the new loader; Phase B re-fuses (`_gapfix60`). Open for
   Priya: frame-coverage gate on trial classes too (now kinematics only); blind check of the 4cam close-spout jaw calls;
   3-D re-run to remove the side-event rounding (optional). Adoption = the last commit on that branch (droppable).
+- 11-22 example clips (Priya: "new example 4-camera clips with licks ... can replace the older clips"): 6 sessions x 6
+  spouts + a pre-stroke lick bout, an ITI bout and a 60 ms floor-merge clip, all from the PRODUCTION sync60 3-D +
+  `_sync60_gapfix60` fused train, in `session_poses/pose3d_4cam_3net_20261121_sync60/clips_20261122/` (README there;
+  `scripts/pose3d_lick_clips.py`; fusion re-run checked equal to the production table on every rendered frame).
+  docs/EXAMPLE_VIDEOS.md: new current section; the 11-18 r2b clips SUPERSEDED (deletion candidates after Priya reviews).
+  Seen: PS95 0821 far_L t259 -- cam4 calls one long lick where cam1, both sides, the 3-D track and the DAQ see two; the
+  fused train follows cam4 there (cam4 = first split anchor). PS93 0814 sync span adds ~0.2 s at the head only.
