@@ -17,6 +17,14 @@ JSON written next to the figure lists every candidate in that order with its tri
 
     conda activate dlc   # MKL_THREADING_LAYER=SEQUENTIAL, PYTHONPATH=<worktree>
     python -m scripts.fig3c_four_view_strip --session PS93:20260814 --out <folder> --stem S_cam_frames_4view_v26
+    python -m scripts.fig3c_four_view_strip --pick 1 --layout v26b --out <folder> --stem S_cam_frames_4view_v26b
+
+LAYOUT v26b (Priya 11-22: "trial 64, add nose marker, take out lines pointing to keypoints (just label with color-coded
+words), and show whole face in cam 2-4 and include nose in cam1"): fixed per-camera crops (`CROPS_V26B`, source
+pixels, chosen on the full frames of that moment so the whole face is inside in cam4 / cam2 / cam3 and the snout tip
+in cam1), tiles of equal height and crop-proportional width, the nose ring wherever the nose keypoint is tracked (the
+cam1 network has no nose output, so cam1 shows the nose but cannot mark it), and colour-coded word labels at fixed
+offsets from their keypoint (`LABELS_V26B`, tile pixels) with no leader line; a thin dark outline keeps them legible on fur.
 """
 from __future__ import annotations
 
@@ -34,6 +42,19 @@ VIEWS = (("cam4", "front"), ("cam1", "bottom"), ("cam2", "left side"), ("cam3", 
 #: the two-view panel's palette (make_camframes.COL): epoch colours stay reserved
 COL = {"tongue": "#ff3b1f", "jaw": "#2b8cff", "spout": "#b45ff0", "nose": "#00e5ff"}
 FIG_W, FIG_H = 6.5, 1.2
+#: v26b crops (x0, y0, w, h) in source pixels for PS93 0814 trial 64 +456 ms (see LAYOUT v26b)
+CROPS_V26B = {"cam4": (20, 10, 640, 650), "cam1": (110, 50, 420, 520), "cam2": (30, 0, 380, 290),
+              "cam3": (220, 0, 380, 290)}
+#: v26b label offsets (dx, dy, ha) from each keypoint in source pixels
+LABELS_V26B = {
+    "cam4": {"nose": (40, -10, "left"), "tongue": (-62, -50, "right"), "jaw": (22, 18, "left"),
+             "spout": (24, 100, "left")},
+    "cam1": {"tongue": (-58, 10, "right"), "jaw": (26, 20, "left"), "spout": (24, -40, "left")},
+    "cam2": {"nose": (-6, -26, "left"), "tongue": (-4, 26, "right"), "jaw": (10, 24, "left"),
+             "spout": (-14, -20, "right")},
+    "cam3": {"nose": (6, -26, "right"), "tongue": (4, 26, "left"), "jaw": (-10, 24, "right"),
+             "spout": (14, -20, "left")},
+}
 
 
 def load_prep(session: str, preset: str) -> dict:
@@ -83,6 +104,7 @@ def main(argv=None) -> int:
     ap.add_argument("--stem", default="S_cam_frames_4view")
     ap.add_argument("--parts", default="tongue,jaw,spout")
     ap.add_argument("--pick", type=int, default=0)
+    ap.add_argument("--layout", default="v26", choices=("v26", "v26b"), help="see LAYOUT v26b")
     a = ap.parse_args(argv)
     parts = tuple(a.parts.split(","))
     a.out.mkdir(parents=True, exist_ok=True)
@@ -110,6 +132,8 @@ def main(argv=None) -> int:
     order = list(P["order"])
     crop, centre = fit_crops(P, [cl])
 
+    if a.layout == "v26b":
+        return render_v26b(a, P, cl, k, cand, parts, plt)
     plt.rcParams.update({"font.family": "sans-serif", "font.sans-serif": ["Arial", "Liberation Sans", "DejaVu Sans"],
                          "pdf.fonttype": 42, "svg.fonttype": "none"})
     fig, axes = plt.subplots(1, 4, figsize=(FIG_W, FIG_H))
@@ -163,6 +187,64 @@ def main(argv=None) -> int:
     (a.out / f"{a.stem}.json").write_text(json.dumps(info, indent=1))
     print(f"frame: {a.session} trial {cl['trial']} {cl['position']} t = {cl['t_ms'][k]:+.0f} ms from cue "
           f"(candidate {a.pick} of {len(cand)}) -> {a.out / a.stem}.*")
+    return 0
+
+
+def render_v26b(a, P, cl, k, cand, parts, plt) -> int:
+    import cv2
+    import matplotlib.patheffects as pe
+
+    from scripts.pose3d_side_video import Reader
+    plt.rcParams.update({"font.family": "sans-serif", "font.sans-serif": ["Arial", "Liberation Sans", "DejaVu Sans"],
+                         "pdf.fonttype": 42, "svg.fonttype": "none"})
+    order = list(P["order"])
+    draw = tuple(dict.fromkeys(("nose",) + parts))
+    title_in, gap_in, pad = 0.16, 0.04, 0.01
+    asp = [CROPS_V26B[c][2] / CROPS_V26B[c][3] for c, _ in VIEWS]
+    tile_h = (FIG_W - 2 * pad - 3 * gap_in) / sum(asp)
+    fig_h = round(tile_h + title_in + pad, 3)
+    fig = plt.figure(figsize=(FIG_W, fig_h))
+    info = {"session": a.session, "preset": a.preset, "layout": "v26b", "trial": cl["trial"], "position": cl["position"],
+            "t_from_cue_ms": float(cl["t_ms"][k]), "pick": a.pick, "size_in": [FIG_W, fig_h],
+            "rule": __doc__.split("FRAME RULE")[1].split("\n\n")[0], "views": {},
+            "candidates": [{"trial": P["clips"][c]["trial"], "position": P["clips"][c]["position"],
+                            "t_from_cue_ms": float(P["clips"][c]["t_ms"][kk])} for c, kk in cand]}
+    x = pad
+    stroke = [pe.withStroke(linewidth=1.4, foreground="black")]
+    for (cam, title), r in zip(VIEWS, asp):
+        j = order.index(cam)
+        s_ = cl["src"][cam][k]
+        g = cv2.cvtColor(Reader(P["videos"][cam]).get(int(s_)), cv2.COLOR_BGR2GRAY)
+        x0, y0, cw, ch = CROPS_V26B[cam]
+        H, W = g.shape
+        x0, y0 = min(x0, W - cw), min(y0, H - ch)
+        ax = fig.add_axes([x / FIG_W, pad / fig_h, tile_h * r / FIG_W, tile_h / fig_h])
+        x += tile_h * r + gap_in
+        ax.imshow(g[y0:y0 + ch, x0:x0 + cw], cmap="gray", vmin=0, vmax=255, interpolation="bilinear")
+        marked = {}
+        for p in draw:
+            px, py = cl["pts"][p][j, k] - (x0, y0)
+            if not np.isfinite(px):
+                continue
+            marked[p] = [float(v) for v in cl["pts"][p][j, k]]
+            ax.plot(px, py, "o", ms=4.2, mfc="none", mec=COL[p], mew=1.0, zorder=3)
+            dx, dy, ha = LABELS_V26B[cam].get(p, (12, 0, "left"))
+            ax.text(px + dx, py + dy, p, color=COL[p], fontsize=6.2, fontweight="bold", ha=ha, va="center", zorder=4,
+                    path_effects=stroke)
+        ax.set_xlim(-0.5, cw - 0.5)
+        ax.set_ylim(ch - 0.5, -0.5)
+        ax.set_xticks([]); ax.set_yticks([])
+        for sp in ax.spines.values():
+            sp.set_visible(False)
+        ax.set_title(title, fontsize=7.0, pad=2)
+        info["views"][cam] = {"title": title, "video": P["videos"][cam], "frame": int(s_), "crop_xywh": [x0, y0, cw, ch],
+                              "keypoints_px": marked}
+    for ext in ("pdf", "svg", "png"):
+        fig.savefig(a.out / f"{a.stem}.{ext}", dpi=600 if ext == "png" else 300)
+    plt.close(fig)
+    (a.out / f"{a.stem}.json").write_text(json.dumps(info, indent=1))
+    print(f"v26b: {a.session} trial {cl['trial']} {cl['position']} t = {cl['t_ms'][k]:+.0f} ms, {FIG_W} x {fig_h} in "
+          f"-> {a.out / a.stem}.*")
     return 0
 
 
