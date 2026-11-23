@@ -3,7 +3,8 @@
 
 Every cohort-2 pre-vs-post scalar endpoint drawn in the manuscript (Fig 3 C-H, S9A, S11 A-B) is tested with the
 cohort's scalar rule, `orofacial_stats.session_change_tests` (two-sided session Mann-Whitney U of post-epoch vs pre
-session changes; paired, animal-weighted nested bootstrap `analysis_kit.boot_delta`, 2,000 draws, seed 0), and the BH
+session changes; paired, animal-weighted nested bootstrap `analysis_kit.boot_delta`, seed 0; 2,000 draws until 2026-11-23, then the
+session_change_tests default 4,000; `--n-boot` sets it), and the BH
 correction is then applied ONCE across all endpoints x positions x epochs (`orofacial_stats.apply_family_fdr`).
 Aligned star = family q < 0.05 AND the bootstrap 95% CI excludes 0 (`agree == "both"`).
 
@@ -99,8 +100,9 @@ def _long(df, val, pos_map=None, pos_col="pos", date_col="date"):
     return d[["animal", date_col, "epoch", "pos", "v"]].rename(columns={date_col: "date"}).dropna(subset=["v"])
 
 
-def _test(d: pd.DataFrame, name: str) -> pd.DataFrame:
-    r = st.session_change_tests(d.rename(columns={"v": name}), [name], deltas_given=True)
+def _test(d: pd.DataFrame, name: str, n_boot: int | None = None) -> pd.DataFrame:
+    nb = {} if n_boot is None else {"n_boot": n_boot}
+    r = st.session_change_tests(d.rename(columns={"v": name}), [name], deltas_given=True, **nb)
     return r
 
 
@@ -222,7 +224,7 @@ def build(a):
             r["source"] = ("change_vs_pre_stats_contra_fourcam.csv (fused train)" if a.lick_stats is not None
                            else "reused change_vs_pre_stats_contra.csv")
         else:
-            r = _test(d, name)
+            r = _test(d, name, getattr(a, "n_boot", None))
             r["source"] = "session_change_tests (this script)"
         olds[name] = old[["pos", "epoch", "old_star", "old_point", "old_lo", "old_hi"]]
         raw_old[name] = src
@@ -275,6 +277,10 @@ def main(argv=None):
                     help="write every output here under its usual file name instead of next to its inputs "
                          "(regeneration check against the manuscript's copies; inputs are still read from the "
                          "default / given paths)")
+    ap.add_argument("--n-boot", type=int, default=None,
+                    help="bootstrap draws (default: orofacial_stats.session_change_tests' default = analysis_kit.N_BOOT, 4,000 since 2026-11-23; 2000 reproduces tables written before then; same seed)"
+                         ". Applies to the endpoints tested HERE; latency / licks_per_resp / ili rows are reused "
+                         "from --lick-stats / --stats as written (re-run scripts/fourcam_lick_metrics.py --n-boot)")
     ap.add_argument("--dry-run", action="store_true")
     a = ap.parse_args(argv)
     F, src = build(a)

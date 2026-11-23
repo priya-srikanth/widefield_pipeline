@@ -70,7 +70,7 @@ def session_table(p: pd.DataFrame) -> pd.DataFrame:
     return S
 
 
-def tests(S: pd.DataFrame) -> pd.DataFrame:
+def tests(S: pd.DataFrame, n_boot: int | None = None) -> pd.DataFrame:
     rng = np.random.default_rng(0)
     T = []
     for pos in POS:
@@ -80,7 +80,7 @@ def tests(S: pd.DataFrame) -> pd.DataFrame:
                 continue
             r = dict(pos=pos, epoch=ep, n_animals=d.animal.nunique(), n_sessions=len(d))
             for c in SETS:
-                bs = boot(d.assign(chg=d[c]), rng)
+                bs = boot(d.assign(chg=d[c]), rng, n_boot)
                 lo, hi = np.percentile(bs, [2.5, 97.5])
                 r.update({c: d.groupby("animal")[c].mean().mean(), f"{c}_lo": lo, f"{c}_hi": hi})
                 if c == "diff":
@@ -98,6 +98,8 @@ def main(argv=None) -> int:
     ap.add_argument("--first-preds", type=Path, default=None, help="first-lick table (default: il.pred_file cache)")
     ap.add_argument("--out", type=Path, default=None, help="output folder (default: il.OUT_W, the routed iti_licks)")
     ap.add_argument("--force", action="store_true", help="overwrite existing outputs")
+    ap.add_argument("--n-boot", type=int, default=None,
+                    help="bootstrap draws per cell and set (default lick_cued_aim_by_spout.NB = 2000; same seed)")
     a = ap.parse_args(argv)
     out = a.out or il.OUT_W
     targets = {k: out / f"aim_first_vs_all_{k}.csv" for k in ("sessions", "tests")}
@@ -111,7 +113,7 @@ def main(argv=None) -> int:
     print("== per animal first (rule 8): mean session diff (first - all) and chg_all, deg vs own pre")
     A = S.groupby(["pos", "epoch", "animal"])[["diff", "chg_all"]].mean().unstack("animal")
     print(A.reindex([(p_, e) for p_ in POS for e in EPS if (p_, e) in A.index]).round(1).to_string())
-    T = tests(S)
+    T = tests(S, a.n_boot)
     print("\n== pooled (animal-weighted), 95% CI; sig = diff CI excludes 0 (post epochs)")
     print(T[["pos", "epoch", "chg_first", "chg_all", "diff", "diff_lo", "diff_hi", "sig", "sig_bonf"]].round(2)
           .to_string(index=False))

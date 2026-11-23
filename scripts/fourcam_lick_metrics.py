@@ -2,7 +2,13 @@
 licks per responded trial and within-bout ILI per session x spout on the FUSED lick train, tested exactly as the cam4
 cohort rows they replace.
 
-    python scripts/fourcam_lick_metrics.py [--out-dir DIR] [--force]
+    python scripts/fourcam_lick_metrics.py [--out-dir DIR] [--force] [--n-boot N] [--positions CSV]
+
+11-23 (Priya / Cowork: the paper states 4,000 bootstrap draws): ``--n-boot`` sets the fused tests' draw count (default =
+the session_change_tests default, analysis_kit.N_BOOT = 4,000 since 11-23; the 11-22 tables were 2,000). The cam4 replay
+check keeps the STORED table's draw count (``--replay-n-boot``, 2000) so it still verifies the cohort rows exactly.
+``--positions`` reuses an already written position_metrics_fourcam.csv (same sessions / metrics) instead of re-reading
+every session's fused lick train, so a re-test at another draw count only re-runs the tests.
 
 Until now these three Fig 4A metrics came from the cam4 2-D cohort table (`orofacial_cohort`, cam4 LP lick windows):
 `<run>/cohort/tables/prepost_working/stats/change_vs_pre_stats_contra.csv`, read by `c2_scalar_family_aligned.pipeline_rows`.
@@ -92,8 +98,15 @@ def main(argv=None) -> int:
     ap.add_argument("--out-dir", type=Path, default=OUT_DEFAULT)
     ap.add_argument("--jobs", type=int, default=3)
     ap.add_argument("--force", action="store_true")
+    ap.add_argument("--n-boot", type=int, default=None,
+                    help="draws for the fused tests (default: session_change_tests' default, analysis_kit.N_BOOT)")
+    ap.add_argument("--replay-n-boot", type=int, default=2000,
+                    help="draws for the replay of the STORED cam4 cohort rows (the count that table was written with)")
+    ap.add_argument("--positions", type=Path, default=None,
+                    help="reuse this position_metrics_fourcam.csv instead of recomputing the fused metrics per session")
     a = ap.parse_args(argv)
-    if not SL.fused_on():
+    nb = {} if a.n_boot is None else {"n_boot": a.n_boot}
+    if a.positions is None and not SL.fused_on():
         raise SystemExit("no fused lick set selected")
     tables = a.cohort or oc.cohort_dir("tables", run=oc.RUN, rv=PathResolver())
     if not (tables / "position_metrics.csv").exists():
@@ -107,7 +120,7 @@ def main(argv=None) -> int:
             raise SystemExit(f"{f} exists: --force to overwrite")
     ms_ = list(dict.fromkeys([*oc.COHORT_SCALARS, *(m for g in oc.POS_GROUPS.values() for m in g)]))
     # (1) replay of the unmodified cohort table reproduces the stored cam4 rows (stored at 4 significant digits)
-    R0 = st.session_change_tests(Pm, ms_)
+    R0 = st.session_change_tests(Pm, ms_, n_boot=a.replay_n_boot)
     key = ["metric", "pos", "epoch"]
     c = R0[R0.metric.isin(METRICS)].merge(stored, on=key, suffixes=("", "_st"))
     rel = max(float(np.nanmax(np.abs(c[k] - c[k + "_st"]) / np.maximum(np.abs(c[k + "_st"]), 1e-12)))
@@ -117,19 +130,25 @@ def main(argv=None) -> int:
     if not same or rel > 1e-3:
         raise SystemExit("the replay does not reproduce the stored cam4 rows; nothing written")
     # (2) the fused metrics per session x position
-    sess = sorted({(r.animal, r.date) for r in Pm.itertuples()})
-    res, fails = ak.fan_sessions(sess, session_rows, jobs=a.jobs, key=lambda j: f"{j[0]}_{j[1]}")
-    for j, e in fails:
-        print(f"{j}: FAILED {e}")
-    F = pd.DataFrame([r for _, rr in res for r in rr])
-    P4 = Pm.merge(F, on=["animal", "date", "position"], how="left", suffixes=("_cam4", ""))
+    if a.positions is not None:
+        P4 = pd.read_csv(a.positions, dtype={"date": str})
+        assert len(P4) == len(Pm) and (P4[["animal", "date", "position"]].to_numpy()
+                                       == Pm[["animal", "date", "position"]].to_numpy()).all(),             "--positions rows do not match the cohort position table"
+        F = P4[["n_licks", "n_cam1_only"]]
+    else:
+        sess = sorted({(r.animal, r.date) for r in Pm.itertuples()})
+        res, fails = ak.fan_sessions(sess, session_rows, jobs=a.jobs, key=lambda j: f"{j[0]}_{j[1]}")
+        for j, e in fails:
+            print(f"{j}: FAILED {e}")
+        F = pd.DataFrame([r for _, rr in res for r in rr])
+        P4 = Pm.merge(F, on=["animal", "date", "position"], how="left", suffixes=("_cam4", ""))
     miss = P4.licks_per_resp.isna() & P4.licks_per_resp_cam4.notna()
     print(f"{len(F)} fused session x position rows; cohort rows without a fused value: {int(miss.sum())}; cam1-only "
           f"post-cue licks excluded: {int(F.n_cam1_only.sum())} of {int(F.n_licks.sum() + F.n_cam1_only.sum())}")
     Pt = Pm.copy()
     for m in METRICS:
         Pt[m] = P4[m].to_numpy()
-    R4 = st.session_change_tests(Pt, ms_)
+    R4 = st.session_change_tests(Pt, ms_, **nb)
     R4 = R4[R4.metric.isin(METRICS)].reset_index(drop=True)
     pa = per_animal(P4, list(METRICS) + [f"{m}_cam4" for m in METRICS] + ["latency_peak_ms"])
     pd.set_option("display.width", 250)

@@ -78,12 +78,28 @@ def main(argv=None) -> int:
     ap.add_argument("--out-dir", type=Path, default=OUT_DEFAULT)
     ap.add_argument("--jobs", type=int, default=3)
     ap.add_argument("--force", action="store_true")
+    ap.add_argument("--n-boot", type=int, default=None,
+                    help="bootstrap draws (default: session_change_tests' default, analysis_kit.N_BOOT = 4,000 since "
+                         "2026-11-23; the 11-22 table was 2,000)")
+    ap.add_argument("--sessions", type=Path, default=None,
+                    help="reuse a written c2_protrusion_vs_reach_sessions.csv (re-test only; no per-session cam4 read)")
     a = ap.parse_args(argv)
+    nb = {} if a.n_boot is None else {"n_boot": a.n_boot}
     names = ("c2_protrusion_vs_reach_sessions.csv", "c2_protrusion_vs_reach_stats.csv",
              "c2_protrusion_vs_reach_per_animal.csv")
     outs = [a.out_dir / n for n in names]
     if any(o.exists() for o in outs) and not a.force:
         raise SystemExit(f"{a.out_dir}: outputs exist (--force)")
+    if a.sessions is not None:
+        S = pd.read_csv(a.sessions, dtype={"date": str})
+    else:
+        S = _session_table_from_licks(a, ak, config, SL, pose3d_dir)
+    P = S.rename(columns={})
+    R = st.session_change_tests(P, list(METRICS), fdr_scope="all", **nb)
+    return _write(S, P, R, outs)
+
+
+def _session_table_from_licks(a, ak, config, SL, pose3d_dir) -> pd.DataFrame:
     K = pd.read_csv(a.kin or pose3d_dir() / SL.KIN_POSTCUE / "licks.csv.gz", dtype={"date": str, "lick_key": str},
                     usecols=["session", "animal", "date", "epoch", "trial_id", "lick_idx", "position", "lick_key",
                              "seen_cam4", "kin_ok", "reach_mm"])
@@ -99,9 +115,10 @@ def main(argv=None) -> int:
     unmatched = int(J.protrusion_px.isna().sum())
     J = J[J.protrusion_px.notna() & ~J.peak_interp.astype(bool)]
     print(f"post-cue licks {n0}; seen by cam4 with 3-D {len(K)}; no cam4 row {unmatched}; measured cam4 peak {len(J)}")
-    S = session_table(J)
-    P = S.rename(columns={})
-    R = st.session_change_tests(P, list(METRICS), fdr_scope="all")
+    return session_table(J)
+
+
+def _write(S, P, R, outs) -> int:
     # rule 8: per animal x epoch, mean over positions of the session change from the animal's pre at that position
     pa = {}
     for m in METRICS:
@@ -113,7 +130,7 @@ def main(argv=None) -> int:
     pd.set_option("display.width", 250)
     print("== per animal (rule 8): change from pre, mean over positions (px / mm)")
     print(PA.round(2).to_string())
-    a.out_dir.mkdir(parents=True, exist_ok=True)
+    outs[0].parent.mkdir(parents=True, exist_ok=True)
     S.to_csv(outs[0], index=False)
     R.to_csv(outs[1], index=False, float_format="%.4g")
     PA.to_csv(outs[2])

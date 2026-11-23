@@ -45,3 +45,11 @@ def test_cluster_permutation_finds_the_shifted_bins_only():
     assert m[17:23].all() and not m[:10].any() and not m[30:].any()
     m0 = st.cluster_permutation(rng.normal(0, 1, (24, bins)), is_post, animal, n_perm=300)
     assert not m0.any()
+
+
+def test_session_change_tests_default_draws_match_analysis_kit():
+    """2026-11-23 (DECISIONS): the default draw count is analysis_kit.N_BOOT (4,000), as the paper states."""
+    import inspect
+
+    from wfield_local import analysis_kit as ak
+    assert inspect.signature(st.session_change_tests).parameters["n_boot"].default == ak.N_BOOT == 4000

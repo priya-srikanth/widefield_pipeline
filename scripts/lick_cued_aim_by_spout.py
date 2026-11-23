@@ -84,10 +84,13 @@ def _days() -> pd.DataFrame:
     return T[~T.label.map(config.early_pre)]
 
 
-def boot(d: pd.DataFrame, rng) -> np.ndarray:
+def boot(d: pd.DataFrame, rng, nb: int | None = None) -> np.ndarray:
+    """Nested animals -> sessions bootstrap of the animal-weighted mean of ``chg``; ``nb`` draws (default NB = 2000;
+    11-23: `--n-boot 4000` for the paper's 4,000)."""
+    nb = NB if nb is None else nb
     groups = [x.chg.to_numpy() for _, x in d.groupby("animal")]
-    out = np.empty(NB)
-    for b in range(NB):
+    out = np.empty(nb)
+    for b in range(nb):
         pick = rng.integers(len(groups), size=len(groups))
         out[b] = np.mean([rng.choice(groups[i], size=len(groups[i])).mean() for i in pick])
     return out
@@ -100,6 +103,7 @@ def main(argv=None) -> int:
     ap.add_argument("--first-preds", type=Path, default=None)
     ap.add_argument("--out", type=Path, default=None, help="output folder (default il.OUT)")
     ap.add_argument("--no-figures", action="store_true", help="tables only (aim_by_spout_{sessions,tests,time_lmm})")
+    ap.add_argument("--n-boot", type=int, default=None, help=f"bootstrap draws (default NB = {NB}; same seed)")
     a = ap.parse_args(argv)
     out = a.out or il.OUT
     import matplotlib
@@ -120,7 +124,7 @@ def main(argv=None) -> int:
             if d.empty:
                 continue
             m = d.groupby("animal").chg.mean().mean()
-            bs = boot(d, rng)
+            bs = boot(d, rng, a.n_boot)
             lo, hi = np.percentile(bs, [2.5, 97.5])
             lob, hib = np.percentile(bs, [100 * 0.025 / 18, 100 * (1 - 0.025 / 18)])  # 18 = the 6 spouts (weighted: same bar)
             T.append(dict(pos=pos, epoch=ep, mean=m, lo=lo, hi=hi, lo_bonf=lob, hi_bonf=hib, n_animals=d.animal.nunique(),

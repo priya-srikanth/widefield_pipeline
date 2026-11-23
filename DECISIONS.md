@@ -24575,3 +24575,25 @@ gives corr ~0 as in the manuscript (Priya 11-23).
   corr stays ~0 in every epoch. S12F within-session x:post -3.2 deg (95% CI -5.5 to -0.9; manuscript -2.5, -5.2 to 0.3),
   overnight second:post +6.1 deg (3.8 to 8.5; manuscript +5.8, 2.9 to 8.6). Details:
   `vls_stroke_paper/NOTE_CC_B_S12_fourcam_2026-11-23.md`.
+
+## 2026-11-23 -- orofacial_stats.session_change_tests n_boot 2000 -> 4000 to match analysis_kit.N_BOOT; the paper states 4,000
+- *Decision (Priya / Cowork 2026-11-23):* every six-position MWU + bootstrap test uses 4,000 bootstrap draws, as the
+  two-tone cohort and `analysis_kit.N_BOOT` already did. `session_change_tests` now defaults to `analysis_kit.N_BOOT`
+  (4,000); same seed (0) and draw order, so `n_boot=2000` reproduces every earlier table exactly (verified 11-23 for the
+  scalar family, the four-camera lick metrics, the trial outcomes, the aim tables and the treadmill tables: max relative
+  difference 0). Point estimates and MWU p / BH q do not depend on the draw count; only the CI and the bootstrap half of
+  the star do.
+- Opt-in `--n-boot` added to `c2_scalar_family_aligned.py`, `c2_outcome_stats_aligned.py`, `fourcam_lick_metrics.py`
+  (+ `--positions` re-test without re-reading sessions; the cam4 replay check keeps `--replay-n-boot 2000`),
+  `c2_protrusion_vs_reach.py` (+ `--sessions`), `lick_cued_aim_by_spout.py` / `aim_first_vs_all.py` (their own nested
+  bootstrap, default NB stays 2000 -- pass `--n-boot 4000`), and the new `scripts/c2_treadmill_retest.py` (re-tests the
+  stored treadmill readouts).
+- Other callers whose numbers move on their NEXT run (default changed, nothing re-run here): `orofacial_cohort`
+  (cohort change_vs_pre stats + contra replay; its STATS_METHODS.md reads the default), `orofacial_w2`,
+  `combined_encoding_figures.py`, `states_jaw_only_roles.py`, `orofacial_robustness_table.py` (passes its own
+  `--n-boot`), `c2_recovery_mechanics_stats.py` (owned by another window, 11-23), `c2_treadmill_cue_aligned.py`,
+  `c2_treadmill_extras.py`, `c2_engagement_tim/s5_stats_figures.py`, `s22_compare` (scratch). Not changed: the other
+  2,000-draw bootstraps in the repo (`epoch_kit`, `decode_ci`, `beta_maps`, `s5 nested_mean`, ...), which are not this test.
+- Result of the 4,000-draw re-run (vls_stroke_paper/NOTE_CC_B_boot4000_2026-11-23.md): scalar family 93 -> 93 stars
+  (hit rate near ipsi acute lost, all-lick angle near ipsi subacute gained); outcomes, lick metrics, aim (family),
+  protrusion, S15 I, S16 B, S16 D unchanged.

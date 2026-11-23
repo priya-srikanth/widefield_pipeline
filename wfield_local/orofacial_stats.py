@@ -27,6 +27,8 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from wfield_local.analysis_kit import N_BOOT
+
 ALPHA = 0.05
 
 
@@ -56,7 +58,7 @@ def _deltas(P: pd.DataFrame, m: str) -> pd.DataFrame:
 
 
 def session_change_tests(P: pd.DataFrame, metrics, epochs=("acute", "subacute", "chronic"), seed: int = 0,
-                         n_boot: int = 2000, fdr_scope: str = "metric", deltas_given: bool = False) -> pd.DataFrame:
+                         n_boot: int = N_BOOT, fdr_scope: str = "metric", deltas_given: bool = False) -> pd.DataFrame:
     """One row per (metric, position, epoch): session MWU headline (+ BH-FDR) and the animal-weighted bootstrap change
     with its 95% CI.
 
@@ -68,7 +70,12 @@ def session_change_tests(P: pd.DataFrame, metrics, epochs=("acute", "subacute", 
         :func:`apply_family_fdr`.
     ``deltas_given``: the metric columns are ALREADY each session's change from its animal's own pre mean (e.g. a
     source table's ``chg``); skip the re-centering in ``_deltas`` so the source definition is kept exactly. Default
-    False (unchanged). The bootstrap draws (``seed``) are identical under every option."""
+    False (unchanged). The bootstrap draws (``seed``) are identical under every option.
+
+    ``n_boot`` defaults to ``analysis_kit.N_BOOT`` (4,000) since 2026-11-23 (Priya / Cowork: the paper states 4,000
+    for both cohorts; DECISIONS.md 2026-11-23). It was 2,000 before: tables written before that date carry 2,000-draw
+    intervals, and ``n_boot=2000`` reproduces them exactly (same seed, same draw order). The point estimate and the
+    MWU p do not depend on it."""
     if fdr_scope not in ("metric", "all"):
         raise ValueError(f"fdr_scope must be 'metric' or 'all', not {fdr_scope!r}")
     from scipy.stats import mannwhitneyu
