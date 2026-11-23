@@ -34,4 +34,4 @@ four-camera 3-D kinematics (only exception: the 2-D front-camera protrusion chec
 | In-mouth frames = 0 for every measure (item 1) | done 11-23 | angle only changes; 3 angle clusters gained, 0 lost; Fig 2H loses 9 dot bins |
 | All-lick measures as session means (item 19) | done 11-23 | 3 stars gained (2E mod contra chronic; 2D mild contra subacute; 2D mod ipsi subacute), 0 lost |
 | xy pair merged into the scalar family (item 20) | done 11-23 | 1 star gained (S6D mild contra acute) |
-| Fig 2E over all licks (no 5-lick cap) | running | pending |
+| Fig 2E over all licks (no 5-lick cap) | done 11-23 (98654c0) | vs capped mean: 0 gained, 2 lost (moderate contra subacute + chronic; MWU q < .05 but bootstrap CI crosses 0; moderate = 2 animals); vs live 2E: 1 lost (moderate contra subacute). Other 486 cells: q moves <= 0.003, no star changes. Still differs from six-position Fig 4: two-tone speed spans rise to fall (includes retraction) vs onset to peak; px/s vs mm/s. Priya decides: use all-lick 2E? restrict to onset-peak? |
