@@ -24633,3 +24633,24 @@ in PS95.
   fused lick train (cam3 side events are still absent for these two days), frame coverage, side events. Not rebuilt here:
   the statistics families, figures, and session tables built on these (c2_lick3d_session_summary, aim tables, phase,
   cue traces).
+
+## 2026-11-23 -- Reach of today's changes into the encoding and imaging arms (Priya 11-23: "document in repo")
+
+Three changes landed on 11-23 (entries above). What each one touches outside the six-position behavior tables:
+
+1. **PS95 0818 / 0820 cam3 re-included.** The fused (four-camera) lick LIST is unchanged, so every lick time and lick
+   key used by the encoder (`COMBINED_ENCODING_LICKS=fourcam`) and by imaging lick alignment is identical. Only those
+   two sessions' per-lick 3-D values moved: angle <= 0.3 deg, reach <= 0.04 mm, peak speed 4-14 mm/s lower (peak speed
+   is not an encoder regressor). The 11-22 fourcam encoder refit is therefore kept; the new values enter at its next
+   fit. No refit for this alone. Imaging analyses on DAQ licks, trials, classes or the GLM-HMM do not read the 3-D
+   tongue and are unaffected.
+2. **`session_change_tests` default n_boot 2000 -> 4000.** Every caller listed in that entry (orofacial_cohort,
+   orofacial_w2, combined_encoding_figures, states_jaw_only_roles, c2_recovery_mechanics_stats, treadmill, engagement
+   s5 / s22_compare) uses 4,000 on its next run. MWU, BH and point estimates do not move; a star whose bootstrap
+   interval sits on 0 can flip (two six-position cells did). Rule: when an encoding / imaging / engagement figure that
+   uses these tests is next re-rendered, compare its stars against the previous render and list any flip.
+3. **Within-lick launch window = Variant A (`WLC_LAUNCH=2v`).** Changes only the recovery-mechanics behavior tables
+   (S12 A-C, F). The neural tables that read the launch angle (`within_lick_correction` neural fits, recmark /
+   recprim) were not rebuilt; rebuild them under `WLC_LAUNCH=2v` only if a neural figure uses the launch angle (none in
+   the paper as of 11-23). Known blocker for that rebuild: `within_lick_correction run` fails at its neural step
+   (`KeyError: lick_uid`) because the sync60 imaging lick tables carry no `lick_uid` / `lick_key`.
