@@ -34,3 +34,34 @@
 - Queue throttle: at most 3 steps of all lanes at once (`MAXRUN`; coordinator: keep the share load modest).
 - Row I: ITI per-trial extracts (rebuild lineage) queued under the profile (labels = the 107 frame sessions); aim /
   first-lick / recprim tables PARKED until the O2 spont_frA refit is collected into this root (coordinator 06:1x).
+
+## Behavior + encoding (BE agent)
+
+**Decisions needed (Priya):**
+1. **AR-HMM: refit or keep the re-inference?** Re-inferred with the saved v36 fits on VERSION 4 features: 15.5 % of 40-ms
+   frames change state vs the v36 inference (median session 16.5 %, range 1.8-23.6 %), 8.5 % at the reviewed syllable-group
+   level, even across epochs; group usage moves <= 0.6 points. J3 / E5 currently use the re-inferred states.
+2. **GLM-HMM K-selection figure** (states page `model` family): `glm_hmm/v1_floor020` has only K = 5, no
+   `select_k_pooled_all_v2*.csv`. Run a select-K pass, or keep the v1 figure?
+3. **O2 jobs (G4 combined_encoding production; page-lineage spont_frA frame):** commands + smoke results below once ready.
+   frozen_encoder has NO O2 port; the page-lineage frame is proposed as a local run in the four-camera root (asked 14:25).
+
+**Status / log:**
+- 05:00-06:53 class rebuild (launch.py): s1 (05:01-05:17) and trial_attempts (05:00-06:53) exited cleanly. vs
+  `qc/*_precam3on.*`: 12 trials change `cls` / `cls_detail` / `working_raw`, all PS95_0820 (8 no_response -> jaw_only,
+  4 jaw_only -> no_response); `cls_final` unchanged; no other session differs.
+- Manuscript-lineage frozen encoder: NOT refit (coordinator / Priya 11-23: keep the 11-22 fourcam frame). Only a routing
+  check ran (05:05); the empty folder `E/manuscript_cam3on_20261123/` is a delete candidate.
+- Behavior block (05:15-14:18, sub-agent; code 20bc145f): C2 cohort tables (in place; old tree kept as
+  `<sync60>/cohort_pre_cam3on_20261123/`): stars 103 -> 102 (resp_rate far_ipsi subacute lost). A1 within_session_decline
+  (`Widefield/within_session_decline_fourcam_20261123`, 19 -> 18 CI-excluding-0 contrasts, 5 flips), jaw_only_incomplete
+  (`session_poses/cam1_licks_v37_sync60/trial_classes/`), class share figs; disengagement analyse / stopped_trial_traces
+  wait on imaging. D7 lp_trial_counts, misdirected counts, lick_provenance wording (opt-in). C3 nose_onsets,
+  contact_direction_predictability, first_lick_latency, pose3d_spout_error + summary fig, lmm_curve_summaries
+  (`labcams/grant_figures/lmm_hidden_fourcam_20261123`). J5 TIM (1.4 % of trials change class), J4 AR-HMM features v4 +
+  re-infer (decision 1), J3 collect + states page figs (delta-vs-pre CI stars 98 -> 101), E5 FR cue-aligned 32 -> 30 stars,
+  E3 FR validate / lick_epochs / readouts (`master_pre_v1_fourcam_20261123`; 16 -> 16 stars), E4 fr_enl_decode (no change).
+- 14:26 G6 / G7 on the 11-22 frame: `lp_stage/reanalysis_20261123/g67_chain.py` (pid 26092) -> lick_correction extract +
+  behavior + neural in `E/iti_licks_lickcorr_fourcam_20261123`, then WLC_LAUNCH=2v run + summarise in
+  `E/within_lick_correction_fourcam_launch2v_neural_20261123`.
+- 14:25 G4 bundle `rebuild_20261123_fourcam/o2/enc_fourcam_20261123`: one-session build (PS93_0814) first, for timing.
