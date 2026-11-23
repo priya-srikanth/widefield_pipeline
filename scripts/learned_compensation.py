@@ -59,7 +59,12 @@ def _adopted() -> str:
 
 V36 = _run_dir()          # name kept for its readers (lick_iti_matched_markers); it is the INPUT run, not always v36
 E = _rmode.encoding_out_root(_adopted())  # the ADOPTED run's TAGGED encoding tree (coordinator 11-04: REDO, routed)
-OUT = E / "learned_compensation"
+#: 11-22 (four-camera re-run): explicit folders, inherited by spawned workers through the environment, so a re-run
+#: never lands on the tables of an earlier run. LC_OUT_DIR = this script's outputs; WLC_OUT_DIR = the
+#: within_lick_correction folder it reads licks_scored.csv.gz from (same variable within_lick_correction --out sets).
+OUT = Path(os.environ["LC_OUT_DIR"]) if os.environ.get("LC_OUT_DIR", "").strip() else E / "learned_compensation"
+WLC_DIR = (Path(os.environ["WLC_OUT_DIR"]) if os.environ.get("WLC_OUT_DIR", "").strip()
+           else E / "within_lick_correction")
 FIG = OUT / "figures"
 FD = OUT / "figdata"
 TIM = OUT / "timing"
@@ -172,7 +177,7 @@ def cmd_run(jobs: int) -> None:
     for d in (OUT, FIG, FD, TIM):
         d.mkdir(parents=True, exist_ok=True)
     t0 = time.time()
-    LS = pd.read_csv(E / "within_lick_correction" / "licks_scored.csv.gz", low_memory=False,
+    LS = pd.read_csv(WLC_DIR / "licks_scored.csv.gz", low_memory=False,
                      usecols=lambda c: c in LS_COLS or c == "lick_key")     # lick_key: tables written since 11-22
     LS = LS[LS.animal.isin(AN) & LS.epoch.isin(EPS)]
     LS = LS[(LS.epoch != "pre") | (~LS.label.map(config.early_pre))].copy()      # August-only pre (already so; asserted)
