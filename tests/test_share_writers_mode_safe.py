@@ -27,6 +27,8 @@ BEHAVIOUR = {
     # manuscript_stats, refusing to overwrite; supplementary four-view clips
     "fourcam_lick_metrics.py", "c2_protrusion_vs_reach.py", "pose3d_supp_clips.py",
     "c2_farcontra_aim_hit.py", "pose3d_jump_qc.py",
+    # 11-22: Fig 5F FaceRhythm peak by trial class (reads FR proj + class table; new readouts folder)
+    "face_rhythm_peak_trialclass.py",
     "apparatus_mouth.py", "cam1_clean_qc.py", "cam1_incomplete_licks.py", "cam1_lick_aim.py", "cam1_licks.py",
     "cam4_timing_check.py", "face_rhythm_aligned_maps.py", "face_rhythm_asym_aligned.py", "face_rhythm_band_maps.py",
     "face_rhythm_bout_split.py", "face_rhythm_evr_epochs.py", "face_rhythm_factor_clips.py",
