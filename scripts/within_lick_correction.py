@@ -540,7 +540,9 @@ def neural_session(item) -> dict:
     an, ep = str(z["animal"]), str(z["epoch"])
     sid = f"{an}_2026{label[-4:]}"
     cols = list(z["cols"])
-    M = pd.DataFrame({k: z[k] for k in ["trial_id", "lick_idx", "lick_uid", "side_ml", "reach_mm", "t"]})
+    # lick_uid only in the pre-11-22 extracts; the sync60 npz carries lick_key instead (join chosen below)
+    M = pd.DataFrame({k: z[k] for k in ["trial_id", "lick_idx", "lick_uid", "side_ml", "reach_mm", "t"]
+                      if k in z.files})
     M["row"] = np.arange(len(M))
     M["pos"] = [oc.pos_key(p, "L") for p in z["position"]]
     M["contact_n"] = z["contact"].astype(bool)

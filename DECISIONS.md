@@ -24674,3 +24674,19 @@ Three changes landed on 11-23 (entries above). What each one touches outside the
 - *Code (opt-in, defaults unchanged):* `kinematics_pooled_figs --cue-dir / --phase-dir` (read a re-run's cue-trace /
   phase folders), `c2_recovery_mechanics_stats --lickcorr` (a WFIELD_ITI_OUT_W lick_correction folder). lick_correction
   under WFIELD_ITI_OUT_W needs `<OUT_W>/lick_correction` to exist before the run (it does not create it).
+
+## 2026-11-23 -- Four-camera re-analysis of the remaining arms: scope and four decisions (Priya)
+Priya 11-23: "go through the inventory of what needed to be re-run with the 4-camera kinematics and start that work"
+-- "with the latest parameters and decisions". Inventory: `docs/status/FOURCAM_REANALYSIS_INVENTORY_2026-11-23.md`
+(11 current, 3 stale, 24 not run, 2 blocked). Delete candidates: `docs/status/DELETE_CANDIDATES_FOURCAM.md`.
+- **Imaging rebuild root:** a NEW sync60 root (not a subtree of `rebuild_20261103`); the v36 rebuild stays for comparison.
+- **Movement page encoder:** refit the page's own lineage (v7g3_t3d_spont_frA, swapmask) on four-camera licks into a new
+  folder; the manuscript-lineage fourcam fit stays as is.
+- **GLM-HMM:** `glm_hmm.out_dir()` defaults to `v1_floor020` wherever it exists (sync60); `GLMHMM_OUT` still overrides.
+  Old `glm_hmm/v1` under sync60 joins the delete candidates.
+- **AR-HMM:** re-infer with the saved fits (inventory D5); report the share of frames that change state; refit only if large.
+- **Standing rule applied:** imaging frozen decoders keyed on a changed pre-stroke set get a new spec; the old store is kept.
+- **PS95 0818 / 0820 jaw calls** re-run on the cam3-on 3-D (only those two sessions differ: 48 trials flip `jaw3d_moved`,
+  24 each way); classes and attempts rebuilt; previous tables kept as `qc/*_precam3on.*`.
+- **`within_lick_correction` neural step:** reads `lick_uid` only when the npz has it (sync60 npz carries `lick_key`; the
+  join already preferred it), unblocking the KeyError on all sessions.

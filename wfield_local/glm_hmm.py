@@ -354,7 +354,10 @@ def out_dir() -> Path:
     from wfield_local import orofacial_outputs as oo
     from wfield_local.paths import PathResolver
     from wfield_local import orofacial_cohort as oc
-    return Path(oo.root(PathResolver())) / oc.RUN / "glm_hmm" / "v1"
+    base = Path(oo.root(PathResolver())) / oc.RUN / "glm_hmm"
+    # Priya 11-23: v1_floor020 (0.20 mm jaw floor, tongue_at_lips -> jaw_only, cam1-only flicks out) is the default
+    # wherever it exists (the four-camera sync60 run); older runs only have v1.
+    return base / ("v1_floor020" if (base / "v1_floor020").is_dir() else "v1")
 
 
 # ------------------------------------------------------------------------------------------------------------- runs ----
