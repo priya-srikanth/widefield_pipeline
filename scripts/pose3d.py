@@ -16,6 +16,8 @@ table has the same columns (`pose3d_side.frames_table`, + ``{part}_views`` and p
 runs unchanged. ``<side bundle>`` = the whole-session O2 output of the side model (model space, mapped to raw);
 ``clips`` = the side review clips (crop2 predictions; only their trials -- a test of the path). Writes to ``--out``
 (default `session_poses/pose3d_4cam/`), never over the two-camera tables.
+QC (11-22): ``WIDEFIELD_POSE3D_SIDE_OFF=cam3`` (`pose3d_side.SIDE_OFF_ENV`) forces a side camera off in every session (as
+a spout-gate drop); it needs ``--out`` and skips the side-events write (scripts/qc_cam3_drop.py).
 """
 from __future__ import annotations
 
@@ -91,6 +93,9 @@ def run_session(s: str, source: str, four_cam: str | None = None, out_dir: str |
         # the per-session spout gate (`pose3d_side.side_gate`) or are dropped for that session (`side_dropped`)
         from scripts.pose3d_side_check import CLIPS, PREDS
         from wfield_local import pose3d_side as PS
+        off = PS.forced_off()
+        if off and not out_dir:      # a forced-off QC run (`pose3d_side.SIDE_OFF_ENV`) never lands on the adopted tables
+            raise SystemExit(f"{PS.SIDE_OFF_ENV}={'+'.join(off)} needs --out (a new folder)")
         Z = (PS.fuse_session(rv, animal, date, Path(PREDS), Path(rv.root("dlc")) / CLIPS, c1=c1, c4=c4)
              if four_cam == "clips" else PS.fuse_session(rv, animal, date, side_bundle=four_cam, c1=c1, c4=c4))
         S = PS.frames_table(Z)
@@ -100,7 +105,7 @@ def run_session(s: str, source: str, four_cam: str | None = None, out_dir: str |
         L = P3.lick_peaks(S, rig, cuts=CL.event_cuts(CL.production_events(rv, animal, date, span="all"), S=S))
         out = Path(out_dir) if out_dir else pose3d_dir(rv, _four_cam_source())
         out.mkdir(parents=True, exist_ok=True)
-        if four_cam != "clips":
+        if four_cam != "clips" and not off:   # forced-off QC: the bundle's side events stay the production ones
             # 11-21 efficiency: the side cameras' 2-D lick events need the fused session (`fuse_session`, the slow
             # part) but no cam1 / cam4 input, so they are written here once; `scripts.camera_licks session --saved`
             # then fuses them with the (re-detected) cam1 / cam4 events without rebuilding the session
@@ -114,6 +119,7 @@ def run_session(s: str, source: str, four_cam: str | None = None, out_dir: str |
         L.to_csv(out / f"{animal}_{date}_licks.csv", index=False)
         gate = Z["stats"]["side_gate"]
         row.update({"side_dropped": "+".join(Z["stats"]["side_dropped"]) or "", "june_cam4_scaled": bool(jf),
+                    **({"side_forced_off": "+".join(off)} if off else {}),
                     **{f"side_rms600_{c}": round(gate[c]["rms600"], 2) for c in PS.SIDE},
                     **{f"side_max600_{c}": round(gate[c]["max600"], 2) for c in PS.SIDE}})
         row.update({"four_cam": four_cam, "n_frames": len(S), "droplet_frames": Z["stats"]["droplet_frames"],

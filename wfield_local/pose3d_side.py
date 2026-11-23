@@ -556,6 +556,29 @@ def side_gate(perr: dict, widths: dict, rms_max: float = SIDE_GATE_RMS_PX600, ma
     return out
 
 
+#: FORCED SIDE-CAMERA EXCLUSION (QC, Priya 11-22: "does leaving cam3 out change conclusions?"): a comma list of side
+#: cameras (e.g. "cam3") that `fuse_session` treats as FAILING the spout gate in every session, exactly like a gate drop
+#: (the camera adds no points). Opt-in; unset = the production behavior. `scripts.pose3d` refuses to write a forced-off
+#: run without ``--out`` and never writes its side events into the bundle folder.
+SIDE_OFF_ENV = "WIDEFIELD_POSE3D_SIDE_OFF"
+
+
+def forced_off(value: str | None = None) -> tuple[str, ...]:
+    """The side cameras forced off (`SIDE_OFF_ENV`, or ``value``); () when unset. Unknown names raise."""
+    import os
+    raw = os.environ.get(SIDE_OFF_ENV, "") if value is None else value
+    cams = tuple(c.strip() for c in raw.split(",") if c.strip())
+    bad = [c for c in cams if c not in SIDE]
+    if bad:
+        raise ValueError(f"{SIDE_OFF_ENV}={raw!r}: unknown side camera(s) {bad}; one of {SIDE}")
+    return cams
+
+
+def apply_forced_off(gate: dict, off) -> dict:
+    """``gate`` (`side_gate`) with every camera in ``off`` failing (``forced_off`` = True); the rms / max kept. Pure."""
+    return {c: ({**v, "pass": False, "forced_off": True} if c in off else dict(v)) for c, v in gate.items()}
+
+
 def fuse_session(rv, animal: str, date: str, preds_dir: Path | None = None, clips_dir: Path | None = None, cg=None,
                  side_bundle: str | None = None, c1=None, c4=None) -> dict:
     """The whole four-camera pipeline for one session. Side input: the review clips (``preds_dir`` + ``clips_dir``;
@@ -588,6 +611,9 @@ def fuse_session(rv, animal: str, date: str, preds_dir: Path | None = None, clip
     meds = {"cam1": info["med1"], "cam4": info["med4"], **{c: SF.ruler_medians(side[c][1], side[c][0]) for c in SIDE}}
     g, perr = pose_all(cg, {c: meds[c] for c in ("cam1", "cam4", "cam2", "cam3")}, rig["geometry"])
     gate = side_gate(perr, {c: side_width(rv, animal, date, c) for c in SIDE})
+    off = forced_off()
+    gate_true = gate                                  # the spout gate as measured (side_dropped keeps reporting it)
+    gate = apply_forced_off(gate, off)
     order = [c.get_name() for c in g.cameras]
     cams = {c.get_name(): c for c in g.cameras}
     scale = {c: px_per_mm(cams[c]) / px_per_mm(cams["cam4"]) for c in order}
@@ -610,7 +636,7 @@ def fuse_session(rv, animal: str, date: str, preds_dir: Path | None = None, clip
     parts = {}
     ok_t = np.isfinite(S[["tongue_ml", "tongue_ap", "tongue_dv"]].to_numpy(float)).all(1)
     stats = {"scale": scale, "nose_offsets": offsets["nose"], "tongue_offsets": offsets["tongue"], "side_gate": gate,
-             "side_dropped": [c for c in SIDE if not gate[c]["pass"]],
+             "side_dropped": [c for c in SIDE if not gate_true[c]["pass"]], "side_forced_off": list(off),
              "droplet_frames": int(drop.any(0).sum()),
              # the SESSION GATES of `pose3d.failed_sessions`, exactly as the two-camera run computes them (its spout fit
              # and its cam1 tongue reprojection): the same sessions fail in both sources
