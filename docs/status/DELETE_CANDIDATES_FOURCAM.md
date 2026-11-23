@@ -34,3 +34,4 @@ Roots: `E` = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__
 | [ ] | `C:/Users/SabatiniLab/wfield_cache` entries keyed on superseded inputs | rebuilt on demand | -- |
 
 Keep (never delete): `frozen_models/` stores; raw videos / scans; LP predictions; `qc_cam3_drop_20261122/clips/`.
+| [ ] | `C:/Users/SabatiniLab/.widefield_session_cache_restnlfv1/` (Phase B RESTnl, bare env, 11-22 06:34) | `rebuild_20261123_fourcam/session_cache_restnlfv1` (built after the class rebuild and the cam1-only rule) once D5 finishes | 11-23 |

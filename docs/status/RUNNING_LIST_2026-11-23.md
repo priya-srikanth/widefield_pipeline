@@ -17,3 +17,20 @@
 - 05:12 Smoke: restnl_mask 1 session 1.8 min (cold cache). 05:13 started D5 RESTnl (DAQ gate, --jobs 4) and in-root
   trial_attempts (--jobs 3) -> camera_coverage -> RESTnl LP gate. Share link saturated (~120 MB/s receive): runtimes are I/O bound.
 - Queue: `lp_stage/imaging_fourcam_20261123/{queue.py,steps.py,launch_lane.py}` (CREATE_NO_WINDOW, .done markers, RAM gate).
+
+### Imaging rebuild, 06:20
+- Render code pinned: DETACHED worktree `Github/wf_fourcam_render` at e1a3c85d (branch `imaging/fourcam-rebuild-20261123`:
+  rest15f / rest_frozen_decoder_nl `--lp fused`; run_quiet_chain env from `QS_PROFILE`; state space `WF_SS_PROFILE` /
+  `WF_SS_RUN`; state_space_rest_decomp lick class follows the fused train).
+- nose_onsets (sync60, 05:41) seeded into the root (sha256 in REBUILD_ROOT.json); not recomputed.
+- Session-cache reuse (Priya 11-23 "reuse caches where valid"): the v36 rebuild's DAQ-arm trial-feature entries (tf-*, 2,678
+  files, 3.7 GB) are COPIED into the new cache, renamed to the new class signature (csig 3d7bbe921e -> 241a3ea7f7). Valid:
+  `_trial_features` reads DAQ cues / DAQ licks + imaging only (LP licks only under the LP source, whose `-lp...` kinds are
+  not copied), no gate or class; the csig is in the kind only to guard the prune; the file signature (LocaNMF file
+  mtime + size, params, CACHE_VERSION) is kept. Script `lp_stage/imaging_fourcam_20261123/tools/seed_tf_cache.py`, manifest
+  in its logs. Every other kind (gated / class / LP) is rebuilt.
+- In-root trial_attempts is slow (~3 h at 3 workers, link saturated). DAQ-arm steps wait only on RESTnl (DAQ gate) +
+  camera_coverage; LP / attempt / quiet steps wait on the in-root trial_attempts (independent of the default-run pid 26880).
+- Queue throttle: at most 3 steps of all lanes at once (`MAXRUN`; coordinator: keep the share load modest).
+- Row I: ITI per-trial extracts (rebuild lineage) queued under the profile (labels = the 107 frame sessions); aim /
+  first-lick / recprim tables PARKED until the O2 spont_frA refit is collected into this root (coordinator 06:1x).
