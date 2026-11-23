@@ -55,7 +55,7 @@ def main(figdir: str, lc: str, out_stem: str) -> None:
         seq = pd.concat([pre, post]).reset_index(drop=True)
         prev, ticks, labels = None, [], []
         x0 = 0.0
-        for k, r in seq.iterrows():
+        for _k, r in seq.iterrows():
             xs = x0 + np.array([-0.25, 0, 0.25])
             ys = r[cols].to_numpy(float) - b0
             col = "0.3" if r.epoch == "pre" else C[r.epoch]
