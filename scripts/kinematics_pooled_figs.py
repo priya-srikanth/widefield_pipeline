@@ -176,6 +176,16 @@ def fig_angle(out: Path, rng, contra: bool = False, save: bool = True) -> pd.Dat
 _S3D: dict = {}
 
 
+#: 2026-11-23 (cam3 re-add re-run): opt-in input folders (--cue-dir / --phase-dir) so a re-run whose pose3d_cue_traces /
+#: pose3d_phase outputs went to new folders reads those, never the routed defaults; None = the routed defaults (unchanged)
+_CUE_DIR: Path | None = None
+_PHASE_DIR: Path | None = None
+
+
+def _phase_dir() -> Path:
+    return _PHASE_DIR or _tc().kin_out_dir(pose3d_dir(), "phase" + _kin_sfx(), "pose3d_phase" + _kin_sfx())   # routed + gate-named (A20)
+
+
 def sessions3d() -> pd.DataFrame:
     """The 3-D per-session medians behind `fig_3d` / `fig_days` (one row per session; ``<measure>|<position>`` columns +
     jaw FAR_DIR / CLOSE_DIR), under THE kinematics gate (A20, Priya 11-07: the pooled-table gap). "working" (default):
@@ -253,7 +263,7 @@ def fig_cue(out: Path, contra: bool = False) -> pd.DataFrame:
     import matplotlib.pyplot as plt
     from wfield_local import config
     from scripts.pose3d_cue_traces import out_dir as _cue_out     # routed + gate-named (A20, 11-06)
-    T = pd.read_csv(_cue_out(pose3d_dir(), "cue") / "traces.csv.gz")
+    T = pd.read_csv((_CUE_DIR or _cue_out(pose3d_dir(), "cue")) / "traces.csv.gz")
     sset = "working" if (T.set == "working").any() else "engaged"     # pose3d_cue_traces' all-trials set (11-06: working)
     T = T[(T.set == sset) & T.measure.isin(["mid", "jaw_open"])]
     rows = []
@@ -343,7 +353,7 @@ def fig_paths3d(out: Path, shared: bool = False, contra: bool = False) -> pd.Dat
     pose3d_paths_pooled_shared.png."""
     import matplotlib.pyplot as plt
     from wfield_local import config
-    C = pd.read_csv(_tc().kin_out_dir(pose3d_dir(), "phase" + _kin_sfx(), "pose3d_phase" + _kin_sfx()) / "curves.csv.gz")    # routed + gate-named (A20)
+    C = pd.read_csv(_phase_dir() / "curves.csv.gz")    # routed + gate-named (A20)
     C = C[(C.kind == "norm") & (C.lickset == "all") & C.measure.isin(["side", "out", "down", "j_side", "j_out", "j_down"])
           & (C["cov"] >= 0.5)]
     aug = C[(C.epoch == "pre") & (~C.date.astype(str).map(config.early_pre))]
@@ -540,7 +550,7 @@ def phase_data(contra: bool = False) -> pd.DataFrame:
     from wfield_local import config
     from wfield_local.orofacial_cohort import CLUSTER_PERM
     from wfield_local.orofacial_stats import cluster_permutation
-    C = pd.read_csv(_tc().kin_out_dir(pose3d_dir(), "phase" + _kin_sfx(), "pose3d_phase" + _kin_sfx()) / "curves.csv.gz")    # routed + gate-named (A20)
+    C = pd.read_csv(_phase_dir() / "curves.csv.gz")    # routed + gate-named (A20)
     C = C[(C.kind == "norm") & (C.lickset == "all") & C.measure.isin(["mid", "dist"]) & (C["cov"] >= 0.5)
           & C.x.between(*PHASE_WIN)]
     C = C[(C.epoch != "pre") | (~C.date.astype(str).map(config.early_pre))]          # August pre only
@@ -679,7 +689,13 @@ def main(argv=None) -> int:
     ap.add_argument("--no-contra", action="store_true", help="full run without the + = contra figures")
     ap.add_argument("--phase-only", action="store_true", help="only the 3-D lick-phase figures (+ = ipsi and + = contra)")
     ap.add_argument("--plot-only", action="store_true", help="with --phase-only: redraw from the *_figdata.csv")
+    ap.add_argument("--cue-dir", type=Path, default=None,
+                    help="pose3d_cue_traces output folder to read (default: its routed folder)")
+    ap.add_argument("--phase-dir", type=Path, default=None,
+                    help="pose3d_phase output folder to read (default: its routed folder)")
     a = ap.parse_args(argv)
+    global _CUE_DIR, _PHASE_DIR
+    _CUE_DIR, _PHASE_DIR = a.cue_dir, a.phase_dir
     out = a.out or _tc().kin_out_dir(pose3d_dir(), "figures/pooled" + _kin_sfx(), "kinematics_pooled_figs" + _kin_sfx())
     assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)

@@ -24654,3 +24654,23 @@ Three changes landed on 11-23 (entries above). What each one touches outside the
    recprim) were not rebuilt; rebuild them under `WLC_LAUNCH=2v` only if a neural figure uses the launch angle (none in
    the paper as of 11-23). Known blocker for that rebuild: `within_lick_correction run` fails at its neural step
    (`KeyError: lick_uid`) because the sync60 imaging lick tables carry no `lick_uid` / `lick_key`.
+
+## 2026-11-23 -- cam3-on final pass: every 3-D-derived six-position table rebuilt, families at 4,000 draws; speed robustness
+- *What:* after the PS95 0818 / 0820 cam3 swap (8b3563a7), the session tables built on the 3-D were rebuilt into NEW
+  `_cam3on` folders / names (nothing overwritten): `c2_lick3d_session_summary` (+ allviews), the aim tables (labels =
+  `clean_v36/.../iti_licks/zscore_check/where_preds_z_splitr8.csv`; the 11-22 aim tables reproduce from it on the
+  superseded inputs to 1.8e-15), lick_cued_aim_by_spout / aim_first_vs_all at 4,000, Fig 4F tables, rev-up + correlations,
+  the phase chain (Fig 4G-I), cue traces, kinematics_pooled_figs, protrusion vs reach, within_lick_correction (only the
+  two sessions re-extracted; launch Variant A), lick_correction behavior, learned_compensation and
+  c2_recovery_mechanics_stats --n-boot 4000. Driver `lp_stage/phaseB_20261122/cam3on_20261123/driver.py`.
+- *Result:* no star flips in the 162-cell family (93 -> 93; 30 subacute cells change value), S12 (0 flips), protrusion
+  (0) or the phase clusters (none gained / lost; subacute extents move by 1-15 bins). Details:
+  `vls_stroke_paper/NOTE_CC_B_cam3on_2026-11-23.md`.
+- *Robustness (Priya-approved, NOT adopted):* `scripts/c2_speed_smooth_robustness.py` recomputes peak speed from a
+  5-frame Savitzky-Golay 3-D trajectory (and the raw pipeline value as a check) and the tongue-path noise / <= 2-view
+  share by epoch. All-lick speed stars are identical with SG5 (11 -> 11); acute tongue paths are not noisier (second-
+  difference RMS -0.02 mm vs own pre, 1 of 4 animals up), but the raw - SG5 peak gap rises +1.8 mm/s acutely in all
+  four animals, so raw peak speed slightly UNDERSTATES the acute drop.
+- *Code (opt-in, defaults unchanged):* `kinematics_pooled_figs --cue-dir / --phase-dir` (read a re-run's cue-trace /
+  phase folders), `c2_recovery_mechanics_stats --lickcorr` (a WFIELD_ITI_OUT_W lick_correction folder). lick_correction
+  under WFIELD_ITI_OUT_W needs `<OUT_W>/lick_correction` to exist before the run (it does not create it).

@@ -69,6 +69,8 @@ SOURCES = {
 
 #: 11-22 (four-camera re-run): learned_compensation output folder if not <enc>/learned_compensation (--lc; set in main)
 _LC: Path | None = None
+#: 2026-11-23: lick_correction output folder if not <enc>/iti_licks/lick_correction (--lickcorr; a WFIELD_ITI_OUT_W re-run)
+_LICKCORR: Path | None = None
 
 
 def _src_path(enc: Path, rel: str, wlc: Path | None) -> Path:
@@ -78,6 +80,8 @@ def _src_path(enc: Path, rel: str, wlc: Path | None) -> Path:
         return wlc / rel.split("/", 1)[1]
     if _LC is not None and rel.startswith("learned_compensation/"):
         return _LC / rel.split("/", 1)[1]
+    if _LICKCORR is not None and rel.startswith("iti_licks/lick_correction/"):
+        return _LICKCORR / rel.split("/", 2)[2]
     return enc / rel
 
 
@@ -123,7 +127,7 @@ def pipeline_ref(enc: Path, wlc: Path | None = None) -> pd.DataFrame:
     ref.append(t3.rename(columns={"delta": "pipe_delta", "lo": "pipe_lo", "hi": "pipe_hi", "p": "pipe_p",
                                   "p_holm": "pipe_p_holm", "n_same": "pipe_n_same"})[
         ["metric", "epoch", "pipe_delta", "pipe_lo", "pipe_hi", "pipe_p", "pipe_p_holm", "pipe_n_same"]])
-    b = pd.read_csv(enc / "iti_licks/lick_correction/corr_beh_boot.csv")
+    b = pd.read_csv(_src_path(enc, "iti_licks/lick_correction/corr_beh_boot.csv", wlc))
     b = b[(b.group == "all") & (b.order == "any") & (b.metric == "step_b") & (b.epoch != "pre")]
     ref.append(b.rename(columns={"delta": "pipe_delta", "delta_lo": "pipe_lo", "delta_hi": "pipe_hi"})[
         ["metric", "epoch", "pipe_delta", "pipe_lo", "pipe_hi"]])
@@ -137,6 +141,8 @@ def main(argv=None) -> int:
                     help="within_lick_correction output folder if not <enc>/within_lick_correction (e.g. a --out re-run)")
     ap.add_argument("--lc", type=Path, default=None,
                     help="learned_compensation output folder if not <enc>/learned_compensation (e.g. LC_OUT_DIR re-run)")
+    ap.add_argument("--lickcorr", type=Path, default=None,
+                    help="lick_correction output folder if not <enc>/iti_licks/lick_correction (e.g. a WFIELD_ITI_OUT_W re-run)")
     ap.add_argument("--family", type=Path, default=FAMILY)
     ap.add_argument("--out-dir", type=Path, default=OUT_DIR)
     ap.add_argument("--ms-data", type=Path, default=MS_DATA)
@@ -144,8 +150,8 @@ def main(argv=None) -> int:
                     help="bootstrap resamples for session_change_tests (default: that function's default); the S12 "
                          "four-camera launch-2v tables pass 4000 explicitly (Priya 2026-11-23)")
     a = ap.parse_args(argv)
-    global _LC
-    _LC = a.lc
+    global _LC, _LICKCORR
+    _LC, _LICKCORR = a.lc, a.lickcorr
     base = a.out_dir / "c2_recovery_mechanics_v2"
     outs = [Path(f"{base}_{x}.csv") for x in ("stats", "sessions", "per_animal")]
     outs.append(a.ms_data / "c2_scalar_family_aligned_with_recovery.csv")
