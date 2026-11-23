@@ -58,11 +58,13 @@ from wfield_local.pose3d import pose3d_dir  # noqa: E402
 # tree `<root>/LP_analysis/<orofacial_cohort.RUN>/imaging_encoding` (= orofacial_outputs.encoding_root under the
 # profile) and the run tags run_mode gives under it. The tags stay literals so no profile is applied inside an analysis
 # process (module caches would keep it); tests/test_state_space.py recomputes them in a subprocess and pins them.
-PROFILE = "cohort1_rebuild_20261103"
+# WF_SS_PROFILE / WF_SS_RUN (11-23): the four-camera imaging root runs this arm with
+# WF_SS_PROFILE=cohort1_rebuild_20261123_fourcam WF_SS_RUN=lp_r4_heatmap_20261013__clean_v37_sync60 (unset = the v36 rebuild).
+PROFILE = os.environ.get("WF_SS_PROFILE", "cohort1_rebuild_20261103")
 REBUILD = Path(render_profile.load(PROFILE)["rebuild_root"])
 # 11-22: the REBUILD's encoder tree was built on the v36 run; adopting v37 (orofacial_cohort.RUN) does not move a
 # finished rebuild, so its run is pinned here (it followed oc.RUN, which pointed the state-space arm at an empty tree)
-REBUILD_RUN = "lp_r4_heatmap_20261013__clean_v36"
+REBUILD_RUN = os.environ.get("WF_SS_RUN", "lp_r4_heatmap_20261013__clean_v36")
 ENCODING = REBUILD / "LP_analysis" / REBUILD_RUN / "imaging_encoding"
 XTAG = "hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801"           # run_mode.tag(include=XOUT parts): extracts
 WTAG = XTAG + "_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk"   # run_mode.tag(): tables
