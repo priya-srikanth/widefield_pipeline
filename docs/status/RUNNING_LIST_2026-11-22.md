@@ -98,3 +98,22 @@ Manuscript inputs of record: `HANDOFF_to_CC_2026-11-22_manuscript_v26.md` + `PRO
 - `imaging_encoding/qc_check_flicks/` (class re-check copies, byte-identical to qc/).
 - `pose3d_4cam_3net_20261121_sync60/kinematics_fused/c2_lick3d_session_summary_ungated.csv` (all contexts incl. pre-cue / ITI; wrong population).
 - `clips_20261122/*_main.mp4` (re-encode test copies) if Priya confirms the originals open.
+
+## 11-22 evening: recovery mechanics + correlations on four-camera licks (CC-B)
+- Four-camera neural chain (`lp_stage/phaseB_20261122/neural_chain_fourcam.py`): the two ITI AIM steps (`aim_by_spout`,
+  `aim_first_vs_all`) were SKIPPED -- superseded by the kinematics aim tables (`imaging_encoding/aim_kinematics_fourcam/`,
+  commit 0cd9ab23). `aim_by_spout` had stopped the chain at 20:08 (wf_enc4cam lacked 0cd9ab23); pilot was merged into
+  pilot/encoder-fourcam (0465d699) and `lickcorr_extract` / `lickcorr_behaviour` re-run from wf_enc4cam. `lickcorr_behaviour`
+  wrote corr_beh_* and then exited rc 1 in its plot step (no neural figdata) -- tables fine, figures out of scope.
+- Recovery chain `lp_stage/phaseB_20261122/recmech_chain.py` (log logs/recmech.log): within_lick_correction ->
+  `imaging_encoding/within_lick_correction_fourcam/` (47 + 33 min); iti_dock_audit needed `covref_covariates.csv.gz`, so
+  `lick_covariate_reference.py` was run first (16 min); dock audit 48 min; learned_compensation ->
+  `imaging_encoding/learned_compensation_fourcam/` (LC_OUT_DIR / WLC_OUT_DIR); stats ->
+  `manuscript_stats/c2_4cam_sync60_20261122/recovery_mechanics_final/` (pooled family in `ms_data/`, not the paper folder).
+- revup_behaviour -> `imaging_encoding/revup_fourcam/` (REVUP_OUT_DIR; recovery step aim from REVUP_AIM_CSV =
+  aim_kinematics_fourcam/aim_by_spout_sessions.csv; the neural recmark / recprim tables were not rebuilt);
+  c2_manuscript_correlations -> `manuscript_stats/c2_4cam_sync60_20261122/correlations_final/`.
+- Results and changes vs the manuscript: `vls_stroke_paper/NOTE_CC_4cam_2026-11-22.md` (within-lick correction now
+  positive acutely -- definitional, the earlier fused lick onset; T3 loses PS95 and about half its sessions).
+- Delete candidates after review: this morning's cam4-era `imaging_encoding/within_lick_correction/` and
+  `learned_compensation/` (superseded by the `_fourcam` folders).
