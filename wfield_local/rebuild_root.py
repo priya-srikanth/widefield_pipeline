@@ -310,8 +310,14 @@ def seed_plan() -> list[tuple[str, Path, Path]]:
     from wfield_local.paths import PathResolver
     rv = PathResolver()
     out = []
+    run = None
     for name, rels in (spec().get("seed_inputs") or {}).items():
         for rel in rels:
+            if "{run}" in rel:                       # 11-23: the adopted LP run (orofacial_cohort.RUN), not a literal
+                if run is None:
+                    from wfield_local import orofacial_cohort as oc
+                    run = oc.RUN
+                rel = rel.replace("{run}", run)
             src = Path(rv.input_root(name)) / rel
             dst = Path(rv.derived(name, rel))
             out.append((f"{name}/{rel}", src, dst))
