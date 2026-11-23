@@ -64,6 +64,7 @@ from __future__ import annotations
 from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
+import os
 import pickle
 from pathlib import Path
 
@@ -73,7 +74,12 @@ from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # re
 
 RUN_ROOT = _encoding_root()
 OUT_W = RUN_ROOT / "iti_licks"
-REV = OUT_W / "revup"
+#: 11-22 (four-camera re-run): REVUP_OUT_DIR = an explicit output folder (inherited by the spawned workers through the
+#: environment), so a re-run never lands on an earlier run's tables; REVUP_AIM_CSV = the far-contra aim for the
+#: recovery step (5a) from a sessions table with the aim_by_spout schema (label, pos, off): `off` at far_contra is
+#: exactly recmark_sessions' `aim` (checked on v36: r = 1.000, 107 sessions). Used when the neural recovery-marker
+#: tables (recmark / recprim) of the run do not exist; iti_ang and marker are then NaN.
+REV = Path(os.environ["REVUP_OUT_DIR"]) if os.environ.get("REVUP_OUT_DIR", "").strip() else OUT_W / "revup"
 SESS = "behaviour_sessions_c1far"  # per-session cache (revup/sessions/ belongs to the imaging helper; its *.pkl from a
 #                                    first, superseded run of this script = the onset-only lick rule, not read).
 #                                    11-17: "_c1far" = cam1 events through `cam1_licks.keep_mask` (far-from-mouth guard);
@@ -520,9 +526,19 @@ def track(S: pd.DataFrame) -> pd.DataFrame:
     the primary balance marker (recprim_sessions.csv) on the same post sessions for comparison."""
     import statsmodels.formula.api as smf
     POS = _pos_order()
-    R = pd.read_csv(OUT_W / "recmark_sessions.csv", usecols=["label", "aim", "iti_ang"]).drop_duplicates("label")
-    M = pd.read_csv(OUT_W / "recprim_sessions.csv")
-    M = M[M.panel == "cued first lick -> aim"][["label", "marker"]].drop_duplicates("label")
+    aim_csv = os.environ.get("REVUP_AIM_CSV", "").strip()
+    if aim_csv:                                    # 11-22: aim from an aim_by_spout-schema table (see REV above)
+        A = pd.read_csv(aim_csv)
+        R = (A[A.pos == "far_contra"][["label", "off"]].rename(columns={"off": "aim"})
+             .assign(iti_ang=np.nan).drop_duplicates("label"))
+    else:
+        R = pd.read_csv(OUT_W / "recmark_sessions.csv", usecols=["label", "aim", "iti_ang"]).drop_duplicates("label")
+    fp = OUT_W / "recprim_sessions.csv"
+    if aim_csv and not fp.exists():
+        M = pd.DataFrame({"label": pd.Series(dtype=str), "marker": pd.Series(dtype=float)})
+    else:
+        M = pd.read_csv(fp)
+        M = M[M.panel == "cued first lick -> aim"][["label", "marker"]].drop_duplicates("label")
     meas = ["lat_med_ms", "contact_med_ms", "sh_after_left", "sh_none", "sh_late", "wait_med_ms", "revup_med_ms",
             "late_wait_med_ms", "late_revup_med_ms"]
     W = S[S.pos == "far_contra"][["label", "animal", "epoch", "day", *meas]].copy()
