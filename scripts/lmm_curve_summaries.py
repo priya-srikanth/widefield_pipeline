@@ -84,11 +84,15 @@ def main(argv=None) -> int:
     from wfield_local.paths import PathResolver
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--out", required=True)
+    ap.add_argument("--curves", default=None, help="3-D phase curves.csv.gz (default <pose3d>/phase/curves.csv.gz; "
+                    "e.g. a re-run's phase_fused_cam3on/curves.csv.gz)")
+    ap.add_argument("--cohort-tables", default=None, help="cam4 cohort tables folder (default: orofacial_cohort."
+                    "cohort_dir('tables'))")
     a = ap.parse_args(argv)
     out = Path(a.out)
     rv = PathResolver()
-    base = oc.cohort_dir("tables", rv=rv)          # the cam4 cohort's gate-named tables (A27)
-    jobs = {**cam4(base), **pose3d(pose3d_dir(rv) / "phase" / "curves.csv.gz")}
+    base = Path(a.cohort_tables) if a.cohort_tables else oc.cohort_dir("tables", rv=rv)   # cam4 cohort tables (A27)
+    jobs = {**cam4(base), **pose3d(Path(a.curves) if a.curves else pose3d_dir(rv) / "phase" / "curves.csv.gz")}
     for stem, (D, title, ylab) in jobs.items():
         D = D[D.epoch.isin(["pre", "acute", "subacute", "chronic"])]
         two = "panel" in D

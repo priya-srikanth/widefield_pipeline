@@ -297,7 +297,7 @@ def _common(set_name, T, E, ep, animals) -> str:
     ns = ", ".join(f"{an} " + "/".join(str(int(E.loc[(an, e), "n_sessions"])) if (an, e) in E.index else "0"
                                        for e in ep) for an in animals)
     return (f"Set `{set_name}`; {len(T)} projected sessions ({ns} "
-            f"sessions {'/'.join(ep)}). Licks: v36 LP `licks_all.csv`, executed DIRECTION from the lick's own angle "
+            f"sessions {'/'.join(ep)}). Licks: the fused four-camera lick train (`session_licks`), executed DIRECTION from the lick's own angle "
             f"(left > +{frv.ANGLE_DEG:.0f} deg, right < -{frv.ANGLE_DEG:.0f} deg, center between; + = the animal's "
             f"left; all lesions LEFT, so RIGHT = contralesional); licks with onset 0..{frv.RESP_S:.0f} s after an "
             f"engaged trial's cue (n = {nl['left']} left / {nl['centre']} center / {nl['right']} right). "
@@ -318,13 +318,15 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--set", default="pilot_pre_PS92_PS93", help="factor set (or <bundle>/<set>)")
     ap.add_argument("--jobs", type=int, default=3)
+    ap.add_argument("--out", type=Path, default=None,
+                    help="output folder (default <dlc>/face_rhythm/cam4/validation/<set>/lick_epochs)")
     ap.add_argument("--stats-only", action="store_true", help="per_lick_stats from data/sessions.csv, no recompute")
     ap.add_argument("--plot-only", action="store_true",
                     help="all three figures from the stored data/*.csv (+ lick_triggered.npz); no statistics recomputed")
     a = ap.parse_args(argv)
     rv = PathResolver()
     fdir = fro.factor_dir(rv, set_name=a.set)
-    out = Path(rv.root("dlc")) / "face_rhythm" / "cam4" / "validation" / fro.set_tag(a.set) / "lick_epochs"
+    out = a.out or Path(rv.root("dlc")) / "face_rhythm" / "cam4" / "validation" / fro.set_tag(a.set) / "lick_epochs"
     writeguard.assert_writable(out.parent.parent)
     lta_f = figure_layout.sidecar_for(out, "lick_triggered", ".npz", mkdir=False)
     if a.stats_only or a.plot_only:

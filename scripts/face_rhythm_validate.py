@@ -61,6 +61,8 @@ def main(argv=None) -> int:
     ap.add_argument("--set", default="pilot_pre_PS92_PS93", help="factor set (or <bundle>/<set>)")
     ap.add_argument("--epoch", default="pre", help="sessions of this epoch ('all' for every projected session)")
     ap.add_argument("--jobs", type=int, default=3)
+    ap.add_argument("--out", type=Path, default=None,
+                    help="output folder (default <dlc>/face_rhythm/cam4/validation/<set>)")
     a = ap.parse_args(argv)
     rv = PathResolver()
     fdir = fro.factor_dir(rv, set_name=a.set)
@@ -76,13 +78,13 @@ def main(argv=None) -> int:
     R = S[0]["lta"].shape[-1]
     labels = fro.labels(fdir)
     names = [lb if not lb.startswith("fr_") or not lb[3:].isdigit() else "" for lb in labels]
-    out = Path(rv.root("dlc")) / "face_rhythm" / "cam4" / "validation" / fro.set_tag(a.set)
+    out = a.out or Path(rv.root("dlc")) / "face_rhythm" / "cam4" / "validation" / fro.set_tag(a.set)
     writeguard.assert_writable(out.parent)
     out.mkdir(parents=True, exist_ok=True)
     labs = ", ".join(f"{s['animal']}_{s['date'][4:]}" for s in S)
     common = (f"Set `{a.set}`; {len(S)} {a.epoch} sessions ({labs}). Expression = projected temporal weights x the FR "
               f"normalizer D (ABSOLUTE; a.u. on the animal's scale), 25 Hz trial grid (engaged trials, cue -2..+4 s). "
-              f"Licks: v36 LP `licks_all.csv`, every lick whose +-1 s window lies inside a projected trial window; "
+              f"Licks: the fused four-camera lick train (`session_licks`), every lick whose +-1 s window lies inside a projected trial window; "
               f"executed DIRECTION from the lick's own angle (`peak_angle_deg`, + = the animal's left): left > "
               f"+{frv.ANGLE_DEG:.0f} deg, right < -{frv.ANGLE_DEG:.0f} deg, center between (not the spout). Curves: mean "
               f"over a session's licks of a class (>= {MIN_LICKS} licks), then the mean over sessions; legend n = licks. "

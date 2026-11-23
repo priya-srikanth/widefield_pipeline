@@ -3,7 +3,7 @@ traces to see if we can refine" the clip-based names). Computation only; figures
 
 Per projected session (``proj/<key>.npz`` of a factor set; ABSOLUTE expression = weights x FR normalizer D):
 
-``lick_table``       every LP-detected lick of the session (v36 ``licks_all.csv``: DAQ onset ``daq_on_s``, executed
+``lick_table``       every lick of the session (`session_licks`: the fused four-camera train; DAQ onset ``daq_on_s``, executed
                      angle ``peak_angle_deg``, + = the animal's LEFT) with its direction class (left > +ANGLE_DEG,
                      right < -ANGLE_DEG, center between), the trial's spout ``position``, its NUMBER within its bout
                      (``n_in_bout``, 1 = first; v36 ``bout_idx``), time from the cue of the engaged trial it falls in,
@@ -45,12 +45,30 @@ PER_LICK_S = 0.2                         # expression AT a lick: mean over 0..+0
 DIRECTIONS = ("left", "centre", "right")
 
 
+LICK_COLS = ["trial_id", "position", "bout_idx", "daq_on_s", "peak_angle_deg"]
+
+
+def _session_lick_rows(rv, animal: str, date: str) -> pd.DataFrame:
+    """THE session lick set (`session_licks.session_licks`: the fused four-camera train since 11-22, cam4 licks_all.csv
+    with fusion off) with the cam4 columns this module needs. On the fused train, ``peak_angle_deg`` (cam4 image angle,
+    the direction class) and ``bout_idx`` come from cam4 licks_all.csv joined by LICK KEY (a fused lick cam4 saw keeps
+    cam4's peak); licks cam4 did not see get NaN -> direction "unknown", no bout number (11-23, four-camera re-run)."""
+    from wfield_local import session_licks as sl
+    A = sl.session_licks(f"{animal}_{date}", rv)
+    if (A.source == "cam4").all():
+        return A[LICK_COLS]
+    f = Path(rv.root("orofacial")) / V36 / "sessions" / animal / date / "licks_all.csv"
+    C = pd.read_csv(f, usecols=["trial_id", "t_ms", "bout_idx", "peak_angle_deg"])
+    C = C.assign(lick_key=sl.lick_key(C.trial_id, C.t_ms)).drop_duplicates("lick_key").set_index("lick_key")
+    for c in ("bout_idx", "peak_angle_deg"):
+        A[c] = C[c].reindex(A.lick_key.to_numpy()).to_numpy()
+    return A[LICK_COLS]
+
+
 def lick_table(rv, animal: str, date: str, cues: np.ndarray) -> pd.DataFrame:
     """LP licks of the whole session with direction class, time from the nearest preceding engaged cue (NaN when the
     lick is outside cue -2..+4 s of any of ``cues``) and instantaneous frequency."""
-    f = Path(rv.root("orofacial")) / V36 / "sessions" / animal / date / "licks_all.csv"
-    L = pd.read_csv(f, usecols=["trial_id", "position", "bout_idx", "daq_on_s", "peak_angle_deg"]
-                    ).dropna(subset=["daq_on_s"])
+    L = _session_lick_rows(rv, animal, date).dropna(subset=["daq_on_s"])
     L = L.sort_values("daq_on_s").reset_index(drop=True)
     # lick NUMBER within its bout (v36 bout_idx within the trial; 1 = the bout's first lick); NaN without a bout
     g = L.dropna(subset=["bout_idx"]).groupby(["trial_id", "bout_idx"]).cumcount() + 1
