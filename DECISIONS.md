@@ -24690,3 +24690,13 @@ Priya 11-23: "go through the inventory of what needed to be re-run with the 4-ca
   24 each way); classes and attempts rebuilt; previous tables kept as `qc/*_precam3on.*`.
 - **`within_lick_correction` neural step:** reads `lick_uid` only when the npz has it (sync60 npz carries `lick_key`; the
   join already preferred it), unblocking the KeyError on all sessions.
+
+## 2026-11-23 -- Six-position lick-phase cluster tests at 5,000 permutations for the paper (Priya; Cowork prompt PROMPT_CC_B_phase_perm5000)
+One permutation count across both cohorts (two-tone uses 5,000). `pose3d_phase_from_peak.py` and
+`c2_phase_sessions_aligned.py` take `--n-perm` (default `CLUSTER_PERM` = 500, unchanged for exploratory figures) and the
+latter `--out-suffix`; its parity gate now runs at the input file's count (CLUSTER_PERM), since the uncorrected mask can
+legitimately differ at another count. Reproduction at 500: all 16 cam3on tables byte-identical. At 5,000 (seed 0), phase
+axis: dist far_R acute (bins 51-71) GAINED (q .054 -> .039); down0 close_R acute (bins 46-61) LOST (q .041 -> .059);
+ms axis: dist and down0 close_L subacute lost (q .047 / .043 -> .050 / .052). No cluster changes extent. Fig 4G dots
+(union of side0 + down0) and Fig 4H (mid0) unchanged; S11 dist panels change. Tables:
+`data_4cam_20261122/phase/*_boot4000_cam3on_perm5000.csv`; note `vls_stroke_paper/NOTE_CC_B_phase_perm5000_2026-11-23.md`.
