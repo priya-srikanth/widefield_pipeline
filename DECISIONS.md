@@ -24558,3 +24558,20 @@ of its windows are fragments missing the 3-D peak, inflating the post-stroke fir
 - Fig 4A latency / licks per responded trial / ILI on the fused train (`scripts/fourcam_lick_metrics.py`; latency =
   first-lick ONSET), read by `c2_scalar_family_aligned --lick-stats`.
 - Stays cam4: frozen_encoder's FROZEN_LICKSPOUT posterior (cam4 (trial_id, lick_idx) join), QC / comparison scripts.
+
+## 2026-11-23 -- Four-camera launch window = first frame with >= 2-camera 3-D support (WLC_LAUNCH=2v) (Priya 11-23)
+Four-camera launch window = first frame with >=2-camera 3-D support (WLC_LAUNCH=2v). The default (fused onset) starts
+on a one-view fill in 53% of pre / 73% of acute far-contra licks, which biases the pre-stroke launch reference; Variant A
+gives corr ~0 as in the manuscript (Priya 11-23).
+- Applied to S12 (six-position aim recovery; S18 in main.tex at v26): within_lick_correction summarise with
+  `WLC_LAUNCH=2v` (`imaging_encoding/within_lick_correction_fourcam_launch2v`, sharing the launchdefault pickles),
+  learned_compensation re-run on it (`imaging_encoding/learned_compensation_fourcam_launch2v`; timing pickles copied
+  from `learned_compensation_fourcam`), and `c2_recovery_mechanics_stats.py --n-boot 4000` ->
+  `manuscript_stats/c2_4cam_sync60_20261122/recovery_mechanics_final_launch2v_boot4000`. Driver
+  `lp_stage/phaseB_20261122/s12_launch2v_chain.py`. Bootstraps in the chain: session_change_tests 4,000 (explicit);
+  learned_compensation / within_lick_correction boot_delta = analysis_kit.N_BOOT = 4,000; the S12F mixed models are
+  statsmodels MixedLM Wald intervals (no bootstrap).
+- Result vs the manuscript (two-camera v36): no star flips in panels A-C or E; step_b subacute loses its star (D);
+  corr stays ~0 in every epoch. S12F within-session x:post -3.2 deg (95% CI -5.5 to -0.9; manuscript -2.5, -5.2 to 0.3),
+  overnight second:post +6.1 deg (3.8 to 8.5; manuscript +5.8, 2.9 to 8.6). Details:
+  `vls_stroke_paper/NOTE_CC_B_S12_fourcam_2026-11-23.md`.

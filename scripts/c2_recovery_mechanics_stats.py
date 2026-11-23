@@ -35,6 +35,7 @@ and under --ms-data (default the paper's manuscript_code/data, next to the 11-19
   c2_scalar_family_aligned_with_recovery.csv   the pooled family: the 162 cells + the new endpoint cells, family q
 
 Usage: python scripts/c2_recovery_mechanics_stats.py [--enc DIR] [--wlc DIR] [--lc DIR] [--family CSV] [--out-dir DIR] [--ms-data DIR]
+       [--n-boot N]   (2026-11-23: explicit bootstrap count; omitted = the session_change_tests default, as before)
 """
 from __future__ import annotations
 
@@ -139,6 +140,9 @@ def main(argv=None) -> int:
     ap.add_argument("--family", type=Path, default=FAMILY)
     ap.add_argument("--out-dir", type=Path, default=OUT_DIR)
     ap.add_argument("--ms-data", type=Path, default=MS_DATA)
+    ap.add_argument("--n-boot", type=int, default=None,
+                    help="bootstrap resamples for session_change_tests (default: that function's default); the S12 "
+                         "four-camera launch-2v tables pass 4000 explicitly (Priya 2026-11-23)")
     a = ap.parse_args(argv)
     global _LC
     _LC = a.lc
@@ -153,7 +157,8 @@ def main(argv=None) -> int:
     print(PA.round(3).to_string(index=False))                       # rule 8: per animal first
     T = []
     for src, (_, ms) in SOURCES.items():
-        r = st.session_change_tests(D[src], ms, epochs=EPOCHS, fdr_scope="metric")
+        kw = {} if a.n_boot is None else {"n_boot": a.n_boot}
+        r = st.session_change_tests(D[src], ms, epochs=EPOCHS, fdr_scope="metric", **kw)
         T.append(r.assign(source=src))
     T = pd.concat(T, ignore_index=True)
     S = pd.concat([D[src][["label", "animal", "epoch", "day", "pos"] + ms].melt(
