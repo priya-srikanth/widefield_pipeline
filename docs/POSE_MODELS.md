@@ -1124,6 +1124,12 @@ four review sessions mapped to raw (`lp_sidecam.to_raw`); reference = production
     0603 cam3 (1.6 / 1.65 rms in 600-px units), both outside the curated set (6/6-6/8 + 8/6 on) anyway. Optional
     tidy-up: scale the 09-11 side K by width / 600 for 800-px sessions, so June camera positions are physical (3-D points
     are unchanged either way). Pipeline code not changed yet (report first).
+  * **August gate drops and the cam3 override (11-23).** In the whole-session run `pose3d_4cam_3net_20261121_sync60` the
+    gate also dropped **PS95 0818 / 0820 cam3** (rms600 1.56 / 1.26, max 2.33 / 2.03): chin-fur contact biases the cam3
+    close-spout tip labels 1-2 px, while cam3 tongue / jaw tracking is fine. Priya 11-23 ("can we add back cam3 then?"):
+    both are re-included with cam3 forced on (`WIDEFIELD_POSE3D_SIDE_ON=cam3`, the standard six-spout pose; validated
+    against 0819 / 0821, DECISIONS 2026-11-23); their summary rows still read `side_dropped = cam3` (the real gate) with
+    `side_forced_on = cam3`. Without cam3 PS95 peak speed read 7-8 mm/s high.
 * **Correction 11-04 (Priya: "I thought we were using cam4 spout as truth and building in the cam1 offset").** Against
   the commanded tip (= cam4's keypoint), per position, PS93 0814: `session_3d`'s per-frame spout -1.04 mm ap (it
   triangulates cam1's inferior + cam4's superior edge as one point; identical at all six positions), cam1 + cam4 with

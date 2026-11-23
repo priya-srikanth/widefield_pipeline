@@ -18,6 +18,10 @@ runs unchanged. ``<side bundle>`` = the whole-session O2 output of the side mode
 (default `session_poses/pose3d_4cam/`), never over the two-camera tables.
 QC (11-22): ``WIDEFIELD_POSE3D_SIDE_OFF=cam3`` (`pose3d_side.SIDE_OFF_ENV`) forces a side camera off in every session (as
 a spout-gate drop); it needs ``--out`` and skips the side-events write (scripts/qc_cam3_drop.py).
+11-23: ``WIDEFIELD_POSE3D_SIDE_ON=cam3`` forces a side camera ON (bypasses the spout gate; ``side_dropped`` still reports
+the real gate, + ``side_forced_on`` and the per-spout gate px), ``WIDEFIELD_POSE3D_PNP_EXCLUDE=cam3:close_center,close_R``
+poses it from the other spouts (``pnp_*`` columns: that pose's reprojection on all six). Same ``--out`` rule; the side
+events of a forced run go to ``--out``, never into the bundle folder.
 """
 from __future__ import annotations
 
@@ -93,9 +97,12 @@ def run_session(s: str, source: str, four_cam: str | None = None, out_dir: str |
         # the per-session spout gate (`pose3d_side.side_gate`) or are dropped for that session (`side_dropped`)
         from scripts.pose3d_side_check import CLIPS, PREDS
         from wfield_local import pose3d_side as PS
-        off = PS.forced_off()
-        if off and not out_dir:      # a forced-off QC run (`pose3d_side.SIDE_OFF_ENV`) never lands on the adopted tables
-            raise SystemExit(f"{PS.SIDE_OFF_ENV}={'+'.join(off)} needs --out (a new folder)")
+        off, on, excl = PS.forced_off(), PS.forced_on(), PS.pnp_exclude()
+        forced = bool(off or on or excl)
+        if forced and not out_dir:   # a forced QC run (`pose3d_side.SIDE_OFF_ENV` / `SIDE_ON_ENV` / `PNP_EXCLUDE_ENV`)
+            # never lands on the adopted tables
+            raise SystemExit(f"forced side-camera options ({PS.SIDE_OFF_ENV} / {PS.SIDE_ON_ENV} / {PS.PNP_EXCLUDE_ENV}) "
+                             "need --out (a new folder)")
         Z = (PS.fuse_session(rv, animal, date, Path(PREDS), Path(rv.root("dlc")) / CLIPS, c1=c1, c4=c4)
              if four_cam == "clips" else PS.fuse_session(rv, animal, date, side_bundle=four_cam, c1=c1, c4=c4))
         S = PS.frames_table(Z)
@@ -105,7 +112,10 @@ def run_session(s: str, source: str, four_cam: str | None = None, out_dir: str |
         L = P3.lick_peaks(S, rig, cuts=CL.event_cuts(CL.production_events(rv, animal, date, span="all"), S=S))
         out = Path(out_dir) if out_dir else pose3d_dir(rv, _four_cam_source())
         out.mkdir(parents=True, exist_ok=True)
-        if four_cam != "clips" and not off:   # forced-off QC: the bundle's side events stay the production ones
+        if four_cam != "clips" and forced:    # forced QC (11-23): its side events go to --out; the bundle's stay put
+            SE = pd.concat([CL.side_events(Z, c, span="all") for c in PS.SIDE], ignore_index=True)
+            SE.to_csv(out / f"{animal}_{date}_side_events.csv", index=False, float_format="%.10g")
+        if four_cam != "clips" and not forced:
             # 11-21 efficiency: the side cameras' 2-D lick events need the fused session (`fuse_session`, the slow
             # part) but no cam1 / cam4 input, so they are written here once; `scripts.camera_licks session --saved`
             # then fuses them with the (re-detected) cam1 / cam4 events without rebuilding the session
@@ -120,6 +130,12 @@ def run_session(s: str, source: str, four_cam: str | None = None, out_dir: str |
         gate = Z["stats"]["side_gate"]
         row.update({"side_dropped": "+".join(Z["stats"]["side_dropped"]) or "", "june_cam4_scaled": bool(jf),
                     **({"side_forced_off": "+".join(off)} if off else {}),
+                    **({"side_forced_on": "+".join(on)} if on else {}),
+                    **{f"side_px600_{c}_{p}": round(v, 2) for c in on for p, v in Z["stats"]["side_gate_px600"][c].items()},
+                    **{k: v for c, d in Z["stats"]["pnp_subset"].items() for k, v in (
+                        (f"pnp_exclude_{c}", "+".join(d["exclude"])), (f"pnp_rms600_fit_{c}", round(d["rms600_fit"], 2)),
+                        (f"pnp_rms600_all_{c}", round(d["rms600_all"], 2)), (f"pnp_max600_all_{c}", round(d["max600_all"], 2)),
+                        *((f"pnp_px600_{c}_{p}", round(e, 2)) for p, e in d["px600"].items()))},
                     **{f"side_rms600_{c}": round(gate[c]["rms600"], 2) for c in PS.SIDE},
                     **{f"side_max600_{c}": round(gate[c]["max600"], 2) for c in PS.SIDE}})
         row.update({"four_cam": four_cam, "n_frames": len(S), "droplet_frames": Z["stats"]["droplet_frames"],
@@ -134,6 +150,10 @@ def run_session(s: str, source: str, four_cam: str | None = None, out_dir: str |
             row[f"{part}_fill_frac"] = round(st["one_view_fill"], 4)
             for c in Z["order"]:
                 row[f"{part}_rejected_{c}"] = st[f"rejected_{c}"]
+                if forced:           # 11-23 QC columns (forced runs only: the production summary keeps its schema)
+                    row[f"{part}_seen_{c}"] = st[f"seen_{c}"]
+                    row[f"{part}_ray_mm_med_{c}"] = round(st[f"ray_mm_med_{c}"], 3)
+                    row[f"{part}_ray_mm_p95_{c}"] = round(st[f"ray_mm_p95_{c}"], 3)
         row["licks_3d"] = len(L)
         return row
     from wfield_local import cam1_licks as C1

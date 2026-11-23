@@ -579,6 +579,91 @@ def apply_forced_off(gate: dict, off) -> dict:
     return {c: ({**v, "pass": False, "forced_off": True} if c in off else dict(v)) for c, v in gate.items()}
 
 
+#: FORCED SIDE-CAMERA INCLUSION (Priya 11-23, PS95 0818 / 0820: "can we add back cam3 then?"): a comma list of side
+#: cameras that `fuse_session` treats as PASSING the spout gate in every session (``forced_on`` = True in the gate dict;
+#: the measured rms / max and ``stats["side_dropped"]`` keep the REAL gate result). Opt-in; unset = production. The cam3
+#: gate failures there are chin-fur contact pulling the close-spout tip labels 1-2 px (close_center / close_R), not a
+#: tracking failure (qc_cam3_drop_20261122/clips). Same guard as SIDE_OFF: `scripts.pose3d` needs ``--out``.
+SIDE_ON_ENV = "WIDEFIELD_POSE3D_SIDE_ON"
+#: SIDE-CAMERA PnP FROM A SUBSET OF SPOUTS (11-23): "cam3:close_center,close_R[;cam2:...]" poses that camera from the
+#: OTHER parked spouts only (`pose_subset`, LM-refined from the six-spout pose); the other cameras keep the six-spout
+#: `pose_all` pose. The subset pose's reprojection on ALL six spouts goes into ``stats["pnp_subset"]``. Opt-in.
+PNP_EXCLUDE_ENV = "WIDEFIELD_POSE3D_PNP_EXCLUDE"
+
+
+def _cam_list(env: str, value: str | None) -> tuple[str, ...]:
+    import os
+    raw = os.environ.get(env, "") if value is None else value
+    cams = tuple(c.strip() for c in raw.split(",") if c.strip())
+    bad = [c for c in cams if c not in SIDE]
+    if bad:
+        raise ValueError(f"{env}={raw!r}: unknown side camera(s) {bad}; one of {SIDE}")
+    return cams
+
+
+def forced_on(value: str | None = None) -> tuple[str, ...]:
+    """The side cameras forced ON (`SIDE_ON_ENV`, or ``value``); () when unset. Unknown names raise."""
+    return _cam_list(SIDE_ON_ENV, value)
+
+
+def apply_forced_on(gate: dict, on) -> dict:
+    """``gate`` (`side_gate`) with every camera in ``on`` passing (``forced_on`` = True); the rms / max kept. Pure."""
+    return {c: ({**v, "pass": True, "forced_on": True} if c in on else dict(v)) for c, v in gate.items()}
+
+
+def pnp_exclude(value: str | None = None) -> dict:
+    """{side cam: (excluded spout positions)} from `PNP_EXCLUDE_ENV` (or ``value``), e.g. "cam3:close_center,close_R";
+    {} when unset. Unknown cameras / positions raise; at least 4 spouts must remain."""
+    import os
+
+    from wfield_local import spout_world as SW
+    raw = os.environ.get(PNP_EXCLUDE_ENV, "") if value is None else value
+    out = {}
+    for item in (x.strip() for x in raw.split(";") if x.strip()):
+        cam, _, pos = item.partition(":")
+        cam, pos = cam.strip(), tuple(p.strip() for p in pos.split(",") if p.strip())
+        if cam not in SIDE:
+            raise ValueError(f"{PNP_EXCLUDE_ENV}={raw!r}: unknown side camera {cam!r}; one of {SIDE}")
+        bad = [p for p in pos if p not in SW.POSITIONS]
+        if bad or not pos:
+            raise ValueError(f"{PNP_EXCLUDE_ENV}={raw!r}: bad spout position(s) {bad or '(none)'} for {cam}")
+        if len(SW.POSITIONS) - len(pos) < 4:
+            raise ValueError(f"{PNP_EXCLUDE_ENV}={raw!r}: {cam} keeps < 4 spouts")
+        out[cam] = pos
+    return out
+
+
+def pose_subset(g, cam_name: str, med: dict, geometry: dict, exclude, side_edge_dv: float = 0.0):
+    """(copy of ``g`` with ``cam_name`` re-posed from the parked spouts NOT in ``exclude``, {position: reprojection px}
+    over ALL positions in ``med``). The six-spout pose already in ``g`` is the starting point, refined by
+    Levenberg-Marquardt on the kept spouts (`pose3d.pnp_group`'s objective, same intrinsics, same side edge offset as
+    `pose_all`); four points over-determine the six pose parameters, the held-out spouts test the pose."""
+    import copy
+
+    import cv2
+
+    from wfield_local import spout_world as SW
+    g = copy.deepcopy(g)
+    cam = cam_of(g, cam_name)
+    pos_all = [p for p in SW.POSITIONS if p in med]
+    fit = [p for p in pos_all if p not in set(exclude)]
+    if len(fit) < 4:
+        raise ValueError(f"{cam_name}: only {len(fit)} spouts left for the subset PnP ({fit})")
+    off = np.array((0.0, 0.0, side_edge_dv))
+    obj = {p: np.asarray(SW.commanded_world(geometry, p), float) + off for p in pos_all}
+    K, D = cam.get_camera_matrix(), np.asarray(cam.get_distortions(), float)
+    rvec = np.asarray(cam.get_rotation(), float).reshape(3, 1)
+    tvec = np.asarray(cam.get_translation(), float).reshape(3, 1)
+    o = np.array([obj[p] for p in fit])
+    img = np.array([med[p][:2] for p in fit], float)
+    rvec, tvec = cv2.solvePnPRefineLM(o, img, K, D, rvec, tvec)
+    cam.set_rotation(rvec.ravel())
+    cam.set_translation(tvec.ravel())
+    pr, _ = cv2.projectPoints(np.array([obj[p] for p in pos_all]), rvec, tvec, K, D)
+    img_all = np.array([med[p][:2] for p in pos_all], float)
+    return g, dict(zip(pos_all, np.linalg.norm(pr[:, 0] - img_all, axis=1)))
+
+
 def fuse_session(rv, animal: str, date: str, preds_dir: Path | None = None, clips_dir: Path | None = None, cg=None,
                  side_bundle: str | None = None, c1=None, c4=None) -> dict:
     """The whole four-camera pipeline for one session. Side input: the review clips (``preds_dir`` + ``clips_dir``;
@@ -610,10 +695,22 @@ def fuse_session(rv, animal: str, date: str, preds_dir: Path | None = None, clip
         side = side_session(rv, animal, date, preds_dir, clips_dir, c4[0])
     meds = {"cam1": info["med1"], "cam4": info["med4"], **{c: SF.ruler_medians(side[c][1], side[c][0]) for c in SIDE}}
     g, perr = pose_all(cg, {c: meds[c] for c in ("cam1", "cam4", "cam2", "cam3")}, rig["geometry"])
-    gate = side_gate(perr, {c: side_width(rv, animal, date, c) for c in SIDE})
-    off = forced_off()
+    widths = {c: side_width(rv, animal, date, c) for c in SIDE}
+    gate = side_gate(perr, widths)
+    off, on, excl = forced_off(), forced_on(), pnp_exclude()
+    if set(off) & set(on):
+        raise ValueError(f"{SIDE_OFF_ENV} and {SIDE_ON_ENV} both name {sorted(set(off) & set(on))}")
     gate_true = gate                                  # the spout gate as measured (side_dropped keeps reporting it)
-    gate = apply_forced_off(gate, off)
+    gate = apply_forced_on(apply_forced_off(gate, off), on)
+    pnp_sub = {}
+    for c, ex in excl.items():                        # opt-in: that side camera posed from a subset of the spouts
+        g, e = pose_subset(g, c, meds[c], rig["geometry"], ex)
+        w = 600.0 / float(widths[c])
+        fit = [p for p in e if p not in ex]
+        pnp_sub[c] = {"exclude": list(ex), "px600": {p: float(v * w) for p, v in e.items()},
+                      "rms600_fit": float(np.sqrt(np.mean([(e[p] * w) ** 2 for p in fit]))),
+                      "rms600_all": float(np.sqrt(np.mean([(v * w) ** 2 for v in e.values()]))),
+                      "max600_all": float(max(e.values()) * w)}
     order = [c.get_name() for c in g.cameras]
     cams = {c.get_name(): c for c in g.cameras}
     scale = {c: px_per_mm(cams[c]) / px_per_mm(cams["cam4"]) for c in order}
@@ -637,6 +734,9 @@ def fuse_session(rv, animal: str, date: str, preds_dir: Path | None = None, clip
     ok_t = np.isfinite(S[["tongue_ml", "tongue_ap", "tongue_dv"]].to_numpy(float)).all(1)
     stats = {"scale": scale, "nose_offsets": offsets["nose"], "tongue_offsets": offsets["tongue"], "side_gate": gate,
              "side_dropped": [c for c in SIDE if not gate_true[c]["pass"]], "side_forced_off": list(off),
+             "side_forced_on": list(on), "pnp_subset": pnp_sub,
+             "side_gate_px600": {c: {p: float(v * 600.0 / widths[c]) for p, v in perr[c].items()}
+                                 for c in SIDE},
              "droplet_frames": int(drop.any(0).sum()),
              # the SESSION GATES of `pose3d.failed_sessions`, exactly as the two-camera run computes them (its spout fit
              # and its cam1 tongue reprojection): the same sessions fail in both sources
@@ -655,7 +755,11 @@ def fuse_session(rv, animal: str, date: str, preds_dir: Path | None = None, clip
         parts[part] = {"X": X, "views": nv, "used": used, "dist": d, "g": gs}
         stats[part] = {"cam1+cam4": float(np.isfinite(pts[part][k14]).all(2).all(0).mean()),
                        "fused": float(np.isfinite(X).all(1).mean()), "one_view_fill": float((nv == -1).mean()),
-                       **{f"rejected_{c}": int(rejected[j].sum()) for j, c in enumerate(order)}}
+                       **{f"rejected_{c}": int(rejected[j].sum()) for j, c in enumerate(order)},
+                       # 11-23 QC: views offered (finite point) and each USED view's ray distance to the fused point (mm)
+                       **{f"seen_{c}": int(np.isfinite(pts[part][j]).all(1).sum()) for j, c in enumerate(order)},
+                       **{f"ray_mm_{q}_{c}": (float(np.nanpercentile(d[j][used[j]], v)) if used[j].any() else np.nan)
+                          for j, c in enumerate(order) for q, v in (("med", 50), ("p95", 95))}}
     return {"F": F, "order": order, "g": g, "pts": pts, "parts": parts, "stats": stats, "rig": rig, "side": side, "S": S}
 
 

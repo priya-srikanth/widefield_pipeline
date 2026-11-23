@@ -24597,3 +24597,39 @@ gives corr ~0 as in the manuscript (Priya 11-23).
 - Result of the 4,000-draw re-run (vls_stroke_paper/NOTE_CC_B_boot4000_2026-11-23.md): scalar family 93 -> 93 stars
   (hit rate near ipsi acute lost, all-lick angle near ipsi subacute gained); outcomes, lick metrics, aim (family),
   protrusion, S15 I, S16 B, S16 D unchanged.
+
+## 2026-11-23 -- PS95 0818 / 0820 cam3 re-included (Priya 11-23: "can we add back cam3 then?")
+
+PS95 0818/0820 cam3 re-included (Priya 11-23): gate failure from chin-fur bias on close-spout tip labels; cam3 pose
+(a) = the standard six-spout PnP, forced past the gate; validated vs 0821; without cam3 peak speed was inflated 7-8 mm/s
+in PS95.
+- *Why the gate dropped it.* The side-camera spout gate (`pose3d_side.side_gate`: rms <= 1.5 / max <= 2.0 px in 600-px
+  units) failed cam3 on both days (0818 rms 1.56 / max 2.33; 0820 1.26 / 2.03, the max failing). Chin-fur contact pulls
+  the cam3 close-spout tip labels 1-2 px (close_center -2.2 / -1.5 px, close_R +1.8 / +2.0 px); cam3 tongue / jaw
+  tracking is fine (`P3D/qc_cam3_drop_20261122/clips/`). Without cam3, PS95 peak speed reads high (no-cam3 re-run of
+  0819 / 0821: all-lick +6.2 / +6.8 mm/s, first-lick +10.0 / +10.5 mm/s; reach and aim ~0).
+- *Code (opt-in, defaults unchanged).* `WIDEFIELD_POSE3D_SIDE_ON=cam3` (`pose3d_side.forced_on` / `apply_forced_on`)
+  passes a side camera through the gate; `WIDEFIELD_POSE3D_PNP_EXCLUDE=cam3:close_center,close_R`
+  (`pnp_exclude` / `pose_subset`) poses it from the other spouts (LM from the six-spout pose) and reports that pose's
+  reprojection on all six. The summary keeps the REAL gate (`side_dropped`, `side_rms600_*`) plus `side_forced_on`, the
+  per-spout gate px and `pnp_*`; forced runs need `--out` and write their side events there, never into the bundle.
+  Forced-on where cam3 passes is a no-op: 0819 / 0821 frames and licks byte-identical to production.
+- *Validation* (`scripts/qc_cam3_drop.py validate` -> `P3D/qc_cam3_drop_20261122/cam3_on/validation.csv`; normal =
+  0819 / 0821): cam3 ray-to-3-D offsets (median / p95 mm) tongue 0.19 / 0.57 (a) vs 0.17-0.18 / 0.49-0.57, jaw
+  0.18-0.24 / 0.39-0.49 vs 0.17-0.22 / 0.37-0.49, nose 0.07 / 0.14-0.23 vs 0.06 / 0.15-0.26; cam3 view rejections in
+  `fuse_robust` tongue 0.09 % / 0.53 % of offered views (0818 / 0820) vs 0.09-0.21 %; `tongue_off_cam3_ap` 0.07 / 0.16
+  mm and `nose_off_cam3_dv` 0.61 / 0.98 mm (normal 0.06-0.08 / 0.71-0.78); steady-phase tongue jitter p95 0.99 -> 0.91
+  mm (0818), 1.07 -> 0.97 (0820) with cam3 (normal 0.95-1.01). Per lick vs production (no cam3), median over positions:
+  all-lick speed -6.2 / -3.8 mm/s, first-lick -13.6 / -7.6 mm/s (the expected 7-8 mm/s drop), reach <= 0.04 mm, aim
+  <= 0.3 deg; no lick lost or added.
+- *Why (a), not (b).* (b) (four-spout pose: far_center, far_L, far_R, close_L) gives the same kinematics (within
+  1 mm/s) and its 0821 control is within 0.5 mm/s of production, but it does not fit its own four spouts better on 0818
+  (rms 0.99 px600 vs 0.38-0.52 normal; all six 1.71 / 1.40, max 2.72 / 2.98), so the bias is not confined to the two
+  close spouts, and it moves the 0818 cam3 nose offset to 0.46 mm (below cam3's 0.70-1.18 range). (a) adds no new pose.
+- *Swap* (`scripts/swap_cam3_on_20261123.py --variant a_forced`; every replaced file in
+  `P3D/_superseded_cam3drop_20261123/MANIFEST.md`): per-session frames / licks, the production summary (new file under the
+  same name; readers glob `summary_production*.csv`), the two sessions' per-session caches, and the two sessions' rows of
+  `kinematics_fused` and `kinematics_fused_postcue[_allviews]` (every other session byte-identical). Unchanged: the
+  fused lick train (cam3 side events are still absent for these two days), frame coverage, side events. Not rebuilt here:
+  the statistics families, figures, and session tables built on these (c2_lick3d_session_summary, aim tables, phase,
+  cue traces).

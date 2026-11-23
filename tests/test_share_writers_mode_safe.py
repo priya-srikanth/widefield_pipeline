@@ -27,6 +27,9 @@ BEHAVIOUR = {
     # manuscript_stats, refusing to overwrite; supplementary four-view clips
     "fourcam_lick_metrics.py", "c2_protrusion_vs_reach.py", "pose3d_supp_clips.py", "pose3d_methods_numbers.py",
     "c2_farcontra_aim_hit.py", "pose3d_jump_qc.py",
+    # 11-22 / 11-23: cam3 drop / re-inclusion QC (3-D pose + kinematics only; new qc_cam3_drop_20261122/ folders) and
+    # the PS95 0818 / 0820 cam3 swap (moves the run's own per-session 3-D files to _superseded_cam3drop_20261123/)
+    "qc_cam3_drop.py", "swap_cam3_on_20261123.py",
     # 11-22: Fig 5F FaceRhythm peak by trial class (reads FR proj + class table; new readouts folder)
     "face_rhythm_peak_trialclass.py",
     "apparatus_mouth.py", "cam1_clean_qc.py", "cam1_incomplete_licks.py", "cam1_lick_aim.py", "cam1_licks.py",
