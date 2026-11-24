@@ -863,6 +863,8 @@ def plots() -> None:
 
 # ------------------------------------------------------------------------------------------------ main
 MOUSE = {"PS92": "#9", "PS93": "#10", "PS94": "#11", "PS95": "#12"}   # manuscript mouse numbers
+SPOUT_NAME = {"close_ipsi": "near ipsi", "close_mid": "near middle", "close_contra": "near contra",
+              "far_ipsi": "far ipsi", "far_mid": "far middle", "far_contra": "far contra"}   # manuscript spout names
 
 
 def plot_cumulative(src: Path, out: Path, set_text: str) -> None:
@@ -890,7 +892,7 @@ def plot_cumulative(src: Path, out: Path, set_text: str) -> None:
             if i == 0:
                 ax.set_title(f"mouse {MOUSE.get(a, a)}")
             if j == 0:
-                ax.set_ylabel(f"{pp}\nP(first lick by t)")
+                ax.set_ylabel(f"{SPOUT_NAME.get(pp, pp)}\nP(first lick by t)")
             if i == len(POS) - 1:
                 ax.set_xlabel("time from cue (s)")
     bot = _leg_below(fig, [plt.Line2D([], [], color=EC[e], lw=1.6, label=e) for e in EP4], fontsize=9)
