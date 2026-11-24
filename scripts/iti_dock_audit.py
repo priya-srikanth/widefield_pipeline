@@ -230,9 +230,10 @@ def flags(D: pd.DataFrame) -> pd.DataFrame:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--jobs", type=int, default=8)
+    ap.add_argument("--licks-session", action="store_true", help="count-only: every session-file ITI lick")
     a = ap.parse_args()
     from wfield_local import analysis_kit as ak
-    if "--licks-session" in sys.argv:
+    if a.licks_session:
         # COUNT-ONLY variant (lane E 11-24): every ITI lick of the session files (iti_t), not the decoder cache's rows;
         # its k is the session-file row, NOT the lick_order cache key -- never use this audit as a subset filter
         items = [(lab, il._load(lab)["iti_t"].astype(float)) for lab in il.labels()]
