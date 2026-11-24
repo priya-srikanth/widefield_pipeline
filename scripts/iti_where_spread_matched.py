@@ -69,7 +69,7 @@ def main(argv=None) -> int:
                                  sd_ratio_raw=float(h[f"act_{ax_}"].std() / pre_act.std()), sd_ratio_matched=sdr))
     S = pd.DataFrame(rows)
     sfx = "_z" if z else ""
-    S.to_csv(il.OUT / f"where_spread_matched{sfx}_sessions.csv", index=False)
+    S.to_csv(il.OUT_X / f"where_spread_matched{sfx}_sessions.csv", index=False)
     pd.set_option("display.width", 220)
     print("== per animal (rule 8): session SD / pre SD (raw -> matched) and r (raw -> matched), chronic")
     c = S[S.epoch == "chronic"].groupby(["set", "axis", "animal"])[["sd_ratio_raw", "sd_ratio_matched", "r_raw",
@@ -86,7 +86,7 @@ def main(argv=None) -> int:
                 tests.append(dict(set=st, axis=ax_, measure=col, epoch=ep, point=ci.point, lo=ci.lo, hi=ci.hi,
                                   n_down=int((am < 0).sum()), n=int(am.notna().sum())))
     T = pd.DataFrame(tests)
-    T.to_csv(il.OUT / f"where_spread_matched{sfx}_tests.csv", index=False)
+    T.to_csv(il.OUT_X / f"where_spread_matched{sfx}_tests.csv", index=False)
     print("\n== change in r vs pre (paired nested bootstrap); n_down = animals below pre")
     print(T.round(3).to_string(index=False))
     return 0

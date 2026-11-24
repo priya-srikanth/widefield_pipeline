@@ -333,7 +333,7 @@ def session_work(item):
 def run(labels, jobs) -> None:
     from wfield_local import analysis_kit as ak
     M = lih._meta()
-    Aud = pd.read_csv(IN / "iti_dock_audit.csv", usecols=["label", "t", "dock"])
+    Aud = pd.read_csv(il.in_path_x("iti_dock_audit.csv"), usecols=["label", "t", "dock"])
     Aud = Aud[Aud.dock]
     dk = {x: np.round(g.t.to_numpy(float), 4) for x, g in Aud.groupby("label")}
     empty = pd.DataFrame(columns=["tk", "reach_mm", "gap", "since_stop", "to_strobe"])
@@ -414,7 +414,7 @@ def _tests(SS: pd.DataFrame, keys: list[str], metrics: list[str], rng) -> pd.Dat
 
 
 def _recov_targets() -> pd.DataFrame:
-    R = pd.read_csv(IN / "recmark_sessions.csv", usecols=["label", "day", "aim"]).drop_duplicates("label")
+    R = pd.read_csv(il.in_path_x("recmark_sessions.csv"), usecols=["label", "day", "aim"]).drop_duplicates("label")
     T = pd.read_csv(_lp_licks.attempts_path(), usecols=["label", "pos", "cls"])
     T = T[T.pos == "far_contra"]
     H = T.assign(hit=T.cls.isin(["hit", "pre_hit"])).groupby("label").hit.mean().rename("fc_hit").reset_index()
@@ -462,7 +462,7 @@ def _print_animal(SS, keys, m, title, filt=None):
 def summarise1() -> None:
     S = _aug(pd.read_csv(O1 / "ihf_sessions.csv.gz"))
     # session-level covariates: cued matched-error share (balmatch 'trial')
-    B = pd.read_csv(IN / "balmatch_sessions.csv")
+    B = pd.read_csv(il.in_path_x("balmatch_sessions.csv"))
     B = B[B.set == "trial"][["label", "bal_spout"]].rename(columns={"bal_spout": "share"})
     S = S.merge(B, on="label", how="left")
     G = S.groupby(["set", "win", "pair", "variant", "tau", "animal", "epoch"])

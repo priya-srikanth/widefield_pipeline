@@ -204,14 +204,14 @@ def _trial_set_for(name: str):
 
 # ================================================================================================ per-lick table
 def _day_map() -> dict:
-    R = pd.read_csv(il.OUT / "recmark_sessions.csv", usecols=["label", "day"]).drop_duplicates("label")
+    R = pd.read_csv(il.in_path_x("recmark_sessions.csv"), usecols=["label", "day"]).drop_duplicates("label")
     return dict(zip(R.label, R.day))
 
 
 def table() -> pd.DataFrame:
     import iti_where_decoder as wd
-    L = pd.read_csv(il.OUT / "enl_licks" / "enl_licks.csv.gz")
-    T = pd.read_csv(il.OUT / "enl_licks" / "enl_trials.csv.gz", usecols=["label", "trial_id", "strobe_s", "cue_s"])
+    L = pd.read_csv(il.in_path_x("enl_licks") / "enl_licks.csv.gz")
+    T = pd.read_csv(il.in_path_x("enl_licks") / "enl_trials.csv.gz", usecols=["label", "trial_id", "strobe_s", "cue_s"])
     L = L.merge(T, on=["label", "trial_id"], how="left", validate="many_to_one")
     K = il.lick_table()
     K = K[K.context == "pre_cue"][["session", "lick_uid", "side_ml", "reach_mm"]].drop_duplicates(["session", "lick_uid"])

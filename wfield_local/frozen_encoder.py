@@ -363,12 +363,28 @@ def lick_landing_weights(B, animal: str, date: str, rv, width: float = 1.0) -> n
 
     ce = _ce()
     from wfield_local import orofacial_outputs as oo
+    if ce.lick_mode() == "fourcam":
+        # 11-22 evening: the fourcam lick rows (same rows / order as `combined_encoding._load_behaviour` builds them)
+        # joined to the fused post-cue 3-D kinematics by LICK KEY (no cam4 windows, no (trial_id, lick_idx) join)
+        from wfield_local import session_licks as SL
+        A = ce._fourcam_table(rv, animal, date)
+        L = A[(A["table"] == "licks") & A.trial_id.isin(set(B.trials.trial_id))].reset_index(drop=True)
+        if len(L) != len(B.lick_on_s):
+            raise ValueError(f"{animal}_{date}: fourcam lick table has {len(L)} rows, behavior {len(B.lick_on_s)} licks")
+        path = os.environ.get(ce.EXEC3D_TABLE_ENV) or (pose3d_dir() / SL.kin_name() / "licks.csv.gz")
+        K = pd.read_csv(path, usecols=lambda c: c in ("session", "trial_id", "lick_idx", "lick_key", "t_peak_cam4",
+                                                      "side_ml", "out_ap", "down_dv"))
+        K = K[K.session == f"{animal}_{date}"]
+        X = SL.align_kin(L, K, ["side_ml", "out_ap", "down_dv"], f"{animal}_{date}").to_numpy(float)
+        return _landing_weights_xyz(X, animal, width)
     L = pd.read_csv(oo.session_dir(rv, ce._run(), animal, date) / "licks.csv")
     L = L[L.trial_id.isin(set(B.trials.trial_id))]
     if len(L) != len(B.lick_on_s):
         raise ValueError(f"{animal}_{date}: lick table has {len(L)} rows, behavior {len(B.lick_on_s)} licks")
     path = os.environ.get(ce.EXEC3D_TABLE_ENV)
     if not path:
+        # cam4 lick modes: joins the cam4 licks.csv above on (trial_id, lick_idx), which only the cam4 kinematics table
+        # shares (the fourcam mode above uses the fused table by lick_key)
         path = pose3d_dir() / "kinematics" / "licks.csv.gz"
     K = pd.read_csv(path, usecols=["session", "trial_id", "lick_idx", "side_ml", "out_ap", "down_dv"])
     K = K[K.session == f"{animal}_{date}"].drop_duplicates(["trial_id", "lick_idx"])
@@ -404,9 +420,13 @@ _KIN_ALL = {}
 def _kin_all(rv):
     """The whole-session 3-D lick table (pose3d/kinematics_all/licks.csv.gz), read once per process."""
     import pandas as pd
-    path = pose3d_dir(rv) / "kinematics_all" / "licks.csv.gz"
+    # fourcam lick mode: the fused whole-session table (cam1-only rows are absent from the fourcam lick list anyway)
+    name = "kinematics_fused" if _ce().lick_mode() == "fourcam" else "kinematics_all"
+    path = pose3d_dir(rv) / name / "licks.csv.gz"
     if path not in _KIN_ALL:
-        _KIN_ALL[path] = pd.read_csv(path, usecols=["session", "lick_uid", "context", "side_ml", "out_ap", "down_dv"])
+        _KIN_ALL[path] = pd.read_csv(path, usecols=lambda c: c in ("session", "lick_uid", "lick_key", "trial_id",
+                                                                   "t_peak_cam4", "context", "side_ml", "out_ap",
+                                                                   "down_dv"))
     return _KIN_ALL[path]
 
 
@@ -425,7 +445,8 @@ def te_lick_parts(parts: dict, B, T, animal: str, date: str, rv, ft: np.ndarray,
     LANDING: soft weights, amplitude-weighted kernels + mean weight x plain kernel as FROZEN_LICKLAND, since
     `_event_cols` centers an amplitude). Licks: post-cue = the behavior licks (B.lick_on_s / B.lick_pos), cam1-only
     in-trial licks (B.extra_lick_on_s, no 3-D), pre-cue and ITI licks from the session's licks_all.csv (exact DAQ onsets;
-    3-D via lick_uid into kinematics_all).
+    3-D from kinematics_all by LICK KEY, `session_licks.rows_for`; 11-22: was lick_uid = a row number of licks_all.csv,
+    which re-pointed silently when the table changed).
     NULLS (`partial_refit.py`, TE): ``tpos_perm`` = permuted trial spouts (one per row of T, the same array the caller
     passes to raw_blocks as pos_perm) -> every target label comes from it (post-cue licks too, through their trial);
     ``land_roll`` = circular shift of the landing weights over the landed licks in time order, as a fraction (0..1) of
@@ -453,12 +474,15 @@ def te_lick_parts(parts: dict, B, T, animal: str, date: str, rv, ft: np.ndarray,
     ex = getattr(B, "extra_lick_on_s", None)
     on_x = np.asarray([] if ex is None else ex, float)
     tg_x = target_of(on_x)
+    from wfield_local import session_licks as SL
     A = pd.read_csv(oo.session_dir(rv, ce._run(), animal, date) / "licks_all.csv",
-                    usecols=lambda c: c in ("context", "onset_context", "daq_on_s"))
-    A["context"] = oo.encoder_context(A)          # the onset label: unchanged by the 11-04 peak rule (encoder lists)
-    A["lick_uid"] = np.arange(len(A))
+                    usecols=lambda c: c in ("trial_id", "t_ms", "context", "onset_context", "daq_on_s"))
     K = _kin_all(rv)
-    K = K[K.session == f"{animal}_{date}"].drop_duplicates("lick_uid").set_index("lick_uid")
+    K = K[K.session == f"{animal}_{date}"]
+    K = K.drop_duplicates("lick_key" if "lick_key" in K else "lick_uid")
+    K = K.set_axis(SL.rows_for(K, A, f"{animal}_{date}"), axis=0)      # kinematics row -> its licks_all row, by key
+    A["context"] = oo.encoder_context(A)          # the onset label: unchanged by the 11-04 peak rule (encoder lists)
+    A["lick_uid"] = np.arange(len(A))             # = the licks_all row K is now indexed by
     extra_rows = A[A.context.isin(["pre_cue", "iti"])].dropna(subset=["daq_on_s"])
     on_c = extra_rows.daq_on_s.to_numpy(float)
     ctx_c = extra_rows.context.to_numpy()
@@ -2083,6 +2107,13 @@ def out_root() -> Path:
     from wfield_local.paths import PathResolver
     # run-mode routing (rebuild 11-03): a tagged run goes under imaging_encoding/<tag>/; identity for the default run
     return lp_licks.output_dir(oo.encoding_root(oc.RUN, PathResolver()) / "_").parent
+
+
+def fig_out(run: Path) -> Path:
+    """WRITE folder of the readout / figure scripts of a frozen run (11-23, opt-in): FROZEN_FIG_OUT/<run folder name> when
+    set (a re-render beside a production frame, never inside it; reads stay on `run`), else `run` itself (unchanged)."""
+    r = os.environ.get("FROZEN_FIG_OUT")
+    return Path(r) / Path(run).name if r else Path(run)
 
 
 def main(argv=None) -> int:

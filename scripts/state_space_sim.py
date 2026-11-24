@@ -33,6 +33,7 @@ Readouts (session vs session, median over the comparison sessions):
   spread    trial-to-trial spread inside P around each spout mean, ratio
 """
 from __future__ import annotations
+from wfield_local.session_licks import kin_name as _kin_name  # 11-22: fused post-cue unless WIDEFIELD_KIN_LICKS=cam4
 
 import argparse
 import glob
@@ -59,12 +60,15 @@ from wfield_local.pose3d import pose3d_dir  # noqa: E402
 # process (module caches would keep it); tests/test_state_space.py recomputes them in a subprocess and pins them.
 PROFILE = "cohort1_rebuild_20261103"
 REBUILD = Path(render_profile.load(PROFILE)["rebuild_root"])
-ENCODING = REBUILD / "LP_analysis" / oc.RUN / "imaging_encoding"
+# 11-22: the REBUILD's encoder tree was built on the v36 run; adopting v37 (orofacial_cohort.RUN) does not move a
+# finished rebuild, so its run is pinned here (it followed oc.RUN, which pointed the state-space arm at an empty tree)
+REBUILD_RUN = "lp_r4_heatmap_20261013__clean_v36"
+ENCODING = REBUILD / "LP_analysis" / REBUILD_RUN / "imaging_encoding"
 XTAG = "hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801"           # run_mode.tag(include=XOUT parts): extracts
 WTAG = XTAG + "_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk"   # run_mode.tag(): tables
 ITI = str(ENCODING / "iti_licks" / XTAG / il.SESS_NAME)                 # per-trial extracts (iti_licks.XOUT / SESS_NAME)
 ITI_W = ENCODING / "iti_licks" / WTAG                                    # run tables (iti_licks.OUT_W): aim, first-lick times
-LICKS3D = pose3d_dir() / "kinematics" / "licks.csv.gz"                   # 3-D first licks (landing join)
+LICKS3D = pose3d_dir() / _kin_name() / "licks.csv.gz"                   # 3-D first licks (landing join)
 # OUTPUTS (11-12, Priya "route outputs by run"): under the rebuild root of PROFILE, beside the encoder tree they are built
 # from -- one run, one folder. Before 11-12 they went to Widefield/state_space_recovery on the share root: outside the
 # rebuild root (its write fence refused them under the profile, so the arm ran with the profile stripped) and shared by
@@ -77,7 +81,7 @@ SHARE = Path(PathResolver().root("microscope")) / "Widefield"                   
 # RESTnlc1 (Priya 11-17; WIDEFIELD_RESTNL_LICKS=cam4cam1): every RESTnl-referenced state-space output (rest baseline,
 # chronic maps / shift_* folders and their page_figs) gets this suffix, so the cam4 RESTnl outputs are never overwritten.
 from wfield_local import restnl_licks as _rl  # noqa: E402
-RSFX = "_restnlc1" if _rl.is_c1() else ""
+RSFX = "_restnlc1" if _rl.is_c1() else ("_restnlf" if _rl.is_fused() else "")   # + the fused lick set (11-22)
 LEGACY_ROOT = SHARE / "state_space_recovery"
 # Inputs from OTHER arms (11-16 path fix): until then within_session_behavior and detour_vs_balance built these as
 # `ROOT.parent / ...`, which was the share root before the 11-12 reroute and is the REBUILD root after it, where

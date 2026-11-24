@@ -324,7 +324,7 @@ def plot(F: dict) -> None:
     fig.tight_layout(rect=(0, tst.footer_bottom(fig), 1, 0.918 if tag else 0.925))   # bottom: trial-set footer (11-17)
     save_png_svg(fig, WOUT / "figures" / f"{_scatter_stem(st, tag)}.png", dpi=95)
     plt.close(fig)
-WOUT = il.OUT_W if il.ITI_SUBSET else il.OUT     # subset runs (dock, ...) write to their own folder (10-29)
+WOUT = il.OUT_W if il.ITI_SUBSET else il.OUT_X     # subset runs (dock, ...) write to their own folder (10-29)
 TRACKED = "lateral + sagittal + outward"
 
 

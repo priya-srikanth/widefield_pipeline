@@ -395,7 +395,7 @@ def plot(F: dict) -> None:
 # ------------------------------------------------------------------------------------------------ main
 def check_linear(S: pd.DataFrame) -> float:
     """The linear row must reproduce the KEY frozen r of lick_refit_decoders (refit_decoders_sessions.csv, if present)."""
-    f = il.OUT / "refit_decoders_sessions.csv"
+    f = il.in_path_x("refit_decoders_sessions.csv")
     if not f.exists():
         print("check: no refit_decoders_sessions.csv to compare with")
         return np.nan

@@ -26,8 +26,9 @@ dropped; whole session: mean forward speed, mean speed inside bouts, bouts / min
 bout duration; between trials (docked ITI frames): mean forward speed, fraction running.
 STATE SPLIT: the same per-session means over trials (frames) whose owner trial's GLM-HMM role is engaged / partial /
 disengaged ('not_engaged' = partial + disengaged).
-Usage: WF_REPO=... MC=... python s4_session_tables.py <cache_dir> <out_dir>
+Usage: WF_REPO=... MC=... python s4_session_tables.py <cache_dir> <out_dir> [--no-tim]
 """
+from wfield_local.session_licks import kin_name as _kin_name  # 11-22: fused post-cue unless WIDEFIELD_KIN_LICKS=cam4
 import os
 import sys
 from pathlib import Path
@@ -37,8 +38,13 @@ sys.path.insert(0, str(Path(os.path.expanduser(os.environ.get("WF_REPO", "~/Gith
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 from wfield_local import behavior_states as B  # noqa: E402
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import trial_scaffold  # noqa: E402  (collector trials, or the 11-22 fallback for a run without them)
 
 CACHE, OUT = Path(sys.argv[1]), Path(sys.argv[2])
+# --no-tim (11-22, manuscript v26: TIM removed from the paper): skip the TIM tables (s2 not run) and the treadmill
+# control-window rates (read only by s5's composite, which needs TIM); every other table is unchanged
+NO_TIM = "--no-tim" in sys.argv[3:]
 MATCH = {"first95": 95.0, "first74": 74.0, "all": np.inf}
 FR_KEYS = ("fr_all", "fr_contra", "fr_ipsi")
 KP_PARTS = ("tongue", "jaw", "nose")
@@ -54,7 +60,7 @@ def W(name, df):
     print("wrote", f.name, len(df), flush=True)
 
 
-C = B.load_collected()
+C = {"trials": trial_scaffold.trials(OUT)}
 T = C["trials"]
 T = T[T.label.map(B.session_epoch).notna()].copy()
 T["epoch"] = T.label.map(B.session_epoch)
@@ -114,42 +120,47 @@ for v in ("ipsimid", "init"):
         REFIT_ROLE[v] = {(l, int(t)): r for l, t, r in zip(R.label, R.trial_id, R.role)}
 
 # ---------------------------------------------------------------- TIM: pipeline default + new windows
-D = B.tim_trials("within")
-D = D[D.working.astype(bool)].copy()
-D["t_min"] = [tmin_of.get((l, int(t)), np.nan) for l, t in zip(D.label, D.trial_id)]
-rows = []
-for m, N in MATCH.items():
-    Dm = D[~(D.t_min > N)]
-    for rs, rr in (("all", None), ("engaged", ("engaged",)), ("not_engaged", ("partial", "disengaged"))):
-        Dr = Dm if rr is None else Dm[Dm.role.isin(rr)]
-        S = Dr.pivot_table(index="label", columns=["period", "part"], values="tim_px").reset_index()
-        S.columns = ["label"] + [f"timpipe_{a}_{b}" for a, b in S.columns[1:]]
-        S["match"], S["state"] = m, rs
-        rows.append(S)
-TP = base(pd.concat(rows, ignore_index=True))
-W("sessions_tim_pipeline.csv", TP)
-
-N_ = pd.read_csv(OUT / "tim_new_trials.csv.gz")
-N_ = N_[N_.label.isin(labels)].copy()
-N_["t_min"] = [tmin_of.get((l, int(t)), np.nan) for l, t in zip(N_.label, N_.trial_id)]
-N_["role"] = [role_of.get((l, int(t)), "none") for l, t in zip(N_.label, N_.trial_id)]
-for v, d in REFIT_ROLE.items():
-    N_[f"role_{v}"] = [d.get((l, int(t)), "none") for l, t in zip(N_.label, N_.trial_id)]
-N_.to_csv(OUT / "tim_new_trials_annotated.csv.gz", index=False, compression="gzip") if not (OUT / "tim_new_trials_annotated.csv.gz").exists() else None
-rows = []
-for m, N in MATCH.items():
-    Dm = N_[~(N_.t_min > N)]
-    for rs, rr in ROLE_SETS.items():
-        for wk in ("working", "alltrials"):
-            Dr = Dm[Dm.role.isin(rr)]
-            if wk == "working":
-                Dr = Dr[Dr.working.astype(bool)]
-            S = Dr.pivot_table(index="label", columns=["source", "period", "part"], values="tim").reset_index()
-            S.columns = ["label"] + [f"tim{a}_{b}_{c}" for a, b, c in S.columns[1:]]
-            S["match"], S["state"], S["trials"] = m, rs, wk
+def tim_tables():
+    D = B.tim_trials("within")
+    D = D[D.working.astype(bool)].copy()
+    D["t_min"] = [tmin_of.get((l, int(t)), np.nan) for l, t in zip(D.label, D.trial_id)]
+    rows = []
+    for m, N in MATCH.items():
+        Dm = D[~(D.t_min > N)]
+        for rs, rr in (("all", None), ("engaged", ("engaged",)), ("not_engaged", ("partial", "disengaged"))):
+            Dr = Dm if rr is None else Dm[Dm.role.isin(rr)]
+            S = Dr.pivot_table(index="label", columns=["period", "part"], values="tim_px").reset_index()
+            S.columns = ["label"] + [f"timpipe_{a}_{b}" for a, b in S.columns[1:]]
+            S["match"], S["state"] = m, rs
             rows.append(S)
-TN = base(pd.concat(rows, ignore_index=True))
-W("sessions_tim_new.csv", TN)
+    TP = base(pd.concat(rows, ignore_index=True))
+    W("sessions_tim_pipeline.csv", TP)
+
+    N_ = pd.read_csv(OUT / "tim_new_trials.csv.gz")
+    N_ = N_[N_.label.isin(labels)].copy()
+    N_["t_min"] = [tmin_of.get((l, int(t)), np.nan) for l, t in zip(N_.label, N_.trial_id)]
+    N_["role"] = [role_of.get((l, int(t)), "none") for l, t in zip(N_.label, N_.trial_id)]
+    for v, d in REFIT_ROLE.items():
+        N_[f"role_{v}"] = [d.get((l, int(t)), "none") for l, t in zip(N_.label, N_.trial_id)]
+    N_.to_csv(OUT / "tim_new_trials_annotated.csv.gz", index=False, compression="gzip") if not (OUT / "tim_new_trials_annotated.csv.gz").exists() else None
+    rows = []
+    for m, N in MATCH.items():
+        Dm = N_[~(N_.t_min > N)]
+        for rs, rr in ROLE_SETS.items():
+            for wk in ("working", "alltrials"):
+                Dr = Dm[Dm.role.isin(rr)]
+                if wk == "working":
+                    Dr = Dr[Dr.working.astype(bool)]
+                S = Dr.pivot_table(index="label", columns=["source", "period", "part"], values="tim").reset_index()
+                S.columns = ["label"] + [f"tim{a}_{b}_{c}" for a, b, c in S.columns[1:]]
+                S["match"], S["state"], S["trials"] = m, rs, wk
+                rows.append(S)
+    TN = base(pd.concat(rows, ignore_index=True))
+    W("sessions_tim_new.csv", TN)
+
+
+if not NO_TIM:
+    tim_tables()
 
 # ---------------------------------------------------------------- frames: ME, stillness, running
 def load(label):
@@ -285,13 +296,14 @@ M = base(pd.DataFrame(rows))
 W("sessions_motion.csv", M)
 
 # ---------------------------------------------------------------- treadmill control-window rates (composite)
-rows = []
-for m, N in MATCH.items():
-    S = B.per_session(T[~(T.t_min > N)], "lick_period")
-    S["match"] = m
-    rows.append(S)
-TRD = base(pd.concat(rows, ignore_index=True))
-W("sessions_treadmill_rates.csv", TRD)
+if not NO_TIM:
+    rows = []
+    for m, N in MATCH.items():
+        S = B.per_session(T[~(T.t_min > N)], "lick_period")
+        S["match"] = m
+        rows.append(S)
+    TRD = base(pd.concat(rows, ignore_index=True))
+    W("sessions_treadmill_rates.csv", TRD)
 
 # ---------------------------------------------------------------- hit rate and first-lick aim by position, engaged-only
 POSN = {"close_L": "close_ipsi", "close_center": "close_mid", "close_R": "close_contra", "far_L": "far_ipsi",
@@ -321,33 +333,44 @@ for m, N in MATCH.items():
 H = base(pd.concat(rows, ignore_index=True))
 W("sessions_hit_by_position.csv", H)
 
-import iti_recovery_measure as rm  # noqa: E402
-p = rm.aim_licks()
-p = p[p["first"]].copy()
-L3 = pd.read_csv(r"M:/MICROSCOPE/Priya/DeepLabCut/Widefield/session_poses/pose3d/kinematics/licks.csv.gz",
-                 usecols=["trial_id", "side_ml", "out_ap", "down_dv", "session"])
-L3["label"] = L3.session.str[:5] + L3.session.str[-4:]
-L3["k"], L3["s"] = L3.side_ml.round(3), np.hypot(L3.out_ap, L3.down_dv).round(3)
-p["k"], p["s"] = p.act_lat.round(3), p.act_sag.round(3)
-p = p.merge(L3.drop_duplicates(["label", "k", "s"])[["label", "k", "s", "trial_id", "session"]], on=["label", "k", "s"], how="left")
-print(f"aim first licks matched to trial ids: {p.trial_id.notna().sum()} of {len(p)}", flush=True)
-p = p.dropna(subset=["trial_id"])
-p["label8"] = p.session
-p["role"] = [role_of.get((l, int(t)), "none") for l, t in zip(p.label8, p.trial_id)]
-for v, d in REFIT_ROLE.items():
-    p[f"role_{v}"] = [d.get((l, int(t)), "none") for l, t in zip(p.label8, p.trial_id)]
-p["t_min"] = [tmin_of.get((l, int(t)), np.nan) for l, t in zip(p.label8, p.trial_id)]
-rows = []
-for m, N in MATCH.items():
-    for tset, sel in (("all", None), ("engaged", ("role", "engaged")),
-                      *[(f"engaged_{v}", (f"role_{v}", "engaged")) for v in REFIT_ROLE]):
-        D_ = p[~(p.t_min > N)]
-        if sel:
-            D_ = D_[D_[sel[0]] == sel[1]]
-        g = D_.groupby(["label8", "pos"]).off.agg(["mean", "size"]).reset_index()
-        g = g[g["size"] >= rm.MIN_LICKS["first"]].rename(columns={"label8": "label", "mean": "aim_off", "size": "n"})
-        g["match"], g["trials"] = m, tset
-        rows.append(g)
-A = base(pd.concat(rows, ignore_index=True))
-A = A[A.epoch.notna()]
-W("sessions_aim_by_position.csv", A)
+# first-lick aim by position needs the run's ITI-lick predictions (`iti_recovery_measure.aim_licks`); 11-22: a run
+# without them (the adopted four-camera run before its iti_licks re-run) skips this table instead of failing
+def aim_table():
+    import iti_recovery_measure as rm  # noqa: E402
+    p = rm.aim_licks()
+    p = p[p["first"]].copy()
+    # 11-22 (plan item 3): the selected 3-D source / run tag (WIDEFIELD_POSE3D_SOURCE / _TAG); was the literal two-camera folder
+    from wfield_local.pose3d import pose3d_dir as _pose3d_dir  # noqa: E402
+    L3 = pd.read_csv(_pose3d_dir() / _kin_name() / "licks.csv.gz",
+                     usecols=["trial_id", "side_ml", "out_ap", "down_dv", "session"])
+    L3["label"] = L3.session.str[:5] + L3.session.str[-4:]
+    L3["k"], L3["s"] = L3.side_ml.round(3), np.hypot(L3.out_ap, L3.down_dv).round(3)
+    p["k"], p["s"] = p.act_lat.round(3), p.act_sag.round(3)
+    p = p.merge(L3.drop_duplicates(["label", "k", "s"])[["label", "k", "s", "trial_id", "session"]], on=["label", "k", "s"], how="left")
+    print(f"aim first licks matched to trial ids: {p.trial_id.notna().sum()} of {len(p)}", flush=True)
+    p = p.dropna(subset=["trial_id"])
+    p["label8"] = p.session
+    p["role"] = [role_of.get((l, int(t)), "none") for l, t in zip(p.label8, p.trial_id)]
+    for v, d in REFIT_ROLE.items():
+        p[f"role_{v}"] = [d.get((l, int(t)), "none") for l, t in zip(p.label8, p.trial_id)]
+    p["t_min"] = [tmin_of.get((l, int(t)), np.nan) for l, t in zip(p.label8, p.trial_id)]
+    rows = []
+    for m, N in MATCH.items():
+        for tset, sel in (("all", None), ("engaged", ("role", "engaged")),
+                          *[(f"engaged_{v}", (f"role_{v}", "engaged")) for v in REFIT_ROLE]):
+            D_ = p[~(p.t_min > N)]
+            if sel:
+                D_ = D_[D_[sel[0]] == sel[1]]
+            g = D_.groupby(["label8", "pos"]).off.agg(["mean", "size"]).reset_index()
+            g = g[g["size"] >= rm.MIN_LICKS["first"]].rename(columns={"label8": "label", "mean": "aim_off", "size": "n"})
+            g["match"], g["trials"] = m, tset
+            rows.append(g)
+    A = base(pd.concat(rows, ignore_index=True))
+    A = A[A.epoch.notna()]
+    W("sessions_aim_by_position.csv", A)
+
+
+try:
+    aim_table()
+except FileNotFoundError as ex:
+    print(f"sessions_aim_by_position.csv SKIPPED (input missing: {ex.filename})", flush=True)

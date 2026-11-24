@@ -19,8 +19,10 @@ color = epoch, no line), filled = epoch mean +- SEM over animals, plus the POOLE
 cross-animal fit of the goal page's shared TIME model (wfield_local.mixed_models: y ~ post + post:lday, animal random
 effects, lday = log days since stroke, 0 at day 1; the same model as goal-page Fig 16.9), fit per panel; BH-FDR over the
 7 panels per term. Fit table: aim_by_spout_time_lmm.csv.
-Usage: python scripts/lick_cued_aim_by_spout.py
+Usage: python scripts/lick_cued_aim_by_spout.py [--preds P --first-preds F --out DIR] [--no-figures]
 Outputs: <E>/iti_licks/aim_by_spout_{sessions,tests,time_lmm}.csv, figures/lick_cued_aim_by_spout{,_days}.png
+  (11-22: --preds / --first-preds = explicit lick tables in the where-decoder / first-lick schema, e.g. the four-camera
+  kinematics tables of `scripts/aim_tables_from_kinematics.py`; --out writes every output there instead of il.OUT)
 """
 from __future__ import annotations
 from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
@@ -58,30 +60,52 @@ def trial_set_sentence() -> str:
         + " : ".join(f"{k.replace('_', ' ')} {v:g}" for k, v in rm.W.items()) + " : others 1)"])
 
 
-def session_spout() -> pd.DataFrame:
-    p = rm.aim_licks()
+def session_spout(preds=None, first_preds=None) -> pd.DataFrame:
+    p = rm.aim_licks(preds, first_preds)
     p = p[p["first"]]
     g = p.groupby(["animal", "label", "epoch", "pos"]).off.agg(["mean", "size"]).reset_index()
     g = g[g["size"] >= MINN].rename(columns={"mean": "off", "size": "n"})
     w = p.groupby(["animal", "label", "epoch"]).apply(lambda x: rm.weighted(x, MINN)).rename("off").reset_index()
-    w = w.dropna().assign(pos="weighted", n=p.groupby("label").size().reindex(w.label).to_numpy())
+    w = w.dropna()                     # 11-22: n indexed by the KEPT rows' labels (was the pre-dropna w: length mismatch)
+    w = w.assign(pos="weighted", n=p.groupby("label").size().reindex(w.label).to_numpy())
     g = pd.concat([g, w], ignore_index=True)
     base = g[g.epoch == "pre"].groupby(["animal", "pos"]).off.mean()
     g["chg"] = g.off - base.reindex(pd.MultiIndex.from_arrays([g.animal, g.pos])).to_numpy()  # + = contra
-    from iti_check_figures import _days
     return g.merge(_days(), on="label", how="left")
 
 
-def boot(d: pd.DataFrame, rng) -> np.ndarray:
+def _days() -> pd.DataFrame:
+    """[label, day] (day after stroke) straight from the run's trial_attempts table. 11-22: was
+    iti_check_figures._days -> recovery_timing.series, which also needed the camera-gated hit table and the decoder
+    retention table only to look the day up (and dropped sessions without a far-contra hit rate)."""
+    from wfield_local import config
+    from wfield_local import lp_licks
+    T = pd.read_csv(lp_licks.attempts_path(), usecols=["label", "day"]).drop_duplicates("label")
+    return T[~T.label.map(config.early_pre)]
+
+
+def boot(d: pd.DataFrame, rng, nb: int | None = None) -> np.ndarray:
+    """Nested animals -> sessions bootstrap of the animal-weighted mean of ``chg``; ``nb`` draws (default NB = 2000;
+    11-23: `--n-boot 4000` for the paper's 4,000)."""
+    nb = NB if nb is None else nb
     groups = [x.chg.to_numpy() for _, x in d.groupby("animal")]
-    out = np.empty(NB)
-    for b in range(NB):
+    out = np.empty(nb)
+    for b in range(nb):
         pick = rng.integers(len(groups), size=len(groups))
         out[b] = np.mean([rng.choice(groups[i], size=len(groups[i])).mean() for i in pick])
     return out
 
 
-def main() -> int:
+def main(argv=None) -> int:
+    import argparse
+    ap = argparse.ArgumentParser(description=__doc__.split(chr(10) * 2)[0])
+    ap.add_argument("--preds", type=Path, default=None)
+    ap.add_argument("--first-preds", type=Path, default=None)
+    ap.add_argument("--out", type=Path, default=None, help="output folder (default il.OUT)")
+    ap.add_argument("--no-figures", action="store_true", help="tables only (aim_by_spout_{sessions,tests,time_lmm})")
+    ap.add_argument("--n-boot", type=int, default=None, help=f"bootstrap draws (default NB = {NB}; same seed)")
+    a = ap.parse_args(argv)
+    out = a.out or il.OUT
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -89,8 +113,9 @@ def main() -> int:
     from wfield_local import cat_points as cp
     from wfield_local import trial_set_text as tst
     tst.declare(text=trial_set_sentence())
-    S = session_spout()
-    S.to_csv(il.OUT / "aim_by_spout_sessions.csv", index=False)
+    out.mkdir(parents=True, exist_ok=True)
+    S = session_spout(a.preds, a.first_preds)
+    S.to_csv(out / "aim_by_spout_sessions.csv", index=False)
     rng = np.random.default_rng(0)
     T = []
     for pos in PANELS:
@@ -99,7 +124,7 @@ def main() -> int:
             if d.empty:
                 continue
             m = d.groupby("animal").chg.mean().mean()
-            bs = boot(d, rng)
+            bs = boot(d, rng, a.n_boot)
             lo, hi = np.percentile(bs, [2.5, 97.5])
             lob, hib = np.percentile(bs, [100 * 0.025 / 18, 100 * (1 - 0.025 / 18)])  # 18 = the 6 spouts (weighted: same bar)
             T.append(dict(pos=pos, epoch=ep, mean=m, lo=lo, hi=hi, lo_bonf=lob, hi_bonf=hib, n_animals=d.animal.nunique(),
@@ -107,13 +132,19 @@ def main() -> int:
                           sig_bonf=ep != "pre" and (lob > 0 or hib < 0),
                           **{f"{a}": d[d.animal == a].chg.mean() for a in AN}))
     T = pd.DataFrame(T)
-    T.to_csv(il.OUT / "aim_by_spout_tests.csv", index=False)
+    T.to_csv(out / "aim_by_spout_tests.csv", index=False)
     pd.set_option("display.width", 220)
     print("== per animal first (rule 8): change vs own pre, deg, + = contralesional")
     print(T[["pos", "epoch"] + AN].round(1).to_string(index=False))
     print("\n== pooled (animal-weighted)")
     print(T[["pos", "epoch", "mean", "lo", "hi", "sig", "sig_bonf", "n_animals", "n_sessions"]].round(1).to_string(index=False))
 
+    if a.no_figures:
+        from wfield_local import mixed_models as mm
+        L = mm.add_time_covariates(S.drop(columns=["day"]).rename(columns={"off": "y"}))
+        mm.lmm_table(L, ["pos"], models=("time",), print_animals=False, fdr_by=()).to_csv(
+            out / "aim_by_spout_time_lmm.csv", index=False)
+        return 0
     # ---- Fig A: pooled, spout x epoch ----
     fig, axs = plt.subplots(1, 7, figsize=(19.5, 4.4), sharey=True)
     for ax, pos in zip(axs, PANELS):
@@ -151,7 +182,7 @@ def main() -> int:
                  "** after Bonferroni over 18 tests; pre column = pre sessions vs their own mean (noise floor)",
                  fontsize=9.5)
     fig.tight_layout(rect=(0, 0.06, 1, 0.88))
-    save_png_svg(fig, il.OUT / "figures" / "lick_cued_aim_by_spout.png", dpi=100)
+    save_png_svg(fig, out / "figures" / "lick_cued_aim_by_spout.png", dpi=100)
 
     # ---- Fig B: per animal over days ----
     from wfield_local import mixed_models as mm
@@ -160,7 +191,7 @@ def main() -> int:
     # relative to the fitted pre level, i.e. on the change-vs-pre axis.
     L = mm.add_time_covariates(S.drop(columns=["day"]).rename(columns={"off": "y"}))
     M = mm.lmm_table(L, ["pos"], models=("time",), print_animals=False, fdr_by=())
-    M.to_csv(il.OUT / "aim_by_spout_time_lmm.csv", index=False)
+    M.to_csv(out / "aim_by_spout_time_lmm.csv", index=False)
     print("\n== pooled TIME model per panel (y ~ post + post:lday, animal random effects; q = BH over 7 panels)")
     print(M[["pos", "term", "coef", "se", "z", "q", "re", "n"]].round(3).to_string(index=False))
     fig, axs = plt.subplots(1, 7, figsize=(19.5, 4.6), sharey=True)
@@ -191,7 +222,7 @@ def main() -> int:
                  "page's Fig 16.9 model),\nstep = day-1 change vs pre, recovery = change per e-fold of days; q = BH over "
                  "the 7 panels", fontsize=9.5)
     fig.tight_layout(rect=(0, 0.06, 1, 0.88))
-    save_png_svg(fig, il.OUT / "figures" / "lick_cued_aim_by_spout_days.png", dpi=100)
+    save_png_svg(fig, out / "figures" / "lick_cued_aim_by_spout_days.png", dpi=100)
     return 0
 
 

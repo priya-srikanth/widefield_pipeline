@@ -334,14 +334,15 @@ def region_of(home: np.ndarray) -> np.ndarray:
 
 
 def _lick_rate(animal: str, date: str, t: np.ndarray) -> np.ndarray | None:
-    """LP v36 licks (all tables) per session bin of ``t`` (DAQ s, regular), licks / s."""
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
-    f = oo.session_dir(PathResolver(), oc.RUN, animal, date) / "licks_all.csv"
-    if not f.exists() or len(t) < 2:
+    """Video licks (every context) per session bin of ``t`` (DAQ s, regular), licks / s. 11-22: THE session lick table
+    (`session_licks`: the fused four-camera train when selected, else the adopted run's cam4 licks_all)."""
+    from wfield_local import session_licks as SL
+    if len(t) < 2:
         return None
-    lk = pd.read_csv(f, usecols=["daq_peak_s"]).daq_peak_s.dropna().to_numpy()
+    try:
+        lk = SL.session_onsets_s(f"{animal}_{date}", col="daq_peak_s")
+    except SL.SessionLicksUnavailable:
+        return None
     dt = float(np.median(np.diff(t)))
     edges = np.concatenate([t - dt / 2, [t[-1] + dt / 2]])
     return np.histogram(lk, edges)[0] / dt

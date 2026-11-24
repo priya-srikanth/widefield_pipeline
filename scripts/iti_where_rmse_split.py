@@ -33,7 +33,7 @@ def main(argv=None) -> int:
                 rows.append(dict(set=st, animal=a, epoch=ep, label=lab, axis=ax_, rmse=float(np.sqrt(np.mean(e ** 2))),
                                  bias=float(abs(e.mean())), sd=float(e.std())))
     S = pd.DataFrame(rows)
-    S.to_csv(il.OUT / f"where_rmse_split{'_unscaled' if unscaled else ''}_sessions.csv", index=False)
+    S.to_csv(il.OUT_X / f"where_rmse_split{'_unscaled' if unscaled else ''}_sessions.csv", index=False)
     pd.set_option("display.width", 200)
     print("== per animal (rule 8), chronic minus pre: RMSE, |bias|, SD (mm)")
     m = S.groupby(["set", "axis", "animal", "epoch"])[["rmse", "bias", "sd"]].mean()
@@ -47,7 +47,7 @@ def main(argv=None) -> int:
                 ci = ak.boot_delta(post, prd, np.random.default_rng(0))
                 tests.append(dict(set=st, axis=ax_, measure=val, epoch=ep, point=ci.point, lo=ci.lo, hi=ci.hi))
     T = pd.DataFrame(tests)
-    T.to_csv(il.OUT / f"where_rmse_split{'_unscaled' if unscaled else ''}.csv", index=False)
+    T.to_csv(il.OUT_X / f"where_rmse_split{'_unscaled' if unscaled else ''}.csv", index=False)
     print("\n== change vs pre (paired nested bootstrap)\n" + T.round(3).to_string(index=False))
     return 0
 

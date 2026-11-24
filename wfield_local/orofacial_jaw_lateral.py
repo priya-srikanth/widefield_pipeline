@@ -37,7 +37,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-RUN = "lp_r4_heatmap_20261013__clean_v36"
+from wfield_local.orofacial_cohort import RUN  # noqa: E402  11-22: the adopted run (was a literal v36 copy of it)
 OPEN_PX = 50.0
 OPEN_FIT_PX = 15.0
 WIN_MS = (70.0, 3000.0)                    # = orofacial_kinematics lick12_detect_win_ms (the 10-15 readout)

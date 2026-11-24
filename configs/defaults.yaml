@@ -1355,7 +1355,10 @@ o2_inference:                  # WHOLE-SESSION cam4 pose inference on HMS O2 (wf
   # Tesla V100S nodes -- the `lp` env's torch has no Volta (sm_70) kernels ("CUDA error: no kernel image is available"),
   # so a task there dies in ~30 s and the node takes the next one: 43 tasks of array 56464442 failed that way once
   # Gres was opened to any GPU type. RTX 8000 / A40 / A100 (incl. MIG) / L40S all work.
-  exclude_nodes: "compute-g-16-[254-255],compute-g-17-[147-152]"
+  # compute-g-17-168 (2026-11-19, array 60091034 task 44): its L40S reports "CUDA error: uncorrectable ECC error" at
+  # model load (after ~16 min of side-transform encoding). Hardware fault; drop from this list once RC has fixed it.
+  # NOTE: sbatch --exclude / scontrol ExcNodeList REPLACE the list -- always pass the whole string.
+  exclude_nodes: "compute-g-16-[254-255],compute-g-17-[147-152],compute-g-17-168"
   conda_module: "conda/miniforge3/26.9.4-1"
   conda_env: deeplabcut           # Priya's existing O2 env (2025-11 stroke_orofacial O2 runs; PyTorch DLC 3)
   deeplabcut_version: "3.0.1"   # = this desktop's; the runner's numbers are tested against it
@@ -1373,7 +1376,13 @@ o2_inference:                  # WHOLE-SESSION cam4 pose inference on HMS O2 (wf
     model_rel_cam1: "o2/lp_train_cam1_r2_20261018/models/mhcrnn_semi_640_b4"   # cam1 PRODUCTION (Priya 10-19): LP
                                 # ctx-semi (heatmap_mhcrnn, round-2 labels, tongue eps 35) -- most faint licks after
                                 # cleaning, no emergence lag (POSE_MODELS Part B). `bundle --kind lp --cam cam1`.
-    conda_env: lp               # NEW env on O2 (COMMANDS.md step 0 creates it); never Priya's `deeplabcut` env
+    model_rel_side: "lightning-pose/side-2026-11-18/models/side_r2b_r2_full"   # cam2 + cam3 PRODUCTION CANDIDATE
+                                # (11-18): ONE shared side model, round-2 labels + Priya's jaw relabel (POSE_MODELS
+                                # Part E, r2b). `bundle --kind lp --cam side` = cam2 AND cam3 videos in one bundle; the
+                                # runner transforms each frame first (`o2_lp_runner --side`).
+    reader_side: opencv         # side: the transformed temporary mp4 (H.264) read like the desktop validation
+                                # (Windows-native litpose = opencv; 11-18 smoke: 0.002 px median vs the review clips)
+    conda_env: lp              # NEW env on O2 (COMMANDS.md step 0 creates it); never Priya's `deeplabcut` env
     lightning_pose_version: "2.4.2"   # = this desktop's (the model was trained with it)
     opencv_version: "4.12.0.88"  # opencv-python-headless, installed WITH lightning-pose (it does not pull OpenCV in)
     reader: dali                # 2026-10-15 O2 smoke bench (Quadro RTX 8000, 2000 frames, MPEG-4 part 2 clip): dali ~105 fps

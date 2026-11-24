@@ -129,7 +129,7 @@ def plot(S: pd.DataFrame, T: pd.DataFrame, angle: bool = False) -> None:
                  "\nGrey = animals, black = mean of animals, diamond = pre + change with 95% paired nested bootstrap CI "
                  "(* = excludes 0, bold), k/n = animals changing that way. PROVISIONAL", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 1 - 0.75 / fig.get_size_inches()[1]))
-    save_png_svg(fig, il.OUT / "figures" / f"lick_cued_overcorrection{'_angle' if angle else ''}.png", dpi=100)
+    save_png_svg(fig, il.OUT_X / "figures" / f"lick_cued_overcorrection{'_angle' if angle else ''}.png", dpi=100)
     plt.close(fig)
 
 
@@ -153,7 +153,7 @@ def main(argv=None) -> int:
         return 0
     il.split_only("iti_overcorrection")
     S = sessions(angle)
-    S.to_csv(il.OUT / f"overcorrection{sfx}_sessions.csv", index=False)
+    S.to_csv(il.OUT_X / f"overcorrection{sfx}_sessions.csv", index=False)
     pd.set_option("display.width", 220)
     print("== per animal (rule 8): like-for-like offset, per spout x epoch (mm / deg; - = read ipsilesional of the landing)")
     print(S.pivot_table(index=["spout", "animal"], columns="epoch", values="lfl").reindex(columns=EPS).round(2)
@@ -162,7 +162,7 @@ def main(argv=None) -> int:
     print(S.pivot_table(index=["spout", "animal"], columns="epoch", values="slope").reindex(columns=EPS).round(2)
           .to_string())
     T = tests(S)
-    T.to_csv(il.OUT / f"overcorrection{sfx}_tests.csv", index=False)
+    T.to_csv(il.OUT_X / f"overcorrection{sfx}_tests.csv", index=False)
     print("\n== change vs pre (paired nested bootstrap)")
     print(T.round(3).to_string(index=False))
     save_fd(f"lick_cued_overcorrection{sfx}", dict(S=S, T=T, angle=angle))

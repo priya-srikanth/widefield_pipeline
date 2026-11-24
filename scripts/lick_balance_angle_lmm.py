@@ -91,7 +91,7 @@ def gap_keep(P: pd.DataFrame) -> np.ndarray:
     rows are untouched. All True without the flag. Needs P['k'] = the prediction-cache index."""
     if "--gap2" not in sys.argv:
         return np.ones(len(P), bool)
-    A = pd.read_csv(il.OUT / "iti_dock_audit.csv", usecols=["label", "k", "gap"]).set_index(["label", "k"]).gap
+    A = pd.read_csv(il.in_path_x("iti_dock_audit.csv"), usecols=["label", "k", "gap"]).set_index(["label", "k"]).gap
     g = A.reindex(pd.MultiIndex.from_arrays([P.label, P.k])).to_numpy(float)
     first = ((P.set == "iti") & (P.order == 0)).to_numpy()
     keep = ~first | (g >= il.GAP_MAIN)

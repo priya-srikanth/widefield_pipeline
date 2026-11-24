@@ -103,7 +103,7 @@ def main() -> int:
                     rows.append(dict(animal=a, subset=subset, spout=tgt, epoch=ep, gain=float(v @ ref / (ref @ ref)),
                                      cos=_cos(v, ref), **{f"cos_to_{q}": _cos(v, Pp[q]) for q in POS}))
     T = pd.DataFrame(rows)
-    T.to_csv(il.OUT / "farcontra_pattern.csv", index=False)
+    T.to_csv(il.OUT_X / "farcontra_pattern.csv", index=False)
     pd.set_option("display.width", 250)
     for sub in ("all", "usual"):
         print(f"\n== {sub} licks: per animal (rule 8). gain along the pre pattern, cos to it, cos to each pre spout pattern")

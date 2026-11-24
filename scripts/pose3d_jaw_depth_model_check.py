@@ -150,8 +150,8 @@ def main() -> int:
         fd_h = (ht[fl].median() - ht[fr].median()) / 2
         print(f"  {v:9s} {s} {m:6s}: n={len(g)} r={np.corrcoef(tr, ht)[0, 1]:.3f}  FAR_DIR true {fd_t:+.3f} "
               f"est {fd_h:+.3f}")
-    out = PathResolver().root("dlc")
-    R.to_csv(f"{out}/session_poses/pose3d/jaw_depth_model_check.csv.gz", index=False, float_format="%.4g")
+    from wfield_local.pose3d import pose3d_dir        # 11-22: the selected 3-D source's folder (was literal pose3d/)
+    R.to_csv(pose3d_dir(PathResolver()) / "jaw_depth_model_check.csv.gz", index=False, float_format="%.4g")
     return 0
 
 

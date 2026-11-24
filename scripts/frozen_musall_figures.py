@@ -96,10 +96,10 @@ def main(argv=None) -> int:
     out = _fe.out_root() / f"frozen_encoder_{a.tag}"
     A = pd.read_csv(out / "frozen_musall_r2_by_animal.csv")
     Q = quantities(A)
-    fd = out / "figures"
+    fd = _fe.fig_out(out) / "figures"
     assert_writable(fd)
     fd.mkdir(parents=True, exist_ok=True)
-    Q.to_csv(out / "frozen_musall_quantities_by_animal.csv", index=False, float_format="%.4f")
+    Q.to_csv(_fe.fig_out(out) / "frozen_musall_quantities_by_animal.csv", index=False, float_format="%.4f")
     epochs = [e for e in EPOCHS if e in set(Q.epoch)]
     stamp = ("FROZEN pre-stroke encoder (per animal, August pre; pre sessions leave-one-session-out). Attempted-trial "
              "gate, cam4 + cam1 licks (cam4 only where cam1 is missing). PROVISIONAL.")

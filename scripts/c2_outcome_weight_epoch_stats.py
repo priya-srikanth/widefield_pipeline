@@ -42,7 +42,10 @@ sys.path.insert(0, str(REPO))
 from wfield_local import config  # noqa: E402
 
 SRV = Path("M:/MICROSCOPE/Priya")
-CLASSES_CSV = SRV / "Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/qc/s1_trial_classes_cue_stop.csv.gz"
+# 11-22 (plan item 3 / runbook bug: steps 5 / 6 / 8 passed only --out-dir, so every input stayed v36 / two-camera):
+# the DEFAULT follows the adopted run (`orofacial_cohort.RUN`, routed like the producers); pass it explicitly anyway
+from wfield_local import orofacial_outputs as _oo  # noqa: E402
+CLASSES_CSV = _oo.encoding_root() / "qc" / "s1_trial_classes_cue_stop.csv.gz"
 WEIGHTS_CSV = REPO / "configs/animal_weights.csv"
 OUT_DIR = SRV / "Widefield/manuscript_stats"
 ANIMALS = ("PS92", "PS93", "PS94", "PS95")

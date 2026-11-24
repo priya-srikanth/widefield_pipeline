@@ -40,7 +40,7 @@ import iti_recovery_measure as rm  # noqa: E402
 
 from wfield_local import mixed_models as mx  # noqa: E402
 
-WOUT = il.OUT_W if il.ITI_SUBSET else il.OUT     # subset runs (dock, ...) write to their own folder (10-29)
+WOUT = il.OUT_W if il.ITI_SUBSET else il.OUT_X     # subset runs (dock, ...) write to their own folder (10-29)
 SET = {"iti": "ITI licks", "trial": "cued licks"}
 MM = "mm, + = contralesional"
 RATIO = "/ animal's pre mean, 1 = pre"

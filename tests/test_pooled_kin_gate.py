@@ -41,6 +41,7 @@ def _env(monkeypatch):
 def d3(tmp_path, monkeypatch):
     """PS92_0810 with camera classes (working trials 1..5); PS93_0813 with no video. The snapshot tables hold both
     working and non-working trials; sessions.csv = the ungated medians (the 10-23 table)."""
+    monkeypatch.setenv("WIDEFIELD_KIN_LICKS", "cam4")        # the fixture writes the cam4-window folder (`kinematics/`)
     full = np.arange(len(CLS)) * 10.0
     T = pd.DataFrame({"trial_id": np.arange(len(CLS)) + 1, "position": ["far_R"] * len(CLS), "cue_daq": full + 0.004,
                       "cls": ["raw"] * len(CLS)})
@@ -91,7 +92,7 @@ def test_sessions3d_legacy_reads_the_old_table(d3, monkeypatch):
 
 def test_pooled_figs_never_read_the_ungated_table_unfiltered():
     src = (REPO / "scripts" / "kinematics_pooled_figs.py").read_text(encoding="utf-8")
-    hits = [m.start() for m in re.finditer(r'"kinematics"\s*/\s*"sessions\.csv"', src)]
+    hits = [m.start() for m in re.finditer(r'(?:"kinematics"|_kin_name\(\))\s*/\s*"sessions\.csv"', src)]   # 11-22: folder via kin_name()
     assert len(hits) == 1                                                  # only the legacy branch of sessions3d
     body = src[src.index("def sessions3d"):src.index("def fig_3d")]
     assert src.index("def sessions3d") < hits[0] < src.index("def fig_3d")

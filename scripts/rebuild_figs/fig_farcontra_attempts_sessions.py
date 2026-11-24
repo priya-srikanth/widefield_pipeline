@@ -52,7 +52,8 @@ from wfield_local.orofacial_cohort import EPOCH_LINE  # noqa: E402
 import _common  # noqa: E402
 
 NAME = "farcontra_attempts_sessions"
-INC = Path(config.resolver().root("dlc")) / "session_poses" / "cam1_licks" / "incomplete" / "sessions.csv"   # in place
+from wfield_local import lp_licks as _lpl  # noqa: E402
+INC = _lpl.cam1_events_dir(config.resolver()) / "incomplete" / "sessions.csv"   # in place  # 11-22: the adopted / routed cam1 folder (lp_licks.cam1_events_dir; was the literal cam1_licks)
 ANIMALS = ("PS92", "PS93", "PS94", "PS95")
 MARK = {"PS92": "o", "PS93": "s", "PS94": "^", "PS95": "D"}
 EPOCHS = ("pre", "acute", "subacute", "chronic")

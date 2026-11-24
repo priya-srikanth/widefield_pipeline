@@ -69,16 +69,15 @@ def _session_beh(label: str) -> pd.DataFrame:
     fr_in_mask. Kinematics joined on lick_uid -> exact DAQ peak time (as iti_where_decoder.coords)."""
     from wfield_local import config
     from wfield_local import face_rhythm_outputs as fro
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
     from wfield_local.paths import PathResolver
     rv = PathResolver()
     an, date = config.animal_of(label), "2026" + label.split("_")[-1]
     d = il._load(label)
-    A = pd.read_csv(oo.session_dir(rv, oc.RUN, an, date) / "licks_all.csv", usecols=["daq_peak_s"])
+    from wfield_local import session_licks as SL
+    A = SL.session_licks(f"{an}_{date}", rv)         # THE session lick table (11-22)
     K = il.lick_table()
-    K = K[K.session == f"{an}_{date}"].drop_duplicates("lick_uid")
-    kt = pd.DataFrame({c: K[c].to_numpy(float) for c in KIN}, index=A.daq_peak_s.to_numpy(float)[K.lick_uid.to_numpy(int)])
+    K = SL.kin_by_row(K[K.session == f"{an}_{date}"], A, label)          # by LICK KEY (11-22; was lick_uid = row)
+    kt = pd.DataFrame({c: K[c].to_numpy(float) for c in KIN}, index=A.daq_peak_s.to_numpy(float)[K.index.to_numpy(int)])
     kt = kt[~kt.index.duplicated()]
     out = []
     for st, tk in (("iti", "iti_t"), ("trial", "tr_t")):

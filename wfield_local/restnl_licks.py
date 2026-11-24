@@ -17,8 +17,13 @@ licks only. Both versions stay available:
              A session without an events_all file gets cam4 only, and is LOGGED by name (`missing_cam1()`); a session
              without licks_all.csv has no RESTnl at all (unchanged, e.g. PS93_0813).
 
+  fused      ("RESTnlf", 11-22; Priya 11-21 Q1 = (b): the fused four-camera train defines the lick set for the
+             lick-free windows too) -- DAQ + EVERY lick of the fused train (`session_licks`, every context; cam1-only
+             and confirmed side-only licks are in it), replacing the cam4 table. The DEFAULT whenever a fused lick set is
+             selected (`session_licks.fused_on()`) and the env does not name another set. Own cache dir / stem.
+
 Selected by env `WIDEFIELD_RESTNL_LICKS` (so spawned workers inherit it) or `active("cam4cam1")` (sets the env for the
-block). Consumers: `restnl_mask` (marked hook lines -- the default digest / cache names are unchanged), the derived map
+block); unset -> "fused" under a fused lick set, else "cam4". Consumers: `restnl_mask` (marked hook lines -- the default digest / cache names are unchanged), the derived map
 reference "restnlc1" (`position_reference_maps`), `attempt_maps --rest-variant restnlc1`, `rest_frozen_decoder_nl --mask
 restnlc1`, `scripts/restw_strict_check.py` + `scripts/restnl.py` (area-level RESTnl; folder `restw_check_c1`, suffix
 `_restnlc1`), the interhemispheric rest set and the state-space rest baseline. Every cam4cam1 product has its own cache
@@ -37,8 +42,12 @@ import numpy as np
 from wfield_local import cam1_licks as _C1
 
 ENV = "WIDEFIELD_RESTNL_LICKS"
-SETS = ("cam4", "cam4cam1")
+SETS = ("cam4", "cam4cam1", "fused")
 DEFAULT = "cam4"
+#: the fused version's names (11-22)
+FUSED_TAG = "restnlf"
+FUSED_NAME = "RESTnlf"
+FUSED_CACHE_TAG = "restnlfv1"
 #: name / tag of the cam4cam1 version (cache dirs, file stems, reference names, output suffixes)
 TAG = "restnlc1"
 NAME = "RESTnlc1"
@@ -47,8 +56,9 @@ NAME = "RESTnlc1"
 CACHE_TAG = "restnlc1v3"
 CHECK_DIR = "restw_check_c1v3"
 TEXT = {"cam4": "DAQ spout-contact licks + cam4 LP video licks",
-        "cam4cam1": "DAQ spout-contact licks + cam4 LP video licks + cam1-only LP events (water droplets and far-from-mouth labels removed)"}
-SHORT = {"cam4": "DAQ + cam4", "cam4cam1": "DAQ + cam4 + cam1"}
+        "cam4cam1": "DAQ spout-contact licks + cam4 LP video licks + cam1-only LP events (water droplets and far-from-mouth labels removed)",
+        "fused": "DAQ spout-contact licks + every lick of the fused four-camera video train (cam4, cam1, cam2, cam3)"}
+SHORT = {"cam4": "DAQ + cam4", "cam4cam1": "DAQ + cam4 + cam1", "fused": "DAQ + fused 4-camera"}
 VERSION = 3
 #: cam1-only events whose median label position is this far BEHIND the mouth line (px, med_out_px) are static
 #: tracking artifacts, not licks: Priya's blind review 11-17 scored 7 / 8 no-tongue test events below it and 0 / 30
@@ -61,7 +71,9 @@ _MISSING: dict = {}
 
 
 def lick_set() -> str:
-    v = os.environ.get(ENV, DEFAULT).strip().lower() or DEFAULT
+    from wfield_local import session_licks
+    dflt = "fused" if session_licks.fused_on() else DEFAULT
+    v = os.environ.get(ENV, dflt).strip().lower() or dflt
     if v not in SETS:
         raise ValueError(f"{ENV}={v!r}; expected one of {SETS}")
     return v
@@ -69,6 +81,26 @@ def lick_set() -> str:
 
 def is_c1() -> bool:
     return lick_set() == "cam4cam1"
+
+
+def is_fused() -> bool:
+    return lick_set() == "fused"
+
+
+def fused_onsets(label: str) -> np.ndarray:
+    """DAQ onsets (s) of every lick of the session's fused train (`session_licks.session_onsets_s`); raises
+    `session_licks.SessionLicksUnavailable` when the session has none (-> no RESTnl, as without licks_all.csv)."""
+    from wfield_local import session_licks
+    return session_licks.session_onsets_s(label)
+
+
+def fused_key_part(label: str) -> str:
+    """Per-session cache-key part of the fused version: code + the fused train's identity (`session_licks.signature`)
+    + the session's fused table."""
+    from wfield_local import map_collect, session_licks
+    an, d = session_licks._split(label)
+    f = session_licks.fused_dir() / f"{an}_{d}_fused.csv"
+    return f"fv1:{code_digest()}:{session_licks.signature()}:{map_collect.stat_sig(f)}"
 
 
 @contextlib.contextmanager
@@ -93,12 +125,11 @@ def text() -> str:
 
 def cam1_events_path(label: str):
     """cam1 `events_all.csv` of a session (whole trial windows; may not exist)."""
-    from pathlib import Path
-
     from wfield_local import config
     from wfield_local.paths import PathResolver
     an, d = label.split("_")
-    return Path(PathResolver().root("dlc")) / "session_poses" / "cam1_licks" / f"{an}_{config.date8(d)}_events_all.csv"
+    from wfield_local import lp_licks          # 11-22: the adopted / routed cam1 folder (was the literal cam1_licks)
+    return lp_licks.cam1_events_dir(PathResolver()) / f"{an}_{config.date8(d)}_events_all.csv"
 
 
 def cam1_only_onsets(E, label: str | None = None) -> np.ndarray:

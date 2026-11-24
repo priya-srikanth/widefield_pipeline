@@ -348,11 +348,14 @@ def img_worker(lab: str) -> dict:
     return {"label": lab, "cached": False}
 
 
-def extract(jobs: int) -> None:
+def extract(jobs: int, imaging: bool = True) -> None:
+    """Per-session caches; ``imaging=False`` (mode ``extract-beh``, 11-23) = the behavior caches only (beh_<label>.pkl,
+    also read by within_session_decline), no imaging / RESTnl level."""
     from wfield_local import analysis_kit as ak
     labs = ak.curated_labels(order="sorted")
     SESS.mkdir(parents=True, exist_ok=True)
-    for name, w in (("behaviour", beh_worker), ("imaging", img_worker)):
+    steps = (("behaviour", beh_worker), ("imaging", img_worker))
+    for name, w in (steps if imaging else steps[:1]):
         res, fail = ak.fan_sessions(labs, w, jobs=jobs, label=name)
         print(f"{name}: {len(res)} ok ({sum(not v.get('cached') for _, v in res)} new), {len(fail)} failed", flush=True)
         for fl in fail:
@@ -2083,7 +2086,7 @@ def plot_addendum(FD=None):
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("mode", nargs="?", default="all",
-                    choices=("extract", "analyse", "plot", "all", "addendum", "plot-addendum"))
+                    choices=("extract", "extract-beh", "analyse", "plot", "all", "addendum", "plot-addendum"))
     ap.add_argument("--jobs", type=int, default=4)
     ap.add_argument("--plot-only", action="store_true")
     a = ap.parse_args(argv)
@@ -2095,6 +2098,9 @@ def main(argv=None) -> int:
         return 0
     if a.plot_only or a.mode == "plot":
         plot()
+        return 0
+    if a.mode == "extract-beh":
+        extract(min(a.jobs, 4), imaging=False)
         return 0
     if a.mode in ("extract", "all"):
         extract(min(a.jobs, 4))

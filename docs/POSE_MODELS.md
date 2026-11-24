@@ -15,7 +15,7 @@ TARGET vs CONTEXT rule (DECISIONS 2026-09-30): a blank on a labeled frame means 
 | **DLC r3** | DLC 3.0.1, ResNet-50, single frame | round 3: 407 frames / 15 sessions | 680 (native) | DLC default | — | Windows GPU | `training/widefield-Priya-2026-09-08-orofacial`, iteration-2 `trainset71`, `snapshot-best-160` |
 | **DLC r4** | same | round 4: 540 frames / 21 sessions | 680 | DLC default | — | Windows GPU | same project, iteration-2 `trainset74`, `snapshot-best-170` |
 | **LP r3** | Lightning Pose 2.4.2 `heatmap`, ResNet-50, single frame | round 3 | 640 | 4 | temporal, eps 10 px | WSL | `/root/lp/cam4-2026-09-28/models/round3_occl_uniform_20260930`; Windows inference copy `lp_stage/lp_models_win/` |
-| **LP r4** | LP `heatmap` | round 4 | 640 | 4 | temporal, eps 10 px | WSL | `/root/lp/cam4-2026-10-13/models/r4_heatmap_20261013` (best epoch 159); copy in `lp_stage/lp_models_win/` |
+| **LP r4** (production cam4 / front network; bundle `lp_r4_prod_20261015`) | LP `heatmap` | round 4 (Priya 11-22: front network trained from cohort-1 labels -- the label set was seeded from the cohort-1 (2pRAM) DeepLabCut network's predictions and hand-corrected; DECISIONS 1604-1611) | 640 | 4 | temporal, eps 10 px | WSL | `/root/lp/cam4-2026-10-13/models/r4_heatmap_20261013` (best epoch 159); copy in `lp_stage/lp_models_win/` |
 | **LP r4 ctx-sup** | LP `heatmap_mhcrnn` (frames t-2..t+2 at inference) | round 4 | 640 | 1 | **none** (supervised only) | **Windows native** | `lp_stage/lp_cam4_r4_win/models/r4_mhcrnn_sup_win_20261013` (300 epochs) |
 | **EKS r4+ctx** | single-camera Ensemble Kalman Smoother over LP r4 + LP r4 ctx-sup | — | — | — | — | CPU (env `eks`) | `scripts/eks_two_model.py`; outputs `lp_stage/r3_vs_r4_lp/eks_r4_heat_ctx*/` |
 | **LP r4 ctx-semi** *(training)* | LP `heatmap_mhcrnn` | round 4 | **512** | 1 (+5-frame video batch) | temporal, eps **[10, 10, 35, 10]** | WSL, capped | `/root/lp/cam4-2026-10-13/models/r4_mhcrnn_semi_512_20261014` |
@@ -1099,6 +1099,37 @@ four review sessions mapped to raw (`lp_sidecam.to_raw`); reference = production
   the side nose as its own keypoint (or subtract ~0.75 mm dv, but it varies 0.3-1.2 by session).
 * June side (800 x 600, 1.24x face) posed acceptably with the August intrinsics (1.1 px) and gave the same offsets; to be
   confirmed on more June sessions before trusting June side 3-D.
+* **June side views, every session (11-21; Priya: "it's the same lenses june to august").** Spout PnP (`pnp_group`'s
+  SQPnP + LM, 09-11 intrinsics) on the whole-session side medians (`lp_side_r2b_prod_20261118`, `ruler_medians`) for all
+  23 June sessions with side output (PS92 0602-0608, PS93 0605-0608, PS94 0603-0608, PS95 0603-0608; PS94 / PS95 0601
+  have no side windows) against 7 August references. Script + tables: `C:/Users/SabatiniLab/lp_stage/pilot4cam/june_pnp/`
+  (`june_pnp.py`, `pnp_aug.csv`, `pnp_june2.csv`, `offsets.log`).
+  * Reprojection (rms px over the six spouts): August 0.41-1.17 (cam2 median 0.88, cam3 0.55); June 0.52-1.36 (cam2) and
+    0.45-1.07 (cam3) except **PS92 0602 / 0603 cam3, 2.1-2.2 px (max 2.6-2.9)**, which also pose 10 mm off the other June
+    sessions. In 600-px units (June px x 0.75) June is 0.4-1.0, i.e. at or below August.
+  * The frame-size question: the spout spacing is 1.27x (cam2) / 1.29x (cam3) larger in June px, and with the AUGUST K
+    the June cameras pose 1.27-1.28x closer (105 vs 134 mm). With the 09-11 K rescaled to the 800-px frame (x 4/3,
+    principal point included) they pose at 137-141 mm, 3-5 % behind August, with the same reprojection. Same lens and
+    position, finer sampling of the same field, camera ~4 % further back -- which is why the face is ~1.28x (not 1.33x)
+    larger. The two intrinsics hypotheses are indistinguishable from six near-coplanar spouts (focal length and distance
+    trade off), and it does not matter for 3-D: the world rays of every confident side jaw / tongue point agree within
+    **0.01 mm median, 0.07 mm p95** at the mouth between the two (K, pose) pairs.
+  * Orientation: June cameras sit 1-3 deg (cam2) / 2.5-4.7 deg (cam3) from the August median pose (August spread 0-2.8 deg)
+    -- a small set-up difference, absorbed by the per-session PnP.
+  * Offsets (`fuse_session` stats, side keypoint vs the cam1 + cam4 3-D point): June PS93 0607 / PS94 0607 nose dv
+    +0.56 to +1.00 mm, tongue <= 0.29 mm; August PS93 0814 nose dv +1.13 / +1.14, tongue <= 0.19 -- inside the 11-04 ranges
+    (nose 0.29-1.18, tongue 0.12-0.30). Jaw fused in 99.98 % of frames in all three.
+  * **Recommendation:** replace the blanket June skip with a per-session, per-camera gate for ALL sessions: spout
+    reprojection rms <= 1.5 px in 600-px units (rms x 600 / frame width) and max <= 2.0. June passes except PS92 0602 /
+    0603 cam3 (1.6 / 1.65 rms in 600-px units), both outside the curated set (6/6-6/8 + 8/6 on) anyway. Optional
+    tidy-up: scale the 09-11 side K by width / 600 for 800-px sessions, so June camera positions are physical (3-D points
+    are unchanged either way). Pipeline code not changed yet (report first).
+  * **August gate drops and the cam3 override (11-23).** In the whole-session run `pose3d_4cam_3net_20261121_sync60` the
+    gate also dropped **PS95 0818 / 0820 cam3** (rms600 1.56 / 1.26, max 2.33 / 2.03): chin-fur contact biases the cam3
+    close-spout tip labels 1-2 px, while cam3 tongue / jaw tracking is fine. Priya 11-23 ("can we add back cam3 then?"):
+    both are re-included with cam3 forced on (`WIDEFIELD_POSE3D_SIDE_ON=cam3`, the standard six-spout pose; validated
+    against 0819 / 0821, DECISIONS 2026-11-23); their summary rows still read `side_dropped = cam3` (the real gate) with
+    `side_forced_on = cam3`. Without cam3 PS95 peak speed read 7-8 mm/s high.
 * **Correction 11-04 (Priya: "I thought we were using cam4 spout as truth and building in the cam1 offset").** Against
   the commanded tip (= cam4's keypoint), per position, PS93 0814: `session_3d`'s per-frame spout -1.04 mm ap (it
   triangulates cam1's inferior + cam4's superior edge as one point; identical at all six positions), cam1 + cam4 with
@@ -1154,6 +1185,100 @@ four review sessions mapped to raw (`lp_sidecam.to_raw`); reference = production
   protrusion (out_ap) -0.04 mm, lat_err +0.02 mm, miss -0.07 mm, peak speed -5.5 mm/s. Precision gain not shown on these
   licks (contact-lick SD within session x position, 13 cells: midline 5.9 vs 5.7 deg, sagittal 3.7 vs 4.6) -- to test on
   the whole-session run.
+
+**Round 2 training (11-18; student finished Part B).** Work dir `C:/Users/SabatiniLab/lp_stage/lp_side_r2_20261118/`
+(`r2_full` = production candidate, `fold0` / `fold1` = held-out test, `crop2_copy` = round 1 predicting the same frames).
+* Label state (guide logic, `dlc_sidecam_guide.sessions`): 166 Part B targets; 135 edited by the student; 31 still
+  EXACTLY the crop2 seed. 22 of those sit in folders she saved -> taken as her accepted calls (trained; their blank parts
+  train as hidden) but NOT scored (crop2 matches them by construction). The 9 in `cam3_2026-08-26T09_53_05` are in a
+  folder last written 11-04 11:29 (the seed write) -> never opened -> EXCLUDED from training and scoring.
+* One-part frames: the three PS95 09-17 nose-only targets (cam2 img1325540 / img1325614, cam3 img1325691) are
+  GROOMING (both paws over the mouth; jaw, tongue and spout tip hidden) -> deliberately labeled, KEPT (the `MIN_PARTS 2`
+  rule would have dropped them). The two Part A one-part context frames (cam2 06-06 14:09 img0233867, cam3 06-06 12:25
+  img0811263) are open-face frames left unfinished -> dropped (Priya agreed 11-18).
+  Unlabeled frames never train as "not visible": only frames in `CollectedData.csv` reach LP, and a blank is "hidden"
+  only inside a labeled frame.
+* Staged: r2_full 385 frames (round 1: 228). Held-out test = 2 session folds over the 13 Part B sessions (balanced by
+  epoch; fold models train on Part A + the other fold), scored on the 135 human-edited targets (87 jaw-sequence, 48 cam4
+  round-4 moments) against crop2, which never saw any Part B session. Recipe = crop2 unchanged (supervised).
+* Temporal-loss arm planned on the round-2 labels (same folds). Epsilon check: the 11-04 spout epsilon 5 is BELOW
+  genuine between-trial spout motion (move steps p99.9 5.1, max 9.8 px / frame) and breaks the "above p99.9" rule ->
+  spout >= 10 (isolated error jumps are ~16 px). All four epsilons were measured from crop2 predictions, which are
+  weakest on closed / opening jaw -> re-measure from the round-2 supervised model before the temporal fit.
+
+**Round 2 results (11-18; outputs `heldout_scores.txt`, `heldout_points.txt`, `clip_compare.txt`, `jaw_drops.png` +
+the scripts, all in the work dir).** r2_full / fold0 / fold1 all ran 300 epochs (~15 min each, 1.0 GB GPU).
+* The Part B labels are ANCHORED on crop2: the student nudged seeds by a median ~2 raw px (jaw 2.0, spout 1.7, tongue
+  2.7) and accepted 125 / 135 nose points as is -> crop2 scores 0.0 px on accepted points by construction (first
+  per-frame score, `heldout_scores.txt`, is biased for that reason). Fair per-POINT score (moved / placed points only,
+  model px): crop2 vs r2 median jaw 2.0 / 2.5, tongue 2.5 / 3.1, spout 1.7 / 2.4, nose 1.5 / 2.8 (n 10) -- within the
+  label noise; the position comparison cannot separate the two models.
+* Independent test = the student's HIDDEN calls (seed points she deleted): r2 is still confident on jaw 13 / 27
+  (crop2 27 / 27 by construction), spout 2 / 4, tongue 5 / 6 -> r2 halves false jaw detections.
+* Whole clips (same 14 clips as crop2: 4 review sessions x cam2 / cam3 + 6 whole-window clips): jitter unchanged
+  (step p99 jaw 4.3 vs 4.5, spout 2.2 vs 2.5), spout max step 14 vs 22; one-frame out-and-back spikes are rare in
+  both (jaw 6 / 6, spout 18 / 24, tongue 7 / 2 of ~10k tongue steps; r2 tongue spikes 11-16 px); r2 vs crop2 median
+  distance 0.6-1.8 px. Jaw confident fraction pre-cue 0.83 -> 0.78. `jaw_drops.png` (pre-cue frames crop2 confident,
+  r2 not): (a) spout rod tip at the chin -> r2 calls jaw hidden (as cam4's close_center rule; convention question for
+  Priya); (b) tongue out, crop2 jaw on the tongue underside -> r2 correct; (c) JUNE PS95 0606 closed mouth, jaw
+  visible, rod clear -> r2 MISSES (regression; June side 3-D is skipped until its intrinsics are checked anyway).
+* Temporal-loss thresholds re-measured on r2 (model px / 4 ms, both models alike): nose p99.9 1.4 max 2.2; jaw p99.9
+  7.0, max 10.6; tongue p99 17.7, p99.9 25.0; spout p99.9 4.2 (crop2 5.7), max 13.9. The errors present (jaw spikes
+  3-5 px, tongue spikes 11-16 px) are SMALLER than genuine motion, so no epsilon can target them without penalising
+  real movement: the temporal loss has little to fix (as 11-04). If run: nose 5, jaw 10, tongue 25, spout 10.
+
+**Round 2 follow-ups (11-18 evening, Priya).**
+* **Rod at the chin.** On the review clips the jaw is called hidden only in the camera on the rod's side (close_L: cam2
+  79 %, cam3 0 %; close_R: cam3 80 %, cam2 0 %; both hidden 0 % at every position), so 3-D keeps the jaw from the other
+  side camera. crop2 had put the jaw ON the rod tip (= spout point). `scratchpad rod_at_chin_clips.png`.
+* **Jaw relabel (Priya, napari).** 77 labeled frames had the spout visible and the jaw blank. 53 sent as ONE batch folder
+  (`lp_stage/jaw_relabel_20261118/labeled-data/jaw_batch`, names `<a|b>_<stem>__<img>`; a = rod away from the chin, 16;
+  b = rod at the chin, 37); the 24 tongue-out / grooming frames stay blank. Priya added 27 jaws (10 a, 17 b) and moved 2
+  spouts; merged cell by cell into the live project (`merge_log.csv`; pre-edit backups in
+  `DeepLabCut/Widefield/label_backups/20261118_jaw_relabel/`). Staged as **r2b** (`lp_stage/lp_side_r2b_20261118`, same
+  folds; jaw labels 303 -> 330), supervised crop2 recipe, training 11-18 evening.
+* **Temporal arm on the r2 labels** (WSL, 11-04 recipe, eps [5, 10, 25, 10], 126 unlabeled clips; r2_full only, the
+  folds were stopped by Priya's call): WORSE than supervised r2 on the 14 clips. Tongue pre-cue confident 0.033 -> 0.106
+  (false tongue before the cue), tongue one-frame spikes 7 -> 34 (max step 52 -> 152 px), jaw spikes 6 -> 12, jaw step
+  p99.9 7.0 -> 9.1, nose max step 2.2 -> 9.0; spout max step 13.9 -> 12.5 (a tie). Same outcome as 11-04: the temporal
+  loss is NOT adopted for the side model. `lp_side_r2_20261118/clip_compare_temporal.txt`.
+* **r2b results (11-18 evening) -> PRODUCTION CANDIDATE** (`lp_side_r2b_20261118/r2_full/models/side_r2b_r2_full`;
+  `heldout_points_r2b.txt`, `clip_compare_r2b.txt`, `r2b_check.png`). Held-out (135 targets, current labels): false jaw
+  on student-hidden points r1 20/20, r2 7, r2b 6; visible jaw called confident r1 0.91, r2 0.93, r2b 0.98; accuracy on
+  corrected / placed points within ~0.5 px of r1 and r2 (anchoring caveat as above). Clips: jaw pre-cue confident r1
+  0.83, r2 0.78, **r2b 0.95**; June PS95 0606 cam2 / cam3 0.46 / 0.59 (r2) -> **0.91 / 0.93** (the June regression
+  is gone; DLC not needed for it); new jaw calls sit on the chin by eye, at the rod-tip contact when the rod is at the
+  chin (as labeled). Spout max step 16 px (r1 22). Remaining, rare: jaw one-frame spikes 6 -> 27 (median 3.4 px); one
+  jaw on a grooming paw (likelihood 0.69, 106 px jump, PS93 0814 cam2 f2722); tongue / jaw jump between tongue and the
+  water droplet on the rod during licks with a droplet (PS93 0821, up to 49 px; r2 also 52 px). Next: tongue-offset
+  check (`side_label_offsets.py`) with r2b, then the cam2 / cam3 O2 bundle with a local smoke test.
+  - Flagged "off" frames checked (Priya): the two jaw dots on torso / air were the PREVIOUS trial's frame (the review
+    clips splice trials; each frame's own jaw is right, `trial_cut_frames.png`). Droplet frames (PS93 0821) in the
+    four-camera fusion: the side jaw on the droplet edge sits 0.1-0.3 mm from the cam1 + cam4 jaw (the real open jaw);
+    r2b's droplet tongue is rejected by `fuse_robust` (4 frames) or the droplet rule (5 frames) -- no wrong 3-D point.
+  - 3-D offsets with r2b (PS93 0814 / 0821 / 0908, `lp_side_r2b_20261118/offset_check/`; r1 re-run through the SAME
+    current code, `offsets_r1_currentcode.csv` -- the share's `pose3d_side/offsets.csv` is from 11-04 12:02, before
+    that afternoon's spout-reference fix, and is NOT comparable): side vs cam1 + cam4, r1 -> r2b -- spout 0.11-0.12 ->
+    0.11 mm (unchanged); jaw 0.27-0.40 -> 0.23-0.31; tongue ap +0.15-0.19 -> +0.20 (the per-session tongue offset);
+    nose dv +0.8-1.05 -> +0.9-1.0 (definition; the per-session nose offset). Leave-one-camera-out over all
+    four cameras: every camera within spout 0.07-0.09, jaw 0.17-0.29, tongue 0.27-0.35, nose 0.20-0.42 mm of the other
+    three's point.
+* **O2 side bundle (11-18 evening): `o2/lp_side_r2b_prod_20261118`** -- 274 videos (137 sessions x cam2 + cam3, 1.75 TB
+  to stage on scratch), model `lightning-pose/side-2026-11-18/models/side_r2b_r2_full` (best ckpt epoch 184), reader
+  opencv (as the desktop validation). New: `o2_inference bundle --kind lp --cam side`; `o2_lp_runner --side` transforms
+  each frame exactly as training (`side_transform`, pinned to `lp_sidecam.transform_image` by a test) into a temporary
+  mp4 with the review clips' encoder settings, then predicts (outputs in model space); collect writes
+  `session_poses/<a>_<d>_cam2_full` / `_cam3_full`. Smoke (local, exact flags, bundled runner + model, real AVI span
+  under review-clip trial 0): 0.002 px median vs the validated clip predictions; bundle vs local model 3e-5 px. Timing
+  (desktop RTX 5060): transform + encode ~1240 fps, opencv predict ~450 fps -> ~2 h per 2.2 M-frame video; 10 h limit.
+  Transform later sped up to ~3220 fps (numpy mirror / crop + threaded decode; byte-identical mp4).
+* **Four-camera clips with r2b (11-18, Priya: keep as presentation examples -> `docs/EXAMPLE_VIDEOS.md`)**:
+  `session_poses/pose3d_side/r2b_20261118/video_4cam_<a>_<d>_fit.mp4`, PS93 0814 / 0821 / 0908 + PS92 0820, PS94 0903,
+  PS95 0821. Per position (cam1 + cam4 -> four cameras; `lp_side_r2b_20261118/coverage_*.csv`): JAW 3-D at close_center
+  0.80-0.83 -> 1.00 (PS93) and 0.15-0.55 -> 1.00 (PS92 / 94 / 95), far_center 0.67 -> 1.00 and 0.26-0.55 -> 1.00, close
+  L / R 0.89-0.94 -> 1.00, agreeing with the two-camera jaw to 0.1-0.6 mm where both exist; TONGUE at the close spouts
+  +10-25 % frames (PS93, cue .. +700 ms: close_L 0.36 -> 0.39, close_R 0.34 -> 0.38, close_center 0.22 -> 0.27), far
+  spouts unchanged. Before the four-camera jaw replaces the "jaw unknown at close_center" rule, review those frames.
 
 ## D13. June in 3-D, re-evaluated (11-07, a8; Priya asked why June kinematics cannot use the spout-posed 3-D)
 

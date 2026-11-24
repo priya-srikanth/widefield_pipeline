@@ -285,16 +285,13 @@ def _bout_prev_pos_raw(label: str, bout_t: np.ndarray) -> np.ndarray:
     session's licks_all.csv by lick_uid; tail -> trial_id, lead -> trial_id - 1), matched on the exact onset time."""
     global _LT
     from wfield_local import config
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
     if _LT is None:
         _LT = il.lick_table()
     an, date = config.animal_of(label), "2026" + label.split("_")[-1]
     K = _LT[_LT.session == f"{an}_{date}"].copy()
-    A = pd.read_csv(oo.session_dir(PathResolver(), oc.RUN, an, date) / "licks_all.csv",
-                    usecols=["context", "segment", "daq_on_s"])
-    uid = K.lick_uid.to_numpy(int)
+    from wfield_local import session_licks as SL
+    A = SL.session_licks(f"{an}_{date}")             # THE session lick table (11-22), joined by LICK KEY
+    uid = SL.rows_for(K, A, label)
     K["daq_on_s"] = A.daq_on_s.to_numpy(float)[uid]
     T = il._behaviour(label).trials
     seg = A.segment.astype(str).to_numpy()[uid]

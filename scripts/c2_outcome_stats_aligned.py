@@ -5,7 +5,8 @@ Same trials and per-session class fractions as `scripts/c2_outcome_weight_epoch_
 period, August pre from 0806, PS92/93 0817 excluded, epochs from config.epoch_spec). Each session x position fraction of
 each class (complete / incomplete / jaw_only / no_resp) is a metric of `orofacial_stats.session_change_tests`:
 session change from the animal's own pre mean; session Mann-Whitney U (post vs pre sessions); paired animal-weighted
-nested bootstrap `analysis_kit.boot_delta` (2,000 draws, seed 0); BH-FDR as ONE family over the 4 classes x 6 positions
+nested bootstrap `analysis_kit.boot_delta` (seed 0; 2,000 draws until 2026-11-23, now the session_change_tests
+default 4,000, `--n-boot` to set); BH-FDR as ONE family over the 4 classes x 6 positions
 x 3 post epochs (fdr_scope="all"; the per-class q is kept as q_fdr_metric). Star (drawn '**', as everywhere else) =
 family q < 0.05 AND the bootstrap 95% CI excludes 0 (agree == "both").
 
@@ -13,7 +14,7 @@ Writes (refuses to overwrite) under --out-dir (default M:/MICROSCOPE/Priya/Widef
   c2_trial_outcome_stats_aligned.csv          one row per class x position x epoch
   c2_trial_outcome_stats_aligned_vs_old.csv   the same rows next to the current Fig 4B star (c2_trial_outcome_boot_stats.csv)
 
-Usage: python scripts/c2_outcome_stats_aligned.py [--out-dir DIR] [--classes CSV.GZ]
+Usage: python scripts/c2_outcome_stats_aligned.py [--out-dir DIR] [--classes CSV.GZ] [--n-boot N]
 """
 from __future__ import annotations
 
@@ -42,6 +43,7 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--out-dir", type=Path, default=OUT_DIR)
     ap.add_argument("--classes", type=Path, default=CLASSES_CSV)
+    ap.add_argument("--n-boot", type=int, default=None, help="bootstrap draws (default: orofacial_stats.session_change_tests' default = analysis_kit.N_BOOT, 4,000 since 2026-11-23; 2000 reproduces tables written before then; same seed)")
     a = ap.parse_args(argv)
     out = a.out_dir / "c2_trial_outcome_stats_aligned.csv"
     cmp_ = a.out_dir / "c2_trial_outcome_stats_aligned_vs_old.csv"
@@ -49,7 +51,8 @@ def main(argv=None) -> int:
     if clash:
         sys.exit(f"refusing to overwrite {', '.join(clash)}")
     P = session_fractions(load_outcomes(a.classes, _bounds()))
-    T = st.session_change_tests(P, CLS, fdr_scope="all")
+    nb = {} if a.n_boot is None else {"n_boot": a.n_boot}
+    T = st.session_change_tests(P, CLS, fdr_scope="all", **nb)
     T["star_aligned"] = (T.agree == "both").astype(int)
     T = T.rename(columns={"metric": "cls", "pos": "position"})
     T.to_csv(out, index=False)

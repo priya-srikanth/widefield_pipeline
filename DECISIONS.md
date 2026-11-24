@@ -24063,6 +24063,43 @@ Handoff `docs/status/STATUS_2026-11-16_ENCDESIGN_TIM_STATES_HANDOFF.md` (section
 - *Enforced at:* `wfield_local/behavior_states.py` (`glmhmm_role_column`, `role_share_sessions`,
   `role_share_summary`), `scripts/states_jaw_only_roles.py`; states page Figs 1.10-1.11; FINDINGS 9.2b.
 
+## 2026-11-21 -- Four-camera re-run decisions D1, D2, D3 and the long cam1-only events (Priya, ~03:00-03:15)
+
+Decisions D1-D3 of `docs/status/STATUS_2026-11-18_CAM23_RERUN_INVENTORY.md` section 1, and the open question in its
+section 0b (long cam1-only "licks" that are water drops):
+
+- **D1 = (a)**: the cam4 2-D chain is regenerated under a NEW LP run tag (v37) with the spout-position fix, and every
+  downstream output is re-pointed to it. Recorded only; not started (it goes with the cam2 / cam3 re-run).
+- **D2 = two views** (SUPERSEDED ~04:00 the same night, next entry): a lick counts when at least TWO cameras see it (`camera_licks.lick_train(min_views=2)`). Priya
+  wrote "D2 - 2?", so check it against the whole-session pilot numbers (inventory section 0c) before the production run.
+  This also drops cam4-only and cam1-only licks, which the union rule kept.
+- **Water drops = (c)** (narrowed ~04:00, next entry): let the four-camera fusion decide. A cam1-only event that no other camera sees is dropped
+  (with D2 = 2 this follows directly). Options (a) leave and (b) drop cam1-only events >= 300 ms now were not taken.
+- **D3 = the full session**: lick events from every camera over the whole session (not only post-cue and not only
+  trial windows), so one lick train serves the cued, ITI, docked and lick-free windows.
+
+## 2026-11-21 -- D2 revised (any camera) and back-to-back lick splitting (Priya, ~04:00)
+
+After the whole-session pilot numbers (inventory section 0c: two views cost 9-16 % of licks, mostly short cam1-only
+events):
+
+- **D2 = any camera** (Priya: "cam 1 DOES capture the tiny tongue at the lips licks so we shouldn't get rid of those,
+  and maybe we'll just use the cam1 rules to get rid of water?"). A fused lick counts when any camera saw it: cam1-only
+  events after cam1's own rules (`cam1_licks.keep_mask`: droplet + far-from-mouth), side-only events only when another
+  camera confirms them (the side `static` / `far` guards), cam4-only licks as today. `camera_licks.lick_train`
+  default `min_views=1`; two views stays available as `min_views=2`.
+- **Water drops = cam1's rules + long unconfirmed cam1-only dropped**: a cam1-only lick lasting >= 300 ms that no
+  other camera sees is dropped (`camera_licks.LONG_CAM1_ONLY_MS`; the wobbling drops cam1's droplet rule misses, 11-18
+  trial 540). Pilot: drops 9 (PS93 0814) and 27 (PS94 0817) licks.
+- **Splitting back-to-back licks** (Priya: "yes can try splitting at other camera lick boundaries - but shouldn't we
+  also be able to tell based on the position the tongue returns to (the 'mouth')?"): both, combined. The anchor
+  cameras (cam4, then cam1 where cam4 does not call the span one lick) set HOW MANY licks; the cut goes where the 3-D
+  tongue returns closest to the mouth between the two peaks; no return inside one unbroken run (a held tongue) -> no
+  split (`camera_licks.event_cuts(events, S=frames)`), in the fusion and in `pose3d.lick_peaks`. The distance-minimum
+  rule alone (`camera_licks.mouth_cuts`) agreed with the camera boundaries on ~30 % of cuts and added cuts inside
+  single licks, so it is kept only for comparison. Numbers: inventory section 0c ("Splitting"). Pilot branch
+  `pilot/side4cam-wholesession`, not merged.
+
 ## 2026-11-21 -- Six-position recovery mechanics: manuscript statistics for a new VLS-paper supplement (Priya)
 - *Context:* the VLS paper's Discussion claimed (from FINDINGS 21-22 and lick_correction) that corrective submovements
   become rarer, that within-lick correction does not change, that aim recovers between rather than within sessions,
@@ -24144,3 +24181,554 @@ Handoff `docs/status/STATUS_2026-11-16_ENCDESIGN_TIM_STATES_HANDOFF.md` (section
   4-camera tracking (runbook step 8).
 - *Enforced at:* `scripts/c2_manuscript_correlations.py`; `docs/MANUSCRIPT_C2_REFRESH.md`;
   `tests/test_share_writers_mode_safe.py` (BEHAVIOUR).
+
+## 2026-11-21 -- Four-camera 3-D: June side views by a per-session gate; June cam4 rescale; run tag routing (Priya)
+- *June side views (Priya: "it's the same lenses june to august"; she asked for the check).* The blanket June skip of the
+  four-camera run (`scripts/pose3d.py`: "June: side-camera intrinsics not validated") is replaced by a PER-SESSION,
+  PER-CAMERA gate for every session (`pose3d_side.side_gate`): a side camera is used only when its spout PnP reprojection
+  over the six parked spouts is rms <= 1.5 px AND max <= 2.0 px in 600-px units (px x 600 / frame width). A failing camera
+  is dropped for that session only (its points are blanked; the session runs on the cameras that pass; summary columns
+  `side_dropped`, `side_rms600_<cam>`, `side_max600_<cam>`). Check (docs/POSE_MODELS.md Part E "June side views, every
+  session", acbeb392): August rms 0.41-1.17 px; June 0.52-1.36 (cam2) / 0.45-1.07 (cam3), i.e. 0.4-1.0 in 600-px units,
+  except PS92 0602 / 0603 cam3 (2.1-2.2 px, 1.6-1.65 in 600-px units; both outside the curated set). August vs rescaled
+  09-11 intrinsics give the same world rays (0.01 mm median, 0.07 p95), so the 09-11 intrinsics are kept (no rescale).
+- *June cam4 in the four-camera path (bug found while wiring the gate).* `pose3d_side.fuse_session` called
+  `pose3d.session_3d` without `june_factor`, so June cam4 points would have entered unscaled (June LP coords are x0.8853;
+  cam4 cleaning thresholds are in August px). It now passes `scripts.pose3d._june_factor(date)`, as the two-camera run
+  does. No production four-camera June output existed before this fix.
+- *Run tag routing.* `WIDEFIELD_POSE3D_TAG` (e.g. `_3net_20261121`) suffixes the four-camera 3-D folder
+  (`session_poses/pose3d_4cam_3net_20261121`) and the whole-session camera_licks folder; `run_mode.pose3d_part`
+  (`p3d-4cam_3net_20261121`, output-only, never a cache key) moves every routed output root of a run on that source
+  (encoding_out_root, run_mode.subdir: within_lick_correction, iti_licks / lick_correction, ...) under its own tag. The
+  default two-camera run is unchanged (no part, no tag). `within_lick_correction.py` and `lick_correction.py` now read
+  the 3-D tables through `pose3d_dir()` (were literal `session_poses/pose3d`).
+- *Enforced at:* `wfield_local/pose3d_side.py` (`side_gate`, `SIDE_GATE_*`), `scripts/pose3d.py`, `wfield_local/run_mode.py`
+  (`pose3d_part`), `scripts/camera_licks.py` (`_bundle_out`); tests `test_pose3d_side.py`, `test_camera_licks.py`,
+  `test_pose3d_run_tag_routing.py`.
+
+## 2026-11-21 -- D1 executed: cam4 2-D chain v37 with the spout-position rule (Priya 11-04 rule; D1 = (a) 11-21)
+- *Context:* D1 = (a) (Priya 11-21 ~03:15): the cam4 2-D chain is regenerated under a NEW run with the spout fix and
+  everything downstream re-points to it. Rule (Priya 11-04, `docs/status/SPOUT_POSITION_AUDIT_2026-11-04.md`): each
+  session's spout position per spout position = the median spout keypoint over in-trial NO-LICK ENL frames
+  (`spout_frame.ruler_medians`).
+- *Change (e11f3978):* `orofacial_outputs.CLEANING_VERSION` v36 -> **v37** -> run folder
+  `LP_analysis/lp_r4_heatmap_20261013__clean_v37`. (1) The session spout frame (mouth origin / ap axis = tongue zero
+  and every v37 table's spout frame) comes from the ENL medians (`orofacial_outputs.session_spout_frame`; whole-window
+  medians only as a fallback when ENL cannot build the frame, recorded as manifest `spout_frame_source`; v36 behavior
+  kept for a v36 re-process). (2) The per-trial spout reference (`tongue_kinematics.trial_spout_reference` ->
+  licks.csv `spout_angle_deg`, `spout_dist_px`, `tip_to_spout_px`, `reach_frac`, `delta_angle_deg`) = that SESSION ENL
+  median of the trial's position (`SpoutFrame.ref_medians`; the audit's first option), per-trial median only for a
+  position without ENL frames (none in cohort 1). Tests `tests/test_spout_rule_v37.py`. **`orofacial_cohort.RUN` is NOT
+  flipped** (adoption = Priya's OK; reconciled plan decision 2).
+- *Run:* `orofacial_outputs process --bundle lp_r4_prod_20261015 --all --jobs 5` (69 min) + `all-licks --run
+  lp_r4_heatmap_20261013__clean_v37 --all` (1 min): the same 133 sessions as v36 (PS93 0805, PS94 0601, PS95 0601 absent
+  in both: no trial log / no alignment template). All 133 built the frame from ENL medians.
+- *v37 vs v36* (`C:/Users/SabatiniLab/lp_stage/rerun_20261121/v37_vs_v36.csv`, script `compare_v37_v36.py`): post-cue
+  licks median 0.0 % (max 4.0 %, one session), licks_all median 0.01 % (max 2.8 %), pre-cue -0.6 % (max 2.3 %), ITI 0 %
+  (6 sessions 3-6 %, +-5-10 licks on 105-566-lick tables); trials / jaw tables unchanged; spout origin shift median
+  0.79 px (10 sessions > 2 px), ap axis median 0.13 deg (max 0.9); per-lick spout angle median diff -0.16 deg (p90
+  |diff| median 1.2 deg), reach_frac p90 |diff| median 0.04 -- the audit's "small and unbiased", confirmed cohort-wide.
+- *One real v36 error found:* **PS92 0929** -- v36's whole-window close_R median was 24 px off (y 460.4 vs ENL 436.0:
+  the spout pushed / mis-tracked while licking), so the three spout lines met with rms 11 px and the v36 mouth origin
+  sat 37.7 px from the ENL one (rms 0.69 px). v37 post-cue licks +4.0 %, licks_all +2.8 % there. The v37 frame is the
+  correct one; every v36 PS92 0929 tongue-zero quantity carried that offset.
+- *Not done here (later steps):* the ~17 whole-window scripts of audit item 3 (jaw_lateral, movement_encoding_session,
+  session_lick_summary, cam1_lick_aim `from_medians_lr`, whisker_motion, orofacial_heatmaps `spout_ref`) -- downstream
+  analyses re-pointed with the v37 consumers; `LP_analysis/index.csv` (generated, all runs) was rewritten by the producer
+  and now lists v37 rows.
+
+## 2026-11-21 -- Side-only lick guard: Priya chose the shape rule, validated; it FAILED blind validation, not adopted
+- *Context:* the PS95 side-week check (`qc_phaseA/ps95_side_week`, commit a28cef9a) found that most side-only licks in
+  the four-camera fusion (`camera_licks/lp_side_r2b_prod_20261118_3net_20261121`) are the forepaw, grooming or water
+  drops. A shape rule read off its 41 examples kept 5/5 real and 1/36 false: keep a side-only lick only if its side peak
+  is <= 4 mm from the mouth AND it lasts >= 20 ms. *Decision (Priya 11-21):* "shape rule, validated", i.e. adopt it
+  only if it holds on a fresh blind sample. Pre-set failure line: drops > 1 in 5 real, or keeps > 1 in 5 false.
+- *Validation* (`scripts/side_only_guard_check.py`, outputs `pose3d_4cam_3net_20261121/qc_phaseA/side_only_guard/`):
+  - Sample: 63 fresh side-only licks (6 per animal x pre/post + 15 near the thresholds; the 41 excluded), judged by eye
+    from blind strips before the rule was joined; 62 judgeable.
+  - Verdicts: real 25 / paw 14 / grooming 12 / water drop 3 / other 8 (3 of them fragments of an adjacent lick, scored
+    false).
+  - The rule keeps **12/25 real (48 %)** and **6/37 false (16 %)**. It drops full protrusions peaking at 4.0-6.6 mm
+    (7) and real 8-16 ms licks (6). **FAILS -> NOT adopted.** `camera_licks` is unchanged and no fusion was re-run. The
+    unadopted implementation is kept as `NOT_ADOPTED_shape_guard.patch` in that folder.
+- *Proposed fallback (open, for Priya):* two views for side-only licks (cam2 AND cam3 both see it): 19/25 real kept,
+  6/37 false kept, 0/14 paws, 0/3 drops (just under the 80 % sensitivity line).
+- *Upstream finding:* most real side-only licks are licks that cam1 / cam4 tracked but whose production lick tables
+  lack them. PS93 0805 has no cam4 / cam1 events in the fusion at all: 6,941 licks, 47 % of the cohort's side-only
+  licks. The rest are ITI / June stretches elsewhere. This coverage gap should be checked before any side-only rule
+  is fixed.
+
+## 2026-11-21 -- Corrective submovements: edge-peak fix in `within_lick_correction._peaks`; the paper reports what the data show (Priya)
+- *Bug:* `_peaks` zero-padded the speed trace (`np.r_[0, x, 0]`), so the first or last tracked frame of a lick counted
+  as a speed peak whenever speed was still rising toward the edge of the run -- a track cut short by tracking loss
+  (tail into the mouth, one-view frames, side-only), not a submovement; the padding also inflated every prominence.
+  Found by the four-camera CSM diagnostic (`session_poses/pose3d_4cam_3net_20261121/qc_phaseA/csm_examples/`, README
+  Part 3, `gate4_edge/`; scripts `pose3d_csm_examples.py`, `pose3d_csm_fixes.py` 83e4fc06 / 9439ab4c): 71-89 % of the
+  two-camera pre-stroke CSMs were edge peaks, the PS94 / PS95 acute drop disappeared, and the prereg threshold rule
+  landed on the 30 mm/s grid floor.
+- *Decision (Priya 11-21):* "yes fix the measure". A peak is an interior local maximum of the real trace, prominence on
+  the real trace, identically for real licks and both noise surrogates. Grid extended to 10-200 mm/s (step 5) so the
+  prereg rule (smallest theta with surrogate false rate <= 0.05) finds its minimum. `PEAKS_VERSION` 2 in every per-lick
+  pickle: stale pickles are re-extracted / refused (they store prominences only, so counts cannot be corrected).
+  Code 025237ec (test `tests/test_within_lick_csm_edge.py`).
+- *Effect on the current manuscript basis (two-camera v36 3-D, re-run under new names; tables + comparison
+  `Widefield/manuscript_stats/csmfix_20261121/`, README there):* theta_sp 50 -> 20 mm/s (9.1 % of real August-pre licks
+  vs 15.6 %; at 50 mm/s only 1.6 % keep a CSM). Pre-stroke validation still passes (real > surrogate 4/4, 0.094 vs
+  0.028; far lateral > close lateral 3/4, PS93 fails as before). S16 far-contra csm_share: acute -0.13** -> +0.16 (CI
+  touches 0, not starred; its noise surrogate rises +0.08, starred as a control), subacute -0.15** -> +0.00 (n.s.),
+  chronic -0.14** -> -0.07** (surrogate also -0.02, starred as a control; share minus surrogate -0.04, 4/4). 4 star
+  flips in S16 (all CSM), 2 in the pooled family (csm_share acute / subacute), 0 in the 162 published scalar cells
+  (max |q shift| 0.006), no n changes; every non-CSM cell unchanged. A control (current code on the Oct 30 pickles)
+  reproduces the cited tables (2 borderline flips of 3,168 boot cells), so the changes are the fix.
+- *Paper (Priya 11-21):* the paper reports what the data show -- no significant corrective-submovement change with our
+  method. The fixed measure gives no acute / subacute change and an acute rise of the noise surrogate; the chronic
+  decrease still meets the star rule but its noise control decreases too, so it is not read as a loss of corrections.
+  Items to redo (S16E, S16 legend, the six-position Results sentence, the Discussion sentence, Methods 50 mm/s / 15.6 % /
+  0.28-0.33 vs 0.04-0.08) are listed in the csmfix README.
+- *Four-camera:* same fixed measure on `pose3d_4cam_3net_20261121`, cam4 v36 lick windows (the fused four-camera train is
+  not wired yet), `imaging_encoding/p3d-4cam_3net_20261121_daqlk/within_lick_correction_cam4v36licks_csmfix_20261121/`:
+  theta 15 mm/s; far-contra acute +0.11 with the surrogate +0.07, chronic -0.03 (Holm n.s.). Kept separate.
+- *Environment:* analysis desktop, `dlc` env (pandas 2.3.3, numpy 2.2.6, scipy 1.15.3), `PYTHONPATH=<worktree>`,
+  `MKL_THREADING_LAYER=SEQUENTIAL`; it reproduces the cited `c2_recovery_mechanics_v2_stats.csv` exactly.
+
+## 2026-11-21 -- Table gaps: why real licks were "side-only"; side-only licks need BOTH side views (Priya: "go ahead with your table gaps rule")
+
+- *Context:* the side-only guard check found that most real side-only licks (no cam4 / cam1 lick event) were tracked by
+  cam4 / cam1 but missing from their lick tables. Priya OK'd fixing the table gaps (D2: any camera counts, side-only
+  needs confirmation; D3 / Q8: full session = first to last sync pulse).
+- *Diagnosis (all 14,696 side-only licks, `scripts/table_gaps_check.py`, qc_phaseA/table_gaps/README.md):* 47.2 % PS93
+  0805 (no cam4 / cam1 tables: the 2-D chain needed the behavior log's `_trials.csv`); 35.9 % not tracked by cam4 nor
+  cam1 (blind: 61 / 62 false, mostly paws); 11.6 % tracked but not called a lick (cam4 detector 1,164: 765 with another
+  cam4 lick within 100 ms; cam1 droplet / far rule 521, cleaning 330, detached mask 107); 5.2 % pieces split off a lick
+  cam4 / cam1 already count; 1 lick outside the windows.
+- *First rule NOT adopted:* "confirmed if cam4 or cam1 tracked the tongue (>= 2 frames, lk >= 0.4, tip in front of the
+  mouth)". New blind sample of 30 licks it added: 13 real, 9 grooming, 5 paw, 1 drop, 2 unsure (one side view: 2 real /
+  13 false). cam4 labels a paw near the mouth as tongue at lk ~1.
+- *Adopted (code; fusion `_gapfix`):* `camera_licks.confirm_side_only`: a side-only lick is kept only when cam2 AND cam3
+  saw it; pieces touching a counted lick (`cut_fragment`) dropped; tracking written as `tracked_cam4` / `tracked_cam1`.
+  Blind (113 judged outside PS93 0805, pieces aside): 19 / 25 real kept, 8 / 85 false kept, 0 / 46 paws, 0 / 9 drops.
+  cam4 / cam1 detectors unchanged. Fusion `camera_licks/lp_side_r2b_prod_20261118_3net_20261121_gapfix/` (126
+  sessions): 125 sessions (0805 aside) side-only 7,755 -> 1,432 kept (session median 0.42 % -> 0.08 % of licks; PS95
+  August week 2.4-9.9 % -> <= 0.33 %); kept licks -0.58 %; every lick with a cam4 / cam1 event unchanged. Adoption into
+  the fused train is Priya's call (README "Open").
+- *PS93 0805:* `kinematics_chain` reads DAQ licks / contacts without the behavior log; cam4 / cam1 / 3-D / fusion built in
+  the new `_sync` folders (still in `cross_session_exclude`).
+- *Full session:* `o2_inference` `WIDEFIELD_WINDOWS_SPAN=sync` (windows tile first .. last DAQ sync pulse; run name
+  `_sync`). Measured: the trial windows already cover the sync span to within a median 0.91 s per session (head 0 s,
+  tail 0 s); the "~10 s head / minutes of tail" outside the windows is video outside the DAQ recording. Cohort re-run
+  (~6.6 h) NOT launched; Priya to decide.
+
+## 2026-11-21 -- Video (3-D) lick floor = 60 ms (Priya: "60 ms is good"); the DAQ detector keeps 40 ms
+
+- **Decision:** two 3-D lick peaks of one trial closer than 60 ms are one lick (merged over the union of their frames).
+  `pose3d.POSE3D_MIN_ILI_MS = 60` is the `lick_peaks` default, and `camera_licks.MIN_ILI_MS = 60` (no mouth cut leaves
+  two peaks closer than that). The DAQ `lick_detection.min_ili_ms` stays 40 ms: an electrical contact has no tracking
+  dropout to split it.
+- **Why** (`qc_phaseA/ili_floor_examples/`, all 126 sessions):
+  - 40-60 ms pairs: 83 % retract < 20 % toward the mouth between the peaks, 85 % have a fragment peak, and the
+    untracked gap between them is median 1 frame. They are one protrusion split in two.
+  - 60-80 ms pairs are mixed. They include real double pumps (PS92 0809 t43, PS95 0810 t316) that an 80 ms floor
+    would delete.
+  - Counts: -0.57 % of 3-D licks vs 40 ms. Check the outliers PS95 0818 (-4.6 %) and PS92 0605 (-5.7 %).
+  - cam4's 2-D detector calls two licks in 42 % of pre-stroke but 11 % of post-stroke 40-60 ms pairs, while the 3-D
+    shape does not change. That is one reason not to define the 3-D lick set from cam4 calls.
+- **Not adopted:** the retraction rule (offered as an alternative; it would need its own blind check).
+- **Scope:** applies from the next 3-D licks run (Phase B). The `_3net_20261121` lick tables were made at 40 ms and
+  are not rewritten.
+
+## 2026-11-22 -- Four-camera re-run: consumer rewiring before Phase B (Priya 11-21 Q1 = (b), Q2, Q5; frame-coverage gate)
+
+Implements section 2 of `docs/status/RERUN_PLAN_RECONCILED_2026-11-21.md` on branch `pilot/side4cam-rewire` (code + tests
+only; no cohort run, nothing written to M:). The adoption itself (RUN / fused / 3-D / cam1 defaults) is ONE separate,
+labelled last commit so it can be reviewed or dropped.
+
+- **One session lick table** (`wfield_local/session_licks.py`). `session_licks(label)` = the fused four-camera train
+  (`WIDEFIELD_FUSED_LICKS=<camera_licks folder>`, or `FUSED_DEFAULT` after adoption, cohort 1 only) through
+  `camera_licks.lick_train` (D2 revised, `keep`, long cam1-only) and the 60 ms video-lick floor, else cam4 `licks_all`
+  (legacy, unchanged). DAQ times are recomputed through cam4's windows (`orofacial_outputs.trial_ms_to_daq`, the function
+  licks_all uses, factored out), never read from the fused CSVs. Consumers that added cam1-only events on top of cam4 do
+  so only on the legacy source.
+- **Video-lick floor on the fused train (decided conservatively).** Priya's 60 ms floor (11-21) covers the 3-D lick peaks
+  and the mouth cuts; the fused train itself had none (0.17 % of kept fused licks are < 60 ms after the previous one, 13
+  sampled sessions). `session_licks.apply_floor` merges them (union span, peak of the higher-priority camera), since the
+  fused train is a video lick set; recorded per lick (`floor_merged`).
+- **Precision bug found.** The 11-21 fused / events CSVs and the 3-D run's side events were written with `%.4g`: 10 ms
+  resolution at 10-100 s from the cue (ITI licks) and ~1 s for `daq_on_s` after 1000 s. Checked on PS93 0814: every
+  cam4-seen fused lick within 10 s of the cue key-matches licks_all, none beyond. Writers now use `%.10g` plus a format
+  manifest; `session_licks` refuses a folder without it (`FusedFormatError`) and `camera_licks` refuses to add tables to
+  an old-format folder. The existing `_3net_20261121*_gapfix` fusion is therefore NOT readable; Phase B re-fuses
+  (`--saved --gapfix --out-tag _gapfix60`). The side events of the 11-21 3-D run keep their rounding (<= 5 ms on side
+  spans of ITI licks, under the 12 ms merge tolerance); only a 3-D re-run removes it -- not done (decision for Priya).
+- **lick_uid -> lick_key.** `lick_key` = trial + PEAK ms (0.1 ms); unique per session (23 v37 sessions, 0 duplicates; the
+  fused train is >= 60 ms apart), and a cam4-seen fused lick keeps cam4's peak, so cam4 and fused rows share it.
+  `pose3d_kinematics` writes it in every mode; `session_licks.rows_for` / `kin_by_row` / `align_kin` join on it and RAISE
+  on a key they cannot place. Tables written before (no lick_key) still join on lick_uid, but only after every row's trial
+  and peak are checked against `t_peak_cam4` (to its 4-significant-digit rounding) -- a changed lick table now raises
+  instead of silently re-pointing. Sites: iti_licks (extract, _more_kin), lick_correction, frozen_encoder, stray_licks,
+  coupling_vigour_sm, enl_lick_audit, iti_first_lick, iti_where_decoder, lick_behaviour_decoder,
+  lick_covariate_reference, lick_cued_ramp, lick_firstlick_extract, lick_vigor_perspout, combined_encoding (_exec_3d,
+  lick_angle_3d: were (trial_id, lick_idx) joins), within_lick_correction / learned_compensation (key when both sides
+  carry it).
+- **Frame-coverage gate** (`wfield_local/frame_coverage.py`; coordinator 11-22 refinement): per trial window (the windows
+  every camera is cut on), coverage on the UNION of the contributing cameras (a 4 ms slot is covered when any camera that
+  feeds the fusion logged a frame in it; a side camera dropped by the 3-D side gate does not count), from each camera's own
+  frame log through its alignment template. `MIN_FRAME_COVERAGE = 0.90`; per trial the union and each camera's coverage
+  and `gate_reason` are recorded (`kinematics_fused/frame_coverage.csv`, skipped licks in `licks_gated.csv.gz`). PS92 0908
+  (read-only check): 69 / 389 trials gated, the four cameras dropping together. Scope (conservative): camera-derived
+  KINEMATICS only (`pose3d_kinematics --licks fused`); trial classes are not gated (a low-coverage trial without a seen lick
+  classes as before) -- open question for Priya.
+- **3-D kinematics on the fused train (Q1 = b).** New `pose3d_kinematics --licks fused` -> `kinematics_fused/`: every fused
+  lick, measured on whatever 3-D frames it has; < 3 frames = row kept with NaN measures; contact = a DAQ contact within the
+  span +- 20 ms (the `combined` rule). `--licks all` stays the cam4 licks_all table (`kinematics_all`); readers of "the
+  whole-session table" go through `session_licks.kin_all_name()` (kinematics_fused under a fused lick set).
+- **Rewired to the fused train when selected:** lp_licks (`_read_times`, LP_VERSION 3 -> 4, `spec_token` + fused
+  signature), trial_classes (licks, span licks, `class_source_signature`; default paths via `lp_licks.input_run` /
+  `cam1_events_dir`), first_lick_latency (`combined` first lick -> trial_attempts), restnl (new lick set `fused`, the
+  default under a fused train, own cache dir), the quiet chain's `lp_licks.lick_times`, revup_behaviour, glm_hmm,
+  face_rhythm_readouts lick rate, iti_licks / lick_correction / within_lick_correction / learned_compensation /
+  stray_licks and the lick-key sites above. The encoder (`combined_encoding`) gets an EXPLICIT
+  `COMBINED_ENCODING_LICKS=fused` mode but keeps cam4 by default even after adoption (neural layer; O2 bundles pin their
+  env; kinematics first).
+- **Close-spout jaw, source-aware (Q5).** jaw_onsets no longer blanks the 3-D jaw at the centre spouts when the 3-D source
+  is four-camera (the 50 % coverage floor stays) and writes `jaw3d_source` / `jaw3d_at_cue`. trial_classes uses the 3-D
+  call ONLY at `JAW_UNJUDGED_POSITIONS` and ONLY when `jaw3d_source == "4cam"`; a 2-cam table keeps the 11-03 default. The
+  3-D onset floor (0.10 mm) is PROVISIONAL (never blind-checked): close-spout jaw-only counts under the four-camera run
+  need a blind check before they are quoted.
+- **Hazards (plan item 4).** Refuse-to-overwrite (`--force` / new folder): jaw_onsets (also `--run`, default input_run;
+  was a literal v36 read + write), s1_trial_class_snapshot (`--out`), trial_attempts, pose3d_kinematics (every mode),
+  glm_hmm `--pooled-all`, cam1_licks into the default cam1 folder. Skip-if-exists now keyed on inputs: iti_licks /
+  lick_correction extracts (`lick_sig`, refused when it differs, as `mask_sig`), revup_behaviour (pickle stores its
+  inputs; a fused train gets its own folder), within_lick_correction (`inputs` column; fused folder), learned_compensation
+  timing (`--redo` no longer the only way), pose_chain (`_stale`: an output older than its cam1 windows), GLM-HMM
+  sequences (`sequence_key`: + class sources + lick set + code).
+- **Runbook command bugs (plan item 5).** learned_compensation accepts `summarize` and exits 1 on an unknown command;
+  c2_phase_sessions_aligned has `--kind` and parses `_sessions_<suffix>.csv`; the c2_* manuscript scripts and the recovery
+  mechanics default to the adopted run's routed tree (one `--enc` holds all three producers); within_lick_correction /
+  learned_compensation write to `orofacial_cohort.RUN`'s tree (were the v36 literal). Runbook rewritten
+  (`docs/MANUSCRIPT_C2_REFRESH.md`).
+- **Paths (plan item 3).** Literal `session_poses/pose3d` reads -> `pose3d_dir()` in 15 scripts; `V36` literals ->
+  `lp_licks.input_run()` / `orofacial_cohort.RUN` in ~30 files; literal `cam1_licks` reads -> `lp_licks.cam1_events_dir`.
+  LEFT literal on purpose: deck_registry / deck_keyfigs (published v36 figures), the 11-21 comparison scripts (csm_fix_*,
+  pose3d_phaseA_gate, pose3d_csm_examples: they compare against the cited v36 / two-camera numbers), glue_before_after,
+  o2_face_rhythm (runs on O2 without wfield_local at import), docstring usage lines.
+- **Adoption mechanics.** `pose3d.ADOPTED_SOURCE` / `ADOPTED_TAG` (the default source + tag, whose routed outputs are
+  untagged; any other source / tag gets `p3d-...`), `lp_licks.CAM1_DEFAULT`, `session_licks.FUSED_DEFAULT` and
+  `orofacial_cohort.RUN` are the constants the adoption commit changes.
+
+## 2026-11-22 -- ADOPTION (separate, droppable commit): the four-camera / v37 run is the cohort-1 default (Priya 11-21 Q2)
+
+- `orofacial_cohort.RUN` = `lp_r4_heatmap_20261013__clean_v37`; `pose3d.ADOPTED_SOURCE` / `ADOPTED_TAG` = 4cam /
+  `_3net_20261121` (so `session_poses/pose3d_4cam_3net_20261121` is read with no env, and its routed outputs are
+  untagged); `lp_licks.CAM1_DEFAULT` = `cam1_licks_v37`; `session_licks.FUSED_DEFAULT` =
+  `lp_side_r2b_prod_20261118_3net_20261121_gapfix60` (cohort 1 only) -- that folder is made by Phase B step 1; until then
+  fused consumers raise instead of falling back. The v36 / two-camera / cam1_licks outputs stay on disk untouched.
+- `state_space_sim` pins the rebuild's own run (v36): a finished rebuild does not move with the adopted run.
+- Tests that pin the pre-adoption semantics now pin them explicitly (legacy env / constants), not through the defaults.
+- If the whole-session (sync-span) camera re-run is adopted instead, change the four constants to its names first.
+
+## 2026-11-22 -- Frame-coverage gate also on the trial classes (Priya: "yes leave them out")
+
+A trial whose union camera frame coverage is < 0.90 (`frame_coverage`) and that has no DAQ spout contact is class "unknown" (left out of the class counts; "unknown" neither breaks nor extends a run). DAQ-contact trials stay "contact" (the sensor does not depend on the cameras). `trial_classes.session_trials` column `frame_gated`; on for the real-data path, off when a test hands in its own tree. Curated sessions affected: PS92 0908 only (69 of 389 trials, from ~6408 s; the 11-21 non-sync cam4 tables end at trial 321, so the whole-session run is where it bites). The gate rule enters `class_source_signature`.
+
+## 2026-11-22 -- Adoption points at the WHOLE-SESSION run; encoder default = fused licks
+
+The adoption constants now name the whole-session (first..last sync pulse, 60 ms floor) outputs of the 11-22 re-run instead of the 11-21 trial-window run: `orofacial_cohort.RUN` = `lp_r4_heatmap_20261013__clean_v37_sync60`, `pose3d.ADOPTED_TAG` = `_3net_20261121_sync60`, `lp_licks.CAM1_DEFAULT` = `cam1_licks_v37_sync60`, `session_licks.FUSED_DEFAULT` = `lp_side_r2b_prod_20261118_3net_20261121_sync60_gapfix60` (made by Phase B step 1 at full precision). Encoder (Priya 11-22: "i think we should make combined default? with cam1 restrictions. but side cams help with closer spouts"): `combined_encoding.lick_mode()` = `COMBINED_ENCODING_LICKS` when set, else "fused" whenever a fused train is selected; the fused train already carries the cam1 rules (keep_mask, droplets, cam1-only >= 300 ms dropped) and side-only licks only when both side views see them. O2 bundles must pin COMBINED_ENCODING_LICKS in env.json.
+
+## 2026-11-22 -- Hand-made manuscript tables: producing scripts, each reproduced byte for byte (manuscript v26 handoff)
+
+- *Context:* the v26 handoff ("Methods will be shortened") asks for a committed script behind every table, including three
+  listed as made by hand (11-21 re-run plan, reviews A-C): `c2_lick3d_session_summary_ungated.csv` (Fig 4B, 4E),
+  `aim_first_vs_all_*` (Fig 4D), `pose3d_change_pooled_contra_aligned.csv`. Recipes were reverse-engineered from the
+  hand-made copies and their inputs (provenance: `FIGURE_PROVENANCE_v18.csv`, `manuscript_code/PROVENANCE.md`), then each
+  script was pointed at those same inputs. Validation outputs: `Widefield/manuscript_stats/handmade_repro_20261122/`.
+- *`c2_lick3d_session_summary_ungated` -> `scripts/c2_lick3d_session_summary.py`.* Input: two-camera
+  `session_poses/pose3d/kinematics/licks.csv.gz` (10-23, cam4-window licks). Recipe: session x position, early pre
+  dropped (`config.early_pre`; June), every lick row (no working / engagement / class gate, no minimum n);
+  first = `lick_idx == 0`: n and medians of reach_mm / side_ml / speed_peak; `speed_first5` = median over trials of the
+  per-trial mean speed_peak of licks `lick_idx < 5`, `n_trials5` = those trials; all = every row: n and medians; rows
+  sorted animal, date, position. Result: BYTE-IDENTICAL (642 rows; LF line ends written explicitly). Default input =
+  `pose3d_dir()/kinematics/licks.csv.gz` (adopted run); `--kin-dir kinematics_fused` for the fused train (OPEN: which
+  lick set the paper's 3-D kinematics should use on the new run; the recipe's own set is `kinematics`).
+- *`aim_first_vs_all_{sessions,tests}` -> `scripts/aim_first_vs_all.py`.* Input: v36 `iti_licks/zscore_check/
+  where_preds_z_splitr8.csv` + `first_lick_preds_splitr8.csv.gz` (10-27), aim = `iti_recovery_measure.aim_licks`
+  (now takes explicit paths). Recipe: session x spout, first set (>= 5 licks) and all set (>= 10) each: mean, median, n,
+  chg = mean - animal's mean of pre-session means; inner join; diff = chg_first - chg_all. Tests per spout x epoch:
+  animal-weighted means, 95% CI from `lick_cued_aim_by_spout.boot` (2,000 draws), three independent bootstraps per cell
+  (chg_first, chg_all, diff) on ONE default_rng(0) in spout x epoch order; sig / sig_bonf (18 tests) on the diff CI;
+  per-animal diff. Result: both files BYTE-IDENTICAL. The bootstrap is the committed lick_cued one (no new bootstrap;
+  analysis_kit's `boot_ci` is flat-pool, a different statistic); the manuscript's stars come from the aligned family.
+- *`pose3d_change_pooled_contra_aligned` was not hand-made:* `scripts/c2_scalar_family_aligned.py` writes it (reach_all
+  rows; input `pose3d_change_pooled_contra.csv` from `kinematics_pooled_figs --contra`). Re-run on the 11-19 inputs (v36
+  iti_licks / cohort stats, two-camera pose3d, the regenerated lick3d table via the new `--lick3d`): all eight outputs
+  BYTE-IDENTICAL to the cited copies. `--lick3d` (default `pose3d_dir()/kinematics/c2_lick3d_session_summary_ungated.csv`)
+  replaces the read of the hand-made manuscript copy; old-star `*_stats.csv` still come from `--ms-data`.
+- *New run (preview only, validation folder):* the lick3d summary on `pose3d_4cam_3net_20261121_sync60/kinematics`
+  gives the same 642 session x position rows (107 sessions); medians move slightly (reach r 0.98, speed_first r 0.89).
+  The aim tables wait for the v37_sync60 iti_licks where-decoder caches.
+
+## 2026-11-22 -- 3-D jaw onset floor 0.20 mm (Priya: "0.2 mm jaw floor sounds good")
+- `scripts/jaw_onsets.py` `OVERRIDE_3D` floor 100 -> 200 um. Basis: blind check `docs/status/JAW3D_BLIND_CHECK_2026-11-22.md`
+  (new four-camera close_center jaw_only calls: 23 yes / 12 unclear / 5 no; all 5 false positives <= 0.22 mm, 4 of 5 PS94);
+  0.20 mm removes 4 / 5 false positives and 3 / 23 true calls. Only the 3-D call changes (used at close_center where both
+  2-D cameras are masked); the per-camera cam4 / cam1 floors are unchanged.
+- Consequence: jaw_onsets -> trial classes (jaw_only vs no_response at close_center) -> outcome stats, GLM-HMM, engagement
+  rebuilt under `_floor020` names; the 0.10 outputs kept as `*_floor010`. The encoder / ITI chain is unaffected (its
+  `attempted` gate = hit | incomplete; jaw_only is not an attempt).
+
+
+## 2026-11-22 -- Kinematics only on licks with 3-D support; cam1-only tongue flicks are not licks for kinematics
+Priya 11-22 ("take note of this in the repo ... clarify that tiny licks without visible tongue protrusion in any other
+camera were not included for kinematics"), with the decision that ALL figures use the four-camera (fused) lick list.
+Measured on `pose3d_4cam_3net_20261121_sync60/kinematics_fused/licks.csv.gz` (post-cue): 4.4 % of fused licks are seen
+by cam1 ONLY (11.6 % at far contra, 7.9 % far ipsi, 0.9-4 % elsewhere; pre 3.6 %, acute 5.1 %, subacute 4.0 %, chronic
+5.4 %). They have no 3-D frames (n_3d median 0), reach 1.85 mm (single-view fill), downward travel 0.49 mm (full licks
+~5 mm), spout contact 0.3 %, and come late in the trial (far contra: 2 % of licks 0-4, 16 % of lick 8+): the tongue tip
+at the lips seen from below, hidden behind the lower lip / chin from the front. Rule: reach, speed, angle and phase
+curves use only fused licks with 3-D support (n_3d > 0, i.e. seen by >= 2 cameras). Treatment in lick COUNTS / rates /
+ILI and in trial classes: pending Priya (181 trials, 0.3 %, have ONLY such flicks after the cue; 179 of them are classed
+`incomplete` now -- 77 acute, 64 subacute, 24 chronic, 16 pre). The cam4 long-lick QC
+(docs/status/CAM4_LONG_LICK_2026-11-22.md) is the other half of why cam4 windows were dropped.
+
+## 2026-11-22 -- cam1-only flicks are not licks; flick-only trials grouped with jaw-only; engaged GLM-HMM states combined
+Priya 11-22: (a) cam1-only tongue flicks (see the entry above) do NOT count as licks for lick counts, rates or ILI;
+(b) a trial whose only post-cue tongue events are such flicks (181 trials, 0.3 %) gets the label `tongue_at_lips` and is
+GROUPED WITH jaw_only (a reaction, not an attempt) everywhere; (c) the frozen encoder is NOT refit for this (its
+attempted training set changes by ~16 pre-stroke trials of ~50k); (d) GLM-HMM: keep the refit on the new classes, and
+report the three engaged states COMBINED as "engaged" beside "running, not trying" and "disengaged" (licky vs quiet
+engaged share is about half between-animal: PS95 63 % quiet, PS92 8 %); per-animal substate split in the supplement.
+Fig 3C legend: the cam1 nose is a 3-D reprojection (rod hides it from below).
+
+## 2026-11-22 -- "tongue_at_lips" trials grouped with jaw_only (Priya: "yes let's group with jaw-only")
+- A trial with no DAQ spout contact whose ONLY post-cue licks in the fused four-camera train are cam1-only (fused
+  `cams` == "cam1": no other view saw it, so no 3-D point; the tongue barely leaves the mouth) was "incomplete" (an
+  attempt). It is now `cls` = "jaw_only" (a reaction, NOT an attempt: every grouping, the attempted gate, figures,
+  outcome statistics and the GLM-HMM outcome output treat it as jaw-only) with its own label kept in `cls_detail` =
+  "tongue_at_lips" (`trial_classes.session_trials`, carried into the s1 snapshot). ~181 trials (0.3 %), 179 of them
+  "incomplete" before; a DAQ contact keeps "contact". Fused train only (the legacy cam4+cam1 source is unchanged).
+  `session_trials` is in `CLASS_CODE_ROOTS`, so `class_source_signature` (and every class cache) changes with it.
+  Test: tests/test_trial_classes_fused_jaw4cam.py::test_tongue_at_lips_grouped_with_jaw_only.
+- The frozen ENCODER is NOT refitted for this (Priya's OK): its attempted training set changes by ~16 pre-stroke trials.
+  The 11-22 encoder fit (gate-attempted_v7g3_t3d_frA, v37_sync60 frozen store) stays.
+- GLM-HMM (Priya 11-22): keep the refit on the new classes (option A). Report the three engaged states (0, 1, 2) as ONE
+  "engaged" group; state 3 = "running, not trying", state 4 = "disengaged, still"; the per-animal split of the engaged
+  substates is a supplement table (the licky vs quiet share is ~half between-animal). The 5-state fit stays underneath.
+
+## 2026-11-22 -- GLM-HMM state change comes from the trial classes, not the lick list (attribution test)
+Refit (K5, design v2, same sessions) with the NEW classes (0.10 mm floor) but the OLD cam4 lick list for the pre-cue /
+ITI lick outputs (`glm_hmm/v1_test_cam4licks_floor010`, WIDEFIELD_FUSED_LICKS=off): the same five states as the
+four-camera-lick refit (engaged x3; "running, not trying" P(attempt) .17, stay .55, run-high .62; "disengaged, still"
+P(attempt) .09, stay .82) and NOT the manuscript's (partial P(attempt) .57, stay .88). So the new trial classes
+(mainly close-center no-response -> jaw-only from the four-camera jaw, and the coverage gate) moved the lower states.
+Also: a warm start from the manuscript's parameters converges to the new solution, and the manuscript's parameters
+score the new data 5,434 log-lik units worse. The production refit on the 0.20 mm classes (+ tongue_at_lips grouped
+with jaw-only) is in `glm_hmm/v1_floor020`; Priya chose the refit (A), engaged states combined for reporting.
+
+## 2026-11-22 (evening) -- Encoder refit on TRUE four-camera licks (lick mode `fourcam`); supersedes the morning fit
+Priya 11-22 ("i think we need to - do both"): the 08:53-13:00 frozen-encoder fit (COMBINED_ENCODING_LICKS=fused) was
+NOT four-camera: `_load_behaviour` took cam4's licks.csv as the lick events and mode fused only ADDED the fused post-cue
+licks cam4 missed (including the cam1-only flicks Priya ruled are not licks), and with TONGUE=3d the executed angle came
+from the cam4-window kinematics gated by cam4's 2-D trace. New mode `fourcam` (`combined_encoding.LICK_MODES`, now the
+default whenever a fused train is selected): the post-cue lick events ARE the fused table's "licks" rows minus cam1-only
+(`fourcam_licks`, tested), onset = fused daq_on_s; pre-cue / ITI (LICKS_ALL) from the same train; the executed 3-D angle
+= the fused post-cue kinematics (`session_licks.kin_name()` = kinematics_fused_postcue, blank unless >= 2 views) by
+lick_key, not gated by cam4; cam4's 2-D angle / reach (EXEC modes only) by lick_key where cam4 saw the lick;
+`frozen_encoder.lick_landing_weights` (FROZEN_LICKSPOUT / LICKLAND) and `_kin_all` (TE) follow the fused list by
+lick_key. Smoke check (behaviour load): PS93_0814 5,604 post-cue licks (= 5,964 fused "licks" rows minus 360 cam1-only;
+fused mode had 5,605 cam4 + 387 extras), PS94_0821 3,596 (= 3,797 - 201; fused mode 3,577 + 239); fourcam onsets differ
+from cam4's by a median 1-3 ms (the fused onset is the earliest camera's). The refit uses the REBUILT classes (0.20 mm 3-D
+jaw floor, tongue_at_lips grouped with jaw-only; qc/trial_attempts.csv 14:32, attempted 54,402). Morning outputs kept
+under new names: `imaging_encoding/frozen_encoder_gate-attempted_v7g3_t3d_frA_licks-fused_20261122/`,
+`imaging_encoding/iti_licks_licks-fused_20261122/`. Chain: `lp_stage/phaseB_20261122/neural_chain_fourcam.py`
+(worktree `Github/wf_enc4cam`, branch pilot/encoder-fourcam), log `logs/neural_fourcam.log`.
+
+
+## 2026-11-22 -- Four-camera licks for every figure; cam1-only events are not licks (Priya 11-22)
+
+Priya: "yes we should use 4 camera licks for all figures (manuscript and otherwise) - switch 4B/E to B"; "cam1-only
+flicks are not licks". Why: cam4 misses ~6 % of post-cue licks (12 % far contra, 9 % of close-centre first licks) and 6.5 %
+of its windows are fragments missing the 3-D peak, inflating the post-stroke first-lick reach increase
+(docs/status/CAM4_LONG_LICK_2026-11-22.md). Implemented (docs/status/FOURCAM_LICKS_EVERYWHERE_2026-11-22.md):
+- `session_licks.kin_name()` / `kin_dir()` / `kin_sfx()`: post-cue 3-D readers use `kinematics_fused_postcue`
+  (`scripts/pose3d_kin_postcue.py`); `WIDEFIELD_KIN_LICKS=cam4` for the cam4 windows; `_fused` output suffixes.
+- Kinematics only from licks seen by >= 2 cameras (rows kept for counts); a first lick without 3-D support is NOT
+  replaced by the second.
+- Fused lick_idx counts within (trial, table), as licks_all (was across all contexts: post-cue lick 0 was a pre-cue lick).
+- `session_licks` drops cam1-only events by default; the trial-class path (session_trials, tongue_at_lips,
+  session_span_licks, first_lick_latency) opts in, so classes are unchanged.
+- Fig 4A latency / licks per responded trial / ILI on the fused train (`scripts/fourcam_lick_metrics.py`; latency =
+  first-lick ONSET), read by `c2_scalar_family_aligned --lick-stats`.
+- Stays cam4: frozen_encoder's FROZEN_LICKSPOUT posterior (cam4 (trial_id, lick_idx) join), QC / comparison scripts.
+
+## 2026-11-23 -- Four-camera launch window = first frame with >= 2-camera 3-D support (WLC_LAUNCH=2v) (Priya 11-23)
+Four-camera launch window = first frame with >=2-camera 3-D support (WLC_LAUNCH=2v). The default (fused onset) starts
+on a one-view fill in 53% of pre / 73% of acute far-contra licks, which biases the pre-stroke launch reference; Variant A
+gives corr ~0 as in the manuscript (Priya 11-23).
+- Applied to S12 (six-position aim recovery; S18 in main.tex at v26): within_lick_correction summarise with
+  `WLC_LAUNCH=2v` (`imaging_encoding/within_lick_correction_fourcam_launch2v`, sharing the launchdefault pickles),
+  learned_compensation re-run on it (`imaging_encoding/learned_compensation_fourcam_launch2v`; timing pickles copied
+  from `learned_compensation_fourcam`), and `c2_recovery_mechanics_stats.py --n-boot 4000` ->
+  `manuscript_stats/c2_4cam_sync60_20261122/recovery_mechanics_final_launch2v_boot4000`. Driver
+  `lp_stage/phaseB_20261122/s12_launch2v_chain.py`. Bootstraps in the chain: session_change_tests 4,000 (explicit);
+  learned_compensation / within_lick_correction boot_delta = analysis_kit.N_BOOT = 4,000; the S12F mixed models are
+  statsmodels MixedLM Wald intervals (no bootstrap).
+- Result vs the manuscript (two-camera v36): no star flips in panels A-C or E; step_b subacute loses its star (D);
+  corr stays ~0 in every epoch. S12F within-session x:post -3.2 deg (95% CI -5.5 to -0.9; manuscript -2.5, -5.2 to 0.3),
+  overnight second:post +6.1 deg (3.8 to 8.5; manuscript +5.8, 2.9 to 8.6). Details:
+  `vls_stroke_paper/NOTE_CC_B_S12_fourcam_2026-11-23.md`.
+
+## 2026-11-23 -- orofacial_stats.session_change_tests n_boot 2000 -> 4000 to match analysis_kit.N_BOOT; the paper states 4,000
+- *Decision (Priya / Cowork 2026-11-23):* every six-position MWU + bootstrap test uses 4,000 bootstrap draws, as the
+  two-tone cohort and `analysis_kit.N_BOOT` already did. `session_change_tests` now defaults to `analysis_kit.N_BOOT`
+  (4,000); same seed (0) and draw order, so `n_boot=2000` reproduces every earlier table exactly (verified 11-23 for the
+  scalar family, the four-camera lick metrics, the trial outcomes, the aim tables and the treadmill tables: max relative
+  difference 0). Point estimates and MWU p / BH q do not depend on the draw count; only the CI and the bootstrap half of
+  the star do.
+- Opt-in `--n-boot` added to `c2_scalar_family_aligned.py`, `c2_outcome_stats_aligned.py`, `fourcam_lick_metrics.py`
+  (+ `--positions` re-test without re-reading sessions; the cam4 replay check keeps `--replay-n-boot 2000`),
+  `c2_protrusion_vs_reach.py` (+ `--sessions`), `lick_cued_aim_by_spout.py` / `aim_first_vs_all.py` (their own nested
+  bootstrap, default NB stays 2000 -- pass `--n-boot 4000`), and the new `scripts/c2_treadmill_retest.py` (re-tests the
+  stored treadmill readouts).
+- Other callers whose numbers move on their NEXT run (default changed, nothing re-run here): `orofacial_cohort`
+  (cohort change_vs_pre stats + contra replay; its STATS_METHODS.md reads the default), `orofacial_w2`,
+  `combined_encoding_figures.py`, `states_jaw_only_roles.py`, `orofacial_robustness_table.py` (passes its own
+  `--n-boot`), `c2_recovery_mechanics_stats.py` (owned by another window, 11-23), `c2_treadmill_cue_aligned.py`,
+  `c2_treadmill_extras.py`, `c2_engagement_tim/s5_stats_figures.py`, `s22_compare` (scratch). Not changed: the other
+  2,000-draw bootstraps in the repo (`epoch_kit`, `decode_ci`, `beta_maps`, `s5 nested_mean`, ...), which are not this test.
+- Result of the 4,000-draw re-run (vls_stroke_paper/NOTE_CC_B_boot4000_2026-11-23.md): scalar family 93 -> 93 stars
+  (hit rate near ipsi acute lost, all-lick angle near ipsi subacute gained); outcomes, lick metrics, aim (family),
+  protrusion, S15 I, S16 B, S16 D unchanged.
+
+## 2026-11-23 -- PS95 0818 / 0820 cam3 re-included (Priya 11-23: "can we add back cam3 then?")
+
+PS95 0818/0820 cam3 re-included (Priya 11-23): gate failure from chin-fur bias on close-spout tip labels; cam3 pose
+(a) = the standard six-spout PnP, forced past the gate; validated vs 0821; without cam3 peak speed was inflated 7-8 mm/s
+in PS95.
+- *Why the gate dropped it.* The side-camera spout gate (`pose3d_side.side_gate`: rms <= 1.5 / max <= 2.0 px in 600-px
+  units) failed cam3 on both days (0818 rms 1.56 / max 2.33; 0820 1.26 / 2.03, the max failing). Chin-fur contact pulls
+  the cam3 close-spout tip labels 1-2 px (close_center -2.2 / -1.5 px, close_R +1.8 / +2.0 px); cam3 tongue / jaw
+  tracking is fine (`P3D/qc_cam3_drop_20261122/clips/`). Without cam3, PS95 peak speed reads high (no-cam3 re-run of
+  0819 / 0821: all-lick +6.2 / +6.8 mm/s, first-lick +10.0 / +10.5 mm/s; reach and aim ~0).
+- *Code (opt-in, defaults unchanged).* `WIDEFIELD_POSE3D_SIDE_ON=cam3` (`pose3d_side.forced_on` / `apply_forced_on`)
+  passes a side camera through the gate; `WIDEFIELD_POSE3D_PNP_EXCLUDE=cam3:close_center,close_R`
+  (`pnp_exclude` / `pose_subset`) poses it from the other spouts (LM from the six-spout pose) and reports that pose's
+  reprojection on all six. The summary keeps the REAL gate (`side_dropped`, `side_rms600_*`) plus `side_forced_on`, the
+  per-spout gate px and `pnp_*`; forced runs need `--out` and write their side events there, never into the bundle.
+  Forced-on where cam3 passes is a no-op: 0819 / 0821 frames and licks byte-identical to production.
+- *Validation* (`scripts/qc_cam3_drop.py validate` -> `P3D/qc_cam3_drop_20261122/cam3_on/validation.csv`; normal =
+  0819 / 0821): cam3 ray-to-3-D offsets (median / p95 mm) tongue 0.19 / 0.57 (a) vs 0.17-0.18 / 0.49-0.57, jaw
+  0.18-0.24 / 0.39-0.49 vs 0.17-0.22 / 0.37-0.49, nose 0.07 / 0.14-0.23 vs 0.06 / 0.15-0.26; cam3 view rejections in
+  `fuse_robust` tongue 0.09 % / 0.53 % of offered views (0818 / 0820) vs 0.09-0.21 %; `tongue_off_cam3_ap` 0.07 / 0.16
+  mm and `nose_off_cam3_dv` 0.61 / 0.98 mm (normal 0.06-0.08 / 0.71-0.78); steady-phase tongue jitter p95 0.99 -> 0.91
+  mm (0818), 1.07 -> 0.97 (0820) with cam3 (normal 0.95-1.01). Per lick vs production (no cam3), median over positions:
+  all-lick speed -6.2 / -3.8 mm/s, first-lick -13.6 / -7.6 mm/s (the expected 7-8 mm/s drop), reach <= 0.04 mm, aim
+  <= 0.3 deg; no lick lost or added.
+- *Why (a), not (b).* (b) (four-spout pose: far_center, far_L, far_R, close_L) gives the same kinematics (within
+  1 mm/s) and its 0821 control is within 0.5 mm/s of production, but it does not fit its own four spouts better on 0818
+  (rms 0.99 px600 vs 0.38-0.52 normal; all six 1.71 / 1.40, max 2.72 / 2.98), so the bias is not confined to the two
+  close spouts, and it moves the 0818 cam3 nose offset to 0.46 mm (below cam3's 0.70-1.18 range). (a) adds no new pose.
+- *Swap* (`scripts/swap_cam3_on_20261123.py --variant a_forced`; every replaced file in
+  `P3D/_superseded_cam3drop_20261123/MANIFEST.md`): per-session frames / licks, the production summary (new file under the
+  same name; readers glob `summary_production*.csv`), the two sessions' per-session caches, and the two sessions' rows of
+  `kinematics_fused` and `kinematics_fused_postcue[_allviews]` (every other session byte-identical). Unchanged: the
+  fused lick train (cam3 side events are still absent for these two days), frame coverage, side events. Not rebuilt here:
+  the statistics families, figures, and session tables built on these (c2_lick3d_session_summary, aim tables, phase,
+  cue traces).
+
+## 2026-11-23 -- Reach of today's changes into the encoding and imaging arms (Priya 11-23: "document in repo")
+
+Three changes landed on 11-23 (entries above). What each one touches outside the six-position behavior tables:
+
+1. **PS95 0818 / 0820 cam3 re-included.** The fused (four-camera) lick LIST is unchanged, so every lick time and lick
+   key used by the encoder (`COMBINED_ENCODING_LICKS=fourcam`) and by imaging lick alignment is identical. Only those
+   two sessions' per-lick 3-D values moved: angle <= 0.3 deg, reach <= 0.04 mm, peak speed 4-14 mm/s lower (peak speed
+   is not an encoder regressor). The 11-22 fourcam encoder refit is therefore kept; the new values enter at its next
+   fit. No refit for this alone. Imaging analyses on DAQ licks, trials, classes or the GLM-HMM do not read the 3-D
+   tongue and are unaffected.
+2. **`session_change_tests` default n_boot 2000 -> 4000.** Every caller listed in that entry (orofacial_cohort,
+   orofacial_w2, combined_encoding_figures, states_jaw_only_roles, c2_recovery_mechanics_stats, treadmill, engagement
+   s5 / s22_compare) uses 4,000 on its next run. MWU, BH and point estimates do not move; a star whose bootstrap
+   interval sits on 0 can flip (two six-position cells did). Rule: when an encoding / imaging / engagement figure that
+   uses these tests is next re-rendered, compare its stars against the previous render and list any flip.
+3. **Within-lick launch window = Variant A (`WLC_LAUNCH=2v`).** Changes only the recovery-mechanics behavior tables
+   (S12 A-C, F). The neural tables that read the launch angle (`within_lick_correction` neural fits, recmark /
+   recprim) were not rebuilt; rebuild them under `WLC_LAUNCH=2v` only if a neural figure uses the launch angle (none in
+   the paper as of 11-23). Known blocker for that rebuild: `within_lick_correction run` fails at its neural step
+   (`KeyError: lick_uid`) because the sync60 imaging lick tables carry no `lick_uid` / `lick_key`.
+
+## 2026-11-23 -- cam3-on final pass: every 3-D-derived six-position table rebuilt, families at 4,000 draws; speed robustness
+- *What:* after the PS95 0818 / 0820 cam3 swap (8b3563a7), the session tables built on the 3-D were rebuilt into NEW
+  `_cam3on` folders / names (nothing overwritten): `c2_lick3d_session_summary` (+ allviews), the aim tables (labels =
+  `clean_v36/.../iti_licks/zscore_check/where_preds_z_splitr8.csv`; the 11-22 aim tables reproduce from it on the
+  superseded inputs to 1.8e-15), lick_cued_aim_by_spout / aim_first_vs_all at 4,000, Fig 4F tables, rev-up + correlations,
+  the phase chain (Fig 4G-I), cue traces, kinematics_pooled_figs, protrusion vs reach, within_lick_correction (only the
+  two sessions re-extracted; launch Variant A), lick_correction behavior, learned_compensation and
+  c2_recovery_mechanics_stats --n-boot 4000. Driver `lp_stage/phaseB_20261122/cam3on_20261123/driver.py`.
+- *Result:* no star flips in the 162-cell family (93 -> 93; 30 subacute cells change value), S12 (0 flips), protrusion
+  (0) or the phase clusters (none gained / lost; subacute extents move by 1-15 bins). Details:
+  `vls_stroke_paper/NOTE_CC_B_cam3on_2026-11-23.md`.
+- *Robustness (Priya-approved, NOT adopted):* `scripts/c2_speed_smooth_robustness.py` recomputes peak speed from a
+  5-frame Savitzky-Golay 3-D trajectory (and the raw pipeline value as a check) and the tongue-path noise / <= 2-view
+  share by epoch. All-lick speed stars are identical with SG5 (11 -> 11); acute tongue paths are not noisier (second-
+  difference RMS -0.02 mm vs own pre, 1 of 4 animals up), but the raw - SG5 peak gap rises +1.8 mm/s acutely in all
+  four animals, so raw peak speed slightly UNDERSTATES the acute drop.
+- *Code (opt-in, defaults unchanged):* `kinematics_pooled_figs --cue-dir / --phase-dir` (read a re-run's cue-trace /
+  phase folders), `c2_recovery_mechanics_stats --lickcorr` (a WFIELD_ITI_OUT_W lick_correction folder). lick_correction
+  under WFIELD_ITI_OUT_W needs `<OUT_W>/lick_correction` to exist before the run (it does not create it).
+
+## 2026-11-23 -- Four-camera re-analysis of the remaining arms: scope and four decisions (Priya)
+Priya 11-23: "go through the inventory of what needed to be re-run with the 4-camera kinematics and start that work"
+-- "with the latest parameters and decisions". Inventory: `docs/status/FOURCAM_REANALYSIS_INVENTORY_2026-11-23.md`
+(11 current, 3 stale, 24 not run, 2 blocked). Delete candidates: `docs/status/DELETE_CANDIDATES_FOURCAM.md`.
+- **Imaging rebuild root:** a NEW sync60 root (not a subtree of `rebuild_20261103`); the v36 rebuild stays for comparison.
+- **Movement page encoder:** refit the page's own lineage (v7g3_t3d_spont_frA, swapmask) on four-camera licks into a new
+  folder; the manuscript-lineage fourcam fit stays as is.
+- **GLM-HMM:** `glm_hmm.out_dir()` defaults to `v1_floor020` wherever it exists (sync60); `GLMHMM_OUT` still overrides.
+  Old `glm_hmm/v1` under sync60 joins the delete candidates.
+- **AR-HMM:** re-infer with the saved fits (inventory D5); report the share of frames that change state; refit only if large.
+- **Standing rule applied:** imaging frozen decoders keyed on a changed pre-stroke set get a new spec; the old store is kept.
+- **PS95 0818 / 0820 jaw calls** re-run on the cam3-on 3-D (only those two sessions differ: 48 trials flip `jaw3d_moved`,
+  24 each way); classes and attempts rebuilt; previous tables kept as `qc/*_precam3on.*`.
+- **`within_lick_correction` neural step:** reads `lick_uid` only when the npz has it (sync60 npz carries `lick_key`; the
+  join already preferred it), unblocking the KeyError on all sessions.
+
+## 2026-11-23 -- Six-position lick-phase cluster tests at 5,000 permutations for the paper (Priya; Cowork prompt PROMPT_CC_B_phase_perm5000)
+One permutation count across both cohorts (two-tone uses 5,000). `pose3d_phase_from_peak.py` and
+`c2_phase_sessions_aligned.py` take `--n-perm` (default `CLUSTER_PERM` = 500, unchanged for exploratory figures) and the
+latter `--out-suffix`; its parity gate now runs at the input file's count (CLUSTER_PERM), since the uncorrected mask can
+legitimately differ at another count. Reproduction at 500: all 16 cam3on tables byte-identical. At 5,000 (seed 0), phase
+axis: dist far_R acute (bins 51-71) GAINED (q .054 -> .039); down0 close_R acute (bins 46-61) LOST (q .041 -> .059);
+ms axis: dist and down0 close_L subacute lost (q .047 / .043 -> .050 / .052). No cluster changes extent. Fig 4G dots
+(union of side0 + down0) and Fig 4H (mid0) unchanged; S11 dist panels change. Tables:
+`data_4cam_20261122/phase/*_boot4000_cam3on_perm5000.csv`; note `vls_stroke_paper/NOTE_CC_B_phase_perm5000_2026-11-23.md`.
+
+## 2026-11-23 -- Four-camera re-analysis, behavior + encoding arm: what was re-run and what moved (Priya 11-23)
+Scope / rules: inventory rows owned BE (`docs/status/FOURCAM_REANALYSIS_INVENTORY_2026-11-23.md`); Priya 11-23: "don't
+re-do any work that was done for the manuscript" (no refit of the manuscript-lineage fourcam frame; build on the 11-22
+frame), then "prioritize items needed for the MANUSCRIPT" (results-page items parked). Log:
+`docs/status/RUNNING_LIST_2026-11-23.md` (Behavior + encoding).
+- **Classes (D1 / D2) on the cam3-on 3-D.** s1 snapshot + trial_attempts rebuilt 05:00-06:53. vs `qc/*_precam3on.*`: 12
+  trials change `cls` / `cls_detail` / `working_raw`, all PS95_0820 (8 no_response -> jaw_only, 4 jaw_only ->
+  no_response); `cls_final` unchanged; no other session differs.
+- **AR-HMM (J4): re-inferred with the saved v36 fits, NO refit (Priya 11-23).** Features VERSION 4; 15.5 % of 40-ms
+  frames change state vs the v36 inference (8.5 % at the reviewed syllable-group level), even across epochs; group
+  usage moves <= 0.6 points. Report both rates on the states page.
+- **Behavior tables (C2, A1, D7, J3, J5, E3-E5)**: C2 cohort change_vs_pre stars 103 -> 102 (resp_rate far_ipsi subacute
+  lost); within_session_decline 19 -> 18 CI-excluding-0 contrasts (5 flips); states delta-vs-pre 98 -> 101; FR cue-aligned
+  stats 32 -> 30; FR lick epochs 16 -> 16; TIM: 1.4 % of trials change class. Old outputs kept (cohort tree copied to
+  `<sync60>/cohort_pre_cam3on_20261123/`; others in new folders, listed in DELETE_CANDIDATES_FOURCAM.md).
+- **G6 lick_correction neural + G7 within_lick_correction neural (WLC_LAUNCH=2v)** on the 11-22 frame, first neural run
+  on sync60: `E/iti_licks_lickcorr_fourcam_20261123/lick_correction/` (behavior tables byte-identical to the 11-23
+  `iti_licks_cam3on` run) and `E/within_lick_correction_fourcam_launch2v_neural_20261123/` (behavior summaries
+  byte-identical to `within_lick_correction_fourcam_launch2v_cam3on`; neural_gamma / neural_resp tables new). Runtimes:
+  extract 8 min, lick_correction 21 min, WLC run 116 min (pre 18.6 min, 107 sessions), summarise 85 min. Not in the paper.
+- **Neural-tail families (G8 / G9 / G10)** partly run by a helper before it was cut off (outputs under
+  `E/iti_licks_neuraltail_fourcam_20261123`; triage + star moves in `lp_stage/reanalysis_20261123/neuraltail_triage.md`).
+  Flag for Priya: recmark ITI first-after-quiet markers weaken on four-camera ITI licks (oro_bal ~ aim slope 0.82, p 0.007
+  -> 0.56, p 0.115; 53 -> 30 CI-excluding-0 slopes), while the primary recprim links hold (ITI first-after-quiet -> aim
+  log(day) 11.0 -> 6.6, p 0.001). Results-page only; parked unfinished.
+- **S16 treadmill re-run on the four-camera inputs** (Priya 11-23, manuscript item; camera working-period gate, n_boot
+  4,000). Readouts are recomputed from the 11-23 states collector (sync60, new classes, fused licks); before, the stored
+  11-20 readouts were only re-tested. Stars: primary 3 -> 3, secondary 9 -> 9 (push_control_rate subacute neither ->
+  bootstrap only), first 95 min 2 -> 3 (push cue-minus-control subacute gains its star; CI 0.0009 to 0.194, fragile).
+  Session counts are unchanged. Tables are in `vls_stroke_paper/data_4cam_20261122/treadmill/*_fourcam_20261123.csv` +
+  `README_fourcam_20261123.md`; full outputs in `manuscript_stats/c2_4cam_sync60_20261122/treadmill_fourcam_20261123/`.

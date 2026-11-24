@@ -28,6 +28,7 @@ BGR = {"nose": (0, 215, 255), "jaw": (60, 220, 60), "tongue": (60, 60, 255), "sp
 HEX = {"nose": "#ffd700", "jaw": "#3cdc3c", "tongue": "#ff3c3c", "spout": "#00c8ff"}
 CROP = {"cam1": 380, "cam4": 380, "cam2": 280, "cam3": 280}
 TILE = 300
+FIT_MARGIN = 25          # px around everything drawn, `--fit`
 TRAIL_MS = 120.0
 
 
@@ -56,10 +57,12 @@ def view_from(cam) -> tuple[float, float]:
 
 
 def run(rv, session: str, per_position: int, t0: float, t1: float, trials: list[int] | None = None,
-        preds: str | None = None, tag: str = "") -> Path:
+        preds: str | Path | None = None, tag: str = "", out: Path | None = None, fit: bool = False,
+        clips: str | None = None) -> Path:
     """``trials``: render these trial ids instead of ``per_position`` per spout; ``preds``: a side model's video_preds
     (default `pose3d_side_check.PREDS`); ``tag``: suffix of the output name, so a review render never overwrites the
-    standard clip."""
+    standard clip; ``out``: output folder (default `session_poses/pose3d_side`, where the crop2 renders live -- give
+    another model its own folder); ``fit``: per-camera tile fitted to the keypoints; ``clips``: clip folder."""
     import cv2
     import matplotlib
     matplotlib.use("Agg")
@@ -74,10 +77,10 @@ def run(rv, session: str, per_position: int, t0: float, t1: float, trials: list[
     animal, date = session.split(":")
     if _june_factor(date):
         raise SystemExit(f"{session}: June -- side intrinsics not validated, not rendered")
-    Z = PS.fuse_session(rv, animal, date, Path(preds or PREDS), Path(rv.root("dlc")) / CLIPS)
+    Z = PS.fuse_session(rv, animal, date, Path(preds or PREDS), Path(rv.root("dlc")) / (clips or CLIPS))
     F, order, g, pts, rig, side = Z["F"], Z["order"], Z["g"], Z["pts"], Z["rig"], Z["side"]
     R = {p: (Z["parts"][p]["X"], None, Z["parts"][p]["views"]) for p in PS.PARTS}
-    out = Path(rv.root("dlc")) / "session_poses" / "pose3d_side"
+    out = Path(out) if out else Path(rv.root("dlc")) / "session_poses" / "pose3d_side"
     out.mkdir(parents=True, exist_ok=True)
 
     # per-frame table + coverage: cam1 + cam4 measured vs the four-camera pipeline
@@ -108,6 +111,29 @@ def run(rv, session: str, per_position: int, t0: float, t1: float, trials: list[
     nose_px = {c: PS.project(cams[c], nose_w[None])[0] for c in order}
     # cam1 / cam4: centred on the mouth (the nose is far up the frame there); side views: between mouth and nose
     centre = {c: mouth_px[c] if c in ("cam1", "cam4") else (mouth_px[c] + nose_px[c]) / 2 for c in order}
+    crop = dict(CROP)
+    trials = trials or (F.drop_duplicates("trial_id").groupby("position").head(per_position)
+                        .sort_values("position").trial_id.tolist())
+    if fit:
+        # Priya 11-18: the fixed 380 px cam4 tile cut far licks off, the cam1 tile the nose. FIT = per camera, the
+        # smallest square holding the nose, the six commanded spouts and every cleaned keypoint / 3-D reprojection of
+        # the rendered trials (+ FIT_MARGIN px), never smaller than the fixed crop.
+        rr = np.isin(F.trial_id.to_numpy(), trials) & (F.t_ms.to_numpy(float) >= t0) & (F.t_ms.to_numpy(float) <= t1)
+        for j, c in enumerate(order):
+            P = [nose_px[c][None], PS.project(cams[c], np.array(list(
+                SW.commanded_world(rig["geometry"], q) for q in SW.POSITIONS), float))]
+            for p in PS.PARTS:
+                P.append(pts[p][j, rr & Z["parts"][p]["used"][j]])      # rejected views can be wild: not fitted
+                X = R[p][0][rr]
+                X = X[np.isfinite(X).all(1)]
+                if len(X):
+                    P.append(PS.project([cc for cc in gpart[p].cameras if cc.get_name() == c][0], X))
+            P = np.vstack(P)
+            P = P[np.isfinite(P).all(1)]
+            lo_, hi_ = P.min(0) - FIT_MARGIN, P.max(0) + FIT_MARGIN
+            crop[c] = int(max(CROP[c], (hi_ - lo_).max()))
+            centre[c] = (lo_ + hi_) / 2
+        print("   fit crops (px):", crop)
     readers = {"cam1": Reader(oi.videos_for(rv, animal, date, "cam1")[0]),
                "cam4": Reader(oi.videos_for(rv, animal, date, "cam4")[0]),
                **{c: Reader(sorted((Path(rv.root("behavior_cameras")) / date / animal).glob(f"{c}_*.avi"))[0])
@@ -121,9 +147,7 @@ def run(rv, session: str, per_position: int, t0: float, t1: float, trials: list[
     fig = plt.figure(figsize=(2 * TILE / 100, 1.3 * TILE / 100), dpi=100)
     axes = [fig.add_subplot(1, 2, k + 1, projection="3d") for k in range(2)]
 
-    trials = trials or (F.drop_duplicates("trial_id").groupby("position").head(per_position)
-                        .sort_values("position").trial_id.tolist())
-    f_out = out / f"video_4cam_{animal}_{date}{tag}.mp4"
+    f_out = out / f"video_4cam_{animal}_{date}{tag}{'_fit' if fit else ''}.mp4"
     vw = None
     for tr in trials:
         rows = np.flatnonzero((F.trial_id.to_numpy() == tr) & (F.t_ms.to_numpy(float) >= t0) & (F.t_ms.to_numpy(float) <= t1))
@@ -145,10 +169,10 @@ def run(rv, session: str, per_position: int, t0: float, t1: float, trials: list[
                         r_ = PS.project([cc for cc in gpart[p].cameras if cc.get_name() == c][0], X[None])[0]
                         cv2.drawMarker(im, (int(round(r_[0])), int(round(r_[1]))), BGR[p], cv2.MARKER_TILTED_CROSS, 13, 2,
                                        cv2.LINE_AA)
-                h = CROP[c] // 2
-                x0 = int(np.clip(centre[c][0] - h, 0, im.shape[1] - CROP[c]))
-                y0 = int(np.clip(centre[c][1] - h, 0, im.shape[0] - CROP[c]))
-                tile = cv2.resize(im[y0:y0 + CROP[c], x0:x0 + CROP[c]], (TILE, TILE))
+                cs = min(crop[c], *im.shape[:2])
+                x0 = int(np.clip(centre[c][0] - cs // 2, 0, im.shape[1] - cs))
+                y0 = int(np.clip(centre[c][1] - cs // 2, 0, im.shape[0] - cs))
+                tile = cv2.resize(im[y0:y0 + cs, x0:x0 + cs], (TILE, TILE))
                 cv2.putText(tile, c, (6, 18), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 255), 1, cv2.LINE_AA)
                 tiles.append(tile)
             sel = (F.trial_id.to_numpy() == tr) & (F.t_ms.to_numpy(float) <= F.t_ms.iloc[k]) & \
@@ -211,10 +235,15 @@ def main(argv=None) -> int:
     ap.add_argument("--trials", type=int, nargs="*", help="trial ids to render (default: --per-position per spout)")
     ap.add_argument("--preds", help="side model video_preds dir (default: pose3d_side_check.PREDS)")
     ap.add_argument("--tag", default="", help="output name suffix, e.g. _t540_r2b")
+    ap.add_argument("--out", type=Path, default=None, help="output folder (default session_poses/pose3d_side)")
+    ap.add_argument("--clips", default=None, help="side clip folder under DeepLabCut/Widefield (default the 10-27 review "
+                    "clips; inference_check_20261104_partA_clips has PS92 0820, PS94 0903, PS95 0821 / 0907)")
+    ap.add_argument("--fit", action="store_true", help="per-camera tile fitted to nose + spouts + all keypoints (*_fit.mp4)")
     a = ap.parse_args(argv)
     rv = PathResolver()
     for s in a.sessions:
-        run(rv, s, a.per_position, a.t0, a.t1, trials=a.trials, preds=a.preds, tag=a.tag)
+        run(rv, s, a.per_position, a.t0, a.t1, trials=a.trials, preds=a.preds, tag=a.tag, out=a.out, fit=a.fit,
+            clips=a.clips)
     return 0
 
 

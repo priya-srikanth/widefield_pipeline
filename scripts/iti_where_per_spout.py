@@ -133,7 +133,7 @@ def plot(T: pd.DataFrame, S: pd.DataFrame, tag: str) -> None:
     fig.tight_layout(rect=(0, 0, 1, 0.93))
     save_png_svg(fig, WOUT / "figures" / f"lick_where_per_spout{tag}.png", dpi=95)
     plt.close(fig)
-WOUT = il.OUT_W if il.ITI_SUBSET else il.OUT     # subset runs (dock, ...) write to their own folder (10-29)
+WOUT = il.OUT_W if il.ITI_SUBSET else il.OUT_X     # subset runs (dock, ...) write to their own folder (10-29)
 
 
 def trial_set_sentence(z: bool = False) -> str:

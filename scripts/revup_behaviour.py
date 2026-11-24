@@ -64,6 +64,7 @@ from __future__ import annotations
 from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
+import os
 import pickle
 from pathlib import Path
 
@@ -73,7 +74,12 @@ from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # re
 
 RUN_ROOT = _encoding_root()
 OUT_W = RUN_ROOT / "iti_licks"
-REV = OUT_W / "revup"
+#: 11-22 (four-camera re-run): REVUP_OUT_DIR = an explicit output folder (inherited by the spawned workers through the
+#: environment), so a re-run never lands on an earlier run's tables; REVUP_AIM_CSV = the far-contra aim for the
+#: recovery step (5a) from a sessions table with the aim_by_spout schema (label, pos, off): `off` at far_contra is
+#: exactly recmark_sessions' `aim` (checked on v36: r = 1.000, 107 sessions). Used when the neural recovery-marker
+#: tables (recmark / recprim) of the run do not exist; iti_ang and marker are then NaN.
+REV = Path(os.environ["REVUP_OUT_DIR"]) if os.environ.get("REVUP_OUT_DIR", "").strip() else OUT_W / "revup"
 SESS = "behaviour_sessions_c1far"  # per-session cache (revup/sessions/ belongs to the imaging helper; its *.pkl from a
 #                                    first, superseded run of this script = the onset-only lick rule, not read).
 #                                    11-17: "_c1far" = cam1 events through `cam1_licks.keep_mask` (far-from-mouth guard);
@@ -134,10 +140,56 @@ def _count(sorted_t: np.ndarray, lo, hi) -> np.ndarray:
     return np.searchsorted(sorted_t, hi, side="left") - np.searchsorted(sorted_t, lo, side="left")
 
 
+def sess_dir() -> Path:
+    """The per-session cache folder: `SESS`, + ``_fused_<sha8>`` under a fused lick set (11-22: the lick train is part
+    of what a cached session holds, so another train never reads these pickles)."""
+    from wfield_local import session_licks as SL
+    sig = SL.signature()
+    if not sig:
+        return REV / SESS
+    import hashlib
+    return REV / f"{SESS}_fused_{hashlib.sha1(sig.encode()).hexdigest()[:8]}"
+
+
+def inputs_sig(label: str) -> str:
+    """Identity (name, size, mtime) of the files one session is built from: the session lick table, cam1's events_all,
+    the jaw table and the attempts table. 11-22 (reconciled plan item 4): the cache was keyed on EXISTENCE only, so a
+    regenerated lick / cam1 / jaw table was silently ignored; a pickle whose inputs changed is now rebuilt (pickles
+    written before 11-22 carry no signature and are still read, with a note)."""
+    from wfield_local import config, lp_licks
+    from wfield_local import session_licks as SL
+    from wfield_local.paths import PathResolver
+    rv = PathResolver()
+    an, date = config.animal_of(label), "2026" + label.split("_")[-1]
+    sd = SL._cam4_dir(rv, an, date)
+    fs = [sd / "licks_all.csv"] if not SL.fused_on() else [SL.fused_dir(rv) / f"{an}_{date}_fused.csv",
+                                                          sd / "windows.npz"]
+    fs += [lp_licks.cam1_events_dir(rv) / f"{an}_{date}_events_all.csv", QC / "jaw_onsets.csv", attempts_csv()]
+    parts = []
+    for p in fs:
+        try:
+            st = Path(p).stat()
+            parts.append(f"{Path(p).name}:{st.st_size}:{st.st_mtime_ns}")
+        except OSError:
+            parts.append(f"{Path(p).name}:-")
+    return "|".join(parts)
+
+
+def _cache_ok(f: Path, label: str) -> bool:
+    if not f.exists():
+        return False
+    d = pickle.loads(f.read_bytes())
+    if "inputs" not in d:
+        print(f"  {label}: cached before 11-22 (no input signature) -- reused; delete it to rebuild")
+        return True
+    return d["inputs"] == inputs_sig(label)
+
+
 def session(label: str) -> dict:
-    """One session -> per-trial table + FR arrays; cached at REV/sessions/<label>.pkl (module-level for spawn)."""
-    f = REV / SESS / f"{label}.pkl"
-    if f.exists():
+    """One session -> per-trial table + FR arrays; cached at `sess_dir()`/<label>.pkl, rebuilt when its inputs change
+    (`inputs_sig`) (module-level for spawn)."""
+    f = sess_dir() / f"{label}.pkl"
+    if _cache_ok(f, label):
         return {"label": label, "cached": True}
     from wfield_local import config, dlc_frames, epochs
     from wfield_local import face_rhythm_outputs as fro
@@ -154,7 +206,9 @@ def session(label: str) -> dict:
     nxt = np.where(np.isfinite(nxt) & (nxt > stop), nxt, stop + gap)
     rw = _resp_window(label)
     sd = oo.session_dir(rv, oc.RUN, an, date)
-    A = pd.read_csv(sd / "licks_all.csv", usecols=["daq_on_s", "daq_peak_s"])
+    from wfield_local import session_licks as SL
+    # 11-22: THE session lick table (`session_licks`: the fused four-camera train when selected, else cam4 licks_all)
+    A = SL.session_licks(f"{an}_{date}", rv)[["daq_on_s", "daq_peak_s"]]
     A = A[np.isfinite(A.daq_on_s) & np.isfinite(A.daq_peak_s)].sort_values("daq_peak_s")
     lk = np.sort(A.daq_on_s.to_numpy(float))
     pk, pk_on = A.daq_peak_s.to_numpy(float), A.daq_on_s.to_numpy(float)
@@ -178,7 +232,8 @@ def session(label: str) -> dict:
     n_miss = np.where(np.isfinite(fc), _count(lk, fl, fc), _count(lk, cue, stop))
     n_miss = np.where(np.isfinite(fl), n_miss, 0)
     # cam1 events
-    e1 = Path(rv.root("dlc")) / "session_poses" / "cam1_licks" / f"{an}_{date}_events_all.csv"
+    from wfield_local import lp_licks
+    e1 = lp_licks.cam1_events_dir(rv) / f"{an}_{date}_events_all.csv"
     has_cam1 = e1.exists()
     if has_cam1:
         from wfield_local import cam1_licks as C1        # droplets + far-from-mouth labels out (Priya 11-17)
@@ -260,8 +315,8 @@ def session(label: str) -> dict:
         "p_spont_after_left": 1 - np.exp(-rate * np.clip(nxt - stop, 0, None)) if np.isfinite(rate) else np.nan,
         "coverage": float(cov.get("covered_frac", np.nan))})
     T = _revup(T)
-    REV.joinpath(SESS).mkdir(parents=True, exist_ok=True)
-    f.write_bytes(pickle.dumps({"T": T, "fr": out_fr}))
+    f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_bytes(pickle.dumps({"T": T, "fr": out_fr, "inputs": inputs_sig(label)}))
     return {"label": label, "cached": False, "n": len(T)}
 
 
@@ -324,7 +379,7 @@ def assemble(labels: list[str]) -> tuple[pd.DataFrame, dict]:
     TA = pd.read_csv(attempts_csv(), usecols=["label", "trial_id", "cls", "canonical", "attempted", "day"])
     Ts, F = [], {"cue": [], "lick": [], "prep_cue": []}
     for x in labels:
-        d = pickle.loads((REV / SESS / f"{x}.pkl").read_bytes())
+        d = pickle.loads((sess_dir() / f"{x}.pkl").read_bytes())
         Ts.append(d["T"])
         for k in F:
             F[k].append(d["fr"][k])
@@ -471,9 +526,19 @@ def track(S: pd.DataFrame) -> pd.DataFrame:
     the primary balance marker (recprim_sessions.csv) on the same post sessions for comparison."""
     import statsmodels.formula.api as smf
     POS = _pos_order()
-    R = pd.read_csv(OUT_W / "recmark_sessions.csv", usecols=["label", "aim", "iti_ang"]).drop_duplicates("label")
-    M = pd.read_csv(OUT_W / "recprim_sessions.csv")
-    M = M[M.panel == "cued first lick -> aim"][["label", "marker"]].drop_duplicates("label")
+    aim_csv = os.environ.get("REVUP_AIM_CSV", "").strip()
+    if aim_csv:                                    # 11-22: aim from an aim_by_spout-schema table (see REV above)
+        A = pd.read_csv(aim_csv)
+        R = (A[A.pos == "far_contra"][["label", "off"]].rename(columns={"off": "aim"})
+             .assign(iti_ang=np.nan).drop_duplicates("label"))
+    else:
+        R = pd.read_csv(OUT_W / "recmark_sessions.csv", usecols=["label", "aim", "iti_ang"]).drop_duplicates("label")
+    fp = OUT_W / "recprim_sessions.csv"
+    if aim_csv and not fp.exists():
+        M = pd.DataFrame({"label": pd.Series(dtype=str), "marker": pd.Series(dtype=float)})
+    else:
+        M = pd.read_csv(fp)
+        M = M[M.panel == "cued first lick -> aim"][["label", "marker"]].drop_duplicates("label")
     meas = ["lat_med_ms", "contact_med_ms", "sh_after_left", "sh_none", "sh_late", "wait_med_ms", "revup_med_ms",
             "late_wait_med_ms", "late_revup_med_ms"]
     W = S[S.pos == "far_contra"][["label", "animal", "epoch", "day", *meas]].copy()

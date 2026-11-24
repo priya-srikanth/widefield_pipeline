@@ -186,21 +186,20 @@ def _session_cov(label: str) -> pd.DataFrame:
     peak), the kinematics, the FR factors, fr_in_mask."""
     from wfield_local import config
     from wfield_local import face_rhythm_outputs as fro
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
     from wfield_local.paths import PathResolver
     acts = _acts(label)
     rv = PathResolver()
     an, date = config.animal_of(label), "2026" + label.split("_")[-1]
     d = il._load(label)
-    A = pd.read_csv(oo.session_dir(rv, oc.RUN, an, date) / "licks_all.csv", usecols=["daq_peak_s"])
+    from wfield_local import session_licks as SL
+    A = SL.session_licks(f"{an}_{date}", rv)         # THE session lick table (11-22)
     K = _kin_table()
-    K = K[K.session == f"{an}_{date}"].drop_duplicates("lick_uid")
+    K = SL.kin_by_row(K[K.session == f"{an}_{date}"], A, label)          # by LICK KEY (11-22; was lick_uid = row)
     kt = pd.DataFrame({"reach_mm": K.reach_mm.to_numpy(float), "speed_peak": K.speed_peak.to_numpy(float),
                        "side_k": K.side_ml.to_numpy(float),
                        "elev_deg": np.degrees(np.arctan2(K.down_dv.to_numpy(float),
                                                          np.hypot(K.side_ml.to_numpy(float), K.out_ap.to_numpy(float))))},
-                      index=A.daq_peak_s.to_numpy(float)[K.lick_uid.to_numpy(int)])
+                      index=A.daq_peak_s.to_numpy(float)[K.index.to_numpy(int)])
     kt = kt[~kt.index.duplicated()]
     out = []
     for st, (tk, sk) in {"iti": ("iti_t", "iti_side"), "trial": ("tr_t", "tr_side")}.items():

@@ -51,7 +51,23 @@ def params(kind: str = "dlc", cam: str = "cam4") -> dict:
         if f"model_rel_{cam}" not in lp:
             raise SystemExit(f"no o2_inference.lp.model_rel_{cam} in configs/defaults.yaml")
         p["model_rel"] = lp[f"model_rel_{cam}"]
+        for k in ("reader", "time"):                       # per-camera overrides (`reader_side`, ...)
+            if f"{k}_{cam}" in lp:
+                p[k] = lp[f"{k}_{cam}"]
     return p
+
+
+#: ``--cam side`` (11-18): the shared side model runs on BOTH side cameras' videos in one bundle; each video's camera
+#: is its file-name prefix (``cam2_*.avi`` / ``cam3_*.avi``), and collect writes ``session_poses/<a>_<d>_<cam>_full``.
+SIDE_CAMS = ("cam2", "cam3")
+
+
+def bundle_cams(cam: str) -> tuple[str, ...]:
+    return SIDE_CAMS if cam == "side" else (cam,)
+
+
+def video_cam(video: str) -> str:
+    return Path(video).name.split("_", 1)[0]
 
 
 def true_case(path: Path) -> Path:
@@ -129,14 +145,18 @@ module load {p['conda_module']}
 conda activate {p['conda_env']}
 nvidia-smi || true
 python {b}/o2_lp_runner.py --model {b}/model --video {video_first} --bench 2000
-"""
+""" + (f"""# side bundle: also run the side path end to end on 2000 frames (transform -> mp4 -> predict -> outputs)
+python {b}/o2_lp_runner.py --model {b}/model --video {video_first} --out {b}/logs/smoke_side --side --frames 0:2000 \\
+    --reader {p['reader']} --precision {p['precision']}
+""" if p.get("cam") == "side" else "")
 
 
 def runner_line(p: dict, b: str, video: str, out: str) -> str:
     """The prediction command for one video: DLC (`o2_pose_runner.py`, chunked + prior) or LP (`o2_lp_runner.py`)."""
     if p.get("kind") == "lp":
         return (f"python {b}/o2_lp_runner.py --model {b}/model --video {video} \\\n"
-                f"    --out {out} --reader {p['reader']} --precision {p['precision']}")
+                f"    --out {out} --reader {p['reader']} --precision {p['precision']}"
+                + (" --side" if p.get("cam") == "side" else ""))
     return (f"python {b}/o2_pose_runner.py --bundle {b} --video {video} \\\n"
             f"    --out {out} --batch {p['batch']} --chunk {p['chunk']}")
 
@@ -259,7 +279,9 @@ ssh {user}@o2.hms.harvard.edu
 srun -p short -t 1:00:00 -c 4 --mem=16G --pty bash
 module load {p['conda_module']}
 conda create -y -n {p['conda_env']} python=3.10 && conda activate {p['conda_env']}
-pip install "lightning-pose=={p['lightning_pose_version']}" "opencv-python-headless=={p['opencv_version']}"
+pip install "lightning-pose=={p['lightning_pose_version']}" "opencv-python-headless=={p['opencv_version']}"{''' imageio-ffmpeg
+#   (side bundle: the runner encodes the transformed frames with imageio-ffmpeg's bundled ffmpeg. Env already exists:
+#   conda activate ''' + p['conda_env'] + ''' && pip install imageio-ffmpeg)''' if p.get('cam') == 'side' else ''}
 #   (lightning-pose does NOT install OpenCV; the runner reads the AVIs with it -- the first O2 smoke job, 2026-10-15,
 #   failed on `import cv2`. If the env already exists: conda activate {p['conda_env']} && pip install the second package.)
 exit
@@ -294,7 +316,8 @@ def cmd_bundle(rv, name: str, user: str, sessions: list[tuple[str, str]], refres
         tasks = pd.read_csv(d / "tasks.tsv", sep="\t", dtype=str).drop(columns="task")
         # Same videos, re-SPELT in the on-disk case (`true_case`; bundles made before 2026-10-05 carry
         # paths.yaml's Behavior_Cameras/Widefield, which a case-sensitive O2 path lookup would not find).
-        local = {(a, dt): {v.name: v for v in videos_for(rv, a, dt, cam)} for a, dt in zip(tasks.animal, tasks.date)}
+        local = {(a, dt): {v.name: v for c in bundle_cams(cam) for v in videos_for(rv, a, dt, c)}
+                 for a, dt in zip(tasks.animal, tasks.date)}
         tasks["video_o2"] = [o2_path(local[(a, dt)][v], rv) if v in local[(a, dt)] else o2
                              for a, dt, v, o2 in zip(tasks.animal, tasks.date, tasks.video, tasks.video_o2)]
         tasks.insert(0, "task", np.arange(1, len(tasks) + 1))
@@ -316,7 +339,7 @@ def cmd_bundle(rv, name: str, user: str, sessions: list[tuple[str, str]], refres
         return d
     rows = []
     for animal, date in sessions:
-        vids = videos_for(rv, animal, date, cam)
+        vids = [v for c in bundle_cams(cam) for v in videos_for(rv, animal, date, c)]
         if not vids:
             print(f"   no {cam} video for {animal} {date} -- skipped (see docs/EXPERIMENT_ERRORS.md)")
             continue
@@ -480,6 +503,77 @@ def trial_frame_spans_ts(b: pd.DataFrame, daq_v: np.ndarray, n_full: int, pre_s:
     return [tuple(x) for x in spans]
 
 
+#: WHOLE-SESSION WINDOWS (Priya 11-21, D3 / Q8: "full session = first to last sync pulse, for all cameras"). Set to
+#: ``sync`` and `build_windows` widens the trial windows so they tile the video from the FIRST to the LAST
+#: sync pulse on the DAQ (`sync_span_s`): the first trial's window starts at the first pulse, every window runs
+#: to the next window's start (the ITI stretches that ended at stop + 3 s before the next strobe), and the last trial's
+#: window ends at the last pulse. Unset / ``trials`` = the trial windows (strobe - 0.5 s .. stop + 3 s, cut at the next
+#: trial), byte-identical. Every camera's windows come from `build_windows`, so one variable moves cam4, cam1 and the side
+#: views together; consumers that write outputs must route them to a NEW folder (`span_suffix`).
+SPAN_ENV = "WIDEFIELD_WINDOWS_SPAN"
+SPANS = ("trials", "sync")
+
+
+def window_span() -> str:
+    import os
+    s = os.environ.get(SPAN_ENV, "").strip() or "trials"
+    if s not in SPANS:
+        raise ValueError(f"{SPAN_ENV}={s!r}: one of {SPANS}")
+    return s
+
+
+def span_suffix() -> str:
+    """'' for the trial windows; '_sync' for whole-session windows (appended to run / folder names)."""
+    return "" if window_span() == "trials" else f"_{window_span()}"
+
+
+_SYNC_EDGES: dict = {}
+
+
+def daq_sync_edges_s(rv, animal: str, date: str) -> np.ndarray:
+    """Rising edges (DAQ s) of the session DAQ's digital ``sync`` line (`camera_sync.daq_sync_edges` on the session's
+    authoritative .h5, `daq_io.session_h5`), memoised per process (every camera of a session asks)."""
+    key = (animal, date)
+    if key not in _SYNC_EDGES:
+        from wfield_local import camera_sync as cs
+        from wfield_local import daq_io
+        h5 = daq_io.session_h5(animal, date, rv)
+        if h5 is None:
+            raise FileNotFoundError(f"{animal} {date}: no DAQ .h5 for the sync span")
+        e, fs, _n = cs.daq_sync_edges(h5)
+        _SYNC_EDGES.clear()
+        _SYNC_EDGES[key] = np.asarray(e, float) / fs
+    return _SYNC_EDGES[key]
+
+
+def sync_span_s(edges_s: np.ndarray, tpl: dict) -> tuple[float, float] | None:
+    """(first, last) DAQ second of the session's sync pulses (``edges_s``, the DAQ ``sync`` line: the Arduino heartbeat
+    every camera's GPIO also records), clipped to the template's DAQ segment on a split day. Measured 11-21: the
+    template's MATCHED edges are NOT the first / last pulse (PS93 0814: first matched edge 22.5 s, first trial window
+    6.8 s), so the DAQ line itself sets the span. None when no pulse falls in the segment."""
+    e = np.asarray(edges_s, float)
+    seg = tpl.get("segment_daq_sec")
+    if seg is not None:
+        e = e[(e >= float(seg[0])) & (e <= float(seg[1]))]
+    if not len(e):
+        return None
+    return float(e[0]), float(e[-1])
+
+
+def widen_spans(spans: list, f_first: int, f_last: int) -> list:
+    """Trial frame spans [(f0, f1, f_cue), ...] (sorted, already cut at the next trial) -> spans that TILE
+    ``f_first`` .. ``f_last`` (exclusive end): the first window starts at ``f_first`` (never later than it did), each
+    window ends where the next starts, the last ends at ``f_last`` (never earlier than it did). Cue frames unchanged."""
+    if not spans:
+        return spans
+    s = [list(x) for x in spans]
+    s[0][0] = min(s[0][0], max(0, int(f_first)))
+    for k in range(len(s) - 1):
+        s[k][1] = s[k + 1][0]
+    s[-1][1] = max(s[-1][1], int(f_last))
+    return [tuple(x) for x in s]
+
+
 def assign_trials_to_videos(cue_s: np.ndarray, videos: list) -> np.ndarray:
     """Index into ``videos`` [(pose, template, name), ...] of the video that covers each cue: its frame lies inside
     that video, and inside the template's DAQ segment when it has one (split days). -1 = no video covers it."""
@@ -555,6 +649,18 @@ def build_windows(pose, animal: str, date: str, rv, pre_s: float = 0.5, post_s: 
         except (ValueError, FileNotFoundError, OSError) as e:
             print(f"   {animal} {date}: per-frame camera times unavailable ({e}) -- frame-index affine windows")
             daq_v, spans = None, trial_frame_spans(bv, tpl_v, len(pose_v), pre_s, post_s)
+        if window_span() == "sync" and len(spans):
+            ss = sync_span_s(daq_sync_edges_s(rv, animal, date), tpl_v)
+            if ss is None:
+                raise ValueError(f"{animal} {date}: {SPAN_ENV}=sync but no DAQ sync pulse in the {cam} segment")
+            n_v = len(pose_v) if daq_v is None else min(len(pose_v), len(daq_v))
+            if daq_v is None:
+                from wfield_local import dlc_frames as DF
+                f_a, f_b = DF.frame_of(tpl_v, ss[0], 0.0), DF.frame_of(tpl_v, ss[1], 0.0) + 1
+            else:
+                d = np.asarray(daq_v[:n_v], float)
+                f_a, f_b = int(np.searchsorted(d, ss[0], "left")), int(np.searchsorted(d, ss[1], "right"))
+            spans = widen_spans(spans, f_a, min(n_v, f_b))
         for r, (f0, f1, fc) in zip(bv.itertuples(), spans):
             for f in range(f0, f1):
                 if daq_v is None:
@@ -675,19 +781,20 @@ def cmd_collect(rv, name: str, compare: dict | None = None, sessions: list | Non
     d = bundle_dir(rv, name)
     bj = json.loads((d / "bundle.json").read_text(encoding="utf-8"))
     kind, cam = bj.get("kind", "dlc"), bj.get("cam", "cam4")
-    sfx = "" if cam == "cam4" else f"_{cam}"            # session_poses/<a>_<d>[_cam1]_full, like the clips' folders
     tasks = pd.read_csv(d / "tasks.tsv", sep="\t", dtype=str)
+    tasks["cam"] = [video_cam(v) for v in tasks.video] if cam == "side" else cam
     from wfield_local import dlc_project
     sp = dlc_project.project_dir(rv).parent / "session_poses"
     jobs_ = []
-    for (animal, date), g in tasks.groupby(["animal", "date"], sort=True):
+    for (animal, date, vcam), g in tasks.groupby(["animal", "date", "cam"], sort=True):
+        sfx = "" if vcam == "cam4" else f"_{vcam}"      # session_poses/<a>_<d>[_cam1|_cam2|_cam3]_full, as the clips
         # 10-21: --sessions / --missing-only (a full collect rewrites every finished session, ~5 min each)
         if sessions and f"{animal}:{date}" not in sessions:
             continue
         if missing_only and (sp / f"{animal}_{date}{sfx}_full" / "windows_index.csv").exists():
             continue
         clip = (compare or {}).get(f"{animal}:{date}")
-        jobs_.append(_CollectJob((d, kind, cam, sfx, sp, animal, date, list(g["video"]), clip)))
+        jobs_.append(_CollectJob((d, kind, vcam, sfx, sp, animal, date, list(g["video"]), clip)))
     from wfield_local import parallel
     results, failures = parallel.fan_out(jobs_, _collect_session, jobs=jobs, label="session")
     for _job, msg in sorted(results, key=lambda r: (r[0][5], r[0][6])):
@@ -709,8 +816,9 @@ def main(argv=None) -> int:
     b.add_argument("--refresh", action="store_true", help="existing bundle: rewrite only sbatch / COMMANDS / runner")
     b.add_argument("--kind", choices=("dlc", "lp"), default="dlc",
                    help="lp = the production Lightning Pose model (o2_inference.lp.model_rel[_<cam>])")
-    b.add_argument("--cam", default="cam4", choices=("cam4", "cam1"),
-                   help="camera: its videos, alignment templates and LP production model (cam1: lp.model_rel_cam1)")
+    b.add_argument("--cam", default="cam4", choices=("cam4", "cam1", "side"),
+                   help="camera: its videos, alignment templates and LP production model (cam1: lp.model_rel_cam1; "
+                        "side: cam2 + cam3 with the shared side model, lp.model_rel_side)")
     c = sub.add_parser("collect")
     c.add_argument("--name", required=True)
     c.add_argument("--compare", action="append", default=[], metavar="ANIMAL:DATE=CSV",

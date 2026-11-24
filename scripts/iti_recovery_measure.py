@@ -53,16 +53,21 @@ AIM_LABEL = {"first": "FIRST cued lick", "all": "all cued licks"}
 MIN = MIN_LICKS[AIM]                                      # back-compat name
 
 
-def aim_licks() -> pd.DataFrame:
+def aim_licks(preds=None, first_preds=None) -> pd.DataFrame:
     """Per cued lick: animal, label, epoch, pos, ang (deg), off (deg vs the animal's all-pre-lick mean at the spout),
-    first (True = the trial's first post-cue lick, lick_idx 0)."""
-    p = pd.read_csv(il.pred_file("zscore_check/where_preds_z.csv"))
+    first (True = the trial's first post-cue lick, lick_idx 0). ``preds`` / ``first_preds`` (11-22, for
+    `scripts/aim_first_vs_all.py --preds/--first-preds`): explicit where-decoder / first-lick tables; default = this
+    run's `il.pred_file` caches."""
+    p = pd.read_csv(preds or il.pred_file("zscore_check/where_preds_z.csv"))
     p = p[(p.set == "trial") & p.pos.isin(POS)].dropna(subset=["act_lat", "act_sag"]).copy()
     p["ang"] = np.degrees(np.arctan2(p.act_lat, p.act_sag))
     ref = p[p.epoch == "pre"].groupby(["animal", "pos"]).ang.mean()
     p["off"] = p.ang - ref.reindex(pd.MultiIndex.from_arrays([p.animal, p.pos])).to_numpy()
+    if "lick_idx" in p.columns:     # 11-22: a kinematics-built table (aim_tables_from_kinematics) carries lick_idx itself
+        p["first"] = p.lick_idx == 0
+        return p
     # first-lick flag: join on (label, landing lateral) -- the first-lick table carries lick_idx, not a lick id
-    F = pd.read_csv(il.pred_file("first_lick_preds.csv.gz"))[["label", "act", "lick_idx"]].drop_duplicates(["label", "act"])
+    F = pd.read_csv(first_preds or il.pred_file("first_lick_preds.csv.gz"))[["label", "act", "lick_idx"]].drop_duplicates(["label", "act"])
     p["k"], F["k"] = p.act_lat.round(6), F.act.round(6)
     p = p.merge(F[["label", "k", "lick_idx"]], on=["label", "k"], how="left").drop(columns="k")
     p["first"] = p.lick_idx == 0
@@ -116,7 +121,7 @@ def animal_table(S: pd.DataFrame) -> pd.DataFrame:
 
 def sessions_csv(aim: str = AIM) -> Path:
     """The session table of lick set `aim` (what every behavior-axis consumer reads)."""
-    return il.OUT / f"recovery_measure_sessions{'' if aim == 'first' else '_aimall'}.csv"
+    return il.in_path_x(f"recovery_measure_sessions{'' if aim == 'first' else '_aimall'}.csv")
 
 
 def aim_deficit(aim: str = AIM) -> dict:
@@ -153,15 +158,15 @@ def compute() -> pd.DataFrame:
     p = aim_licks()
     pd.set_option("display.width", 220)
     Sc, Ac = first_vs_all(p)
-    Sc.to_csv(il.OUT / "recovery_measure_first_vs_all_sessions.csv", index=False)
-    Ac.to_csv(il.OUT / "recovery_measure_first_vs_all_animals.csv", index=False)
+    Sc.to_csv(il.OUT_X / "recovery_measure_first_vs_all_sessions.csv", index=False)
+    Ac.to_csv(il.OUT_X / "recovery_measure_first_vs_all_animals.csv", index=False)
     print("== OLD (all cued licks) vs NEW (FIRST cued lick) weighted signed aim, per animal x epoch (deg vs own pre "
           f"landing; - = ipsilesional); session r(first, all) = {Ac.attrs['r_first_all']:.2f}")
     print(Ac.round(2).to_string(index=False))
     S = session_table(p, AIM)
-    S.to_csv(sessions_csv(AIM), index=False)
+    S.to_csv(il.OUT_X / sessions_csv(AIM).name, index=False)
     A = animal_table(S)
-    A.to_csv(il.OUT / f"recovery_measure_animals{AIM_TAG}.csv")
+    A.to_csv(il.OUT_X / f"recovery_measure_animals{AIM_TAG}.csv")
     print(f"\n== per animal (rule 8), lick set = {AIM_LABEL[AIM]}: weighted |angle offset from own pre landing| (deg), "
           "far-contra signed offset, and the fraction of the acute deficit remaining chronically")
     print(A.round(2).to_string())
@@ -199,7 +204,7 @@ def plot(S: pd.DataFrame, aim: str = AIM) -> None:
                  "session (open; shape = animal, color = epoch; filled = epoch mean +- SEM over animals); pre sessions (left of the "
                  "dashed line) = the noise floor. PROVISIONAL", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.88))
-    save_png_svg(fig, il.OUT / "figures" / f"lick_cued_recovery_measure{'' if aim == 'first' else '_aimall'}.png", dpi=100)
+    save_png_svg(fig, il.OUT_X / "figures" / f"lick_cued_recovery_measure{'' if aim == 'first' else '_aimall'}.png", dpi=100)
     plt.close(fig)
 
 

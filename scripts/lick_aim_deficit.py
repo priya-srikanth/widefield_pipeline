@@ -29,7 +29,7 @@ import iti_licks as il  # noqa: E402
 import iti_recovery_measure as rm  # noqa: E402
 
 AN = rm.AN
-FD = il.OUT / "figdata" / "lick_cued_aim_deficit_compare.pkl"
+FD = il.OUT_X / "figdata" / "lick_cued_aim_deficit_compare.pkl"
 
 
 def compute() -> pd.DataFrame:
@@ -51,7 +51,7 @@ def compute() -> pd.DataFrame:
                          fcf_h1=rm.far_contra(f[hf], 3), fcf_h2=rm.far_contra(f[~hf], 3),
                          n_first=len(f), n_all=len(g)))
     S = pd.DataFrame(rows).sort_values(["animal", "day"])
-    S.to_csv(il.OUT / "aim_deficit_sessions.csv", index=False)
+    S.to_csv(il.OUT_X / "aim_deficit_sessions.csv", index=False)
     return S
 
 
@@ -102,7 +102,7 @@ def plot(S: pd.DataFrame, rel: dict) -> None:
                  "others x1) vs far contra only, FIRST post-cue lick vs all licks.\n" + txt + ". The mixed models' "
                  "behavior deficit = pre - session of the FIRST-lick weighted aim. PROVISIONAL", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.86))
-    save_png_svg(fig, il.OUT / "figures" / "lick_cued_aim_deficit_compare.png", dpi=100)
+    save_png_svg(fig, il.OUT_X / "figures" / "lick_cued_aim_deficit_compare.png", dpi=100)
     plt.close(fig)
 
 

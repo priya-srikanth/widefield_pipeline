@@ -26,7 +26,8 @@ import numpy as np
 import pandas as pd
 from wfield_local.pose3d import pose3d_dir
 
-V36 = "lp_r4_heatmap_20261013__clean_v36"
+from wfield_local.lp_licks import input_run as _input_run  # noqa: E402
+V36 = _input_run()  # 11-22: the input / adopted cam4 run (lp_licks.input_run; was the literal v36 run, plan item 3)
 POS = ("close_L", "close_center", "close_R", "far_L", "far_center", "far_R")
 FEATS = {"cam4 2-D": ["lr_px", "ap_px"], "cam4 2-D + angle": ["lr_px", "ap_px", "peak_angle_deg"],
          "3-D": ["side_ml", "out_ap", "down_dv"]}

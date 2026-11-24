@@ -23,6 +23,7 @@ from __future__ import annotations
 import argparse
 import base64
 import json
+import os
 from pathlib import Path
 
 import numpy as np
@@ -31,13 +32,17 @@ from wfield_local.cam1_licks import cam1_frame as _cam1_frame  # noqa: F401  (mo
 from wfield_local.pose3d import pose3d_dir
 
 PROD = {"cam4": "lp_r4_prod_20261015", "cam1": "lp_cam1_ctx_prod_20261019"}
-V36 = "lp_r4_heatmap_20261013__clean_v36"
+from wfield_local.lp_licks import input_run as _input_run  # noqa: E402
+V36 = _input_run()  # 11-22: the input / adopted cam4 run (lp_licks.input_run; was the literal v36 run, plan item 3)
 OFFSETS_MS = (-24, -16, -8, 0, 8, 16, 24)
 CROP, TILE_W = (300, 240), 150
 
 
 def _out(rv) -> Path:
-    p = Path(rv.root("dlc")) / "session_poses" / "cam1_licks"
+    """The cam1 event folder: session_poses/cam1_licks, or the versioned folder of a re-run
+    (`lp_licks.CAM1_DIR_ENV`, 11-21: e.g. cam1_licks_v37), so a re-run never rewrites the folder every v36 analysis reads."""
+    from wfield_local import lp_licks
+    p = lp_licks.cam1_events_dir(rv)
     p.mkdir(parents=True, exist_ok=True)
     return p
 
@@ -58,8 +63,11 @@ def run_session(s: str) -> dict:
     rv = PathResolver()
     animal, date = s.split(":")
     row = {"session": f"{animal}_{date}"}
-    if not list((Path(rv.root("behavior_out")) / "sessions" / animal / date).glob("*_trials.csv")):
-        return {**row, "error": "no behavior session (no _trials.csv; DAQ contacts unavailable)"}   # e.g. PS93 0805
+    # 11-21: the DAQ contacts come from the .h5 (`kinematics_chain.daq_contacts_ms`), not the behavior log, so a session
+    # without a log (PS93 0805: trials reconstructed from the DAQ + the cam1 recovered positions) is processed too
+    from wfield_local import daq_io
+    if daq_io.session_h5(animal, date, rv) is None:
+        return {**row, "error": "no DAQ .h5 (no trials / contacts)"}
     c1 = oi.session_windows(rv, PROD["cam1"], animal, date, "cam1")
     if c1 is None:
         return {**row, "error": "no cam1 output"}
@@ -80,7 +88,10 @@ def run_session(s: str) -> dict:
     k = C1.mm_per_px(lat_pos, ml_pos) if {"far_L", "far_R"} <= set(med) else np.nan
     for cname in ("peak_dist", "peak_out", "max_out"):
         E[f"{cname}_mm"] = E[f"{cname}_px"] * k
-    sd = Path(rv.root("orofacial")) / V36 / "sessions" / animal / date
+    # cam4 run for cam4_matched / jaw-only trials: v36 (the adopted RUN) unless a re-run routes it
+    # (`lp_licks.INPUT_RUN_ENV`, 11-21: v37 with the spout rule)
+    from wfield_local import lp_licks
+    sd = Path(rv.root("orofacial")) / lp_licks.input_run() / "sessions" / animal / date
     if (sd / "licks.csv").exists():
         C4 = pd.read_csv(sd / "licks.csv")
         E["cam4_matched"] = C1.overlaps(E, C4)
@@ -374,6 +385,7 @@ def main(argv=None) -> int:
     ap.add_argument("--all", action="store_true",
                     help="every session with outputs, not just the curated cohort (`analysis_kit.curated_ids`)")
     ap.add_argument("--jobs", type=int, default=3)
+    ap.add_argument("--force", action="store_true", help="run: overwrite sessions already in the SHARED cam1 folder")
     ap.add_argument("--per", type=int, default=12)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--round", type=int, default=1, help="2 = re-show round-1 'none' / 'unsure' cam1-only + jaw-only-trial sample")
@@ -389,6 +401,15 @@ def main(argv=None) -> int:
                 for b in PROD.values()]
         cur = set.intersection(*have) if a.all else set.intersection(*have) & ak.curated_ids()
         sess = [x.replace("_", ":", 1) for x in sorted(cur)]
+    from wfield_local import lp_licks
+    if not os.environ.get(lp_licks.CAM1_DIR_ENV, "").strip() and not a.force:
+        # 11-22 (reconciled plan item 4): the SHARED session_poses/cam1_licks is read by every default-run analysis; a
+        # re-detection writes a versioned folder (WIDEFIELD_CAM1_LICKS_DIR=cam1_licks_<tag>), and only NEW sessions are
+        # added to the shared one unless --force
+        exist = [s for s in sess if (d / f"{s.replace(':', '_')}_events.csv").exists()]
+        if exist:
+            raise SystemExit(f"cam1_licks: {len(exist)} session(s) already in the shared {d} (e.g. {exist[:3]}): set "
+                             f"{lp_licks.CAM1_DIR_ENV}=cam1_licks_<tag> for a re-detection, or --force to overwrite")
     res, fails = ak.fan_sessions(sess, _worker, jobs=min(a.jobs, len(sess)))
     rows = [v for _, v in res] + [{"session": it.replace(":", "_"), "error": e} for it, e in fails]
     E, T = summarise(d)

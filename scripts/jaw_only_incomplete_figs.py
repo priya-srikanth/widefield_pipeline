@@ -49,7 +49,8 @@ import numpy as np
 import pandas as pd
 from wfield_local.pose3d import pose3d_dir
 
-V36 = "lp_r4_heatmap_20261013__clean_v36"
+from wfield_local.lp_licks import input_run as _input_run  # noqa: E402
+V36 = _input_run()  # 11-22: the input / adopted cam4 run (lp_licks.input_run; was the literal v36 run, plan item 3)
 POS = ("close_L", "close_center", "close_R", "far_L", "far_center", "far_R")     # = canonical order (lesions left: L = ipsi)
 LAB = {"close_L": "close ipsi", "close_center": "close mid", "close_R": "close contra", "far_L": "far ipsi",
        "far_center": "far mid", "far_R": "far contra"}
@@ -100,7 +101,9 @@ def session_classes(label: str, v36: Path | str | None = None, c1: Path | str | 
     from `trial_classes.session_trials` (window "cue_stop" by default, Priya 11-03; "trial" = from the strobe). None
     when the session has no video outputs (no DAQ fallback, so the two definitions are never mixed silently)."""
     T = TC.session_trials(label, window=window, v36=v36, c1=c1)
-    return None if T is None else T[["trial_id", "position", "cue_daq", "cls", "has_cam1"]]
+    # + cls_detail (11-22: "tongue_at_lips" inside cls = jaw_only) when the classifier writes it
+    return None if T is None else T[["trial_id", "position", "cue_daq", "cls", "has_cam1"]
+                                    + (["cls_detail"] if "cls_detail" in T else [])]
 
 
 def cue_classes(table: pd.DataFrame | None, cue_s: np.ndarray, tol: float = CUE_MATCH_S) -> np.ndarray:
@@ -415,7 +418,8 @@ def main(argv=None) -> int:
         import os
         os.environ[DENOM_ENV] = WORKING_DENOM
     rv = PathResolver()
-    c1 = Path(rv.root("dlc")) / "session_poses" / "cam1_licks"
+    from wfield_local import lp_licks
+    c1 = lp_licks.cam1_events_dir(rv)  # 11-22: the adopted / routed cam1 folder (lp_licks.cam1_events_dir; was the literal cam1_licks)
     d3 = pose3d_dir(rv)
     v36 = Path(rv.root("orofacial")) / V36 / "sessions"
     from wfield_local import run_mode

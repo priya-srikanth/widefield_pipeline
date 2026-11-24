@@ -180,7 +180,7 @@ def plot(D: dict, levels: bool = False) -> None:
               "change columns AND >= 3 animals share the sign. _left = lesioned hemisphere. PROVISIONAL")]
     fig.suptitle("\n".join(textwrap.fill(q, int(12.5 * fig.get_size_inches()[0])) for q in paras), fontsize=9)
     out = FIG_NAME[label]
-    fig.savefig(il.OUT / "figures" / (levels_name(out) if levels else out), dpi=100)
+    fig.savefig(il.OUT_X / "figures" / (levels_name(out) if levels else out), dpi=100)
     plt.close(fig)
 
 
@@ -224,7 +224,7 @@ def main() -> int:
             ("spout", "spout_pattern_sessions.pkl", None), ("spout_iti", "spout_pattern_sessions_iti.pkl", None)]
     from iti_spout_patterns import POS
     for label, fn, groups in srcs:
-        f = il.OUT / fn
+        f = il.in_path_x(fn)
         if not f.exists():
             print(f"  (skip {label}: {fn} not built yet)")
             continue
@@ -232,7 +232,7 @@ def main() -> int:
         mask_keys.check_sidecar(f)               # stale-read guard (11-09)
         SM = pickle.loads(f.read_bytes())
         T = family(SM, groups or POS, label, A, keep, n_perm)
-        T.to_csv(il.OUT / f"pattern_area_stats_{label}.csv", index=False)
+        T.to_csv(il.OUT_X / f"pattern_area_stats_{label}.csv", index=False)
         D = dict(T=T, label=label)
         save_fd(FIG_NAME[label], D)
         plot_all(D)

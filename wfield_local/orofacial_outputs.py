@@ -61,7 +61,13 @@ from wfield_local import config
 #: v35 = jaw x ceiling 75 + x jump test + bracketed flip rule (x-only) + hidden jaw NaN + inter-lick tongue veto +
 #: jaw-off-tongue (all adopted 2026-10-14 / 15, DECISIONS).
 #: v36 = v35 + the June camera-scale correction (`orofacial_camera`, 2026-10-18): June pose x 0.8853 before cleaning.
-CLEANING_VERSION = "v36"
+#: v37 = v36 + the spout-position rule (Priya 11-04, docs/status/SPOUT_POSITION_AUDIT_2026-11-04.md; executed with the
+#: four-camera re-run, D1 = (a) 11-21): the session spout frame from the NO-LICK ENL medians (`spout_frame.ruler_medians`)
+#: instead of every confident frame of the whole trial windows, and the per-trial spout reference = that session median
+#: of the trial's position (`SpoutFrame.ref_medians`).
+CLEANING_VERSION = "v37"
+#: the spout-frame rule per cleaning version (a v36 re-process must stay byte-compatible with the v36 tree)
+ENL_SPOUT_FROM = "v37"
 PARTS_ORDER = ("nose", "jaw", "tongue", "spout")
 
 
@@ -99,7 +105,21 @@ def camera_scale(date: str) -> float:
 
 
 def run_name(scorer: str, cleaning: str = CLEANING_VERSION) -> str:
-    return f"{scorer.lower()}__clean_{cleaning}"
+    """``<scorer>__clean_<version>`` + `o2_inference.span_suffix` (11-21: ``_sync`` = whole-session windows, first to
+    last sync pulse, `o2_inference.SPAN_ENV`; unset = the trial windows, the name unchanged) + `RUN_LABEL_ENV`
+    (11-22: a free label so a re-run never lands in an earlier run's folder, e.g. ``60`` -> ``..._v37_sync60`` for the
+    60 ms-floor whole-session re-run; unset = unchanged)."""
+    import os
+    import re
+
+    from wfield_local.o2_inference import span_suffix
+    lab = os.environ.get(RUN_LABEL_ENV, "").strip()
+    if lab and not re.fullmatch(r"[A-Za-z0-9_]+", lab):
+        raise ValueError(f"{RUN_LABEL_ENV}={lab!r}: letters / digits / '_' only")
+    return f"{scorer.lower()}__clean_{cleaning}{span_suffix()}{lab}"
+
+
+RUN_LABEL_ENV = "WIDEFIELD_RUN_LABEL"
 
 
 def session_dir(rv, run: str, animal: str, date: str) -> Path:
@@ -147,13 +167,32 @@ def _flat(ix_len: int, sel: np.ndarray, parts: list[str]) -> pd.DataFrame:
                          for j, c in enumerate(("x", "y", "likelihood"))})
 
 
+def session_spout_frame(flat: pd.DataFrame, ix: pd.DataFrame, spans, cleaning: str = CLEANING_VERSION):
+    """(SpoutFrame, source) of one session. From `ENL_SPOUT_FROM` on: the no-lick ENL medians (`ruler_medians`, Priya's
+    11-04 rule), with ``ref_medians`` set so the per-trial spout reference is the session median too; a session whose
+    ENL frames cannot build the frame (a needed position has no parked, untouched frames) falls back to the whole-window
+    medians and says so (``source`` = "whole_window_fallback"). Before v37: the whole-window medians, as v36 did."""
+    from wfield_local import spout_frame as SF
+    whole = SF.position_medians(flat[["spout_x", "spout_y", "spout_likelihood"]].to_numpy(), spans)
+    if str(cleaning) < ENL_SPOUT_FROM:
+        return SF.from_medians(whole), "whole_window"
+    med = SF.ruler_medians(flat, ix)
+    try:
+        fr = SF.from_medians(med)
+    except ValueError:
+        fr = SF.from_medians(whole)
+        fr.ref_medians = dict(med) or None
+        return fr, "whole_window_fallback"
+    fr.ref_medians = dict(med)
+    return fr, "enl_no_lick"
+
+
 def process_session(rv, bundle: str, animal: str, date: str, force: bool = False, log=print) -> dict | None:
     """O2 bundle outputs of one session -> its folder in the run: windows, cleaned traces, kinematics tables, QC."""
     import cv2
 
     from wfield_local import kinematics_chain as D
     from wfield_local import camera_sync, o2_inference as oi
-    from wfield_local import spout_frame as SF
     from wfield_local import trial_windows as TW
     bd = oi.bundle_dir(rv, bundle)
     bj = json.loads((bd / "bundle.json").read_text(encoding="utf-8"))
@@ -202,7 +241,7 @@ def process_session(rv, bundle: str, animal: str, date: str, force: bool = False
         sel[:, :, :2] *= px_scale
     flat = _flat(len(ix), sel, parts)
     spans = [(int(gg.index.min()), int(gg.index.max()) + 1, str(gg.position.iloc[0])) for _, gg in ix.groupby("trial_k")]
-    frame = SF.from_medians(SF.position_medians(flat[["spout_x", "spout_y", "spout_likelihood"]].to_numpy(), spans))
+    frame, frame_src = session_spout_frame(flat, ix, spans)
     b = TW.trial_bounds(animal, date, rv)
     stops = dict(zip(b.trial_id, b.stop_s - b.cue_s))
     contacts = D.daq_contacts_ms(animal, date, b, rv)
@@ -239,7 +278,11 @@ def process_session(rv, bundle: str, animal: str, date: str, force: bool = False
            "source_bundle": bundle, "videos": srcs, "n_trials": int(ix.trial_k.nunique()), "n_rows": int(len(ix)),
            "n_licks": int(len(T.per_lick)), "n_precue_licks": int(len(P)), "n_excluded_0_70_licks": int(len(X)), "n_iti_licks": int(len(Q)), "n_contact_licks": int(T.per_lick.get("contact", pd.Series(dtype=bool))
                                                                     .fillna(False).astype(bool).sum()),
-           "px_scale": px_scale, "params_digest": params_digest(), "code_commit": code_commit(),
+           "px_scale": px_scale, "spout_frame_source": frame_src,
+           "spout_ref_source": "enl_session" if frame.ref_medians else "trial",
+           "spout_ref_positions_without_enl": sorted(set(ix.position.astype(str)) - set(frame.ref_medians or {}))
+           if frame.ref_medians else [],
+           "params_digest": params_digest(), "code_commit": code_commit(),
            "created": time.strftime("%Y-%m-%d %H:%M")}
     (sd / "manifest.json").write_text(json.dumps(man, indent=1), encoding="utf-8")
     log(f"{animal} {date}: {man['n_trials']} trials, {man['n_licks']} licks -> {sd}")
@@ -354,6 +397,31 @@ def encoder_context(A: pd.DataFrame) -> np.ndarray:
     return (A.onset_context if "onset_context" in A else A.context).astype(str).to_numpy()
 
 
+def trial_ms_to_daq(ix: pd.DataFrame, trial_id, t_ms, look: pd.Series | None = None) -> np.ndarray:
+    """ABSOLUTE DAQ time (s) of times ``t_ms`` (ms from each row's cue, template time) of trials ``trial_id``, through a
+    windows index ``ix`` (trial_id, t_ms, daq_s: each frame's camera timestamp through the alignment template). ONE
+    definition (11-22): `all_licks_session` (licks_all ``daq_on_s`` / ``daq_peak_s``) and the fused four-camera lick
+    train (`session_licks`) put cue-relative lick times on the DAQ clock the same way. On the 4 ms frame grid: the
+    frame's own DAQ time; off the grid (a gap / window edge): interpolated on the trial's camera clock; just outside the
+    trial's window: the nearest frame's DAQ time + the ms offset (1 ms = 1 ms)."""
+    if look is None:
+        look = ix.drop_duplicates(["trial_id", "t_ms"]).set_index(["trial_id", "t_ms"]).daq_s
+    by_trial = {k: (g.t_ms.to_numpy(float), g.daq_s.to_numpy(float))
+                for k, g in ix.sort_values(["trial_id", "t_ms"]).groupby("trial_id")}
+    tid = np.asarray(trial_id)
+    tt = np.asarray(t_ms, float)
+    k = pd.MultiIndex.from_arrays([tid, np.round(tt / 4.0) * 4.0])
+    v = look.reindex(k).to_numpy(float)
+    for i in np.flatnonzero(~np.isfinite(v) & np.isfinite(tt)):      # off the frame grid (a gap / window edge):
+        g = by_trial.get(tid[i])                                     # interpolate on the trial's camera clock
+        if g is not None and len(g[0]) > 1:
+            v[i] = float(np.interp(tt[i], g[0], g[1], left=np.nan, right=np.nan))
+            if not np.isfinite(v[i]):                                # just outside the window: 1 ms = 1 ms
+                j = 0 if tt[i] < g[0][0] else -1
+                v[i] = g[1][j] + (tt[i] - g[0][j]) / 1000.0
+    return v
+
+
 def all_licks_session(rv, run: str, animal: str, date: str) -> tuple[pd.DataFrame, dict]:
     """``licks_all.csv``: EVERY cam4 lick the v36 windows hold (= `licks.csv` + `licks_precue.csv` +
     `licks_excluded_0_70.csv` + `licks_iti.csv`, the same detector; NO re-detection), one table. Columns: `licks.csv`'s,
@@ -397,22 +465,8 @@ def all_licks_session(rv, run: str, animal: str, date: str) -> tuple[pd.DataFram
     A["context"] = lick_context(A.t_ms, t.strobe_ms.to_numpy(float), t.stop_ms.to_numpy(float))
     A["onset_context"] = onset_context(A.on_ms, t.strobe_ms.to_numpy(float), t.stop_ms.to_numpy(float))
 
-    by_trial = {k: (g.t_ms.to_numpy(float), g.daq_s.to_numpy(float))
-                for k, g in ix.sort_values(["trial_id", "t_ms"]).groupby("trial_id")}
-
-    def daq(tcol):
-        tt = A[tcol].to_numpy(float)
-        k = pd.MultiIndex.from_arrays([A.trial_id.to_numpy(), np.round(tt / 4.0) * 4.0])
-        v = look.reindex(k).to_numpy(float)
-        for i in np.flatnonzero(~np.isfinite(v) & np.isfinite(tt)):      # off the frame grid (a gap / window edge):
-            g = by_trial.get(A.trial_id.iat[i])                          # interpolate on the trial's camera clock
-            if g is not None and len(g[0]) > 1:
-                v[i] = float(np.interp(tt[i], g[0], g[1], left=np.nan, right=np.nan))
-                if not np.isfinite(v[i]):                                # just outside the window: 1 ms = 1 ms
-                    j = 0 if tt[i] < g[0][0] else -1
-                    v[i] = g[1][j] + (tt[i] - g[0][j]) / 1000.0
-        return v
-    A["daq_on_s"], A["daq_peak_s"] = daq("on_ms"), daq("t_ms")
+    A["daq_on_s"] = trial_ms_to_daq(ix, A.trial_id, A.on_ms, look=look)
+    A["daq_peak_s"] = trial_ms_to_daq(ix, A.trial_id, A.t_ms, look=look)
     A = A.sort_values("daq_on_s", kind="stable").reset_index(drop=True)
     man = json.loads((sd / "manifest.json").read_text(encoding="utf-8"))
     n_vid = sum(v["n_frames"] for v in man.get("videos", []))
@@ -516,14 +570,15 @@ def main(argv=None) -> int:
     p.add_argument("--jobs", type=int, default=4, help="parallel sessions (each holds ~1-2 GB)")
     sub.add_parser("index")
     q = sub.add_parser("all-licks", help="licks_all.csv per session: every cam4 lick + context + absolute DAQ time")
-    q.add_argument("--run", default="lp_r4_heatmap_20261013__clean_v36", help="run folder")
+    q.add_argument("--run", default=None, help="run folder (default: the adopted orofacial_cohort.RUN; 11-22: was the literal v36 run)")
     q.add_argument("--sessions", nargs="*", default=None, help="animal:date (default: every processed CURATED session)")
     q.add_argument("--all", action="store_true", help="every processed session, not just the curated cohort")
     q.add_argument("--jobs", type=int, default=4)
     a = ap.parse_args(argv)
     rv = PathResolver()
     if a.cmd == "all-licks":
-        run = a.run
+        from wfield_local import orofacial_cohort as _oc
+        run = a.run or _oc.RUN
         sess = sorted((p.parent.name, p.name) for p in (root(rv) / run / "sessions").glob("*/*")
                       if (p / "licks.csv").exists() and (p / "windows.npz").exists())
         if a.sessions:

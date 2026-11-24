@@ -90,7 +90,7 @@ def main() -> int:
                                  areas=", ".join(f"{k} {x:.0%}" for k, x in comp.head(3).items())))
         imgs.append((lab, v, foc))
     R = pd.DataFrame(rows)
-    R.to_csv(il.OUT / "roi_foci.csv", index=False)
+    R.to_csv(il.OUT_X / "roi_foci.csv", index=False)
     pd.set_option("display.width", 250)
     pd.set_option("display.max_colwidth", 60)
     print(R.round(2).to_string())
@@ -119,7 +119,7 @@ def main() -> int:
                  "map FOCI (top 3 % |map| per hemisphere and sign).\nGrey = Allen areas. Orange = more active for "
                  "contralesional (lateral) / longer (sagittal) licks / that spout. ipsi (lesion) = image LEFT. PROVISIONAL",
                  fontsize=10)
-    save_png_svg(fig, il.OUT / "figures" / "lick_roi_foci.png", dpi=95)
+    save_png_svg(fig, il.OUT_X / "figures" / "lick_roi_foci.png", dpi=95)
     return 0
 
 

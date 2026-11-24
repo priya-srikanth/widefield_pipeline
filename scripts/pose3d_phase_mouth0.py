@@ -23,6 +23,7 @@ lickset='first'), values written with ``%.5g`` as the manuscript's copy. Session
     python scripts/pose3d_phase_mouth0.py [--out PATH] [--sessions PS92_20260812 ...] [--jobs N]
 """
 from __future__ import annotations
+from wfield_local.session_licks import kin_name as _kin_name  # 11-22: fused post-cue unless WIDEFIELD_KIN_LICKS=cam4
 
 import argparse
 import functools
@@ -41,7 +42,7 @@ LICK_COLS = ["session", "animal", "date", "epoch", "position", "lick_idx", "t_pe
 
 
 def first_licks(d3: Path) -> pd.DataFrame:
-    L = pd.read_csv(d3 / "kinematics" / "licks.csv.gz", usecols=LICK_COLS, dtype={"date": str})
+    L = pd.read_csv(d3 / _kin_name() / "licks.csv.gz", usecols=LICK_COLS, dtype={"date": str})
     return L[(L.lick_idx == 0) & L.t_peak_3d.notna()]
 
 

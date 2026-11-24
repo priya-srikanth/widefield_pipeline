@@ -106,9 +106,9 @@ SCALE = os.environ.get("WFIELD_MAP_SCALE", "")       # "" = unscaled SVD feature
 if SCALE not in ("", "frame"):
     raise ValueError(f"WFIELD_MAP_SCALE={SCALE!r}: expected frame or unset")
 ZS = "_z" if SCALE else ""                           # output tag of the scaled variant
-BASE_OUTD = il.OUT / "session_levels"                # the unscaled run (its pattern cache serves both)
-OUTD = il.OUT / f"session_levels{ZS}"
-FIG = il.OUT / "figures"
+BASE_OUTD = il.OUT_X / "session_levels"                # the unscaled run (its pattern cache serves both)
+OUTD = il.OUT_X / f"session_levels{ZS}"
+FIG = il.OUT_X / "figures"
 SETLAB = {"iti": "ITI", "trial": "cued"}
 TGLAB = {"lat": "LATERAL position", "sag": "SAGITTAL extension", "wlat": "WITHIN-SPOUT lateral"}
 SIGN = {"lat": "positive (orange / red) = more active for licks landing more CONTRALESIONAL",
@@ -172,7 +172,7 @@ def _put(rec: dict, key: str, X: np.ndarray, y: np.ndarray) -> None:
 
 def _audit() -> pd.DataFrame:
     if "A" not in _AUD:
-        _AUD["A"] = (pd.read_csv(il.OUT / "iti_timing_audit.csv", usecols=["label", "t", "gap", "since_stop", "to_strobe"])
+        _AUD["A"] = (pd.read_csv(il.in_path_x("iti_timing_audit.csv"), usecols=["label", "t", "gap", "since_stop", "to_strobe"])
                      .replace(np.inf, 1e9).set_index(["label", "t"]).sort_index())
     return _AUD["A"]
 
@@ -261,7 +261,7 @@ def frame_scale(labels) -> dict:
     Fails loudly on a missing session or a non-positive SD."""
     if not SCALE:
         return {x: None for x in labels}
-    F = pd.read_csv(il.OUT / "basis_svdbasis" / "frame_sd.csv", index_col=0)
+    F = pd.read_csv(il.in_path_x("basis_svdbasis") / "frame_sd.csv", index_col=0)
     miss = sorted(set(labels) - set(F.index))
     if miss:
         raise SystemExit(f"frame_sd.csv lacks {len(miss)} session(s): {miss[:5]}")

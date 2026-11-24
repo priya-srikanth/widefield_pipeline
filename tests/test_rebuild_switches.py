@@ -292,6 +292,7 @@ def test_session_cache_default_kind_unchanged_and_variant_never_prunes_it(monkey
 
 
 def test_restnl_stem(monkeypatch):
+    monkeypatch.setenv("WIDEFIELD_FUSED_LICKS", "off")    # the legacy cam4 lick set (adopted default = fused, 11-22)
     from wfield_local import restnl_mask as rm
     assert rm._stem("PS92_0806") == "PS92_0806__restnl"
     monkeypatch.setenv("WIDEFIELD_HEMO_VARIANT", VAR)

@@ -40,9 +40,9 @@ STEM = "lick_iti_filter_compare"
 def compute() -> dict:
     rows = []
     for tag, lab in SETS:
-        T = pd.read_csv(il.OUT / f"matched_{REFTAG}{BASIS}{tag}_tests.csv")
+        T = pd.read_csv(il.in_path_x(f"matched_{REFTAG}{BASIS}{tag}_tests.csv"))
         T = T[(T.scope == "all spouts") & (T.measure == "resid") & (T.set == "iti") & (T.cls == "all") & T.epoch.isin(EP)]
-        P = pd.read_csv(il.OUT / f"lick_order_preds_{PRED_KEY}{tag}.csv.gz", usecols=["set", "epoch", "label"])
+        P = pd.read_csv(il.in_path_x(f"lick_order_preds_{PRED_KEY}{tag}.csv.gz"), usecols=["set", "epoch", "label"])
         n = P[P.set == "iti"].groupby("epoch").size()
         for _, r in T.iterrows():
             rows.append(dict(set=lab, epoch=r.epoch, point=r.point, lo=r.lo, hi=r.hi, n_dir=r.n_dir, n=r.n,
@@ -79,7 +79,7 @@ def plot(F: dict) -> None:
     ax.set_title("NEURAL, SECONDARY: ITI like-for-like read-out on stricter ITI lick sets (decoder refit on each set; "
                  "Allen + ALM/tjM1 split basis).\nPoint = cohort change vs pre, 95% nested bootstrap CI; open markers = "
                  "animals; k/n = animals with the cohort sign. PROVISIONAL", fontsize=8.5)
-    save_png_svg(fig, il.OUT / "figures" / f"{STEM}.png", dpi=110)
+    save_png_svg(fig, il.OUT_X / "figures" / f"{STEM}.png", dpi=110)
     plt.close(fig)
 
 

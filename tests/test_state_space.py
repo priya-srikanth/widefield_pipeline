@@ -120,8 +120,9 @@ def test_paths_match_the_rebuild_routing(mods):
             "from wfield_local import render_profile as rp\n"
             "env = dict(os.environ); rp.apply('%s', environ=env); os.environ.clear(); os.environ.update(env)\n"
             "from wfield_local import orofacial_outputs as oo, run_mode\n"
-            "print(json.dumps({'enc': oo.encoding_root().as_posix(), 'w': run_mode.tag(),\n"
-            "                  'x': run_mode.tag(include=('hemo', 'lnmf', 'drift', 'pre', 'projall'))}))\n") % S.PROFILE
+            "print(json.dumps({'enc': oo.encoding_root(%r).as_posix(), 'w': run_mode.tag(),\n"
+            "                  'x': run_mode.tag(include=('hemo', 'lnmf', 'drift', 'pre', 'projall'))}))\n") % (
+        S.PROFILE, S.REBUILD_RUN)       # 11-22: the rebuild's encoder tree is its OWN run (v36), not the adopted RUN
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True).stdout
     got = json.loads(out.strip().splitlines()[-1])
     assert got["w"] == S.WTAG and got["x"] == S.XTAG
