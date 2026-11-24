@@ -60,3 +60,4 @@ Keep (never delete): `frozen_models/` stores; raw videos / scans; LP predictions
 | [ ] | `PAPER/ccB_caption_review_2026-11-23/bylicknum/FigS_kinematics_bylicknum_bylicknum_ccB1123.*`, `*_v2_*`, `bylicknum/c1/`, `c1_v2/`, `c1_bout10/`, `c1_v2_bout10/`, `c2/`, `c2_bout10/` | v3 figure + `c1_v3`, `c2_v2` tables | 11-23 |
 | [ ] | `PAPER/ccB_caption_review_2026-11-23/bylicknum/FigS_kinematics_bylicknum_v3_ccB1123.*` | v4 (text moved to the caption) | 11-23 |
 | [ ] | `PAPER/ccB_caption_review_2026-11-23/sixpos/S12D_miss_correction_mm_v2_ccB1123.*` | `..._mm_v3_ccB1123` (live S12 stats rule) | 11-23 |
+| [ ] | `PAPER/ccB_caption_review_2026-11-23/fr_fourcam/FR_aligned_maps_fourcam_ccB1123.*`, `FR_aligned_maps_fourcam_w65_ccB1123.*`, `FR_fig5_col_v26b_terms_fourcam_ccB1123.*` | the `_v2` versions | 11-23 |
