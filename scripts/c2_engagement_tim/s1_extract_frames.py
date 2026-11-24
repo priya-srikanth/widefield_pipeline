@@ -24,7 +24,22 @@ STREAMS
   tp  TIM traces of `task_independent_movement.frame_table` (tongue / jaw x, y in the mouth frame from clean.npz, nose
       mouth-relative; 40 ms bins), placed on DAQ time as cue + t_ms.
 Output: <cache>/<label>.npz; existing files are skipped (never overwritten).
-Usage: WF_REPO=... python s1_extract_frames.py <cache_dir> [--jobs 4] [--labels ...]
+Usage: WF_REPO=... python s1_extract_frames.py <cache_dir> [--jobs 4] [--labels ...] [--licks fused|cam4]
+       [--jaw-nose 3d|cam4]
+
+FOUR-CAMERA RULE (Priya 11-23; CC-B audit violation 6, 2026-11-23). Two switches, defaults = the four-camera build:
+  --licks fused (default): every lick exclusion (pre-cue trials with a lick; ITI frames within [-0.5, +1.0] s of a
+      lick) reads the fused four-camera lick ONSETS, `session_licks.session_onsets_s(label)` (all contexts, daq_on_s,
+      cam1-only events left out as everywhere outside the trial-class path). ``--licks cam4`` = the cam4 LP
+      licks_all.csv daq_on_s, as the frames_v3 cache (11-22). The cam4-list ITI buffer is also stored as
+      ``kp_nearlick_cam4`` / ``fr_nearlick_cam4`` and the cam4 window flag as ``win_lick_cam4`` (diagnostics only).
+  --jaw-nose 3d (default): ``kp_d_jaw`` / ``kp_d_nose`` = frame-to-frame 3-D Euclidean change of the four-camera jaw /
+      nose (`pose3d` adopted run frames, jaw_ml/ap/dv, nose_ml/ap/dv, mm; triangulated from 3-4 views on > 99 % of
+      frames), placed on DAQ time through the cam4 pose index (trial_id, t_ms -> daq_s), averaged in the same 25 Hz
+      bins as the features, NaN runs <= 0.2 s interpolated (`arhmm_features._interp_short`), then the same > mean + 5 SD
+      drop. ``--jaw-nose cam4`` = the cam4 2-D jaw / nose columns of the features file (frames_v3). The 2-D versions
+      are always stored too as ``kp2d_d_jaw`` / ``kp2d_d_nose`` (s4 reads them with S4_KP_JAWNOSE=2d).
+  The tongue is the features file's 3-D tongue (four-camera; ARHMM_OUT selects features_v3 or the cam3-on features_v4).
 """
 import argparse
 import os
@@ -71,9 +86,13 @@ def windows(label, TR, licks):
                 rows.append((1, TR.trial_id.iat[k], a0, a1, a0))
                 n_dock += 1
     W = pd.DataFrame(rows, columns=["code", "own", "t0", "t1", "anchor"])
-    pl = np.array([np.any((licks >= r.t0) & (licks < r.t1)) for r in W.itertuples()]) if len(licks) else np.zeros(len(W), bool)
-    W["lick"] = pl
+    W["lick"] = lick_flag(W, licks)
     return W, n_dock
+
+
+def lick_flag(W, licks):
+    """Per window row: any lick onset in [t0, t1)."""
+    return np.array([np.any((licks >= r.t0) & (licks < r.t1)) for r in W.itertuples()]) if len(licks) else np.zeros(len(W), bool)
 
 
 def label_frames(t, W, licks, first_cue):
@@ -88,6 +107,33 @@ def label_frames(t, W, licks, first_cue):
     for lk in licks:
         near[np.searchsorted(t, lk - LICK_BUF[0]):np.searchsorted(t, lk + LICK_BUF[1])] = True
     return {"per": per, "own": own, "tb": tb, "nearlick": near, "tmin": ((t - first_cue) / 60.0).astype(np.float32)}
+
+
+def kp3d_jaw_nose(label, t):
+    """3-D jaw and nose (mm) of the adopted four-camera run, binned onto the feature bin centres ``t`` (25 Hz)."""
+    from wfield_local import arhmm_features as af
+    from wfield_local import combined_encoding as ce
+    from wfield_local import orofacial_cohort as oc
+    from wfield_local import orofacial_outputs as oo
+    from wfield_local.paths import PathResolver
+    rv = PathResolver()
+    animal, date = label.split("_")
+    f3 = ce.pose3d_frames_path(rv, animal, date)
+    ix = oo.load_session(rv, oc.RUN, animal, date)["index"][["trial_id", "t_ms", "daq_s"]]
+    cols = ["jaw_ml", "jaw_ap", "jaw_dv", "nose_ml", "nose_ap", "nose_dv"]
+    J = ix.merge(pd.read_csv(f3, usecols=["trial_id", "t_ms", *cols]).drop_duplicates(["trial_id", "t_ms"]),
+                 on=["trial_id", "t_ms"], how="left")
+    td = J.daq_s.to_numpy(float)
+    edges = np.r_[t - af.BIN_S / 2, t[-1] + af.BIN_S / 2]
+    ok = np.isfinite(td)
+    nmax = int(round(af.MAX_INTERP_S / af.BIN_S))
+    out, cov = {}, {}
+    for part in ("jaw", "nose"):
+        P = np.column_stack([af._interp_short(af._bin(td[ok], J[f"{part}_{a}"].to_numpy(float)[ok], edges), nmax)
+                             for a in ("ml", "ap", "dv")])
+        cov[part] = float(np.isfinite(P).all(1).mean())
+        out[part] = drop5(np.r_[np.nan, np.sqrt((np.diff(P, axis=0) ** 2).sum(1))])
+    return out, cov, str(f3)
 
 
 def job(item):
@@ -108,11 +154,20 @@ def job(item):
     TR = tc.session_trials(label)
     TR = TR.dropna(subset=["cue_daq"]).sort_values("trial_id").reset_index(drop=True)
     L = pd.read_csv(Path(oo.session_dir(PathResolver(), oc.RUN, animal, date)) / "licks_all.csv", usecols=["daq_on_s"])
-    licks = np.sort(L.daq_on_s.dropna().to_numpy(float))
+    licks_cam4 = np.sort(L.daq_on_s.dropna().to_numpy(float))
+    lick_src = os.environ.get("S1_LICKS", "fused")
+    if lick_src == "fused":
+        from wfield_local import session_licks as SL
+        licks = SL.session_onsets_s(label)
+        lick_tag = f"fused:{SL.fused_run()}"
+    else:
+        licks, lick_tag = licks_cam4, "cam4:licks_all.csv"
     W, n_dock = windows(label, TR, licks)
     fc = float(np.nanmin(TR.cue_daq))
     res = {"win_code": W.code.to_numpy(np.int8), "win_own": W.own.to_numpy(np.int32), "win_t0": W.t0.to_numpy(),
-           "win_t1": W.t1.to_numpy(), "win_lick": W.lick.to_numpy(bool), "n_dock": n_dock, "first_cue": fc}
+           "win_t1": W.t1.to_numpy(), "win_lick": W.lick.to_numpy(bool), "n_dock": n_dock, "first_cue": fc,
+           "win_lick_cam4": lick_flag(W, licks_cam4), "lick_source": lick_tag, "n_licks": len(licks),
+           "n_licks_cam4": len(licks_cam4)}
     # ---- kp
     F = np.load(Path(af.out_dir()) / "sessions" / f"{label}.npz", allow_pickle=True)
     cols = [str(c) for c in F["features"]]
@@ -121,8 +176,18 @@ def job(item):
     for p, cs in KP_PARTS.items():
         P = X[:, [cols.index(c) for c in cs]]
         res[f"kp_d_{p}"] = drop5(np.r_[np.nan, np.sqrt((np.diff(P, axis=0) ** 2).sum(1))])
+    res["kp2d_d_jaw"], res["kp2d_d_nose"] = res["kp_d_jaw"], res["kp_d_nose"]
+    res["features_file"] = str(Path(af.out_dir()) / "sessions" / f"{label}.npz")
+    if os.environ.get("S1_JAWNOSE", "3d") == "3d":
+        d3, cov3, f3 = kp3d_jaw_nose(label, t)
+        res["kp_d_jaw"], res["kp_d_nose"] = d3["jaw"], d3["nose"]
+        res.update(kp_source="tongue 3-D (features); jaw, nose 3-D four-camera", kp3d_frames=f3,
+                   kp3d_cov_jaw=cov3["jaw"], kp3d_cov_nose=cov3["nose"])
+    else:
+        res["kp_source"] = "tongue 3-D (features); jaw, nose cam4 2-D (features)"
     res["run_fwd"], res["run_back"] = X[:, cols.index("run_fwd")], X[:, cols.index("run_back")]
     res.update({f"kp_{k}": v for k, v in label_frames(t, W, licks, fc).items()})
+    res["kp_nearlick_cam4"] = label_frames(t, W, licks_cam4, fc)["nearlick"]
     # ---- fr (own tracking)
     key = f"{label}_cam4"
     pf = BUNDLE / "out" / f"{key}_points.npz"
@@ -149,6 +214,7 @@ def job(item):
             a[bad[:n]] = np.nan
         res.update(fr_t=t25, fr_all=drop5(sa), fr_contra=drop5(sc), fr_ipsi=drop5(si))
         res.update({f"fr_{k}": v for k, v in label_frames(t25, W, licks, fc).items()})
+        res["fr_nearlick_cam4"] = label_frames(t25, W, licks_cam4, fc)["nearlick"]
     no_tim = bool(os.environ.get("S1_NO_TIM"))
     pj = FDIR / "proj" / f"{key}.npz"
     if pj.exists() and not no_tim:
@@ -181,7 +247,12 @@ def main():
     ap.add_argument("--labels", nargs="*")
     ap.add_argument("--no-tim", action="store_true",
                     help="skip the TIM-only streams (pc = FaceRhythm point PCs, tp = TIM traces; read only by s2)")
+    ap.add_argument("--licks", choices=("fused", "cam4"), default="fused",
+                    help="lick list for the exclusions: fused four-camera onsets (default) or cam4 licks_all (frames_v3)")
+    ap.add_argument("--jaw-nose", choices=("3d", "cam4"), default="3d",
+                    help="jaw / nose keypoint ME source: four-camera 3-D (default) or cam4 2-D (frames_v3)")
     a = ap.parse_args()
+    os.environ["S1_LICKS"], os.environ["S1_JAWNOSE"] = a.licks, a.jaw_nose   # inherited by the pool workers
     if a.no_tim:
         os.environ["S1_NO_TIM"] = "1"           # inherited by the pool workers
     from wfield_local import behavior_states as B

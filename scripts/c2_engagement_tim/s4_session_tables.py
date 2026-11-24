@@ -163,9 +163,24 @@ if not NO_TIM:
     tim_tables()
 
 # ---------------------------------------------------------------- frames: ME, stillness, running
+# 11-23 (four-camera rule, CC-B audit violation 6): a frames cache built by the 11-23 s1 holds the four-camera build
+# (fused-lick exclusions, 3-D jaw / nose) plus the legacy pieces for comparison. S4_KP_JAWNOSE=2d reads the cam4 2-D
+# jaw / nose (kp2d_d_*); S4_LICKS=cam4 reads the cam4-list exclusions (*_nearlick_cam4, win_lick_cam4). Unset = the
+# cache's own build. Older caches (frames_v3) have neither and are read as before.
+KP_JAWNOSE = os.environ.get("S4_KP_JAWNOSE", "")
+LICKS = os.environ.get("S4_LICKS", "")
+
+
 def load(label):
     with np.load(CACHE / f"{label}.npz") as z:
         d = {k: z[k] for k in z.files if not (k.startswith("pc") or k.startswith("tp"))}
+    if KP_JAWNOSE == "2d":
+        d["kp_d_jaw"], d["kp_d_nose"] = d["kp2d_d_jaw"], d["kp2d_d_nose"]
+    if LICKS == "cam4":
+        d["win_lick"] = d["win_lick_cam4"]
+        for st in ("kp", "fr"):
+            if f"{st}_nearlick_cam4" in d:
+                d[f"{st}_nearlick"] = d[f"{st}_nearlick_cam4"]
     for st in ("kp", "fr"):
         if f"{st}_own" in d:
             rm_ = {int(t): r for (l, t), r in role_of.items() if l == label}
