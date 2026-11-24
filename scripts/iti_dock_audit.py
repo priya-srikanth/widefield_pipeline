@@ -37,7 +37,8 @@ arrival = the behavior log's `dock` event (the spout reported at the dock; trial
 the log aligns, else the reconstruction below. Sensitivity columns iti_class_s04 / _s05 / _s07 use dock arrival = trial
 stop + 0.4 / 0.5 / 0.7 s instead. Filter flags dockbout (= iti_class docked), dockbout_s04 / _s05 / _s07, retractbout, iti_after_quiet_2s /
 _1s (docked AND gap >= 2 / 1 s: ramp / pre-lick windows vs at-lick read-outs).
-iti_dock_arrival.csv: per log-aligned trial, dock - stop and dock - dock_start (the arrival distribution).
+iti_dock_arrival.csv: per log-aligned trial, dock - stop and dock - dock_start (the arrival distribution);
+iti_dock_cycles.csv: per trial cycle (trial_id, stop, dock_start, dock, next trial_start, arrival, source).
 Outputs <OUT_W>/iti_dock_audit.csv (per lick), iti_dock_census.csv (per animal x epoch x lick set: n and share by
 phase), iti_dock_sessions.csv (per session: source, n licks, reconstruction constants used).
 Usage: python scripts/iti_dock_audit.py [--jobs 8] [--licks-session  (count-only: all session-file ITI licks)]
@@ -84,7 +85,8 @@ def one(item) -> dict:
     df = pd.DataFrame(dict(label=label, animal=an, epoch=str(epochs.epoch_of(label)), t=t,
                            onset=m_on.reindex(t).to_numpy(float), gap=m_gap.reindex(t).to_numpy(float)))
     return {"label": label, "df": df, "ev": ev, "ts_daq": np.sort(ts_daq), "on_all": np.sort(on[np.isfinite(on)]),
-            "stop": T.stop_s.to_numpy(float), "strobe": T.strobe_s.to_numpy(float), "pos": T.pos.astype(str).to_numpy()}
+            "stop": T.stop_s.to_numpy(float), "strobe": T.strobe_s.to_numpy(float), "pos": T.pos.astype(str).to_numpy(),
+            "trial_id": T.trial_id.to_numpy()}
 
 
 #: alternative dock arrivals (s after the trial stop) for the sensitivity columns
@@ -143,6 +145,8 @@ def trial_cycle(r: dict, const: dict | None) -> tuple[pd.DataFrame, str]:
     stop, pos = r["stop"][o], r["pos"][o]
     strobe = np.sort(r["strobe"][np.isfinite(r["strobe"])])
     C = pd.DataFrame({"stop": stop, "pos": pos})
+    if "trial_id" in r:
+        C["trial_id"] = np.asarray(r["trial_id"])[o]
     if r["ev"] is not None:
         ev = r["ev"]
         C["dock_start"] = _first_after(ev["dock_start"], stop, -0.2)
@@ -263,7 +267,7 @@ def main() -> int:
                       "docked_dur_median": (L.trial_start - L.dock).groupby(L.pos).median(),
                       "outbound_median": (L.arrival - L.trial_start).groupby(L.pos).median()})
     print("== measured cycle constants per spout (log sessions, s after the DAQ trial stop)\n" + K.round(3).to_string())
-    out, srows, arr = [], [], []
+    out, srows, arr, cyc = [], [], [], []
     for lab in sorted(R):
         r = R[lab]
         C, src = trial_cycle(r, const)
@@ -282,6 +286,7 @@ def main() -> int:
                        [["label", "pos", "stop", "d_dock_stop", "d_dock_dockstart"]])
         P["src"] = src
         out.append(P)
+        cyc.append(C.assign(label=lab, src=src))
         srows.append({"label": lab, "animal": r["df"].animal.iloc[0], "epoch": r["df"].epoch.iloc[0], "src": src,
                       "n_iti": len(P), "n_trials": len(C), "ts_log_vs_daq_median_abs_s": d_ts,
                       "share_docked": float((P.phase == "docked").mean())})
@@ -290,6 +295,7 @@ def main() -> int:
     D.to_csv(il.OUT_W / "iti_dock_audit.csv", index=False)
     S = pd.DataFrame(srows)
     S.to_csv(il.OUT_W / "iti_dock_sessions.csv", index=False)
+    pd.concat(cyc, ignore_index=True).to_csv(il.OUT_W / "iti_dock_cycles.csv", index=False)   # per trial cycle (11-24)
     if arr:
         AR = pd.concat(arr, ignore_index=True)
         AR.to_csv(il.OUT_W / "iti_dock_arrival.csv", index=False)
