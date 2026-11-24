@@ -67,8 +67,14 @@ def footer_text() -> str:
     """One line naming every lick signature read in this process ("" when none was recorded)."""
     if not _SEEN:
         return ""
+    import os
     body = "; ".join(f"{describe(s)} [{n} session file(s)]" for s, n in sorted(_SEEN.items()))
-    return f"inputs read: {body}; 3-D run {pose3d_run()}"
+    extra = ""
+    if os.environ.get("WFIELD_ITI_FILTER", "").strip():
+        extra += f"; ITI filter {os.environ['WFIELD_ITI_FILTER'].strip()}"
+    if os.environ.get("WFIELD_GAP_MAIN", "").strip():
+        extra += f"; after-quiet gap >= {float(os.environ['WFIELD_GAP_MAIN']):g} s"
+    return f"inputs read: {body}; 3-D run {pose3d_run()}{extra}"
 
 
 def stamp_keys(source_sig: str | None) -> dict:
