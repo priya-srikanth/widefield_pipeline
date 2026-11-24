@@ -128,7 +128,7 @@ fig = plt.figure(figsize=(W, H))
 # the two-tone and six-position columns so the six-position y labels clear the two-tone chronic panels
 WR = [1, 1, 1, 0.3, 1, 1]
 GKW = dict(left=0.085, right=0.985, wspace=0.42, hspace=0.4, width_ratios=WR)
-gtop = fig.add_gridspec(3, 6, bottom=0.53, top=0.93, **GKW)
+gtop = fig.add_gridspec(3, 6, bottom=0.53, top=0.945, **GKW)
 gbot = fig.add_gridspec(3, 6, bottom=0.055, top=0.44, **GKW)
 COLS = [0, 1, 2, 4, 5]
 AX = [[None] * 5 for _ in range(6)]
@@ -161,9 +161,10 @@ def _span_x(axes):
 
 # headers: ONE "two-tone" over columns 1-3, ONE "six-position" over columns 4-5; a cue-side line and column subtitles
 y_top = AX[0][0].get_position().y1
-fig.text(_span_x(AX[0][:3]), y_top + 0.05, "two-tone", ha="center", va="bottom", fontsize=FT, fontweight="bold")
-fig.text(_span_x(AX[0][3:5]), y_top + 0.05, "six-position", ha="center", va="bottom", fontsize=FT, fontweight="bold")
-fig.text(_span_x(AX[0][:3]), y_top + 0.03, "contralesional cue", ha="center", va="bottom", fontsize=FS)
+# Priya 11-23: the contralesional-cue heading is styled exactly as the ipsilesional-cue heading over G-I
+fig.text(_span_x(AX[0][:3]), y_top + 0.03, "two-tone, contralesional cue", ha="center", va="bottom", fontsize=FT,
+         fontweight="bold")
+fig.text(_span_x(AX[0][3:5]), y_top + 0.03, "six-position", ha="center", va="bottom", fontsize=FT, fontweight="bold")
 y_bot = AX[3][0].get_position().y1
 fig.text(_span_x(AX[3][:3]), y_bot + 0.03, "two-tone, ipsilesional cue", ha="center", va="bottom", fontsize=FT,
          fontweight="bold")
