@@ -129,7 +129,7 @@ def _items(labs: list[str]) -> list:
                               "since_stop", "prev_pos"])
     IT = IT[IT.label.isin(labs)]
     import iti_licks as _il
-    DA = pd.read_csv(_il.OUT_W / "iti_dock_audit.csv", usecols=["label", "onset", "dock01"])
+    DA = pd.read_csv(_il.dock_audit_path(), usecols=["label", "onset", "dock01"])
     DA = DA[DA.label.isin(labs)]
     return [Item((lab, LS[LS.label == lab].reset_index(drop=True), IT[IT.label == lab].reset_index(drop=True),
                   DA[DA.label == lab].reset_index(drop=True))) for lab in labs]

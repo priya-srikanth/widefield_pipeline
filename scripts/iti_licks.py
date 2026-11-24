@@ -185,16 +185,26 @@ def in_path_x(rel: str | Path) -> Path:
     return in_path(rel) if os.environ.get("WFIELD_ITI_OUT_W") else OUT / rel
 
 
+def dock_audit_path() -> Path:
+    """READ path of iti_dock_audit.csv for the ITI-subset filters: under WFIELD_ITI_OUT_W the first of OUT_W, PATCH_W,
+    IN_W that holds it (a rebuilt audit, lane E 11-24), else OUT/iti_dock_audit.csv exactly as before."""
+    if os.environ.get("WFIELD_ITI_OUT_W"):
+        q = in_path("iti_dock_audit.csv")
+        if q.exists():
+            return q
+    return OUT / "iti_dock_audit.csv"
+
+
 def iti_subset_keep(df: pd.DataFrame) -> np.ndarray:
     """Boolean per row of a per-lick table for ITI_SUBSET: rows of set 'iti' are kept only if flagged in
-    <OUT>/iti_dock_audit.csv (key label x k, k = the row's index within (set, label) of the frozen prediction cache);
+    `dock_audit_path()` (key label x k, k = the row's index within (set, label) of the frozen prediction cache);
     other sets are kept. `k` is taken from the table or, if absent, as the cumcount within (set, label) -- valid only for
     a table in prediction-cache order. All True when no subset filter is active."""
     if not ITI_SUBSET:
         return np.ones(len(df), bool)
     global _DOCK_AUDIT
     if _DOCK_AUDIT is None:
-        A = pd.read_csv(OUT / "iti_dock_audit.csv", usecols=["label", "k", ITI_SUBSET])
+        A = pd.read_csv(dock_audit_path(), usecols=["label", "k", ITI_SUBSET])
         _DOCK_AUDIT = A.set_index(["label", "k"])[ITI_SUBSET].astype(bool)
     k = df["k"] if "k" in df else df.groupby(["set", "label"]).cumcount()
     iti = (df["set"] == "iti").to_numpy()
@@ -215,7 +225,7 @@ def bout_subset_keep(label: str, bout_t: np.ndarray) -> np.ndarray:
         return np.ones(len(bout_t), bool)
     global _BOUT_AUDIT
     if _BOUT_AUDIT is None:
-        A = pd.read_csv(OUT / "iti_dock_audit.csv", usecols=["label", "onset", ITI_SUBSET]).dropna(subset=["onset"])
+        A = pd.read_csv(dock_audit_path(), usecols=["label", "onset", ITI_SUBSET]).dropna(subset=["onset"])
         _BOUT_AUDIT = {x: (g.sort_values("onset").onset.to_numpy(float), g.sort_values("onset")[ITI_SUBSET].to_numpy(bool))
                        for x, g in A.groupby("label")}
     if label not in _BOUT_AUDIT or not len(bout_t):

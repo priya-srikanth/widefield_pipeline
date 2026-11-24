@@ -219,7 +219,7 @@ def cmd_run(jobs: int) -> None:
           flush=True)
     # ---------------------------------------------------------------- ITI table
     import iti_licks as _il                                          # the ITI family's routed folder (11-04)
-    D = pd.read_csv(_il.OUT_W / "iti_dock_audit.csv", usecols=["label", "onset", "phase", "since_stop", "src"])
+    D = pd.read_csv(_il.dock_audit_path(), usecols=["label", "onset", "phase", "since_stop", "src"])
     I = LS[LS.context == "iti"].copy()
     rows, diag = [], []
     for sid, g in I.groupby("sid", sort=True):
