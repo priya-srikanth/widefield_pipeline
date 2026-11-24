@@ -20,17 +20,49 @@ import numpy as np
 import pandas as pd
 
 
+def _ids(session: str):
+    from wfield_local import trial_classes as tc
+    return session, set(tc.working_period_ids(session))
+
+
 def main(kin: str, prod: str, out: str) -> None:
     kin, prod, out = Path(kin), Path(prod), Path(out)
     if out.exists() and any(out.iterdir()):
         sys.exit(f"refusing to write into non-empty {out}")
     out.mkdir(parents=True, exist_ok=True)
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-    from scripts.pose3d_summary_fig import gated_sessions
+    from scripts.pose3d_summary_fig import session_row
     from scripts import kinematics_pooled_figs as K
+    from wfield_local import parallel
     L = pd.read_csv(kin / "licks.csv.gz", dtype={"date": str})
     J = pd.read_csv(kin / "jaw_trials.csv.gz", dtype={"date": str})
-    med = gated_sessions(L, J, "median")
+    # THE gate (`trial_classes.keep_working_period`), with the per-session working-period ids computed ONCE and in
+    # parallel (calling gated_sessions twice re-reads every session's classes 4 times: ~3 h on this box)
+    sess = sorted(set(L.session.astype(str)) | set(J.session.astype(str)))
+    res, fail = parallel.fan_out(sess, _ids, jobs=4, label="session")
+    if fail:
+        sys.exit(f"working-period ids failed: {fail[:3]}")
+    ids = dict(r for _s, r in res)
+
+    def gate(df):
+        sv = df.session.astype(str).to_numpy()
+        tid = pd.to_numeric(df.trial_id, errors="coerce").to_numpy(float)
+        keep = np.zeros(len(df), bool)
+        for s_ in sorted(set(sv)):
+            m = sv == s_
+            keep[m] = np.isin(tid[m], np.fromiter(ids[s_], float, len(ids[s_])))
+        return df[keep]
+    Lg, Jg = gate(L), gate(J)
+
+    def gated_sessions(stat):                      # = pose3d_summary_fig.gated_sessions on the pre-gated tables
+        rows = []
+        for s_ in sorted(set(Lg.session) | set(Jg.session)):
+            ls, js = Lg[Lg.session == s_], Jg[Jg.session == s_]
+            first = (ls if len(ls) else js).iloc[0]
+            rows.append({"session": s_, "animal": first.animal, "date": str(first.date), "epoch": first.epoch,
+                         **session_row(ls, js, stat)})
+        return pd.DataFrame(rows)
+    med = gated_sessions("median")
     P0 = pd.read_csv(prod / "pose3d_sessions.csv", dtype={"date": str})
     cols = [c for c in P0.columns if c in med.columns and c not in ("session", "animal", "date", "epoch")]
     a = med.set_index("session").reindex(P0.session)[cols].to_numpy(float)
@@ -40,7 +72,7 @@ def main(kin: str, prod: str, out: str) -> None:
     print(f"median rebuild vs production pose3d_sessions.csv: {len(P0)} sessions, max |diff| {dev:.3g}, NaN mismatches "
           f"{nan_mis}")
     assert dev < 1e-6 and nan_mis == 0, "the median path does not reproduce production; stop"
-    S = gated_sessions(L, J, "mean")
+    S = gated_sessions("mean")
     S.to_csv(out / "pose3d_sessions.csv", index=False)
     rows = []
     rng = np.random.default_rng(20261025)
