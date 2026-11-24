@@ -204,3 +204,23 @@ use), and recorded in that figure's caption provenance:
 - **Frozen pre-stroke models are new store entries only.** Never overwrite; never delete from either store.
 - **Shared desktop:** 8 GB free-RAM floor, CREATE_NO_WINDOW, stop only your own exact PIDs.
 - **Every manuscript-relevant change** goes in `vls_stroke_paper/CHANGES_SINCE_20261124.md`.
+
+## Addendum, 11-24 ~18:45
+- **Another accidental overwrite (lane E's own derived folder):** at ~15:13, rp_a's g9_where_scatter and g9_where_3axis
+  wrote a reordered copy over the patch folder's `where_preds_splitr8.csv` / `where_3axis_preds_splitr8.csv.gz`. They
+  wrote through a READ path (`pred_file`), and P2 inherited the copy.
+  - Detected because the docked where-family steps failed the alignment check.
+  - Fixed in code (`pred_file_out`, which writes only under OUT_X, with a test).
+  - The bad copies were moved aside as `*_old_overwritten_1513` (delete candidates). The tables were restored from a fresh
+    splice, `iti_licks_resplice_laneE_20261124`; `REPAIR_NOTE.md` is in P and P2.
+  - Lane E is listing any reader that read the bad copies between 15:13 and the restore, to re-run it.
+- **Quiet chain:** quiet_v2_fr finishes ~18:40; the rest of the chain (section 23 follow-ons, Fig 23.23, compare) takes
+  ~4-6 h more. Cache-and-refilter design proposed (helper): ~3-4 h of code, ~1.5-3x faster; do it before the next
+  rule change.
+- **Efficiency audit (read-only) running:** `run_records/2026-11-24/EFFICIENCY_AUDIT_20261124.md`.
+- **Naming phase 2 DONE on all 5 pages** (new `*_20261124_names.html`; the movement mapping went to lane E).
+  - Fig 2.1 re-run against each mouse's own August pre: acute -.16* (misses Holm), subacute -.10** (4 of 4 mice).
+- **S13F.** The primary is the docked class with no quiet rule (-14.1* / -7.9* / -4.7*, n = 3).
+  - CC-A's new request: a pooled pre baseline for PS95, written up in `vls_stroke_paper/PROMPT_CC_B_S13F_pooled_baseline_2026-11-24.md`.
+  - Lane E has it at top priority.
+- **G4 on the share:** 11 tags at 107; fr_A 60, fr_B 0. fr_S, fr_D, xyz2 and the 4 running/push comparison tags were not yet synced.
