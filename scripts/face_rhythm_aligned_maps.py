@@ -145,7 +145,18 @@ def main(argv=None) -> int:
     ap.add_argument("--perm-points", action="store_true",
                     help="with --perm: ONLY recompute the permutation test (same seed / order as the full run) and write "
                          "the per-point table data/aligned_maps[_driftpre]_perm_points.csv; no figure, no other CSV")
+    ap.add_argument("--maps-npz", type=Path, default=None,
+                    help="another per-point maps cache (e.g. face_rhythm_aligned_fourcam.py's); needs --out")
+    ap.add_argument("--aligns", nargs="+", default=None, help="only these alignments of the cache, in this order")
+    ap.add_argument("--align-names", nargs="+", default=None,
+                    help="rename the --aligns for output (e.g. cue lick: the production titles, so the PNG layout and "
+                         "the manuscript tile crop stay the same)")
+    ap.add_argument("--perm-figures-only", action="store_true",
+                    help="with --perm: only the permutation test, its figures aligned_maps_<align>_perm.png and its "
+                         "cluster table (no bootstrap statistics)")
     a = ap.parse_args(argv)
+    if a.maps_npz is not None and a.out is None:
+        ap.error("--maps-npz needs --out (never the production folder)")
     if a.perm_points and not a.perm:
         ap.error("--perm-points needs --perm N (10000 for the 11-07 maps)")
     rv = PathResolver()
@@ -153,12 +164,20 @@ def main(argv=None) -> int:
     out = a.out or root / "aligned_maps"
     writeguard.assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
-    Z = np.load(figure_layout.sidecar_for(root / "asym_aligned", "aligned_point_maps", ".npz", mkdir=False))
+    Z = np.load(a.maps_npz or figure_layout.sidecar_for(root / "asym_aligned", "aligned_point_maps", ".npz",
+                                                        mkdir=False))
     maps, counts, home = Z["maps"].astype(float), Z["counts"], Z["home"]
     animal, epoch, label = Z["animal"].astype(str), Z["epoch"].astype(str), Z["label"].astype(str)
     aligns, positions, windows = list(Z["aligns"].astype(str)), list(Z["positions"].astype(str)), Z["windows"]
+    if a.aligns:                                       # a subset of the cache's alignments, in the order given
+        ix = [aligns.index(x) for x in a.aligns]
+        maps, counts, windows, aligns = maps[:, ix], counts[:, ix], windows[ix], list(a.aligns)
+    if a.align_names:
+        if len(a.align_names) != len(aligns):
+            ap.error("--align-names needs one name per alignment")
+        aligns = list(a.align_names)
     mid = float(frr.MASTER_MIDLINE_X)
-    if a.perm_points:     # before any other statistic: the permutation rng is fresh (seed 0) in perm_figures either way
+    if a.perm_points or (a.perm and a.perm_figures_only):   # before any other statistic: fresh rng (seed 0) either way
         perm_figures(a, maps, counts, label, animal, epoch, aligns, positions, windows, home, mid, out)
         return 0
     contra = home[:, 0] <= mid

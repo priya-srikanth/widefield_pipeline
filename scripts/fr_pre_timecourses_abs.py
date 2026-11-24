@@ -34,7 +34,31 @@ MANUSCRIPT = Path("M:/MICROSCOPE/Priya/stroke_orofacial_pipeline_outputs/vls_str
                   "fr_pre_timecourses_abs.npz")
 
 
-def build(fdir: Path) -> tuple[np.ndarray, dict[str, np.ndarray], dict[str, list[str]]]:
+#: ``--gate working`` (11-23, four-camera rule): only grid trials inside the camera working period (final class of the
+#: four-camera trial-class table not out of the period; trials without video dropped)
+CLASS_TABLE = ("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v37_sync60/imaging_encoding/"
+               "qc/s1_trial_classes_cue_stop.csv.gz")
+NOT_WP = ("stopped", "stopped_licking", "early_run", "after_end", "unknown", "no_video")
+
+
+def working_mask(label: str, cue: np.ndarray, C) -> np.ndarray:
+    """Per grid cue: inside the camera working period (nearest class-table cue within 50 ms). Pure given ``C``."""
+    c = C[C.label == label].sort_values("cue_s")
+    if c.empty:
+        return np.zeros(len(cue), bool)
+    cs = c.cue_s.to_numpy(float)
+    hi = np.clip(np.searchsorted(cs, cue), 0, len(cs) - 1)
+    lo = np.clip(hi - 1, 0, None)
+    j = np.where(np.abs(cs[lo] - cue) <= np.abs(cs[hi] - cue), lo, hi)
+    ok = np.abs(cs[j] - cue) <= 0.05
+    return ok & ~np.isin(c.cls_final.astype(str).to_numpy()[j], NOT_WP)
+
+
+def build(fdir: Path, gate: str = "none") -> tuple[np.ndarray, dict[str, np.ndarray], dict[str, list[str]]]:
+    C = None
+    if gate == "working":
+        import pandas as pd
+        C = pd.read_csv(CLASS_TABLE, usecols=["label", "cue_s", "cls_final"])
     T = frc.sessions(fdir, "proj")
     T = T[T.epoch == "pre"]
     per = {p: [] for p in POS}
@@ -45,6 +69,8 @@ def build(fdir: Path) -> tuple[np.ndarray, dict[str, np.ndarray], dict[str, list
             t_ms = z["t_ms"]
             tr = z["trials"] * z["trials_D"][..., None]
             pos = z["position"].astype(str)
+            if C is not None:
+                pos = np.where(working_mask(r.label, z["cue_daq_s"].astype(float), C), pos, "")
         for p in np.unique(pos):
             if p in per:
                 per[p].append(np.nanmean(tr[pos == p], 0))
@@ -72,11 +98,12 @@ def main(argv=None) -> int:
     ap.add_argument("--out", type=Path, default=None,
                     help="default <readouts>/<SET>/vls_manuscript/fr_pre_timecourses_abs.npz")
     ap.add_argument("--compare", default=str(MANUSCRIPT), help="reference npz, or 'none'")
+    ap.add_argument("--gate", default="none", choices=("none", "working"))
     a = ap.parse_args(argv)
     out = a.out or frc.readouts_dir(fro.SET) / "vls_manuscript" / "fr_pre_timecourses_abs.npz"
     if out.exists():
         sys.exit(f"refusing to overwrite {out}")
-    t_ms, arrs, names = build(fro.factor_dir(PathResolver(), fro.BUNDLE, fro.SET))
+    t_ms, arrs, names = build(fro.factor_dir(PathResolver(), fro.BUNDLE, fro.SET), a.gate)
     out.parent.mkdir(parents=True, exist_ok=True)
     np.savez(out, t_ms=t_ms.astype(np.float32), **arrs, **{f"sessions_{p}": np.asarray(names[p]) for p in POS})
     print("wrote", out, {p: arrs[p].shape for p in POS}, flush=True)
