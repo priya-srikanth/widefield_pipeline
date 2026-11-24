@@ -264,6 +264,23 @@ def set_licks_all(mode: str, environ=None) -> None:
         env.pop(ce.LICKS_ALL_ENV, None)
 
 
+def pose_modes() -> dict:
+    """Each pose part's source + the layout under this env (recorded in bundle.json; `check_pose_modes`)."""
+    from wfield_local import combined_encoding as ce
+    return {"tongue": os.environ.get(ce.TONGUE_ENV, "") or "cam4", "jaw": ce.pose3d_mode(ce.JAW_ENV) or "cam4",
+            "nose": ce.pose3d_mode(ce.NOSE_ENV) or "cam4", "layout": ce.pose_layout() or "2d",
+            "nose_frames": os.environ.get(ce.NOSE_FRAMES_ENV, "")}
+
+
+def check_pose_modes(modes: dict, lick_mode: str) -> None:
+    """REFUSE a four-camera bundle (fourcam lick set) with any 2-D pose part (Priya 11-24: every pose regressor 3-D)."""
+    if lick_mode == "fourcam":
+        two_d = [p for p in ("tongue", "jaw", "nose") if modes[p] != "3d"]
+        if two_d:
+            raise SystemExit(f"four-camera bundle with 2-D pose parts {two_d} ({modes}): set COMBINED_ENCODING_TONGUE / "
+                             "_JAW / _NOSE=3d (and COMBINED_ENCODING_POSE=xyz3d)")
+
+
 def cmd_bundle(a) -> Path:
     import datetime
 
@@ -285,6 +302,8 @@ def cmd_bundle(a) -> Path:
     if dirty:
         raise SystemExit(f"uncommitted changes in {repo} (the bundle archives HEAD):\n{dirty}")
     commit = _git(repo, "rev-parse", "HEAD")
+    pose = pose_modes()
+    check_pose_modes(pose, ce.lick_mode())               # before any input is built (11-24 guard)
     # the run's attempts table (OROFACIAL_GATE=attempted) is read at BUNDLE time (Behaviour.trials.engaged)
     attempts = None
     if oc.ENGAGEMENT_GATE != "reference":
@@ -334,7 +353,7 @@ def cmd_bundle(a) -> Path:
     meta = {"identity": ident, "commit": commit, "code_root": str(repo), "name": a.name,
             "profile": os.environ.get("O2_BUNDLE_PROFILE", ""), "rebuild_root": str(rebuild_root.root() or ""),
             "attempts_table": str(attempts or ""), "attempts_sha256": attempts_sha, "cams": a.cams, "fr": a.fr, "n_sessions": len(ok),
-            **({o2_bundle.MASK_FIELD: mask_sig} if mask_sig else {}),
+            **({o2_bundle.MASK_FIELD: mask_sig} if mask_sig else {}), "pose": pose,
             "created": datetime.datetime.now().isoformat(timespec="seconds")}
     meta_f.write_text(json.dumps(meta, indent=1), encoding="utf-8", newline="\n")
     code = d / "code"

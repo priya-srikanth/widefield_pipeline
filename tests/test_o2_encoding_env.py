@@ -277,3 +277,20 @@ def test_refresh_code_ships_the_attempts_table(tmp_path, monkeypatch):
     meta = json.loads((d / "bundle.json").read_text())
     assert meta["attempts_sha256"] == ce.file_sha256(new) == ce.file_sha256(d / "tables" / "trial_attempts.csv")
     assert (d / "tables" / f"trial_attempts_{old[:12]}.csv").exists()                  # the earlier table is kept
+
+
+def test_bundle_refuses_2d_pose_parts_on_a_fourcam_bundle(monkeypatch):
+    """11-24 guard: a fourcam bundle needs tongue / jaw / nose all 3-D; the modes are recorded (bundle.json "pose")."""
+    import pytest
+    m = _mod()
+    for k in ("COMBINED_ENCODING_TONGUE", "COMBINED_ENCODING_JAW", "COMBINED_ENCODING_NOSE"):
+        monkeypatch.setenv(k, "3d")
+    monkeypatch.setenv("COMBINED_ENCODING_POSE", "xyz3d")
+    md = m.pose_modes()
+    assert md == {"tongue": "3d", "jaw": "3d", "nose": "3d", "layout": "xyz3d", "nose_frames": ""}
+    m.check_pose_modes(md, "fourcam")
+    monkeypatch.delenv("COMBINED_ENCODING_POSE")
+    monkeypatch.setenv("COMBINED_ENCODING_NOSE", "cam4")
+    with pytest.raises(SystemExit):
+        m.check_pose_modes(m.pose_modes(), "fourcam")
+    m.check_pose_modes(m.pose_modes(), "cam4")              # a cam4 / combined bundle keeps its 2-D parts
