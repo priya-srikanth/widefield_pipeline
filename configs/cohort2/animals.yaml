@@ -94,7 +94,7 @@ animals:
     characteristics: {}
     stroke_date: null
     stroke_laterality: "L"          # planned (same as cohort); confirm
-    reference_date: null
+    reference_date: "1123"        # Allen reference = 11-23 (first session, large 509x480 ROI); landmarks drawn 2026-11-24
     reference_landmarks: v1
     exclude: []
 
@@ -108,7 +108,7 @@ animals:
     characteristics: {}
     stroke_date: null
     stroke_laterality: "L"          # planned; confirm
-    reference_date: null
+    reference_date: "1123"        # Allen reference = 11-23 (first session, large 509x480 ROI); landmarks drawn 2026-11-24
     reference_landmarks: v1
     exclude: []
 
@@ -122,7 +122,7 @@ animals:
     characteristics: {}
     stroke_date: null
     stroke_laterality: "L"          # planned; confirm
-    reference_date: null
+    reference_date: "1123"        # Allen reference = 11-23 (first session, large 509x480 ROI); landmarks drawn 2026-11-24
     reference_landmarks: v1
     exclude: []
 
