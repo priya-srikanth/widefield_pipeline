@@ -147,6 +147,15 @@ def apply_frame_env(key: str, nose_frames: str = "") -> None:
     os.environ.update({**BASE_ENV, **FRAMES[key]["env"], "WFIELD_INPUT_CACHE": INPUT_CACHE})
     if nose_frames:                                    # a re-triangulated 3-D nose (combined_encoding.NOSE_FRAMES_ENV)
         os.environ["COMBINED_ENCODING_NOSE_FRAMES"] = nose_frames
+    # the epoch boundaries the desktop uses (`epochs.boundaries_path`, <cohort_out>/epoch_boundaries.json): named
+    # explicitly so the file travels in the bundle (@tables) -- on O2 the share path is absent and `epoch_of` would
+    # fall back to the stored spec (pre / post labels pick LOSO vs all-pre fits). Found by the audited check 11-24.
+    if not os.environ.get("WIDEFIELD_EPOCH_BOUNDARIES"):
+        from wfield_local import epochs
+        bp = epochs.boundaries_path()
+        if bp is None or not Path(bp).is_file():
+            raise SystemExit(f"epoch boundaries file missing: {bp}")
+        os.environ["WIDEFIELD_EPOCH_BOUNDARIES"] = str(bp)
 
 
 def frame_out(key: str, out_root=None) -> Path:
