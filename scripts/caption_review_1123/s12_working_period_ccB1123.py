@@ -14,7 +14,8 @@ the summaries and the stats are recomputed with the production code (patched at 
 
   wlc   --mask prod|wp --out DIR   within_lick_correction summarise; mask prod = the trial set of the live
                                    licks_scored (reproduction), wp = new attempts `canonical`
-  lc    --gate prod|wp --wlc DIR --out DIR   learned_compensation run + summarise (timing pickles copied, not moved)
+  lc    --gate prod|wp --wlc DIR --out DIR [--dock-def phase|class|class_q1] [--dock-audit CSV]
+                                   learned_compensation run + summarise (timing pickles copied, not moved)
   recmech --wlc DIR --lc DIR --out DIR       c2_recovery_mechanics_stats.py --n-boot 4000 (live family / lickcorr)
   compare A B                      cell-by-cell diff of two output folders' csv tables (max |diff|)
 New folders only; refuses to write into an existing non-empty output folder (except `lc` into the folder it created).
@@ -112,7 +113,7 @@ def cmd_wlc(mask: str, out: Path) -> None:
 
 
 # ------------------------------------------------------------------------------------------------ learned_compensation
-def cmd_lc(gate: str, wlc: Path, out: Path) -> None:
+def cmd_lc(gate: str, wlc: Path, out: Path, dock_def: str = "phase", dock_audit: Path | None = None) -> None:
     _new_out(out)
     tim = out / "timing"
     tim.mkdir()
@@ -130,7 +131,12 @@ def cmd_lc(gate: str, wlc: Path, out: Path) -> None:
         print("canonical ref -> wp:", pd.crosstab(_b(A.canonical_ref), A.canonical).to_dict())
     att = out / "trial_attempts_gate_used.csv.gz"
     A.to_csv(att, index=False)
-    _env({"WLC_OUT_DIR": str(wlc), "LC_OUT_DIR": str(out)})
+    # 11-24 (lane E): the docked definition (learned_compensation LC_DOCK_DEF) and an explicit dock audit (the rebuilt
+    # one on the recounted lick-order cache); defaults = the live run
+    ex = {"WLC_OUT_DIR": str(wlc), "LC_OUT_DIR": str(out), "LC_DOCK_DEF": dock_def}
+    if dock_audit is not None:
+        ex["WFIELD_DOCK_AUDIT"] = str(dock_audit)
+    _env(ex)
     from wfield_local import lp_licks
     lp_licks.attempts_path = lambda rv=None: att
     sys.argv = [sys.argv[0], "run", "--jobs", "3"]
@@ -176,6 +182,8 @@ def main() -> None:
     p.add_argument("--gate", choices=["prod", "wp"], required=True)
     p.add_argument("--wlc", type=Path, required=True)
     p.add_argument("--out", type=Path, required=True)
+    p.add_argument("--dock-def", choices=["phase", "class", "class_q1"], default="phase")
+    p.add_argument("--dock-audit", type=Path, default=None)
     p = sp.add_parser("recmech")
     p.add_argument("--wlc", type=Path, required=True)
     p.add_argument("--lc", type=Path, required=True)
@@ -187,7 +195,7 @@ def main() -> None:
     if a.cmd == "wlc":
         cmd_wlc(a.mask, a.out)
     elif a.cmd == "lc":
-        cmd_lc(a.gate, a.wlc, a.out)
+        cmd_lc(a.gate, a.wlc, a.out, a.dock_def, a.dock_audit)
     elif a.cmd == "recmech":
         cmd_recmech(a.wlc, a.lc, a.out)
     else:

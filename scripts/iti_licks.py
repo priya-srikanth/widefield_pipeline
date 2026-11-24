@@ -191,7 +191,10 @@ def in_path_x(rel: str | Path) -> Path:
 
 def dock_audit_path() -> Path:
     """READ path of iti_dock_audit.csv for the ITI-subset filters: under WFIELD_ITI_OUT_W the first of OUT_W, PATCH_W,
-    IN_W that holds it (a rebuilt audit, lane E 11-24), else OUT/iti_dock_audit.csv exactly as before."""
+    IN_W that holds it (a rebuilt audit, lane E 11-24), else OUT/iti_dock_audit.csv exactly as before. WFIELD_DOCK_AUDIT
+    (an explicit file) wins over all of them."""
+    if os.environ.get("WFIELD_DOCK_AUDIT", "").strip():
+        return Path(os.environ["WFIELD_DOCK_AUDIT"].strip())
     if os.environ.get("WFIELD_ITI_OUT_W"):
         q = in_path("iti_dock_audit.csv")
         if q.exists():
