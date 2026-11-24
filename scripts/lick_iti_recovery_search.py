@@ -73,7 +73,7 @@ def licks() -> pd.DataFrame:
     P["k"] = P.groupby(["set", "label"]).cumcount()
     P = lo.per_lick(P)                                     # lfl + lfl_outside, both sets (reference per set x animal)
     P = P[P.set == RAW].copy()
-    C = pd.read_csv(il.OUT_W / f"covref_covariates{lo.SRC_TAG}.csv.gz", usecols=["set", "label", "k", "reach_mm", "side_k"])
+    C = pd.read_csv(il.in_path_x(f"covref_covariates{lo.SRC_TAG}.csv.gz"), usecols=["set", "label", "k", "reach_mm", "side_k"])
     P = P.merge(C, on=["set", "label", "k"], how="left", validate="one_to_one")
     res, fail = ak.fan_sessions(sorted(P.label.unique()), _session)
     if fail:

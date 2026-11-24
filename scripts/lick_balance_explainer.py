@@ -35,7 +35,7 @@ def compute() -> dict:
     P = pd.read_csv(lo.preds_path())
     P = P[(P.animal == EXAMPLE_ANIMAL) & (P.set == "trial")].reset_index(drop=True)
     P["k"] = P.groupby(["set", "label"]).cumcount()
-    C = pd.read_csv(il.OUT_W / f"covref_covariates{lo.SRC_TAG}.csv.gz", usecols=["set", "label", "k", "reach_mm", "side_k"])
+    C = pd.read_csv(il.in_path_x(f"covref_covariates{lo.SRC_TAG}.csv.gz"), usecols=["set", "label", "k", "reach_mm", "side_k"])
     P = P.merge(C, on=["set", "label", "k"], how="left", validate="one_to_one")
     L = pd.concat([bs._session(x) for x in sorted(P.label.unique())], ignore_index=True)
     P = P.merge(L, on=["set", "label", "k"], how="left", validate="one_to_one")
