@@ -24726,3 +24726,9 @@ frame), then "prioritize items needed for the MANUSCRIPT" (results-page items pa
   Flag for Priya: recmark ITI first-after-quiet markers weaken on four-camera ITI licks (oro_bal ~ aim slope 0.82, p 0.007
   -> 0.56, p 0.115; 53 -> 30 CI-excluding-0 slopes), while the primary recprim links hold (ITI first-after-quiet -> aim
   log(day) 11.0 -> 6.6, p 0.001). Results-page only; parked unfinished.
+- **S16 treadmill re-run on the four-camera inputs** (Priya 11-23, manuscript item; camera working-period gate, n_boot
+  4,000). Readouts are recomputed from the 11-23 states collector (sync60, new classes, fused licks); before, the stored
+  11-20 readouts were only re-tested. Stars: primary 3 -> 3, secondary 9 -> 9 (push_control_rate subacute neither ->
+  bootstrap only), first 95 min 2 -> 3 (push cue-minus-control subacute gains its star; CI 0.0009 to 0.194, fragile).
+  Session counts are unchanged. Tables are in `vls_stroke_paper/data_4cam_20261122/treadmill/*_fourcam_20261123.csv` +
+  `README_fourcam_20261123.md`; full outputs in `manuscript_stats/c2_4cam_sync60_20261122/treadmill_fourcam_20261123/`.

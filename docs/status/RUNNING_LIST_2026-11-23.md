@@ -65,3 +65,14 @@
   behavior + neural in `E/iti_licks_lickcorr_fourcam_20261123`, then WLC_LAUNCH=2v run + summarise in
   `E/within_lick_correction_fourcam_launch2v_neural_20261123`.
 - 14:25 G4 bundle `rebuild_20261123_fourcam/o2/enc_fourcam_20261123`: one-session build (PS93_0814) first, for timing.
+- 14:26-18:18 G6 / G7 done: see DECISIONS 11-23 "behavior + encoding arm". The behavior halves are byte-identical to the
+  11-23 cam3-on runs; the neural tables are new.
+- ~14:30-19:45 neural-tail helper (G8 / G9 / G10) was cut off by a rate limit without a report. Triage + star moves:
+  `lp_stage/reanalysis_20261123/neuraltail_triage.md`; code committed 35678692 (opt-in OUT_X redirect). Its chain
+  drivers 18552 (g8), 32700 (g10), 8560 (g9) keep starting steps. Stopping them was DENIED by the permission system;
+  waiting on Priya (coordinator raised it). The running children are light (< 1.5 GB each).
+- 19:50 Priya: manuscript first. PARKED (results pages): spont_frA local refit, GLM-HMM select-K, C4, G3, G5, the rest
+  of G8-G10, E6, B2 / B3, K1a. SKIP: TIM engagement inputs (TIM left the paper in v26); FR figures (moved to four-camera
+  by another helper). The O2 G4 bundle is HELD: one session built (`rebuild_20261123_fourcam/o2/enc_fourcam_20261123`);
+  the full input build, env diff and smoke test are not done.
+- 19:54-20:00 S16 treadmill rebuilt (DECISIONS). Delivered to `data_4cam_20261122/treadmill/*_fourcam_20261123.csv`.
