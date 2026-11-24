@@ -47,6 +47,14 @@ env:
   # branch). Every LP lick / gate / RESTnl / class reader follows it; RESTnl's lick set defaults to "fused" under it.
   WIDEFIELD_FUSED_LICKS: lp_side_r2b_prod_20261118_3net_20261121_sync60_gapfix60
   WIDEFIELD_RESTNL_LICKS: fused
+  # 11-23 late (Priya: ONE jaw rule at all six spouts, the manuscript classes): 3-D jaw with the cap threshold + 3-D
+  # re-onset, OR an in-mouth lick (`trial_classes.jaw_call(mode="3d_mouth")`), on the cap jaw table; the s1 class
+  # snapshot of that rule. In-root copies of qc/jaw3dmouth_ccB1123 (PROVENANCE.txt there). The jaw mode enters
+  # `class_source_signature` (camera-gated caches start fresh), not the run tag. NOTE `working_trials.snapshot_path`
+  # is not rebuild-routed, so WFIELD_S1_CLASSES must be set or the production s1 snapshot is read.
+  WIDEFIELD_JAW_CALL: 3d_mouth
+  WIDEFIELD_JAW_CSV: M:/MICROSCOPE/Priya/Widefield/rebuild_20261123_fourcam/LP_analysis/lp_r4_heatmap_20261013__clean_v37_sync60/imaging_encoding/qc/jaw3dmouth_ccB1123/jaw_onsets_cap_ccB1123.csv
+  WFIELD_S1_CLASSES: M:/MICROSCOPE/Priya/Widefield/rebuild_20261123_fourcam/LP_analysis/lp_r4_heatmap_20261013__clean_v37_sync60/imaging_encoding/qc/jaw3dmouth_ccB1123/s1_trial_classes_cue_stop.csv.gz
 
 # THE REBUILD ROOT (coordinator 11-03, fourth review): EVERY derived output of this render -- cohort_out / grant_figures,
 # figures_working, analysis_figures, LP_analysis/<run>/imaging_encoding (encoder, ITI, attempt, qc), the frozen store
