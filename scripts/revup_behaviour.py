@@ -88,7 +88,8 @@ SESS = "behaviour_sessions_c1far"  # per-session cache (revup/sessions/ belongs 
 #                                    11-17: "_c1far" = cam1 events through `cam1_licks.keep_mask` (far-from-mouth guard);
 #                                    the cache is keyed on existence only, so the pre-guard behaviour_sessions/ is not read
 LICK_MIN_S = 0.07                  # a post-cue lick needs its PEAK >= cue + 70 ms (the licks.csv / trial_windows rule)
-FIG = OUT_W / "figures"
+# 11-24: an explicit run folder (REVUP_OUT_DIR) keeps its own figures, never the production iti_licks/figures
+FIG = (REV / "figures") if os.environ.get("REVUP_OUT_DIR", "").strip() else OUT_W / "figures"
 QC = RUN_ROOT / "qc"                 # jaw_onsets.csv (one table for every run)
 
 
