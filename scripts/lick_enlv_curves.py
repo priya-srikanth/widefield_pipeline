@@ -176,14 +176,9 @@ def _iti_gaps(P: pd.DataFrame) -> pd.DataFrame:
 def _contact(label: str) -> pd.DataFrame:
     """Cued licks of one session -> licks_all `contact` (DAQ spout-contact inside the cam4 lick; lick_balance_contact's
     definition), matched on the exact DAQ peak time t of covref_covariates. Module-level for spawn."""
-    from wfield_local import config
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
     C = pd.read_csv(il.OUT_W / f"covref_covariates{lo.SRC_TAG}.csv.gz", usecols=["set", "label", "k", "t"])
     C = C[(C.label == label) & (C.set == "trial")]
-    an, date = config.animal_of(label), "2026" + label.split("_")[-1]
-    A = pd.read_csv(oo.session_dir(PathResolver(), oc.RUN, an, date) / "licks_all.csv", usecols=["daq_peak_s", "contact"])
+    A = il.session_lick_table(label, kin_cols=["contact"])[["daq_peak_s", "contact"]]   # by lick key (11-24)
     A = A[np.isfinite(A.daq_peak_s)].drop_duplicates("daq_peak_s").set_index("daq_peak_s").contact
     return C.assign(contact=A.reindex(C.t.to_numpy(float)).to_numpy()).drop(columns="t")
 

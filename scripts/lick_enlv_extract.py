@@ -80,6 +80,10 @@ def one(item) -> dict:
     R -= Q @ (Q.T @ R)
     R *= 1e3
     an, date = config.animal_of(label), "2026" + label.split("_")[-1]
+    from wfield_local import session_licks as SL
+    if SL.fused_on():         # 11-24: lick_uid = a row of cam4 licks_all.csv (enl_lick_audit) cannot address the fused train
+        raise RuntimeError(f"{label}: the ENL lick list (enl_lick_audit, cam4 licks_all rows) has no lick_key; rebuild it on "
+                           "the fused four-camera train before extracting ENLv licks")
     A = pd.read_csv(oo.session_dir(PathResolver(), oc.RUN, an, date) / "licks_all.csv",
                     usecols=["context", "daq_on_s", "daq_peak_s"])
     uid = L.lick_uid.to_numpy(int)

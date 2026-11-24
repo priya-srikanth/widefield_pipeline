@@ -53,9 +53,6 @@ def _session(label: str) -> pd.DataFrame:
     """Per first post-cue lick: contact flag, time to next contact lick, angle covariates, pooled contra / ipsi values
     per area (ratio_010_050)."""
     from wfield_local import config
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
     f = il.OUT_W / "firstlick_full" / f"{label}.npz"
     if not f.exists():
         return pd.DataFrame()
@@ -64,9 +61,9 @@ def _session(label: str) -> pd.DataFrame:
     X = z["X"].astype(float)
     cx = list(z["cols"])
     t = z["t"].astype(float)
-    an, date = config.animal_of(label), "2026" + label.split("_")[-1]
-    A = pd.read_csv(oo.session_dir(PathResolver(), oc.RUN, an, date) / "licks_all.csv",
-                    usecols=["context", "daq_peak_s", "contact", "tip_to_spout_px"])
+    an = config.animal_of(label)
+    A = il.session_lick_table(label, kin_cols=["contact"], cam4_cols=["tip_to_spout_px"])[
+        ["context", "daq_peak_s", "contact", "tip_to_spout_px"]]     # fused train; contact / tip by lick key (11-24)
     A = A.dropna(subset=["daq_peak_s"]).drop_duplicates("daq_peak_s").set_index("daq_peak_s")
     if not np.isin(t, A.index.to_numpy()).all():
         raise RuntimeError(f"{label}: {int((~np.isin(t, A.index.to_numpy())).sum())} first licks not in licks_all")

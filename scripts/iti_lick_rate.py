@@ -44,13 +44,9 @@ N_PERM = 5000
 
 def session_row(label: str) -> dict:
     from wfield_local import config, epochs
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
-    an, date = config.animal_of(label), "2026" + label.split("_")[-1]
+    an = config.animal_of(label)
     from wfield_local import trial_classes as tc
-    A = pd.read_csv(oo.session_dir(PathResolver(), oc.RUN, an, date) / "licks_all.csv",
-                    usecols=["trial_id", "context", "contact"])
+    A = il.session_lick_table(label, kin_cols=["contact"])[["trial_id", "context", "contact"]]   # fused train (11-24)
     T = il._behaviour(label).trials.sort_values("cue_s")
     # the camera working period (11-05): trial i's ITI (its stop -> the next arrival) counts only when trial i is in it
     work, _contact, has = tc.camera_period_trials(label, T.cue_s.to_numpy(float))

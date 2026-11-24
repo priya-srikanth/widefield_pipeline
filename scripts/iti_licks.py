@@ -733,6 +733,41 @@ def session_path(label: str) -> Path:
     return XOUT / SESS_NAME / f"{label}.npz"
 
 
+_KIN_FULL: dict = {}
+
+
+def session_lick_table(label: str, kin_cols=(), cam4_cols=()) -> pd.DataFrame:
+    """THE session lick table (`session_licks.session_licks`: the fused four-camera train when selected) of ``label``,
+    with per-lick columns joined BY LICK KEY, never by time (lane E 11-24, Priya "fix everything"): ``kin_cols`` from the
+    whole-session four-camera kinematics table (`kin_all_path`; e.g. contact), NaN where a lick has no 3-D row;
+    ``cam4_cols`` from the cam4 licks_all.csv (cam4-only measurements such as rise_start_ms / tip_to_spout_px), NaN for
+    the fused licks cam4 never saw."""
+    from wfield_local import config
+    from wfield_local import orofacial_cohort as oc
+    from wfield_local import orofacial_outputs as oo
+    from wfield_local import session_licks as SL
+    from wfield_local.paths import PathResolver
+    an, date = config.animal_of(label), "2026" + label.split("_")[-1]
+    A = SL.session_licks(f"{an}_{date}").reset_index(drop=True)
+    if kin_cols:
+        p = kin_all_path()
+        key = (str(p), p.stat().st_mtime_ns)
+        if _KIN_FULL.get("key") != key:
+            _KIN_FULL.update(key=key, K=pd.read_csv(p))
+        K = _KIN_FULL["K"]
+        K = K[K.session == f"{an}_{date}"]
+        J = SL.align_kin(A, K, list(kin_cols), f"{an}_{date}")
+        for c in kin_cols:
+            A[c] = J[c].to_numpy()
+    if cam4_cols:
+        C = pd.read_csv(oo.session_dir(PathResolver(), oc.RUN, an, date) / "licks_all.csv",
+                        usecols=lambda c: c in ("trial_id", "t_ms", *cam4_cols))
+        C = C.assign(lick_key=SL.lick_key(C.trial_id, C.t_ms)).drop_duplicates("lick_key").set_index("lick_key")
+        for c in cam4_cols:
+            A[c] = C[c].reindex(A.lick_key.to_numpy()).to_numpy()
+    return A
+
+
 def check_superseded_3d(label: str, out: dict, p) -> None:
     """REFUSE a session file built on a superseded 3-D table version (`SUPERSEDED_3D`)."""
     bad = SUPERSEDED_3D.get(str(label))

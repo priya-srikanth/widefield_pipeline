@@ -224,7 +224,7 @@ def _one(item):
     Xp[okp] = d["iti_X"][rows[okp]].astype(np.float32)
     an, date = config.animal_of(label), "2026" + label.split("_")[-1]
     sd = oo.session_dir(PathResolver(), oc.RUN, an, date)
-    A = pd.read_csv(sd / "licks_all.csv", usecols=["daq_on_s", "daq_peak_s", "trial_id", "rise_start_ms"])
+    A = il.session_lick_table(label, cam4_cols=["rise_start_ms"])[["daq_on_s", "daq_peak_s", "trial_id", "rise_start_ms"]]
     A = A[np.isfinite(A.daq_on_s)].drop_duplicates("daq_peak_s")
     A = A.set_index("daq_peak_s").reindex(tq)
     on = A.daq_on_s.to_numpy(float)

@@ -148,6 +148,10 @@ def extract(item) -> dict:
     del V, Ub
     B = il._behaviour(label)
     T = B.trials.set_index("trial_id")
+    from wfield_local import session_licks as SL
+    if SL.fused_on():         # 11-24: the within-lick-correction licks carry lick_uid = a cam4 licks_all row
+        raise RuntimeError(f"{label}: prelick tuning joins licks_scored.lick_uid (cam4 licks_all rows); rebuild it on the "
+                           "fused four-camera train (lick_key) before running in fused mode")
     A = pd.read_csv(oo.session_dir(PathResolver(), oc.RUN, an, date) / "licks_all.csv",
                     usecols=["trial_id", "lick_idx", "context", "segment", "daq_on_s"])
     A["lick_uid"] = np.arange(len(A))
