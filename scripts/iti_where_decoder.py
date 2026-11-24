@@ -340,9 +340,9 @@ def main() -> int:
     import matplotlib
     matplotlib.use("Agg")
 
-    srcs =[s for s in SOURCES if s == "areas" or (il.OUT / f"basis_{basis_dir(s)}" / "sessions").exists()]
+    srcs = [s for s in SOURCES if s == "areas" or il.in_path_x(Path(f"basis_{basis_dir(s)}") / "sessions").exists()]
     R = pd.concat([decode(s) for s in srcs], ignore_index=True)
-    R.to_csv(il.OUT / il.tagged("where_decoder.csv"), index=False)
+    R.to_csv(il.OUT_X / il.tagged("where_decoder.csv"), index=False)
     pre = R[R.epoch == "pre"].groupby(["source", "set", "target", "animal"]).r.mean()
     R["r_norm"] = R.r / [pre.get(k, np.nan) for k in zip(R.source, R.set, R.target, R.animal)]
     pd.set_option("display.width", 220)
@@ -350,7 +350,7 @@ def main() -> int:
         .median().unstack("epoch")
     print("== lick spread per session (median over sessions, mm)\n" + sp.round(3).to_string())
     T = tests(R)
-    T.to_csv(il.OUT / il.tagged("where_decoder_tests.csv"), index=False)
+    T.to_csv(il.OUT_X / il.tagged("where_decoder_tests.csv"), index=False)
     print(T[(T.value == "r_norm")].round(3).to_string(index=False))
     plot(R, T)
     return 0
@@ -438,7 +438,7 @@ def plot(R: pd.DataFrame, T: pd.DataFrame, tag: str = "") -> None:
                      "Sagittal = sqrt(forward^2 + down^2); angle = atan2(lateral, sagittal).", fontsize=11)
         fig.tight_layout(rect=(0, 0, 1, 0.88))
         fig.subplots_adjust(top=0.82 if tag else 0.84)      # tight_layout left a large gap under the 5-line suptitle
-        save_png_svg(fig, (il.OUT_W if il.ITI_SUBSET else il.OUT) / "figures" / il.tagged(f"lick_where_decoder{tag}.png" if src == "areas"
+        save_png_svg(fig, (il.OUT_W if il.ITI_SUBSET else il.OUT_X) / "figures" / il.tagged(f"lick_where_decoder{tag}.png" if src == "areas"
                                                    else f"lick_where_decoder_{src}{tag}.png"), dpi=105)
         plt.close(fig)
     if tag:
@@ -456,7 +456,7 @@ def plot(R: pd.DataFrame, T: pd.DataFrame, tag: str = "") -> None:
                  "licks).\nDots = sessions, r / animal's pre; black = mean +- SEM; * = nested-bootstrap change from pre "
                  "excluding 0. Other targets per basis: where_decoder_tests.csv.", fontsize=11)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
-    save_png_svg(fig, il.OUT / "figures" / il.tagged("lick_where_decoder_bases.png"), dpi=105)
+    save_png_svg(fig, il.OUT_X / "figures" / il.tagged("lick_where_decoder_bases.png"), dpi=105)
     plt.close(fig)
 
 
@@ -471,7 +471,7 @@ if __name__ == "__main__":
         plot(Rz, Tz, "_z")
         raise SystemExit(0)
     if "--plot-only" in sys.argv:
-        plot(pd.read_csv(il.OUT / il.tagged("where_decoder.csv")),
-             pd.read_csv(il.OUT / il.tagged("where_decoder_tests.csv")))
+        plot(pd.read_csv(il.in_path_x(il.tagged("where_decoder.csv"))),
+             pd.read_csv(il.in_path_x(il.tagged("where_decoder_tests.csv"))))
         raise SystemExit(0)
     raise SystemExit(main())
