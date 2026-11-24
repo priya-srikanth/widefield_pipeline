@@ -31,6 +31,15 @@ CAM4 = "LP video, cam4 only"
 CAMERA_CLASSES = "camera trial classes (DAQ spout contact + LP video, cam4 + cam1, cam1 droplets removed)"
 LP_ALIGN = "first LP lick (close spouts: DAQ contact when the LP lick is missing or late)"
 NO_VIDEO = "PS93_0813 has no video (no LP licks, no camera classes)"
+#: FOUR-CAMERA wording (11-22 adoption, `session_licks.FUSED_DEFAULT`): the fused cam1 + cam2 + cam3 + cam4 train (60 ms
+#: video-lick floor) covers the whole session, so the pre-cue window reads the same train; cam1-only events are not
+#: licks (Priya 11-22); in the trial classes a trial with only cam1-only licks is jaw-only. Opt-in
+#: (``licks_line(..., fourcam=True)``) for figures rendered on the four-camera inputs; the constants above stay the
+#: wording of the cam4 + cam1 renders (v36) the deck still cites.
+FOURCAM_POST = "four-camera video licks (fused cam1 + cam2 + cam3 + cam4 train; cam1-only events are not licks)"
+FOURCAM_PRECUE = "four-camera video licks (the same fused train, whole session)"
+FOURCAM_CLASSES = ("camera trial classes (DAQ spout contact + four-camera video licks; a trial whose only video licks "
+                   "are cam1-only = tongue at the lips, grouped with jaw-only)")
 
 _NAMES = {"daq": "DAQ", "cam4": "cam4", "cam1": "cam1"}
 
@@ -61,22 +70,25 @@ def restnl_text() -> str:
     return "rest licks excluded: " + " + ".join(_NAMES.get(s, s) for s in restnl_sources())
 
 
-def licks_line(source: str, align: str | None = None, camera_gate: bool = False) -> str:
+def licks_line(source: str, align: str | None = None, camera_gate: bool = False, fourcam: bool = False) -> str:
     """The 'licks:' clause for a figure drawn under ``source`` ("daq" | "lp") at ``align`` ("precue" | "cue" | "lick"
     | None). ``camera_gate`` = the run selects working / miss trials by `trial_classes` (WIDEFIELD_TRIAL_GATE=camera):
-    those classes then use the video even in a DAQ-source run (the lick class stays DAQ contact there)."""
+    those classes then use the video even in a DAQ-source run (the lick class stays DAQ contact there). ``fourcam`` =
+    a figure rendered on the fused four-camera train (FOURCAM_* wording)."""
     src = str(source).strip().lower()
+    post, precue, classes = (FOURCAM_POST, FOURCAM_PRECUE, FOURCAM_CLASSES) if fourcam else (LP_POST, LP_PRECUE,
+                                                                                               CAMERA_CLASSES)
     if src == "lp":
-        bits = [f"licks: {LP_POST}", f"lick alignment = {LP_ALIGN}" if align == "lick" else ""]
+        bits = [f"licks: {post}", f"lick alignment = {LP_ALIGN}" if align == "lick" else ""]
         if align == "precue":
-            bits.append(f"pre-cue lick-free window: {LP_PRECUE}")
+            bits.append(f"pre-cue lick-free window: {precue}")
         bits.append("PS93_0813 (no video) is not in these outputs")
     elif src == "daq":
         bits = [f"licks: {DAQ}"]
         if align == "precue":
             bits.append(f"pre-cue lick-free window: {DAQ}")
         if camera_gate:
-            bits.append(f"working / miss trials: {CAMERA_CLASSES}; PS93_0813 (no video) has no camera classes")
+            bits.append(f"working / miss trials: {classes}; PS93_0813 (no video) has no camera classes")
     else:
         raise ValueError(f"lick source {source!r}; expected 'daq' or 'lp'")
     return "; ".join(b for b in bits if b)

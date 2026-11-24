@@ -143,13 +143,11 @@ def dwell_s(Z: dict, fs: float = 25.0) -> pd.DataFrame:
 
 
 def lick_onsets(label: str) -> np.ndarray:
-    """Camera lick onsets (DAQ s; LP licks_all, every context) -- the lick identity the rest of the pipeline uses."""
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
-    a, d = label.split("_")
-    L = pd.read_csv(Path(oo.session_dir(PathResolver(), oc.RUN, a, d)) / "licks_all.csv", usecols=["daq_on_s"])
-    return np.sort(L.daq_on_s.dropna().to_numpy(float))
+    """Camera lick onsets (DAQ s, every context) of THE session lick table (`session_licks`: the fused four-camera train
+    since 11-22, cam4 licks_all.csv with fusion off) -- the lick identity the rest of the pipeline uses (11-23: was the
+    run's cam4 licks_all.csv)."""
+    from wfield_local import session_licks as sl
+    return sl.session_onsets_s(label)
 
 
 def profile(M, feats, Z, feat_dir: Path) -> tuple[pd.DataFrame, dict]:

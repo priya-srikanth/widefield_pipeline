@@ -51,11 +51,11 @@ def _parse_name(p: Path):
     return lset, meas, kind
 
 
-def run(sessions_csv: Path, curves: Path, n_perm: int = CLUSTER_PERM, kind: str | None = None):
+def run(sessions_csv: Path, curves: Path, n_perm: int = CLUSTER_PERM, kind: str | None = None, out_suffix: str = ""):
     lset, m, kind_ = _parse_name(sessions_csv)
     kind = kind or kind_
-    out = sessions_csv.with_name(sessions_csv.stem + "_aligned.csv")
-    out_cl = sessions_csv.with_name(sessions_csv.stem + "_aligned_clusters.csv")
+    out = sessions_csv.with_name(sessions_csv.stem + "_aligned" + out_suffix + ".csv")
+    out_cl = sessions_csv.with_name(sessions_csv.stem + "_aligned_clusters" + out_suffix + ".csv")
     for o in (out, out_cl):
         if o.exists():
             sys.exit(f"refusing to overwrite {o}")
@@ -66,7 +66,7 @@ def run(sessions_csv: Path, curves: Path, n_perm: int = CLUSTER_PERM, kind: str 
     if C.empty:
         sys.exit(f"{sessions_csv.name}: no curves for {lset}/{m}/{kind} in {curves}")
     sg = -1.0 if m in SIGNED else 1.0
-    cells, clusters = [], []
+    cells, clusters, parity = [], [], {}
     for p, g in C.groupby("position"):
         pv = g.pivot_table(index=["animal", "session", "epoch"], columns="x", values="v") * sg
         an = pv.index.get_level_values(0).to_numpy()
@@ -84,6 +84,14 @@ def run(sessions_csv: Path, curves: Path, n_perm: int = CLUSTER_PERM, kind: str 
             cl = (cluster_permutation_p(sub[:, ok], sel[keep], an[keep], n_perm=n_perm)
                   if ok.sum() >= 3 else [])
             xok = xs[ok]
+            # parity gate runs at the INPUT file's count (CLUSTER_PERM): at another n_perm the uncorrected mask can
+            # legitimately differ (11-23: 5,000 for the paper)
+            clp = cl if n_perm == CLUSTER_PERM or ok.sum() < 3 else                 cluster_permutation_p(sub[:, ok], sel[keep], an[keep], n_perm=CLUSTER_PERM)
+            par = np.zeros(len(xs), bool)
+            for c in clp:
+                if c["p_raw"] < ALPHA:
+                    par |= np.isin(xs, xok[c["start"]:c["stop"]])
+            parity[(p, e)] = par
             for k, c in enumerate(cl):
                 clusters.append({"lickset": lset, "measure": m, "kind": kind, "position": p, "epoch": e, "cluster": k,
                                  "x_start": xok[c["start"]], "x_end": xok[c["end_bin"]], "n_bins": c["stop"] - c["start"],
@@ -118,9 +126,9 @@ def run(sessions_csv: Path, curves: Path, n_perm: int = CLUSTER_PERM, kind: str 
             ali |= at & c["sig_aligned"]
             pc[at], qc[at], cid[at] = c["p"], c["q"], c["cluster"]
         was = old.loc[idx, "v"].astype(str).isin(["True", "1", "1.0"]).to_numpy()
-        if not np.array_equal(was, unc):
+        if not np.array_equal(was, parity[(p, e)]):
             sys.exit(f"PARITY FAILED {sessions_csv.name} {p}/{e}: recomputed uncorrected mask differs from the file "
-                     f"({int(was.sum())} vs {int(unc.sum())} bins); nothing written")
+                     f"({int(was.sum())} vs {int(parity[(p, e)].sum())} bins); nothing written")
         new.loc[idx, "v"] = ali.astype(float)            # 0.0 / 1.0, as the input file writes them
         new.loc[idx, "v_uncorrected"] = unc.astype(float)
         new.loc[idx, "p_cluster"], new.loc[idx, "q_cluster"], new.loc[idx, "cluster_id"] = pc, qc, cid
@@ -140,8 +148,12 @@ def main(argv=None):
     ap.add_argument("curves", type=Path)
     ap.add_argument("--kind", choices=("peak", "norm"), default=None,
                     help="curve kind (default: from the file name, '_peak' = peak)")
+    ap.add_argument("--n-perm", type=int, default=CLUSTER_PERM,
+                    help=f"cluster-test permutations (default CLUSTER_PERM = {CLUSTER_PERM}; the paper uses 5000)")
+    ap.add_argument("--out-suffix", default="", help="appended to the output names (never overwrite)")
     a = ap.parse_args(argv)
-    run(a.sessions_csv, a.curves, kind=a.kind)
+    print(f"cluster permutations: {a.n_perm} (seed 0)", flush=True)
+    run(a.sessions_csv, a.curves, n_perm=a.n_perm, kind=a.kind, out_suffix=a.out_suffix)
 
 
 if __name__ == "__main__":
