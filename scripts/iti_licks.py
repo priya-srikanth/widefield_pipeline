@@ -129,7 +129,10 @@ def te_basis_spatial(animal: str, fit: Path | None = None) -> Path:
 # (rule 10: lick_order_preds cache unchanged) and only drop ITI rows downstream (`iti_subset_keep`, flags from
 # iti_dock_audit.py). Their outputs keep the untagged file names inside their own folder <OUT>/itifilter_<filter>/
 # (OUT_W is redirected there unless WFIELD_ITI_OUT_W is set), so a primary output can never be overwritten.
-ITI_SUBSET_FILTERS = ("dock", "dock01", "gap2dock", "far1s", "notdock", "notdock_n")
+ITI_SUBSET_FILTERS = ("dock", "dock01", "gap2dock", "far1s", "notdock", "notdock_n",
+                      # 11-24 (Priya): docked = bouts STARTING at or after dock arrival; retraction-started bouts; and
+                      # the dock-arrival sensitivity variants (iti_dock_audit.iti_class)
+                      "dockbout", "retractbout", "dockbout_s04", "dockbout_s05", "dockbout_s07", "iti_after_quiet")
 ITI_SUBSET = os.environ.get("WFIELD_ITI_FILTER", "") if os.environ.get("WFIELD_ITI_FILTER", "") in ITI_SUBSET_FILTERS else ""
 if ITI_SUBSET and not os.environ.get("WFIELD_ITI_OUT_W"):
     OUT_W = OUT / f"itifilter_{ITI_SUBSET}"

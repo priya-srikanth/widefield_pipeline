@@ -27,6 +27,17 @@ gap >= 2 s, il.GAP_MAIN).
 Filter flags (iti_licks.ITI_SUBSET_FILTERS): dock = phase docked; dock01 = onset in [dock + 0.1, trial_start - 0.1];
 gap2dock = dock & gap >= 2; far1s = the far1 rule of iti_lick_timing_audit (>= 1 s from the window end and the next
 arrival) as a SUBSET of the frozen predictions (no refit).
+ITI CLASS (Priya 11-24, the docked definition of the rebuild; columns added, nothing removed): bouts are gap-based over
+ALL of the session's licks (any context; a bout starts at an onset >= il.BOUT_GAP = 1 s after the previous onset),
+`bout_start` = the onset of the lick's bout start. iti_class = "docked": phase docked (dock .. next trial_start) AND the
+bout started at or after dock arrival (a bout already in progress at arrival -- retraction carry-over -- is out);
+"retraction": the bout started between the trial stop and dock arrival (the spout retracting), its licks up to the next
+trial_start included (also those continuing into the docked window); "other": every other ITI lick (as today). Dock
+arrival = the behavior log's `dock` event (the spout reported at the dock; trial_windows._log_events_daq, DAQ clock) where
+the log aligns, else the reconstruction below. Sensitivity columns iti_class_s04 / _s05 / _s07 use dock arrival = trial
+stop + 0.4 / 0.5 / 0.7 s instead. Filter flags dockbout (= iti_class docked), dockbout_s04 / _s05 / _s07, retractbout, iti_after_quiet (docked
+AND gap >= 2 s).
+iti_dock_arrival.csv: per log-aligned trial, dock - stop and dock - dock_start (the arrival distribution).
 Outputs <OUT_W>/iti_dock_audit.csv (per lick), iti_dock_census.csv (per animal x epoch x lick set: n and share by
 phase), iti_dock_sessions.csv (per session: source, n licks, reconstruction constants used).
 Usage: python scripts/iti_dock_audit.py [--jobs 8]
@@ -72,8 +83,52 @@ def one(item) -> dict:
     ev = {k: np.sort(v.to_numpy(float)) for k, v in E.items()} if E is not None else None
     df = pd.DataFrame(dict(label=label, animal=an, epoch=str(epochs.epoch_of(label)), t=t,
                            onset=m_on.reindex(t).to_numpy(float), gap=m_gap.reindex(t).to_numpy(float)))
-    return {"label": label, "df": df, "ev": ev, "ts_daq": np.sort(ts_daq),
+    return {"label": label, "df": df, "ev": ev, "ts_daq": np.sort(ts_daq), "on_all": np.sort(on[np.isfinite(on)]),
             "stop": T.stop_s.to_numpy(float), "strobe": T.strobe_s.to_numpy(float), "pos": T.pos.astype(str).to_numpy()}
+
+
+#: alternative dock arrivals (s after the trial stop) for the sensitivity columns
+ALT_ARRIVAL = {"s04": 0.4, "s05": 0.5, "s07": 0.7}
+
+
+def bout_starts(on_all: np.ndarray, x: np.ndarray, gap: float | None = None) -> np.ndarray:
+    """Onset of the gap-based bout start (>= `gap` s after the previous onset, any context) of each lick onset x (x
+    must be in on_all; NaN where it is not)."""
+    gap = il.BOUT_GAP if gap is None else gap
+    on_all = np.sort(np.asarray(on_all, float))
+    x = np.asarray(x, float)
+    start = np.r_[True, np.diff(on_all) >= gap]
+    first = np.maximum.accumulate(np.where(start, np.arange(len(on_all)), 0))
+    i = np.searchsorted(on_all, x)
+    ok = (i < len(on_all)) & np.isfinite(x)
+    ok[ok] = np.abs(on_all[i[ok]] - x[ok]) < 1e-9
+    out = np.full(len(x), np.nan)
+    out[ok] = on_all[first[i[ok]]]
+    return out
+
+
+def iti_class(x: np.ndarray, bs: np.ndarray, stop: np.ndarray, dock: np.ndarray, trial_start: np.ndarray) -> np.ndarray:
+    """Per lick (onset x, its bout start bs, and its cycle's stop / dock arrival / next trial_start): "docked" = onset in
+    [dock, trial_start) and bout start >= dock; "retraction" = bout start in [stop, dock) and onset < trial_start;
+    "other" otherwise (NaN cycle times -> other)."""
+    x, bs, stop, dock, ts = (np.asarray(v, float) for v in (x, bs, stop, dock, trial_start))
+    ts = np.where(np.isfinite(ts), ts, np.inf)
+    out = np.full(len(x), "other", dtype=object)
+    with np.errstate(invalid="ignore"):
+        dk = (x >= dock) & (x < ts) & (bs >= dock)
+        rt = (bs >= stop) & (bs < dock) & (x < ts)
+    out[rt] = "retraction"
+    out[dk] = "docked"
+    return out
+
+
+def after_quiet(cls: np.ndarray, gap: np.ndarray, quiet: float | None = None) -> np.ndarray:
+    """ITI AFTER QUIET (Priya 11-24; was gap2dock = phase docked & gap >= 2 s): iti_class "docked" AND >= `quiet` s
+    (il.GAP_MAIN = 2) since the previous lick onset of ANY context (the session lick table = the fused four-camera
+    train, as the fixed iti_lick_timing_audit)."""
+    quiet = il.GAP_MAIN if quiet is None else quiet
+    with np.errstate(invalid="ignore"):
+        return (np.asarray(cls) == "docked") & (np.asarray(gap, float) >= quiet)
 
 
 def _first_after(ev: np.ndarray, x: np.ndarray, lo: float = 0.0) -> np.ndarray:
@@ -108,7 +163,7 @@ def trial_cycle(r: dict, const: dict | None) -> tuple[pd.DataFrame, str]:
     return C, "reconstructed"
 
 
-def phases(df: pd.DataFrame, C: pd.DataFrame) -> pd.DataFrame:
+def phases(df: pd.DataFrame, C: pd.DataFrame, on_all: np.ndarray | None = None) -> pd.DataFrame:
     x = df.onset.to_numpy(float)
     stop = C.stop.to_numpy(float)
     j = np.searchsorted(stop, x, side="right") - 1
@@ -132,6 +187,14 @@ def phases(df: pd.DataFrame, C: pd.DataFrame) -> pd.DataFrame:
     out["phase"] = ph
     out["since_dock"], out["to_trial_start"] = x - dk, ts - x
     out["since_stop"], out["to_arrival"] = x - np.where(ok, stop[jj], np.nan), ar - x
+    if on_all is not None:
+        st = np.where(ok, stop[jj], np.nan)
+        bs = bout_starts(on_all, x)
+        out["bout_start"] = bs
+        out["dock_arrival"] = dk
+        out["iti_class"] = iti_class(x, bs, st, dk, ts)
+        for k, c in ALT_ARRIVAL.items():
+            out[f"iti_class_{k}"] = iti_class(x, bs, st, st + c, ts)
     return out
 
 
@@ -145,6 +208,12 @@ def flags(D: pd.DataFrame) -> pd.DataFrame:
     # SIZE-MATCHED complement (power control): per session x stratum (gap >= 2 s or not), a random draw of moving-spout
     # licks of the same number as that session's docked licks (seed 0; all of them if fewer)
     rng = np.random.default_rng(0)
+    if "iti_class" in D:
+        D["dockbout"] = D.iti_class == "docked"
+        D["retractbout"] = D.iti_class == "retraction"
+        D["iti_after_quiet"] = after_quiet(D.iti_class.to_numpy(), D.gap.to_numpy(float))
+        for k in ALT_ARRIVAL:
+            D[f"dockbout_{k}"] = D[f"iti_class_{k}"] == "docked"
     D["notdock_n"] = False
     q = (D.gap >= il.GAP_MAIN).to_numpy()
     for (_lab, _s), g in D.groupby([D.label, q], sort=True):
@@ -185,7 +254,7 @@ def main() -> int:
                       "docked_dur_median": (L.trial_start - L.dock).groupby(L.pos).median(),
                       "outbound_median": (L.arrival - L.trial_start).groupby(L.pos).median()})
     print("== measured cycle constants per spout (log sessions, s after the DAQ trial stop)\n" + K.round(3).to_string())
-    out, srows = [], []
+    out, srows, arr = [], [], []
     for lab in sorted(R):
         r = R[lab]
         C, src = trial_cycle(r, const)
@@ -197,7 +266,11 @@ def main() -> int:
             d_ts = float(np.median(np.abs(near - ts_log)))
         else:
             d_ts = np.nan
-        P = phases(r["df"], C) if src != "none" else r["df"].assign(phase="unknown")
+        P = phases(r["df"], C, r.get("on_all")) if src != "none" else r["df"].assign(phase="unknown", iti_class="other")
+        if r["ev"] is not None:                                     # arrival distribution (log-aligned trials)
+            Cl, _ = trial_cycle(r, None)
+            arr.append(Cl.assign(label=lab, d_dock_stop=Cl.dock - Cl.stop, d_dock_dockstart=Cl.dock - Cl.dock_start)
+                       [["label", "pos", "stop", "d_dock_stop", "d_dock_dockstart"]])
         P["src"] = src
         out.append(P)
         srows.append({"label": lab, "animal": r["df"].animal.iloc[0], "epoch": r["df"].epoch.iloc[0], "src": src,
@@ -208,6 +281,12 @@ def main() -> int:
     D.to_csv(il.OUT_W / "iti_dock_audit.csv", index=False)
     S = pd.DataFrame(srows)
     S.to_csv(il.OUT_W / "iti_dock_sessions.csv", index=False)
+    if arr:
+        AR = pd.concat(arr, ignore_index=True)
+        AR.to_csv(il.OUT_W / "iti_dock_arrival.csv", index=False)
+        q = AR.d_dock_stop.dropna()
+        print(f"== dock arrival - trial stop (log-aligned trials, n {len(q)}): median {q.median():.3f} s, "
+              f"p5 {q.quantile(0.05):.3f}, p95 {q.quantile(0.95):.3f}", flush=True)
     print("== sessions by source:\n" + S.groupby(["animal", "src"]).size().unstack(fill_value=0).to_string())
     print("   reconstructed: " + ", ".join(S[S.src != "log"].label))
     print(f"   log vs DAQ trial_start, median |diff| over sessions: {S.ts_log_vs_daq_median_abs_s.median() * 1e3:.1f} ms")
