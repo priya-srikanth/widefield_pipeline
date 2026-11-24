@@ -862,14 +862,13 @@ def plots() -> None:
 
 
 # ------------------------------------------------------------------------------------------------ main
-MOUSE = {"PS92": "#9", "PS93": "#10", "PS94": "#11", "PS95": "#12"}   # manuscript mouse numbers
 SPOUT_NAME = {"close_ipsi": "near ipsi", "close_mid": "near middle", "close_contra": "near contra",
               "far_ipsi": "far ipsi", "far_mid": "far middle", "far_contra": "far contra"}   # manuscript spout names
 
 
 def plot_cumulative(src: Path, out: Path, set_text: str) -> None:
     """CUMULATIVE first-lick curves (Priya 11-24): P(first lick by time t) = 1 - the Kaplan-Meier survival of
-    `revup_survival.csv` in ``src``, rows = spouts (canonical order), columns = mice (manuscript numbers), lines =
+    `revup_survival.csv` in ``src``, rows = spouts (canonical order), columns = mice (lab IDs PS92-PS95), lines =
     epochs; otherwise the axes of Fig R1. Written to ``out`` (+ svg twin) only; the default plots are unchanged."""
     import matplotlib
     matplotlib.use("Agg")
@@ -890,7 +889,7 @@ def plot_cumulative(src: Path, out: Path, set_text: str) -> None:
             ax.set_ylim(0, 1.02)
             ax.spines["top"].set_visible(False)
             if i == 0:
-                ax.set_title(f"mouse {MOUSE.get(a, a)}")
+                ax.set_title(a)       # lab ID (PS92-PS95): Priya 11-24, lab IDs everywhere outside the manuscript files
             if j == 0:
                 ax.set_ylabel(f"{SPOUT_NAME.get(pp, pp)}\nP(first lick by t)")
             if i == len(POS) - 1:
