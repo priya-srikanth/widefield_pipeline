@@ -114,3 +114,9 @@ Worktree `wf_ccb_overnight1123`, branch `ccb/overnight-rebuild-1123` (from 2d1d4
   working period 11 trials, run class 385, raw class 1,375 (jaw-only <-> no-response). DONE steps with old-rule jaw-only
   panels (not requeued, lead to decide): f4_restnl_maps_contact (15r supplement, 7.6 h); running f1_epoch (12s/12b stopped,
   15r supplement) and f4_restnl_maps_lp. s_classes_j3m waits on MAXRUN 3 (3 steps running).
+- 11-24 00:30 A: `s_classes_j3m` done (57 min): in-root trial_attempts on the new rule match the manuscript table exactly (0 / 57,048
+  differ; vs old: run class 385, raw class 1,375, canonical 11, attempted 0); old copies `*_jawprod.csv`. J1 running (nolick on
+  j3m code). Lane J5 (lead 23:40: family-only re-draws, j3m eed09e0f `15rs` + `restnl_maps --supplement-only`) waiting on f1_epoch /
+  f4_restnl_maps_lp. B: rev-up tables on the new rule + working period `imaging_encoding/revup_fourcam_jaw3dmouth_wp_ccB1123/`
+  (branch ccb/revup-wp-1123; reproduces S10A overnight cells); rev-up neural chain running (launch_nt `revup_j3m`, pid 43912:
+  precue_restw fixed -> revup_neural (+ restnl) -> revup_followup). Inventory of pages / decks / O2 in INCONSISTENCY_FIXES.md.
