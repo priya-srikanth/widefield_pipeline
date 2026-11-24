@@ -8,8 +8,8 @@ SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
 FIXED = ["iti_lick_timing_audit.py", "iti_dock_audit.py", "iti_lick_order.py", "lick_recovery_markers.py",
          "lick_code_subspace.py", "lick_cue_to_lick_extract.py", "lick_enl_angle_decode.py", "revup_neural.py",
          "revup_followup.py", "iti_contact_check.py", "lick_balance_contact.py", "lick_enlv_curves.py", "iti_lick_rate.py",
-         "lick_iti_prelick.py", "prelaunch_aim_tracking.py"]
-GUARDED = ["lick_enlv_extract.py", "prelick_hemisphere_tuning.py", "reembedding_test.py"]     # cam4 row ids upstream: refuse in fused mode
+         "lick_iti_prelick.py", "prelaunch_aim_tracking.py", "lick_enlv_extract.py"]
+GUARDED = ["prelick_hemisphere_tuning.py", "reembedding_test.py"]     # cam4 row ids upstream: refuse in fused mode
 
 
 @pytest.mark.parametrize("name", FIXED)

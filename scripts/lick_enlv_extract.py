@@ -62,10 +62,6 @@ W_BASE = _wm(*il.BASE_RESP)
 def one(item) -> dict:
     """(label, lick DataFrame, trial DataFrame) -> sessions/<label>.npz. Module-level for spawn."""
     from wfield_local import combined_encoding as ce
-    from wfield_local import config
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
     label, L, T = item
     f = SESS / f"{label}.npz"
     if f.exists():
@@ -79,16 +75,16 @@ def one(item) -> dict:
     Q = np.linalg.qr(ce._slow_basis(ft, ce.DRIFT_MIN_PERIOD_S))[0]
     R -= Q @ (Q.T @ R)
     R *= 1e3
-    an, date = config.animal_of(label), "2026" + label.split("_")[-1]
-    from wfield_local import session_licks as SL
-    if SL.fused_on():         # 11-24: lick_uid = a row of cam4 licks_all.csv (enl_lick_audit) cannot address the fused train
-        raise RuntimeError(f"{label}: the ENL lick list (enl_lick_audit, cam4 licks_all rows) has no lick_key; rebuild it on "
-                           "the fused four-camera train before extracting ENLv licks")
-    A = pd.read_csv(oo.session_dir(PathResolver(), oc.RUN, an, date) / "licks_all.csv",
-                    usecols=["context", "daq_on_s", "daq_peak_s"])
-    uid = L.lick_uid.to_numpy(int)
-    if not (A.context.to_numpy()[uid] == "pre_cue").all():
-        raise RuntimeError(f"{label}: lick_uid join to licks_all.csv is not pre_cue")
+    # THE session lick table (fused four-camera train when selected) and the audit's licks located BY LICK KEY (11-24;
+    # was lick_uid = a row of cam4 licks_all.csv)
+    if "lick_key" not in L:
+        raise RuntimeError(f"{label}: the ENL lick list has no lick_key (an enl_lick_audit run before 11-22); rebuild it")
+    A = il.session_lick_table(label)[["context", "daq_on_s", "daq_peak_s", "lick_key"]].reset_index(drop=True)
+    pos = pd.Series(np.arange(len(A)), index=A.lick_key.to_numpy())
+    r = pos.reindex(L.lick_key.to_numpy())
+    if r.isna().any():
+        raise RuntimeError(f"{label}: {int(r.isna().sum())} ENL licks not in the session lick table (other lick set)")
+    uid = r.to_numpy(int)
     if not np.allclose(A.daq_on_s.to_numpy(float)[uid], L.daq_on_s.to_numpy(float), atol=1e-4):
         raise RuntimeError(f"{label}: onset mismatch with the audit table")
     peak = A.daq_peak_s.to_numpy(float)[uid]
@@ -249,7 +245,8 @@ def regress_all(jobs: int) -> None:
 def extract(jobs: int) -> None:
     from wfield_local import analysis_kit as ak
     SESS.mkdir(parents=True, exist_ok=True)
-    L = pd.read_csv(il.in_path_x("enl_licks") / "enl_licks.csv.gz", usecols=["label", "lick_uid", "daq_on_s"])
+    L = pd.read_csv(il.in_path_x("enl_licks") / "enl_licks.csv.gz",
+                    usecols=lambda c: c in ("label", "lick_uid", "lick_key", "daq_on_s"))
     T = pd.read_csv(il.in_path_x("enl_licks") / "enl_trials.csv.gz", usecols=["label", "trial_id", "pos", "strobe_s", "cue_s"])
     run = set(il.run_labels())
     items = [(lab, g.reset_index(drop=True), T[T.label == lab].reset_index(drop=True))
