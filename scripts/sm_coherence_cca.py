@@ -337,7 +337,11 @@ def session_work(item, extras=False):
 
 def _meta_items(labs, fams):
     M = lih._meta()
-    Aud = pd.read_csv(ihc.IN / "iti_dock_audit.csv", usecols=["label", "t", "dock"])
+    # 11-24: the dock audit through il.dock_audit_path (a redirected run reads the rebuilt one); refuse the 11-22
+    # truncated production audit under the fused train (its rows miss ~18% of ITI licks)
+    pa = il.dock_audit_path() if ihc.IN == il.OUT else ihc.IN / "iti_dock_audit.csv"
+    il.refuse_truncated_dock_audit(pa)
+    Aud = pd.read_csv(pa, usecols=["label", "t", "dock"])
     Aud = Aud[Aud.dock]
     dk = {x: np.round(g.t.to_numpy(float), 4) for x, g in Aud.groupby("label")}
     empty = pd.DataFrame(columns=["tk", "reach_mm", "gap", "since_stop", "to_strobe"])

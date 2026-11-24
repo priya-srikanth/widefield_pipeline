@@ -227,6 +227,7 @@ def cmd_run(jobs: int) -> None:
     if dock_def not in ("phase", "class", "class_q1"):
         raise SystemExit(f"LC_DOCK_DEF={dock_def!r}: phase | class | class_q1")
     extra = {"class": ["iti_class"], "class_q1": ["iti_class", "iti_after_quiet_1s"]}.get(dock_def, [])
+    _il.refuse_truncated_dock_audit(_il.dock_audit_path())     # 11-24: never the truncated 11-22 audit (fused train)
     D = pd.read_csv(_il.dock_audit_path(), usecols=["label", "onset", "phase", "since_stop", "src", *extra])
     if dock_def == "class":
         D.loc[(D.phase == "docked") & (D.iti_class != "docked"), "phase"] = "docked_other"

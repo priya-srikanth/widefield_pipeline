@@ -199,6 +199,18 @@ def dock_audit_path() -> Path:
     return OUT / "iti_dock_audit.csv"
 
 
+def refuse_truncated_dock_audit(path: Path) -> None:
+    """REFUSE a dock audit built on the truncated 11-22 lick-order cache (exact-time join to cam4 licks_all; lane E 11-24)
+    when the fused four-camera train is the lick set: the rebuilt audits carry `iti_class` (iti_dock_audit 11-24)."""
+    from wfield_local import session_licks as SL
+    if not SL.fused_on():
+        return
+    cols = pd.read_csv(path, nrows=0).columns
+    if "iti_class" not in cols:
+        raise SystemExit(f"{path}: dock audit without iti_class = built on the truncated lick-order cache (11-22); "
+                         "use the rebuilt audit (WFIELD_ITI_PATCH_W / WFIELD_ITI_OUT_W, iti_dock_audit.py 11-24)")
+
+
 def iti_subset_keep(df: pd.DataFrame) -> np.ndarray:
     """Boolean per row of a per-lick table for ITI_SUBSET: rows of set 'iti' are kept only if flagged in
     `dock_audit_path()` (key label x k, k = the row's index within (set, label) of the frozen prediction cache);
@@ -208,6 +220,7 @@ def iti_subset_keep(df: pd.DataFrame) -> np.ndarray:
         return np.ones(len(df), bool)
     global _DOCK_AUDIT
     if _DOCK_AUDIT is None:
+        refuse_truncated_dock_audit(dock_audit_path())
         A = pd.read_csv(dock_audit_path(), usecols=["label", "k", ITI_SUBSET])
         _DOCK_AUDIT = A.set_index(["label", "k"])[ITI_SUBSET].astype(bool)
     k = df["k"] if "k" in df else df.groupby(["set", "label"]).cumcount()
@@ -229,6 +242,7 @@ def bout_subset_keep(label: str, bout_t: np.ndarray) -> np.ndarray:
         return np.ones(len(bout_t), bool)
     global _BOUT_AUDIT
     if _BOUT_AUDIT is None:
+        refuse_truncated_dock_audit(dock_audit_path())
         A = pd.read_csv(dock_audit_path(), usecols=["label", "onset", ITI_SUBSET]).dropna(subset=["onset"])
         _BOUT_AUDIT = {x: (g.sort_values("onset").onset.to_numpy(float), g.sort_values("onset")[ITI_SUBSET].to_numpy(bool))
                        for x, g in A.groupby("label")}

@@ -47,3 +47,27 @@ def test_redirected_subset_run_refuses_missing_copy(tmp_path, monkeypatch):
     q = tmp_path / "readers_dock" / "zscore_check" / il.tagged("where_preds_z.csv", il.PRED_TAG)
     q.write_text("x\n")
     assert il.pred_file("zscore_check/where_preds_z.csv") == q
+
+
+def test_truncated_dock_audit_refused_under_the_fused_train(tmp_path, monkeypatch):
+    import pytest
+
+    from wfield_local import session_licks as SL
+    old = tmp_path / "old.csv"
+    old.write_text("label,k,dock\nA,0,True\n")
+    new = tmp_path / "new.csv"
+    new.write_text("label,k,dock,iti_class\nA,0,True,docked\n")
+    monkeypatch.setattr(SL, "fused_on", lambda: True)
+    with pytest.raises(SystemExit, match="truncated"):
+        il.refuse_truncated_dock_audit(old)
+    il.refuse_truncated_dock_audit(new)
+    monkeypatch.setattr(SL, "fused_on", lambda: False)
+    il.refuse_truncated_dock_audit(old)          # cam4 lick set: the old audit is the right one
+
+
+def test_nonlinear_preds_and_sm_coherence_read_through_the_redirect():
+    root = Path(__file__).resolve().parents[1] / "scripts"
+    t = (root / "lick_nonlinear_preds.py").read_text(encoding="utf-8")
+    assert 'il.OUT / "lick_order_preds' not in t and 'in_path_x("lick_order_preds' in t
+    t = (root / "sm_coherence_cca.py").read_text(encoding="utf-8")
+    assert 'pd.read_csv(ihc.IN / "iti_dock_audit.csv"' not in t and "refuse_truncated_dock_audit" in t
