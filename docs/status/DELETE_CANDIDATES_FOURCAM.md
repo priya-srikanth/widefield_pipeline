@@ -9,6 +9,7 @@ Roots: `E` = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__
 `S` = `M:/MICROSCOPE/Priya/Widefield/manuscript_stats/c2_4cam_sync60_20261122`,
 `G` = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v37_sync60/glm_hmm`,
 `PAPER` = `M:/MICROSCOPE/Priya/stroke_orofacial_pipeline_outputs/vls_stroke_paper`.
+`RB` = `M:/MICROSCOPE/Priya/Widefield/rebuild_20261123_fourcam/LP_analysis/lp_r4_heatmap_20261013__clean_v37_sync60/imaging_encoding` (four-camera imaging root).
 
 | | path | superseded by | since |
 |---|---|---|---|
@@ -61,3 +62,5 @@ Keep (never delete): `frozen_models/` stores; raw videos / scans; LP predictions
 | [ ] | `PAPER/ccB_caption_review_2026-11-23/bylicknum/FigS_kinematics_bylicknum_v3_ccB1123.*` | v4 (text moved to the caption) | 11-23 |
 | [ ] | `PAPER/ccB_caption_review_2026-11-23/sixpos/S12D_miss_correction_mm_v2_ccB1123.*` | `..._mm_v3_ccB1123` (live S12 stats rule) | 11-23 |
 | [ ] | `PAPER/ccB_caption_review_2026-11-23/fr_fourcam/FR_aligned_maps_fourcam_ccB1123.*`, `FR_aligned_maps_fourcam_w65_ccB1123.*`, `FR_fig5_col_v26b_terms_fourcam_ccB1123.*` | the `_v2` versions | 11-23 |
+| [ ] | `RB/qc/sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70/trial_attempts{,_sessions,_gate}_jawprod.csv` (old jaw rule; copied aside by queue step `s_classes_j3m` before the in-place rebuild) | the same names without `_jawprod` (rule 3d_mouth, cap jaw table) | 11-23 |
+| [ ] | `RB/attempt_coding/<run tag>_jawprod/` (f2_ac_lp on the old jaw rule; moved aside by `f2_ac_lp_j3m` when it starts) | `RB/attempt_coding/<run tag>/` (f2_ac_lp_j3m) | 11-23 |
