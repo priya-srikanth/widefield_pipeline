@@ -51,3 +51,4 @@ Keep (never delete): `frozen_models/` stores; raw videos / scans; LP predictions
 | [ ] | `G/v1/` (sync60 run) | `G/v1_floor020` default | 11-23 |
 | [ ] | `E/manuscript_cam3on_20261123/` (empty folder) | never-started refit | 11-23 |
 | [ ] | `PAPER/ccB_caption_review_2026-11-23/thirds/S8E_daycourse_thirdsboot_v2_all8_ccB1123.*`, `..._yshared_grade_ccB1123.*` | `..._yshared_all_ccB1123` (Priya: one scale) | 11-23 |
+| [ ] | `PAPER/ccB_caption_review_2026-11-23/twotone_s8d/data/`, `twotone_s8d/run_log.txt` | `twotone_s8d/data_px/` (pixel main version) | 11-23 |
