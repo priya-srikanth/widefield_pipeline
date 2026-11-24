@@ -35,3 +35,8 @@ Roots: `E` = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__
 
 Keep (never delete): `frozen_models/` stores; raw videos / scans; LP predictions; `qc_cam3_drop_20261122/clips/`.
 | [ ] | `C:/Users/SabatiniLab/.widefield_session_cache_restnlfv1/` (Phase B RESTnl, bare env, 11-22 06:34) | `rebuild_20261123_fourcam/session_cache_restnlfv1` (built after the class rebuild and the cam1-only rule) once D5 finishes | 11-23 |
+| [ ] | `PAPER/ccB_caption_review_2026-11-23/thirds/S8E_daycourse_thirdsboot_ccB1123.*`, `S12F_daycourse_firstangle_thirdsboot_ccB1123.*`, `thirds/data_twotone/`, `thirds/data_sixpos/` | `_v2` versions (all 8 animals, any gap, within vs session-to-session) | 11-23 |
+| [ ] | `PAPER/ccB_caption_review_2026-11-23/twotone_rerun/v29dag/*_v29dag.*` (not `_v29dag2`) | `_v29dag2` († offset, corrected #6 reason) | 11-23 |
+| [ ] | `E/qc/*_precam3on.*` | cam3-on class rebuild | 11-23 |
+| [ ] | `G/v1/` (sync60 run) | `G/v1_floor020` default | 11-23 |
+| [ ] | `E/manuscript_cam3on_20261123/` (empty folder) | never-started refit | 11-23 |
