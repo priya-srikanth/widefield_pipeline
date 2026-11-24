@@ -92,6 +92,11 @@ if "LICKS_ALL" in os.environ:                    # submit-time override of the b
         os.environ["COMBINED_ENCODING_LICKS_ALL"] = v_
 if os.environ.get("TRIALS"):                     # per-trial outputs mode (combined_encoding.TRIALS_ENV; default auto)
     os.environ["COMBINED_ENCODING_TRIALS"] = os.environ["TRIALS"]
+exec_built = bundle_env.get("COMBINED_ENCODING_EXEC", "")
+if os.environ.get("EXEC"):                       # per-tag executed set (11-24: xyz2 beside polar; inputs re-derived below)
+    if exec_built not in ("polar", "xyz2") or os.environ["EXEC"] not in ("polar", "xyz2"):
+        raise SystemExit(f"EXEC={os.environ['EXEC']}: only polar <-> xyz2 re-derive (bundle built {exec_built!r})")
+    os.environ["COMBINED_ENCODING_EXEC"] = os.environ["EXEC"]
 attempts = {}
 if os.environ.get("ATTEMPTS"):                   # engagement re-derived from a shipped table (combined_encoding.ATTEMPTS_ENV)
     import hashlib
@@ -109,11 +114,14 @@ out = b / "out" / tag
                                           "fr_groups": os.environ.get("FR_GROUPS", ""),
                                           "bins_width": os.environ.get("BINS_WIDTH", ""),
                                           "licks_all": os.environ.get("COMBINED_ENCODING_LICKS_ALL", ""),
+                                          "exec": os.environ.get("EXEC", ""),
                                           **attempts, "bundle_env": bundle_env, "tag": tag}))
 if (out / "sessions" / f"{label}.json").exists():
     print("done already", label); sys.exit(0)
 from wfield_local import combined_encoding as ce
 inputs = pickle.loads((b / "inputs" / f"{label}.pkl").read_bytes())
+if os.environ.get("EXEC") and os.environ["EXEC"] != exec_built:
+    inputs["behaviour"] = ce.rederive_exec(inputs["behaviour"], os.environ["EXEC"])
 if (b / "bundle.json").exists():                 # the pickle's analysis masks == the bundle's record (11-09)
     o2_bundle.check_inputs(json.loads((b / "bundle.json").read_text()), inputs, label)
 t0 = time.time()
@@ -233,7 +241,10 @@ FULL_RUNS = (("bins_w1", "movement_first", "nokin:", "BINS=1"),
              ("fr_A", "movement_first", "fr:", "FR=master_pre_v1,FR_GROUPS=master_v1:A"),
              ("fr_B", "movement_first", "fr:", "FR=master_pre_v1,FR_GROUPS=master_v1:B"),
              ("fr_S", "movement_first", "fr:", "FR=master_pre_v1,FR_GROUPS=master_v1:S"),
-             ("fr_D", "movement_first", "fr:", "FR=master_pre_v1,FR_GROUPS=master_v1:D"))
+             ("fr_D", "movement_first", "fr:", "FR=master_pre_v1,FR_GROUPS=master_v1:D"),
+             # Priya 11-24: the target-vs-executed contest of bins_w1 (nokin:, Figs 1.x) with the per-lick executed /
+             # target terms in xyz2 (lick 3-D peak vs spout 3-D position) instead of polar; production stays polar
+             ("bins_w1_xyz2", "movement_first", "nokin:", "BINS=1,EXEC=xyz2"))
 
 
 def set_licks_all(mode: str, environ=None) -> None:
@@ -549,6 +560,8 @@ def cmd_collect(a) -> int:
         if not (isinstance(v, str) and v.startswith("@")):
             os.environ[k] = v
     _set_env(meta)
+    if meta.get("exec"):                                       # the run's own executed set (submit-time EXEC, 11-24)
+        os.environ[ce.EXEC_ENV] = meta["exec"]
     if "licks_all" in meta:                                    # the run's own LICKS_ALL (submit-time override)
         if meta["licks_all"]:
             os.environ[ce.LICKS_ALL_ENV] = meta["licks_all"]

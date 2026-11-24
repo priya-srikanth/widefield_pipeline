@@ -1033,6 +1033,31 @@ def _polar(ml, ap, down) -> list:
     return [lat_c, lat_c ** 2, np.degrees(np.arctan2(ap, down)), np.sqrt(ml ** 2 + ap ** 2 + down ** 2)]
 
 
+#: PER-TAG EXECUTED-SET OVERRIDE (Priya 11-24: the xyz2 contest as an extra O2 tag beside the polar production): the
+#: polar and xyz2 inputs differ ONLY in Behaviour.exec_amps / target_amps, both functions of the stored per-lick 3-D
+#: peaks (exec_xyz, the fused four-camera kinematics by lick_key) and spout positions (target_xyz, TARGET3D_TABLE):
+#: polar = `_polar(*exec_xyz)` / `_polar(*target_xyz)`, xyz2 = exec_xyz / [ml, ap, dv] (target_xyz holds down = -dv).
+#: Same usable licks in both (the 3-D mask is in exec_xyz). So a bundle built under one re-derives the other exactly.
+EXEC_REDERIVE = ("polar", "xyz2")
+
+
+def rederive_exec(B: Behaviour, mode: str) -> Behaviour:
+    """A copy of ``B`` with exec_amps / target_amps of executed set ``mode`` (polar | xyz2; see EXEC_REDERIVE)."""
+    import copy
+    if mode not in EXEC_REDERIVE:
+        raise ValueError(f"rederive_exec: {mode!r} not one of {EXEC_REDERIVE}")
+    if B.exec_xyz is None or B.target_xyz is None:
+        raise ValueError(f"{B.session}: no stored 3-D lick peaks / spout positions to re-derive {mode} from")
+    ex = [np.asarray(x, float) for x in B.exec_xyz]
+    tx = [np.asarray(x, float) for x in B.target_xyz]
+    B2 = copy.copy(B)
+    if mode == "xyz2":
+        B2.exec_amps, B2.target_amps = ex, [tx[0], tx[1], -tx[2]]
+    else:
+        B2.exec_amps, B2.target_amps = _polar(*ex), _polar(*tx)
+    return B2
+
+
 def _target_3d(L: pd.DataFrame, session: str) -> list:
     """xyz2: each lick's spout 3-D position (session median per position) -> [ml, ap, dv] per lick."""
     path = os.environ.get(TARGET3D_TABLE_ENV)

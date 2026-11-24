@@ -567,3 +567,19 @@ def test_xyz_traces_jaw_rest_and_tongue_dv_fill():
     F = pd.DataFrame({"trial_id": [1], "t_ms": [40.0], "tongue_ml": [1.0], "tongue_ap": [2.0], "tongue_dv": [-2.0]})
     dv = ce.tongue_3d_dv(pd.DataFrame({"trial_id": [1, 1, 1], "t_ms": [0.0, 40.0, 80.0]}), np.array([0.0, 5.0, 7.0]), F)
     assert dv[0] == 0 and dv[1] == -2.0 and np.isnan(dv[2])
+
+
+def test_rederive_exec_polar_xyz2_roundtrip():
+    """Per-tag EXEC override: xyz2 / polar amplitudes re-derived from the stored 3-D lick peaks + spout positions."""
+    import types
+    import numpy as np
+    from wfield_local import combined_encoding as ce
+    ex = [np.array([0.1, np.nan, -0.3]), np.array([0.5, np.nan, 0.2]), np.array([3.0, np.nan, 4.0])]
+    tg = [np.array([0.4, 0.4, -1.0]), np.array([0.6, 0.6, 1.5]), np.array([4.0, 4.0, 5.0])]    # down = -dv
+    B = types.SimpleNamespace(exec_xyz=ex, target_xyz=tg, exec_amps=None, target_amps=None, session="PS0_0101")
+    x = ce.rederive_exec(B, "xyz2")
+    assert all(np.array_equal(a, b, equal_nan=True) for a, b in zip(x.exec_amps, ex))
+    assert np.array_equal(x.target_amps[2], -tg[2]) and B.exec_amps is None
+    p = ce.rederive_exec(B, "polar")
+    assert all(np.array_equal(a, b, equal_nan=True) for a, b in zip(p.exec_amps, ce._polar(*ex)))
+    assert len(p.target_amps) == 4
