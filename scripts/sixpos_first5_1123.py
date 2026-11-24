@@ -347,6 +347,43 @@ def grid_figures(out: Path, C: pd.DataFrame, G: pd.DataFrame):
         finish(fig, png)
 
 
+def stage_focus(out: Path):
+    """Priya's main comparison (11-23 late): all licks vs licks 1-5, both as per-trial median -> session mean; rows
+    speed / reach (same y scale per row), stars from the grid's 180-cell families."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
+    from wfield_local import sig_marks
+    png = out / "C2_alls_vs_15_pertrialmedian_ccB1123.png"
+    if png.exists():
+        sys.exit(f"refusing to overwrite {png}")
+    G = pd.read_csv(out / "sixpos_grid_session_summary.csv", dtype={"date": str})
+    C = pd.read_csv(out / "sixpos_grid_cells.csv")
+    ep_col = {"acute": "#d62728", "subacute": "#ff7f0e", "chronic": "#1f77b4"}
+    mk = {"PS92": "o", "PS93": "s", "PS94": "^", "PS95": "D"}
+    unit = {"speed": "peak 3-D speed, onset to peak\nchange from pre (mm/s)",
+            "reach": "peak 3-D reach\nchange from pre (mm)"}
+    fig, axes = plt.subplots(2, 2, figsize=(10, 6.6), sharey="row")
+    for i, ms in enumerate(("speed", "reach")):
+        for j, (ls, t) in enumerate((("all", "all post-cue licks"), ("first5", "post-cue licks 1-5"))):
+            d = _chg(G[(G.measure == ms) & (G.lickset == ls) & (G.summary == "trialmed")], "value", _nrule(ms, ls), "n")
+            r = C[(C.measure == ms) & (C.lickset == ls) & (C.summary == "trialmed")]
+            _panel(axes[i, j], d[d.epoch.isin(EPOCHS)], r,
+                   f"{t}\n(per-trial median, then session mean)" if i == 0 else None,
+                   unit[ms] if j == 0 else None, ep_col, mk)
+    sig_marks.reserve_headroom(fig)
+    h = [Line2D([], [], ls="", marker="o", mfc="none", mec=c, label=e) for e, c in ep_col.items()]
+    h += [Line2D([], [], ls="", marker=m, mfc="none", mec="0.3", label=f"#{9 + k}") for k, m in enumerate(mk.values())]
+    fig.legend(handles=h, loc="lower center", ncol=7, fontsize=8, frameon=False)
+    fig.suptitle("Mice #9-#12, four-camera post-cue licks; change from own pre; bar = nested bootstrap mean and 95% CI "
+                 "(4,000 draws); * = 180-cell family q < 0.05 and CI excludes 0", fontsize=8)
+    fig.tight_layout(rect=(0, 0.04, 1, 0.95))
+    fig.savefig(png, dpi=200)
+    fig.savefig(png.with_suffix(".pdf"))
+    print("wrote", png)
+
+
 def _chg(S: pd.DataFrame, val: str, nmin: int | None, ncol: str) -> pd.DataFrame:
     d = S.copy()
     if nmin:
@@ -570,7 +607,7 @@ def figure(out: Path, C: pd.DataFrame, S: pd.DataFrame):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("stage", choices=["ids", "summ", "stats", "final", "grid", "all"])
+    ap.add_argument("stage", choices=["ids", "summ", "stats", "final", "grid", "focus", "all"])
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--jobs", type=int, default=4)
     a = ap.parse_args(argv)
@@ -585,6 +622,8 @@ def main(argv=None):
         stage_final(a.out)
     if a.stage == "grid":
         stage_grid(a.out)
+    if a.stage == "focus":
+        stage_focus(a.out)
 
 
 if __name__ == "__main__":

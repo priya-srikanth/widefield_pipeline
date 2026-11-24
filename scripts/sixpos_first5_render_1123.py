@@ -79,6 +79,18 @@ def main(argv=None):
             sx["pos"] = sx.position.map(M.POS3)
             draw(sx, F[F.metric == metric].copy(), col, "n_first5", ylab, stem, SUFFIX, a.dir)
 
+    # Priya's main pair (11-23 late): all licks vs licks 1-5, both per-trial median -> session mean (grid tables;
+    # every cell has n >= 20, so the renderer's n >= 20 step equals the all-lick reach rule of no minimum)
+    G = pd.read_csv(a.dir / "sixpos_grid_session_summary.csv")
+    for ls, tag, lab in (("all", "all", "all licks"), ("first5", "licks15", "licks 1-5")):
+        F = pd.read_csv(a.dir / f"c2_scalar_family_grid_{ls}_trialmed_final180_boot4000_cam3on.csv")
+        for ms, metric, ylab in (("speed", "speed_all", f"peak speed, {lab}\ntrial median (Δ mm/s)"),
+                                 ("reach", "reach_all", f"3D reach, {lab}\ntrial median (Δ mm)")):
+            sx = G[(G.measure == ms) & (G.lickset == ls) & (G.summary == "trialmed")].copy()
+            sx["pos"] = sx.position.map(M.POS3)
+            stem = f"C2_{ms}_{tag}_pertrialmedian" + ("_onsetpeak" if ms == "speed" else "")
+            draw(sx, F[F.metric == metric].copy(), "value", "n", ylab, stem, SUFFIX, a.dir)
+
 
 if __name__ == "__main__":
     main()
