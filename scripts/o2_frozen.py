@@ -49,14 +49,17 @@ PROFILE = "cohort1_rebuild_20261123_fourcam"
 INPUT_CACHE = "C:/Users/SabatiniLab/wfield_cache/input_cache_rebuild_20261104"
 #: the v36 page-lineage env (o2_partial.env_noFR) with the four-camera inputs: fused four-camera licks, no 10-23 cam4
 #: EXEC3D snapshot (it would override the fused post-cue kinematics; dropped as in G4). Gate set HERE, per bundle.
+#: Priya 11-24: every pose regressor 3-D (jaw / nose from the four-camera frames, despiked; combined_encoding.JAW_ENV).
 BASE_ENV = {"OROFACIAL_GATE": "attempted", "COMBINED_ENCODING_LICKS": "fourcam", "COMBINED_ENCODING_ONLY": "full",
-            "COMBINED_ENCODING_SUFFIX": "_gate-attempted", "COMBINED_ENCODING_TONGUE": "3d"}
+            "COMBINED_ENCODING_SUFFIX": "_gate-attempted", "COMBINED_ENCODING_TONGUE": "3d",
+            "COMBINED_ENCODING_JAW": "3d", "COMBINED_ENCODING_NOSE": "3d"}
 POP_ENV = ("COMBINED_ENCODING_LICKS_ALL", "COMBINED_ENCODING_EXEC", "COMBINED_ENCODING_TARGET3D_TABLE",
            "COMBINED_ENCODING_EXEC3D_TABLE", "COMBINED_ENCODING_FR", "COMBINED_ENCODING_FR_GROUPS",
            "COMBINED_ENCODING_BINS_CALIB", "COMBINED_ENCODING_ENL_SOURCE")
-#: the landing-zone calibration the TE / lickland designs read (`frozen_encoder.LICKLAND_CALIB`; its default is this same
-#: file under WFIELD_INPUT_CACHE, a local-only setting): named explicitly so it travels in the bundle (@tables)
-CALIB = {"FROZEN_LICKLAND_CALIB": f"{INPUT_CACHE}/pose3d_inputs/exec_bins_calib_20261023.csv"}
+#: the landing-zone calibration the TE / lickland designs read (`frozen_encoder.LICKLAND_CALIB`): the FOUR-CAMERA one
+#: (Priya OK 11-24; `scripts/exec_bins_calibration.py` on kinematics_fused_postcue, lick_key join), named explicitly
+#: so it travels in the bundle (@tables). The 10-23 cam4-era snapshot was the v36 frames' (default under the cache).
+CALIB = {"FROZEN_LICKLAND_CALIB": "C:/Users/SabatiniLab/wfield_cache/pose3d_inputs/exec_bins_calib_fourcam_20261124.csv"}
 FR_A = {"FROZEN_FR": "1", "COMBINED_ENCODING_FR": "master_pre_v1", "COMBINED_ENCODING_FR_GROUPS": "master_v1:A"}
 SPLIT, NONE = {"FROZEN_LICKS_ALL": "split"}, {"FROZEN_LICKS_ALL": "none"}
 _LS_VARIANTS = ("joint target_first exec_first no_target no_spout no_task no_movement no_lickspout no_exec_locked "
@@ -122,11 +125,18 @@ TIME = {"predict": "0-04:00:00", "svf": "0-02:00:00", "partial": "0-03:00:00"}
 ENVKEYS = ("O2F_RDIR", "O2F_IMDIR", "O2F_MASK")
 
 
+def expected_run_tag(key: str) -> str:
+    """The v36 frame's running-model tag with this bundle's 3-D jaw / nose parts (the only intended design change)."""
+    extra = "|jaw3d|nose3d" + (f"={os.environ['COMBINED_ENCODING_NOSE_FRAMES']}"
+                               if os.environ.get("COMBINED_ENCODING_NOSE_FRAMES") else "")
+    return V36_RUN_MODE[key].replace("|tongue3d", "|tongue3d" + extra)
+
+
 def is_basis(key: str) -> bool:
     return "--target" in FRAMES[key]["args"] and "basis" in FRAMES[key]["args"]
 
 
-def apply_frame_env(key: str) -> None:
+def apply_frame_env(key: str, nose_frames: str = "") -> None:
     """Desktop: the four-camera render profile, then the frame's settings (BEFORE wfield_local's env-reading modules)."""
     from wfield_local import render_profile
     for k in [k for k in os.environ if k.startswith("FROZEN_")]:
@@ -135,6 +145,8 @@ def apply_frame_env(key: str) -> None:
     for k in POP_ENV:
         os.environ.pop(k, None)
     os.environ.update({**BASE_ENV, **FRAMES[key]["env"], "WFIELD_INPUT_CACHE": INPUT_CACHE})
+    if nose_frames:                                    # a re-triangulated 3-D nose (combined_encoding.NOSE_FRAMES_ENV)
+        os.environ["COMBINED_ENCODING_NOSE_FRAMES"] = nose_frames
 
 
 def frame_out(key: str, out_root=None) -> Path:
@@ -258,10 +270,11 @@ def cmd_bundle(a) -> Path:
     from wfield_local.paths import PathResolver
     key = a.frame
     F = FRAMES[key]
+    want = expected_run_tag(key)
     if bool(a.labels) != bool(a.out_root):
         raise SystemExit("a session subset needs --out-root (a TEST bundle never writes the share frame folder) and back")
-    if fe._run_tag() != V36_RUN_MODE[key]:
-        raise SystemExit(f"{key}: this env's frozen run tag {fe._run_tag()!r} != the v36 frame's {V36_RUN_MODE[key]!r}")
+    if fe._run_tag() != want:
+        raise SystemExit(f"{key}: this env's frozen run tag {fe._run_tag()!r} != the v36 frame's + 3-D jaw / nose {want!r}")
     repo = Path(__file__).resolve().parents[1]
     dirty = op._git(repo, "status", "--porcelain", "--", "wfield_local", "configs", "scripts")
     if dirty:
@@ -650,20 +663,24 @@ def main(argv=None) -> int:
     b.add_argument("--user", required=True)
     b.add_argument("--jobs", type=int, default=3)
     b.add_argument("--out-root", default=None, help="TEST bundles only: frame folder parent instead of the share")
+    b.add_argument("--nose-frames", default="", help="session_poses run folder of a re-triangulated 3-D nose "
+                   "(COMBINED_ENCODING_NOSE_FRAMES; default the adopted run)")
     b.add_argument("labels", nargs="*", help="TEST bundles only: a session subset (default --all)")
     c = sub.add_parser("check")
     c.add_argument("--frame", required=True, choices=sorted(FRAMES))
     c.add_argument("--name", required=True)
+    c.add_argument("--nose-frames", default="", help="as the bundle's (its run.json run_tag shows it)")
     c.add_argument("--mode", required=True, choices=("predict", "svf", "partial"))
     c.add_argument("--out", required=True)
     c.add_argument("label")
     k = sub.add_parser("collect")
     k.add_argument("--frame", required=True, choices=sorted(FRAMES))
     k.add_argument("--name", required=True)
+    k.add_argument("--nose-frames", default="", help="as the bundle's (its run.json run_tag shows it)")
     k.add_argument("--mode", required=True, choices=("predict", "svf", "partial"))
     k.add_argument("--partial", action="store_true", help="collect although some sessions are missing")
     a = ap.parse_args(argv)
-    apply_frame_env(a.frame)                      # BEFORE wfield_local's env-reading modules are imported
+    apply_frame_env(a.frame, getattr(a, "nose_frames", "") or "")   # BEFORE wfield_local's env-reading modules
     if a.cmd == "bundle":
         cmd_bundle(a)
         return 0
