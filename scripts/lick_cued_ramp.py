@@ -72,9 +72,8 @@ WIDE = "cued_wide"
 # ...; 10-29), whose OUT_W is the subset's own output folder (the caches are not subset-specific)
 # (11-17: a WFIELD_ITI_OUT_W re-render without a subset reads the caches from OUT too -- they are never in a new folder)
 # (11-24 lane E: + the explicit upstream folder WFIELD_ITI_IN_W, e.g. the neural-tail run that extracted cued_wide)
-RIN = il.OUT_W if (il.OUT_W / WIDE).exists() else (
-    Path(os.environ[il.IN_W_ENV]) if os.environ.get(il.IN_W_ENV) and (Path(os.environ[il.IN_W_ENV]) / WIDE).exists()
-    else il.OUT)
+RIN = next((Path(r) for r in (il.OUT_W, os.environ.get(il.PATCH_W_ENV), os.environ.get(il.IN_W_ENV))
+            if r and (Path(r) / WIDE).exists()), il.OUT)     # OUT_W, then the patch folder, then IN_W (11-24)
 # response-size AUC windows (iti_licks.CUED_RESP_WIN / ITI_RESP_WIN; Priya 11-17): cued / cue 0..1.0 s (10-28 evening:
 # "0-1 s should be default now"), ITI 0..0.5 s (11-17: "for ITI let's use 0-0.5")
 RESP_W = il.CUED_RESP_WIN
