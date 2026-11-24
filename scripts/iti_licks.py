@@ -817,6 +817,10 @@ def resolve_cache(rel: str | Path) -> Path:
     return OUT / rel if (OUT / rel).exists() else q
 
 
+#: the per-lick caches iti_dock_where_preds.py writes a subset copy of (a redirected subset run must read the copy)
+SUBSET_COPIES = ("where_preds_z.csv", "where_angle_reach_preds.csv.gz", "where_preds.csv")
+
+
 def pred_file(rel: str) -> Path:
     """Per-lick prediction cache under OUT (relative path), named by basis + ROI version (PRED_TAG)."""
     p = Path(rel)
@@ -824,6 +828,10 @@ def pred_file(rel: str) -> Path:
         q = OUT_W / p.parent / tagged(p.name, PRED_TAG)
         if q.exists():
             return q
+        if os.environ.get("WFIELD_ITI_OUT_W") and p.name in SUBSET_COPIES:
+            # lane E 11-24: never fall back to the all-ITI cache in a redirected subset run (silent unfiltered figures)
+            raise FileNotFoundError(f"{q}: the {ITI_SUBSET} copy of {p.name} is missing -- run iti_dock_where_preds.py "
+                                    "in this WFIELD_ITI_OUT_W first")
     if os.environ.get("WFIELD_ITI_OUT_W"):     # opt-in redirect (11-23); + patch / upstream folders (11-24)
         return resolve_cache(p.parent / tagged(p.name, PRED_TAG))
     return OUT / p.parent / tagged(p.name, PRED_TAG)

@@ -34,11 +34,14 @@ MIN_N = 20          # as iti_where_decoder.decode (>= 20 licks per session)
 
 
 def _all_iti(rel) -> Path:
-    """The ALL-ITI cache this script subsets: WFIELD_ITI_IN_W/rel when that explicit upstream folder holds it (lane E
-    11-24, manuscript lineage), else the production OUT/rel (as before). Never the subset folder itself."""
+    """The ALL-ITI cache this script subsets: the first of WFIELD_ITI_PATCH_W/rel (spliced upstream, lane E 11-24) and
+    WFIELD_ITI_IN_W/rel (explicit upstream folder, manuscript lineage) that holds it, else the production OUT/rel (as
+    before). Never the subset folder itself. Same order as `iti_licks.in_path`, so the where caches and the lick_order
+    cache (`iti_lick_order.preds_path`) come from the same folder."""
     import os
-    if os.environ.get(il.IN_W_ENV) and (Path(os.environ[il.IN_W_ENV]) / rel).exists():
-        return Path(os.environ[il.IN_W_ENV]) / rel
+    for env in (il.PATCH_W_ENV, il.IN_W_ENV):
+        if os.environ.get(env) and (Path(os.environ[env]) / rel).exists():
+            return Path(os.environ[env]) / rel
     return il.OUT / rel
 
 

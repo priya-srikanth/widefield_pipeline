@@ -34,3 +34,16 @@ def test_patch_folder_wins_over_upstream_and_production(tmp_path, monkeypatch):
     (tmp_path / "prod2").mkdir()
     monkeypatch.setattr(il, "OUT", tmp_path / "prod2")
     assert il.dock_audit_path() == tmp_path / "prod2" / "iti_dock_audit.csv"
+
+
+def test_redirected_subset_run_refuses_missing_copy(tmp_path, monkeypatch):
+    import pytest
+    monkeypatch.setattr(il, "ITI_SUBSET", "dock")
+    monkeypatch.setattr(il, "OUT_W", tmp_path / "readers_dock")
+    monkeypatch.setenv("WFIELD_ITI_OUT_W", str(tmp_path / "readers_dock"))
+    with pytest.raises(FileNotFoundError, match="dock copy"):
+        il.pred_file("zscore_check/where_preds_z.csv")
+    (tmp_path / "readers_dock" / "zscore_check").mkdir(parents=True)
+    q = tmp_path / "readers_dock" / "zscore_check" / il.tagged("where_preds_z.csv", il.PRED_TAG)
+    q.write_text("x\n")
+    assert il.pred_file("zscore_check/where_preds_z.csv") == q
