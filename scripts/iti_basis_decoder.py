@@ -76,7 +76,7 @@ def features(label: str, source: str):
 
 def extract(item) -> dict:
     label, source = item
-    out = il.OUT / f"basis_{source}" / "sessions" / f"{label}.npz"
+    out = il.OUT_X / f"basis_{source}" / "sessions" / f"{label}.npz"
     if out.exists():
         if source == "svdbasis":                  # stale-read guard (11-09): the svdbasis rows use the stat mask
             mask_keys.check_npz(out)
@@ -91,14 +91,16 @@ def extract(item) -> dict:
         res[f"{st}_X"] = il._sample(R, ft, t[ok], LAGS).astype(np.float32)
         res[f"{st}_y"] = y[ok]
     out.parent.mkdir(parents=True, exist_ok=True)
-    np.savez_compressed(out, **res, **mask_keys.stamp())
+    from wfield_local import input_provenance       # the session file's lick set + this env's 3-D run (11-24)
+    np.savez_compressed(out, **res, **mask_keys.stamp(),
+                        **input_provenance.stamp_keys(str(d["lick_sig"]) if "lick_sig" in d else None))
     return {"label": label, "n_feat": R.shape[1]}
 
 
 def decode(source: str) -> pd.DataFrame:
     """Frozen decoder r per session (lags 0..0.2 averaged) and per lag; same recipe as page 3.9."""
     from wfield_local import frozen_readouts
-    sd = il.OUT / f"basis_{wd.basis_dir(source)}" / "sessions" if source not in AREAS else None
+    sd = il.OUT_X / f"basis_{wd.basis_dir(source)}" / "sessions" if source not in AREAS else None
     labels = sorted(p.stem for p in (sd or il.XOUT / il.SESS_NAME).glob("*.npz"))
     D = {}
     for x in labels:
@@ -142,7 +144,7 @@ def decode(source: str) -> pd.DataFrame:
 def summarise(sources) -> None:
     from wfield_local import analysis_kit as ak
     R = pd.concat([decode(s) for s in [*AREAS, *sources]], ignore_index=True)
-    R.to_csv(il.OUT / "basis_decoder.csv", index=False)
+    R.to_csv(il.OUT_X / "basis_decoder.csv", index=False)
     W = R[R.lag == "0-0.2"].copy()
     pre = W[W.epoch == "pre"].groupby(["source", "set", "animal"]).r.mean()
     W["r_norm"] = W.r / [pre.get((s_, t_, a_), np.nan) for s_, t_, a_ in zip(W.source, W.set, W.animal)]
@@ -160,7 +162,7 @@ def summarise(sources) -> None:
                 rows.append({"source": src, "set": st, "value": val, "epoch": ep, "delta": iv.point, "lo": iv.lo,
                              "hi": iv.hi, "pre_mean": float(np.mean([v.mean() for v in ref.values() if len(v)]))})
     T = pd.DataFrame(rows)
-    T.to_csv(il.OUT / "basis_decoder_tests.csv", index=False)
+    T.to_csv(il.OUT_X / "basis_decoder_tests.csv", index=False)
     print("\n" + T[T.value == "r"].round(3).to_string(index=False))
     srcs = [*AREAS, *sources]
     TC = R[R.lag != "0-0.2"].astype({"lag": float})
@@ -180,7 +182,7 @@ def summarise(sources) -> None:
             txt = "  ".join(f"{ep[:3]} {tt.loc[ep, 'delta'] * 100:+.0f}%{'*' if tt.loc[ep, 'lo'] > 0 or tt.loc[ep, 'hi'] < 0 else ''}"
                             for ep in EP[1:] if ep in tt.index)
             cells[(src, st)] = dict(curves=curves, sig=S, txt=txt)
-    pd.DataFrame(sig_recs).to_csv(il.OUT / "sig_bins_3_14.csv", index=False)
+    pd.DataFrame(sig_recs).to_csv(il.OUT_X / "sig_bins_3_14.csv", index=False)
     D = dict(srcs=srcs, cells=cells)
     save_fd(FIG, D)
     plot(D)
@@ -223,7 +225,7 @@ def plot(D: dict) -> None:
                  "normalized to the animal's pre (lags 0-0.2 s); * = nested-bootstrap CI excludes 0.\n" + il.SIG_NOTE,
                  fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
-    save_png_svg(fig, il.OUT / "figures" / f"{FIG}.png", dpi=110)
+    save_png_svg(fig, il.OUT_X / "figures" / f"{FIG}.png", dpi=110)
     plt.close(fig)
 
 
@@ -252,7 +254,7 @@ def main(argv=None) -> int:
     if not a.summarise:
         labels = a.labels or il.labels()
         items = [(x, s) for s in a.sources for x in labels
-                 if not (il.OUT / f"basis_{s}" / "sessions" / f"{x}.npz").exists()]
+                 if not (il.OUT_X / f"basis_{s}" / "sessions" / f"{x}.npz").exists()]
         print(f"{len(items)} session x source items", flush=True)
         _got, fail = ak.fan_sessions(items, extract, jobs=a.jobs, label="basis")
         for it, err in fail:

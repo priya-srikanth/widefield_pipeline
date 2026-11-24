@@ -76,7 +76,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-PROFILE, BLOCK = "cohort1_rebuild_20261103", "epoch_accuracy"
+PROFILE, BLOCK = os.environ.get("WF_SS_PROFILE", "cohort1_rebuild_20261103"), "epoch_accuracy"   # WF_SS_PROFILE: 11-23 four-camera root
 ALIGN, VARIANT = "lick", "lick"
 K_LIST, K_MAIN = (5, 10, 20), 10
 N_SHUF = 5

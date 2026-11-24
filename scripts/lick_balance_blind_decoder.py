@@ -238,7 +238,7 @@ def main() -> int:
     pd.set_option("display.width", 240)
     fp = il.OUT_W / "balblind_preds.csv.gz"
     if il.ITI_SUBSET:                # subset run (dock, ...; 10-29): the cached refits of the full set, ITI rows subset
-        P = pd.read_csv(fp if fp.exists() else il.OUT / "balblind_preds.csv.gz")
+        P = pd.read_csv(fp if fp.exists() else il.in_path_x("balblind_preds.csv.gz"))
         P = pd.concat([il.subset_preds(g.reset_index(drop=True), v) for v, g in P.groupby("variant", sort=False)],
                       ignore_index=True)
     elif fp.exists() and "--rerun" not in sys.argv:

@@ -30,8 +30,8 @@ FIG = "lick_cued_spout_animal_panels.png"
 def compute() -> dict:
     """Per (animal, spout): {epoch: dict(map, n, r_pre)} + the imaging grid."""
     from wfield_local import mask_keys
-    mask_keys.check_sidecar(il.OUT / "spout_pattern_sessions.pkl")   # stale-read guard (11-09)
-    SM = pickle.loads((il.OUT / "spout_pattern_sessions.pkl").read_bytes())
+    mask_keys.check_sidecar(il.in_path_x("spout_pattern_sessions.pkl"))   # stale-read guard (11-09)
+    SM = pickle.loads((il.in_path_x("spout_pattern_sessions.pkl")).read_bytes())
     panels = {}
     for a, sp in [(a, sp) for a in AN for sp in SPOUTS]:
         v = SM.get((a, sp), {})
@@ -71,7 +71,7 @@ def plot(D: dict) -> None:
                  "pixel "
                  "correlation with the animal's own pre map. ipsi (lesion) = image LEFT. PROVISIONAL", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 1 - 0.55 / fig.get_size_inches()[1]))
-    save_png_svg(fig, il.OUT / "figures" / FIG, dpi=90)
+    save_png_svg(fig, il.OUT_X / "figures" / FIG, dpi=90)
     plt.close(fig)
 
 

@@ -15,7 +15,7 @@ Differences from c2_treadmill_cue_aligned.py:
     2 measures x 3 epochs, star = q < 0.05 AND bootstrap CI excludes 0), session dots from
     treadmill_session_readouts_first95.csv;
   * panel D's epoch legend placed outside the axes (no overlap with data).
-Usage: WF_REPO=<widefield_pipeline> MC=<manuscript_code> python c2_treadmill_cue_aligned_first95.py <out_dir>
+Usage: WF_REPO=<widefield_pipeline> MC=<manuscript_code> [TREADMILL_TRIAL_GATE=<csv>] python c2_treadmill_cue_aligned_first95.py <out_dir>
 """
 import os
 import sys
@@ -46,6 +46,14 @@ prim = pd.read_csv(OUT / "treadmill_tests_primary_first95.csv")
 
 C = B.load_collected()
 T = C["trials"]
+# TRIAL GATE (CC-B 11-23, Priya: S16B on the camera WORKING PERIOD of trial_attempts, `canonical`, stop runs out):
+# TREADMILL_TRIAL_GATE=<csv: label, trial_id, gate> replaces the collector's lick span (`lick_period`); a collector
+# trial missing from the csv is out. Unset = unchanged.
+if os.environ.get("TREADMILL_TRIAL_GATE"):
+    G = pd.read_csv(os.environ["TREADMILL_TRIAL_GATE"])
+    gate = dict(zip(zip(G.label, G.trial_id.astype(int)), G.gate.astype(bool)))
+    T["lick_period"] = [gate.get((lab, int(i)), False) for lab, i in zip(T.label, T.trial_id)]
+    print("trial gate from", os.environ["TREADMILL_TRIAL_GATE"], int(T.lick_period.sum()), "of", len(T), flush=True)
 T = T[T.label.map(B.session_epoch).notna() & T.lick_period].copy()
 T["epoch"] = T.label.map(B.session_epoch)
 tgrid = np.round(np.arange(-1.0, 3.0 + 1e-9, 0.04), 3)

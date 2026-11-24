@@ -149,7 +149,7 @@ def plot(D: dict) -> None:
                  "0..0.2 s from the lick peak), / the animal's pre RMS, mean of animals; sim = noise-corrected similarity to "
                  "pre (mean of animals).\nEpoch LEVEL maps in purple-orange; the chronic - pre CHANGE map in red-blue "
                  "(same +-2.5 scale). ipsi (lesion) = image LEFT. Unscaled features. PROVISIONAL", fontsize=9)
-    save_png_svg(fig, il.OUT / "figures" / f"{FIG}.png", dpi=100, bbox_inches="tight")
+    save_png_svg(fig, il.OUT_X / "figures" / f"{FIG}.png", dpi=100, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -160,7 +160,7 @@ def main() -> int:
         plot(load_fd(FIG))
         return 0
     T, maps = compute()
-    T.to_csv(il.OUT / "spout_patterns.csv", index=False)
+    T.to_csv(il.OUT_X / "spout_patterns.csv", index=False)
     pd.set_option("display.width", 220)
     print("== per animal (rule 8): noise-corrected similarity to pre")
     print(T.pivot_table(index=["spout", "animal"], columns="epoch", values="r_disatt")[EP[1:]].reindex(POS, level=0)

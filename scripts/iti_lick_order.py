@@ -156,11 +156,8 @@ VCOL = {"landing": "0.45", "decoded": "#2c7fb8", "lfl": "#7b3294"}
 def _bout_idx(label: str, t: np.ndarray) -> np.ndarray:
     """Index of each lick (exact DAQ peak time t) within its bout of the session's licks (gap >= BOUT_GAP)."""
     from wfield_local import config
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
     an, date = config.animal_of(label), "2026" + label.split("_")[-1]
-    A = pd.read_csv(oo.session_dir(PathResolver(), oc.RUN, an, date) / "licks_all.csv", usecols=["daq_on_s", "daq_peak_s"])
+    A = __import__("wfield_local.session_licks", fromlist=["x"]).session_licks(f"{an}_{date}")[["daq_on_s", "daq_peak_s"]].copy()  # THE session lick table (fused four-camera train when selected), not cam4 licks_all (11-24)
     A = A[np.isfinite(A.daq_on_s)].sort_values("daq_on_s").reset_index(drop=True)
     on = A.daq_on_s.to_numpy(float)
     start = np.r_[True, np.diff(on) >= il.BOUT_GAP]

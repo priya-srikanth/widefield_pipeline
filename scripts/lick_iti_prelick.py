@@ -197,7 +197,7 @@ def lick_set() -> pd.DataFrame:
     Q = P[P.gap >= il.GAP_MAIN].copy()
     Q["angle"] = np.degrees(np.arcsin(np.clip(Q.side_k / Q.reach_mm, -1, 1)))
     Q["ord_c"] = np.minimum(Q.order, lo.ORDER_CAP)
-    A = pd.read_csv(il.OUT / "iti_timing_audit.csv", usecols=["label", "t", "since_stop", "to_strobe"])
+    A = pd.read_csv(il.in_path_x("iti_timing_audit.csv"), usecols=["label", "t", "since_stop", "to_strobe"])
     A = A.replace(np.inf, 1e9).drop_duplicates(["label", "t"])
     Q = Q.merge(A, on=["label", "t"], how="left")
     Q["clean"] = (Q.since_stop >= CLEAN_SINCE_STOP) & (Q.to_strobe >= TC_HI)

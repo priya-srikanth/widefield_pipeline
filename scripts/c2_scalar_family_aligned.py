@@ -86,6 +86,9 @@ PANEL = {"hit_rate": "Fig 3C C2_hit_rate", "latency_ms": "Fig 3D C2_latency_firs
          "speed_all": "Fig 3H C2_speed_all", "reach_all": "S9A C2_reach_all",
          "licks_per_resp": "S11A C2_licks_per_resp", "ili_ms": "S11B C2_ili"}
 ORDER = list(PANEL)
+#: 11-23 (Priya, prompt item 26): first-lick peak 3-D speed joins the family with ``--speed-first`` (appended LAST, so
+#: every other endpoint's draws are unchanged; its test is its own session_change_tests call)
+PANEL_EXTRA = {"speed_first": "S11 (new) C2_speed_first"}
 
 
 def _excl(lo, hi) -> bool:
@@ -140,7 +143,7 @@ def pipeline_rows(a, metric):
     return None, old, t
 
 
-def lick3d(a, col, ncol, stats_name):
+def lick3d(a, col, ncol, stats_name):  # stats_name None = no earlier panel table (new endpoint)
     S = pd.read_csv(a.lick3d, dtype={"date": str})
     S["pos"] = S.position.map(LR_POS)
     d = S[S[ncol] >= 20].copy()                      # kin_v37.c2_endpoints
@@ -148,6 +151,11 @@ def lick3d(a, col, ncol, stats_name):
     b = d[d.epoch == "pre"].groupby(["animal", "pos"]).v.mean()
     d["chg"] = d.v - [b.get((x, p), np.nan) for x, p in zip(d.animal, d.pos)]
     d = d.dropna(subset=["chg"])
+    if stats_name is None:
+        old = pd.DataFrame({"pos": pd.Series(dtype=str), "epoch": pd.Series(dtype=str),
+                            "old_star": pd.Series(dtype=float), "old_point": pd.Series(dtype=float),
+                            "old_lo": pd.Series(dtype=float), "old_hi": pd.Series(dtype=float)})
+        return _long(d, "chg"), old, old
     old = pd.read_csv(a.ms_data / stats_name)
     old = old.assign(old_star=(old.agree == "both").astype(int), old_point=old.boot_change, old_lo=old.boot_lo,
                      old_hi=old.boot_hi)
@@ -201,7 +209,8 @@ def reach_all(a):
 # ------------------------------------------------------------------------------------------------------------- main
 def build(a):
     parts, olds, raw_old = [], {}, {}
-    for name in ORDER:
+    order = ORDER + (["speed_first"] if getattr(a, "speed_first", False) else [])
+    for name in order:
         if name == "hit_rate":
             d, old, src = hit_rate(a)
         elif name in ("latency_ms", "licks_per_resp", "ili_ms"):
@@ -210,6 +219,8 @@ def build(a):
             d, old, src = lick3d(a, "reach_first", "n_first", "C2_reach_first_stats.csv")
         elif name == "speed_all":
             d, old, src = lick3d(a, "speed_all", "n_all", "C2_speed_all_stats.csv")
+        elif name == "speed_first":
+            d, old, src = lick3d(a, "speed_first", "n_first", None)
         elif name == "aim":
             d, old, src = aim(a)
         elif name == "aim_all":
@@ -237,9 +248,9 @@ def build(a):
     old = pd.concat([o.assign(metric=k) for k, o in olds.items()], ignore_index=True)
     F = F.merge(old, on=["metric", "pos", "epoch"], how="left")
     F["star_metric_rule"] = ((F.q_fdr_metric < st.ALPHA) & F.boot_sig).astype(int)
-    F["panel"] = F.metric.map(PANEL)
+    F["panel"] = F.metric.map({**PANEL, **PANEL_EXTRA})
     F["pos"] = pd.Categorical(F.pos, POS, ordered=True)
-    F["metric"] = pd.Categorical(F.metric, ORDER, ordered=True)
+    F["metric"] = pd.Categorical(F.metric, order, ordered=True)
     F = F.sort_values(["metric", "pos", "epoch"]).reset_index(drop=True)
     F["pos"], F["metric"] = F.pos.astype(str), F.metric.astype(str)
     return F, raw_old
@@ -281,6 +292,9 @@ def main(argv=None):
                     help="bootstrap draws (default: orofacial_stats.session_change_tests' default = analysis_kit.N_BOOT, 4,000 since 2026-11-23; 2000 reproduces tables written before then; same seed)"
                          ". Applies to the endpoints tested HERE; latency / licks_per_resp / ili rows are reused "
                          "from --lick-stats / --stats as written (re-run scripts/fourcam_lick_metrics.py --n-boot)")
+    ap.add_argument("--speed-first", action="store_true",
+                    help="11-23 (Priya, item 26): add first-lick peak 3-D speed (lick3d speed_first, n_first >= 20) "
+                         "to the family, appended after the other endpoints")
     ap.add_argument("--dry-run", action="store_true")
     a = ap.parse_args(argv)
     F, src = build(a)
@@ -291,6 +305,7 @@ def main(argv=None):
     col = {"q_family": "q_fdr"}
     for m, fn in (("reach_first", a.ms_data / "C2_reach_first_stats_aligned.csv"),
                   ("speed_all", a.ms_data / "C2_speed_all_stats_aligned.csv"),
+                  *((("speed_first", a.ms_data / "C2_speed_first_stats_aligned.csv"),) if a.speed_first else ()),
                   ("hit_rate", a.hit / "epoch_1bdelta_behaviour_by_position_aligned.csv"),
                   ("aim", a.aim / "aim_by_spout_tests_aligned.csv"),
                   ("aim_all", a.aim / "aim_first_vs_all_tests_aligned.csv"),

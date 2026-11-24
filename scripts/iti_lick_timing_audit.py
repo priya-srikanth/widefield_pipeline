@@ -11,7 +11,7 @@ What the code does (iti_licks.extract):
       event rule
 This script measures, per decoder ITI lick: gap to the previous lick onset (any context), time since the last
 response-window end (trial stop), time since the last cue, time to the next spout strobe (arrival) and to the next cue.
-Output <E>/iti_licks/iti_timing_audit.csv (per lick) + printed summaries by epoch.
+Output <OUT_X>/iti_timing_audit.csv (per lick) + printed summaries by epoch; NaN gaps are reported (expected 0).
 Usage: python scripts/iti_lick_timing_audit.py [--jobs 8]
 """
 from __future__ import annotations
@@ -27,27 +27,43 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
 
 
+def onsets_and_gaps(t: np.ndarray, A: pd.DataFrame, behaviour_on: np.ndarray, tol: float = 1e-6):
+    """(onset, gap) of each decoder ITI lick at peak time ``t``. ``A`` = THE session lick table (`session_licks`:
+    the fused four-camera train in fused mode; cam4 licks_all.csv otherwise), the table `iti_licks.extract` took the ITI
+    licks from; the onset is that table's row (nearest peak within ``tol`` s -- the session file stores the same
+    daq_peak_s), the previous lick = any onset of that table or of the behaviour licks (as `extract`'s bout rule, t_all).
+    Lane E 11-24 (Priya): this script joined fused-train licks to the OLD cam4 licks_all.csv by exact peak, so licks cam4
+    never saw had no onset (17.8 % NaN gaps) and four-camera-only licks were missing from the previous-lick list. Raises
+    when a decoder lick has no row in ``A`` (they come from it), so a NaN gap cannot reappear silently."""
+    A = A[np.isfinite(A.daq_peak_s.to_numpy(float))].sort_values("daq_peak_s")
+    pk = A.daq_peak_s.to_numpy(float)
+    on = A.daq_on_s.to_numpy(float)
+    j = np.clip(np.searchsorted(pk, t), 1, max(len(pk) - 1, 1)) if len(pk) > 1 else np.zeros(len(t), int)
+    if len(pk) > 1:
+        j = np.where(np.abs(pk[j - 1] - t) <= np.abs(pk[j] - t), j - 1, j)
+    hit = np.abs(pk[j] - t) <= tol if len(pk) else np.zeros(len(t), bool)
+    if not hit.all():
+        raise ValueError(f"{int((~hit).sum())} decoder ITI licks have no row in the session lick table "
+                         f"(first t {t[~hit][:3]})")
+    to = on[j]
+    on_all = np.sort(np.concatenate([on, np.asarray(behaviour_on, float)]))
+    on_all = on_all[np.isfinite(on_all)]
+    k = np.searchsorted(on_all, to - 0.05)
+    gap = to - np.where(k > 0, on_all[np.maximum(k - 1, 0)], -np.inf)
+    return to, gap
+
+
 def one(item) -> dict:
     from wfield_local import config, epochs
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
+    from wfield_local import session_licks as SL
     label = item[0]
     z = il._load(label)
     t = z["iti_t"].astype(float)
-    an, date = config.animal_of(label), "2026" + label.split("_")[-1]
-    A = pd.read_csv(oo.session_dir(PathResolver(), oc.RUN, an, date) / "licks_all.csv", usecols=["daq_on_s", "daq_peak_s"])
+    an = config.animal_of(label)
+    A = SL.session_licks(label)                            # the table the session file's ITI licks were taken from
     B = il._behaviour(label)
     T = B.trials
-    on_all = np.sort(np.concatenate([A.daq_on_s.to_numpy(float), np.asarray(B.lick_on_s, float)]))
-    on_all = on_all[np.isfinite(on_all)]
-    pk = A.daq_peak_s.to_numpy(float)
-    on = A.daq_on_s.to_numpy(float)
-    m = pd.Series(on, index=pk)
-    m = m[~m.index.duplicated()]
-    to = m.reindex(t).to_numpy(float)                      # onset of each decoder ITI lick (exact peak join)
-    k = np.searchsorted(on_all, to - 0.05)
-    gap = to - np.where(k > 0, on_all[np.maximum(k - 1, 0)], -np.inf)
+    to, gap = onsets_and_gaps(t, A, np.asarray(B.lick_on_s, float))
 
     def since(ev, x):
         ev = np.sort(ev[np.isfinite(ev)])
@@ -76,7 +92,9 @@ def main() -> int:
     for it, err in fail:
         print(f"  !! {it[0]}: {err}", flush=True)
     D = pd.concat([r["df"] for _it, r in got], ignore_index=True)
-    D.to_csv(il.OUT / "iti_timing_audit.csv", index=False)
+    D.to_csv(il.OUT_X / "iti_timing_audit.csv", index=False)
+    nan = int(D.gap.isna().sum())
+    print(f"NaN gaps: {nan} of {len(D)} ({nan / max(len(D), 1):.2%}; expected 0)", flush=True)
     D["first1"] = D.gap >= 1.0
     D["first2"] = D.gap >= 2.0
     near = (D.since_stop < 1.0) | (D.to_strobe < 1.0)

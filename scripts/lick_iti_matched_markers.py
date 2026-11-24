@@ -66,7 +66,7 @@ def _in_path(rel):
     p = _in_path0(rel)
     if p.exists() or not il.ITI_SUBSET or not str(rel).startswith(_SUBSET_SAFE):
         return p
-    q = il.OUT / rel
+    q = il.in_path_x(rel)
     return q if q.exists() else p
 
 
@@ -107,7 +107,7 @@ def iti_lick_table() -> tuple[pd.DataFrame, float]:
     P["angle"] = np.degrees(np.arcsin(np.clip(P.side_k / P.reach_mm, -1, 1)))
     sgn = float(np.sign(P[(P.set == "trial") & (P.epoch == "pre") & (P.pos == FC)].angle.mean()))   # as lrm.sessions
     I = P[P.set == "iti"].assign(sa=lambda d: sgn * d.angle).copy()
-    A = pd.read_csv(il.OUT / "iti_dock_audit.csv", usecols=["label", "k", "onset", "phase"])
+    A = pd.read_csv(il.in_path_x("iti_dock_audit.csv"), usecols=["label", "k", "onset", "phase"])
     I = I.merge(A, on=["label", "k"], how="left", validate="one_to_one")
     I["phase_raw"] = I.phase.fillna("unmatched")
     I["phase"] = I.phase_raw.map(lc.PHASE_MAP).fillna("other")

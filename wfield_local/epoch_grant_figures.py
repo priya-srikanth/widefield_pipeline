@@ -499,7 +499,7 @@ def main(argv=None) -> int:
                          "1b / 1c run here once); per-session map workers per child = WIDEFIELD_MAP_JOBS (default 2)")
     ap.add_argument("--only", nargs="+", default=None, action="extend",
                     choices=("1b", "1c", "acc", "5c", "5cr", "5r", "5rm", "5ro", "5rmo", "10e", "10cs", "12s", "12b",
-                             "13s", "14m", "15e", "15r", "mat", "scal"))
+                             "13s", "14m", "15e", "15r", "15rs", "mat", "scal"))
     ap.add_argument("--pre-from", default=None, metavar="MMDD|all",
                     help="pre-stroke baseline for THIS render block (rebuild 11-03: August-only = 0801 for the "
                          "decoders, per block, never a config default); sets WIDEFIELD_PRE_FROM, outputs tagged "
@@ -528,7 +528,7 @@ def main(argv=None) -> int:
     #: broke out of the loop immediately and produced NOTHING, with no error and no report --
     #: an empty output directory and exit 0.
     ARM_KEYS = {"acc", "5c", "5cr", "5r", "5rm", "5ro", "5rmo", "10e", "10cs", "12s", "12b", "13s", "14m", "15e",
-                "15r", "mat", "scal"}
+                "15r", "15rs", "mat", "scal"}
     arms = [a for a in ARMS if not args.arm or a[0] in set(args.arm)]
     print(f"[epoch] arms: {' '.join(a[0] for a in arms)}", flush=True)
     from wfield_local import trial_set_text
@@ -594,6 +594,15 @@ def main(argv=None) -> int:
                         _report(f"15r supplement {align}", p)
             except Exception as ex:                                    # noqa: BLE001
                 print(f"  !! 15r {align}/{variant}: {type(ex).__name__} {str(ex)[:160]}",
+                      flush=True)
+        # 15rs = ONLY the 15r supplements (period supplement + jaw-only panels; CC-B 11-23 late): re-draws the
+        # class-dependent panels after a class-rule change (jaw rule 3d_mouth) without the primary 15r maps
+        if "15rs" in want and "15r" not in want and variant == "working":
+            try:
+                for p in supplement_panels(out, align, lambda v, a=align: trial_set_text.arm_caption(a, v)):
+                    _report(f"15rs supplement {align}", p)
+            except Exception as ex:                                    # noqa: BLE001
+                print(f"  !! 15rs {align}/{variant}: {type(ex).__name__} {str(ex)[:160]}",
                       flush=True)
         if "15e" in want:
             try:

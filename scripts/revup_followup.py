@@ -102,7 +102,7 @@ def session_worker(item) -> dict:
     an, date = config.animal_of(label), "2026" + label.split("_")[-1]
     sd = oo.session_dir(rv, oc.RUN, an, date)
     # ITI bout starts per trial (revup_behaviour's rule), so a gate's rate can be summed over its own trials
-    A = pd.read_csv(sd / "licks_all.csv", usecols=["daq_on_s", "daq_peak_s"])
+    A = __import__("wfield_local.session_licks", fromlist=["x"]).session_licks(f"{an}_{date}")[["daq_on_s", "daq_peak_s"]].copy()  # THE session lick table (fused four-camera train when selected), not cam4 licks_all (11-24)
     A = A[np.isfinite(A.daq_on_s) & np.isfinite(A.daq_peak_s)]
     lk = np.sort(A.daq_on_s.to_numpy(float))
     starts = lk[(lk - np.r_[-np.inf, lk[:-1]]) >= rb.BOUT_GAP]

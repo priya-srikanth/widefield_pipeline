@@ -96,8 +96,16 @@ def encoder_run(suffix: str = "") -> Path:
     return frozen_encoder.out_root() / f"frozen_encoder_{ENCODER_TAG}{suffix}"
 
 
+#: explicit override of the TE basis run folder (lane E 11-24): a `frozen_encoder --basis-only` folder on the manuscript
+#: lineage. When set it is used as given (te_basis_spatial still refuses a missing pickle); never a silent fallback.
+TE_BASIS_ENV = "WFIELD_TE_BASIS_RUN"
+
+
 def te_basis_run() -> Path:
-    """The TE design's shared-basis encoder run (fit/spatial_<animal>.pkl): the svdbasis source of the ITI readers."""
+    """The TE design's shared-basis encoder run (fit/spatial_<animal>.pkl): the svdbasis source of the ITI readers.
+    WFIELD_TE_BASIS_RUN = an explicit folder (e.g. a `frozen_encoder --basis-only` run) overrides the default."""
+    if os.environ.get(TE_BASIS_ENV):
+        return Path(os.environ[TE_BASIS_ENV])
     from wfield_local import frozen_encoder
     return frozen_encoder.out_root() / f"frozen_encoder_{TE_ENCODER_TAG}_te_basis"
 
@@ -128,6 +136,11 @@ if ITI_SUBSET and not os.environ.get("WFIELD_ITI_OUT_W"):
 _DOCK_AUDIT = None
 
 
+#: an explicit UPSTREAM read folder for a WFIELD_ITI_OUT_W run (lane E 11-24: the docked pass on the manuscript lineage reads
+#: the neural-tail chain's all-ITI tables): in_path order = OUT_W, then WFIELD_ITI_IN_W, then the production folder.
+IN_W_ENV = "WFIELD_ITI_IN_W"
+
+
 def in_path(rel: str | Path) -> Path:
     """READ path of an upstream table / folder that writers put under OUT_W: OUT_W/rel when it exists there, else the
     default write root's copy (OUT, or OUT/itifilter_<f> under an ITI subset). Default runs (OUT_W == default) are
@@ -135,7 +148,31 @@ def in_path(rel: str | Path) -> Path:
     p = OUT_W / rel
     if p.exists() or not os.environ.get("WFIELD_ITI_OUT_W"):
         return p
+    if os.environ.get(IN_W_ENV):                 # explicit upstream folder (lane E 11-24), e.g. a neural-tail OUT_W
+        q = Path(os.environ[IN_W_ENV]) / rel
+        if q.exists():
+            return q
     return (OUT / f"itifilter_{ITI_SUBSET}" if ITI_SUBSET else OUT) / rel
+
+
+def out_x() -> Path:
+    """OPT-IN write root for the scripts that historically wrote straight to OUT (four-camera neural tail, 11-23): OUT_W
+    when WFIELD_ITI_OUT_W is set, else OUT -- byte-identical default (an ITI-subset run without the env still writes to
+    OUT, as before). Resolved at call time (follows a patched OUT / OUT_W). Read their upstream tables with `in_path_x`."""
+    return OUT_W if os.environ.get("WFIELD_ITI_OUT_W") else OUT
+
+
+def __getattr__(name: str):
+    """`il.OUT_X` = out_x() at access time (module attribute, PEP 562)."""
+    if name == "OUT_X":
+        return out_x()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def in_path_x(rel: str | Path) -> Path:
+    """READ path matching OUT_X: `in_path(rel)` under WFIELD_ITI_OUT_W (the redirected copy when it exists, else the
+    production one), else OUT/rel exactly as before."""
+    return in_path(rel) if os.environ.get("WFIELD_ITI_OUT_W") else OUT / rel
 
 
 def iti_subset_keep(df: pd.DataFrame) -> np.ndarray:
@@ -481,6 +518,7 @@ def extract(item) -> dict:
         f, cols=np.array(cols), epoch=epochs.epoch_of(label) or "", animal=an, clock_med_s=clock,
         mask_sig=_mask_sig(),                     # the brain / stat masks the ROI traces were built on (11-09)
         lick_sig=_lick_sig(),                     # the lick set + kinematics table it was built on (11-22)
+        pose3d_run=__import__("wfield_local.input_provenance", fromlist=["x"]).pose3d_run(),   # 3-D run (11-24)
         bout_peth=_sample(R, ft, to[bout], LAGS_P).astype(f16), bout_side=iti.side_ml.to_numpy(float)[bout], bout_gap=gap[bout],
         # bout_pos = the trial-WINDOW label (the UPCOMING trial for 'lead' licks) -- NOT a spout to group by; use
         # bout_prev_pos = the PREVIOUS trial's spout, the rule of iti_pos (10-28; files before then lack it:
@@ -574,7 +612,7 @@ def fr_unblanked_session(label: str) -> dict:
     from wfield_local import face_rhythm_outputs as fro
     from wfield_local.paths import PathResolver
     f = OUT_W / FRU_DIR / f"{label}.npz"
-    d = np.load(XOUT / SESS_NAME / f"{label}.npz", allow_pickle=False)     # lazy: only bout_t / first_rt are read
+    d = np.load(session_path(label), allow_pickle=False)     # lazy: only bout_t / first_rt are read
     bt = np.asarray(d["bout_t"], float)
     if f.exists():
         z = np.load(f, allow_pickle=False)
@@ -640,11 +678,13 @@ def _load(label: str, sess_dir: Path | None = None) -> dict:
     """One session extract. EVERY read is mask-checked (11-09): many readers (interhemi_crossarea, coupling_vigour_sm,
     lick_cued_ramp, ...) never call `extract`, so `check_extract_masks` alone would not stop a stale file."""
     from wfield_local import mask_keys
-    p = (sess_dir or XOUT / SESS_NAME) / f"{label}.npz"
+    p = Path(sess_dir) / f"{label}.npz" if sess_dir else session_path(label)
     z = np.load(p, allow_pickle=False)
     try:
         out = {k: z[k] for k in z.files}
         mask_keys.check_obj(out, p)
+        check_superseded_3d(label, out, p)
+        _record_input(out)
         return out
     except ValueError:
         # JUNE REFERENCE FILES written before 11-08 store epoch=None (`epochs.epoch_of` has no epoch for a session before
@@ -660,7 +700,41 @@ def _load(label: str, sess_dir: Path | None = None) -> dict:
                 a = np.array("")
             out[k] = a
         mask_keys.check_obj(out, p)
+        check_superseded_3d(label, out, p)
+        _record_input(out)
         return out
+
+
+#: SESSION-FILE OVERRIDES (lane E 11-24, Priya: re-extract PS95_0818 / 0820 from the current 3-D tables without touching
+#: production): WFIELD_ITI_SESS_W = a folder holding <SESS_NAME>/<label>.npz for the sessions rebuilt there; `_load` and
+#: every reader through `session_path` take a label's file from it when present, else the production extract.
+SESS_W_ENV = "WFIELD_ITI_SESS_W"
+#: session files built on a SUPERSEDED 3-D table version: refused on read in every process, so the old version cannot come
+#: back through any folder (11-23: PS95 0818 / 0820 cam3 re-added; the 11-22 kinematics_fused/licks.csv.gz signature)
+SUPERSEDED_3D = {"PS95_0818": "kinematics_fused:68514379:1795378063329284000",
+                 "PS95_0820": "kinematics_fused:68514379:1795378063329284000"}
+
+
+def session_path(label: str) -> Path:
+    """The session file `_load` reads: the WFIELD_ITI_SESS_W override when it holds this label, else XOUT/SESS_NAME."""
+    w = os.environ.get(SESS_W_ENV)
+    if w and (Path(w) / SESS_NAME / f"{label}.npz").exists():
+        return Path(w) / SESS_NAME / f"{label}.npz"
+    return XOUT / SESS_NAME / f"{label}.npz"
+
+
+def check_superseded_3d(label: str, out: dict, p) -> None:
+    """REFUSE a session file built on a superseded 3-D table version (`SUPERSEDED_3D`)."""
+    bad = SUPERSEDED_3D.get(str(label))
+    if bad and "lick_sig" in out and str(out["lick_sig"]).endswith(bad):
+        raise RuntimeError(f"{p}: {label} was extracted from a superseded 3-D table ({bad}); re-extract it into "
+                           f"{SESS_W_ENV} (iti_licks.extract) and point the run at that folder.")
+
+
+def _record_input(out: dict) -> None:
+    """Note the lick set / 3-D table this session file was built on (`input_provenance`; footer of every figure)."""
+    from wfield_local import input_provenance
+    input_provenance.record(str(out["lick_sig"]) if "lick_sig" in out else None)
 
 
 # ------------------------------------------------------------------------------------------------ area basis (10-27 late)
@@ -678,6 +752,10 @@ def pred_file(rel: str) -> Path:
     if ITI_SUBSET:                  # subset run: the filtered copy (iti_dock_where_preds.py) when it exists
         q = OUT_W / p.parent / tagged(p.name, PRED_TAG)
         if q.exists():
+            return q
+    if os.environ.get("WFIELD_ITI_OUT_W"):     # opt-in redirect (11-23): the redirected copy, else production when it
+        q = OUT_W / p.parent / tagged(p.name, PRED_TAG)       # exists (read), else the redirected path (a new cache)
+        if q.exists() or not (OUT / p.parent / tagged(p.name, PRED_TAG)).exists():
             return q
     return OUT / p.parent / tagged(p.name, PRED_TAG)
 
@@ -1488,7 +1566,7 @@ def plot_frozen_timecourse(FL: pd.DataFrame) -> None:
                     curves.append((ep, m.index.to_numpy(), m.to_numpy(), (m - se).to_numpy(), (m + se).to_numpy(),
                                    t[t.epoch == ep].label.nunique()))
             panels[(tg, st)] = {"sig": S, "curves": curves}
-    pd.DataFrame(sig_recs).to_csv(OUT / tagged("sig_bins_3_8.csv"), index=False)
+    pd.DataFrame(sig_recs).to_csv(out_x() / tagged("sig_bins_3_8.csv"), index=False)
     F = {"panels": panels}
     save_fd(tagged("lick_frozen_timecourse"), F)
     frozen_tc_draw(F)
@@ -1528,7 +1606,7 @@ def frozen_tc_draw(F: dict) -> None:
                  "pooled), band = SEM.\n" + SIG_NOTE, fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.91))
     with _ts("frozen"):
-        save_png_svg(fig, OUT / "figures" / tagged("lick_frozen_timecourse.png"), dpi=110)
+        save_png_svg(fig, out_x() / "figures" / tagged("lick_frozen_timecourse.png"), dpi=110)
     plt.close(fig)
 
 
@@ -1546,7 +1624,7 @@ def key_figures(D: dict, RR: pd.DataFrame, jobs: int | None = 1) -> None:
     rng = np.random.default_rng(1)
     # ---- 3.7: frozen decoder time courses + session summaries
     FL = pd.concat([frozen_decode_lags(D, "iti", jobs=jobs), frozen_decode_lags(D, "trial", jobs=jobs)])
-    FL.to_csv(OUT / tagged("decode_frozen_lags_sessions.csv"), index=False)
+    FL.to_csv(out_x() / tagged("decode_frozen_lags_sessions.csv"), index=False)
     plot_frozen_timecourse(FL)
     W = FL[(FL.lag >= 0.0) & (FL.lag <= 0.2)].groupby(["label", "animal", "epoch", "set", "target"]).r.mean().reset_index()
     tests, panels = [], {}
@@ -1558,7 +1636,7 @@ def key_figures(D: dict, RR: pd.DataFrame, jobs: int | None = 1) -> None:
             panels[(i, j)] = (st, tg, S)
             for r_ in S["tests"]:
                 tests.append({"set": st, "target": tg, **r_})
-    pd.DataFrame(tests).to_csv(OUT / tagged("decode_frozen_session_tests.csv"), index=False)
+    pd.DataFrame(tests).to_csv(out_x() / tagged("decode_frozen_session_tests.csv"), index=False)
     save_fd(tagged("lick_frozen_summary"), {"panels": panels})
     print("\n== frozen decoder (lags 0..0.2), change vs pre, session-pooled figure tests\n"
           + pd.DataFrame(tests).round(3).to_string(index=False))
@@ -1587,7 +1665,7 @@ def key_figures(D: dict, RR: pd.DataFrame, jobs: int | None = 1) -> None:
                 sig_recs += S["recs"]
             rp[(i, j)] = {"roi": roi, "norm": norm, "curves": curves, "sig": S}
     save_fd("lick_iti_ramp_sessions", {"lags": LAGS_P, "panels": rp, "rois": list(KEY_ROIS)})
-    pd.DataFrame(sig_recs).to_csv(OUT / "sig_bins_3_24.csv", index=False)
+    pd.DataFrame(sig_recs).to_csv(out_x() / "sig_bins_3_24.csv", index=False)
     ramp_auc_summary(PE)
     key_figures_plot(only=("lick_iti_ramp_sessions", "lick_frozen_summary"))
 
@@ -1650,7 +1728,7 @@ def ramp_auc_summary(PE: pd.DataFrame) -> None:
     key = list(zip(T0.roi, T0.animal))
     T0["resp_auc_n"] = T0.resp_auc / np.array([pre.resp_auc.mean().get(k, np.nan) for k in key])
     T0["build_auc_n"] = T0.build_auc / np.array([pre.resp_auc_b15.mean().get(k, np.nan) for k in key])
-    T0.to_csv(OUT / "ramp_auc_sessions.csv", index=False)
+    T0.to_csv(out_x() / "ramp_auc_sessions.csv", index=False)
     tests, sp_ = [], {}
     for j, roi in enumerate(KEY_ROIS):
         T = T0[T0.roi == roi]
@@ -1659,7 +1737,7 @@ def ramp_auc_summary(PE: pd.DataFrame) -> None:
             sp_[(i, j)] = S
             for r_ in S["tests"]:
                 tests.append({"roi": roi, **r_})
-    pd.DataFrame(tests).to_csv(OUT / "ramp_session_tests.csv", index=False)
+    pd.DataFrame(tests).to_csv(out_x() / "ramp_session_tests.csv", index=False)
     save_fd("lick_iti_ramp_summary", {"panels": sp_, "rois": list(KEY_ROIS), "spec": KEY_SPEC})
     key_figures_plot(only=("lick_iti_ramp_summary",))
     print("\n== ramp per-session tests (change vs pre)\n" + pd.DataFrame(tests).round(3).to_string(index=False))
@@ -1696,7 +1774,7 @@ def key_figures_plot(only: tuple = KEY_STEMS) -> None:
                      "95% nested-bootstrap CI (animals > sessions) excluding 0.", fontsize=9.5, wrap=True)
         fig.tight_layout(rect=(0.01, 0, 0.99, 0.9))
         with _ts("frozen"):
-            save_png_svg(fig, OUT / "figures" / tagged("lick_frozen_summary.png"), dpi=110)
+            save_png_svg(fig, out_x() / "figures" / tagged("lick_frozen_summary.png"), dpi=110)
         plt.close(fig)
     if "lick_iti_ramp_sessions" in only:
         F = load_fd("lick_iti_ramp_sessions")
@@ -1730,7 +1808,7 @@ def key_figures_plot(only: tuple = KEY_STEMS) -> None:
                      fontsize=9.5, wrap=True)
         fig.tight_layout(rect=(0, 0, 1, 0.9))
         with _ts("ramp"):
-            save_png_svg(fig, OUT / "figures" / "lick_iti_ramp_sessions.png", dpi=110)
+            save_png_svg(fig, out_x() / "figures" / "lick_iti_ramp_sessions.png", dpi=110)
         plt.close(fig)
     if "lick_iti_ramp_summary" in only:
         F = load_fd("lick_iti_ramp_summary")
@@ -1752,7 +1830,7 @@ def key_figures_plot(only: tuple = KEY_STEMS) -> None:
                      "nested-bootstrap CI (animals > sessions) excluding 0.", fontsize=9.5, wrap=True)
         fig.tight_layout(rect=(0.01, 0, 0.99, 0.93))
         with _ts("ramp"):
-            save_png_svg(fig, OUT / "figures" / "lick_iti_ramp_summary.png", dpi=110)
+            save_png_svg(fig, out_x() / "figures" / "lick_iti_ramp_summary.png", dpi=110)
         plt.close(fig)
 
 
@@ -2194,13 +2272,13 @@ def binned_figures(D: dict) -> None:
     then draw (`binned_plot` redraws them from the figdata alone)."""
     from figdata import save_fd
     B = pd.concat([binned_frozen(D, "iti"), binned_frozen(D, "trial")])
-    B.to_csv(OUT / tagged("decode_binned_sessions.csv"), index=False)
+    B.to_csv(out_x() / tagged("decode_binned_sessions.csv"), index=False)
     B["config"] = B.window + " s / " + B.bin.map("{:g}".format) + " s bins"
     # selection on PRE only: mean over animals of each animal's mean pre (LOSO) r
     pre = B[B.epoch == "pre"].groupby(["set", "features", "target", "config", "animal"]).r.mean() \
         .groupby(["set", "features", "target", "config"]).mean().rename("pre_r").reset_index()
     best = pre.loc[pre.groupby(["set", "features", "target"]).pre_r.idxmax()]
-    best.to_csv(OUT / tagged("decode_binned_selected.csv"), index=False)
+    best.to_csv(out_x() / tagged("decode_binned_selected.csv"), index=False)
     print("\n== binned decoder: configuration selected on PRE leave-one-session-out r\n" + best.round(3).to_string(index=False))
     # sweep figure: pre r and chronic normalised r per config
     norm = B.copy()
@@ -2235,7 +2313,7 @@ def binned_figures(D: dict) -> None:
         for S_ in panels[j][3]:
             for r_ in S_["tests"]:
                 tests.append({"set": st, "features": f, "config": cfg, **r_})
-    pd.DataFrame(tests).to_csv(OUT / tagged("decode_binned_tests.csv"), index=False)
+    pd.DataFrame(tests).to_csv(out_x() / tagged("decode_binned_tests.csv"), index=False)
     save_fd(tagged("lick_binned_summary"), {"panels": panels})
     binned_plot()
     print("\n== binned decoder at the selected configuration: change vs pre\n" + pd.DataFrame(tests).round(3).to_string(index=False))
@@ -2273,7 +2351,7 @@ def binned_plot() -> None:
                  fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.93))
     with _ts("frozen"):
-        save_png_svg(fig, OUT / "figures" / tagged("lick_binned_sweep.png"), dpi=110)
+        save_png_svg(fig, out_x() / "figures" / tagged("lick_binned_sweep.png"), dpi=110)
     plt.close(fig)
     F = load_fd(tagged("lick_binned_summary"))
     fig, axs = plt.subplots(2, 6, figsize=(22, 8))
@@ -2297,7 +2375,7 @@ def binned_plot() -> None:
                  "from pre (animals > sessions) excluding 0.", fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0.01, 0, 0.99, 0.91))
     with _ts("frozen"):
-        save_png_svg(fig, OUT / "figures" / tagged("lick_binned_summary.png"), dpi=110)
+        save_png_svg(fig, out_x() / "figures" / tagged("lick_binned_summary.png"), dpi=110)
     plt.close(fig)
 
 

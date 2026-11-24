@@ -24700,3 +24700,35 @@ axis: dist far_R acute (bins 51-71) GAINED (q .054 -> .039); down0 close_R acute
 ms axis: dist and down0 close_L subacute lost (q .047 / .043 -> .050 / .052). No cluster changes extent. Fig 4G dots
 (union of side0 + down0) and Fig 4H (mid0) unchanged; S11 dist panels change. Tables:
 `data_4cam_20261122/phase/*_boot4000_cam3on_perm5000.csv`; note `vls_stroke_paper/NOTE_CC_B_phase_perm5000_2026-11-23.md`.
+
+## 2026-11-23 -- Four-camera re-analysis, behavior + encoding arm: what was re-run and what moved (Priya 11-23)
+Scope / rules: inventory rows owned BE (`docs/status/FOURCAM_REANALYSIS_INVENTORY_2026-11-23.md`); Priya 11-23: "don't
+re-do any work that was done for the manuscript" (no refit of the manuscript-lineage fourcam frame; build on the 11-22
+frame), then "prioritize items needed for the MANUSCRIPT" (results-page items parked). Log:
+`docs/status/RUNNING_LIST_2026-11-23.md` (Behavior + encoding).
+- **Classes (D1 / D2) on the cam3-on 3-D.** s1 snapshot + trial_attempts rebuilt 05:00-06:53. vs `qc/*_precam3on.*`: 12
+  trials change `cls` / `cls_detail` / `working_raw`, all PS95_0820 (8 no_response -> jaw_only, 4 jaw_only ->
+  no_response); `cls_final` unchanged; no other session differs.
+- **AR-HMM (J4): re-inferred with the saved v36 fits, NO refit (Priya 11-23).** Features VERSION 4; 15.5 % of 40-ms
+  frames change state vs the v36 inference (8.5 % at the reviewed syllable-group level), even across epochs; group
+  usage moves <= 0.6 points. Report both rates on the states page.
+- **Behavior tables (C2, A1, D7, J3, J5, E3-E5)**: C2 cohort change_vs_pre stars 103 -> 102 (resp_rate far_ipsi subacute
+  lost); within_session_decline 19 -> 18 CI-excluding-0 contrasts (5 flips); states delta-vs-pre 98 -> 101; FR cue-aligned
+  stats 32 -> 30; FR lick epochs 16 -> 16; TIM: 1.4 % of trials change class. Old outputs kept (cohort tree copied to
+  `<sync60>/cohort_pre_cam3on_20261123/`; others in new folders, listed in DELETE_CANDIDATES_FOURCAM.md).
+- **G6 lick_correction neural + G7 within_lick_correction neural (WLC_LAUNCH=2v)** on the 11-22 frame, first neural run
+  on sync60: `E/iti_licks_lickcorr_fourcam_20261123/lick_correction/` (behavior tables byte-identical to the 11-23
+  `iti_licks_cam3on` run) and `E/within_lick_correction_fourcam_launch2v_neural_20261123/` (behavior summaries
+  byte-identical to `within_lick_correction_fourcam_launch2v_cam3on`; neural_gamma / neural_resp tables new). Runtimes:
+  extract 8 min, lick_correction 21 min, WLC run 116 min (pre 18.6 min, 107 sessions), summarise 85 min. Not in the paper.
+- **Neural-tail families (G8 / G9 / G10)** partly run by a helper before it was cut off (outputs under
+  `E/iti_licks_neuraltail_fourcam_20261123`; triage + star moves in `lp_stage/reanalysis_20261123/neuraltail_triage.md`).
+  Flag for Priya: recmark ITI first-after-quiet markers weaken on four-camera ITI licks (oro_bal ~ aim slope 0.82, p 0.007
+  -> 0.56, p 0.115; 53 -> 30 CI-excluding-0 slopes), while the primary recprim links hold (ITI first-after-quiet -> aim
+  log(day) 11.0 -> 6.6, p 0.001). Results-page only; parked unfinished.
+- **S16 treadmill re-run on the four-camera inputs** (Priya 11-23, manuscript item; camera working-period gate, n_boot
+  4,000). Readouts are recomputed from the 11-23 states collector (sync60, new classes, fused licks); before, the stored
+  11-20 readouts were only re-tested. Stars: primary 3 -> 3, secondary 9 -> 9 (push_control_rate subacute neither ->
+  bootstrap only), first 95 min 2 -> 3 (push cue-minus-control subacute gains its star; CI 0.0009 to 0.194, fragile).
+  Session counts are unchanged. Tables are in `vls_stroke_paper/data_4cam_20261122/treadmill/*_fourcam_20261123.csv` +
+  `README_fourcam_20261123.md`; full outputs in `manuscript_stats/c2_4cam_sync60_20261122/treadmill_fourcam_20261123/`.

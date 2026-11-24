@@ -157,9 +157,6 @@ def regress(item) -> dict:
 
     from wfield_local import combined_encoding as ce
     from wfield_local import config
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
     label, T = item
     f = SESS_REG / f"{label}.npz"
     if f.exists() and int(np.load(f)["version"]) == REG_VERSION:
@@ -167,7 +164,7 @@ def regress(item) -> dict:
         return {"label": label, "cached": True}
     R, ft, cols = _signals(label)
     an, date = config.animal_of(label), "2026" + label.split("_")[-1]
-    A = pd.read_csv(oo.session_dir(PathResolver(), oc.RUN, an, date) / "licks_all.csv", usecols=["daq_on_s"])
+    A = __import__("wfield_local.session_licks", fromlist=["x"]).session_licks(f"{an}_{date}")[["daq_on_s"]].copy()  # THE session lick table (fused four-camera train when selected), not cam4 licks_all (11-24)
     on = np.sort(A.daq_on_s.to_numpy(float)[np.isfinite(A.daq_on_s.to_numpy(float))])
     T = T[np.isfinite(T.strobe_s) & np.isfinite(T.cue_s) & (T.cue_s > T.strobe_s)].sort_values("strobe_s")
     s, c = T.strobe_s.to_numpy(float), T.cue_s.to_numpy(float)
@@ -236,7 +233,7 @@ def regress(item) -> dict:
 def regress_all(jobs: int) -> None:
     from wfield_local import analysis_kit as ak
     SESS_REG.mkdir(parents=True, exist_ok=True)
-    T = pd.read_csv(il.OUT / "enl_licks" / "enl_trials.csv.gz", usecols=["label", "trial_id", "pos", "strobe_s", "cue_s"])
+    T = pd.read_csv(il.in_path_x("enl_licks") / "enl_trials.csv.gz", usecols=["label", "trial_id", "pos", "strobe_s", "cue_s"])
     labs = sorted(p.stem for p in SESS.glob("*.npz"))
     items = [(lab, T[T.label == lab].reset_index(drop=True)) for lab in labs]
     got, fail = ak.fan_sessions(items, regress, jobs=jobs, key=lambda it: it[0], label="enlv regress")
@@ -248,8 +245,8 @@ def regress_all(jobs: int) -> None:
 def extract(jobs: int) -> None:
     from wfield_local import analysis_kit as ak
     SESS.mkdir(parents=True, exist_ok=True)
-    L = pd.read_csv(il.OUT / "enl_licks" / "enl_licks.csv.gz", usecols=["label", "lick_uid", "daq_on_s"])
-    T = pd.read_csv(il.OUT / "enl_licks" / "enl_trials.csv.gz", usecols=["label", "trial_id", "pos", "strobe_s", "cue_s"])
+    L = pd.read_csv(il.in_path_x("enl_licks") / "enl_licks.csv.gz", usecols=["label", "lick_uid", "daq_on_s"])
+    T = pd.read_csv(il.in_path_x("enl_licks") / "enl_trials.csv.gz", usecols=["label", "trial_id", "pos", "strobe_s", "cue_s"])
     run = set(il.run_labels())
     items = [(lab, g.reset_index(drop=True), T[T.label == lab].reset_index(drop=True))
              for lab, g in L.groupby("label", sort=True) if lab in run]

@@ -193,7 +193,7 @@ def plot_axis(D: dict) -> None:
                  "pattern RMS, mean of animals.\nEpoch LEVEL maps in purple-orange (orange = more activity for licks "
                  "further +); the chronic - pre CHANGE map in red-blue; one scale per row. ipsi (lesion) = image LEFT. "
                  "Unscaled features. PROVISIONAL", fontsize=9)
-    save_png_svg(fig, il.OUT / "figures" / f"lick_decoder_patterns_{ax_}.png", dpi=110, bbox_inches="tight")
+    save_png_svg(fig, il.OUT_X / "figures" / f"lick_decoder_patterns_{ax_}.png", dpi=110, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -223,7 +223,7 @@ def plot_animals(D: dict) -> None:
                     ax.set_ylabel(f"{a}\n{'ITI' if st == 'iti' else 'cued'}", fontsize=8)
     fig.suptitle("Per animal: Haufe pattern of the LATERAL lick-position decoder, refit per epoch (pre-stroke SVD basis), "
                  "/ pre RMS; sim = noise-corrected similarity to pre. ipsi = image LEFT. PROVISIONAL", fontsize=9)
-    save_png_svg(fig, il.OUT / "figures" / f"{fig_stems()['animals']}.png", dpi=100, bbox_inches="tight")
+    save_png_svg(fig, il.OUT_X / "figures" / f"{fig_stems()['animals']}.png", dpi=100, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -250,7 +250,7 @@ def main() -> int:
         plot({k: load_fd(stem) for k, stem in fig_stems().items()})
         return 0
     T, maps = compute()
-    T.to_csv(il.OUT / "decoder_patterns.csv", index=False)
+    T.to_csv(il.OUT_X / "decoder_patterns.csv", index=False)
     pd.set_option("display.width", 220)
     print("== per animal (rule 8): noise-corrected similarity of each epoch's pattern to pre (1 = same map)")
     print(T.pivot_table(index=["set", "axis", "animal"], columns="epoch", values="r_disatt")[EP[1:]].round(2).to_string())
@@ -258,7 +258,7 @@ def main() -> int:
     print(T.pivot_table(index=["set", "axis", "animal"], columns="epoch", values="rel")[EP].round(2).to_string())
     print("\n== pattern amplitude (RMS / pre RMS)")
     print(T.pivot_table(index=["set", "axis", "animal"], columns="epoch", values="amp")[EP].round(2).to_string())
-    with open(il.OUT / "decoder_patterns_maps.pkl", "wb") as fh:
+    with open(il.OUT_X / "decoder_patterns_maps.pkl", "wb") as fh:
         pickle.dump({k: v.astype(np.float32) for k, v in maps.items()}, fh, protocol=pickle.HIGHEST_PROTOCOL)
     F = figure_data(T, maps)
     for k, stem in fig_stems().items():

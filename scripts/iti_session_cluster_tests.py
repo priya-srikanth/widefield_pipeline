@@ -48,7 +48,7 @@ from iti_session_patterns import AN, POS  # noqa: E402
 
 N_PERM = 1000
 DH = 0.2            # TFCE step (z units)
-OUTD = il.OUT / "session_cluster"
+OUTD = il.OUT_X / "session_cluster"
 FAMS = {"spout_cued": FAMILIES["spout_cued"], "spout_iti": FAMILIES["spout_iti"], "position": FAMILIES["position"],
         "within_spout": FAMILIES["within_spout"]}
 FIG_NAME = {"spout_cued": "lick_cued_session_cluster_spout.png", "spout_iti": "lick_iti_session_cluster_spout.png",
@@ -343,7 +343,7 @@ def plot_maps(D: dict) -> None:
         f"contributes; null = session labels permuted within animal ({n_perm} x), max |TFCE| over cortex. DASHED = also >= 3 "
         "animals share the sign. ipsi (lesion) = image LEFT. PROVISIONAL"])
     fig.suptitle(txt, fontsize=8.5)
-    save_png_svg(fig, il.OUT / "figures" / FIG_NAME[fam], dpi=95)
+    save_png_svg(fig, il.OUT_X / "figures" / FIG_NAME[fam], dpi=95)
     plt.close(fig)
 
 
@@ -391,7 +391,7 @@ def plot_shape_d(D: dict) -> None:
                  "over all maps x epochs (bold); k/n = animals with their own p < 0.05. Canonical spout order. PROVISIONAL",
                  fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
-    save_png_svg(fig, il.OUT / "figures" / "lick_session_shape_d.png", dpi=100)
+    save_png_svg(fig, il.OUT_X / "figures" / "lick_session_shape_d.png", dpi=100)
     plt.close(fig)
 
 
@@ -430,7 +430,7 @@ def plot_shape_days(D: dict) -> None:
                      "per-spout one-vs-rest maps (canonical order);\npre sessions = vs the mean of the OTHER pre sessions; "
                      "dotted = the animal's pre mean (its noise floor). PROVISIONAL", fontsize=9.5)
         fig.tight_layout(rect=(0, 0, 1, 0.9))
-        save_png_svg(fig, il.OUT / "figures" / f"lick_{st}_session_shape_days.png", dpi=100)
+        save_png_svg(fig, il.OUT_X / "figures" / f"lick_{st}_session_shape_days.png", dpi=100)
         plt.close(fig)
 
 
@@ -478,10 +478,10 @@ def main() -> int:
         D = dict(R={k: v for k, v in R.items() if k[0] in keys}, fam=fam, keys=list(keys), ol=ol, n_perm=n_perm)
         save_fd(FIG_NAME[fam], D)
         _draw(plot_maps, D, fam)
-    D = dict(T=pd.read_csv(il.OUT / "session_pattern_maplevel.csv"))      # from iti_session_pattern_tests.py
+    D = dict(T=pd.read_csv(il.in_path_x("session_pattern_maplevel.csv")))      # from iti_session_pattern_tests.py
     save_fd("lick_session_shape_d", D)
     _draw(plot_shape_d, D, "shape_d")
-    S = pd.read_csv(il.OUT / "session_pattern_similarity.csv")
+    S = pd.read_csv(il.in_path_x("session_pattern_similarity.csv"))
     for st in ("cued", "iti"):
         D = dict(S=S, st=st)
         save_fd(f"lick_{st}_session_shape_days", D)

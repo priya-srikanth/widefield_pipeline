@@ -723,6 +723,8 @@ def main(argv=None) -> int:
     ap.add_argument("--hits-only", action="store_true", help="only trials with >= 1 contact in the window")
     ap.add_argument("--variants", default="", help=f"comma list of {','.join(VARIANTS)}: load each session ONCE and fit "
                     "every variant, each into the folder its single-variant flags would use (VARIANTS_ENV)")
+    ap.add_argument("--out-root", default=None, help="opt-in write root (11-23): <out-root>/qc/... and <out-root>/figures/ "
+                    "instead of the run's encoding tree (default unchanged)")
     ap.add_argument("labels", nargs="*")
     a = ap.parse_args(argv)
     variants = [v for v in a.variants.split(",") if v]
@@ -739,7 +741,7 @@ def main(argv=None) -> int:
     stem = ("within_spout_deviation" + (f"_{mode}" if mode else "") + ("_lick" if a.align == "lick" else "")
             + (f"_enllf{ENL_W:g}s" if a.window == "enl" else ""))
     from wfield_local import run_mode
-    qc = run_mode.encoding_out_root(a.run) / "qc"          # the run's (tagged) encoding tree, coordinator 11-04
+    qc = (Path(a.out_root) if a.out_root else run_mode.encoding_out_root(a.run)) / "qc"          # the run's (tagged) encoding tree, coordinator 11-04
     outs = ({v: qc / (stem + VARIANT_SUFFIX[v]) for v in variants} if variants else
             {None: qc / (stem + ("_contact" if a.contact else "") + ("_hits" if a.hits_only else ""))})
     writeguard.assert_writable(qc)

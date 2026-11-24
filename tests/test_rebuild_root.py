@@ -99,6 +99,19 @@ def test_rebuild_root_spec_and_inputs():
     assert any(x.endswith("qc/jaw_onsets.csv") for x in s["seed_inputs"]["orofacial"])
 
 
+def test_seed_plan_substitutes_the_adopted_run(monkeypatch, tmp_path):
+    """11-23: "{run}" in rebuild.seed_inputs is the adopted LP run (orofacial_cohort.RUN), source AND destination."""
+    from wfield_local import orofacial_cohort as oc
+    from wfield_local import rebuild_root as rr
+    monkeypatch.setenv(rr.ENV, str(tmp_path / "rb"))
+    plan = {k: (s, d) for k, s, d in rr.seed_plan()}
+    jaw = f"orofacial/{oc.RUN}/imaging_encoding/qc/jaw_onsets.csv"
+    assert jaw in plan and not any("{run}" in k for k in plan)
+    src, dst = plan[jaw]
+    assert src.as_posix().endswith(f"{oc.RUN}/imaging_encoding/qc/jaw_onsets.csv")
+    assert dst.as_posix().lower().startswith((tmp_path / "rb").as_posix().lower())
+
+
 def test_read_and_write_rules_unit(monkeypatch, tmp_path):
     """The rule functions (not the hook): session data and listed inputs read fine; default derived products do not."""
     from wfield_local import config
@@ -327,6 +340,9 @@ LITERAL = {
     # literal, writes only under vls_stroke_paper/data_4cam_20261122/s10a_jaw3dmouth_wp/
     "scripts/caption_review_1123/s10_jaw3dmouth_wp.py",
     "scripts/caption_review_1123/revup_tables_wp.py",
+    # S12 on the camera working period (CC-B overnight 11-23, item 3f): reads the rebuild root's imaging_encoding and
+    # manuscript_stats by literal, writes only NEW *_wp_ccB1123 folders (or a scratch dir) given on the command line
+    "scripts/caption_review_1123/s12_working_period_ccB1123.py",
     # six-position engagement / TIM review scripts (11-20, VLS paper engagement prompt): read the rebuild root by
     # literal, write only under vls_stroke_paper/review/ on the share
     "scripts/c2_engagement_tim/s0_camera_working.py",

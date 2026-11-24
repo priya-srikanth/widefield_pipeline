@@ -240,7 +240,7 @@ def plot_change(D: dict) -> None:
              "animal; * = BH over all maps x epochs). ipsi (lesion) = image LEFT. PROVISIONAL"]
     txt = "\n".join(textwrap.fill(q, 125) for q in paras)       # wrapped to the figure width (titles ran off the sides)
     fig.suptitle(txt, fontsize=8.5)
-    save_png_svg(fig, il.OUT / "figures" / CHANGE_FIG[fam], dpi=95)
+    save_png_svg(fig, il.OUT_X / "figures" / CHANGE_FIG[fam], dpi=95)
     plt.close(fig)
 
 
@@ -272,7 +272,7 @@ def plot_similarity(D: dict) -> None:
     fig.suptitle("NEURAL: per-session map SHAPE vs the animal's pre map over days (pre sessions vs the mean of the OTHER "
                  "pre sessions = the noise floor, blue line). Gray band = pre. PROVISIONAL", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 1 - 0.45 / fig.get_size_inches()[1]))
-    save_png_svg(fig, il.OUT / "figures" / "lick_session_pattern_similarity.png", dpi=90)
+    save_png_svg(fig, il.OUT_X / "figures" / "lick_session_pattern_similarity.png", dpi=90)
     plt.close(fig)
 
 
@@ -298,7 +298,7 @@ def plot_maplevel(D: dict) -> None:
     ax.set_title("Whole-map SHAPE change vs pre: d = 1 - r(epoch map, pre map), unit-RMS session maps;\n* = session-"
                  "label permutation within animal, cohort p, BH q 0.05; k/n = animals with own p < 0.05", fontsize=8.5)
     fig.tight_layout()
-    save_png_svg(fig, il.OUT / "figures" / "lick_session_pattern_maplevel.png", dpi=100)
+    save_png_svg(fig, il.OUT_X / "figures" / "lick_session_pattern_maplevel.png", dpi=100)
     plt.close(fig)
 
 
@@ -331,14 +331,14 @@ def main() -> int:
         print("no session maps yet (run iti_session_patterns.py)")
         return 1
     if "--reuse-maplevel" in sys.argv:                            # keep the saved whole-map permutation test
-        T = pd.read_csv(il.OUT / "session_pattern_maplevel.csv")
+        T = pd.read_csv(il.in_path_x("session_pattern_maplevel.csv"))
     else:
         T = maplevel(L)
-        T.to_csv(il.OUT / "session_pattern_maplevel.csv", index=False)
+        T.to_csv(il.OUT_X / "session_pattern_maplevel.csv", index=False)
     S = similarity(L)
-    S.to_csv(il.OUT / "session_pattern_similarity.csv", index=False)
+    S.to_csv(il.OUT_X / "session_pattern_similarity.csv", index=False)
     G = S.groupby(["map", "animal", "epoch"]).gain.mean().unstack("epoch").reindex(columns=EP)
-    G.to_csv(il.OUT / "session_pattern_gain.csv")
+    G.to_csv(il.OUT_X / "session_pattern_gain.csv")
     pd.set_option("display.width", 230)
     print("== per animal (rule 8): whole-map shape distance d and permutation p, by epoch")
     print(T[["map", "epoch", "d_mean", "p_cohort", "sig_bh", "n_sig_animals", "n_animals"]

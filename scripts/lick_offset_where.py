@@ -75,7 +75,7 @@ def sd_ref(source: str, a: str, keep) -> np.ndarray:
     if source == "areas_split":
         names = lom.feature_names("areas_split", a)
         return il.area_sd().loc[pre, names].to_numpy(float).mean(0)
-    F = pd.read_csv(il.OUT / f"basis_{'svdbasis' if source == 'svd' else 'locanmf'}" / "frame_sd.csv", index_col=0)
+    F = pd.read_csv(il.in_path_x(f"basis_{'svdbasis' if source == 'svd' else 'locanmf'}") / "frame_sd.csv", index_col=0)
     v = np.vstack([F.loc[x].dropna().to_numpy(float) for x in pre if x in F.index]).mean(0)
     return v[keep] if keep is not None else v
 
@@ -118,7 +118,7 @@ def unit_check(source: str, a: str, keep) -> float:
     if source == "areas_split":
         ref = il.area_sd().loc[x, lom.feature_names("areas_split", a)].to_numpy(float)
     else:
-        F = pd.read_csv(il.OUT / f"basis_{'svdbasis' if source == 'svd' else 'locanmf'}" / "frame_sd.csv", index_col=0)
+        F = pd.read_csv(il.in_path_x(f"basis_{'svdbasis' if source == 'svd' else 'locanmf'}") / "frame_sd.csv", index_col=0)
         ref = F.loc[x].dropna().to_numpy(float)
         ref = ref[keep] if keep is not None else ref
     return float(np.median(R.std(0) / ref))

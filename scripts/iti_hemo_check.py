@@ -66,7 +66,7 @@ from fr_musall import AN  # noqa: E402
 
 from wfield_local import mask_keys  # noqa: E402
 
-HC = il.OUT / "hemo_check"
+HC = il.OUT_X / "hemo_check"          # = il.OUT/hemo_check by default (OUT_X routing, lane E 11-24)
 # per-session caches hold ROI-mean PETHs, so they depend on the ALM / tjM1 ROI version (iti_licks.ROI_VERSION; 10-27):
 # v1 (40 / 40) stays in cache/, v2 (ALM 40 % / tjM1 50 %) goes to cache_roi2/
 _CACHE_BASE = "cache" if il.ROI_VERSION == "1" else f"cache_roi{il.ROI_VERSION}"
@@ -333,7 +333,7 @@ def summarise(labels: list[str]) -> None:
     from wfield_local.orofacial_cohort import EPOCH_LINE as colors
     from wfield_local.writeguard import assert_writable
     assert_writable(HC)
-    (il.OUT / "figures").mkdir(parents=True, exist_ok=True)
+    (il.OUT_X / "figures").mkdir(parents=True, exist_ok=True)
     pd.set_option("display.width", 250)
     pd.set_option("display.max_rows", 400)
     C = {x: dict(np.load(CACHE / f"{x}.npz", allow_pickle=False)) for x in labels if (CACHE / f"{x}.npz").exists()}
@@ -367,9 +367,9 @@ def summarise(labels: list[str]) -> None:
     key = R[R.roi.isin(il.KEY_ROIS)].groupby(["label", "animal", "epoch", "variant"]).resp.mean().reset_index()
     R = pd.concat([R, key.assign(roi="key_mean", n=np.nan)], ignore_index=True)
     # (a) reproduction against the published tables
-    pub = pd.read_csv(il.OUT / "ramp_auc_sessions.csv")
+    pub = pd.read_csv(il.in_path_x("ramp_auc_sessions.csv"))
     m = R[R.variant == "adopted"].merge(pub[["label", "roi", "resp_auc"]], on=["label", "roi"])
-    pa = pd.read_csv(il.OUT / "area_auc_sessions.csv")
+    pa = pd.read_csv(il.in_path_x("area_auc_sessions.csv"))
     m2 = R[R.variant == "adopted"].merge(pa[["label", "area", "resp"]].rename(columns={"area": "roi", "resp": "pub"}),
                                          on=["label", "roi"])
     rep = {"n_key": len(m), "max_abs_diff_key": float((m.resp - m.resp_auc).abs().max()),
@@ -539,12 +539,12 @@ def summarise(labels: list[str]) -> None:
 def _savefig(fig, name: str, dpi: int, tight_bbox: bool = False) -> None:
     import matplotlib.pyplot as plt
     if tight_bbox:
-        save_png_svg(fig, il.OUT / "figures" / name, dpi=dpi, bbox_inches="tight")
+        save_png_svg(fig, il.OUT_X / "figures" / name, dpi=dpi, bbox_inches="tight")
     else:
         _fit(fig)
-        save_png_svg(fig, il.OUT / "figures" / name, dpi=dpi)
+        save_png_svg(fig, il.OUT_X / "figures" / name, dpi=dpi)
     plt.close(fig)
-    print("wrote", il.OUT / "figures" / name)
+    print("wrote", il.OUT_X / "figures" / name)
 
 
 # Every figure = compute (tables -> figure data, incl. the boot_delta CI text) -> figdata/<figure stem>.pkl -> draw.
@@ -810,7 +810,7 @@ def main(argv=None) -> int:
     assert_writable(HC)
     labels = a.labels or il.labels()
     if a.plot_only:
-        assert_writable(il.OUT / "figures")
+        assert_writable(il.OUT_X / "figures")
         plot_only(labels)
         return 0
     CACHE.mkdir(parents=True, exist_ok=True)

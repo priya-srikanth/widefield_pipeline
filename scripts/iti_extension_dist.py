@@ -85,7 +85,7 @@ def draw(D: dict) -> None:
     fig.suptitle("BEHAVIOR: lick extension per animal x epoch (3-D, extension peak). Text = % of each epoch's licks above "
                  "the animal's pre median.", fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
-    fig.savefig(il.OUT / "figures" / f"{FIG}.png", dpi=90)
+    fig.savefig(il.OUT_X / "figures" / f"{FIG}.png", dpi=90)
     plt.close(fig)
 
 
@@ -112,7 +112,7 @@ def main() -> int:
     save_fd(FIG, D)
     draw(D)
     T = pd.DataFrame(D["rows"])
-    T.to_csv(il.OUT / "extension_thresholds.csv", index=False)
+    T.to_csv(il.OUT_X / "extension_thresholds.csv", index=False)
     pd.set_option("display.width", 200)
     print("cohort pre medians:", {k: round(v, 2) for k, v in D["cohort"].items()})
     print(T.pivot_table(index=["measure", "set", "animal"], columns="epoch",

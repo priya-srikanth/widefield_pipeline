@@ -32,7 +32,7 @@ from wfield_local import analysis_kit as ak  # noqa: E402
 AN = ["PS92", "PS93", "PS94", "PS95"]
 EPS = ["pre", "acute", "subacute", "chronic"]
 
-WOUT = il.OUT_W if il.ITI_SUBSET else il.OUT     # subset runs (dock, ...) write to their own folder (10-29)
+WOUT = il.OUT_W if il.ITI_SUBSET else il.OUT_X     # subset runs (dock, ...) write to their own folder (10-29)
 
 def epoch_compute(df: pd.DataFrame, val: str) -> dict:
     """Everything one epoch panel draws (session dots with their jitter, animal lines, mean of animals, pre SEM, the
@@ -120,7 +120,7 @@ def grid_draw(F: dict) -> None:
 
 
 def rmse() -> dict:
-    S = pd.read_csv(il.OUT / "where_rmse_split_sessions.csv")
+    S = pd.read_csv(il.in_path_x("where_rmse_split_sessions.csv"))
     rows = [(st, ax_) for st in ("iti", "trial") for ax_ in ("lat", "sag")]
     panels = []
     for i, (st, ax_) in enumerate(rows):
@@ -136,7 +136,7 @@ def rmse() -> dict:
 
 
 def f0() -> dict:
-    S = pd.read_csv(il.OUT / "f0_check.csv")
+    S = pd.read_csv(il.in_path_x("f0_check.csv"))
     panels = (("f0_470_rel", "(1) F0 470 nm, raw fluorescence (/ animal's pre mean)"),
               ("f0_415_rel", "(2) F0 415 nm (/ pre)"),
               ("resp_auc_rel", "(3) post-lick response in dF/F (/ pre)\n= what the page's response figures show"),
@@ -150,7 +150,7 @@ def f0() -> dict:
 
 
 def three_axis() -> dict:
-    S = pd.read_csv(il.OUT / "where_3axis_sessions.csv")
+    S = pd.read_csv(il.in_path_x("where_3axis_sessions.csv"))
     axes = (("lat", "LATERAL (+ = contralesional)"), ("fwd", "FORWARD (+ = further forward)"),
             ("down", "DOWN (+ = further down)"))
     P = []
@@ -170,12 +170,21 @@ def three_axis() -> dict:
 
 def _days() -> pd.DataFrame:
     from recovery_timing import series
-    return series("lick")[["label", "day"]].drop_duplicates("label")
+    try:
+        return series("lick")[["label", "day"]].drop_duplicates("label")
+    except (SystemExit, FileNotFoundError) as ex:
+        # 11-23 fallback (only where `series` refuses): the manuscript lineage has no camera-gated attempts table / no
+        # decoder_retention table; the session DAY needs neither -- the same attempts table's label -> day.
+        from wfield_local import config
+        from wfield_local import lp_licks
+        print(f"[_days] recovery_timing.series unavailable ({ex}); days from {lp_licks.attempts_path()}", flush=True)
+        T = pd.read_csv(lp_licks.attempts_path(), usecols=["label", "day"]).drop_duplicates("label")
+        return T[~T.label.map(config.early_pre)]
 
 
 def _aim() -> pd.DataFrame:
     """Per session: far-contra cued lick angle change vs the animal's pre mean (deg; the recovery-link behavior)."""
-    return pd.read_csv(il.OUT / "recovery_link_sessions_withpre_angle_z.csv")[["label", "beh"]].drop_duplicates("label")
+    return pd.read_csv(il.in_path_x("recovery_link_sessions_withpre_angle_z.csv"))[["label", "beh"]].drop_duplicates("label")
 
 
 def course(rows: list, title: str, name: str, ref_of: dict) -> dict:
@@ -418,7 +427,7 @@ def hist_draw(F: dict) -> None:
 def f0_severity() -> pd.DataFrame:
     """Does the post-lick response increase track the far-contra aim deficit? Within animal across POST sessions
     (log(day) removed from both, as 3.37), and per animal acute rise vs histology lesion burden (descriptive, n = 4)."""
-    S = pd.read_csv(il.OUT / "f0_check.csv").merge(_days(), on="label").merge(_aim(), on="label")
+    S = pd.read_csv(il.in_path_x("f0_check.csv")).merge(_days(), on="label").merge(_aim(), on="label")
     S = S[(S.epoch != "pre") & (S.day > 0)]
     rows = []
     for a, g in S.groupby("animal"):
@@ -481,7 +490,7 @@ def compute_all():
     yield error_hist(("trial",), "lick_cued_check_error_per_lick_angle", landing=True, coords=("angle",))
     yield error_hist(("iti",), "lick_iti_check_error_per_lick_xyz", coords=("lat", "fwd", "down"))
     yield error_hist(("trial",), "lick_cued_check_error_per_lick_xyz", landing=True, coords=("lat", "fwd", "down"))
-    R0 = pd.read_csv(il.OUT / "where_rmse_split_sessions.csv")
+    R0 = pd.read_csv(il.in_path_x("where_rmse_split_sessions.csv"))
     p = pd.read_csv(il.pred_file("zscore_check/where_preds_z.csv"))
     p["err"] = p.dec_lat - p.act_lat
     E0 = (p.dropna(subset=["err"]).groupby(["set", "animal", "epoch", "label"]).err
@@ -497,14 +506,14 @@ def compute_all():
                       (f"{nm} lat WIDTH (SD of error, mm)", E, "width")],
                      f"NEURAL: per-session summary of the per-lick error histograms ({nm} licks, lateral, z-scored decoder).",
                      "lick_iti_check_error" if st == "iti" else "lick_cued_check_error", {"shift": 0})
-    F = pd.read_csv(il.OUT / "f0_check.csv").merge(_aim(), on="label", how="left")
+    F = pd.read_csv(il.in_path_x("f0_check.csv")).merge(_aim(), on="label", how="left")
     yield course([("F0 470 (raw fluorescence) / pre", F, "f0_470_rel"),
                   ("post-lick response / pre: dF/F vs dF (dF = dF/F x F0)", F, "resp_auc_rel", "resp_dF_rel",
                    "dF/F (as on the page)", "dF, raw units"),
                   ("far-contra lick angle, change vs pre (deg; behavior)", F, "beh")],
                  "NEURAL / MEASUREMENT: F0 and the ITI post-lick response per session, with far-contra aim for comparison.",
                  "lick_iti_check_f0", {"f0_470_rel": 1, "resp_auc_rel": 1, "resp_dF_rel": 1, "beh": 0})
-    T = pd.read_csv(il.OUT / "where_3axis_sessions.csv")
+    T = pd.read_csv(il.in_path_x("where_3axis_sessions.csv"))
     T = T[T.set == "iti"]
     yield course([(f"ITI {ax_}: {lab}", T[T.axis == ax_], v) for ax_ in ("lat", "fwd", "down")
                   for v, lab in (("r_norm", "r / pre"), ("lfl_d", "like-for-like offset, same place (mm)"))],

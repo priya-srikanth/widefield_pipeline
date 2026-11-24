@@ -144,17 +144,13 @@ def _first_licks(label: str, B, T, cue: np.ndarray, stop: np.ndarray, t_end: flo
     """revup_neural.session_worker's first-lick rule, verbatim: in_window = first behavior lick onset in cue..stop;
     else late = first ITI video lick (licks_all.csv context iti) after stop and before the next trial's strobe; quiet =
     time since the last lick (behavior + video) before the cue; npre = licks in -2..0 s."""
-    import pandas as pd
 
     from wfield_local import config
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
     st_all = np.sort(T.strobe_s.to_numpy(float)[np.isfinite(T.strobe_s.to_numpy(float))])
     j = np.searchsorted(st_all, cue, side="right")
     nxt = np.where(j < len(st_all), st_all[np.minimum(j, len(st_all) - 1)], t_end)
     an, date = config.animal_of(label), "2026" + label.split("_")[-1]
-    A = pd.read_csv(oo.session_dir(PathResolver(), oc.RUN, an, date) / "licks_all.csv", usecols=["context", "daq_on_s"])
+    A = __import__("wfield_local.session_licks", fromlist=["x"]).session_licks(f"{an}_{date}")[["context", "daq_on_s"]].copy()  # THE session lick table (fused four-camera train when selected), not cam4 licks_all (11-24)
     bo = np.sort(np.asarray(B.lick_on_s, float)[np.isfinite(B.lick_on_s)])
     ao = np.sort(A.daq_on_s.to_numpy(float)[np.isfinite(A.daq_on_s.to_numpy(float))])
     iti_on = np.sort(A.daq_on_s.to_numpy(float)[(A.context == "iti").to_numpy() & np.isfinite(A.daq_on_s.to_numpy(float))])

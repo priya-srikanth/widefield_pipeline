@@ -7,7 +7,12 @@ Per relabel run (`frozen_relabel --tag <tag>`, trial mode: sessions/<label>.json
   trials; % worse than the true (far contra) label = 100 * (SSE_label - SSE_fC) / SSE_fC (negative = that label fits the
   class's activity BETTER than its own target); then mean over the animal's sessions, then over animals (rule 8: per-animal
   table printed first). Best label = the label with the lowest mean % (fC itself = 0).
-Classes from qc/trial_attempts.csv `cls` (hit / incomplete / jaw_only / no_try ...). The attempted-gate run (`v7g3_t3d_trial`)
+Classes (11-24, lane E; Priya 11-23 decisions 1-2): `cls` of the CAMERA-TAGGED attempts table on the new jaw rule
+(`trial_classes.jaw_call(mode="3d_mouth")`: 3-D jaw OR in-mouth lick; `qc/jaw3dmouth_ccB1123/sel-camera-.../
+trial_attempts.csv`, override --attempts / env RELABEL_ATTEMPTS_CSV), and only trials of the camera WORKING PERIOD
+(`canonical` True) are counted; trials outside it (stopped runs, early-run, after-end, unknown) are dropped, not
+"unclassified". Before 11-24 the classes came from the run's own qc/trial_attempts.csv (old jaw rule) and every relabel
+trial was counted under the DAQ-contact reference engaged gate. The attempted-gate run (`v7g3_t3d_trial`)
 has only attempted trials; the reference-gate run (`v7g3_t3d_trial_refgate`) has all engaged trials but refits its joint pre
 fit on the reference gate -- compare classes WITHIN a run, not across runs.
 
@@ -19,6 +24,7 @@ from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin
 
 import argparse
 import glob
+import os
 import json
 import sys
 from pathlib import Path
@@ -28,7 +34,12 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from fr_musall import E  # noqa: E402
-from wfield_local import lp_licks as _lp_licks  # noqa: E402  (coordinator 11-04: the run's attempts table)
+
+
+def default_attempts() -> Path:
+    """The camera-tagged attempts table on the 3d_mouth jaw rule of THIS run (lane E 11-24)."""
+    q = E / "qc" / "jaw3dmouth_ccB1123"
+    return q / "sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk" / "trial_attempts.csv"
 
 SP = ("close_ipsi", "close_mid", "close_contra", "far_ipsi", "far_mid", "far_contra")
 AB = dict(zip(SP, ("cI", "cM", "cC", "fI", "fM", "fC")))
@@ -40,9 +51,12 @@ def main(argv=None) -> int:
     ap.add_argument("--tag", required=True)
     ap.add_argument("--window", default="cue", choices=("cue", "lick"))
     ap.add_argument("--target", default="far_contra", choices=SP)
+    ap.add_argument("--attempts", default=os.environ.get("RELABEL_ATTEMPTS_CSV") or str(default_attempts()),
+                    help="camera-tagged attempts table (classes + canonical working period)")
     a = ap.parse_args(argv)
     run = E / f"frozen_relabel_{a.tag}"
-    att = pd.read_csv(_lp_licks.attempts_path(), usecols=["label", "trial_id", "cls"])
+    att = pd.read_csv(a.attempts, usecols=["label", "trial_id", "cls", "canonical"])
+    att = att[att.canonical.astype(str).str.lower().isin(["true", "1", "1.0"])].drop(columns="canonical")
     rows = []
     for f in sorted(glob.glob(str(run / "sessions" / "*.json"))):
         m = json.loads(Path(f).read_text())
@@ -51,8 +65,7 @@ def main(argv=None) -> int:
                 continue
             rows.append({"label": m["label"], "animal": m["animal"], "epoch": m["epoch"], "trial_id": int(tid),
                          **{k: float(v[k]) for k in SP}})
-    T = pd.DataFrame(rows).merge(att, on=["label", "trial_id"], how="left")
-    T["cls"] = T.cls.fillna("unclassified")
+    T = pd.DataFrame(rows).merge(att, on=["label", "trial_id"], how="inner")     # working period only
     S = T.groupby(["animal", "epoch", "cls", "label"])[list(SP)].sum()
     S["n"] = T.groupby(["animal", "epoch", "cls", "label"]).size()
     P = S[list(SP)].sub(S[a.target], axis=0).div(S[a.target], axis=0) * 100.0
@@ -84,7 +97,8 @@ def main(argv=None) -> int:
     return 0
 
 
-CLS = [("hit", "hit"), ("incomplete", "incomplete (attempt, no contact)"), ("jaw_only", "jaw only"), ("no_try", "no attempt")]
+CLS = [("hit", "hit"), ("incomplete", "incomplete (attempt, no contact)"), ("jaw_only", "jaw only (3-D jaw, no lick)"),
+       ("no_try", "no response")]
 
 
 def figure(M: pd.DataFrame, path: Path, a) -> None:
@@ -110,7 +124,8 @@ def figure(M: pd.DataFrame, path: Path, a) -> None:
     cb = fig.colorbar(im, ax=axs, shrink=0.85)
     cb.set_label(f"% SSE worse than the true label ({AB[a.target]})\nred = that label fits BETTER than the target; blue = target fits better", fontsize=8)
     fig.suptitle(f"Frozen encoder relabel, {a.target.replace('_', ' ')} trials by attempt class ({a.window} window, "
-                 f"session-summed SSE, mean of animals; run {a.tag})", fontsize=10)
+                 f"session-summed SSE, mean of animals; run {a.tag}; camera working period, jaw rule 3d_mouth)",
+                 fontsize=10)
     save_png_svg(fig, path, dpi=130)
     plt.close(fig)
 

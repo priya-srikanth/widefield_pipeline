@@ -67,7 +67,7 @@ ROWS = (("se", "miss_med", "closest approach to spout (mm)"),
 JUNE_X = -22.0      # June pre sessions (days ~-75 .. -70) are drawn in a compressed segment here, labelled "June"
 
 
-def session_row(L: pd.DataFrame, J: pd.DataFrame) -> dict:
+def session_row(L: pd.DataFrame, J: pd.DataFrame, stat: str = "median") -> dict:
     """The per-session medians of ONE session's licks ``L`` and jaw trials ``J`` -- the same quantities and names as
     `pose3d_kinematics._session_result` (its lines from ``jm = J.groupby...`` to ``open_max_mm``; mirrored here, not
     edited there, because any edit to pose3d_kinematics invalidates every cached kinematics session -- fold the two into
@@ -84,13 +84,13 @@ def session_row(L: pd.DataFrame, J: pd.DataFrame) -> dict:
     for p, g in L.groupby("position"):
         for m in LICK_MEASURES:
             if m in g:
-                row[f"{m}|{p}"] = float(g[m].median())
+                row[f"{m}|{p}"] = float(g[m].median() if stat == "median" else g[m].mean())   # 11-23 "mean" option
     for p, g in J.groupby("position"):
         row[f"open_max_mm|{p}"] = float(g.open_max_mm.median())
     return row
 
 
-def gated_sessions(L: pd.DataFrame, J: pd.DataFrame) -> pd.DataFrame:
+def gated_sessions(L: pd.DataFrame, J: pd.DataFrame, stat: str = "median") -> pd.DataFrame:
     """kinematics/sessions.csv re-made over the camera working period: ``L`` / ``J`` = the kinematics licks / jaw trials
     (session, animal, date, epoch, position, trial_id, ...) through `trial_classes.gate_kin_licks`, then `session_row`
     per session. A session with no camera classes has no rows left, so it is absent."""
@@ -101,7 +101,7 @@ def gated_sessions(L: pd.DataFrame, J: pd.DataFrame) -> pd.DataFrame:
         ls, js = L[L.session == s], J[J.session == s]
         first = (ls if len(ls) else js).iloc[0]
         rows.append({"session": s, "animal": first.animal, "date": str(first.date), "epoch": first.epoch,
-                     **session_row(ls, js)})
+                     **session_row(ls, js, stat)})
     return pd.DataFrame(rows)
 
 

@@ -36,7 +36,7 @@ def main() -> int:
     ap.add_argument("--jobs", type=int, default=8)
     a = ap.parse_args()
     for source in a.sources:
-        d = il.OUT / f"basis_{source}"
+        d = il.OUT_X / f"basis_{source}"
         labels = sorted(p.stem for p in (d / "sessions").glob("*.npz"))
         res, fails = ak.fan_sessions([(x, source) for x in labels], frame_sd, jobs=a.jobs, label=f"frame SD {source}")
         if fails:

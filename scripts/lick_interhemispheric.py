@@ -448,8 +448,8 @@ def _set_arrays(label: str, meta: pd.DataFrame) -> dict:
     out = {}
     z = il._load(label)
     cols = [str(c) for c in z["cols"]]
-    fl = np.load(IN / "firstlick_full" / f"{label}.npz", allow_pickle=False)
-    mask_keys.check_obj(fl, IN / "firstlick_full" / f"{label}.npz")   # stale-read guard (11-09)
+    fl = np.load(il.in_path_x("firstlick_full") / f"{label}.npz", allow_pickle=False)
+    mask_keys.check_obj(fl, il.in_path_x("firstlick_full") / f"{label}.npz")   # stale-read guard (11-09)
     ang = _angle(fl["side_ml"], fl["reach_mm"])
     ok = np.isfinite(ang)
     out["cued"] = (fl["X"][ok], fl["pos"].astype(str)[ok], ang[ok], [str(c) for c in fl["cols"]])
@@ -523,9 +523,9 @@ def _fz(v: np.ndarray) -> float:
 
 def _meta() -> dict:
     """Per label: ITI lick table keyed on rounded t (reach from covref, gap / far1 times from the timing audit)."""
-    C = pd.read_csv(IN / "covref_covariates.csv.gz", usecols=["set", "label", "t", "reach_mm"])
+    C = pd.read_csv(il.in_path_x("covref_covariates.csv.gz"), usecols=["set", "label", "t", "reach_mm"])
     C = C[C.set == "iti"].drop(columns="set")
-    A = pd.read_csv(IN / "iti_timing_audit.csv", usecols=["label", "t", "gap", "since_stop", "to_strobe"])
+    A = pd.read_csv(il.in_path_x("iti_timing_audit.csv"), usecols=["label", "t", "gap", "since_stop", "to_strobe"])
     for d in (C, A):
         d["tk"] = np.round(d.t.astype(float), 4)
     M = C.drop(columns="t").merge(A.drop(columns="t"), on=["label", "tk"], how="outer")
@@ -612,8 +612,8 @@ def recovery(SS: pd.DataFrame) -> None:
 
 
 def _recovery_table(SS: pd.DataFrame) -> pd.DataFrame:
-    R = pd.read_csv(IN / "recmark_sessions.csv", usecols=["label", "day", "aim"]).drop_duplicates("label")
-    B = pd.read_csv(IN / "balmatch_sessions.csv")
+    R = pd.read_csv(il.in_path_x("recmark_sessions.csv"), usecols=["label", "day", "aim"]).drop_duplicates("label")
+    B = pd.read_csv(il.in_path_x("balmatch_sessions.csv"))
     B = B[B.set == "trial"][["label", "bal_spout"]].rename(columns={"bal_spout": "share"})
     X = SS[SS.epoch != "pre"].merge(R, on="label", how="left").merge(B, on="label", how="left")
     X = X[X.day > 0]

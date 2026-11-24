@@ -68,7 +68,7 @@ def main() -> int:
                     row[f"r_{nm}"] = float(np.corrcoef(pr[mk], y[mk])[0, 1]) if mk.sum() >= MIN_N else np.nan
                 out.append(row)
     R = pd.DataFrame(out)
-    R.to_csv(il.OUT / "contact_check.csv", index=False)
+    R.to_csv(il.OUT_X / "contact_check.csv", index=False)
     pd.set_option("display.width", 200)
     print("== matched share (licks found in licks_all by exact peak time):", R.share_matched.describe().round(3).to_dict())
     for st in ("iti", "trial"):

@@ -454,6 +454,13 @@ def stamp(fig, text: str | None = None, *, below: bool = False):
         import warnings
         warnings.warn(f"[trial set] no caption ({type(ex).__name__}: {ex})", RuntimeWarning, stacklevel=2)
         return None
+    try:                                     # the lick set / 3-D table the inputs were built on, as READ (11-24)
+        from wfield_local import input_provenance
+        prov = input_provenance.footer_text()
+    except Exception:                                                  # noqa: BLE001
+        prov = ""
+    if prov:
+        txt = txt + chr(10) + prov if txt else prov
     if not txt:
         return None
     fig = getattr(fig, "figure", fig) if not hasattr(fig, "texts") else fig

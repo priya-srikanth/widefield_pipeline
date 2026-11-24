@@ -57,7 +57,9 @@ LP_ENV = "R15F_LP_SET"
 #: "c1all" (11-17 night, coordinator / lick-source audit) = cam4 + the cam1-only, non-droplet events of cam1 events_all.csv
 #: (the WHOLE trial windows; `restnl_licks.extend`, the RESTnlc1 mask). "cam4cam1" added only POST-CUE cam1 events
 #: (`lp_lick_times` reads events.csv), so it is NOT the cam4 + cam1 rest version; kept as run, not re-used.
-LP_SETS = ("cam4", "cam4cam1", "c1all")
+#: "fused" (11-23, four-camera imaging root) = every lick of the fused four-camera train (`restnl_licks.fused_onsets`;
+#: Priya 11-21 Q1 = (b): the fused train defines the lick set of the lick-free windows), = `restnl_mask` under a fused set.
+LP_SETS = ("cam4", "cam4cam1", "c1all", "fused")
 
 
 def lp_set() -> str:
@@ -75,6 +77,11 @@ def _mode():
                 "RESTnlc1 rest (restdock05: docked, not running; minus every DAQ lick, every cam4 LP lick and every "
                 "cam1-only LP lick of the whole trial windows (droplets and far-from-mouth labels removed), -0.5 s / +2.0 s) between two camera "
                 "working trials at the same position")
+    if lp_set() == "fused":
+        from wfield_local import restnl_licks as _rl
+        return (f"{_rl.FUSED_CACHE_TAG}wk", "rest15f_restnlf_20261123",
+                "RESTnlf rest (restdock05: docked, not running; minus every DAQ lick and every lick of the fused "
+                "four-camera video train, -0.5 s / +2.0 s) between two camera working trials at the same position")
     if lp_set() == "cam4cam1":
         return ("restnlc1wk", "rest15f_restnl_20261117",
                 "RESTnl rest (restdock05: docked, not running; minus every DAQ lick and every cam4 + cam1 LP lick, "
@@ -85,7 +92,8 @@ def _mode():
 
 
 CODES = nl.CODES
-LP_TXT = {"cam4": "cam4 LP", "cam4cam1": "cam4 + post-cue cam1 LP", "c1all": "cam4 + cam1 LP (whole trial windows)"}
+LP_TXT = {"cam4": "cam4 LP", "cam4cam1": "cam4 + post-cue cam1 LP", "c1all": "cam4 + cam1 LP (whole trial windows)",
+          "fused": "fused four-camera LP"}
 EPOCHS = nl.EPOCHS
 CACHE_ROOT = Path(_config.resolver().root("figures_working")) / "rest_decoder_nl_cache"
 #: the primary run tag's epoch folder (where the rebuild's 15f lives), a NEW subfolder per LP set
@@ -133,12 +141,16 @@ def _code_key():
     if lp_set() == "c1all":                    # + the RESTnlc1 lick-train code (restnl_licks); other sets' keys unchanged
         from wfield_local import restnl_licks
         src += restnl_licks.code_digest()
+    if lp_set() == "fused":                    # + the fused train's identity (session_licks.signature)
+        from wfield_local import session_licks
+        src += session_licks.signature()
     return hashlib.sha1(f"{src}|{nl.BINS}|gate|{tag}|{lp_licks.cache_tag()}".encode()).hexdigest()[:12]
 
 
 def _mask_fn():
     """The rest-mask callable of the active LP set."""
-    return {"cam4": nl.lickfree_rest, "cam4cam1": lickfree_rest_lp, "c1all": nl.lickfree_rest_c1}[lp_set()]
+    return {"cam4": nl.lickfree_rest, "cam4cam1": lickfree_rest_lp, "c1all": nl.lickfree_rest_c1,
+            "fused": nl.lickfree_rest_fused}[lp_set()]
 
 
 def _cache_path(label):
@@ -179,6 +191,9 @@ def _collect_job(label):
             from wfield_local import restnl_mask as _rn
             _c4 = _pd.read_csv(_rn.licks_all_path(label), usecols=["daq_on_s"]).daq_on_s.to_numpy(float)
             n_cam1 = int(len(restnl_licks.extend(label, _c4[np.isfinite(_c4)])[0]))
+        elif lp_set() == "fused":
+            from wfield_local import restnl_licks
+            n_cam1 = int(len(restnl_licks.fused_onsets(label)))
         else:
             n_cam1 = int(len(lp_licks.lp_lick_times(label)[0]))
     except Exception:                                                    # noqa: BLE001
@@ -548,7 +563,7 @@ def main(argv=None) -> int:
     ap.add_argument("--jobs", type=int, default=4)
     ap.add_argument("--lp", choices=LP_SETS, default="cam4",
                     help="LP licks removed from rest: cam4 (= restnl_mask), cam4cam1 (post-cue cam1 only; superseded) or c1all "
-                         "(cam4 + cam1 events_all = RESTnlc1, 11-17 night)")
+                         "(cam4 + cam1 events_all = RESTnlc1, 11-17 night) or fused (the fused four-camera train, 11-23)")
     ap.add_argument("--score-min-post", type=int, default=SCORE_MIN_POST_DEFAULT,
                     help="scored POST-stroke session floor (matched lick-free rest periods); pre sessions, training "
                          f"pools and frozen models keep {nl.MIN_PERIODS}. Default 30 (Priya 11-18, primary)")

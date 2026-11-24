@@ -75,10 +75,10 @@ def main() -> int:
     G = run()
     import iti_lick_order as lo
     import likeforlike as lfl
-    M = pd.read_csv(il.OUT / f"matched_{lfl.REF}{lo.SRC_TAG}_sessions.csv")      # the like-for-like read-out in use
+    M = pd.read_csv(il.in_path_x(f"matched_{lfl.REF}{lo.SRC_TAG}_sessions.csv"))      # the like-for-like read-out in use
     M = M[(M.scope == "all spouts") & (M.cls == "all")][["set", "label", "resid"]]
     G = G.merge(M, on=["set", "label"], how="left")
-    G.to_csv(il.OUT / "gain_prediction_sessions.csv", index=False)
+    G.to_csv(il.OUT_X / "gain_prediction_sessions.csv", index=False)
     pd.set_option("display.width", 220)
     print("== decoder read-out shift for a pure doubling of the pre lick-response pattern (mm), per animal")
     print(G.groupby(["set", "animal"]).unit_shift.first().round(3).unstack().to_string())

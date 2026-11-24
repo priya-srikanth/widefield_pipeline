@@ -133,18 +133,15 @@ def W(s: str, n: int = 95) -> str:
 _AUD = {}
 
 
-JUNE_DIR = il.OUT / "june_ref" / il.SESS_NAME
+JUNE_DIR = il.in_path_x("june_ref") / il.SESS_NAME
 
 
 def _far1_june(label: str, t: np.ndarray) -> np.ndarray:
     """far1 for a June reference session (not in iti_timing_audit.csv): the audit's since_stop / to_strobe rule
     (iti_lick_timing_audit.one), recomputed here read-only."""
     from wfield_local import config
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
     an, date = config.animal_of(label), "2026" + label.split("_")[-1]
-    A = pd.read_csv(oo.session_dir(PathResolver(), oc.RUN, an, date) / "licks_all.csv", usecols=["daq_on_s", "daq_peak_s"])
+    A = __import__("wfield_local.session_licks", fromlist=["x"]).session_licks(f"{an}_{date}")[["daq_on_s", "daq_peak_s"]].copy()  # THE session lick table (fused four-camera train when selected), not cam4 licks_all (11-24)
     T = il._behaviour(label).trials
     m = pd.Series(A.daq_on_s.to_numpy(float), index=A.daq_peak_s.to_numpy(float))
     to = m[~m.index.duplicated()].reindex(np.asarray(t, float)).to_numpy(float)
@@ -160,7 +157,7 @@ def _far1_june(label: str, t: np.ndarray) -> np.ndarray:
 
 def _far1(label: str, t: np.ndarray) -> np.ndarray:
     if "A" not in _AUD:
-        A = pd.read_csv(il.OUT / "iti_timing_audit.csv").replace(np.inf, 1e9)
+        A = pd.read_csv(il.in_path_x("iti_timing_audit.csv")).replace(np.inf, 1e9)
         _AUD["A"] = A.set_index(["label", "t"])
     A = _AUD["A"].loc[label].reindex(np.asarray(t, float))
     return ((A.since_stop >= 1.0) & (A.to_strobe >= 1.0)).to_numpy()

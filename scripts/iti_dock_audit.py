@@ -50,14 +50,12 @@ MARGIN = 0.1
 def one(item) -> dict:
     """(label, t array) -> licks (onset, gap) + the session's event arrays on the DAQ clock. Module-level for spawn."""
     from wfield_local import config, daq_io, epochs
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
     from wfield_local import trial_windows as TW
     from wfield_local.paths import PathResolver
     label, t = item
     an, date = config.animal_of(label), "2026" + label.split("_")[-1]
     rv = PathResolver()
-    A = pd.read_csv(oo.session_dir(rv, oc.RUN, an, date) / "licks_all.csv", usecols=["daq_on_s", "daq_peak_s"])
+    A = __import__("wfield_local.session_licks", fromlist=["x"]).session_licks(f"{an}_{date}")[["daq_on_s", "daq_peak_s"]].copy()  # THE session lick table (fused four-camera train when selected), not cam4 licks_all (11-24)
     A = A[np.isfinite(A.daq_on_s)].sort_values("daq_on_s").reset_index(drop=True)
     on = A.daq_on_s.to_numpy(float)
     m_on = pd.Series(on, index=A.daq_peak_s.to_numpy(float))

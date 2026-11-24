@@ -32,7 +32,7 @@ def main(z: bool | None = None) -> int:
     il.split_only("iti_where_beyond_pull")
     z = ("--z" in sys.argv) if z is None else z
     src = il.pred_file("zscore_check/where_preds_z.csv" if z else "where_preds.csv")
-    od, sfx = (il.OUT / "zscore_check", "_z") if z else (il.OUT, "")
+    od, sfx = (il.OUT_X / "zscore_check", "_z") if z else (il.OUT_X, "")
     p = pd.read_csv(src).dropna(subset=["act_lat", "act_sag", "dec_lat", "dec_sag"]).reset_index(drop=True)
     for ax_ in ("lat", "sag"):
         p[f"lfl_{ax_}"] = lfl.offset(p, f"act_{ax_}", f"dec_{ax_}", lfl.SIGMA_MM, f"{ax_} (mm)")[0]

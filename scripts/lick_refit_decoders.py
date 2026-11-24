@@ -229,7 +229,7 @@ def plot(F: dict) -> None:
                  "refit: vs their pre; epoch refit: vs pre trained on the SAME number of licks, gray bars), 95 % paired "
                  "nested bootstrap, * = CI excludes 0, k/n animals lower. PROVISIONAL", fontsize=9)
     fig.tight_layout(rect=(0, 0, 1, 0.9))
-    save_png_svg(fig, il.OUT / "figures" / f"{STEM}.png", dpi=100)
+    save_png_svg(fig, il.OUT_X / "figures" / f"{STEM}.png", dpi=100)
     plt.close(fig)
 
 
@@ -333,9 +333,9 @@ def main() -> int:
         plot(load_fd(STEM))
         return 0
     R = compute()
-    R.to_csv(il.OUT / "refit_decoders_sessions.csv", index=False)
+    R.to_csv(il.OUT_X / "refit_decoders_sessions.csv", index=False)
     T = tests(R)
-    T.to_csv(il.OUT / "refit_decoders_tests.csv", index=False)
+    T.to_csv(il.OUT_X / "refit_decoders_tests.csv", index=False)
     pd.set_option("display.width", 250)
     print("== per animal (rule 8) + nested bootstrap")
     print(T.round(3).to_string(index=False))
