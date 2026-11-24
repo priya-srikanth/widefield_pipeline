@@ -475,8 +475,10 @@ def te_lick_parts(parts: dict, B, T, animal: str, date: str, rv, ft: np.ndarray,
     on_x = np.asarray([] if ex is None else ex, float)
     tg_x = target_of(on_x)
     from wfield_local import session_licks as SL
-    A = pd.read_csv(oo.session_dir(rv, ce._run(), animal, date) / "licks_all.csv",
-                    usecols=lambda c: c in ("trial_id", "t_ms", "context", "onset_context", "daq_on_s"))
+    # THE session lick table (fused four-camera train when selected; lane E 11-24), rows joined to the kinematics BY
+    # LICK KEY (rows_for), never the cam4 licks_all.csv
+    A = SL.session_licks(f"{animal}_{date}", rv).reset_index(drop=True)
+    A = A[[c for c in ("trial_id", "t_ms", "context", "onset_context", "daq_on_s", "lick_key") if c in A]]
     K = _kin_all(rv)
     K = K[K.session == f"{animal}_{date}"]
     K = K.drop_duplicates("lick_key" if "lick_key" in K else "lick_uid")
