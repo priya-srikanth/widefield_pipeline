@@ -33,6 +33,15 @@ import iti_lick_order as lo  # noqa: E402
 MIN_N = 20          # as iti_where_decoder.decode (>= 20 licks per session)
 
 
+def _all_iti(rel) -> Path:
+    """The ALL-ITI cache this script subsets: WFIELD_ITI_IN_W/rel when that explicit upstream folder holds it (lane E
+    11-24, manuscript lineage), else the production OUT/rel (as before). Never the subset folder itself."""
+    import os
+    if os.environ.get(il.IN_W_ENV) and (Path(os.environ[il.IN_W_ENV]) / rel).exists():
+        return Path(os.environ[il.IN_W_ENV]) / rel
+    return il.OUT / rel
+
+
 def _vec_r(P: np.ndarray, Y: np.ndarray) -> float:
     P, Y = P - P.mean(0), Y - Y.mean(0)
     return float((P * Y).sum() / np.sqrt((P ** 2).sum() * (Y ** 2).sum()))
@@ -98,9 +107,9 @@ def main() -> int:
     rel_z = Path("zscore_check") / il.tagged("where_preds_z.csv", il.PRED_TAG)
     rel_a = Path(il.tagged("where_angle_reach_preds.csv.gz", il.PRED_TAG))
     rel_u = Path(il.tagged("where_preds.csv", il.PRED_TAG))
-    Wz = pd.read_csv(il.in_path(rel_z))
-    A = pd.read_csv(il.in_path(rel_a))
-    U = pd.read_csv(il.in_path(rel_u))
+    Wz = pd.read_csv(_all_iti(rel_z))
+    A = pd.read_csv(_all_iti(rel_a))
+    U = pd.read_csv(_all_iti(rel_u))
     # the three caches are row-aligned (same extraction): check before reusing one flag vector
     for nm, X, c in (("angle_reach", A, "act_sag"), ("unscaled", U, "act_lat")):
         if len(X) != len(Wz) or not np.allclose(X[c].to_numpy(float), Wz[c].to_numpy(float), equal_nan=True):
@@ -114,7 +123,7 @@ def main() -> int:
     Wz2.to_csv(il.OUT_W / rel_z, index=False)
     A2.to_csv(il.OUT_W / rel_a, index=False)
     U2.to_csv(il.OUT_W / rel_u, index=False)
-    R0 = pd.read_csv(il.in_path(Path("zscore_check") / il.tagged("where_decoder_z.csv")))
+    R0 = pd.read_csv(_all_iti(Path("zscore_check") / il.tagged("where_decoder_z.csv")))
     chk = r_table(Wz, A)                                     # reproduce the published ITI r from the full caches
     m = R0[R0.set == "iti"].merge(chk, on=["label", "target"], suffixes=("", "_chk"))
     print(f"check vs published where_decoder_z ITI rows: max |dr| {np.abs(m.r - m.r_chk).max():.2e} over {len(m)} rows"
