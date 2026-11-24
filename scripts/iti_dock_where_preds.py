@@ -112,8 +112,17 @@ def main() -> int:
     U = pd.read_csv(_all_iti(rel_u))
     # the three caches are row-aligned (same extraction): check before reusing one flag vector
     for nm, X, c in (("angle_reach", A, "act_sag"), ("unscaled", U, "act_lat")):
-        if len(X) != len(Wz) or not np.allclose(X[c].to_numpy(float), Wz[c].to_numpy(float), equal_nan=True):
-            raise SystemExit(f"{nm} cache not row-aligned with {rel_z}")
+        if len(X) != len(Wz) or (X["label"].to_numpy() != Wz["label"].to_numpy()).any():
+            raise SystemExit(f"{nm} cache not row-aligned with {rel_z} (row count / session order)")
+        bad = ~np.isclose(X[c].to_numpy(float), Wz[c].to_numpy(float), equal_nan=True)
+        if bad.any():
+            # same rows, same sessions in the same order, different 3-D values: an upstream table re-run between the
+            # two caches (lane E 11-24: PS95_0818 / 0820 cam3 re-added on 11-23 after the 11-22 z-scored cache). The flag
+            # is per row, so it is reused; the sessions are reported, and a hard mismatch elsewhere still refuses.
+            sess = sorted(set(Wz.loc[bad, "label"]))
+            print(f"  {nm}: {bad.sum()} rows in {len(sess)} session(s) differ in {c} from {rel_z}: {sess}", flush=True)
+            if len(sess) > 3:
+                raise SystemExit(f"{nm} cache differs from {rel_z} in {len(sess)} sessions: not the same extraction")
     F = flags(Wz)
     (il.OUT_W / "zscore_check").mkdir(parents=True, exist_ok=True)
     F.to_csv(il.OUT_W / "where_dockflag.csv", index=False)
