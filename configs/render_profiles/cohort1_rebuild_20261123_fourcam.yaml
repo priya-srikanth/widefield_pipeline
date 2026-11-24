@@ -47,6 +47,15 @@ env:
   # branch). Every LP lick / gate / RESTnl / class reader follows it; RESTnl's lick set defaults to "fused" under it.
   WIDEFIELD_FUSED_LICKS: lp_side_r2b_prod_20261118_3net_20261121_sync60_gapfix60
   WIDEFIELD_RESTNL_LICKS: fused
+  # 11-23 (Priya: "ensure the imaging analyses are all switched [to camera lick-based gates]"): the ENCODER / ITI trial
+  # gate (`orofacial_cohort.engagement_keep`), separate from WIDEFIELD_TRIAL_GATE. Unset it defaults to "reference" (the
+  # behavior pipeline's near-spout engaged column). "attempted" reads THIS run's routed trial_attempts.csv (camera
+  # classes): attempted = contact | incomplete inside the camera working period (stopped / stopped_licking / after_end
+  # trials are never attempts, so it equals the working-trial set). Every encoder, ITI and O2 bundle of this lineage
+  # already ran with it (the four ITI steps, bundle_enc.py, the 11-22 neural chains); setting it here makes a plain
+  # profile-applied process (frozen_encoder, rebuild_figs captions, run_quiet_chain) agree with them. NOT a run-tag part:
+  # encoder outputs are kept apart by COMBINED_ENCODING_SUFFIX "_gate-attempted" and the frozen frame tag "gate-attempted".
+  OROFACIAL_GATE: attempted
 
 # THE REBUILD ROOT (coordinator 11-03, fourth review): EVERY derived output of this render -- cohort_out / grant_figures,
 # figures_working, analysis_figures, LP_analysis/<run>/imaging_encoding (encoder, ITI, attempt, qc), the frozen store
