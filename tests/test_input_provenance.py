@@ -57,3 +57,15 @@ def test_stamp_adds_the_footer_to_a_figure():
     t = tst.stamp(fig, "a trial set")
     assert t is not None and "a trial set" in t.get_text() and "a9d0dcaa2a" in t.get_text()
     plt.close(fig)
+
+
+def test_superseded_3d_guard():
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+    import iti_licks as il
+    old = {"lick_sig": "fused:run:abc|" + il.SUPERSEDED_3D["PS95_0818"]}
+    with pytest.raises(RuntimeError, match="superseded 3-D table"):
+        il.check_superseded_3d("PS95_0818", old, "f")
+    il.check_superseded_3d("PS95_0818", {"lick_sig": "fused:run:abc|kinematics_fused:68516098:1795413371586449000"}, "f")
+    il.check_superseded_3d("PS92_0806", old, "f")              # only the two re-extracted sessions are guarded

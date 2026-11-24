@@ -518,6 +518,7 @@ def extract(item) -> dict:
         f, cols=np.array(cols), epoch=epochs.epoch_of(label) or "", animal=an, clock_med_s=clock,
         mask_sig=_mask_sig(),                     # the brain / stat masks the ROI traces were built on (11-09)
         lick_sig=_lick_sig(),                     # the lick set + kinematics table it was built on (11-22)
+        pose3d_run=__import__("wfield_local.input_provenance", fromlist=["x"]).pose3d_run(),   # 3-D run (11-24)
         bout_peth=_sample(R, ft, to[bout], LAGS_P).astype(f16), bout_side=iti.side_ml.to_numpy(float)[bout], bout_gap=gap[bout],
         # bout_pos = the trial-WINDOW label (the UPCOMING trial for 'lead' licks) -- NOT a spout to group by; use
         # bout_prev_pos = the PREVIOUS trial's spout, the rule of iti_pos (10-28; files before then lack it:
@@ -611,7 +612,7 @@ def fr_unblanked_session(label: str) -> dict:
     from wfield_local import face_rhythm_outputs as fro
     from wfield_local.paths import PathResolver
     f = OUT_W / FRU_DIR / f"{label}.npz"
-    d = np.load(XOUT / SESS_NAME / f"{label}.npz", allow_pickle=False)     # lazy: only bout_t / first_rt are read
+    d = np.load(session_path(label), allow_pickle=False)     # lazy: only bout_t / first_rt are read
     bt = np.asarray(d["bout_t"], float)
     if f.exists():
         z = np.load(f, allow_pickle=False)
@@ -677,11 +678,12 @@ def _load(label: str, sess_dir: Path | None = None) -> dict:
     """One session extract. EVERY read is mask-checked (11-09): many readers (interhemi_crossarea, coupling_vigour_sm,
     lick_cued_ramp, ...) never call `extract`, so `check_extract_masks` alone would not stop a stale file."""
     from wfield_local import mask_keys
-    p = (sess_dir or XOUT / SESS_NAME) / f"{label}.npz"
+    p = Path(sess_dir) / f"{label}.npz" if sess_dir else session_path(label)
     z = np.load(p, allow_pickle=False)
     try:
         out = {k: z[k] for k in z.files}
         mask_keys.check_obj(out, p)
+        check_superseded_3d(label, out, p)
         _record_input(out)
         return out
     except ValueError:
@@ -698,8 +700,35 @@ def _load(label: str, sess_dir: Path | None = None) -> dict:
                 a = np.array("")
             out[k] = a
         mask_keys.check_obj(out, p)
+        check_superseded_3d(label, out, p)
         _record_input(out)
         return out
+
+
+#: SESSION-FILE OVERRIDES (lane E 11-24, Priya: re-extract PS95_0818 / 0820 from the current 3-D tables without touching
+#: production): WFIELD_ITI_SESS_W = a folder holding <SESS_NAME>/<label>.npz for the sessions rebuilt there; `_load` and
+#: every reader through `session_path` take a label's file from it when present, else the production extract.
+SESS_W_ENV = "WFIELD_ITI_SESS_W"
+#: session files built on a SUPERSEDED 3-D table version: refused on read in every process, so the old version cannot come
+#: back through any folder (11-23: PS95 0818 / 0820 cam3 re-added; the 11-22 kinematics_fused/licks.csv.gz signature)
+SUPERSEDED_3D = {"PS95_0818": "kinematics_fused:68514379:1795378063329284000",
+                 "PS95_0820": "kinematics_fused:68514379:1795378063329284000"}
+
+
+def session_path(label: str) -> Path:
+    """The session file `_load` reads: the WFIELD_ITI_SESS_W override when it holds this label, else XOUT/SESS_NAME."""
+    w = os.environ.get(SESS_W_ENV)
+    if w and (Path(w) / SESS_NAME / f"{label}.npz").exists():
+        return Path(w) / SESS_NAME / f"{label}.npz"
+    return XOUT / SESS_NAME / f"{label}.npz"
+
+
+def check_superseded_3d(label: str, out: dict, p) -> None:
+    """REFUSE a session file built on a superseded 3-D table version (`SUPERSEDED_3D`)."""
+    bad = SUPERSEDED_3D.get(str(label))
+    if bad and "lick_sig" in out and str(out["lick_sig"]).endswith(bad):
+        raise RuntimeError(f"{p}: {label} was extracted from a superseded 3-D table ({bad}); re-extract it into "
+                           f"{SESS_W_ENV} (iti_licks.extract) and point the run at that folder.")
 
 
 def _record_input(out: dict) -> None:
