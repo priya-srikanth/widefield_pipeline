@@ -862,6 +862,48 @@ def plots() -> None:
 
 
 # ------------------------------------------------------------------------------------------------ main
+MOUSE = {"PS92": "#9", "PS93": "#10", "PS94": "#11", "PS95": "#12"}   # manuscript mouse numbers
+
+
+def plot_cumulative(src: Path, out: Path, set_text: str) -> None:
+    """CUMULATIVE first-lick curves (Priya 11-24): P(first lick by time t) = 1 - the Kaplan-Meier survival of
+    `revup_survival.csv` in ``src``, rows = spouts (canonical order), columns = mice (manuscript numbers), lines =
+    epochs; otherwise the axes of Fig R1. Written to ``out`` (+ svg twin) only; the default plots are unchanged."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    POS, EC = _pos_order(), _ep_col()
+    SV = pd.read_csv(Path(src) / "revup_survival.csv")
+    AN = sorted(SV.animal.unique())
+    fig, axs = plt.subplots(len(POS), len(AN), figsize=(3.0 * len(AN), 2.0 * len(POS)), sharex=True, sharey=True)
+    for i, pp in enumerate(POS):
+        for j, a in enumerate(AN):
+            ax = axs[i, j]
+            for e in EP4:
+                g = SV[(SV.animal == a) & (SV.pos == pp) & (SV.epoch == e)]
+                if len(g):
+                    ax.plot(g.t_s, 1.0 - g.S, color=EC[e], lw=1.6, label=e)
+            ax.axvline(3.5, color="k", lw=0.6, ls=":")
+            ax.set_xlim(0, 8)
+            ax.set_ylim(0, 1.02)
+            ax.spines["top"].set_visible(False)
+            if i == 0:
+                ax.set_title(f"mouse {MOUSE.get(a, a)}")
+            if j == 0:
+                ax.set_ylabel(f"{pp}\nP(first lick by t)")
+            if i == len(POS) - 1:
+                ax.set_xlabel("time from cue (s)")
+    bot = _leg_below(fig, [plt.Line2D([], [], color=EC[e], lw=1.6, label=e) for e in EP4], fontsize=9)
+    top = _sup(fig, "Cumulative first lick after the cue: P(first lick by time t) = 1 - Kaplan-Meier survival "
+                    "(not censored at the response window; censored at the next trial's position strobe).\nDotted = end "
+                    f"of the 3.5-s response window (the spout leaves ~0.2 s later). {set_text}. BEHAVIOR", fontsize=9)
+    fig.tight_layout(rect=(0, bot, 1, top))
+    Path(out).parent.mkdir(parents=True, exist_ok=True)
+    save_png_svg(fig, Path(out), dpi=120)
+    plt.close(fig)
+    print(f"-> {out}", flush=True)
+
+
 def main(argv=None) -> int:
     from wfield_local import run_mode as _rm_guard
     _rm_guard.require_default("revup_behaviour")   # unrouted share writer: refuses in a non-default run mode
@@ -870,7 +912,16 @@ def main(argv=None) -> int:
     ap.add_argument("--jobs", type=int, default=6)
     ap.add_argument("--labels", nargs="*")
     ap.add_argument("--plot-only", action="store_true")
+    ap.add_argument("--cumulative", nargs=3, metavar=("SRC_DIR", "OUT_PNG", "SET_TEXT"), default=None,
+                    help="draw ONLY the cumulative first-lick figure (1 - survival) from SRC_DIR/revup_survival.csv into "
+                         "OUT_PNG (a new name; never the production figures folder), with SET_TEXT as the trial-set line")
     a = ap.parse_args(argv)
+    if a.cumulative:
+        src, out, txt = a.cumulative
+        if Path(out).resolve().parent == (OUT_W / "figures").resolve():
+            raise SystemExit("--cumulative refuses the production iti_licks/figures folder: give a new folder")
+        plot_cumulative(Path(src), Path(out), txt)
+        return 0
     if a.plot_only:
         plots()
         return 0
