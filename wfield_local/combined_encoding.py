@@ -401,6 +401,17 @@ def pose3d_frames_path(rv, animal: str, date: str) -> Path:
     return pose3d_dir(rv) / f"{animal}_{date}_frames.csv.gz"
 
 
+def nose3d_frames_path(rv, animal: str, date: str) -> Path:
+    """The 3-D NOSE frames (NOSE_FRAMES_ENV: another session_poses run folder; unset = `pose3d_frames_path`)."""
+    import re
+    v = os.environ.get(NOSE_FRAMES_ENV, "").strip()
+    if not v:
+        return pose3d_frames_path(rv, animal, date)
+    if not re.fullmatch(r"[A-Za-z0-9_]+", v):
+        raise ValueError(f"{NOSE_FRAMES_ENV}={v!r}: a session_poses run folder name")
+    return pose3d_dir(rv).parent / v / f"{animal}_{date}_frames.csv.gz"
+
+
 def tongue_3d_traces(ix: pd.DataFrame, cam4_tx: np.ndarray, F: pd.DataFrame) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """(x = ml, y = ap, prot = 3-D distance) mm on the cam4 pose rows ``ix`` (trial_id, t_ms); see TONGUE_ENV."""
     J = ix[["trial_id", "t_ms"]].merge(F[["trial_id", "t_ms", "tongue_ml", "tongue_ap", "tongue_dv"]]
@@ -412,6 +423,107 @@ def tongue_3d_traces(ix: pd.DataFrame, cam4_tx: np.ndarray, F: pd.DataFrame) -> 
     for v in (ml, ap, np.sqrt(ml ** 2 + ap ** 2 + dv ** 2)):
         out.append(np.where(have, v, np.where(inside, 0.0, np.nan)))
     return out[0], out[1], out[2]
+
+
+#: JAW_ENV / NOSE_ENV = 3d (Priya 11-24: "we should use 3d", "why wouldn't we use 3d nose"): the jaw block (jaw_x /
+#: jaw_y / jaw_speed) and the nose block (nose_x / nose_y) from the per-frame FOUR-camera 3-D pose instead of cam4 px,
+#: on the same rows as TONGUE_ENV=3d (frames joined on (trial_id, t_ms) to the cam4 pose rows). Unset / "cam4" = cam4 2-D
+#: (every run before 11-24). The 2-D front-view axes, now in mm (stage frame: ml + = mouse right, ap + = forward,
+#: dv + = up; the 2-D image y runs down, so jaw_y / nose_y change sign vs cam4 -- linear regressors, no effect):
+#:   jaw_x = jaw_ml, jaw_y = jaw_dv, each minus the TRIAL's resting jaw = the median over its pre-cue frames (-500 .. 0
+#:           ms, >= 20 finite 3-D frames, else the trial is NaN) -- the adopted 3-D jaw rule's reference
+#:           (`scripts/jaw_onsets._threed`, the jaw3d_* columns `trial_classes.jaw_call(mode="3d_mouth")` reads);
+#:   jaw_speed = |d (jaw_ml, jaw_ap, jaw_dv) / dt| (mm/s, full 3-D speed, AFTER despiking);
+#:   nose_x = nose_ml, nose_y = nose_dv (mouth-centred mm as the frames store them: the 2-D nose minus the mouth).
+#: The ap axis keeps no position column of its own (it enters jaw_speed): the block layout (3 jaw + 2 nose traces) and
+#: every variant reading it (jaw_nd / nose_nd / dir_kin, the frozen jaw_dir / jaw_mag / nose_dir / nose_mag) stay as
+#: in the 2-D design. DESPIKED before use (`despike_3d`; Priya 11-24, docs/status/POSE3D_JUMP_QC_2026-11-22.md): frames
+#: of a spike (> SPIKE_MM step that comes back within 3 frames) and > SPIKE_MM jumps on a frame with < 3 views AND a
+#: changed view set are NaN; NaN = no 3-D point = the 2-D convention (no fill: the frame binning skips NaN). Missing
+#: frames file -> FileNotFoundError (never a silent 2-D / 3-D mix). A 3-D run's frozen statistics carry |jaw3d / |nose3d.
+#: NOSE SOURCE (11-24: the 3-D nose confidence cut may change -> a nose-only re-triangulation under a new run folder):
+#: ``COMBINED_ENCODING_NOSE_FRAMES`` = the session_poses run FOLDER NAME whose <animal>_<date>_frames.csv.gz give the
+#: nose (unset = the adopted 3-D run, `pose3d_frames_path`). Recorded in env.json and in the frozen run tag
+#: (|nose3d=<folder>); the folder must sit next to the adopted run (session_poses/<folder>).
+JAW_ENV = "COMBINED_ENCODING_JAW"
+NOSE_ENV = "COMBINED_ENCODING_NOSE"
+NOSE_FRAMES_ENV = "COMBINED_ENCODING_NOSE_FRAMES"
+POSE3D_MODES = ("", "cam4", "3d")
+SPIKE_MM = 1.0
+SPIKE_RETURN = 3
+_CAMS3D = ("cam1", "cam4", "cam2", "cam3")
+
+
+def pose3d_mode(env: str) -> str:
+    v = os.environ.get(env, "").strip()
+    if v not in POSE3D_MODES:
+        raise ValueError(f"{env}={v!r}; expected cam4 | 3d")
+    return v
+
+
+def despike_3d(X: np.ndarray, tid: np.ndarray, t: np.ndarray, nviews: np.ndarray, code: np.ndarray,
+               thr: float = SPIKE_MM) -> np.ndarray:
+    """Mask (True = drop) of one part's 3-D frames, sorted by (trial, time): (a) every frame of a SPIKE = a step > thr
+    at k whose trace comes back within SPIKE_RETURN frames (|X_{k+m} - X_{k-1}| < thr / 2, m = 1..3: frames k .. k+m-1),
+    the `scripts/pose3d_jump_qc.py` definition; (b) a jump > thr at k on a frame with < 3 views (one-camera fill = -1
+    included) whose view set (``code``, a bit per camera) changed from k-1. Steps only between consecutive 4 ms frames
+    of one trial. Pure (tested)."""
+    X = np.asarray(X, float)
+    tid, t = np.asarray(tid), np.asarray(t, float)
+    n = len(X)
+    cons = np.r_[False, (tid[1:] == tid[:-1]) & (np.abs(np.diff(t) - 4.0) < 0.5)]
+    step = np.full(n, np.nan)
+    if n > 1:
+        step[1:] = np.linalg.norm(X[1:] - X[:-1], axis=1)
+    jump = cons & np.isfinite(step) & (step > thr)
+    drop = np.zeros(n, bool)
+    changed = np.r_[False, np.asarray(code)[1:] != np.asarray(code)[:-1]]
+    drop |= jump & (np.asarray(nviews, float) < 3) & changed
+    for k in np.flatnonzero(jump):
+        for m in range(1, SPIKE_RETURN + 1):
+            if k + m < n and tid[k + m] == tid[k] and np.isfinite(X[k + m]).all() and \
+                    np.linalg.norm(X[k + m] - X[k - 1]) < thr / 2:
+                drop[k:k + m] = True
+                break
+    return drop
+
+
+def pose3d_part(F: pd.DataFrame, part: str) -> tuple[pd.DataFrame, dict]:
+    """One part's despiked 3-D frames (trial_id, t_ms, <part>_ml/_ap/_dv; spike frames NaN) + counts {frames, masked}."""
+    F = F.drop_duplicates(["trial_id", "t_ms"]).sort_values(["trial_id", "t_ms"]).reset_index(drop=True)
+    cols = [f"{part}_ml", f"{part}_ap", f"{part}_dv"]
+    X = F[cols].to_numpy(float)
+    code = np.zeros(len(F), int)
+    for b, c in enumerate(_CAMS3D):
+        if f"{part}_rep_{c}" in F:
+            code |= np.isfinite(F[f"{part}_rep_{c}"].to_numpy(float)).astype(int) << b
+    drop = despike_3d(X, F.trial_id.to_numpy(), F.t_ms.to_numpy(float), F[f"{part}_views"].to_numpy(float), code)
+    X[drop] = np.nan
+    out = F[["trial_id", "t_ms"]].copy()
+    out[cols] = X
+    return out, {"frames": int(np.isfinite(F[cols].to_numpy(float)).all(1).sum()), "masked": int(drop.sum())}
+
+
+def jaw_3d_traces(ix: pd.DataFrame, P: pd.DataFrame, fps: float = 250.0) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """(jaw_x = ml, jaw_y = dv, jaw_speed) on the cam4 pose rows ``ix``; ``P`` = `pose3d_part(F, "jaw")[0]`. See JAW_ENV."""
+    cols = ["jaw_ml", "jaw_ap", "jaw_dv"]
+    t = P.t_ms.to_numpy(float)
+    ok = np.isfinite(P[cols].to_numpy(float)).all(1)
+    pre = P[(t >= -500) & (t < 0) & ok]
+    rest = pre.groupby("trial_id")[cols].median()
+    rest = rest[pre.groupby("trial_id").size().reindex(rest.index) >= 20]
+    J = ix[["trial_id", "t_ms"]].merge(P, on=["trial_id", "t_ms"], how="left")
+    R = rest.reindex(J.trial_id.to_numpy()).to_numpy(float)
+    D = J[cols].to_numpy(float) - R                                     # NaN where the trial has no resting jaw
+    sp = np.linalg.norm(np.column_stack([np.gradient(D[:, i]) for i in range(3)]), axis=1) * fps if len(D) > 1 \
+        else np.full(len(D), np.nan)
+    return D[:, 0], D[:, 2], sp
+
+
+def nose_3d_traces(ix: pd.DataFrame, P: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
+    """(nose_x = ml, nose_y = dv) mouth-centred mm on the cam4 pose rows; ``P`` = `pose3d_part(F, "nose")[0]`."""
+    J = ix[["trial_id", "t_ms"]].merge(P, on=["trial_id", "t_ms"], how="left")
+    return J.nose_ml.to_numpy(float), J.nose_dv.to_numpy(float)
 
 
 def lick_angle_3d(L: pd.DataFrame, session: str) -> np.ndarray:
@@ -595,8 +707,11 @@ def load_behaviour(animal: str, date: str, rv) -> Behaviour:
         if SL.fused_on():
             fd = SL.fused_dir(rv)
             src += [fd / f"{animal}_{date}_fused.csv", fd / SL.MANIFEST]
-    if os.environ.get(TONGUE_ENV, "") == "3d":                  # a rewritten 3-D frame / lick table makes a new entry
-        src.append(pose3d_frames_path(rv, animal, date))
+    if os.environ.get(TONGUE_ENV, "") == "3d" or os.environ.get(JAW_ENV, "") == "3d":
+        src.append(pose3d_frames_path(rv, animal, date))            # a rewritten 3-D frame table makes a new entry
+    if os.environ.get(NOSE_ENV, "") == "3d":
+        src.append(nose3d_frames_path(rv, animal, date))
+    if os.environ.get(TONGUE_ENV, "") == "3d":                  # ... and a rewritten 3-D lick table
         src.append(os.environ.get(EXEC3D_TABLE_ENV) or
                    pose3d_dir(rv) / _kin_name() / "licks.csv.gz")
     return _cached("behaviour", f"{animal}_{date}", src, lambda: _load_behaviour(animal, date, rv))
@@ -676,16 +791,31 @@ def _load_behaviour(animal: str, date: str, rv) -> Behaviour:
             raise FileNotFoundError(f"{TONGUE_ENV}=3d needs {f3}")
         F3 = pd.read_csv(f3, usecols=["trial_id", "t_ms", "tongue_ml", "tongue_ap", "tongue_dv"])
         tx, ty, prot = tongue_3d_traces(S["index"], tx, F3)
+    fps = 250.0
+    jaw_mode, nose_mode = pose3d_mode(JAW_ENV), pose3d_mode(NOSE_ENV)
     jx, jy = cl.jaw_x.to_numpy(float), cl.jaw_y.to_numpy(float)
+    jsp = np.hypot(np.gradient(jx), np.gradient(jy)) * fps
     nlik = pose.nose_likelihood.to_numpy(float) >= 0.6
     nx = np.where(nlik, pose.nose_x.to_numpy(float) - o[0], np.nan)
     ny = np.where(nlik, pose.nose_y.to_numpy(float) - o[1], np.nan)
-    fps = 250.0
+    for part, mode, fpath in (("jaw", jaw_mode, pose3d_frames_path), ("nose", nose_mode, nose3d_frames_path)):
+        if mode != "3d":                                          # see JAW_ENV / NOSE_ENV
+            continue
+        f3 = fpath(rv, animal, date)
+        if not f3.exists():                                       # never mix 2-D / 3-D jaw or nose silently
+            raise FileNotFoundError(f"{part} 3-D ({JAW_ENV if part == 'jaw' else NOSE_ENV}=3d) needs {f3}")
+        need = {"trial_id", "t_ms", *(f"{part}_{a}" for a in ("ml", "ap", "dv", "views")),
+                *(f"{part}_rep_{k}" for k in _CAMS3D)}
+        P = pose3d_part(pd.read_csv(f3, usecols=lambda c, need=need: c in need), part)[0]
+        if part == "jaw":
+            jx, jy, jsp = jaw_3d_traces(S["index"], P, fps)
+        else:
+            nx, ny = nose_3d_traces(S["index"], P)
     sp = lambda v: np.abs(np.gradient(v)) * fps                                   # noqa: E731
     run_t, run_v = session_speed(h5)
     analog = {"tongue_x": (t_pose, tx), "tongue_y": (t_pose, ty), "tongue_prot": (t_pose, prot),
               "tongue_speed": (t_pose, sp(prot)), "jaw_x": (t_pose, jx), "jaw_y": (t_pose, jy),
-              "jaw_speed": (t_pose, np.hypot(np.gradient(jx), np.gradient(jy)) * fps),
+              "jaw_speed": (t_pose, jsp),
               "nose_x": (t_pose, nx), "nose_y": (t_pose, ny), "running": (np.asarray(run_t, float),
                                                                           np.asarray(run_v, float))}
     tgt, tdist = {}, {}

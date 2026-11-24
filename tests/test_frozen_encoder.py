@@ -450,3 +450,66 @@ def test_trial_means_windows_and_missing_anchor():
     assert np.isnan(out[1]).all()                                            # no anchor (no lick)
     assert np.allclose(out[2], [18.5, 185.0])                                # frames 18, 19 (20 is outside)
     assert np.isnan(out[3]).all()                                            # window entirely outside
+
+
+def test_despike_3d_spike_and_thin_view_jump():
+    """Spike = > 1 mm step that comes back within 3 frames (all its frames dropped); a > 1 mm jump on a < 3-view frame
+    whose view set changed is dropped; a real sustained 4-view move is kept; no step across trials."""
+    import numpy as np
+    from wfield_local import combined_encoding as ce
+    x = np.array([0.0, 0.0, 2.0, 2.0, 0.0, 0.0, 0.0, 3.0, 3.0, 3.0, 3.0, 0.0])
+    X = np.column_stack([x, np.zeros_like(x), np.zeros_like(x)])
+    tid = np.array([1] * 7 + [1] * 4 + [2])
+    t = np.arange(len(x)) * 4.0
+    nv = np.full(len(x), 4.0)
+    code = np.full(len(x), 15)
+    drop = ce.despike_3d(X, tid, t, nv, code)
+    assert drop[2] and drop[3] and not drop[4]               # 2-frame excursion, back at 4
+    assert not drop[7:11].any()                              # sustained move (never returns) on 4 views: kept
+    assert not drop[11]                                      # the step into trial 2 is not a step
+    nv2 = nv.copy()
+    nv2[7] = 2
+    code2 = code.copy()
+    code2[7:] = 3
+    assert ce.despike_3d(X, tid, t, nv2, code2)[7]            # thin + changed view set: dropped
+
+
+def test_jaw_nose_3d_traces_rest_and_axes():
+    """jaw minus the trial's pre-cue median (>= 20 frames, else NaN); x = ml, y = dv; speed after despiking; nose as is."""
+    import numpy as np
+    import pandas as pd
+    from wfield_local import combined_encoding as ce
+    t = np.arange(-600, 100, 4.0)
+    P = pd.DataFrame({"trial_id": 1, "t_ms": t, "jaw_ml": 0.5, "jaw_ap": 0.0, "jaw_dv": -1.0 - (t >= 0) * 0.4})
+    P2 = pd.DataFrame({"trial_id": 2, "t_ms": t[-10:], "jaw_ml": 0.0, "jaw_ap": 0.0, "jaw_dv": 0.0})
+    ix = pd.DataFrame({"trial_id": [1, 1, 2], "t_ms": [-100.0, 40.0, 40.0]})
+    jx, jy, sp = ce.jaw_3d_traces(ix, pd.concat([P, P2], ignore_index=True))
+    assert np.allclose(jx[:2], 0.0) and np.isclose(jy[0], 0.0) and np.isclose(jy[1], -0.4)
+    assert np.isnan(jx[2]) and np.isnan(jy[2])               # trial 2: no pre-cue frames -> no resting jaw -> NaN
+    N = pd.DataFrame({"trial_id": [1], "t_ms": [40.0], "nose_ml": [0.1], "nose_ap": [5.4], "nose_dv": [2.7]})
+    nx, ny = ce.nose_3d_traces(ix, N)
+    assert nx[1] == 0.1 and ny[1] == 2.7 and np.isnan(nx[0])
+
+
+def test_run_tag_marks_jaw_nose_3d(monkeypatch):
+    monkeypatch.setenv("COMBINED_ENCODING_JAW", "3d")
+    monkeypatch.setenv("COMBINED_ENCODING_NOSE", "3d")
+    assert "|jaw3d|nose3d" in fe._run_tag()
+    monkeypatch.setenv("COMBINED_ENCODING_JAW", "bad")
+    from wfield_local import combined_encoding as ce
+    import pytest
+    with pytest.raises(ValueError):
+        ce.pose3d_mode("COMBINED_ENCODING_JAW")
+
+
+def test_nose_frames_source_is_a_parameter(monkeypatch):
+    from pathlib import Path
+    from wfield_local import combined_encoding as ce
+    monkeypatch.delenv("COMBINED_ENCODING_NOSE_FRAMES", raising=False)
+    a = ce.nose3d_frames_path(None, "PS93", "20260814")
+    assert a == ce.pose3d_frames_path(None, "PS93", "20260814")
+    monkeypatch.setenv("COMBINED_ENCODING_NOSE_FRAMES", "pose3d_4cam_nose08_test")
+    b = ce.nose3d_frames_path(None, "PS93", "20260814")
+    assert Path(b).parent.name == "pose3d_4cam_nose08_test" and Path(b).parent.parent == Path(a).parent.parent
+    monkeypatch.setenv("COMBINED_ENCODING_NOSE", "3d")
+    assert "|nose3d=pose3d_4cam_nose08_test" in fe._run_tag()

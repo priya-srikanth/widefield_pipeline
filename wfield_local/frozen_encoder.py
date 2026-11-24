@@ -1023,6 +1023,10 @@ def _run_tag() -> str:
     """Running-model tag stored with the saved statistics (never reused across modes / knot overrides / push)."""
     return ((_run_mode() + f"|k0={_knot0():g}" + ("|push" if _push_on() else "")) + ("|te" if TE else "")
             + ("|tongue3d" if os.environ.get("COMBINED_ENCODING_TONGUE", "") == "3d" else "")    # TONGUE_ENV
+            + ("|jaw3d" if os.environ.get("COMBINED_ENCODING_JAW", "") == "3d" else "")          # JAW_ENV (11-24)
+            + ("|nose3d" + (f"={os.environ['COMBINED_ENCODING_NOSE_FRAMES']}"
+                            if os.environ.get("COMBINED_ENCODING_NOSE_FRAMES") else "")
+               if os.environ.get("COMBINED_ENCODING_NOSE", "") == "3d" else "")                  # NOSE_ENV (11-24)
             + (f"|fr={os.environ['COMBINED_ENCODING_FR']}:{os.environ['COMBINED_ENCODING_FR_GROUPS']}" if FR_VARS else "")
             + ("|frsplit" if FR_SPLIT else "") + ("|lickspout" if LICKSPOUT else "") + ("|lickland" if LICKLAND else "")
             + (f"|frlags={','.join(f'{x:g}' for x in FR_LAGS)}" if FR_LAGS else "")
