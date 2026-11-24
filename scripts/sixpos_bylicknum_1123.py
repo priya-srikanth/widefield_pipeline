@@ -44,8 +44,11 @@ EPOCHS = ("acute", "subacute", "chronic")
 BINS = [("1", 1, 1), ("2", 2, 2), ("3-5", 3, 5), ("6-10", 6, 10), ("11-15", 11, 15), ("16+", 16, 10**6)]
 EARLY, LATE = ["1", "2", "3-5"], ["6-10", "11-15"]
 MIN_N = 5
-SUFFIX = "_bylicknum_ccB1123"
-MEAS = {"speed": "speed_peak", "reach": "reach_mm"}
+SUFFIX = "_bylicknum_v2_ccB1123"
+#: angle = the Fig 4E all-lick 3-D aim angle, atan2(side_ml, hypot(out_ap, down_dv)) in degrees, + = contralesional
+#: (aim_tables_from_kinematics + iti_recovery_measure.aim_licks); session MEAN per bin, medians for speed / reach
+MEAS = {"speed": "speed_peak", "reach": "reach_mm", "angle": "angle_deg"}
+AGG = {"speed": "median", "reach": "median", "angle": "mean"}
 
 
 def save(df: pd.DataFrame, out: Path, name: str):
@@ -77,10 +80,11 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
     from wfield_local import config
     from wfield_local import orofacial_stats as st
-    L = pd.read_csv(LICKS, usecols=["trial_id", "lick_idx", "position", "reach_mm", "speed_peak", "animal", "date",
+    L = pd.read_csv(LICKS, usecols=["trial_id", "lick_idx", "position", "reach_mm", "speed_peak", "side_ml", "out_ap", "down_dv", "animal", "date",
                                     "session", "epoch"], dtype={"date": str})
     L = L[~((L.epoch == "pre") & L.date.map(config.early_pre))].reset_index(drop=True)
     L["pos"] = L.position.map(LR_POS)
+    L["angle_deg"] = np.degrees(np.arctan2(L.side_ml, np.hypot(L.out_ap, L.down_dv)))   # + = right = contralesional
     L["n"] = L.lick_idx + 1
     L["bin"] = L.n.map(binlab)
     if a.min_bout:   # same trials supply every lick number 1..min_bout (removes the bout-length selection)
@@ -104,7 +108,7 @@ def main():
     save(B.assign(animal_ms=B.animal.map(MS)), out, "c2_bout_length_per_session")
     cnt = []
     for meas, col in MEAS.items():
-        d = L if meas == "speed" else L[L.working]
+        d = L[L.working] if meas == "reach" else L
         d = d[d[col].notna()]
         cnt.append(d.groupby(["epoch", "bin"]).size().rename("n_licks").reset_index().assign(measure=meas))
         cnt.append(d[d.pos == "far_contra"].groupby(["epoch", "bin"]).size().rename("n_licks").reset_index()
@@ -116,12 +120,14 @@ def main():
     g = ["animal", "session", "date", "epoch", "pos"]
     rows = []
     for meas, col in MEAS.items():
-        d = (L if meas == "speed" else L[L.working]).dropna(subset=[col])
-        s = d.groupby(g + ["bin"])[col].agg(["median", "size"]).reset_index().assign(kind="bin")
+        d = (L[L.working] if meas == "reach" else L).dropna(subset=[col])
+        s = d.groupby(g + ["bin"])[col].agg([AGG[meas], "size"]).reset_index().assign(kind="bin")
+        s = s.rename(columns={AGG[meas]: "value"})
         rows.append(s.assign(measure=meas))
-        k = d[d.n <= 15].groupby(g + ["n"])[col].agg(["median", "size"]).reset_index()
+        k = d[d.n <= 15].groupby(g + ["n"])[col].agg([AGG[meas], "size"]).reset_index()
+        k = k.rename(columns={AGG[meas]: "value"})
         rows.append(k.assign(bin=k.n.astype(str), kind="licknum", measure=meas).drop(columns="n"))
-    S = pd.concat(rows, ignore_index=True).rename(columns={"median": "value", "size": "n_licks"})
+    S = pd.concat(rows, ignore_index=True).rename(columns={"size": "n_licks"})
     S = S[S.n_licks >= MIN_N].copy()
     base = S[S.epoch == "pre"].groupby(["measure", "kind", "bin", "animal", "pos"]).value.mean().rename("pre_mean")
     S = S.join(base, on=["measure", "kind", "bin", "animal", "pos"]).dropna(subset=["pre_mean"])
