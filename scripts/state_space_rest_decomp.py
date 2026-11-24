@@ -83,7 +83,11 @@ def _worker(label):
     n = mask.shape[0]
     f_of = np.clip(np.asarray(fs_samp)[:T], 0, n - 1)
     daq_on = rn.daq_lick_onsets(s, fs)
-    cam4 = pd.read_csv(rn.licks_all_path(label), usecols=["daq_on_s"]).daq_on_s.to_numpy(float)
+    from wfield_local import restnl_licks as _rl
+    if _rl.is_fused():      # 11-23: the fused four-camera train = the lick set of the mask above (restnl_mask)
+        cam4 = np.asarray(_rl.fused_onsets(label), float)
+    else:
+        cam4 = pd.read_csv(rn.licks_all_path(label), usecols=["daq_on_s"]).daq_on_s.to_numpy(float)
     cam4 = np.round(cam4[np.isfinite(cam4)] * fs).astype(np.int64)
     nb, na = int(rn.BUF_S[0] * fs), int(rn.BUF_S[1] * fs)
     lick_s = rn.widen(np.concatenate([np.asarray(daq_on, np.int64), cam4]), n, nb, na)

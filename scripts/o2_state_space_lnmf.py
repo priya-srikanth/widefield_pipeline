@@ -42,7 +42,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-PROFILE = "cohort1_rebuild_20261103"
+PROFILE = os.environ.get("WF_SS_PROFILE", "cohort1_rebuild_20261103")   # WF_SS_PROFILE: 11-23 four-camera root
 ENC = "enc_rebuild_20261104b"                       # the rebuild's O2 encoding bundle (its inputs/ are reused)
 import state_space_sim as S  # noqa: E402
 

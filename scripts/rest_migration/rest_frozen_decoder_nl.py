@@ -161,6 +161,23 @@ def lickfree_rest_c1(session, rest, rate):
     return m, np.unique(np.concatenate([daq_on, cam4]))
 
 
+def lickfree_rest_fused(session, rest, rate):
+    """`lickfree_rest` with the video set = EVERY lick of the fused four-camera train (`restnl_licks.fused_onsets`, the
+    RESTnlf lick set of `restnl_mask` under a fused lick set; 11-23 four-camera imaging root). Raises
+    `session_licks.SessionLicksUnavailable` when the session has no fused train (as without licks_all.csv)."""
+    from wfield_local import config, restnl_licks
+    from wfield_local import restnl_mask as rn
+    n = rest.shape[0]
+    nb, na = int(rn.BUF_S[0] * rate), int(rn.BUF_S[1] * rate)
+    minrun = int(float(config.defaults()["segmentation"]["rest"]["min_rest_s"]) * rate)
+    daq_on = rn.daq_lick_onsets(session, rate)
+    vid = np.asarray(restnl_licks.fused_onsets(session["label"]), float)
+    vid = np.round(vid[np.isfinite(vid)] * rate).astype(np.int64)
+    m = rn.floor_runs(rest & ~rn.widen(daq_on, n, nb, na), minrun)
+    m = rn.floor_runs(m & ~rn.widen(vid, n, nb, na), minrun)
+    return m, np.unique(np.concatenate([daq_on, vid]))
+
+
 # ------------------------------------------------------------------------------------------------ collect
 def _code_key(mask):
     from wfield_local import restnl_mask as rn
