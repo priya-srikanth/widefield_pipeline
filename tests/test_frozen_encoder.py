@@ -513,3 +513,57 @@ def test_nose_frames_source_is_a_parameter(monkeypatch):
     assert Path(b).parent.name == "pose3d_4cam_nose08_test" and Path(b).parent.parent == Path(a).parent.parent
     monkeypatch.setenv("COMBINED_ENCODING_NOSE", "3d")
     assert "|nose3d=pose3d_4cam_nose08_test" in fe._run_tag()
+
+
+def test_pose_layout_xyz3d_needs_all_parts_3d(monkeypatch):
+    import pytest
+    from wfield_local import combined_encoding as ce
+    for k in ("COMBINED_ENCODING_TONGUE", "COMBINED_ENCODING_JAW", "COMBINED_ENCODING_NOSE"):
+        monkeypatch.setenv(k, "3d")
+    monkeypatch.setenv("COMBINED_ENCODING_POSE", "xyz3d")
+    assert ce.pose_layout() == "xyz3d" and "|xyz3d" in fe._run_tag()
+    monkeypatch.setenv("COMBINED_ENCODING_NOSE", "cam4")
+    with pytest.raises(ValueError):
+        ce.pose_layout()
+
+
+def test_split_blocks_xyz3d_dir_mag_rule(monkeypatch):
+    """xyz3d: every part splits DIR = (ml, ap) | MAG = the rest (tongue dv, reach, speed; jaw dv, speed; nose dv)."""
+    import numpy as np
+    from wfield_local import combined_encoding as ce
+    for k in ("COMBINED_ENCODING_TONGUE", "COMBINED_ENCODING_JAW", "COMBINED_ENCODING_NOSE"):
+        monkeypatch.setenv(k, "3d")
+    monkeypatch.setenv("COMBINED_ENCODING_POSE", "xyz3d")
+    monkeypatch.delenv("COMBINED_ENCODING_LICKS_ALL", raising=False)
+    nl, n = len(ce.CLAGS), 5
+    raw = {v: np.zeros((n, nl)) for v in ("cue", "arrival", "pos_enl", "pos_cue", "running", "exec_angle")}
+    raw["licks"] = np.zeros((n, 2 * nl))
+    raw["tongue"] = np.tile(np.repeat(np.arange(5.0), nl), (n, 1))       # ml, ap, dv, reach, speed
+    raw["jaw"] = np.tile(np.repeat(np.arange(4.0), nl), (n, 1))          # ml, ap, dv, speed
+    raw["nose"] = np.tile(np.repeat(np.arange(3.0), nl), (n, 1))         # ml, ap, dv
+    if fe.SPONT:
+        for v in fe.SPONT_VARS:
+            raw[v] = np.zeros((n, nl))
+    out = fe.split_blocks(raw)
+    assert set(out["tongue_dir"][0]) == {0, 1} and set(out["tongue_mag"][0]) == {2, 3, 4}
+    assert set(out["jaw_dir"][0]) == {0, 1} and set(out["jaw_mag"][0]) == {2, 3}
+    assert set(out["nose_dir"][0]) == {0, 1} and set(out["nose_mag"][0]) == {2}
+    raw["jaw"] = raw["jaw"][:, :3 * nl]
+    import pytest
+    with pytest.raises(ValueError):
+        fe.split_blocks(raw)
+
+
+def test_xyz_traces_jaw_rest_and_tongue_dv_fill():
+    import numpy as np
+    import pandas as pd
+    from wfield_local import combined_encoding as ce
+    t = np.arange(-600, 100, 4.0)
+    P = pd.DataFrame({"trial_id": 1, "t_ms": t, "jaw_ml": 0.5, "jaw_ap": -0.3 + (t >= 0) * 0.2,
+                      "jaw_dv": -1.0 - (t >= 0) * 0.4})
+    ix = pd.DataFrame({"trial_id": [1, 1], "t_ms": [-100.0, 40.0]})
+    J = ce.jaw_3d_xyz(ix, P)
+    assert np.allclose([J["jaw_ml"][1], J["jaw_ap"][1], J["jaw_dv"][1]], [0.0, 0.2, -0.4])
+    F = pd.DataFrame({"trial_id": [1], "t_ms": [40.0], "tongue_ml": [1.0], "tongue_ap": [2.0], "tongue_dv": [-2.0]})
+    dv = ce.tongue_3d_dv(pd.DataFrame({"trial_id": [1, 1, 1], "t_ms": [0.0, 40.0, 80.0]}), np.array([0.0, 5.0, 7.0]), F)
+    assert dv[0] == 0 and dv[1] == -2.0 and np.isnan(dv[2])

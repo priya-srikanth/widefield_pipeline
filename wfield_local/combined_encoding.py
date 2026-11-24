@@ -449,6 +449,44 @@ JAW_ENV = "COMBINED_ENCODING_JAW"
 NOSE_ENV = "COMBINED_ENCODING_NOSE"
 NOSE_FRAMES_ENV = "COMBINED_ENCODING_NOSE_FRAMES"
 POSE3D_MODES = ("", "cam4", "3d")
+#: FULL 3-D POSE LAYOUT (Priya 11-24: "full 3-D xyz for every pose part"): ``COMBINED_ENCODING_POSE=xyz3d`` (needs
+#: TONGUE_ENV = JAW_ENV = NOSE_ENV = 3d) enters every part on all three axes, mm:
+#:   tongue  ml, ap, dv (mouth-centred; in the mouth = 0), prot = reach (3-D distance), speed = |d (ml, ap, dv) / dt|
+#:           (the 3-D speed, as the jaw's; Priya 11-24). The tongue is NEVER despiked (real licks move > 1 mm / frame)
+#:   jaw     ml, ap, dv (minus the trial's pre-cue median, JAW_ENV), speed = 3-D speed after despiking
+#:   nose    ml, ap, dv (mouth-centred)
+#: DIR / MAG RULE, one for all three parts (written down 11-24): DIR = the horizontal-plane position (ml, ap) -- where
+#: the part points, the axes the six spouts differ on (lateral, and depth of the reach toward them); MAG = the vertical
+#: position (dv: jaw opening, tongue depth, head height) + the 3-D distance (tongue) + the speed -- how far / how much.
+#: So tongue_ps (non-directional tongue) = dv, prot, speed; jaw_nd = dv, speed; nose_nd = dv; dir_kin = the six DIR
+#: traces (tongue / jaw / nose ml, ap); the frozen tongue_dir / jaw_dir / nose_dir = each part's (ml, ap), *_mag = the
+#: rest. (2-D layout, unset: tongue x, y, prot | speed; jaw x | y, speed; nose x | y -- tongue prot counted as DIR.)
+#: Unset = the previous layouts (2-D, or JAW / NOSE=3d mapped onto the 2-D x / y). Outputs: the encoder folder name
+#: gains "_xyz3d", the frozen run tag "|xyz3d".
+POSE_ENV = "COMBINED_ENCODING_POSE"
+POSE_LAYOUTS = {
+    "": {"tongue": ("tongue_x", "tongue_y", "tongue_prot", "tongue_speed"), "jaw": ("jaw_x", "jaw_y", "jaw_speed"),
+         "nose": ("nose_x", "nose_y"), "tongue_ps": ("tongue_prot", "tongue_speed"), "jaw_nd": ("jaw_y", "jaw_speed"),
+         "nose_nd": ("nose_y",), "dir_kin": ("tongue_x", "tongue_y", "jaw_x", "nose_x"),
+         "dir_n": {"tongue": 3, "jaw": 1, "nose": 1}},
+    "xyz3d": {"tongue": ("tongue_ml", "tongue_ap", "tongue_dv", "tongue_prot", "tongue_speed"),
+              "jaw": ("jaw_ml", "jaw_ap", "jaw_dv", "jaw_speed"), "nose": ("nose_ml", "nose_ap", "nose_dv"),
+              "tongue_ps": ("tongue_dv", "tongue_prot", "tongue_speed"), "jaw_nd": ("jaw_dv", "jaw_speed"),
+              "nose_nd": ("nose_dv",),
+              "dir_kin": ("tongue_ml", "tongue_ap", "jaw_ml", "jaw_ap", "nose_ml", "nose_ap"),
+              "dir_n": {"tongue": 2, "jaw": 2, "nose": 2}},
+}
+
+
+def pose_layout() -> str:
+    """The pose layout: "" (2-D / mapped) or "xyz3d" (POSE_ENV); xyz3d refuses unless tongue, jaw, nose are 3-D."""
+    v = os.environ.get(POSE_ENV, "").strip()
+    if v not in POSE_LAYOUTS:
+        raise ValueError(f"{POSE_ENV}={v!r}; expected xyz3d or unset")
+    if v and not (os.environ.get(TONGUE_ENV, "") == "3d" and pose3d_mode(JAW_ENV) == "3d"
+                  and pose3d_mode(NOSE_ENV) == "3d"):
+        raise ValueError(f"{POSE_ENV}=xyz3d needs {TONGUE_ENV}, {JAW_ENV} and {NOSE_ENV} = 3d")
+    return v
 SPIKE_MM = 1.0
 SPIKE_RETURN = 3
 _CAMS3D = ("cam1", "cam4", "cam2", "cam3")
@@ -520,10 +558,41 @@ def jaw_3d_traces(ix: pd.DataFrame, P: pd.DataFrame, fps: float = 250.0) -> tupl
     return D[:, 0], D[:, 2], sp
 
 
+def jaw_3d_xyz(ix: pd.DataFrame, P: pd.DataFrame, fps: float = 250.0) -> dict:
+    """POSE_ENV=xyz3d: {jaw_ml, jaw_ap, jaw_dv, jaw_speed}, the rest reference / speed of `jaw_3d_traces`."""
+    cols = ["jaw_ml", "jaw_ap", "jaw_dv"]
+    t = P.t_ms.to_numpy(float)
+    ok = np.isfinite(P[cols].to_numpy(float)).all(1)
+    pre = P[(t >= -500) & (t < 0) & ok]
+    rest = pre.groupby("trial_id")[cols].median()
+    rest = rest[pre.groupby("trial_id").size().reindex(rest.index) >= 20]
+    J = ix[["trial_id", "t_ms"]].merge(P, on=["trial_id", "t_ms"], how="left")
+    D = J[cols].to_numpy(float) - rest.reindex(J.trial_id.to_numpy()).to_numpy(float)
+    sp = (np.linalg.norm(np.column_stack([np.gradient(D[:, i]) for i in range(3)]), axis=1) * fps if len(D) > 1
+          else np.full(len(D), np.nan))
+    return {"jaw_ml": D[:, 0], "jaw_ap": D[:, 1], "jaw_dv": D[:, 2], "jaw_speed": sp}
+
+
 def nose_3d_traces(ix: pd.DataFrame, P: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
     """(nose_x = ml, nose_y = dv) mouth-centred mm on the cam4 pose rows; ``P`` = `pose3d_part(F, "nose")[0]`."""
     J = ix[["trial_id", "t_ms"]].merge(P, on=["trial_id", "t_ms"], how="left")
     return J.nose_ml.to_numpy(float), J.nose_dv.to_numpy(float)
+
+
+def nose_3d_xyz(ix: pd.DataFrame, P: pd.DataFrame) -> dict:
+    """POSE_ENV=xyz3d: {nose_ml, nose_ap, nose_dv} mouth-centred mm on the cam4 pose rows."""
+    J = ix[["trial_id", "t_ms"]].merge(P, on=["trial_id", "t_ms"], how="left")
+    return {f"nose_{a}": J[f"nose_{a}"].to_numpy(float) for a in ("ml", "ap", "dv")}
+
+
+def tongue_3d_dv(ix: pd.DataFrame, cam4_tx: np.ndarray, F: pd.DataFrame) -> np.ndarray:
+    """POSE_ENV=xyz3d: tongue dv mm on the cam4 pose rows, with the fill rules of `tongue_3d_traces` (in mouth = 0)."""
+    J = ix[["trial_id", "t_ms"]].merge(F[["trial_id", "t_ms", "tongue_ml", "tongue_ap", "tongue_dv"]]
+                                       .drop_duplicates(["trial_id", "t_ms"]), on=["trial_id", "t_ms"], how="left")
+    X = J[["tongue_ml", "tongue_ap", "tongue_dv"]].to_numpy(float)
+    have = np.isfinite(X).all(1)
+    inside = (np.asarray(cam4_tx, float) == 0) & ~have
+    return np.where(have, X[:, 2], np.where(inside, 0.0, np.nan))
 
 
 def lick_angle_3d(L: pd.DataFrame, session: str) -> np.ndarray:
@@ -790,7 +859,12 @@ def _load_behaviour(animal: str, date: str, rv) -> Behaviour:
         if not f3.exists():                                       # never mix cam4 / 3-D tongue silently
             raise FileNotFoundError(f"{TONGUE_ENV}=3d needs {f3}")
         F3 = pd.read_csv(f3, usecols=["trial_id", "t_ms", "tongue_ml", "tongue_ap", "tongue_dv"])
-        tx, ty, prot = tongue_3d_traces(S["index"], tx, F3)
+        tx4 = tx
+        tx, ty, prot = tongue_3d_traces(S["index"], tx4, F3)
+    layout = pose_layout()                                        # POSE_ENV (checks tongue / jaw / nose are 3-D)
+    xyz = {}
+    if layout == "xyz3d":
+        xyz["tongue_dv"] = tongue_3d_dv(S["index"], tx4, F3)
     fps = 250.0
     jaw_mode, nose_mode = pose3d_mode(JAW_ENV), pose3d_mode(NOSE_ENV)
     jx, jy = cl.jaw_x.to_numpy(float), cl.jaw_y.to_numpy(float)
@@ -809,15 +883,28 @@ def _load_behaviour(animal: str, date: str, rv) -> Behaviour:
         P = pose3d_part(pd.read_csv(f3, usecols=lambda c, need=need: c in need), part)[0]
         if part == "jaw":
             jx, jy, jsp = jaw_3d_traces(S["index"], P, fps)
+            if layout == "xyz3d":
+                xyz.update(jaw_3d_xyz(S["index"], P, fps))
         else:
             nx, ny = nose_3d_traces(S["index"], P)
+            if layout == "xyz3d":
+                xyz.update(nose_3d_xyz(S["index"], P))
     sp = lambda v: np.abs(np.gradient(v)) * fps                                   # noqa: E731
     run_t, run_v = session_speed(h5)
-    analog = {"tongue_x": (t_pose, tx), "tongue_y": (t_pose, ty), "tongue_prot": (t_pose, prot),
-              "tongue_speed": (t_pose, sp(prot)), "jaw_x": (t_pose, jx), "jaw_y": (t_pose, jy),
-              "jaw_speed": (t_pose, jsp),
-              "nose_x": (t_pose, nx), "nose_y": (t_pose, ny), "running": (np.asarray(run_t, float),
-                                                                          np.asarray(run_v, float))}
+    if layout == "xyz3d":                                          # POSE_ENV: explicit axis names, no 2-D aliases
+        analog = {"tongue_ml": (t_pose, tx), "tongue_ap": (t_pose, ty), "tongue_dv": (t_pose, xyz["tongue_dv"]),
+                  "tongue_prot": (t_pose, prot),                   # reach = 3-D distance, its own column
+                  "tongue_speed": (t_pose, np.linalg.norm(np.column_stack(   # 3-D speed |d(ml, ap, dv)/dt| (11-24)
+                      [np.gradient(v) for v in (tx, ty, xyz["tongue_dv"])]), axis=1) * fps),
+                  **{k: (t_pose, xyz[k]) for k in ("jaw_ml", "jaw_ap", "jaw_dv", "jaw_speed",
+                                                   "nose_ml", "nose_ap", "nose_dv")},
+                  "running": (np.asarray(run_t, float), np.asarray(run_v, float))}
+    else:
+        analog = {"tongue_x": (t_pose, tx), "tongue_y": (t_pose, ty), "tongue_prot": (t_pose, prot),
+                  "tongue_speed": (t_pose, sp(prot)), "jaw_x": (t_pose, jx), "jaw_y": (t_pose, jy),
+                  "jaw_speed": (t_pose, jsp),
+                  "nose_x": (t_pose, nx), "nose_y": (t_pose, ny), "running": (np.asarray(run_t, float),
+                                                                              np.asarray(run_v, float))}
     tgt, tdist = {}, {}
     pos4 = np.array([oc.pos_key(p, lat) for p in L4.position])    # spout geometry per position: cam4's table (fourcam too)
     for col, dst in (("spout_angle_deg", tgt), ("spout_dist_px", tdist)):
@@ -1043,6 +1130,14 @@ def exec_bins(B: Behaviour, weights: bool = False):
 # =============================================================================== design
 
 
+def _pose_block(out: dict, B, ft, blk: str, LY: dict) -> None:
+    """out[blk] = the layout's traces of pose block ``blk`` (POSE_LAYOUTS); refuses a behaviour of another layout."""
+    miss = [k for k in LY[blk] if k not in B.analog]
+    if miss:
+        raise KeyError(f"{blk}: behaviour has no {miss} ({POSE_ENV}={pose_layout()!r}; rebuild the inputs)")
+    out[blk] = np.hstack([_analog_cols(*B.analog[k], ft) for k in LY[blk]])
+
+
 def _event_cols(times, ft, lags, amp=None, spacing=None) -> np.ndarray:
     from wfield_local import movement_encoding as ME
     r = ME.EventRegressor("e", np.asarray(times, float), lags, "g", amplitude=amp, basis_spacing_s=spacing or BASIS_S)
@@ -1203,15 +1298,12 @@ def raw_blocks(B: Behaviour, ft, pos_perm: dict | None = None, drop_pos: str | N
         lk.append(_event_cols(lips, ft, LAGS["lick"]))
     out["licks"] = np.hstack(lk)
     out["exec_angle"] = _event_cols(B.lick_on_s, ft, LAGS["lick"], amp=B.lick_angle_within)
-    out["tongue"] = np.hstack([_analog_cols(*B.analog[k], ft) for k in ("tongue_x", "tongue_y", "tongue_prot",
-                                                                         "tongue_speed")])
-    out["jaw"] = np.hstack([_analog_cols(*B.analog[k], ft) for k in ("jaw_x", "jaw_y", "jaw_speed")])
-    out["nose"] = np.hstack([_analog_cols(*B.analog[k], ft) for k in ("nose_x", "nose_y")])
+    LY = POSE_LAYOUTS[pose_layout()]                     # POSE_ENV: the pose blocks' traces (2-D or xyz3d)
+    for blk in ("tongue", "jaw", "nose"):
+        _pose_block(out, B, ft, blk, LY)
     out["running"] = _analog_cols(*B.analog["running"], ft)
-    out["tongue_ps"] = np.hstack([_analog_cols(*B.analog[k], ft) for k in ("tongue_prot", "tongue_speed")])
-    out["jaw_nd"] = np.hstack([_analog_cols(*B.analog[k], ft) for k in ("jaw_y", "jaw_speed")])
-    out["nose_nd"] = _analog_cols(*B.analog["nose_y"], ft)
-    out["dir_kin"] = np.hstack([_analog_cols(*B.analog[k], ft) for k in ("tongue_x", "tongue_y", "jaw_x", "nose_x")])
+    for blk in ("tongue_ps", "jaw_nd", "nose_nd", "dir_kin"):
+        _pose_block(out, B, ft, blk, LY)
     out["kinall"] = np.hstack([out["tongue"], out["jaw"]])                 # lick execution only -- no nose
     if B.lick_angle is not None and np.isfinite(B.lick_angle).any():
         la = B.lick_angle - np.nanmean(B.lick_angle)
@@ -2571,6 +2663,7 @@ def out_dir(rv, order: str) -> Path:
                                                          + (f"_bw{bins_width():g}" if os.environ.get(BINS_ENV)
                                                             and bins_width() != 1.0 else "")
                                                          + licks_all_suffix()
+                                                         + ("_xyz3d" if pose_layout() == "xyz3d" else "")
                                                          + os.environ.get(SUFFIX_ENV, ""))
 
 

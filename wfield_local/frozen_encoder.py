@@ -558,13 +558,14 @@ def split_blocks(raw: dict) -> dict:
     h = lk.shape[1] // 2
     out = {v: raw[v] for v in ("cue", "arrival", "pos_enl", "pos_cue", "running", "exec_angle")}
     out["lick_onset"], out["contact"] = lk[:, :h], lk[:, h:]
-    out["tongue_dir"], out["tongue_mag"] = raw["tongue"][:, :3 * nl], raw["tongue"][:, 3 * nl:]   # x, y, prot | speed
-    out["jaw_dir"], out["jaw_mag"] = raw["jaw"][:, :nl], raw["jaw"][:, nl:]
-    out["nose_dir"], out["nose_mag"] = raw["nose"][:, :nl], raw["nose"][:, nl:]
-    for k, w in (("tongue_mag", 1), ("jaw_mag", 2), ("nose_mag", 1), ("tongue_dir", 3), ("jaw_dir", 1),
-                 ("nose_dir", 1)):
-        if out[k].shape[1] != w * nl:
-            raise ValueError(f"{k}: {out[k].shape[1]} columns, expected {w * nl}")
+    # DIR | MAG per part from the encoder's pose layout (`combined_encoding.POSE_LAYOUTS`; xyz3d: (ml, ap) | (dv,
+    # [prot,] speed) for all three parts, the 11-24 rule; 2-D: tongue x, y, prot | speed; jaw x | y, speed; nose x | y)
+    LY = ce.POSE_LAYOUTS[ce.pose_layout()]
+    for part in ("tongue", "jaw", "nose"):
+        nd, nt = LY["dir_n"][part], len(LY[part])
+        if raw[part].shape[1] != nt * nl:
+            raise ValueError(f"{part}: {raw[part].shape[1]} columns, expected {nt * nl} ({LY[part]})")
+        out[f"{part}_dir"], out[f"{part}_mag"] = raw[part][:, :nd * nl], raw[part][:, nd * nl:]
     if SPONT:                                            # the encoder's own spontaneous-lick variables, unchanged
         if set(ce.SPLIT_LICK_VARS) != set(SPONT_VARS) or any(SPONT_GROUP.get(g) != FGROUP[v] or ce.PEN_GROUP_OF[v] != FPEN[v]
                                                              for v, g in ce.SPLIT_LICK_VARS.items()):
@@ -1024,6 +1025,7 @@ def _run_tag() -> str:
     return ((_run_mode() + f"|k0={_knot0():g}" + ("|push" if _push_on() else "")) + ("|te" if TE else "")
             + ("|tongue3d" if os.environ.get("COMBINED_ENCODING_TONGUE", "") == "3d" else "")    # TONGUE_ENV
             + ("|jaw3d" if os.environ.get("COMBINED_ENCODING_JAW", "") == "3d" else "")          # JAW_ENV (11-24)
+            + ("|xyz3d" if os.environ.get("COMBINED_ENCODING_POSE", "") == "xyz3d" else "")      # POSE_ENV (11-24)
             + ("|nose3d" + (f"={os.environ['COMBINED_ENCODING_NOSE_FRAMES']}"
                             if os.environ.get("COMBINED_ENCODING_NOSE_FRAMES") else "")
                if os.environ.get("COMBINED_ENCODING_NOSE", "") == "3d" else "")                  # NOSE_ENV (11-24)
