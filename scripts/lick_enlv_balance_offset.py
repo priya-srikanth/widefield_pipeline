@@ -470,8 +470,18 @@ def tests(S: pd.DataFrame, meas, keys) -> tuple[pd.DataFrame, pd.DataFrame]:
 def compare(T: pd.DataFrame, TS: pd.DataFrame) -> pd.DataFrame:
     """ENLv (primary, every reader) vs cued / ITI all / ITI docked / ITI moving on the same quantities."""
     from wfield_local import analysis_kit as ak
+    import os
     root = il.OUT
     fold = {"ITI all": root, "ITI docked": root / "itifilter_dock", "ITI moving": root / "itifilter_notdock"}
+    # lane E 11-24: the comparison folders of a redirected run (WFIELD_ENLV_CMP_ALL / _DOCK / _MOVING); a set without
+    # its tables is left out of the comparison and named
+    env = {"ITI all": "WFIELD_ENLV_CMP_ALL", "ITI docked": "WFIELD_ENLV_CMP_DOCK", "ITI moving": "WFIELD_ENLV_CMP_MOVING"}
+    if os.environ.get(env["ITI all"]):
+        root = Path(os.environ[env["ITI all"]])
+        fold = {k: Path(os.environ[v]) for k, v in env.items() if os.environ.get(v)}
+    for k in [k for k, v in fold.items() if not (v / "matched_loclin_tests.csv").exists()]:
+        print(f"  comparison set {k!r}: no matched_loclin_tests.csv in {fold[k]} -- left out", flush=True)
+        fold.pop(k)
     rows = []
 
     def add(q, src, ep, point, lo_, hi_, d: dict):
