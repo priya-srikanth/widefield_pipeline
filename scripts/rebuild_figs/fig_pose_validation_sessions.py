@@ -51,7 +51,8 @@ import _common  # noqa: E402
 
 NAME = "pose_validation_sessions"
 # outputs: --out, default _common.default_out() = run_mode.subdir(<rebuild_root>/rebuild_figs) (routed, coordinator 11-04)
-P3 = Path(config.resolver().root("dlc")) / "session_poses" / "pose3d"            # read in place
+from wfield_local.pose3d import pose3d_dir as _pose3d_dir  # noqa: E402
+P3 = _pose3d_dir(config.resolver())       # read in place; 11-22: the selected 3-D source (was the literal pose3d/)
 V36 = Path(config.resolver().root("orofacial")) / RUN / "sessions"              # read in place
 ANIMALS = ("PS92", "PS93", "PS94", "PS95")
 MARK = {"PS92": "o", "PS93": "s", "PS94": "^", "PS95": "D"}

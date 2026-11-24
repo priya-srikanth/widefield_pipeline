@@ -3,7 +3,7 @@ traces to see if we can refine" the clip-based names). Computation only; figures
 
 Per projected session (``proj/<key>.npz`` of a factor set; ABSOLUTE expression = weights x FR normalizer D):
 
-``lick_table``       every LP-detected lick of the session (v36 ``licks_all.csv``: DAQ onset ``daq_on_s``, executed
+``lick_table``       every lick of the session (`session_licks`: the fused four-camera train; DAQ onset ``daq_on_s``, executed
                      angle ``peak_angle_deg``, + = the animal's LEFT) with its direction class (left > +ANGLE_DEG,
                      right < -ANGLE_DEG, center between), the trial's spout ``position``, its NUMBER within its bout
                      (``n_in_bout``, 1 = first; v36 ``bout_idx``), time from the cue of the engaged trial it falls in,
@@ -26,12 +26,14 @@ Treadmill speed (`behavior_events.session_speed`, the one definition) is CACHED 
 """
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-V36 = "lp_r4_heatmap_20261013__clean_v36"
+from wfield_local.lp_licks import input_run as _input_run  # noqa: E402
+V36 = _input_run()  # 11-22: the input / adopted cam4 run (lp_licks.input_run; was the literal v36 run, plan item 3)
 ANGLE_DEG = 12.0                         # |executed angle| above this = a left / right lick (cam4 image angle)
 MAX_ILI_S = 0.35                         # next lick within this -> an instantaneous frequency
 LAGS = np.arange(-1.0, 1.0 + 1e-9, 0.04)
@@ -44,12 +46,57 @@ PER_LICK_S = 0.2                         # expression AT a lick: mean over 0..+0
 DIRECTIONS = ("left", "centre", "right")
 
 
+LICK_COLS = ["trial_id", "position", "bout_idx", "daq_on_s", "peak_angle_deg"]
+#: DIRECTION SOURCE (11-23, four-camera rule; CC-B audit violation 5). Env ``FRV_DIRECTION``: unset / "cam4" = the cam4
+#: image angle ``peak_angle_deg`` (as before; licks cam4 missed -> "unknown"); "3d" = the four-camera 3-D lick angle of
+#: the six-position kinematics, atan2(side_ml, hypot(out_ap, down_dv)) (= the fused kinematics' ``midline`` column, the
+#: Fig 4D aim angle), signed + = CONTRALESIONAL (`arhmm_features.contra_sign`), taken only where the lick has >= 2
+#: camera views (the kinematics rule) and joined by LICK KEY to the fused lick table; other licks -> "unknown". The same
+#: +-ANGLE_DEG rule classifies it (right / contralesional > +12 deg, left / ipsilesional < -12 deg); internally it is
+#: stored as ``peak_angle_deg`` = -angle so the cam4 sign convention (+ = the animal's left) and the class code are shared.
+DIRECTION_ENV = "FRV_DIRECTION"
+_KIN3D: dict = {}
+
+
+def _kin3d_angles(rv, label: str) -> pd.Series:
+    """3-D lick angle (deg, + = contralesional) by lick_key for ``label`` (n_views >= 2), from the adopted run's
+    ``kinematics_fused/licks.csv.gz`` (all contexts; memoised per process)."""
+    from wfield_local import pose3d
+    from wfield_local.arhmm_features import contra_sign
+    f = pose3d.pose3d_dir(rv) / "kinematics_fused" / "licks.csv.gz"
+    if str(f) not in _KIN3D:
+        K = pd.read_csv(f, usecols=["session", "lick_key", "n_views", "side_ml", "out_ap", "down_dv"])
+        K = K[(K.n_views >= 2) & K[["side_ml", "out_ap", "down_dv"]].notna().all(1)]
+        K = K.assign(ang=np.degrees(np.arctan2(K.side_ml, np.hypot(K.out_ap, K.down_dv))))
+        _KIN3D.clear()
+        _KIN3D[str(f)] = {s: g.set_index("lick_key").ang for s, g in K.groupby("session")}
+    a = _KIN3D[str(f)].get(label, pd.Series(dtype=float))
+    return a * contra_sign(label.split("_")[0])
+
+
+def _session_lick_rows(rv, animal: str, date: str) -> pd.DataFrame:
+    """THE session lick set (`session_licks.session_licks`: the fused four-camera train since 11-22, cam4 licks_all.csv
+    with fusion off) with the cam4 columns this module needs. On the fused train, ``peak_angle_deg`` (cam4 image angle,
+    the direction class) and ``bout_idx`` come from cam4 licks_all.csv joined by LICK KEY (a fused lick cam4 saw keeps
+    cam4's peak); licks cam4 did not see get NaN -> direction "unknown", no bout number (11-23, four-camera re-run)."""
+    from wfield_local import session_licks as sl
+    A = sl.session_licks(f"{animal}_{date}", rv)
+    if (A.source == "cam4").all():
+        return A[LICK_COLS]
+    f = Path(rv.root("orofacial")) / V36 / "sessions" / animal / date / "licks_all.csv"
+    C = pd.read_csv(f, usecols=["trial_id", "t_ms", "bout_idx", "peak_angle_deg"])
+    C = C.assign(lick_key=sl.lick_key(C.trial_id, C.t_ms)).drop_duplicates("lick_key").set_index("lick_key")
+    for c in ("bout_idx", "peak_angle_deg"):
+        A[c] = C[c].reindex(A.lick_key.to_numpy()).to_numpy()
+    if os.environ.get(DIRECTION_ENV, "cam4") == "3d":
+        A["peak_angle_deg"] = -_kin3d_angles(rv, f"{animal}_{date}").reindex(A.lick_key.to_numpy()).to_numpy()
+    return A[LICK_COLS]
+
+
 def lick_table(rv, animal: str, date: str, cues: np.ndarray) -> pd.DataFrame:
     """LP licks of the whole session with direction class, time from the nearest preceding engaged cue (NaN when the
     lick is outside cue -2..+4 s of any of ``cues``) and instantaneous frequency."""
-    f = Path(rv.root("orofacial")) / V36 / "sessions" / animal / date / "licks_all.csv"
-    L = pd.read_csv(f, usecols=["trial_id", "position", "bout_idx", "daq_on_s", "peak_angle_deg"]
-                    ).dropna(subset=["daq_on_s"])
+    L = _session_lick_rows(rv, animal, date).dropna(subset=["daq_on_s"])
     L = L.sort_values("daq_on_s").reset_index(drop=True)
     # lick NUMBER within its bout (v36 bout_idx within the trial; 1 = the bout's first lick); NaN without a bout
     g = L.dropna(subset=["bout_idx"]).groupby(["trial_id", "bout_idx"]).cumcount() + 1
@@ -220,5 +267,34 @@ def lick_epoch_session(job) -> dict:
     from wfield_local.paths import PathResolver
     rv = PathResolver()
     zs = [np.load(f) for f in fro.session_keys(Path(fdir), animal, date)]
+    n_proj = sum(len(z["cue_daq_s"]) for z in zs)
+    gate = os.environ.get(TRIALS_ENV, "engaged")
+    if gate == "working":
+        zs = [working_subset(z, f"{animal}_{date}") for z in zs]
     L = lick_table(rv, animal, date, np.concatenate([z["cue_daq_s"] for z in zs]))
-    return {"animal": animal, "date": date, "epoch": str(zs[0]["epoch"]), **lick_epoch_summary(zs, L)}
+    return {"animal": animal, "date": date, "epoch": str(zs[0]["epoch"]), "trial_gate": gate, "n_projected": n_proj,
+            **lick_epoch_summary(zs, L)}
+
+
+#: TRIAL GATE (11-23, Priya: every six-position trial gate = the camera working period, not the DAQ engagement flag).
+#: Env ``FRV_TRIALS``: unset / "engaged" = every projected trial of the FaceRhythm bundle (its behavior-DAQ "engaged"
+#: set, as before); "working" = the projected trials inside the camera working period
+#: (`trial_classes.camera_period_trials`: first cue .. last camera lick minus stopped runs; Fig 3B / 3D). Working-period
+#: trials the bundle never projected (about 2 %, 201 of them in PS92_20260812) have no FaceRhythm expression and are
+#: not counted.
+TRIALS_ENV = "FRV_TRIALS"
+_TRIAL_KEYS = ("trials", "trials_err", "trials_D", "trials_lossy", "trial_id", "position", "cue_daq_s")
+
+
+def working_subset(z, label: str) -> dict:
+    """The proj file ``z`` (npz) as a dict restricted to its camera-working-period trials."""
+    from wfield_local import trial_classes as tc
+    S = tc.session_trials(label).dropna(subset=["cue_daq"])
+    w, _c, _h = tc.camera_period_trials(label[:5] + label[-4:], S.cue_daq.to_numpy(float))
+    keep_ids = set(S.trial_id.astype(int).to_numpy()[np.asarray(w, bool)])
+    m = np.isin(z["trial_id"].astype(int), list(keep_ids))
+    d = {k: z[k] for k in z.files}
+    for k in _TRIAL_KEYS:
+        if k in d:
+            d[k] = d[k][m]
+    return d

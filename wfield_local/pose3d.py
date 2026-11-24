@@ -40,11 +40,19 @@ import pandas as pd
 SOURCES = {"2cam": "pose3d", "4cam": "pose3d_4cam",
            "4cam_clips": "pose3d_4cam_clips"}   # 4cam on the side REVIEW CLIPS only (partial windows): tests, never production
 SOURCE_ENV = "WIDEFIELD_POSE3D_SOURCE"
+#: THE ADOPTED 3-D RUN (11-22): the source + run tag every reader / writer uses when ``SOURCE_ENV`` / ``TAG_ENV`` are
+#: unset, and the run whose routed outputs are UNTAGGED (`run_mode.pose3d_part` ""). The adoption of the four-camera run
+#: (Priya 11-21 Q2) changes these two constants in ONE commit (with `orofacial_cohort.RUN` and
+#: `session_licks.FUSED_DEFAULT`); until then the two-camera tables (``session_poses/pose3d``) stay the default.
+# ADOPTED 2026-11-22 (Priya 11-21 Q2, Q8): the WHOLE-SESSION four-camera 3-D run (first..last sync pulse, 60 ms floor;
+# session_poses/pose3d_4cam_3net_20261121_sync60)
+ADOPTED_SOURCE = "4cam"
+ADOPTED_TAG = "_3net_20261121_sync60"
 
 
 def pose3d_source(source: str | None = None) -> str:
     import os
-    s = source or os.environ.get(SOURCE_ENV) or "2cam"
+    s = source or os.environ.get(SOURCE_ENV) or ADOPTED_SOURCE
     if s not in SOURCES:
         raise ValueError(f"3-D source {s!r}: one of {sorted(SOURCES)} ({SOURCE_ENV})")
     return s
@@ -57,7 +65,27 @@ def pose3d_dir(rv=None, source: str | None = None, root=None):
     if root is None:
         from wfield_local.paths import PathResolver
         root = (rv or PathResolver()).root("dlc")
-    return Path(root) / "session_poses" / SOURCES[pose3d_source(source)]
+    s = pose3d_source(source)
+    return Path(root) / "session_poses" / (SOURCES[s] + pose3d_tag(s))
+
+
+#: RUN TAG (11-21, Priya / VLS-paper refresh: "every output goes to a new name or a new run tag"): a suffix on the 3-D
+#: folder, e.g. ``WIDEFIELD_POSE3D_TAG=_3net_20261121`` -> ``session_poses/pose3d_4cam_3net_20261121``, so a re-run of a
+#: source never lands on an earlier run's tables. Inherited by child processes like `SOURCE_ENV`; never applied to the
+#: default 2cam source (today's adopted tables keep their folder).
+TAG_ENV = "WIDEFIELD_POSE3D_TAG"
+
+
+def pose3d_tag(source: str | None = None) -> str:
+    """The run tag of ``source``: ``TAG_ENV`` when set, else `ADOPTED_TAG` for the adopted source; never on 2cam."""
+    import os
+    import re
+    s = pose3d_source(source)
+    env = os.environ.get(TAG_ENV)
+    tag = (env if env is not None else (ADOPTED_TAG if s == ADOPTED_SOURCE else "")) if s != "2cam" else ""
+    if tag and not re.fullmatch(r"_[A-Za-z0-9_]+", tag):
+        raise ValueError(f"{TAG_ENV}={tag!r}: expected '_' + letters / digits / '_' (e.g. _3net_20261121)")
+    return tag
 
 
 STATIC_LK = 0.9            # nose / spout: raw points, both cameras at least this confident
@@ -532,7 +560,28 @@ def lick_events(S: pd.DataFrame, max_gap_ms: float = 12.0, min_frames: int = 3) 
     return E
 
 
-def lick_peaks(S: pd.DataFrame, rig: dict, min_frames: int = 3, max_rep_px: float | None = None) -> pd.DataFrame:
+def _cut_flags(t: np.ndarray, tid: np.ndarray, cuts: dict | None) -> np.ndarray:
+    """Per frame: does a cut of its trial fall after the previous frame and at or before this one?"""
+    flag = np.zeros(len(t), bool)
+    if not cuts:
+        return flag
+    for tr in np.unique(tid):                       # frames of a trial are contiguous and time-ordered
+        c = cuts.get(int(tr))
+        if c is None or not len(c):
+            continue
+        idx = np.flatnonzero(tid == tr)
+        k = np.searchsorted(t[idx], np.asarray(c, float), side="left")   # first frame at or after each cut
+        k = k[(k > 0) & (k < len(idx))]
+        flag[idx[k]] = True
+    return flag
+
+
+#: Floor between 3-D (video) lick peaks; see `lick_peaks`. Separate from the DAQ `lick_detection.min_ili_ms` (40 ms).
+POSE3D_MIN_ILI_MS = 60.0
+
+
+def lick_peaks(S: pd.DataFrame, rig: dict, min_frames: int = 3, max_rep_px: float | None = None,
+               cuts: dict | None = None, min_ili_ms: float | None = None) -> pd.DataFrame:
     """One row per 3-D lick: a run of >= ``min_frames`` consecutive frames (4 ms apart, one trial, cue .. trial stop)
     with a 3-D tongue (both cameras, or one camera + neighbours: `fill_single_view`; ``share_single_view`` per lick).
     ``max_rep_px`` drops BOTH-camera frames whose tongue reprojection exceeds it in either camera.
@@ -545,38 +594,69 @@ def lick_peaks(S: pd.DataFrame, rig: dict, min_frames: int = 3, max_rep_px: floa
         the sign of the cam1 2-D readout (`scripts.cam1_lick_aim`);
       * ``reach_mm`` / ``ml, ap, dv`` at the frame farthest from the origin (the extension peak; the tongue reaches
         1.5-3 mm BELOW the spout tip there -- the hanging drop -- so dv is part of every lick).
-    The commanded tip = the triangulated spout median to ~0.05 mm (the frame is fitted to it)."""
+    The commanded tip = the triangulated spout median to ~0.05 mm (the frame is fitted to it).
+
+    ``cuts`` ({trial_id: ms from the cue}; `camera_licks.event_cuts` / `camera_licks.mouth_cuts`) also end a run: the
+    four-camera track has fewer gaps, so back-to-back licks can share one run of frames (11-21 pilot); a cut between
+    two frames starts a new lick at the later one."""
     from wfield_local import spout_world as SW
     t, tid = S.t_ms.to_numpy(float), S.trial_id.to_numpy()
     P = S[["tongue_ml", "tongue_ap", "tongue_dv"]].to_numpy(float)
     have = np.isfinite(P).all(1) & (t >= 0) & (t <= S.stop_ms.to_numpy(float))
+    cut_before = _cut_flags(t, tid, cuts)
     src = S.tongue_src.to_numpy() if "tongue_src" in S else np.where(have, 1, 0)
     if max_rep_px is not None:                                  # single-camera frames have no reprojection error
         have &= (src != 1) | ((S.tongue_rep1.to_numpy(float) <= max_rep_px) & (S.tongue_rep4.to_numpy(float) <= max_rep_px))
     tgt = {p: SW.commanded_world(rig["geometry"], p) for p in SW.POSITIONS}
-    rows, i, n = [], 0, len(S)
+    runs, i, n = [], 0, len(S)
     while i < n:
         if not have[i]:
             i += 1
             continue
         j = i + 1
-        while j < n and have[j] and tid[j] == tid[i] and abs(t[j] - t[j - 1] - 4.0) < 0.5:
+        while j < n and have[j] and tid[j] == tid[i] and abs(t[j] - t[j - 1] - 4.0) < 0.5 and not cut_before[j]:
             j += 1
+        if j - i >= min_frames:
+            runs.append([i, j])
+        i = j
+    # VIDEO-LICK FLOOR (`POSE3D_MIN_ILI_MS`, 60 ms; Priya 11-21 evening). Two runs of one trial whose extension peaks are
+    # closer than the floor are ONE lick split by a tracking dropout or a cut, so they are merged and measured over the
+    # union of their frames. It was the DAQ floor (`lick_detection.min_ili_ms`, 40 ms) until the 11-21 examples
+    # (qc_phaseA/ili_floor_examples): 83 % of 40-60 ms 3-D pairs barely retract between the peaks (85 % have a fragment
+    # peak), while real double pumps start at ~60 ms. The DAQ detector keeps 40 ms: an electrical contact has no
+    # dropout to split it.
+    if min_ili_ms is None:
+        min_ili_ms = POSE3D_MIN_ILI_MS
+    R = np.linalg.norm(np.where(np.isfinite(P), P, 0.0), axis=1)
+    merged = []
+    for a, b in runs:
+        if merged:
+            a0, b0 = merged[-1]
+            if tid[a] == tid[a0]:
+                pk0 = a0 + int(np.argmax(np.where(have[a0:b0], R[a0:b0], -np.inf)))
+                pk1 = a + int(np.argmax(R[a:b]))
+                if t[pk1] - t[pk0] < min_ili_ms:
+                    merged[-1][1] = b
+                    continue
+        merged.append([a, b])
+    rows = []
+    for i, j in merged:
         pos = str(S.position.iloc[i])
-        if j - i >= min_frames and pos in tgt:
-            r = np.linalg.norm(P[i:j], axis=1)
-            k = i + int(np.argmax(r))
+        if pos in tgt:
+            idx = np.arange(i, j)[have[i:j]]          # a merged lick skips the dropout frames between its parts
+            Pi = P[idx]
+            r = np.linalg.norm(Pi, axis=1)
+            k = int(idx[int(np.argmax(r))])
             g = tgt[pos]
-            dm = np.linalg.norm(P[i:j] - g, axis=1)
-            m = i + int(np.argmin(dm))
+            dm = np.linalg.norm(Pi - g, axis=1)
+            m = int(idx[int(np.argmin(dm))])
             out_sign = np.sign(g[0]) if abs(g[0]) > 1e-6 else -1.0        # centre: + = mouse left
             rows.append({"trial_id": int(tid[i]), "position": pos, "t_onset_ms": t[i], "t_peak_ms": t[k],
-                         "n_frames": j - i, "share_single_view": float(np.mean(src[i:j] > 1)),
-                         "reach_mm": float(r[k - i]),
+                         "n_frames": j - i, "share_single_view": float(np.mean(src[idx] > 1)),
+                         "reach_mm": float(np.max(r)),
                          "ml": P[k, 0], "ap": P[k, 1], "dv": P[k, 2],
-                         "miss_mm": float(dm[m - i]), "t_closest_ms": t[m],
+                         "miss_mm": float(np.min(dm)), "t_closest_ms": t[m],
                          "lat_err_mm": float(out_sign * (P[m, 0] - g[0])),
                          "ap_err_mm": float(P[m, 1] - g[1]), "dv_err_mm": float(P[m, 2] - g[2]),
                          "rep1_px": float(S.tongue_rep1.iloc[k]), "rep4_px": float(S.tongue_rep4.iloc[k])})
-        i = j
     return pd.DataFrame(rows)

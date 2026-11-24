@@ -22,6 +22,8 @@ from the mouth zero); "spout" = measured at the spout (miss, lateral error at cl
 Output `session_poses/pose3d/june_reference/`: june_vs_august.csv, sessions_delta.csv, june_reference.png.
 """
 from __future__ import annotations
+from wfield_local.session_licks import kin_sfx as _kin_sfx
+from wfield_local.session_licks import kin_name as _kin_name  # 11-22: fused post-cue unless WIDEFIELD_KIN_LICKS=cam4
 
 import argparse
 
@@ -188,15 +190,15 @@ def main(argv=None) -> int:
     ap.add_argument("--replot", action="store_true", help="redraw the figure from the saved CSVs only")
     a = ap.parse_args(argv)
     d3 = pose3d_dir(PathResolver())
-    out = tc.kin_out_dir(d3, "june_reference", "pose3d_june_reference")
+    out = tc.kin_out_dir(d3, "june_reference" + _kin_sfx(), "pose3d_june_reference" + _kin_sfx())
     writeguard.assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
     if a.replot:
         figure(pd.read_csv(out / "sessions_delta.csv"), pd.read_csv(out / "june_vs_august.csv"), out / "june_reference.png")
         return 0
-    SE = pd.read_csv(tc.kin_out_dir(d3, "spout_error") / "per_session.csv", dtype={"date": str})
-    KL = pd.read_csv(d3 / "kinematics" / "licks.csv.gz", dtype={"date": str})
-    KJ = pd.read_csv(d3 / "kinematics" / "jaw_trials.csv.gz", dtype={"date": str})
+    SE = pd.read_csv(tc.kin_out_dir(d3, "spout_error" + _kin_sfx(), "pose3d_spout_error" + _kin_sfx()) / "per_session.csv", dtype={"date": str})
+    KL = pd.read_csv(d3 / _kin_name() / "licks.csv.gz", dtype={"date": str})
+    KJ = pd.read_csv(d3 / _kin_name() / "jaw_trials.csv.gz", dtype={"date": str})
     _precompute_working_period(set(KL.session.astype(str)) | set(KJ.session.astype(str)))
     K = gated_sessions(KL, KJ)
     L = long_table(SE, K)

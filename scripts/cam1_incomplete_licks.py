@@ -29,7 +29,8 @@ import numpy as np
 import pandas as pd
 from wfield_local.pose3d import pose3d_dir
 
-V36 = "lp_r4_heatmap_20261013__clean_v36"
+from wfield_local.lp_licks import input_run as _input_run  # noqa: E402
+V36 = _input_run()  # 11-22: the input / adopted cam4 run (lp_licks.input_run; was the literal v36 run, plan item 3)
 POS = ("close_L", "close_center", "close_R", "far_L", "far_center", "far_R")
 MEAS = {"licks_cam4": "cam4 licks / trial", "nocontact_cam4": "cam4 no-contact licks / trial",
         "cam1_only": "cam1-only events / trial", "cam1_only_lips": "cam1-only at the lips / trial",
@@ -160,7 +161,8 @@ def main(argv=None) -> int:
     from wfield_local import pose3d as P3
     from wfield_local.paths import PathResolver
     rv = PathResolver()
-    d = Path(rv.root("dlc")) / "session_poses" / "cam1_licks"
+    from wfield_local import lp_licks
+    d = lp_licks.cam1_events_dir(rv)  # 11-22: the adopted / routed cam1 folder (lp_licks.cam1_events_dir; was the literal cam1_licks)
     from wfield_local import cam1_licks as C1
 
     def _read(f):

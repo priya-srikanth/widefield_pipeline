@@ -42,6 +42,7 @@ dist). ``--curves`` overrides either. ``--out-suffix S`` inserts S before `.csv`
         [--curves-source mouth0|pipeline | --curves CSV] [--out-suffix S] [--c1-bins CSV] [--licks CSV]
 """
 from __future__ import annotations
+from wfield_local.session_licks import kin_name as _kin_name  # 11-22: fused post-cue unless WIDEFIELD_KIN_LICKS=cam4
 
 import argparse
 import sys
@@ -53,6 +54,8 @@ import pandas as pd
 from wfield_local import config
 from wfield_local import orofacial_stats as OS
 from wfield_local.orofacial_cohort import CLUSTER_PERM
+
+N_PERM = CLUSTER_PERM     # permutations per cluster test; --n-perm (11-23: 5,000 for the paper, seed 0)
 from wfield_local.pose3d import pose3d_dir
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -121,12 +124,12 @@ def sig_rows(ch, keep, sel, an, mode):
     if mode == "mask":
         mask = np.zeros(ch.shape[1], bool)
         if ok.sum() >= 3:
-            mask[ok] = OS.cluster_permutation(sub[:, ok], sel[keep], an[keep], n_perm=CLUSTER_PERM)
+            mask[ok] = OS.cluster_permutation(sub[:, ok], sel[keep], an[keep], n_perm=N_PERM)
         return mask
     if ok.sum() < 3:
         return []
     idx = np.flatnonzero(ok)
-    cl = OS.cluster_permutation_p(sub[:, ok], sel[keep], an[keep], n_perm=CLUSTER_PERM)
+    cl = OS.cluster_permutation_p(sub[:, ok], sel[keep], an[keep], n_perm=N_PERM)
     return [(idx[c["start"]], idx[c["stop"] - 1] + 1, c["p"], c) for c in cl]     # back to full-bin indices
 
 
@@ -216,7 +219,12 @@ def main(argv=None):
     ap.add_argument("--out-suffix", default="", help="inserted before .csv in every output name")
     ap.add_argument("--c1-bins", type=Path, default=C1_BINS)
     ap.add_argument("--licks", type=Path, default=None, help="default <pose3d>/kinematics/licks.csv.gz")
+    ap.add_argument("--n-perm", type=int, default=CLUSTER_PERM,
+                    help=f"cluster-test permutations (default CLUSTER_PERM = {CLUSTER_PERM}; the paper uses 5000)")
     a = ap.parse_args(argv)
+    global N_PERM
+    N_PERM = a.n_perm
+    print(f"cluster permutations: {N_PERM} (seed 0)", flush=True)
     d3 = pose3d_dir()
     out_dir = a.out_dir or d3 / "phase" / "vls_manuscript"
     curves = a.curves or curves_path(d3, a.curves_source)
@@ -229,7 +237,7 @@ def main(argv=None):
     clash = [p for p in [*outs.values(), *cl_outs.values(), ili_out, chk_out] if p.exists()]
     if clash:
         sys.exit("refusing to overwrite: " + ", ".join(map(str, clash)))
-    ili = pre_ili_ms(a.licks or d3 / "kinematics" / "licks.csv.gz")
+    ili = pre_ili_ms(a.licks or d3 / _kin_name() / "licks.csv.gz")
     print(ili.to_string(index=False), flush=True)
     centres = phase_bins(a.c1_bins)
     print(f"{len(centres)} phase bins from cohort 1", flush=True)

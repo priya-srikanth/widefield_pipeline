@@ -45,3 +45,39 @@ def test_cluster_permutation_finds_the_shifted_bins_only():
     assert m[17:23].all() and not m[:10].any() and not m[30:].any()
     m0 = st.cluster_permutation(rng.normal(0, 1, (24, bins)), is_post, animal, n_perm=300)
     assert not m0.any()
+
+
+def test_session_change_tests_default_draws_match_analysis_kit():
+    """2026-11-23 (DECISIONS): the default draw count is analysis_kit.N_BOOT (4,000), as the paper states."""
+    import inspect
+
+    from wfield_local import analysis_kit as ak
+    assert inspect.signature(st.session_change_tests).parameters["n_boot"].default == ak.N_BOOT == 4000
+
+
+def test_c2_weight_epoch_unified_uses_4000_draws():
+    import importlib.util
+    import sys
+    from pathlib import Path
+
+    import numpy as np
+    import pandas as pd
+
+    repo = Path(__file__).resolve().parents[1]
+    sys.path.insert(0, str(repo / "scripts"))
+    spec = importlib.util.spec_from_file_location("cwu", repo / "scripts/c2_weight_epoch_unified_stats.py")
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    rng = np.random.default_rng(0)
+    rows = []
+    for a in ("A", "B", "C"):
+        for k in range(6):
+            rows.append((a, f"2026080{k}", "pre", 100 + rng.normal(0, 0.5)))
+            rows.append((a, f"2026090{k}", "acute", 92 + rng.normal(0, 0.5)))
+            rows.append((a, f"2026091{k}", "subacute", 100 + rng.normal(0, 0.5)))
+            rows.append((a, f"2026092{k}", "chronic", 100 + rng.normal(0, 0.5)))
+    w = pd.DataFrame(rows, columns=["animal", "date", "epoch", "pct"])
+    st = m.unified(w).set_index("epoch")
+    assert m.N_BOOT == 4000 and (st.n_boot == 4000).all()
+    assert st.loc["acute", "star"] == "**" and st.loc["acute", "boot_hi"] < 0
+    assert st.loc["chronic", "star"] == ""

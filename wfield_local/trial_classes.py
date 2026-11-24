@@ -8,6 +8,12 @@ What each trial is, first match wins, inside the chosen WINDOW:
                or cam1 saw the tongue, but no spout contact                          -> licked and missed
   jaw_only     no lick; the jaw moved after the cue on cam4 OR cam1                  -> a reaction, NOT an attempt
                (Priya's 10-21 blind review: 0 / 24 such trials were attempted licks)
+               ALSO (11-22, Priya: "yes let's group with jaw-only") the TONGUE-AT-THE-LIPS trials of the fused
+               four-camera train: no spout contact and every post-cue lick in the window is cam1-only (fused
+               ``cams`` == "cam1": no other view saw it, so no 3-D point) -- the tongue barely leaves the mouth. Their
+               own label is kept in ``cls_detail`` = "tongue_at_lips" (``cls`` = "jaw_only", so every grouping /
+               gate / figure / outcome table treats them as jaw-only: NOT an attempt). ~181 trials (0.3 %), 179
+               of them "incomplete" before.
   no_response  no lick; the jaw was judged and stayed still                          -> no response at all
                AT close_center neither camera can judge the jaw (cam4's chin is hidden; cam1 failed the 10-21 blind
                review there): a trial with no lick, no contact and no tongue seen is NO_RESPONSE by default (Priya
@@ -78,6 +84,8 @@ import numpy as np
 import pandas as pd
 
 CLASSES = ("contact", "incomplete", "jaw_only", "no_response", "unknown")
+#: ``cls_detail`` label of the tongue-at-the-lips trials (grouped into ``cls`` = "jaw_only"; 11-22)
+TONGUE_AT_LIPS = "tongue_at_lips"
 GATES = {"working": frozenset({"contact", "incomplete", "jaw_only"}),   # jaw-INCLUSIVE, as on main; see `in_sel`
          "camera_lick": frozenset({"contact", "incomplete"}),
          "attempted": frozenset({"contact", "incomplete"}),
@@ -110,10 +118,15 @@ def _flag(x: pd.Series) -> pd.Series:
 
 
 def _paths(v36: Path | str | None, c1: Path | str | None) -> tuple[Path, Path]:
+    """(sessions folder of the cam4 run, cam1 event folder). Defaults (11-22, reconciled plan item 3): the run
+    `lp_licks.input_run()` (= `orofacial_cohort.RUN`, which the adoption commit moves; was the literal `V36`) and
+    `lp_licks.cam1_events_dir()` (the versioned cam1 folder under the re-run routing env; else session_poses/cam1_licks).
+    Both equal the old literals while RUN is v36 and the routing env is unset."""
+    from wfield_local import lp_licks
     from wfield_local.paths import PathResolver
     rv = PathResolver()
-    v36 = Path(v36) if v36 else Path(rv.root("orofacial")) / V36 / "sessions"
-    c1 = Path(c1) if c1 else Path(rv.root("dlc")) / "session_poses" / "cam1_licks"
+    v36 = Path(v36) if v36 else Path(rv.root("orofacial")) / lp_licks.input_run() / "sessions"
+    c1 = Path(c1) if c1 else lp_licks.cam1_events_dir(rv)
     return v36, c1
 
 
@@ -132,14 +145,171 @@ def _jaw_csv(v36: Path) -> Path:
 def jaw_table(path: str) -> pd.DataFrame:
     """`jaw_onsets.csv`, indexed by (session = "PS92_20260818", trial_id): cam4_moved / cam1_moved (1 / 0 / NaN = not
     judged), onset_at_cue (the jaw was already moving at the cue), jaw_reonset_ms (its next movement, if any)."""
-    want = ["session", "trial_id", "cam4_moved", "cam1_moved", "jaw_onset_ms", "onset_at_cue", "jaw_reonset_ms"]
+    want = ["session", "trial_id", "cam4_moved", "cam1_moved", "jaw_onset_ms", "onset_at_cue", "jaw_reonset_ms",
+            "jaw3d_moved", "jaw3d_onset_ms", "jaw3d_at_cue", "jaw3d_source", "jaw3d_reonset_ms"]
     J = pd.read_csv(path, low_memory=False, usecols=lambda c: c in want)
     if "jaw_reonset_ms" not in J:
         J["jaw_reonset_ms"] = np.nan
+    # 3-D jaw call (11-22, Q5): present only in jaw_onsets tables written since; absent = the per-camera rule alone
+    for c, v in (("jaw3d_moved", np.nan), ("jaw3d_onset_ms", np.nan), ("jaw3d_at_cue", False), ("jaw3d_source", ""),
+                 ("jaw3d_reonset_ms", np.nan)):
+        if c not in J:
+            J[c] = v
+    J["jaw3d_moved"] = pd.to_numeric(J.jaw3d_moved.replace({"True": 1, "False": 0, True: 1, False: 0}),
+                                     errors="coerce")
+    J["jaw3d_at_cue"] = J.jaw3d_at_cue.astype(str).str.lower().eq("true")
+    J["jaw3d_source"] = J.jaw3d_source.fillna("").astype(str)
     J["onset_at_cue"] = J.onset_at_cue.astype(str).str.lower().eq("true")
     for c in ("cam4_moved", "cam1_moved"):
         J[c] = pd.to_numeric(J[c].replace({"True": 1, "False": 0, True: 1, False: 0}), errors="coerce")
     return J.set_index(["session", "trial_id"]).sort_index()
+
+
+#: `jaw_call` modes: "classes" = THE trial-class rule (2-D per-camera calls, 4-cam 3-D at `JAW_UNJUDGED_POSITIONS`);
+#: "3d" = the 4-cam 3-D jaw call at EVERY spout (Priya 11-23: six-position analyses on the four-camera 3-D kinematics);
+#: "2d" = the per-camera calls only (the pre-11-21 rule; no jaw at the hidden spouts).
+JAW_MODES = ("classes", "3d", "2d", "3d_mouth")
+#: "3d_mouth" (Priya 11-23, ADOPTED: one jaw rule at all six spouts) = the 4-cam 3-D jaw at every spout WITH the 3-D
+#: re-onset, OR an IN-MOUTH LICK (`mouth_lick_ms`: a kept cam1 event not matched to the fused four-camera lick list) in
+#: cue .. the response-window end; onset = the earlier of the two. It must run on a CAP-variant jaw table
+#: (`scripts/jaw_onsets.py` JAW_ONSET_VARIANT=cap): `session_trials` takes it from ``jaw_csv`` or ``WIDEFIELD_JAW_CSV``
+#: and refuses to fall back to the production (uncapped) table.
+MOUTH_JAW_MODES = ("3d_mouth",)
+JAW_CSV_ENV = "WIDEFIELD_JAW_CSV"
+#: WHICH `jaw_call` mode the CLASSES use (CC-B 11-23, audit violation 1): ``session_trials(jaw=...)``, else this env var,
+#: else "classes" (production, unchanged). "3d" = the trial classes with the 4-cam 3-D jaw at all six spouts (tables
+#: under NEW names: qc/*_jaw3d_all*); a non-default mode enters `class_source_signature`, so caches never mix.
+JAW_CLASS_ENV = "WIDEFIELD_JAW_CALL"
+DEFAULT_JAW_MODE = "classes"
+
+
+def class_jaw_mode(jaw: str | None = None) -> str:
+    """The jaw mode of the trial classes: ``jaw`` if given, else ``WIDEFIELD_JAW_CALL``, else "classes"."""
+    import os as _os
+    v = (jaw or _os.environ.get(JAW_CLASS_ENV, "").strip() or DEFAULT_JAW_MODE).lower()
+    if v not in JAW_MODES:
+        raise ValueError(f"{JAW_CLASS_ENV} / jaw = {v!r}: one of {JAW_MODES}")
+    return v
+
+
+def class_reonset3d(flag: bool | None = None) -> bool:
+    """Whether the classes take the 3-D RE-ONSET of a jaw already moving at the cue (``jaw_call(reonset3d=...)``):
+    ``flag`` if given, else ``WIDEFIELD_JAW_REONSET3D`` (1 / true), else False (production)."""
+    import os as _os
+    if flag is not None:
+        return bool(flag)
+    return _os.environ.get(JAW_REONSET3D_ENV, "").strip().lower() in ("1", "true", "yes")
+
+
+JAW_REONSET3D_ENV = "WIDEFIELD_JAW_REONSET3D"
+
+
+def jaw_call(j: pd.DataFrame, position, mode: str = "classes", reonset3d: bool = False, mouth_ms=None) -> dict:
+    """THE per-trial jaw call from `jaw_table` rows ``j`` (one row per trial, aligned with ``position``): one definition
+    for `session_trials` and every consumer that needs a jaw onset (e.g. `scripts/revup_behaviour.py`; 11-23).
+    Returns arrays jaw_cam4 / jaw_cam1 / jaw_3d (1 / 0 / NaN), jaw_at_cue, jaw_onset_ms (the onset, or the re-onset
+    when the jaw was already moving at the cue; NaN when not judged or still), judged, hidden, use3.
+
+    SOURCE-AWARE CLOSE-SPOUT JAW (Priya 11-21, Q5: "use the four cameras"): at the spouts where neither 2-D camera
+    can judge the jaw (`JAW_UNJUDGED_POSITIONS`: cam4's chin hidden, cam1 at chance under the rod) the jaw is judged
+    by the 3-D jaw call of jaw_onsets.csv, but ONLY when that call came from the FOUR-camera 3-D (``jaw3d_source`` ==
+    "4cam": the side views see the jaw there -- PS93 0814 cue..stop jaw in 3-D 100 % at close_center, >= 3 views
+    94 %). A two-camera call is blanked there by jaw_onsets (the rod crosses the face in cam1) and the per-camera
+    calls stay masked, so a 2-cam table keeps the 11-03 default (no lick, no contact, no tongue -> no_response,
+    jaw_judged False). Elsewhere the per-camera calls stay the classifier (blind-reviewed 10-21). A 3-D movement
+    already under way at the cue has no 3-D re-onset, so that trial is unknown, as at-cue trials without a re-onset
+    are at every other spout. ``mode="3d"`` applies the 3-D branch at every spout (per-camera calls masked);
+    ``mode="2d"`` never uses it. ``reonset3d`` (CC-B 11-23, Priya "let's try"; default False = production): a 3-D
+    movement already under way at the cue takes its 3-D RE-ONSET (``jaw3d_reonset_ms`` of jaw_onsets.csv, the 2-D
+    re-onset rule) instead of making the trial unknown, exactly as the per-camera calls do.
+
+    ``mode="3d_mouth"`` (Priya 11-23, adopted): mode "3d" with ``reonset3d`` forced on, OR an in-mouth lick:
+    ``mouth_ms`` (required; per trial, the first in-mouth lick onset in cue .. the response-window end, ms, NaN = none;
+    `mouth_lick_ms`). A trial with an in-mouth lick is judged and moved (``jaw_mouth`` = 1) whatever the 3-D call says;
+    the onset is the earlier of the 3-D (re-)onset and the in-mouth lick. The cap on the noise term is a property of the
+    jaw TABLE (a cap-variant jaw_onsets), not of this function."""
+    if mode not in JAW_MODES:
+        raise ValueError(f"jaw_call mode {mode!r}: one of {JAW_MODES}")
+    if mode in MOUTH_JAW_MODES:
+        if mouth_ms is None:
+            raise ValueError(f"jaw_call mode {mode!r} needs mouth_ms (`mouth_lick_ms`)")
+        out = jaw_call(j, position, "3d", reonset3d=True)
+        m = np.asarray(mouth_ms, float)
+        if m.shape != (len(j),):
+            raise ValueError(f"mouth_ms has shape {m.shape} for {len(j)} trials")
+        mo = np.isfinite(m)
+        out["jaw_onset_ms"] = np.fmin(out["jaw_onset_ms"], m)
+        out["judged"] = out["judged"] | mo
+        out["jaw_mouth"] = mo.astype(float)
+        out["jaw_mouth_ms"] = m
+        return out
+    n = len(j)
+    pos = pd.Series(np.asarray(position))
+    hidden = pos.isin(JAW_UNJUDGED_POSITIONS).to_numpy()
+    mask2d = np.ones(n, bool) if mode == "3d" else hidden
+    jaw_cam4 = np.where(mask2d, np.nan, pd.to_numeric(j.cam4_moved, errors="coerce").to_numpy(float))
+    jaw_cam1 = np.where(mask2d, np.nan, pd.to_numeric(j.cam1_moved, errors="coerce").to_numpy(float))
+    at_cue = j.onset_at_cue.fillna(False).astype(bool).to_numpy()
+    reon = pd.to_numeric(j.jaw_reonset_ms, errors="coerce").to_numpy(float)
+    on = pd.to_numeric(j.jaw_onset_ms, errors="coerce").to_numpy(float)
+    j3 = pd.to_numeric(j["jaw3d_moved"], errors="coerce").to_numpy(float) if "jaw3d_moved" in j else np.full(n, np.nan)
+    src3 = j["jaw3d_source"].fillna("").astype(str).to_numpy() if "jaw3d_source" in j else np.full(n, "")
+    at3 = j["jaw3d_at_cue"].fillna(False).astype(bool).to_numpy() if "jaw3d_at_cue" in j else np.zeros(n, bool)
+    on3 = (pd.to_numeric(j["jaw3d_onset_ms"], errors="coerce").to_numpy(float) if "jaw3d_onset_ms" in j
+           else np.full(n, np.nan))
+    where3 = {"classes": hidden, "3d": np.ones(n, bool), "2d": np.zeros(n, bool)}[mode]
+    use3 = where3 & (src3 == "4cam") & np.isfinite(j3)
+    re3 = (pd.to_numeric(j["jaw3d_reonset_ms"], errors="coerce").to_numpy(float)
+           if (reonset3d and "jaw3d_reonset_ms" in j) else np.full(n, np.nan))
+    at_cue = np.where(use3, at3, at_cue)
+    onset = np.where(use3, np.where(at3, re3, on3), np.where(mask2d, np.nan, np.where(at_cue, reon, on)))
+    judged = ((((~np.isnan(jaw_cam4)) | (~np.isnan(jaw_cam1))) & (~at_cue | np.isfinite(reon)))
+              | (use3 & (~at3 | np.isfinite(re3))))
+    return {"jaw_cam4": jaw_cam4, "jaw_cam1": jaw_cam1, "jaw_3d": np.where(use3, j3, np.nan), "jaw_at_cue": at_cue,
+            "jaw_onset_ms": onset, "judged": judged, "hidden": hidden, "use3": use3}
+
+
+def mouth_lick_events(label: str, rv=None) -> pd.DataFrame | None:
+    """IN-MOUTH LICKS of one session (S10A rule, CC-B 11-23; Priya: "an in-mouth lick is a kind of lick that stays in
+    the mouth, but it is also jaw movement"): the cam1 2-D detector events (`cam1_licks/<s>_events_all.csv`) that are
+    KEPT by the one cam1 lick rule (`cam1_licks.keep_mask`: droplets and far-from-mouth labels out) and NOT matched
+    (`cam1_licks.overlaps`) to a lick of THE fused four-camera list (`session_licks`, cam1-only rows excluded).
+    Columns trial_id, on_ms, off_ms, daq_on_s. None when the session has no cam1 event table."""
+    from wfield_local import cam1_licks as C1
+    from wfield_local import lp_licks
+    from wfield_local import session_licks as SL
+    from wfield_local.paths import PathResolver
+    rv = rv or PathResolver()
+    an, d = label.split("_")
+    d = d if len(d) == 8 else f"2026{d}"
+    f = lp_licks.cam1_events_dir(rv) / f"{an}_{d}_events_all.csv"
+    if not f.exists():
+        return None
+    E = pd.read_csv(f, usecols=lambda c: c in ("trial_id", "on_ms", "off_ms", "t_peak_ms", "daq_on_s", "cam4_matched",
+                                               "in_3d", "droplet", "spread_px", "range_px", "med_out_px", "context"))
+    E = E[np.isfinite(E.daq_on_s)].reset_index(drop=True)
+    A = SL.session_licks(f"{an}_{d}", rv)
+    mf = np.asarray(C1.overlaps(E, A[["trial_id", "on_ms", "off_ms"]]), bool)
+    keep = C1.keep_mask(E, mf, label=f"{an}_{d}")
+    return E.loc[keep & ~mf, ["trial_id", "on_ms", "off_ms", "daq_on_s"]].reset_index(drop=True)
+
+
+def mouth_lick_ms(events: pd.DataFrame | None, cue_daq, end_ms, lo_ms: float = 0.0) -> np.ndarray:
+    """Per trial (aligned with ``cue_daq`` (s, DAQ clock) / ``end_ms`` (ms from the cue)): the first in-mouth lick
+    ONSET in cue + ``lo_ms`` .. cue + ``end_ms`` (ms from the cue; NaN = none), from `mouth_lick_events` (absolute
+    ``daq_on_s``, so an event is never tied to the trial id it was filed under). Pure."""
+    cue = np.asarray(cue_daq, float)
+    end = np.asarray(end_ms, float)
+    out = np.full(len(cue), np.nan)
+    if events is None or not len(events):
+        return out
+    t = np.sort(events.daq_on_s.to_numpy(float))
+    lo = cue + lo_ms / 1000.0
+    i = np.searchsorted(t, lo, side="left")
+    ok = (i < len(t)) & np.isfinite(cue)
+    first = np.where(ok, t[np.clip(i, 0, len(t) - 1)], np.nan)
+    rel = (first - cue) * 1000.0
+    return np.where(ok & (rel <= end + 1e-6), rel, np.nan)
 
 
 def _trial_times(sd: Path) -> pd.DataFrame:
@@ -186,8 +356,15 @@ def _daq_contact_onsets(animal: str, date: str) -> np.ndarray:
     from wfield_local import dlc_frames
     from wfield_local.paths import PathResolver
     rv = PathResolver()
-    sid = sorted((Path(rv.root("behavior_out")) / "sessions" / animal / date).glob("*_trials.csv"))[-1].name[:-11]
-    return np.asarray(dlc_frames.lick_onsets(animal, date, sid, rv), float)
+    tr = sorted((Path(rv.root("behavior_out")) / "sessions" / animal / date).glob("*_trials.csv"))
+    if not tr:
+        # 11-22: a session with no behavior-summary table (PS93 0805, the "wonky 8/5", outside the curated set) has no
+        # DAQ contact onsets here; its fused licks then carry contact = False (only ``n_nocontact`` reads it; the class
+        # itself counts DAQ contacts from trials.csv). It crashed every --all reader of the working gate before.
+        import warnings
+        warnings.warn(f"{animal} {date}: no behavior-summary trials table -> no DAQ contact onsets", stacklevel=2)
+        return np.zeros(0, float)
+    return np.asarray(dlc_frames.lick_onsets(animal, date, tr[-1].name[:-11], rv), float)
 
 
 def trial_contact_times(animal: str, date: str, times: pd.DataFrame) -> pd.Series:
@@ -222,7 +399,9 @@ def _pre_cue_contacts(animal: str, date: str, times: pd.DataFrame) -> set:
 
 
 def session_trials(label: str, window: str = DEFAULT_WINDOW, v36: Path | str | None = None,
-                   c1: Path | str | None = None, jaw_csv: Path | str | None = None) -> pd.DataFrame | None:
+                   c1: Path | str | None = None, jaw_csv: Path | str | None = None,
+                   licks: str | None = None, frame_gate: bool | None = None,
+                   jaw: str | None = None, reonset3d: bool | None = None) -> pd.DataFrame | None:
     """EVERY trial of one session (no engagement filter) with its class and the evidence behind it.
 
     label "PS92_0818" or "PS92_20260818". Returns None when the session has no v36 video outputs (no camera-defined
@@ -233,6 +412,14 @@ def session_trials(label: str, window: str = DEFAULT_WINDOW, v36: Path | str | N
     """
     if window not in WINDOWS:
         raise ValueError(f"window must be one of {WINDOWS}, got {window!r}")
+    if licks not in (None, "fused", "legacy"):
+        raise ValueError(f"licks must be None (auto), 'fused' or 'legacy', got {licks!r}")
+    # LICK SET (11-22, Priya 11-21 Q1 = (b)): the fused four-camera train (`session_licks`) when selected, else cam4
+    # licks.csv + cam1-only events (the 11-03 rule). Auto = fused when `session_licks.fused_on()` and the caller did not
+    # hand in its own v36 tree (an explicit tree = its own lick files: tests, comparisons).
+    from wfield_local import session_licks as SL
+    explicit_tree = v36
+    use_fused = licks == "fused" or (licks is None and v36 is None and SL.fused_on())
     animal, date = label.split("_")
     date = date if len(date) == 8 else f"2026{date}"
     v36, c1 = _paths(v36, c1)
@@ -281,6 +468,17 @@ def session_trials(label: str, window: str = DEFAULT_WINDOW, v36: Path | str | N
         E = E[in_win(E, "t_peak_ms")]
     else:
         E, seen = pd.DataFrame(columns=["trial_id", "on_ms", "contact"]), set()
+    if use_fused:
+        # THE fused train: every camera's licks (cam1-only and confirmed side-only included), so no cam1-only events
+        # are added on top (E empty); cam1's "saw a tongue, no lick" evidence (``seen``) is unchanged. Spout contact
+        # per lick = a DAQ contact onset within the lick's span +- `FUSED_CONTACT_TOL_MS` (the 3-D lick rule of
+        # `scripts.pose3d_kinematics.combined_events`); cam4's own ``contact`` column exists only for cam4's licks.
+        F = SL.session_licks(label, include_cam1_only=True)   # 11-22: classes keep cam1-only events (tongue_at_lips)
+        L = F[F.trial_id.isin(T.trial_id)][["trial_id", "on_ms", "off_ms", "t_ms"]
+                                            + (["cams"] if "cams" in F else [])].reset_index(drop=True)
+        L = L[in_win(L, "t_ms")]
+        L["contact"] = _fused_contact(animal, date, L, dict(zip(T.trial_id, T.cue_daq)))
+        E = L.iloc[0:0][["trial_id", "on_ms", "contact"]]          # empty, typed like L (no concat warning)
     t = T.trial_id
     T["n_licks"] = t.map(L.groupby("trial_id").size()).fillna(0) + t.map(E.groupby("trial_id").size()).fillna(0)
     nc4 = (~_flag(L.contact)).groupby(L.trial_id).sum() if len(L) else pd.Series(dtype=float)
@@ -299,6 +497,13 @@ def session_trials(label: str, window: str = DEFAULT_WINDOW, v36: Path | str | N
         pre = _pre_cue_contacts(animal, date, T)
         T["n_contacts"] = T.n_contacts + t.isin(pre).astype(int)
     # --- jaw, cam4 OR cam1, after the cue (jaw_onsets.csv); unjudgeable at close_center
+    jaw_mode = class_jaw_mode(jaw)
+    if jaw_mode in MOUTH_JAW_MODES and not jaw_csv:
+        import os as _os
+        jaw_csv = _os.environ.get(JAW_CSV_ENV, "").strip() or None
+        if not jaw_csv:
+            raise ValueError(f"jaw mode {jaw_mode!r} runs on a CAP-variant jaw table: pass jaw_csv or set {JAW_CSV_ENV} "
+                             "(never the production uncapped jaw_onsets.csv)")
     jaw_csv = Path(jaw_csv) if jaw_csv else _jaw_csv(v36)
     key = f"{animal}_{date}"
     if not jaw_csv.exists():
@@ -310,31 +515,82 @@ def session_trials(label: str, window: str = DEFAULT_WINDOW, v36: Path | str | N
     else:
         j = pd.DataFrame(index=t.to_numpy(), columns=["cam4_moved", "cam1_moved", "jaw_onset_ms", "onset_at_cue",
                                                       "jaw_reonset_ms"], dtype=float)
-    hidden = T.position.isin(JAW_UNJUDGED_POSITIONS).to_numpy()
-    T["jaw_cam4"] = np.where(hidden, np.nan, pd.to_numeric(j.cam4_moved, errors="coerce").to_numpy(float))
-    T["jaw_cam1"] = np.where(hidden, np.nan, pd.to_numeric(j.cam1_moved, errors="coerce").to_numpy(float))
-    at_cue = j.onset_at_cue.fillna(False).astype(bool).to_numpy()
-    reon = pd.to_numeric(j.jaw_reonset_ms, errors="coerce").to_numpy(float)
-    on = pd.to_numeric(j.jaw_onset_ms, errors="coerce").to_numpy(float)
-    T["jaw_at_cue"] = at_cue
-    T["jaw_onset_ms"] = np.where(hidden, np.nan, np.where(at_cue, reon, on))
-    judged = (T.jaw_cam4.notna() | T.jaw_cam1.notna()).to_numpy() & (~at_cue | np.isfinite(reon))
+    mouth = None
+    if jaw_mode in MOUTH_JAW_MODES:          # in-mouth lick = jaw movement (cue .. the response-window end, by onset)
+        mouth = mouth_lick_ms(mouth_lick_events(label), T.cue_daq.to_numpy(float),
+                              response_end_ms(T.stop_ms.to_numpy(float)))
+    jc = jaw_call(j, T.position.to_numpy(), mode=jaw_mode, reonset3d=class_reonset3d(reonset3d), mouth_ms=mouth)
+    hidden, use3, judged = jc["hidden"], jc["use3"], jc["judged"]
+    for c in ("jaw_cam4", "jaw_cam1", "jaw_3d", "jaw_at_cue", "jaw_onset_ms"):
+        T[c] = jc[c]
+    jaw_mouth = jc.get("jaw_mouth", np.zeros(len(T)))
     # the jaw's movement counts only when its (re-)onset is inside the response window's end (Priya 11-04: after cue +
     # max_rt the spout is starting to move); the camera calls themselves are cue .. stop (`scripts/jaw_onsets.py`). A
     # moved call without an onset time keeps its call. A trial whose jaw moved only after the end is judged and still.
     jon = T.jaw_onset_ms.to_numpy(float)
     in_time = ~(jon > response_end_ms(T.stop_ms))
-    moved = ((T.jaw_cam4 == 1) | (T.jaw_cam1 == 1)).to_numpy() & judged & in_time
+    moved = (((T.jaw_cam4 == 1) | (T.jaw_cam1 == 1) | (T.jaw_3d == 1)).to_numpy() | (jaw_mouth == 1)) & judged & in_time
     T["jaw_judged"] = judged
     T["cls"] = np.select([T.n_contacts.to_numpy() > 0,
                           (T.n_licks.to_numpy() > 0) | t.isin(seen).to_numpy(),
-                          moved, judged | hidden],          # close_center, nothing seen -> no_response (11-03)
+                          moved, judged | (hidden & ~use3)],   # close_center, nothing seen, no 4-cam call -> no_response
                          ["contact", "incomplete", "jaw_only", "no_response"], "unknown")
+    # TONGUE AT THE LIPS (11-22, Priya: group with jaw-only; module docstring): fused train only; a DAQ contact keeps
+    # "contact" (the sensor is primary), so only would-be "incomplete" trials move.
+    T["cls_detail"] = T.cls
+    if use_fused and "cams" in L and len(L):
+        only_c1 = L.cams.astype(str).eq("cam1").groupby(L.trial_id).all()
+        lips = t.map(only_c1).eq(True).to_numpy() & (T.cls == "incomplete").to_numpy()
+        T.loc[lips, "cls"] = "jaw_only"
+        T.loc[lips, "cls_detail"] = TONGUE_AT_LIPS
+    # FRAME-COVERAGE GATE ON THE CLASSES (Priya 11-22: "yes leave them out"): a trial whose UNION camera frame coverage
+    # is < `frame_coverage.MIN_FRAME_COVERAGE` (0.90; PS92 0908 after min ~104, all four cameras dropping together)
+    # cannot show "no lick" / "jaw only" / "no response" from video, so it becomes "unknown" (left out of the counts;
+    # "unknown" neither breaks nor extends a run). A DAQ-contact trial stays "contact": the sensor does not depend on
+    # the cameras. Real-data path only (``frame_gate`` None = on when no explicit v36 tree was handed in).
+    gate_on = frame_gate if frame_gate is not None else explicit_tree is None
+    T["frame_gated"] = _frame_gated(animal, date, T.trial_id) if gate_on else False
+    gated = T.frame_gated.to_numpy(bool) & (T.cls != "contact").to_numpy()
+    T.loc[gated, "cls"] = "unknown"
+    T.loc[gated, "cls_detail"] = "unknown"
+    T["licks_source"] = "fused" if use_fused else "cam4+cam1"
+    T["jaw_call"] = jaw_mode
     T["window"] = window
     T["has_cam1"] = has_cam1
-    return T[["trial_id", "position", "cue_daq", "strobe_ms", "stop_ms", "cls", "window", "has_cam1", "n_contacts",
-              "n_licks", "n_nocontact", "first_lick_ms", "jaw_cam4", "jaw_cam1", "jaw_at_cue", "jaw_onset_ms",
-              "jaw_judged"]]
+    cols = ["trial_id", "position", "cue_daq", "strobe_ms", "stop_ms", "cls", "window", "has_cam1", "n_contacts",
+            "n_licks", "n_nocontact", "first_lick_ms", "jaw_cam4", "jaw_cam1", "jaw_at_cue", "jaw_onset_ms",
+            "jaw_judged", "jaw_3d", "frame_gated", "licks_source", "cls_detail", "jaw_call"]
+    if mouth is not None:                    # 3d_mouth only (the production schema is unchanged)
+        T["jaw_mouth_ms"] = mouth
+        cols.append("jaw_mouth_ms")
+    return T[cols]
+
+
+def _frame_gated(animal: str, date: str, trial_id: pd.Series) -> np.ndarray:
+    """Per trial (``trial_id``): True when its union camera frame coverage is below the gate (`frame_coverage`); a
+    trial missing from the coverage table (no template / frame log) is not gated (the video-coverage rule of
+    `classify_session` already handles trials outside the video)."""
+    from wfield_local import frame_coverage as FC
+    from wfield_local.paths import PathResolver
+    cov = FC.session_coverage(PathResolver(), animal, date)
+    g = dict(zip(cov.trial_id.astype(int), cov.gated.astype(bool))) if len(cov) else {}
+    return trial_id.astype(int).map(g).fillna(False).astype(bool).to_numpy()
+
+
+#: a fused lick touched the spout when a DAQ contact onset lies within its span +- this (ms; as the 3-D lick events'
+#: contact flag, `scripts.pose3d_kinematics.combined_events`)
+FUSED_CONTACT_TOL_MS = 20.0
+
+
+def _fused_contact(animal: str, date: str, L: pd.DataFrame, cue_of: dict) -> np.ndarray:
+    """``bool[len(L)]``: a DAQ spout-contact onset within [on_ms - tol, off_ms + tol] of each fused lick."""
+    if not len(L):
+        return np.zeros(0, bool)
+    c = np.sort(np.asarray(_daq_contact_onsets(animal, date), float))
+    cue = L.trial_id.map(cue_of).to_numpy(float)
+    lo = cue + (L.on_ms.to_numpy(float) - FUSED_CONTACT_TOL_MS) / 1000.0
+    hi = cue + (L.off_ms.to_numpy(float) + FUSED_CONTACT_TOL_MS) / 1000.0
+    return np.searchsorted(c, hi, "right") > np.searchsorted(c, lo, "left")
 
 
 def in_gate(cls, gate: str) -> np.ndarray:
@@ -630,7 +886,7 @@ CLASS_CODE_ROOTS = ("session_trials", "jaw_table", "_trial_times", "_pre_cue_con
                     "_effective_coverage", "_classify_guarded", "_breaks", "licks_in_spans",
                     "span_lick_matrix", "touched_by_licks", "_lick_breaks", "session_span_licks", "cue_span_licks",
                     "stop_lick_rule", "stop_kind_for", "_cue_key",
-                    "stop_tail_start")
+                    "stop_tail_start", "_frame_gated")
 
 
 def class_source_signature(v36: Path | str | None = None, c1: Path | str | None = None) -> str:
@@ -642,7 +898,8 @@ def class_source_signature(v36: Path | str | None = None, c1: Path | str | None 
     import hashlib
     import sys
     v36, c1 = _paths(v36, c1)
-    key = (str(v36), str(c1))
+    from wfield_local import session_licks as SL
+    key = (str(v36), str(c1), SL.signature(), class_jaw_mode(), class_reonset3d())
     if key not in _CLASS_SIG:
         h = hashlib.sha1()
 
@@ -660,11 +917,29 @@ def class_source_signature(v36: Path | str | None = None, c1: Path | str | None 
         for f in (sorted(Path(c1).glob("*_events.csv")) if Path(c1).exists() else []):
             stat(f)
         stat(_jaw_csv(v36))
+        if class_jaw_mode() != DEFAULT_JAW_MODE:      # non-default class jaw mode (11-23); default keys unchanged
+            h.update(f"jaw={class_jaw_mode()};".encode())
+        if class_jaw_mode() in MOUTH_JAW_MODES:       # its own inputs: the cap jaw table + the cam1 events_all files
+            import os as _os
+            if _os.environ.get(JAW_CSV_ENV, "").strip():
+                stat(Path(_os.environ[JAW_CSV_ENV].strip()))
+            for f in (sorted(Path(c1).glob("*_events_all.csv")) if Path(c1).exists() else []):
+                stat(f)
+        if class_reonset3d():
+            h.update(b"reonset3d;")
+        # + the fused four-camera train when it is the lick set (11-22; "" on the legacy source, keys unchanged)
+        if SL.signature():
+            h.update(SL.signature().encode())
         from wfield_local import cam1_licks, map_collect
         h.update(map_collect.code_digest(map_collect.closure(sys.modules[__name__], *CLASS_CODE_ROOTS)).encode())
         # + the cam1 lick rule (`cam1_licks.keep_mask`, 11-17): it lives in another module, which the closure above
         # does not follow, so a change to the droplet / far-from-mouth rule must enter here explicitly
         h.update(map_collect.code_digest(map_collect.closure(cam1_licks, "keep_mask")).encode())
+        # + the frame-coverage gate (11-22): another module, so its rule enters explicitly
+        from wfield_local import frame_coverage
+        h.update(map_collect.code_digest(map_collect.closure(frame_coverage, "coverage_table", "trial_windows_s",
+                                                             "_session_coverage", "fusion_cams")).encode())
+        h.update(f"cov>={frame_coverage.MIN_FRAME_COVERAGE}".encode())
         _CLASS_SIG[key] = h.hexdigest()[:10]
     return _CLASS_SIG[key]
 
@@ -937,6 +1212,14 @@ def session_span_licks(label: str, cue_s, strobe_s, stop_s, v36: Path | str | No
     licks_all.csv gets DAQ contacts only."""
     animal, date = label.split("_")
     date = date if len(date) == 8 else f"2026{date}"
+    from wfield_local import session_licks as SL
+    if v36 is None and SL.fused_on():
+        # 11-22: the fused four-camera train (every camera, every context) -- the same lick set as `session_trials`
+        try:
+            cam = SL.session_onsets_s(f"{animal}_{date}", col="daq_peak_s", include_cam1_only=True)   # class path
+        except SL.SessionLicksUnavailable:
+            cam = np.zeros(0)
+        return span_lick_matrix(cue_s, strobe_s, stop_s, np.r_[cam, _daq_contact_onsets(animal, date)])
     v36, _ = _paths(v36, None)
     f = Path(v36) / animal / date / "licks_all.csv"
     cam = pd.read_csv(f, usecols=["daq_peak_s"]).daq_peak_s.to_numpy(float) if f.exists() else np.zeros(0)

@@ -34,7 +34,7 @@ import iti_lick_order as lo  # noqa: E402
 
 from wfield_local import analysis_kit as ak  # noqa: E402
 
-WOUT = il.OUT_W if il.ITI_SUBSET else il.OUT     # subset runs (dock, ...) write to their own folder
+WOUT = il.OUT_W if il.ITI_SUBSET else il.OUT_X     # subset runs (dock, ...) write to their own folder
 EP = ["acute", "subacute", "chronic"]
 EPS = ["pre", *EP]
 MIN = 8

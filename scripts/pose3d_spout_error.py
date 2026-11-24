@@ -29,6 +29,8 @@ session (colour), medians as large markers, the spout at (0, 0); ``traces_<anima
 Tables: per_session.csv; by_animal.csv (post minus the animal's August pre median -- rule 8, printed first).
 """
 from __future__ import annotations
+from wfield_local.session_licks import kin_sfx as _kin_sfx
+from wfield_local.session_licks import kin_name as _kin_name  # 11-22: fused post-cue unless WIDEFIELD_KIN_LICKS=cam4
 from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
@@ -38,7 +40,8 @@ import numpy as np
 import pandas as pd
 from wfield_local.pose3d import pose3d_dir
 
-V36 = "lp_r4_heatmap_20261013__clean_v36"
+from wfield_local.lp_licks import input_run as _input_run  # noqa: E402
+V36 = _input_run()  # 11-22: the input / adopted cam4 run (lp_licks.input_run; was the literal v36 run, plan item 3)
 POS = ("close_L", "close_center", "close_R", "far_L", "far_center", "far_R")
 EP_COL = {"acute": "#d01c8b", "subacute": "#b8860b", "chronic": "#01665e"}
 TRACE_MS = np.arange(-20.0, 200.1, 4.0)
@@ -85,7 +88,7 @@ def gated_licks(d3: Path) -> pd.DataFrame:
     """The kinematics licks (`kinematics/licks.csv.gz`) through THE kinematics lick gate (`trial_classes.gate_kin_licks`),
     index reset (`add_peak_errors` indexes positionally)."""
     from wfield_local import trial_classes as tc
-    L = pd.read_csv(d3 / "kinematics" / "licks.csv.gz", dtype={"date": str})
+    L = pd.read_csv(d3 / _kin_name() / "licks.csv.gz", dtype={"date": str})
     return tc.gate_kin_licks(L).reset_index(drop=True)
 
 
@@ -362,14 +365,14 @@ def main(argv=None) -> int:
     from wfield_local import trial_classes as tc
     if a.contra:                        # scatter_epoch reads only the closest-approach vector, no peak errors needed
         L = gated_licks(d3)
-        out = a.out or tc.kin_out_dir(d3, "spout_error")
+        out = a.out or tc.kin_out_dir(d3, "spout_error" + _kin_sfx(), "pose3d_spout_error" + _kin_sfx())
         for animal in sorted(L.animal.unique()):
             f = out / f"scatter_epoch_{animal}_contra_cam.png"
             fig_scatter_epoch(L, animal, f, a.pre_from, contra=True)
             print("->", f)
         return 0
     L = add_peak_errors(rv, gated_licks(d3), a.pre_from)
-    out = a.out or tc.kin_out_dir(d3, "spout_error")
+    out = a.out or tc.kin_out_dir(d3, "spout_error" + _kin_sfx(), "pose3d_spout_error" + _kin_sfx())
     out.mkdir(exist_ok=True, parents=True)
     (out / "data_line.txt").write_text(data_line() + chr(10), encoding="utf-8")
     P = per_session(L)

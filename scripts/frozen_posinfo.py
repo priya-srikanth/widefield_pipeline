@@ -12,6 +12,7 @@ Output: <E>/frozen_fr_compare/posinfo_<tag>.csv, figures/frozen_posinfo_<tag>_{c
 """
 from __future__ import annotations
 from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
+from wfield_local.frozen_encoder import fig_out as fe_fig_out  # noqa: E402 - opt-in FROZEN_FIG_OUT (11-23)
 from wfield_local.frozen_encoder import design_tag as _design_tag  # frame tag of the FROZEN_LICKS_ALL design (8.51)
 
 import argparse
@@ -51,7 +52,7 @@ def main(argv=None) -> int:
     from wfield_local import trial_set_text as tst
     tst.declare(text=tst.union(*(trial_set_sentence(a.tag, w) for w in WINDOWS), unit="trials"))
     folder = f"frozen_encoder_{a.tag}"
-    out = E / "frozen_fr_compare"
+    out = fe_fig_out(E / "frozen_fr_compare")
     (out / "figures").mkdir(parents=True, exist_ok=True)
     J = session_r2(folder, "joint").set_index(KEY).r2
     rows = []

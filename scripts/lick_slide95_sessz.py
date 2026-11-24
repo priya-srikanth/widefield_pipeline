@@ -39,8 +39,8 @@ import numpy as np
 import pandas as pd
 
 os.environ["WFIELD_ITI_FILTER"] = "dock"            # the slide's ITI row; the cued rows are unaffected by it
-_E = Path(os.environ.get("WFIELD_SESSZ_ITI_ROOT",
-                        "M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks"))
+from wfield_local import orofacial_outputs as _oo  # noqa: E402  11-22: the adopted run (was a literal v36 path)
+_E = Path(os.environ.get("WFIELD_SESSZ_ITI_ROOT", str(_oo.encoding_root() / "iti_licks")))
 OUTD = Path(os.environ.get("WFIELD_SESSZ_OUT", str(_E / "slide95_sessz_20261104")))
 os.environ["WFIELD_ITI_OUT_W"] = str(OUTD)          # every write of the imported scripts (figdata included) lands here
 sys.path.insert(0, str(Path(__file__).resolve().parent))

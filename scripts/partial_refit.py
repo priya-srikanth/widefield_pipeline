@@ -116,7 +116,7 @@ def frozen_fits(run: Path) -> Path:
     """Per animal frozen joint fit (scale, C, vcol, betas incl. leave-one-session-out, alphas), from the run's saved pre
     statistics; cached in partial_refit/fits.pkl."""
     from wfield_local import frozen_encoder as fe
-    p = run / "partial_refit" / "fits.pkl"
+    p = fe.fig_out(run) / "partial_refit" / "fits.pkl"
     from wfield_local import mask_keys
     if p.exists():
         mask_keys.check_sidecar(p)               # stale-read guard (11-09)
@@ -434,7 +434,7 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     __import__("wfield_local.frozen_encoder", fromlist=["check_tag"]).check_tag(a.tag)   # refits: design = env (8.51)
     run = E / f"frozen_encoder_{a.tag}"
-    out = run / "partial_refit"
+    out = __import__("wfield_local.frozen_encoder", fromlist=["fig_out"]).fig_out(run) / "partial_refit"   # FROZEN_FIG_OUT (11-23)
     sdir = out / "sessions"
     sdir.mkdir(parents=True, exist_ok=True)
     if not a.plot_only:

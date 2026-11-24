@@ -31,7 +31,10 @@ this script always read that untagged table); pre = the AUGUST pre-stroke sessio
                 `cam1_licks.keep_mask`) NOT matched to a cam4 lick = small / incomplete mouth openings cam4 does not
                 register, counted cue .. first lick (n_cam1_pre)
     jaw         `qc/jaw_onsets.csv` (cam4 + cam1, cam1 floor 15 px; searched cue .. stop): onset, or its re-onset when
-                the jaw was already deflected at the cue
+                the jaw was already deflected at the cue. 11-23: through `trial_classes.jaw_call` (`jaw_onsets`), mode
+                env REVUP_JAW: "classes" (default) = the trial classes' rule (4-cam 3-D jaw at the close-center spout,
+                where both 2-D cameras are masked; at-cue 3-D = unknown), "3d" = the 4-cam 3-D jaw at every spout,
+                "2d" = the per-camera calls only (the rule until 11-23); the session cache folder carries the mode
     FR vigor   FaceRhythm master_pre_v1 (cam4), UNBLANKED (`face_rhythm_outputs.fr_signals(blank=False)`, absolute),
                 non-directional lick vigor = sum of the six lick factors (fr_direction_mechanism.LICK); z vs the
                 session's pre-cue (-0.5..0 s) distribution (median / 1.4826 MAD); fr_onset = first time after
@@ -64,6 +67,7 @@ from __future__ import annotations
 from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
+import os
 import pickle
 from pathlib import Path
 
@@ -73,7 +77,12 @@ from wfield_local.orofacial_outputs import encoding_root as _encoding_root  # re
 
 RUN_ROOT = _encoding_root()
 OUT_W = RUN_ROOT / "iti_licks"
-REV = OUT_W / "revup"
+#: 11-22 (four-camera re-run): REVUP_OUT_DIR = an explicit output folder (inherited by the spawned workers through the
+#: environment), so a re-run never lands on an earlier run's tables; REVUP_AIM_CSV = the far-contra aim for the
+#: recovery step (5a) from a sessions table with the aim_by_spout schema (label, pos, off): `off` at far_contra is
+#: exactly recmark_sessions' `aim` (checked on v36: r = 1.000, 107 sessions). Used when the neural recovery-marker
+#: tables (recmark / recprim) of the run do not exist; iti_ang and marker are then NaN.
+REV = Path(os.environ["REVUP_OUT_DIR"]) if os.environ.get("REVUP_OUT_DIR", "").strip() else OUT_W / "revup"
 SESS = "behaviour_sessions_c1far"  # per-session cache (revup/sessions/ belongs to the imaging helper; its *.pkl from a
 #                                    first, superseded run of this script = the onset-only lick rule, not read).
 #                                    11-17: "_c1far" = cam1 events through `cam1_licks.keep_mask` (far-from-mouth guard);
@@ -134,10 +143,57 @@ def _count(sorted_t: np.ndarray, lo, hi) -> np.ndarray:
     return np.searchsorted(sorted_t, hi, side="left") - np.searchsorted(sorted_t, lo, side="left")
 
 
+def sess_dir() -> Path:
+    """The per-session cache folder: `SESS`, + ``_fused_<sha8>`` under a fused lick set (11-22: the lick train is part
+    of what a cached session holds, so another train never reads these pickles)."""
+    from wfield_local import session_licks as SL
+    sig = SL.signature()
+    jm = "" if jaw_mode() == "2d" else f"_jaw-{jaw_mode()}"    # 11-23: the jaw rule is part of a cached session
+    if not sig:
+        return REV / f"{SESS}{jm}"
+    import hashlib
+    return REV / f"{SESS}_fused_{hashlib.sha1(sig.encode()).hexdigest()[:8]}{jm}"
+
+
+def inputs_sig(label: str) -> str:
+    """Identity (name, size, mtime) of the files one session is built from: the session lick table, cam1's events_all,
+    the jaw table and the attempts table. 11-22 (reconciled plan item 4): the cache was keyed on EXISTENCE only, so a
+    regenerated lick / cam1 / jaw table was silently ignored; a pickle whose inputs changed is now rebuilt (pickles
+    written before 11-22 carry no signature and are still read, with a note)."""
+    from wfield_local import config, lp_licks
+    from wfield_local import session_licks as SL
+    from wfield_local.paths import PathResolver
+    rv = PathResolver()
+    an, date = config.animal_of(label), "2026" + label.split("_")[-1]
+    sd = SL._cam4_dir(rv, an, date)
+    fs = [sd / "licks_all.csv"] if not SL.fused_on() else [SL.fused_dir(rv) / f"{an}_{date}_fused.csv",
+                                                          sd / "windows.npz"]
+    fs += [lp_licks.cam1_events_dir(rv) / f"{an}_{date}_events_all.csv", QC / "jaw_onsets.csv", attempts_csv()]
+    parts = []
+    for p in fs:
+        try:
+            st = Path(p).stat()
+            parts.append(f"{Path(p).name}:{st.st_size}:{st.st_mtime_ns}")
+        except OSError:
+            parts.append(f"{Path(p).name}:-")
+    return "|".join(parts)
+
+
+def _cache_ok(f: Path, label: str) -> bool:
+    if not f.exists():
+        return False
+    d = pickle.loads(f.read_bytes())
+    if "inputs" not in d:
+        print(f"  {label}: cached before 11-22 (no input signature) -- reused; delete it to rebuild")
+        return True
+    return d["inputs"] == inputs_sig(label)
+
+
 def session(label: str) -> dict:
-    """One session -> per-trial table + FR arrays; cached at REV/sessions/<label>.pkl (module-level for spawn)."""
-    f = REV / SESS / f"{label}.pkl"
-    if f.exists():
+    """One session -> per-trial table + FR arrays; cached at `sess_dir()`/<label>.pkl, rebuilt when its inputs change
+    (`inputs_sig`) (module-level for spawn)."""
+    f = sess_dir() / f"{label}.pkl"
+    if _cache_ok(f, label):
         return {"label": label, "cached": True}
     from wfield_local import config, dlc_frames, epochs
     from wfield_local import face_rhythm_outputs as fro
@@ -154,7 +210,9 @@ def session(label: str) -> dict:
     nxt = np.where(np.isfinite(nxt) & (nxt > stop), nxt, stop + gap)
     rw = _resp_window(label)
     sd = oo.session_dir(rv, oc.RUN, an, date)
-    A = pd.read_csv(sd / "licks_all.csv", usecols=["daq_on_s", "daq_peak_s"])
+    from wfield_local import session_licks as SL
+    # 11-22: THE session lick table (`session_licks`: the fused four-camera train when selected, else cam4 licks_all)
+    A = SL.session_licks(f"{an}_{date}", rv)[["daq_on_s", "daq_peak_s"]]
     A = A[np.isfinite(A.daq_on_s) & np.isfinite(A.daq_peak_s)].sort_values("daq_peak_s")
     lk = np.sort(A.daq_on_s.to_numpy(float))
     pk, pk_on = A.daq_peak_s.to_numpy(float), A.daq_on_s.to_numpy(float)
@@ -178,7 +236,8 @@ def session(label: str) -> dict:
     n_miss = np.where(np.isfinite(fc), _count(lk, fl, fc), _count(lk, cue, stop))
     n_miss = np.where(np.isfinite(fl), n_miss, 0)
     # cam1 events
-    e1 = Path(rv.root("dlc")) / "session_poses" / "cam1_licks" / f"{an}_{date}_events_all.csv"
+    from wfield_local import lp_licks
+    e1 = lp_licks.cam1_events_dir(rv) / f"{an}_{date}_events_all.csv"
     has_cam1 = e1.exists()
     if has_cam1:
         from wfield_local import cam1_licks as C1        # droplets + far-from-mouth labels out (Priya 11-17)
@@ -193,11 +252,8 @@ def session(label: str) -> dict:
         n_cam1_pre_win = _count(e_small, cue, np.minimum(upto, stop)).astype(float)
     else:
         n_cam1_pre = first_cam1 = n_cam1_pre_win = np.full(len(b), np.nan)
-    # jaw onsets (cue .. stop)
-    J = _jaw(f"{an}_{date}")
-    jt = b[["trial_id"]].merge(J, on="trial_id", how="left")
-    jaw_ms = np.where(jt.onset_at_cue.fillna(False).astype(bool), jt.jaw_reonset_ms, jt.jaw_onset_ms).astype(float)
-    jaw_judged = (jt.cam4_moved.notna() | jt.cam1_moved.notna()).to_numpy()
+    # jaw onsets (cue .. stop): THE trial-class jaw call (`trial_classes.jaw_call`, mode `jaw_mode()`; 11-23)
+    jaw_ms, jaw_judged = jaw_onsets(f"{an}_{date}", b.trial_id.to_numpy())
     # FaceRhythm vigour
     out_fr = {"cue": np.full((len(b), len(LAGS_CUE)), np.nan, np.float32),
               "lick": np.full((len(b), len(LAGS_LICK)), np.nan, np.float32),
@@ -260,8 +316,8 @@ def session(label: str) -> dict:
         "p_spont_after_left": 1 - np.exp(-rate * np.clip(nxt - stop, 0, None)) if np.isfinite(rate) else np.nan,
         "coverage": float(cov.get("covered_frac", np.nan))})
     T = _revup(T)
-    REV.joinpath(SESS).mkdir(parents=True, exist_ok=True)
-    f.write_bytes(pickle.dumps({"T": T, "fr": out_fr}))
+    f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_bytes(pickle.dumps({"T": T, "fr": out_fr, "inputs": inputs_sig(label)}))
     return {"label": label, "cached": False, "n": len(T)}
 
 
@@ -296,18 +352,38 @@ def _revup(T: pd.DataFrame) -> pd.DataFrame:
     return T
 
 
-_JAW = {}
+JAW_ENV = "REVUP_JAW"
+_JAWPOS: dict = {}
 
 
-def _jaw(session: str) -> pd.DataFrame:
-    if not _JAW:
-        J = pd.read_csv(QC / "jaw_onsets.csv", usecols=["session", "trial_id", "cam4_moved", "cam1_moved",
-                                                       "jaw_onset_ms", "onset_at_cue", "jaw_reonset_ms"],
-                        low_memory=False)
-        J["onset_at_cue"] = J.onset_at_cue.astype(str).str.lower().eq("true")
-        _JAW.update({s: g.drop(columns="session") for s, g in J.groupby("session")})
-    return _JAW.get(session, pd.DataFrame(columns=["trial_id", "cam4_moved", "cam1_moved", "jaw_onset_ms",
-                                                   "onset_at_cue", "jaw_reonset_ms"]))
+def jaw_mode() -> str:
+    """The jaw rule (`trial_classes.JAW_MODES`), env `REVUP_JAW` (inherited by spawned workers): "classes" (default
+    since 11-23 = the trial classes' source-aware call: 2-D per camera, 4-cam 3-D at the close-center spout), "3d"
+    (4-cam 3-D at every spout; Priya 11-23) or "2d" (the per-camera calls only = this script until 11-23, when the
+    close-center spout never had a jaw onset)."""
+    from wfield_local import trial_classes as TC
+    m = os.environ.get(JAW_ENV, "").strip().lower() or "classes"
+    if m not in TC.JAW_MODES:
+        raise ValueError(f"{JAW_ENV}={m!r}: one of {TC.JAW_MODES}")
+    return m
+
+
+def jaw_onsets(session: str, trial_ids, mode: str | None = None) -> tuple[np.ndarray, np.ndarray]:
+    """(jaw onset ms from the cue, jaw judged) per trial id of ``session`` ("PS92_20260818") from this run's
+    qc/jaw_onsets.csv through `trial_classes.jaw_call` (one definition of the jaw call; module docstring)."""
+    from wfield_local import trial_classes as TC
+    J = TC.jaw_table(str(QC / "jaw_onsets.csv"))
+    if not _JAWPOS:
+        P = pd.read_csv(QC / "jaw_onsets.csv", usecols=["session", "trial_id", "position"])
+        _JAWPOS.update({k: g.set_index("trial_id").position for k, g in P.groupby("session")})
+    ids = np.asarray(trial_ids)
+    if session in J.index.get_level_values(0):
+        j = J.loc[session].reindex(ids)
+    else:
+        j = pd.DataFrame(index=ids, columns=list(J.columns), dtype=float)
+    p = _JAWPOS.get(session, pd.Series(dtype=object)).reindex(ids)
+    jc = TC.jaw_call(j, p.fillna("").astype(str).to_numpy(), mode or jaw_mode())
+    return jc["jaw_onset_ms"].astype(float), jc["judged"].astype(bool)
 
 
 # ------------------------------------------------------------------------------------------------ assemble
@@ -324,7 +400,7 @@ def assemble(labels: list[str]) -> tuple[pd.DataFrame, dict]:
     TA = pd.read_csv(attempts_csv(), usecols=["label", "trial_id", "cls", "canonical", "attempted", "day"])
     Ts, F = [], {"cue": [], "lick": [], "prep_cue": []}
     for x in labels:
-        d = pickle.loads((REV / SESS / f"{x}.pkl").read_bytes())
+        d = pickle.loads((sess_dir() / f"{x}.pkl").read_bytes())
         Ts.append(d["T"])
         for k in F:
             F[k].append(d["fr"][k])
@@ -471,9 +547,19 @@ def track(S: pd.DataFrame) -> pd.DataFrame:
     the primary balance marker (recprim_sessions.csv) on the same post sessions for comparison."""
     import statsmodels.formula.api as smf
     POS = _pos_order()
-    R = pd.read_csv(OUT_W / "recmark_sessions.csv", usecols=["label", "aim", "iti_ang"]).drop_duplicates("label")
-    M = pd.read_csv(OUT_W / "recprim_sessions.csv")
-    M = M[M.panel == "cued first lick -> aim"][["label", "marker"]].drop_duplicates("label")
+    aim_csv = os.environ.get("REVUP_AIM_CSV", "").strip()
+    if aim_csv:                                    # 11-22: aim from an aim_by_spout-schema table (see REV above)
+        A = pd.read_csv(aim_csv)
+        R = (A[A.pos == "far_contra"][["label", "off"]].rename(columns={"off": "aim"})
+             .assign(iti_ang=np.nan).drop_duplicates("label"))
+    else:
+        R = pd.read_csv(OUT_W / "recmark_sessions.csv", usecols=["label", "aim", "iti_ang"]).drop_duplicates("label")
+    fp = OUT_W / "recprim_sessions.csv"
+    if aim_csv and not fp.exists():
+        M = pd.DataFrame({"label": pd.Series(dtype=str), "marker": pd.Series(dtype=float)})
+    else:
+        M = pd.read_csv(fp)
+        M = M[M.panel == "cued first lick -> aim"][["label", "marker"]].drop_duplicates("label")
     meas = ["lat_med_ms", "contact_med_ms", "sh_after_left", "sh_none", "sh_late", "wait_med_ms", "revup_med_ms",
             "late_wait_med_ms", "late_revup_med_ms"]
     W = S[S.pos == "far_contra"][["label", "animal", "epoch", "day", *meas]].copy()

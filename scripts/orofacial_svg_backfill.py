@@ -11,8 +11,11 @@ from wfield_local.paths import PathResolver
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--run", default="lp_r4_heatmap_20261013__clean_v36")
+    ap.add_argument("--run", default=None)   # None = orofacial_cohort.RUN (11-22; was the literal v36 run)
     a = ap.parse_args()
+    if a.run is None:
+        from wfield_local import orofacial_cohort as _oc
+        a.run = _oc.RUN
     rv = PathResolver()
     base = oo.root(rv) / a.run / "sessions"
     for sd in sorted(p for p in base.glob("*/*") if (p / "manifest.json").exists()):

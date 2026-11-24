@@ -36,13 +36,14 @@ def session_job(job) -> list[dict]:
     cs = np.asarray(cue["cue_samples"], float) / float(cue["sample_rate_hz"])
     T = J.session_classes(label, window=window)
     if T is None:
-        return [dict(label=label, cue_idx=i, cue_s=t, cls="no_video", cls_final="no_video", position="", working=False, working_raw=False,
+        return [dict(label=label, cue_idx=i, cue_s=t, cls="no_video", cls_detail="no_video", cls_final="no_video", position="", working=False, working_raw=False,
                      stopped=False, working_pl_lick=False, working_pl_contact=False, working_pl_close=False,
                      camera_lick=False,
                      has_cam1=False) for i, t in enumerate(cs)]
     from wfield_local import trial_classes as tc
     c = J.cue_classes(T, cs)
     pos = J.cue_classes(T.assign(cls=T.position), cs)           # the same time matcher, carrying the spout position
+    det = J.cue_classes(T.assign(cls=T.cls_detail), cs) if "cls_detail" in T else c   # 11-22: tongue_at_lips label
     matched = J.cue_classes(T.assign(cls="matched"), cs) == "matched"
     # ONE CLASSIFIER (T9, third review): the session-level rules -- end at the last camera lick within the covered span,
     # sustained stop (>= 6 no_response / jaw_only starting >= 5 min after the first cue, Priya 11-04; earlier runs
@@ -57,7 +58,7 @@ def session_job(job) -> list[dict]:
     wpl = {e: tc.in_gate(f, "working") for e, f in fin.items()}
     stop = np.isin(fin["lick"], list(tc.STOPPED_CLASSES))
     h = bool(T.has_cam1.iloc[0]) if len(T) else False
-    return [dict(label=label, cue_idx=i, cue_s=t, cls=c[i], cls_final=fin["lick"][i], position=pos[i],
+    return [dict(label=label, cue_idx=i, cue_s=t, cls=c[i], cls_detail=det[i], cls_final=fin["lick"][i], position=pos[i],
                  working=bool(w[i]), working_raw=bool(J.in_gate(c[i:i + 1], "working")[0]), stopped=bool(stop[i]),
                  camera_lick=bool(lk[i]), has_cam1=h,
                  **{f"working_pl_{e}": bool(v[i]) for e, v in wpl.items()}) for i, t in enumerate(cs)]
@@ -76,8 +77,16 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--window", default="cue_stop", choices=("cue_stop", "trial"))
     ap.add_argument("--jobs", type=int, default=8)
+    ap.add_argument("--out", type=Path, default=None, help="write the snapshot HERE (a new folder) instead of the "
+                    "adopted run's imaging_encoding/qc")
+    ap.add_argument("--force", action="store_true", help="overwrite an existing snapshot (refused otherwise)")
     a = ap.parse_args(argv)
-    out = oo.encoding_root(oc.RUN, PathResolver()) / "qc"
+    out = a.out or oo.encoding_root(oc.RUN, PathResolver()) / "qc"
+    if (out / f"s1_trial_classes_{a.window}.csv.gz").exists() and not a.force:
+        # 11-22 (reconciled plan item 4): `working_trials` (every gated branch) reads this snapshot; it was always
+        # rewritten in place
+        raise SystemExit(f"{out / f's1_trial_classes_{a.window}.csv.gz'} exists: --force to overwrite, or --out <new>")
+    out.mkdir(parents=True, exist_ok=True)
     writeguard.assert_writable(out)
     cur = set(ak.curated_labels())
     labels = [s["label"] for s in F.SESSIONS if not config.early_pre(s["label"]) and s["label"] in cur]

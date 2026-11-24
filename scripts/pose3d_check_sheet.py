@@ -16,6 +16,7 @@ the 3-D step) -- cyan ring; the camera's own 2-D LP point when it has one (likel
 frames from ``src1`` / ``src4`` (template-time pairing). Writes `session_poses/pose3d/check_sheet/{A,B,C}_*.png`.
 """
 from __future__ import annotations
+from wfield_local.session_licks import kin_name as _kin_name  # 11-22: fused post-cue unless WIDEFIELD_KIN_LICKS=cam4
 
 import argparse
 from pathlib import Path
@@ -143,7 +144,7 @@ def _grid(tiles: list, ncol: int, title: str, path: Path) -> None:
 
 def section_a(rv, out: Path, per: int, rng) -> None:
     d3 = pose3d_dir(rv, "2cam")
-    K = pd.read_csv(d3 / "kinematics" / "licks.csv.gz", dtype={"date": str})
+    K = pd.read_csv(d3 / _kin_name() / "licks.csv.gz", dtype={"date": str})
     g = K[(K.animal == "PS92") & (K.position == "far_center") & (K.epoch == "chronic")].copy()
     g["on_line"] = (np.abs(g.dv_err_mm + g.ap_err_mm + 1.6) < 0.15) & (g.ap_err_mm < -0.3)
     s = g.groupby("session").on_line.sum().idxmax()

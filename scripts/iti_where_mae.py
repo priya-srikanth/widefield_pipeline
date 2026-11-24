@@ -101,7 +101,7 @@ def plot(S: pd.DataFrame, T: pd.DataFrame) -> None:
                  "(3.15), error INCLUDES the decoder's pull toward the middle and any constant offset,\nso it rises "
                  "when licks land further from the center even with unchanged cortex.", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.91))
-    save_png_svg(fig, il.OUT / "figures" / "lick_where_mae.png", dpi=95)
+    save_png_svg(fig, il.OUT_X / "figures" / "lick_where_mae.png", dpi=95)
     plt.close(fig)
 
 
@@ -121,13 +121,13 @@ def main() -> int:
         plot(F["S"], F["T"])
         return 0
     S = sessions(pd.read_csv(il.pred_file("where_preds.csv")))
-    S.to_csv(il.OUT / "where_mae_sessions.csv", index=False)
+    S.to_csv(il.OUT_X / "where_mae_sessions.csv", index=False)
     pd.set_option("display.width", 220)
     print("== per animal (rule 8): MAE (mm) by epoch")
     print(S.groupby(["set", "animal", "epoch"])[["mae_lat", "mae_sag", "mae_2d"]].mean().unstack("epoch")
           .reindex(columns=EP4, level=1).round(2).to_string())
     T = tests(S)
-    T.to_csv(il.OUT / "where_mae_tests.csv", index=False)
+    T.to_csv(il.OUT_X / "where_mae_tests.csv", index=False)
     print(T[T.measure.isin(["mae_lat", "mae_sag", "mae_2d", "rmse_lat"])].round(3).to_string(index=False))
     save_fd("lick_where_mae", dict(S=S, T=T))
     plot(S, T)

@@ -25,7 +25,6 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from wfield_local.pose3d import pose3d_dir
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
@@ -44,19 +43,26 @@ MIN = 8
 
 def _lick_idx(label: str, t: np.ndarray) -> np.ndarray:
     from wfield_local import config
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
     an, date = config.animal_of(label), "2026" + label.split("_")[-1]
-    A = pd.read_csv(oo.session_dir(PathResolver(), oc.RUN, an, date) / "licks_all.csv", usecols=["daq_peak_s"])
+    from wfield_local import session_licks as SL
+    A = SL.session_licks(f"{an}_{date}")             # THE session lick table (11-22)
     uid = pd.Series(np.arange(len(A)), index=A.daq_peak_s.to_numpy(float))
     uid = uid[~uid.index.duplicated()]
     K = _K()
-    K = K[(K.session == f"{an}_{date}") & (K.table == "licks")].drop_duplicates("lick_uid").set_index("lick_uid")
+    K = SL.kin_by_row(K[(K.session == f"{an}_{date}") & (K.table == "licks")], A, label)   # by LICK KEY (11-22)
     u = uid.reindex(np.asarray(t, float)).to_numpy()
     out = np.full(len(t), np.nan)
     ok = np.isfinite(u)
-    out[ok] = K.lick_idx.reindex(u[ok].astype(int)).to_numpy(float)
+    has_k = K.lick_idx.reindex(u[ok].astype(int)).notna().to_numpy()      # a 3-D kinematics row, as before
+    # 11-22 evening (Priya: cam1-only flicks are not licks): the post-cue lick number counts the four-camera licks
+    # WITHOUT the cam1-only ones (as kinematics_fused_postcue, 87a279c5), so "first" = the first real lick
+    idx = np.full(len(A), np.nan)
+    if "cams" in A:
+        real = (A["table"] == "licks") & (A["cams"].astype(str) != "cam1")
+        idx[real.to_numpy()] = SL.renumber_lick_idx(A[real], ["trial_id"], "t_ms")
+    else:                                            # legacy cam4 source: no cam1-only rows in it
+        idx = K.lick_idx.reindex(np.arange(len(A))).to_numpy(float)
+    out[ok] = np.where(has_k, idx[u[ok].astype(int)], np.nan)
     return out
 
 
@@ -65,8 +71,8 @@ _KC = {}
 
 def _K():
     if "K" not in _KC:
-        f = pose3d_dir() / "kinematics_all" / "licks.csv.gz"
-        _KC["K"] = pd.read_csv(f, usecols=["session", "table", "lick_uid", "lick_idx"])
+        want = ("session", "table", "lick_key", "lick_uid", "trial_id", "t_peak_cam4", "lick_idx")
+        _KC["K"] = pd.read_csv(il.kin_all_path(), usecols=lambda c: c in want)
     return _KC["K"]
 
 

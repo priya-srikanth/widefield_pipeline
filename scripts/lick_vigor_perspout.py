@@ -71,17 +71,17 @@ def _kin(label: str, t: np.ndarray, exact: bool) -> pd.DataFrame:
     """Kinematics of licks at DAQ onset times t: exact onset match (ITI bout starts are cam4 onsets) or nearest cam4
     onset within MATCH_S (cued first licks come from the behavior lick table)."""
     from wfield_local import config
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
     an, date = config.animal_of(label), "2026" + label.split("_")[-1]
-    A = pd.read_csv(oo.session_dir(PathResolver(), oc.RUN, an, date) / "licks_all.csv",
-                    usecols=["daq_on_s", "on_ms", "off_ms", "max_retract_velocity_y_px_per_s"])
+    from wfield_local import session_licks as SL
+    # THE session lick table (fused train or cam4 licks_all; 11-22) and the selected 3-D source / lick set's kinematics,
+    # joined by LICK KEY (was a literal two-camera kinematics_all + lick_uid = row of licks_all.csv)
+    A = SL.session_licks(f"{an}_{date}").reindex(columns=["trial_id", "t_ms", "lick_key", "daq_on_s", "on_ms", "off_ms",
+                                                           "max_retract_velocity_y_px_per_s"])
     if "K" not in _K:
-        p = Path(PathResolver().root("dlc")) / "session_poses" / "pose3d" / "kinematics_all" / "licks.csv.gz"
-        _K["K"] = pd.read_csv(p, usecols=["session", "lick_uid", "reach_mm", "speed_peak", "side_ml", "out_ap", "down_dv"])
+        _K["K"] = pd.read_csv(il.kin_all_path(), usecols=lambda c: c in ("session", *SL.KIN_JOIN_COLS, "reach_mm",
+                                                                         "speed_peak", "side_ml", "out_ap", "down_dv"))
     K = _K["K"]
-    K = K[K.session == f"{an}_{date}"].drop_duplicates("lick_uid").set_index("lick_uid")
+    K = SL.kin_by_row(K[K.session == f"{an}_{date}"], A, label)
     on = A.daq_on_s.to_numpy(float)
     t = np.asarray(t, float)
     if exact:

@@ -203,7 +203,7 @@ def plot(D: dict, levels: bool = False) -> None:
              + "sim = r(session-mean epoch map, pre map), mean of animals. ipsi (lesion) = image LEFT. PROVISIONAL"]
     fig.suptitle("\n".join(textwrap.fill(q, 120) for q in paras), fontsize=9)
     out = fig_name(st)
-    save_png_svg(fig, il.OUT / "figures" / (levels_name(out) if levels else out), dpi=95, bbox_inches="tight")
+    save_png_svg(fig, il.OUT_X / "figures" / (levels_name(out) if levels else out), dpi=95, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -221,7 +221,7 @@ def main(argv=None) -> int:
     if plot_only():
         plot_all(load_fd(fig_name(st)))
         return 0
-    cache = il.OUT / f"spout_pattern_sessions{sfx}.pkl"
+    cache = il.OUT_X / f"spout_pattern_sessions{sfx}.pkl"
     from wfield_local import mask_keys
     if cache.exists():
         mask_keys.check_sidecar(cache)          # stale-read guard (11-09)
@@ -232,7 +232,7 @@ def main(argv=None) -> int:
         mask_keys.write_sidecar(cache)
     n_perm = n_perm_arg()
     res, T = test(SM, n_perm, st)
-    T.to_csv(il.OUT / f"spout_pattern_stats{sfx}.csv", index=False)
+    T.to_csv(il.OUT_X / f"spout_pattern_stats{sfx}.csv", index=False)
     pd.set_option("display.width", 220)
     sim = T[T.kind == "similarity"]
     print("== per animal (rule 8): similarity of the session-mean epoch map to pre, within-animal 95% CI")

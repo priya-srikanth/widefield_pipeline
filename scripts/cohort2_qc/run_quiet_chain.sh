@@ -27,28 +27,21 @@ cd "$W" || exit 2
 if ! git diff --quiet || ! git diff --cached --quiet; then echo "refusing: $W has uncommitted changes"; exit 2; fi
 CODE=$(git rev-parse --short HEAD)
 PY=${PY:-C:/Users/SabatiniLab/miniconda3/envs/locanmf/python.exe}
-export FROZEN_LICKS_ALL=split
+# THE ENV = a render profile (11-23): QS_PROFILE (default cohort1_rebuild_20261103, the v36 rebuild whose env this file
+# hard-coded until 11-23 -- the same variables and values) is applied FIRST (it clears every WIDEFIELD_* / WFIELD_* /
+# COMBINED_ENCODING_* variable, then sets the profile's, incl. its rebuild root, frozen store and session cache); the
+# chain's own switches are set after it. Four-camera root: QS_PROFILE=cohort1_rebuild_20261123_fourcam.
+QS_PROFILE=${QS_PROFILE:-cohort1_rebuild_20261103}
+eval "$("$PY" -m wfield_local.render_profile "$QS_PROFILE" --shell bash)" || { echo "render_profile $QS_PROFILE failed"; exit 2; }
+"$PY" -m wfield_local.render_profile "$QS_PROFILE" --check > /dev/null || { echo "render_profile $QS_PROFILE --check failed"; exit 2; }
+[ -n "${WIDEFIELD_REBUILD_ROOT:-}" ] || { echo "profile $QS_PROFILE set no rebuild root"; exit 2; }
 export PYTHONPATH="$W;$W/scripts"
 export QS_CODE_DIR="$W/scripts/cohort2_qc"
 export QS_LICK_SOURCE=daq+lp
 export QS_V2_DIRNAME=$OUTNAME
 export QS_ENGAGED_END=lastsync
-export WFIELD_INPUT_CACHE=${WFIELD_INPUT_CACHE:-C:/Users/SabatiniLab/wfield_cache/input_cache_rebuild_20261104}
-export WIDEFIELD_FROZEN_MODEL_DIR=M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/frozen_models
-export WIDEFIELD_HEMO_VARIANT=meegkit_hpfit_lag_refitT_swapmask
-export WIDEFIELD_LOCANMF_PROJECT=1
-export WIDEFIELD_LP_FROZEN=lp
+export WFIELD_INPUT_CACHE=${QS_INPUT_CACHE:-C:/Users/SabatiniLab/wfield_cache/input_cache_rebuild_20261104}
 export WIDEFIELD_MAX_JOBS=4
-export WIDEFIELD_PRE_FROM=0801
-export WIDEFIELD_PROJECTION_CENTRE=wt
-export WIDEFIELD_REBUILD_ROOT=M:/MICROSCOPE/Priya/Widefield/rebuild_20261103
-export WIDEFIELD_SESSION_CACHE=M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/session_cache
-export WIDEFIELD_SPOUT_SCORE_CENTRE=wt
-export WIDEFIELD_TRIAL_END=lick
-export WIDEFIELD_TRIAL_GATE=camera
-export WIDEFIELD_TRIAL_STOPPED=both
-export WIDEFIELD_TRIAL_WINDOW=cue_stop
-export WIDEFIELD_WORKING_TRIALS=in_working
 export PYTHONIOENCODING=utf-8
 Q=$("$PY" -c "import sys; sys.path.insert(0, r'$W/scripts/cohort2_qc'); from quiet_area_spikes import OUT; print(OUT)")
 LOGD="$Q/$OUTNAME/logs"

@@ -102,6 +102,10 @@ def test_precue_rate_numerator_drops_the_excluded_licks():
 # ---------------------------------------------------------------------------------- encoder lists: every lick kept
 def _encoder_session(tmp_path, A, monkeypatch):
     from wfield_local import dlc_frames
+    # 11-22: this test is about the LEGACY cam4 licks_all.csv lists; pin the lick set so the fused default (adoption,
+    # session_licks.FUSED_DEFAULT) does not send the encoder to a fused folder the tmp tree does not have
+    monkeypatch.setenv("WIDEFIELD_FUSED_LICKS", "off")
+    monkeypatch.setenv("COMBINED_ENCODING_LICKS", "cam4")
     sd = tmp_path / "v36"
     sd.mkdir()
     A.to_csv(sd / "licks_all.csv", index=False)

@@ -123,7 +123,7 @@ def jaw_pertrial(jaw_y, fps: float, trials: pd.DataFrame,
     Returns ``(table, metadata)``: one row per trial in input order with ``trial_id``, ``position``,
     ``cue_frame``, ``cue_frame_idx`` (-1 when the cue frame is NaN) and `JAW_COLUMNS`; metadata = the knobs used (their JSON ``metadata``).
     """
-    p = _resolve(overrides)
+    p = {k: v for k, v in _resolve(overrides).items() if k not in ("baseline_noise", "noise_cap")}  # onset-only keys
     jaw_y = np.asarray(jaw_y, dtype=np.float64)
     n_frames = len(jaw_y)
     # OURS (2026-10-01): with a `stop_frame` column the detect window ends at each trial's own stop
@@ -173,14 +173,14 @@ def jaw_onsets(jaw_y, fps: float, trials: pd.DataFrame, overrides: dict | None =
         t_ms = np.arange(-pre_f, post_f + 1) * (1000.0 / fps)
         c = cue_frame_index(r.cue_frame)
         yw = np.full(pre_f + post_f + 1, np.nan) if c is None else _snippet(jaw_y, c, pre_f, post_f, n)
-        bm, bs = _compute_jaw_baseline(yw, t_ms, baseline_win_ms=p["baseline_win_ms"])
+        bm, bs = _onset_baseline(yw, t_ms, p)
         out = {"trial_id": r.trial_id, "jaw_pass_qc": np.nan, "onset_idx": -1, "onset_frames": np.nan,
                "reonset_idx": -1, "reonset_frames": np.nan}
         if not np.isfinite(bm) or not np.isfinite(bs) or bs <= 0:
             out["jaw_pass_qc"] = np.nan if p.get("degenerate_as_unknown") else 0.0
             rows.append(out)
             continue
-        thr, _ = _compute_jaw_threshold(bs, sd_mult=p["sd_mult"], min_px=p["min_px"])
+        thr = onset_threshold(bs, p)
         ok, _n = _check_sustained_density(yw, t_ms, bm, thr, detect_win_ms=det, window_n=p["window_n"],
                                           density_thr=p["density_thr"])
         out["jaw_pass_qc"] = float(ok)
@@ -209,6 +209,36 @@ def jaw_onsets(jaw_y, fps: float, trials: pd.DataFrame, overrides: dict | None =
                                        "reonset_frames"])
 
 
+#: `jaw_onsets` pre-cue noise options (overrides key ``baseline_noise``): "sd" = mean + population sd (production,
+#: their jaw_pertrial rule) | "mad" = median + 1.4826 x MAD (robust: a brief pre-cue movement no longer inflates the
+#: threshold). ``noise_cap`` (trace units, None = off) caps the ``sd_mult`` x noise term; the floor still applies.
+BASELINE_NOISE = ("sd", "mad")
+
+
+def _onset_baseline(yw: np.ndarray, t_ms: np.ndarray, p: dict) -> tuple[float, float]:
+    """(centre, noise) of the pre-cue baseline for `jaw_onsets` under ``p["baseline_noise"]``."""
+    how = p.get("baseline_noise", "sd")
+    if how == "sd":
+        return _compute_jaw_baseline(yw, t_ms, baseline_win_ms=p["baseline_win_ms"])
+    if how != "mad":
+        raise ValueError(f"baseline_noise {how!r}: one of {BASELINE_NOISE}")
+    v = np.asarray(yw, float)[_window_mask(t_ms, p["baseline_win_ms"])]
+    v = v[np.isfinite(v)]
+    if v.size < 2:
+        return float("nan"), float("nan")
+    med = float(np.median(v))
+    return med, float(1.4826 * np.median(np.abs(v - med)))
+
+
+def onset_threshold(noise: float, p: dict) -> float:
+    """THE `jaw_onsets` threshold: max(min(sd_mult x noise, noise_cap), floor) (no cap = production
+    `_compute_jaw_threshold`)."""
+    term = p["sd_mult"] * noise
+    if p.get("noise_cap") is not None and np.isfinite(term):
+        term = min(term, p["noise_cap"])
+    return _compute_jaw_threshold(term / p["sd_mult"], sd_mult=p["sd_mult"], min_px=p["min_px"])[0]
+
+
 def _resolve(overrides: dict | None) -> dict:
     """`params()` flattened to `_compute_per_trial`'s keyword names (theirs did this in the core function)."""
     q = params(overrides)
@@ -220,6 +250,9 @@ def _resolve(overrides: dict | None) -> dict:
         density_thr=float(q["sustained_density_threshold"]),
         window_n=int(q["sustained_window_n_frames"]),
         degenerate_as_unknown=bool(q.get("degenerate_as_unknown", False)),
+        # ONSET-ONLY OPTIONS (`jaw_onsets`; CC-B 11-23, Priya "let's try"; defaults = the production rule):
+        baseline_noise=str(q.get("baseline_noise", "sd")),
+        noise_cap=(None if q.get("noise_cap") is None else float(q["noise_cap"])),
     )
 
 

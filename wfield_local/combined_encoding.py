@@ -53,6 +53,7 @@ Outputs: <LP_analysis>/<run>/imaging_encoding/<order>/sessions/<label>.npz (+ .j
 `scripts/combined_encoding_figures.py`.
 """
 from __future__ import annotations
+from wfield_local.session_licks import kin_name as _kin_name  # 11-22: fused post-cue unless WIDEFIELD_KIN_LICKS=cam4
 
 import argparse
 import glob
@@ -139,10 +140,51 @@ TARGET3D_TABLE_ENV = "COMBINED_ENCODING_TARGET3D_TABLE"
 #:             = not droplets, not far-from-mouth labels, Priya 11-17) in the
 #:             same lick kernel
 #:   lips      as combined, but cam1-only events with size_class == 'lips' get their OWN kernel (inside `licks`)
+#:   fused     (11-22, Priya 11-21 Q1 = (b)) the fused four-camera train (`session_licks`, needs a fused lick set):
+#:             its post-cue licks cam4 did NOT see (cam1-only and confirmed side-only) join the lick timing kernel,
+#:             as cam1-only events do under combined; with LICKS_ALL_ENV the pre-cue / ITI lists come from the fused
+#:             train too. DEFAULT whenever a fused train is selected (Priya 11-22, `lick_mode`); before that it was an
+#:             explicit opt-in. O2 bundles must pin COMBINED_ENCODING_LICKS in env.json (diff against production first).
+#:   fourcam   (11-22 evening, Priya: "we should use 4 camera licks for all figures"; cam1-only flicks are NOT licks)
+#:             THE four-camera fused train is the lick set itself, not an add-on to cam4's licks.csv: post-cue lick
+#:             events = the fused table "licks" rows (onset daq_on_s), pre-cue / ITI (LICKS_ALL) = its other rows, every
+#:             cam1-ONLY lick (cams == "cam1": no 3-D, ~2 mm, 0.3 % contact) dropped; the executed 3-D angle (TONGUE=3d)
+#:             comes from the fused post-cue kinematics (`session_licks.kin_name()`, measures blanked unless seen by >= 2
+#:             cameras) by lick_key, NOT gated by the cam4 2-D trace; cam4's 2-D angle / reach (EXEC modes only) by
+#:             lick_key where cam4 saw the lick. `fourcam_licks` builds it (tested). Supersedes the 11-22 morning fit
+#:             (mode fused = cam4 licks.csv + the fused licks cam4 missed, incl. the flicks; angle from cam4 windows).
 #: TIMING ONLY: cam1-only events have no angle / reach (no cam4 trace; no usable 3-D depth below ~1 mm), so they never
 #: enter the executed / target sets. Outputs -> ..._licks-<mode>/.
 LICKS_ENV = "COMBINED_ENCODING_LICKS"
-LICK_MODES = ("cam4", "combined", "lips")
+LICK_MODES = ("cam4", "combined", "lips", "fused", "fourcam")
+
+
+def fourcam_licks(A: pd.DataFrame) -> pd.DataFrame:
+    """The fourcam lick set from a fused session lick table ``A`` (`session_licks.session_licks`): every row except the
+    cam1-ONLY licks (``cams == "cam1"``), in daq_on_s order. Pure (tested)."""
+    keep = A["cams"].astype(str) != "cam1"
+    return A[keep].sort_values("daq_on_s", kind="stable").reset_index(drop=True)
+
+
+def _fourcam_table(rv, animal: str, date: str) -> pd.DataFrame:
+    from wfield_local import session_licks as SL
+    if not SL.fused_on():
+        raise FileNotFoundError(f"{LICKS_ENV}=fourcam needs a fused four-camera train (session_licks.fused_run)")
+    return fourcam_licks(SL.session_licks(f"{animal}_{date}", rv))
+
+
+def lick_mode() -> str:
+    """The encoder's lick set: ``COMBINED_ENCODING_LICKS`` when set, else "fourcam" whenever a fused four-camera train is
+    selected (`session_licks.fused_on`: the adoption default) and "cam4" otherwise. Priya 11-22 ("i think we should
+    make combined default? with cam1 restrictions. but side cams help with closer spouts"): the fused train already
+    carries cam1's rules (`cam1_licks.keep_mask`, droplets, cam1-only >= 300 ms dropped) and side views only when
+    confirmed by both. Set ``COMBINED_ENCODING_LICKS=cam4`` for the previous behavior; O2 bundles pin it in env.json."""
+    v = os.environ.get(LICKS_ENV, "").strip()
+    if v:
+        return v
+    from wfield_local import session_licks as SL
+    # 11-22 evening (Priya: four-camera licks everywhere, cam1-only flicks are not licks): fourcam, not fused
+    return "fourcam" if SL.fused_on() else "cam4"
 #: BINNED target-vs-executed contest (Priya 10-20, agreed): the continuous contest scales ONE lick kernel by 3-4 smooth
 #: terms, so a win could come from the assumed (quadratic) shape. Here both sides are six FREE lick kernels on the same
 #: licks: lick_bin_tgt = one kernel per spout of the lick's trial; lick_bin_exec = one kernel per EXECUTED bin = the
@@ -376,16 +418,20 @@ def lick_angle_3d(L: pd.DataFrame, session: str) -> np.ndarray:
     """Per-lick 3-D lateral angle out of the sagittal plane (deg; pose3d `midline`), NaN without a 3-D peak."""
     path = os.environ.get(EXEC3D_TABLE_ENV)
     if not path:
-        path = pose3d_dir() / "kinematics" / "licks.csv.gz"
-    K = pd.read_csv(path, usecols=["session", "trial_id", "lick_idx", "side_ml", "out_ap", "down_dv"])
-    K = K[K.session == session].drop_duplicates(["trial_id", "lick_idx"])
-    J = L[["trial_id", "lick_idx"]].merge(K, on=["trial_id", "lick_idx"], how="left")
+        path = pose3d_dir() / _kin_name() / "licks.csv.gz"
+    K = pd.read_csv(path, usecols=lambda c: c in ("session", "trial_id", "lick_idx", "lick_key", "t_peak_cam4",
+                                                  "side_ml", "out_ap", "down_dv"))
+    K = K[K.session == session]
+    # 11-22: by lick_key (or a peak-checked (trial_id, lick_idx) join for a pre-key table), never a blind index join
+    from wfield_local import session_licks as SL
+    J = SL.align_kin(L, K, ["side_ml", "out_ap", "down_dv"], session)
     ml, ap, dv = (J[c].to_numpy(float) for c in ("side_ml", "out_ap", "down_dv"))
     return np.degrees(np.arctan2(ml, np.hypot(ap, dv)))
 _CACHE_CODE = ("wfield_local/combined_encoding.py", "wfield_local/orofacial_cohort.py",
                "wfield_local/orofacial_outputs.py", "wfield_local/trial_windows.py", "wfield_local/beta_maps.py",
                "wfield_local/daq_trials.py", "scripts/pose_kinematics_demo.py",
-               "wfield_local/cam1_licks.py")      # the cam1 lick rule (`_cam1_lick_events`, 11-17)
+               "wfield_local/cam1_licks.py",      # the cam1 lick rule (`_cam1_lick_events`, 11-17)
+               "wfield_local/session_licks.py", "wfield_local/camera_licks.py")   # the fused train (LICKS_ENV=fused)
 
 
 def _cached(kind: str, label: str, sources, build):
@@ -544,10 +590,15 @@ def load_behaviour(animal: str, date: str, rv) -> Behaviour:
     if oc.ENGAGEMENT_GATE != "reference":
         from wfield_local import lp_licks
         src.append(lp_licks.attempts_path(rv))                     # THIS run's attempts table (coordinator 11-04)
+    if lick_mode() in ("fused", "fourcam"):                     # the fused train's session table + manifest
+        from wfield_local import session_licks as SL
+        if SL.fused_on():
+            fd = SL.fused_dir(rv)
+            src += [fd / f"{animal}_{date}_fused.csv", fd / SL.MANIFEST]
     if os.environ.get(TONGUE_ENV, "") == "3d":                  # a rewritten 3-D frame / lick table makes a new entry
         src.append(pose3d_frames_path(rv, animal, date))
         src.append(os.environ.get(EXEC3D_TABLE_ENV) or
-                   pose3d_dir(rv) / "kinematics" / "licks.csv.gz")
+                   pose3d_dir(rv) / _kin_name() / "licks.csv.gz")
     return _cached("behaviour", f"{animal}_{date}", src, lambda: _load_behaviour(animal, date, rv))
 
 
@@ -569,17 +620,34 @@ def _load_behaviour(animal: str, date: str, rv) -> Behaviour:
                       "stop_s": b.stop_s.to_numpy(float)})
     T["engaged"] = True if keep is None else T.trial_id.isin(keep)
     T = T[T.trial_id.isin(cue_t.index)].reset_index(drop=True)
-    L = pd.read_csv(sd / "licks.csv")
-    L = L[L.trial_id.isin(cue_t.index)]
-    c0 = L.trial_id.map(cue_t.cue_daq).to_numpy(float)
-    on_s, pk_s = c0 + L.on_ms.to_numpy(float) / 1000.0, c0 + L.t_ms.to_numpy(float) / 1000.0
+    L4 = pd.read_csv(sd / "licks.csv")
+    L4 = L4[L4.trial_id.isin(cue_t.index)]
+    fourcam = lick_mode() == "fourcam"
+    if fourcam:                                     # LICK_MODES fourcam: the fused post-cue licks ARE the lick events
+        from wfield_local import session_licks as SL
+        A4 = _fourcam_table(rv, animal, date)
+        L = A4[(A4["table"] == "licks") & A4.trial_id.isin(cue_t.index)].reset_index(drop=True)
+        on_s, pk_s = L.daq_on_s.to_numpy(float), L.daq_peak_s.to_numpy(float)
+        # cam4's 2-D angle / reach where cam4 saw the lick (same lick_key: a fused lick keeps cam4's peak)
+        k4 = L4.assign(lick_key=SL.lick_key(L4.trial_id, L4.t_ms)).drop_duplicates("lick_key").set_index("lick_key")
+        J4 = k4.reindex(L.lick_key.to_numpy())
+        ang = J4.peak_angle_deg.to_numpy(float).copy()
+        interp = J4.peak_interp.astype(object).where(J4.peak_interp.notna(), True).astype(bool).to_numpy()
+        ok = (~interp) & (J4.protrusion_px.to_numpy(float) >= MIN_REACH_PX) & np.isfinite(ang)
+        prot_px = J4.protrusion_px.to_numpy(float)
+    else:
+        L = L4
+        c0 = L.trial_id.map(cue_t.cue_daq).to_numpy(float)
+        on_s, pk_s = c0 + L.on_ms.to_numpy(float) / 1000.0, c0 + L.t_ms.to_numpy(float) / 1000.0
+        ang = L.peak_angle_deg.to_numpy(float).copy()
+        ok = (~L.peak_interp.astype(bool).to_numpy()) & (L.protrusion_px.to_numpy(float) >= MIN_REACH_PX) & np.isfinite(ang)
+        prot_px = L.protrusion_px.to_numpy(float)
     pos = np.array([oc.pos_key(p, lat) for p in L.position])
-    ang = L.peak_angle_deg.to_numpy(float).copy()
-    ok = (~L.peak_interp.astype(bool).to_numpy()) & (L.protrusion_px.to_numpy(float) >= MIN_REACH_PX) & np.isfinite(ang)
     ang[~ok] = np.nan
     if os.environ.get(TONGUE_ENV, "") == "3d":                  # exec_angle from the 3-D lateral angle (TONGUE_ENV)
         a3 = lick_angle_3d(L, f"{animal}_{date}")
-        within = np.where(ok & np.isfinite(a3), a3, np.nan)
+        # fourcam: the fused 3-D angle alone (blank unless >= 2 views); never gated by the cam4 2-D trace
+        within = np.where(np.isfinite(a3), a3, np.nan) if fourcam else np.where(ok & np.isfinite(a3), a3, np.nan)
     else:
         within = ang.copy()
     for p in np.unique(pos):                         # within-position deviation of the executed angle
@@ -621,13 +689,14 @@ def _load_behaviour(animal: str, date: str, rv) -> Behaviour:
               "nose_x": (t_pose, nx), "nose_y": (t_pose, ny), "running": (np.asarray(run_t, float),
                                                                           np.asarray(run_v, float))}
     tgt, tdist = {}, {}
+    pos4 = np.array([oc.pos_key(p, lat) for p in L4.position])    # spout geometry per position: cam4's table (fourcam too)
     for col, dst in (("spout_angle_deg", tgt), ("spout_dist_px", tdist)):
-        if col in L:
-            for p_, g_ in L.assign(pk=pos).groupby("pk"):
+        if col in L4:
+            for p_, g_ in L4.assign(pk=pos4).groupby("pk"):
                 a_ = g_[col].to_numpy(float)
                 if np.isfinite(a_).any():
                     dst[p_] = float(np.nanmedian(a_))
-    reach = np.where(np.isfinite(ang), L.protrusion_px.to_numpy(float), np.nan)
+    reach = np.where(np.isfinite(ang), prot_px, np.nan)
     exec_amps = target_amps = exec_xyz = target_xyz = None
     mode = os.environ.get(EXEC_ENV, "")
     if mode:
@@ -639,7 +708,7 @@ def _load_behaviour(animal: str, date: str, rv) -> Behaviour:
                 target_amps = [sml, sap, sdv]
             elif mode == "polar":
                 target_amps = _polar(*target_xyz)
-    extra, lips = _cam1_lick_events(rv, animal, date, cue_t, os.environ.get(LICKS_ENV, "cam4"))
+    extra, lips = _cam1_lick_events(rv, animal, date, cue_t, lick_mode())
     ctx = ctx_contacts = None
     mode_all = os.environ.get(LICKS_ALL_ENV, "")
     if mode_all and mode_all not in LICKS_ALL_MODES:
@@ -657,11 +726,32 @@ def _load_behaviour(animal: str, date: str, rv) -> Behaviour:
 def _context_licks(rv, animal: str, date: str, sd: Path, b: pd.DataFrame, contact_s: np.ndarray):
     """LICKS_ALL_ENV: ({'pre_cue', 'iti', 'post_extra': onsets} in DAQ s from the cam4 whole-session table licks_all.csv,
     contacts over the whole trial windows (strobe - 0.5 .. stop + 3 s) from the raw DAQ channel)."""
-    from wfield_local import dlc_frames
+    from wfield_local import orofacial_outputs as oo
+    if lick_mode() == "fourcam":
+        # the fourcam train's pre-cue / ITI licks (onset label) + post-cue onsets held by its other tables (their peak
+        # is pre-cue / ITI / 0-70 ms: not in the "licks" rows the lick kernel holds); cam1-only already dropped
+        A = _fourcam_table(rv, animal, date)
+        lab = A.onset_context.astype(str).to_numpy()
+        ctx = {c: np.sort(A.loc[lab == c, "daq_on_s"].to_numpy(float)) for c in ("pre_cue", "iti")}
+        ctx["post_extra"] = np.sort(A.loc[(lab == "post_cue") & (A["table"] != "licks").to_numpy(), "daq_on_s"]
+                                    .to_numpy(float))
+        return ctx, _whole_window_contacts(rv, animal, date, b)
+    if lick_mode() == "fused":
+        # 11-22: the fused train's pre-cue / ITI licks (onset label, as below). post_extra = its post-cue licks that
+        # cam4 saw but cam4's licks.csv does not hold (the pre-cue / ITI tables' post-cue onsets below), by lick_key;
+        # the post-cue licks cam4 did not see are already in the lick kernel (`_cam1_lick_events`, mode fused)
+        from wfield_local import session_licks as SL
+        A = SL.session_licks(f"{animal}_{date}", rv)
+        lab = A.onset_context.astype(str).to_numpy()
+        ctx = {c: np.sort(A.loc[lab == c, "daq_on_s"].to_numpy(float)) for c in ("pre_cue", "iti")}
+        L4 = pd.read_csv(sd / "licks.csv", usecols=["trial_id", "t_ms"])
+        held = set(SL.lick_key(L4.trial_id, L4.t_ms))
+        extra = (lab == "post_cue") & A.seen_cam4.astype(bool).to_numpy() & ~A.lick_key.isin(held).to_numpy()
+        ctx["post_extra"] = np.sort(A.loc[extra, "daq_on_s"].to_numpy(float))
+        return ctx, _whole_window_contacts(rv, animal, date, b)
     f = sd / "licks_all.csv"
     if not f.exists():                                  # never mix event sets silently
         raise FileNotFoundError(f"{LICKS_ALL_ENV} needs {f} (python -m wfield_local.orofacial_outputs all-licks)")
-    from wfield_local import orofacial_outputs as oo
     # the ONSET label (`oo.encoder_context`): the 11-04 peak rule (cue .. cue + 70 ms = excluded_0_70) relabels licks for
     # the pre- / post-cue ANALYSES only; these whole-session lick lists keep every lick they held before
     A = pd.read_csv(f, usecols=lambda c: c in ("context", "onset_context", "table", "daq_on_s"))
@@ -671,6 +761,12 @@ def _context_licks(rv, animal: str, date: str, sd: Path, b: pd.DataFrame, contac
     # any licks.csv lick, PS93_0814 / 0818): real licks that are in NO kernel without this (licks.csv = table "licks").
     # Same onset label, so a licks_excluded_0_70 row (was a licks_precue row before 11-04) keeps its kernel
     ctx["post_extra"] = np.sort(A.loc[(lab == "post_cue") & (A["table"] != "licks"), "daq_on_s"].to_numpy(float))
+    return ctx, _whole_window_contacts(rv, animal, date, b)
+
+
+def _whole_window_contacts(rv, animal: str, date: str, b: pd.DataFrame) -> np.ndarray:
+    """Raw DAQ contacts over the whole trial windows (strobe - 0.5 .. stop + 3 s)."""
+    from wfield_local import dlc_frames
     sid = sorted((Path(rv.root("behavior_out")) / "sessions" / animal / date).glob("*_trials.csv"))[-1].name[:-11]
     raw = np.sort(np.asarray(dlc_frames.lick_onsets(animal, date, sid, rv), float))
     st = np.where(np.isfinite(b.strobe_s), b.strobe_s, b.cue_s - 3.0).astype(float) - 0.5
@@ -678,16 +774,25 @@ def _context_licks(rv, animal: str, date: str, sd: Path, b: pd.DataFrame, contac
     keep = np.zeros(len(raw), bool)
     for a_, e_ in zip(st, en):
         keep |= (raw >= a_) & (raw <= e_)
-    return ctx, raw[keep]
+    return raw[keep]
 
 
 def _cam1_lick_events(rv, animal: str, date: str, cue_t: pd.DataFrame, mode: str):
     """LICKS_ENV: (extra lick onsets, lips onsets) in DAQ s from the cam1 2-D detector; (None, None) for cam4."""
     if mode not in LICK_MODES:
         raise ValueError(f"{LICKS_ENV}={mode!r}; expected one of {LICK_MODES}")
-    if mode == "cam4":
+    if mode in ("cam4", "fourcam"):                     # fourcam: the fused licks are the main lick table already
         return None, None
-    f = Path(rv.root("dlc")) / "session_poses" / "cam1_licks" / f"{animal}_{date}_events.csv"
+    if mode == "fused":
+        # the fused train's POST-CUE licks cam4 did not see (cam1-only, confirmed side-only): timing only, as the
+        # cam1-only events of mode combined (post-cue scope, onset label); pre-cue / ITI: `_context_licks`
+        from wfield_local import session_licks as SL
+        A = SL.session_licks(f"{animal}_{date}", rv)
+        m = (A.onset_context.astype(str) == "post_cue") & ~A.seen_cam4.astype(bool)
+        t = A.loc[m, "daq_on_s"].to_numpy(float)
+        return np.sort(t[np.isfinite(t)]), None
+    from wfield_local import lp_licks
+    f = lp_licks.cam1_events_dir(rv) / f"{animal}_{date}_events.csv"
     if not f.exists():                                  # never mix event sets silently
         raise FileNotFoundError(f"{LICKS_ENV}={mode} needs {f}")
     from wfield_local import cam1_licks as C1
@@ -730,12 +835,15 @@ def _exec_3d(L: pd.DataFrame, ang: np.ndarray, reach: np.ndarray, mode: str, ses
         raise ValueError(f"{EXEC_ENV}={mode!r}; expected one of {EXEC_MODES}")
     path = os.environ.get(EXEC3D_TABLE_ENV)
     if not path:
-        path = pose3d_dir() / "kinematics" / "licks.csv.gz"
-    K = pd.read_csv(path, usecols=["session", "trial_id", "lick_idx", "reach_mm", "side_ml", "out_ap", "down_dv"])
-    K = K[K.session == session].drop_duplicates(["trial_id", "lick_idx"])
+        path = pose3d_dir() / _kin_name() / "licks.csv.gz"
+    K = pd.read_csv(path, usecols=lambda c: c in ("session", "trial_id", "lick_idx", "lick_key", "t_peak_cam4",
+                                                  "reach_mm", "side_ml", "out_ap", "down_dv"))
+    K = K[K.session == session]
     if K.empty:
         raise FileNotFoundError(f"no 3-D licks for {session} in {path}")
-    J = L[["trial_id", "lick_idx"]].merge(K, on=["trial_id", "lick_idx"], how="left")
+    # 11-22: by lick_key (or a peak-checked (trial_id, lick_idx) join for a pre-key table), never a blind index join
+    from wfield_local import session_licks as SL
+    J = SL.align_kin(L, K, ["side_ml", "out_ap", "down_dv", "reach_mm"], session)
     ml, ap, dv, r3 = (J[c].to_numpy(float) for c in ("side_ml", "out_ap", "down_dv", "reach_mm"))
     ok = np.isfinite(ang) & np.isfinite(ml) & np.isfinite(ap) & np.isfinite(dv) & np.isfinite(r3)
     ang = np.where(ok, ang, np.nan)
@@ -2327,8 +2435,8 @@ def out_dir(rv, order: str) -> Path:
                                                          + ("_matched" if os.environ.get(MATCH_ENV) else "")
                                                          + (f"_exec-{os.environ[EXEC_ENV]}" if os.environ.get(EXEC_ENV)
                                                             else "")
-                                                         + (f"_licks-{os.environ[LICKS_ENV]}"
-                                                            if os.environ.get(LICKS_ENV, "cam4") != "cam4" else "")
+                                                         + (f"_licks-{lick_mode()}"
+                                                            if lick_mode() != "cam4" else "")
                                                          + ("_bins" if os.environ.get(BINS_ENV) else "")
                                                          + (f"_bw{bins_width():g}" if os.environ.get(BINS_ENV)
                                                             and bins_width() != 1.0 else "")

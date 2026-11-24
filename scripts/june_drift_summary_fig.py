@@ -39,7 +39,8 @@ def three_d(n_boot: int = 10000) -> pd.DataFrame:
     from wfield_local import analysis_kit as ak
     from wfield_local.paths import PathResolver
     rv = PathResolver()
-    f = Path(rv.root("dlc")) / "session_poses" / "pose3d" / "june_reference" / "sessions_delta.csv"
+    from wfield_local.pose3d import pose3d_dir        # 11-22: the selected 3-D source (was the literal pose3d/)
+    f = pose3d_dir(rv) / "june_reference" / "sessions_delta.csv"
     S = pd.read_csv(f).sort_values(["measure", "position", "animal", "session"], kind="stable")
     rng = np.random.default_rng(0)
     rows = []

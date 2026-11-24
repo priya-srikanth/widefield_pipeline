@@ -42,14 +42,32 @@ STEPS = ("collect", "pose3d", "kinematics", "cam1_licks", "cue_traces", "spout_e
          "cohort_checks", "jaw_onsets")
 
 
+def _stale(out: Path, src: Path) -> bool:
+    """``out`` is missing or OLDER than its input ``src`` (11-22, reconciled plan item 4: a skip-if-EXISTS scan kept
+    3-D frames / cam1 events made from superseded cam1 windows; the scan now keys on the input's time)."""
+    try:
+        return not out.exists() or out.stat().st_mtime < src.stat().st_mtime
+    except OSError:
+        return True
+
+
 def _pending(rv) -> dict:
-    """Sessions that have cam1 windows but no 3-D frames / no cam1 lick events yet (curated)."""
+    """Sessions that have cam1 windows but no 3-D frames / no cam1 lick events yet, or ones older than those windows
+    (curated). cam1 events: the folder `lp_licks.cam1_events_dir` reads (the versioned one under the re-run routing)."""
     from wfield_local import analysis_kit as ak
+    from wfield_local import lp_licks
     sp = Path(rv.root("dlc")) / "session_poses"
-    cam1 = sorted(d.name[:-len("_cam1_full")] for d in sp.glob("PS*_cam1_full") if (d / "windows_LP.csv").exists())
-    cam1 = [s for s in cam1 if s in ak.curated_ids()]
-    return {"pose3d": [s for s in cam1 if not (pose3d_dir(rv) / f"{s}_frames.csv.gz").exists()],
-            "cam1_licks": [s for s in cam1 if not (sp / "cam1_licks" / f"{s}_events.csv").exists()]}
+    c1 = lp_licks.cam1_events_dir(rv)
+    win = {d.name[:-len("_cam1_full")]: d / "windows_LP.csv" for d in sp.glob("PS*_cam1_full")
+           if (d / "windows_LP.csv").exists()}
+    cam1 = [s for s in sorted(win) if s in ak.curated_ids()]
+    return {"pose3d": [s for s in cam1 if _stale(pose3d_dir(rv) / f"{s}_frames.csv.gz", win[s])],
+            "cam1_licks": [s for s in cam1 if _stale(c1 / f"{s}_events.csv", win[s])]}
+
+
+def _fused_on() -> bool:
+    from wfield_local import session_licks
+    return session_licks.fused_on()
 
 
 def commands(rv, jobs: int, sessions: list[str] | None, step: str | None = None) -> dict:
@@ -64,10 +82,13 @@ def commands(rv, jobs: int, sessions: list[str] | None, step: str | None = None)
         "collect": [("locanmf", ["-m", "wfield_local.o2_inference", "collect", "--name", BUNDLE, "--missing-only", *J]),
                     ("locanmf", ["-m", "wfield_local.pose_windows", "--jobs", str(jobs)])],
         "pose3d": [("dlc", ["-m", "scripts.pose3d", "production", *arg(p3), *J])] if p3 else [],
-        "kinematics": [("locanmf", ["-m", "scripts.pose3d_kinematics", *J]),
-                       ("locanmf", ["-m", "scripts.pose3d_kinematics", "--licks", "combined", *J]),
-                       ("locanmf", ["-m", "scripts.pose3d_kinematics", "--licks", "all", *J])],
-        "cam1_licks": ([("locanmf", ["-m", "scripts.cam1_licks", "run", *arg(cl), *J])] if cl else [])
+        # --force: the chain REGENERATES these tables by design (pose3d_kinematics refuses to overwrite otherwise,
+        # 11-22); + the fused-train table when a fused lick set is selected (`session_licks.fused_on`)
+        "kinematics": [("locanmf", ["-m", "scripts.pose3d_kinematics", "--force", *J]),
+                       ("locanmf", ["-m", "scripts.pose3d_kinematics", "--licks", "combined", "--force", *J]),
+                       ("locanmf", ["-m", "scripts.pose3d_kinematics", "--licks", "all", "--force", *J])]
+        + ([("locanmf", ["-m", "scripts.pose3d_kinematics", "--licks", "fused", "--force", *J])] if _fused_on() else []),
+        "cam1_licks": ([("locanmf", ["-m", "scripts.cam1_licks", "run", *arg(cl), "--force", *J])] if cl else [])
         + [("locanmf", ["-m", "scripts.cam1_incomplete_licks"])],
         "cue_traces": [("locanmf", ["-m", "scripts.pose3d_cue_traces", "--align", "cue", *J]),
                        ("locanmf", ["-m", "scripts.pose3d_cue_traces", "--align", "first_lick", *J])],
@@ -78,7 +99,7 @@ def commands(rv, jobs: int, sessions: list[str] | None, step: str | None = None)
         "cohort_checks": [("locanmf", ["-m", "scripts.first_lick_latency", *J]),
                           ("locanmf", ["-m", "scripts.pose3d_crosscheck"]),
                           ("locanmf", ["-m", "scripts.pose3d_vs_cam4"])],
-        "jaw_onsets": [("locanmf", ["-m", "scripts.jaw_onsets", *J])],
+        "jaw_onsets": [("locanmf", ["-m", "scripts.jaw_onsets", "--force", *J])],   # written last, once, on purpose
     }
 
 

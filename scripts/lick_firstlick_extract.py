@@ -30,9 +30,6 @@ OUT = il.OUT_W / "firstlick_full"
 def extract(label: str) -> dict:
     from wfield_local import combined_encoding as ce
     from wfield_local import config, epochs
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
     f = OUT / f"{label}.npz"
     if f.exists():
         mask_keys.check_npz(f)                    # stale-read guard (11-09)
@@ -46,14 +43,17 @@ def extract(label: str) -> dict:
     R -= Q @ (Q.T @ R)
     R *= 1e3
     an, date = config.animal_of(label), "2026" + label.split("_")[-1]
-    K = pd.read_csv(Path(PathResolver().root("dlc")) / "session_poses" / "pose3d" / "kinematics_all" / "licks.csv.gz",
-                    usecols=["session", "context", "lick_uid", "side_ml", "out_ap", "down_dv", "position", "reach_mm",
-                             "speed_peak"])
+    # 11-22 (plan item 3): the selected 3-D source / tag + lick set (`iti_licks.kin_all_path`); was the literal two-camera
+    # kinematics_all
+    K = pd.read_csv(il.kin_all_path(), usecols=lambda c: c in ("session", "context", "lick_uid", "lick_key", "trial_id",
+                                                               "t_peak_cam4", "side_ml", "out_ap", "down_dv",
+                                                               "position", "reach_mm", "speed_peak"))
     K = K[K.session == f"{an}_{date}"].copy()
-    A = pd.read_csv(oo.session_dir(PathResolver(), oc.RUN, an, date) / "licks_all.csv", usecols=["context", "daq_peak_s"])
-    uid = K.lick_uid.to_numpy(int)
+    from wfield_local import session_licks as SL
+    A = SL.session_licks(f"{an}_{date}")             # THE session lick table, joined by LICK KEY (11-22)
+    uid = SL.rows_for(K, A, label)
     if not (A.context.to_numpy()[uid] == K.context.to_numpy()).all():
-        raise RuntimeError(f"{label}: lick_uid join to licks_all.csv does not match on context")
+        raise RuntimeError(f"{label}: lick-key join to the session lick table does not match on context")
     K["daq_peak_s"] = A.daq_peak_s.to_numpy(float)[uid]
     dlo, dhi = ft[0] - il.LAGS_D[0], ft[-1] - il.LAGS_D[-1]
     tr = K[(K.context == "post_cue") & np.isfinite(K.side_ml) & (K.daq_peak_s > dlo) & (K.daq_peak_s < dhi)]

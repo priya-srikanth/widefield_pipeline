@@ -80,7 +80,8 @@ def test_profile_rebuild_root_resolves_and_fences(tmp_path):
         assert out["roots"][n].replace("\\", "/").lower().startswith(R), (n, out["roots"][n])
     for n in ("labcams", "orofacial"):                                   # INPUT roots stay where they are
         assert not out["roots"][n].replace("\\", "/").lower().startswith(R), n
-    assert out["enc"].lower().startswith(R) and out["enc"].endswith("lp_r4_heatmap_20261013__clean_v36/imaging_encoding")
+    from wfield_local.orofacial_cohort import RUN                 # 11-22: the adopted run (v37), not a v36 literal
+    assert out["enc"].lower().startswith(R) and out["enc"].endswith(f"{RUN}/imaging_encoding")
     for k in ("grant", "fw", "enc"):
         assert out["writes"][k] == "refused", (k, out["writes"])           # the audit hook: any Python open()
         assert out["writes"][k + "_guard"] is False, k                    # and writeguard agree
@@ -96,6 +97,19 @@ def test_rebuild_root_spec_and_inputs():
     assert "joint_bases" in s["inputs_in_place"]["cohort_out"]
     assert "epoch_boundaries.json" in s["seed_inputs"]["cohort_out"]
     assert any(x.endswith("qc/jaw_onsets.csv") for x in s["seed_inputs"]["orofacial"])
+
+
+def test_seed_plan_substitutes_the_adopted_run(monkeypatch, tmp_path):
+    """11-23: "{run}" in rebuild.seed_inputs is the adopted LP run (orofacial_cohort.RUN), source AND destination."""
+    from wfield_local import orofacial_cohort as oc
+    from wfield_local import rebuild_root as rr
+    monkeypatch.setenv(rr.ENV, str(tmp_path / "rb"))
+    plan = {k: (s, d) for k, s, d in rr.seed_plan()}
+    jaw = f"orofacial/{oc.RUN}/imaging_encoding/qc/jaw_onsets.csv"
+    assert jaw in plan and not any("{run}" in k for k in plan)
+    src, dst = plan[jaw]
+    assert src.as_posix().endswith(f"{oc.RUN}/imaging_encoding/qc/jaw_onsets.csv")
+    assert dst.as_posix().lower().startswith((tmp_path / "rb").as_posix().lower())
 
 
 def test_read_and_write_rules_unit(monkeypatch, tmp_path):
@@ -306,16 +320,33 @@ RESOLVED = {
     "wfield_local/pose_windows.py",
     "wfield_local/publish_basis.py",
     "wfield_local/rebuild_root.py",
+    # session lick table (11-22): writes ONLY the fused folder's format manifest (`write_manifest`, called by
+    # scripts/camera_licks.py into session_poses/camera_licks/<run>/); camera / pose product, no imaging run mode
+    "wfield_local/session_licks.py",
+    # engagement / TIM stats (11-20): its session -> day map now reads the adopted run's encoding_root (11-22; was a
+    # literal v36 path); writes only under vls_stroke_paper/review/
+    "scripts/c2_engagement_tim/s5_stats_figures.py",
     # (wfield_local/recovery_trajectory.py: ROUTED since review 8B B1b, lp_licks.output_dir)
     "wfield_local/spout_behavior.py",
     "wfield_local/stray_licks.py",
     "wfield_local/sync_audit.py",
 }
 LITERAL = {
+    # S10A onsets (caption review 11-23, ccB): read the rebuild root's imaging_encoding by literal (the cam3-on rev-up
+    # run + qc/jaw_onsets.csv), write only under vls_stroke_paper/ccB_caption_review_2026-11-23/s10a_onsets/
+    "scripts/caption_review_1123/s10a_onsets_analysis.py",
+    "scripts/caption_review_1123/s10a_onsets_extract.py",
+    # S10A / S10E on the 3d_mouth jaw rule + working period (overnight 11-23, item 3e): reads the rebuild root by
+    # literal, writes only under vls_stroke_paper/data_4cam_20261122/s10a_jaw3dmouth_wp/
+    "scripts/caption_review_1123/s10_jaw3dmouth_wp.py",
+    # S12 on the camera working period (CC-B overnight 11-23, item 3f): reads the rebuild root's imaging_encoding and
+    # manuscript_stats by literal, writes only NEW *_wp_ccB1123 folders (or a scratch dir) given on the command line
+    "scripts/caption_review_1123/s12_working_period_ccB1123.py",
+    "scripts/caption_review_1123/revup_tables_wp.py",
     # six-position engagement / TIM review scripts (11-20, VLS paper engagement prompt): read the rebuild root by
     # literal, write only under vls_stroke_paper/review/ on the share
     "scripts/c2_engagement_tim/s0_camera_working.py",
-    "scripts/c2_engagement_tim/s4_session_tables.py",
+    # (s4_session_tables.py left 11-22: its literal two-camera pose3d read now goes through pose3d_dir)
     "scripts/cohort2_qc/channel_drift.py",
     "scripts/cohort2_qc/quiet_restyle_figs.py",   # quiet restyle 11-18: same literal rebuild_20261103 root as its siblings
     "scripts/cohort2_qc/cohort1_impact.py",

@@ -30,7 +30,7 @@ import pandas as pd
 
 from wfield_local import pose_windows
 
-from scripts.jaw_onsets import FPS, V36, _laid_out
+from scripts.jaw_onsets import FPS, _laid_out
 
 NOSE_CUT = 0.6
 OVERRIDES = {"cam4": {"degenerate_as_unknown": True},
@@ -63,10 +63,10 @@ def _camera(x: np.ndarray, y: np.ndarray, idx: pd.DataFrame, cam: str) -> pd.Dat
 
 
 def session(job) -> pd.DataFrame:
-    s, root_o, root_d = job
+    s, root_o, root_d, run = job
     from wfield_local import epochs
     a, d = s.split("_")
-    sd = Path(root_o) / V36 / "sessions" / a / d
+    sd = Path(root_o) / run / "sessions" / a / d
     w = np.load(sd / "windows.npz", allow_pickle=False)
     ix4 = pd.DataFrame({k: w[f"ix_{k}"] for k in ("trial_id", "position", "t_ms", "t_daq_ms", "stop_ms")})
     k = list(w["parts"]).index("nose")
@@ -113,21 +113,26 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--jobs", type=int, default=3)
     ap.add_argument("--sessions", nargs="*", default=None, metavar="ANIMAL:YYYYMMDD")
-    ap.add_argument("--all", action="store_true", help="every v36 session, not just the curated cohort")
+    ap.add_argument("--all", action="store_true", help="every session of the run, not just the curated cohort")
+    ap.add_argument("--run", default=None, help="LP run (default lp_licks.input_run() = the adopted run; 11-22: was "
+                                                 "the literal v36 run)")
     a = ap.parse_args(argv)
+    from wfield_local import lp_licks
+    run = a.run or lp_licks.input_run()
     rv = PathResolver()
     ro, rd = Path(rv.root("orofacial")), Path(rv.root("dlc"))
-    sess = sorted(f"{p.parent.name}_{p.name}" for p in (ro / V36 / "sessions").glob("*/*")
+    sess = sorted(f"{p.parent.name}_{p.name}" for p in (ro / run / "sessions").glob("*/*")
                   if (p / "windows.npz").exists())
     if a.sessions:
         sess = [s for s in sess if s.replace("_", ":", 1) in a.sessions]
     elif not a.all:
         sess = [s for s in sess if s in ak.curated_ids()]
-    res, fails = ak.fan_sessions([(s, str(ro), str(rd)) for s in sess], session, jobs=a.jobs, key=lambda j: j[0])
+    res, fails = ak.fan_sessions([(s, str(ro), str(rd), run) for s in sess], session, jobs=a.jobs,
+                                 key=lambda j: j[0])
     for s, e in fails:
         print(f"{s}: FAILED {e}")
     T = pd.concat([r for _, r in res], ignore_index=True)
-    out = ro / V36 / "imaging_encoding" / "qc" / "nose_onsets.csv"
+    out = ro / run / "imaging_encoding" / "qc" / "nose_onsets.csv"
     out.parent.mkdir(parents=True, exist_ok=True)
     T.to_csv(out, index=False, float_format="%.2f")
     pd.set_option("display.width", 220)

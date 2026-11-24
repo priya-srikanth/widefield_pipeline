@@ -46,6 +46,10 @@ class SpoutFrame:
     positions: dict               # {position: (x, y, n_frames)}
     rms_px: float                 # how well the three lines meet
     line_dist_px: dict            # per side: distance of the origin from that line
+    #: (v37, Priya 11-04 spout rule) when set, the per-trial spout reference of the kinematics (`tongue_kinematics.
+    #: trial_spout_reference`) is the session's NO-LICK ENL median of the trial's position instead of the per-trial
+    #: cue .. stop median; `orofacial_outputs` sets it to the ruler medians. None = the old per-trial reference.
+    ref_medians: dict | None = None
 
     @property
     def mouse_left_sign(self) -> int:

@@ -32,6 +32,7 @@ STAGES:  python scripts/within_session_decline.py extract [--jobs 6]   -> OUT/tr
 OUT = M:/MICROSCOPE/Priya/Widefield/within_session_decline/. Exploratory, n = 4 animals.
 """
 from __future__ import annotations
+from wfield_local.session_licks import kin_name as _kin_name  # 11-22: fused post-cue unless WIDEFIELD_KIN_LICKS=cam4
 
 import argparse
 import os
@@ -44,14 +45,35 @@ os.environ.setdefault("WIDEFIELD_COHORT", "cohort1")         # never cohort2
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
-OUT = Path("M:/MICROSCOPE/Priya/Widefield/within_session_decline")
+#: WSD_OUT (11-23, four-camera re-run): a new output folder; default = the 11-07 folder
+OUT = Path(os.environ.get("WSD_OUT") or "M:/MICROSCOPE/Priya/Widefield/within_session_decline")
 TAB, FIG = OUT / "tables", OUT / "figures"
-LICKS = Path("M:/MICROSCOPE/Priya/DeepLabCut/Widefield/session_poses/pose3d/kinematics/licks.csv.gz")
-BEH = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/"
-           "disengagement/sessions")
-AIM = Path("M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/LP_analysis/lp_r4_heatmap_20261013__clean_v36/"
-           "imaging_encoding/iti_licks/hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-"
-           "endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk/aim_deficit_sessions.csv")
+# 11-22 (plan item 3): the selected 3-D source and the adopted run (were the literal two-camera pose3d / v36 paths)
+from wfield_local import orofacial_outputs as _oo  # noqa: E402
+from wfield_local.pose3d import pose3d_dir as _pose3d_dir  # noqa: E402
+LICKS = _pose3d_dir() / _kin_name() / "licks.csv.gz"
+# the disengagement-tests session caches, at the root THAT script writes (fr_musall.E: the run-mode-routed encoding tree,
+# e.g. <E>/pre0801_daqlk under the August-only pre; 11-23 fix: the bare encoding_root() pointed outside it)
+from fr_musall import E as _E_DIS  # noqa: E402
+BEH = _E_DIS / "disengagement" / "sessions"
+# 11-23 (four-camera re-run): the session far-contra FIRST-lick aim from the adopted run's four-camera aim tables
+# (lick_cued_aim_by_spout, cam3-on, 4,000 draws: aim_by_spout_sessions.csv `off` at far_contra, >= 5 first licks = the
+# aim_deficit_sessions `farcontra_first` definition); was the rebuild v36 iti_licks/.../aim_deficit_sessions.csv. WSD_AIM
+# overrides (either table format).
+AIM = Path(os.environ.get("WSD_AIM") or (_oo.encoding_root() / "aim_kinematics_fourcam_boot4000_cam3on"
+                                         / "aim_by_spout_sessions.csv"))
+AIM_MIN_FIRST = 5                # iti_recovery_measure.MIN_LICKS["first"]
+
+
+def load_aim(path: Path = AIM) -> pd.DataFrame:
+    """label, farcontra_first, fcf_h1, fcf_h2 from an aim_deficit_sessions.csv, or (fcf halves NaN) from a
+    lick_cued_aim_by_spout aim_by_spout_sessions.csv (far_contra `off`, sessions with >= AIM_MIN_FIRST first licks)."""
+    A = pd.read_csv(path)
+    if "farcontra_first" in A:
+        return A[["label", "farcontra_first", "fcf_h1", "fcf_h2"]]
+    F = A[(A.pos == "far_contra") & (A.n >= AIM_MIN_FIRST)]
+    return pd.DataFrame({"label": F.label.to_numpy(), "farcontra_first": F.off.to_numpy(float),
+                         "fcf_h1": np.nan, "fcf_h2": np.nan})
 # the state-space arm's table, routed under the cohort-1 rebuild root since 11-12 (state_space_sim.ROOT)
 from wfield_local import render_profile as _rp  # noqa: E402
 SS_SLOPES = (Path(_rp.load("cohort1_rebuild_20261103")["rebuild_root"]) / "state_space_recovery" / "pertrial_lick"
@@ -700,7 +722,7 @@ def analyze():
     Q5 = pd.DataFrame(q5)
     print(Q5.round(3).to_string(index=False))
     if AIM.exists():
-        AM = pd.read_csv(AIM)[["label", "farcontra_first", "fcf_h1", "fcf_h2"]]
+        AM = load_aim(AIM)
         X = X.merge(AM, on="label", how="left")
         A5 = pd.concat([within_animal_assoc(X, "farcontra_first", yc, groups=("early_post", "chronic"))
                         for yc in ("fc_dside_hr", "lat_hr", "fc_dside_mean")])

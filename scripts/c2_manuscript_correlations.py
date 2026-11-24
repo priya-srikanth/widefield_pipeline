@@ -35,7 +35,10 @@ sys.path.insert(0, str(REPO))
 from wfield_local import writeguard  # noqa: E402
 
 SRV = Path("M:/MICROSCOPE/Priya")
-ITI = SRV / "Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36/imaging_encoding/iti_licks"
+# 11-22 (plan item 3 / runbook bug: steps 5 / 6 / 8 passed only --out-dir, so every input stayed v36 / two-camera):
+# the DEFAULT follows the adopted run (`orofacial_cohort.RUN`, routed like the producers); pass it explicitly anyway
+from wfield_local import orofacial_outputs as _oo  # noqa: E402
+ITI = _oo.encoding_root() / "iti_licks"
 METRICS = SRV / "Behavior_logs/Widefield/behavior_summary/cohort/cohort_session_metrics.csv"
 OUT_DIR = SRV / "Widefield/manuscript_stats/c2_correlations"
 REL_RECOVERED = 0.9                       # recovered = far-contra hit rate >= 90% of the animal's own pre mean

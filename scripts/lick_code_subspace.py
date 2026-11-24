@@ -133,7 +133,7 @@ def W(s: str, n: int = 95) -> str:
 _AUD = {}
 
 
-JUNE_DIR = il.OUT / "june_ref" / il.SESS_NAME
+JUNE_DIR = il.in_path_x("june_ref") / il.SESS_NAME
 
 
 def _far1_june(label: str, t: np.ndarray) -> np.ndarray:
@@ -160,7 +160,7 @@ def _far1_june(label: str, t: np.ndarray) -> np.ndarray:
 
 def _far1(label: str, t: np.ndarray) -> np.ndarray:
     if "A" not in _AUD:
-        A = pd.read_csv(il.OUT / "iti_timing_audit.csv").replace(np.inf, 1e9)
+        A = pd.read_csv(il.in_path_x("iti_timing_audit.csv")).replace(np.inf, 1e9)
         _AUD["A"] = A.set_index(["label", "t"])
     A = _AUD["A"].loc[label].reindex(np.asarray(t, float))
     return ((A.since_stop >= 1.0) & (A.to_strobe >= 1.0)).to_numpy()

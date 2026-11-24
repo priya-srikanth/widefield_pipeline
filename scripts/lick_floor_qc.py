@@ -19,7 +19,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-RUN = "lp_r4_heatmap_20261013__clean_v36"   # v35 superseded (June scale); its sessions deleted 10-25
+from wfield_local.lp_licks import input_run as _input_run  # noqa: E402
+RUN = _input_run()   # 11-22: input / adopted run (was the literal v36); v35 superseded (June scale); its sessions deleted 10-25
 SESSIONS = {"pre": [("PS92", "20260809"), ("PS94", "20260809"), ("PS93", "20260814")],
             "acute": [("PS92", "20260818"), ("PS94", "20260817"), ("PS93", "20260821")]}
 OFFSETS = (-2, -1, 0, 1, 2)                 # frames around the peak (4 ms each)

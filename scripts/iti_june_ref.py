@@ -27,7 +27,7 @@ from iti_zscore_check import session_sd  # noqa: E402
 
 from wfield_local import analysis_kit as ak  # noqa: E402
 
-JUNE = il.OUT / "june_ref"
+JUNE = il.OUT_X / "june_ref"
 LABELS = [f"{a}_{d}" for a in ("PS92", "PS93", "PS94", "PS95") for d in ("0606", "0607", "0608")]
 
 

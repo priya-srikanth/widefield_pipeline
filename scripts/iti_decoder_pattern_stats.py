@@ -308,7 +308,7 @@ def plot(D: dict, levels: bool = False) -> None:
              "ipsi (lesion) = image LEFT. Unscaled features. PROVISIONAL"]
     fig.suptitle("\n".join(textwrap.fill(q, 150) for q in paras), fontsize=9)
     out = f"lick_decoder_pattern_stats_{ax_}.png"
-    save_png_svg(fig, il.OUT / "figures" / (levels_name(out) if levels else out), dpi=105, bbox_inches="tight")
+    save_png_svg(fig, il.OUT_X / "figures" / (levels_name(out) if levels else out), dpi=105, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -325,7 +325,7 @@ def main() -> int:
         for ax_ in AXES:
             plot_all(load_fd(f"lick_decoder_pattern_stats_{ax_}"))
         return 0
-    cache = il.OUT / "decoder_pattern_sessions.pkl"
+    cache = il.OUT_X / "decoder_pattern_sessions.pkl"
     from wfield_local import mask_keys
     if cache.exists():
         mask_keys.check_sidecar(cache)          # stale-read guard (11-09)
@@ -336,7 +336,7 @@ def main() -> int:
         mask_keys.write_sidecar(cache)
     n_perm = n_perm_arg()
     res, T = test(SM, n_perm)
-    T.to_csv(il.OUT / "decoder_pattern_stats.csv", index=False)
+    T.to_csv(il.OUT_X / "decoder_pattern_stats.csv", index=False)
     pd.set_option("display.width", 220)
     sim = T[T.kind == "similarity"]
     print("== per animal (rule 8): similarity of the session-mean epoch map to pre, within-animal 95% CI")

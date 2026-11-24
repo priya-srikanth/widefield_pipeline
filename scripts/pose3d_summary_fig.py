@@ -26,6 +26,8 @@ every post-cue lick / every 3-D jaw trial, no gate -- ``WFIELD_KIN_GATE=legacy``
 spout_error_legacygate/, writes figures_legacygate/).
 """
 from __future__ import annotations
+from wfield_local.session_licks import kin_sfx as _kin_sfx
+from wfield_local.session_licks import kin_name as _kin_name  # 11-22: fused post-cue unless WIDEFIELD_KIN_LICKS=cam4
 from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import argparse
@@ -65,7 +67,7 @@ ROWS = (("se", "miss_med", "closest approach to spout (mm)"),
 JUNE_X = -22.0      # June pre sessions (days ~-75 .. -70) are drawn in a compressed segment here, labelled "June"
 
 
-def session_row(L: pd.DataFrame, J: pd.DataFrame) -> dict:
+def session_row(L: pd.DataFrame, J: pd.DataFrame, stat: str = "median") -> dict:
     """The per-session medians of ONE session's licks ``L`` and jaw trials ``J`` -- the same quantities and names as
     `pose3d_kinematics._session_result` (its lines from ``jm = J.groupby...`` to ``open_max_mm``; mirrored here, not
     edited there, because any edit to pose3d_kinematics invalidates every cached kinematics session -- fold the two into
@@ -82,13 +84,13 @@ def session_row(L: pd.DataFrame, J: pd.DataFrame) -> dict:
     for p, g in L.groupby("position"):
         for m in LICK_MEASURES:
             if m in g:
-                row[f"{m}|{p}"] = float(g[m].median())
+                row[f"{m}|{p}"] = float(g[m].median() if stat == "median" else g[m].mean())   # 11-23 "mean" option
     for p, g in J.groupby("position"):
         row[f"open_max_mm|{p}"] = float(g.open_max_mm.median())
     return row
 
 
-def gated_sessions(L: pd.DataFrame, J: pd.DataFrame) -> pd.DataFrame:
+def gated_sessions(L: pd.DataFrame, J: pd.DataFrame, stat: str = "median") -> pd.DataFrame:
     """kinematics/sessions.csv re-made over the camera working period: ``L`` / ``J`` = the kinematics licks / jaw trials
     (session, animal, date, epoch, position, trial_id, ...) through `trial_classes.gate_kin_licks`, then `session_row`
     per session. A session with no camera classes has no rows left, so it is absent."""
@@ -99,7 +101,7 @@ def gated_sessions(L: pd.DataFrame, J: pd.DataFrame) -> pd.DataFrame:
         ls, js = L[L.session == s], J[J.session == s]
         first = (ls if len(ls) else js).iloc[0]
         rows.append({"session": s, "animal": first.animal, "date": str(first.date), "epoch": first.epoch,
-                     **session_row(ls, js)})
+                     **session_row(ls, js, stat)})
     return pd.DataFrame(rows)
 
 
@@ -245,13 +247,13 @@ def main(argv=None) -> int:
     from wfield_local import trial_classes as tc
     rv = PathResolver()
     d3 = pose3d_dir(rv)
-    SE = pd.read_csv(tc.kin_out_dir(d3, "spout_error") / "per_session.csv", dtype={"date": str})
+    SE = pd.read_csv(tc.kin_out_dir(d3, "spout_error" + _kin_sfx(), "pose3d_spout_error" + _kin_sfx()) / "per_session.csv", dtype={"date": str})
     if tc.kin_gate() == "working":       # A20: the kinematics rows over camera-working-period licks / jaw trials
-        K = gated_sessions(pd.read_csv(d3 / "kinematics" / "licks.csv.gz", dtype={"date": str}),
-                           pd.read_csv(d3 / "kinematics" / "jaw_trials.csv.gz", dtype={"date": str}))
+        K = gated_sessions(pd.read_csv(d3 / _kin_name() / "licks.csv.gz", dtype={"date": str}),
+                           pd.read_csv(d3 / _kin_name() / "jaw_trials.csv.gz", dtype={"date": str}))
     else:
-        K = pd.read_csv(d3 / "kinematics" / "sessions.csv", dtype={"date": str})
-    out = tc.kin_out_dir(d3, "figures", "pose3d_summary_fig")
+        K = pd.read_csv(d3 / _kin_name() / "sessions.csv", dtype={"date": str})
+    out = tc.kin_out_dir(d3, "figures" + _kin_sfx(), "pose3d_summary_fig" + _kin_sfx())
     out.mkdir(exist_ok=True)
     for animal in sorted(set(K.animal)):
         if not a.contra_only:

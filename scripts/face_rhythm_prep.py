@@ -22,7 +22,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-V36 = "lp_r4_heatmap_20261013__clean_v36"
+from wfield_local.lp_licks import input_run as _input_run  # noqa: E402
+V36 = _input_run()  # 11-22: the input / adopted cam4 run (lp_licks.input_run; was the literal v36 run, plan item 3)
 N_TRIALS, EVERY = 30, 25          # 30 trials x ~10 rest frames (every 100 ms) = ~300 frames
 PRE = (-1500.0, -500.0)
 

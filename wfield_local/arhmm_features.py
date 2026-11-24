@@ -31,7 +31,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-VERSION = 3
+VERSION = 4                        # 4: four-camera sync60 run, cam3-on PS95 0818 / 0820 (11-23); 3: v36
 BIN_S = 0.04
 MAX_INTERP_S = 0.2
 JAW_INTERP_S = 0.6                 # jaw gaps left after the 3-D fill (median gap 0.36-0.52 s; tongue hides the jaw)

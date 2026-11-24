@@ -118,6 +118,7 @@ def _stub(monkeypatch, tmp_path):
     monkeypatch.setattr(ak, "daq_rate", lambda s: FS)
     monkeypatch.setattr(rnm, "daq_lick_onsets", lambda s, fs: np.array([int(DAQ_LICK_S * FS)]))
     monkeypatch.setattr(rnm, "licks_all_path", lambda label: la)
+    monkeypatch.setenv("WIDEFIELD_FUSED_LICKS", "off")    # the legacy cam4 lick set (adopted default = fused, 11-22)
     return rbp, seen, eng
 
 
@@ -181,6 +182,8 @@ def test_raw_outputs_do_not_depend_on_the_rest_rows(monkeypatch, tmp_path):
     pd.DataFrame({"label": labs, "set": "trial", "bal_spout": np.linspace(0, 1, len(labs))}).to_csv(
         tmp_path / "balmatch_sessions.csv", index=False)
     monkeypatch.setattr(lih, "IN", tmp_path)
+    monkeypatch.setattr(lih.il, "OUT", tmp_path)                 # reads now go through il.in_path_x (11-23)
+    monkeypatch.delenv("WFIELD_ITI_OUT_W", raising=False)
     monkeypatch.setattr(lih, "N_BOOT", 200)
     out = {}
     for shift in (0.0, 3.0):

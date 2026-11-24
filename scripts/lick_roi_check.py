@@ -76,7 +76,7 @@ def main() -> int:
                 row["corr_score_absmap"] = float(np.corrcoef(u, a)[0, 1])
                 rows.append(row)
     R = pd.DataFrame(rows)
-    R.to_csv(il.OUT / "roi_check.csv", index=False)
+    R.to_csv(il.OUT_X / "roi_check.csv", index=False)
     pd.set_option("display.width", 200)
     print(R.round(2).to_string())
 
@@ -110,7 +110,7 @@ def main() -> int:
     fig.suptitle("ALM (black) / tjM1 (green) ROIs = anterolateral 40 % of MOs / MOp (gray) over the PRE Haufe maps (mean of "
                  "animals, held-out epoch decoder).\nSign: orange = more active for contralesional (lateral) / longer "
                  "(sagittal) licks. ipsi (lesion) = image LEFT. PROVISIONAL", fontsize=9)
-    save_png_svg(fig, il.OUT / "figures" / "lick_roi_check.png", dpi=100)
+    save_png_svg(fig, il.OUT_X / "figures" / "lick_roi_check.png", dpi=100)
     return 0
 
 

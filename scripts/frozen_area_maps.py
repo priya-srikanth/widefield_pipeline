@@ -110,7 +110,7 @@ def main(argv=None) -> int:
     out = _fe.out_root() / f"frozen_encoder_{a.tag}"
     sess = sorted((out / a.variant / "sessions").glob("*.json"))
     sess = [js for js in sess if not config.early_pre(js.stem)]
-    fd = out / "figures"
+    fd = _fe.fig_out(out) / "figures"
     assert_writable(fd)
     fd.mkdir(parents=True, exist_ok=True)
     img, nm = area_image(sess[0].stem)

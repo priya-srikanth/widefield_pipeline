@@ -21,6 +21,21 @@ SHARE = re.compile(r"M:/MICROSCOPE|oo\.root\(|PathResolver\(\)\.root\(|_run_dir\
                    r"root\(\"(cohort_out|orofacial|dlc|figures_working|behavior_out|labcams)")
 ROUTED = re.compile(r"run_mode|output_dir\(|routed_output|lp_licks\.output_tag|require_default|fe\.out_root\(\)")  # + encoder root
 BEHAVIOUR = {
+    # 11-22: cam4_long_lick_qc / jaw3d_blind_review (QC writers into the 3-D run's qc_* folders, pilot branch)
+    "cam4_long_lick_qc.py", "jaw3d_blind_review.py",
+    # 11-22: four-camera lick tables (fused train + cohort trial gate / 3-D kinematics; no imaging input), new files in
+    # manuscript_stats, refusing to overwrite; supplementary four-view clips
+    "fourcam_lick_metrics.py", "c2_protrusion_vs_reach.py", "pose3d_supp_clips.py", "pose3d_methods_numbers.py",
+    "c2_farcontra_aim_hit.py", "pose3d_jump_qc.py",
+    # 11-22 / 11-23: cam3 drop / re-inclusion QC (3-D pose + kinematics only; new qc_cam3_drop_20261122/ folders) and
+    # the PS95 0818 / 0820 cam3 swap (moves the run's own per-session 3-D files to _superseded_cam3drop_20261123/)
+    "qc_cam3_drop.py", "swap_cam3_on_20261123.py",
+    # 11-22: Fig 5F FaceRhythm peak by trial class (reads FR proj + class table; new readouts folder)
+    "face_rhythm_peak_trialclass.py",
+    # 11-23 CC-B manuscript arms (integration 11-24): FaceRhythm on the fused four-camera licks; six-position kinematics
+    # families / renders and the working-gate tally (trial classes + 3-D kinematics only, no imaging input; new names)
+    "face_rhythm_aligned_fourcam.py", "sixpos_bylicknum_1123.py", "sixpos_final_1123.py", "sixpos_final_render_1123.py",
+    "sixpos_first5_1123.py", "working_gate_tally_ccB1123.py",
     "apparatus_mouth.py", "cam1_clean_qc.py", "cam1_incomplete_licks.py", "cam1_lick_aim.py", "cam1_licks.py",
     "cam4_timing_check.py", "face_rhythm_aligned_maps.py", "face_rhythm_asym_aligned.py", "face_rhythm_band_maps.py",
     "face_rhythm_bout_split.py", "face_rhythm_evr_epochs.py", "face_rhythm_factor_clips.py",
@@ -31,7 +46,7 @@ BEHAVIOUR = {
     # kinematics_pooled_figs / orofacial_cover_sensitivity / orofacial_robustness_table / pose3d_jaw_crosscheck: no
     # longer here -- they read / write the cam4 cohort through orofacial_cohort.cohort_dir (routed, gate-named; A27 11-06)
     "pose3d.py", "pose3d_crosscheck.py", "pose3d_cue_traces.py",
-    "pose3d_jaw_depth_model_check.py", "pose3d_kinematics.py", "pose3d_phase.py", "pose3d_spout_error.py",
+    "pose3d_kinematics.py", "pose3d_phase.py", "pose3d_spout_error.py",
     "pose3d_vs_cam4.py", "pose_cue_traces.py",   # pose_kinematics_demo: share reads moved to kinematics_chain 11-05
     "tongue_nocontact_qc.py", "trial_class_raw_share_fig.py",
     # main's side-camera / 4-camera 3-D scripts (pose only), classified at the 11-05 rebuild merge
@@ -46,7 +61,6 @@ BEHAVIOUR = {
     "within_session_decline.py",
     # main's June drift-floor summary (FaceRhythm readouts + pose3d june_reference deltas only; writes the FR
     # readouts june_reference dir), 11-09
-    "june_drift_summary_fig.py",
     # main's labeled cam1 + cam4 still pair (production LP pose on raw video frames only; no imaging), 11-09
     "pose_frame_pair.py",
     # VLS manuscript cohort-2 statistics (11-19/20): behavior / pose tables only; inputs are literal manuscript /
@@ -59,19 +73,34 @@ BEHAVIOUR = {
     # one change-in-distribution test per Fig 4B bar (11-20): same inputs as c2_outcome_stats_aligned; new files only
     "c2_outcome_distribution_test.py",
     # six-position recovery mechanics (VLS paper supplement, 11-21): behavior / pose tables only (within_lick_correction
-    # sessions, learned_compensation T3, lick_correction corr_beh: the UNTAGGED (default-mode) LP v36 imaging_encoding
-    # outputs, pinned as literals, read-only, so the output does not vary with the env mode); outputs are new files
-    # under Widefield/manuscript_stats and the paper's manuscript_code/data
-    "c2_recovery_mechanics_stats.py",
+    # sessions, learned_compensation T3, lick_correction corr_beh: read-only; 11-22: the default --enc is the adopted
+    # run's routed tree, `run_mode.encoding_out_root()`, where the three producers write -- it was a literal v36 path
+    # that left every input on v36 when the runbook passed only --out-dir); outputs are new files under
+    # Widefield/manuscript_stats and the paper's manuscript_code/data
+    # (c2_recovery_mechanics_stats.py left the list 11-22: its default --enc is run_mode.encoding_out_root, routed)
+    "csm_fix_compare.py",   # 11-21 CSM edge fix: compares regenerated pose-kinematic tables with the cited ones (--out)
+    "pose3d_csm_fixes.py", "pose3d_ili_floor_examples.py",   # 11-21 pose 3-D diagnostics into qc_phaseA/ (no imaging)
     "c2_manuscript_correlations.py",   # VLS Fig 4F + angle-latency rho from iti_licks behaviour tables (no imaging input)
     # Fig 5C input (11-20): FaceRhythm proj files of the frozen master only; writes <FR readouts>/<set>/vls_manuscript/
     # (the M:/MICROSCOPE literal is the manuscript file it compares against, read-only)
     "fr_pre_timecourses_abs.py",
+    # table gaps (11-21): pose / lick tables only (side-only licks, cam4 / cam1 tracking); writes only under
+    # session_poses/pose3d_4cam_3net_20261121/qc_phaseA/table_gaps/ (the MICROSCOPE literal is its output assert)
+    "table_gaps_check.py",
+    # whole-session 60 ms re-run vs 11-21 (11-22): pose / lick tables only (no imaging); writes
+    # session_poses/pose3d_4cam_3net_20261121_sync60/qc_sync60/ (the MICROSCOPE literal is its output assert)
+    "sync60_compare.py",
+    # four-camera lick example clips (11-22): production pose / lick tables + raw video only (no imaging); writes the
+    # clips, stills and README tables into the --out folder it is given (under the four-camera 3-D folder)
+    "pose3d_lick_clips.py",
 }
 INDIRECT = {
-    "coupling_vigour_sm.py", "decoder_retention_sessions.py", "lick_correction.py",
-    "lick_firstlick_extract.py", "lick_vigor_perspout.py", "precue_class_matched.py", "recovery_timing.py",
-    "restw_strict_check.py", "session_pace_table.py",
+    # lick_correction.py left the list 11-21: it reads the 3-D table via pose3d_dir() (no share-root literal left) and
+    # writes through il.OUT_W (run_mode.subdir), so the scan no longer trips on it
+    # 11-22: coupling_vigour_sm, lick_firstlick_extract, lick_vigor_perspout, restw_strict_check, session_pace_table,
+    # june_drift_summary_fig and pose3d_jaw_depth_model_check left the scan -- their literal session_poses/pose3d /
+    # cam1_licks reads now go through pose3d_dir / iti_licks.kin_all_path / lp_licks.cam1_events_dir
+    "decoder_retention_sessions.py", "precue_class_matched.py", "recovery_timing.py",
     # RESTnl cam4 vs cam4cam1 comparison (11-17): writes only under the rebuild root (restnl_cam1_compare_20261117/)
     "restnl_cam1_compare.py",
     # ENL / ITI cam1 census (11-18, read-only counts): writes only under the rebuild root (OUT =

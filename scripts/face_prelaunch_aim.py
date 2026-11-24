@@ -52,7 +52,9 @@ EDGES, CENT, FINE, BB, NB = pat.EDGES, pat.CENT, pat.FINE, pat.BB, pat.NB
 WINS = {"PRE": (-0.50, -0.05), "PRE10": (-0.50, -0.10), "POST": (0.05, 0.30)}
 SEED = 0
 FRD = Path("M:/MICROSCOPE/Priya/DeepLabCut/Widefield/o2/fr_cam4_20261021/factors/master_pre_v1")
-P3D = Path("M:/MICROSCOPE/Priya/DeepLabCut/Widefield/session_poses/pose3d")
+# 11-22 (plan item 3): the selected 3-D source / run tag (WIDEFIELD_POSE3D_SOURCE / _TAG); was the literal two-camera folder
+from wfield_local.pose3d import pose3d_dir as _pose3d_dir  # noqa: E402
+P3D = _pose3d_dir()
 # master_v1 grouping (wfield_local/fr_groups.py): raw factor index -> grouped traces (order fixed)
 FR_LICK = (2, 4, 5, 7, 8, 11)
 FR_OTHER = (0, 1, 3, 6, 9, 10)

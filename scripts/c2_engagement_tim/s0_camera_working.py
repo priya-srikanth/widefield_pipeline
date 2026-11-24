@@ -10,11 +10,12 @@ from pathlib import Path
 sys.path.insert(0, os.path.expanduser(os.environ.get("WF_REPO", "~/Github/widefield_pipeline")))
 import pandas as pd  # noqa: E402
 from wfield_local import behavior_states as B, trial_classes as tc  # noqa: E402
+import trial_scaffold  # noqa: E402  (collector trials, or the 11-22 fallback for a run without them)
 
 out = Path(sys.argv[1]) / "camera_working.csv"
 if out.exists():
     sys.exit(f"refusing to overwrite {out}")
-T = B.load_collected()["trials"]
+T = trial_scaffold.trials(Path(sys.argv[1]))
 T = T[T.label.map(B.session_epoch).notna()].copy()
 T["epoch"] = T.label.map(B.session_epoch)
 rows = []

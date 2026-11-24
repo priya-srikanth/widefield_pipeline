@@ -95,9 +95,10 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--tag", default=_design_tag("gate-attempted_v7g3_t3d"))
     ap.add_argument("--by-spout", action="store_true", help="per-spout version (Fig 10, 10c-10g counterparts)")
+    ap.add_argument("--out", default=None, help="opt-in output folder of --by-spout (11-23; default specificity_control/<tag>)")
     a = ap.parse_args(argv)
     if a.by_spout:
-        return by_spout(a.tag)
+        return by_spout(a.tag, a.out)
     from wfield_local import run_mode
     out = run_mode.subdir(E_BASE / "specificity_control") / a.tag      # specificity_control's mode-routed folder (N10)
     T = pd.read_csv(out / "sessions.csv")
@@ -166,7 +167,7 @@ def main(argv=None) -> int:
     return 0
 
 
-def by_spout(tag: str) -> int:
+def by_spout(tag: str, out_dir: str | None = None) -> int:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -176,7 +177,8 @@ def by_spout(tag: str) -> int:
     from iti_area_maps import _sig_halo
     from wfield_local import frozen_encoder, run_mode
     from wfield_local.writeguard import assert_writable
-    out = run_mode.subdir(E_BASE / "specificity_control", make=True) / tag       # review N10 (11-03)
+    out = (Path(out_dir) if out_dir else run_mode.subdir(E_BASE / "specificity_control", make=True) / tag)  # N10 (11-03); --out 11-23
+    (out / "figures").mkdir(parents=True, exist_ok=True)
     assert_writable(out / "_")
     cache = out / "sessions_by_spout.csv"
     run = frozen_encoder.out_root() / f"frozen_encoder_{tag}"

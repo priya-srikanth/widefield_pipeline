@@ -70,6 +70,9 @@ def main(argv=None) -> int:
         out, sess = F, il.XOUT / il.SESS_NAME
     from wfield_local.writeguard import assert_writable
     assert_writable(out)
+    # a FRESH run tree (11-22, adopted v37_sync60 run) has no zscore_check/ yet: iti_zscore_check, which used to create
+    # it, itself needs this table, so create the folder here
+    Path(out).parent.mkdir(parents=True, exist_ok=True)
     S = table(sorted(p.stem for p in sess.glob("*.npz")), a.jobs)
     S.to_csv(out)
     from wfield_local import mask_keys
