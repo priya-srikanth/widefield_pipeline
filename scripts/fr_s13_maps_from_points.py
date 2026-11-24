@@ -7,6 +7,10 @@ RdBu_r). Points and rings as Fig 5B (`fr_fig5_col_v26b.py`): rings = the point's
 down. Image left = contralesional; vertical line = facial midline (master LP-nose midline).
 
     python scripts/fr_s13_maps_from_points.py <perm_points.csv> <out_stem> [--style-dir <manuscript_code/figures>]
+        [--width 6.5 --height 4.85]
+
+--width / --height set the page (default 7.0 x 5.2 in, the 11-23 layout). Margins, the colorbar and the title band are
+fixed in inches, so a narrower page (6.5 in = the 468 pt text block, included at 100%) keeps every font size.
 """
 from __future__ import annotations
 
@@ -29,6 +33,8 @@ def main(argv=None) -> int:
     ap.add_argument("points", type=Path)
     ap.add_argument("out")
     ap.add_argument("--style-dir", default=STYLE_DIR)
+    ap.add_argument("--width", type=float, default=7.0, help="page width, in (6.5 = manuscript text block)")
+    ap.add_argument("--height", type=float, default=5.2, help="page height, in")
     ap.add_argument("--midline", type=float, default=None, help="midline x (default: the pipeline's MASTER_MIDLINE_X)")
     a = ap.parse_args(argv)
     sys.path.insert(0, a.style_dir)
@@ -47,8 +53,11 @@ def main(argv=None) -> int:
             raise SystemExit(f"refusing to overwrite {a.out}.{ext}")
     P = pd.read_csv(a.points)
     nb, cmb = colors.Normalize(-1, 1), "RdBu_r"
-    fig = plt.figure(figsize=(7.0, 5.2))
-    gs = fig.add_gridspec(6, 7, width_ratios=[1, 1, 1, 0.12, 1, 1, 1], left=0.09, right=0.88, top=0.885, bottom=0.01,
+    W, H = a.width, a.height
+    # inch margins = the 7.0 x 5.2 in layout (left 0.63, right 0.84, top 0.598, bottom 0.052 in)
+    fig = plt.figure(figsize=(W, H))
+    gs = fig.add_gridspec(6, 7, width_ratios=[1, 1, 1, 0.12, 1, 1, 1], left=0.63 / W, right=1 - 0.84 / W,
+                          top=1 - 0.598 / H, bottom=0.052 / H,
                           wspace=0.03, hspace=0.06)
     g0 = P.iloc[:0]
     for b, (al, title) in enumerate(TITLES):
@@ -76,15 +85,15 @@ def main(argv=None) -> int:
                     ax.text(-0.08, 0.5, lab, transform=ax.transAxes, ha="right", va="center", fontsize=7.5)
         x0 = gs[0, 4 * b].get_position(fig).x0
         x1 = gs[0, 4 * b + 2].get_position(fig).x1
-        fig.text((x0 + x1) / 2, 0.965, title, ha="center", va="center", fontsize=8.5)
-        fig.text(x0 - 0.005, 0.965, "AB"[b], ha="right", va="center", fontsize=10, fontweight="bold")
+        fig.text((x0 + x1) / 2, 1 - 0.182 / H, title, ha="center", va="center", fontsize=8.5)
+        fig.text(x0 - 0.035 / W, 1 - 0.182 / H, "AB"[b], ha="right", va="center", fontsize=10, fontweight="bold")
     # common limits so every tile has the same scale
     xl = (g0.x.min() - 8, g0.x.max() + 8)
     yl = (g0.y.max() + 8, g0.y.min() - 8)
     for ax in fig.axes:
         ax.set_xlim(*xl)
         ax.set_ylim(*yl)
-    cax = fig.add_axes([0.895, 0.35, 0.012, 0.3])
+    cax = fig.add_axes([1 - 0.735 / W, 0.5 - 0.78 / H, 0.084 / W, 1.56 / H])
     fig.colorbar(cm.ScalarMappable(nb, cmb), cax=cax, ticks=[-1, 0, 1]).set_label("log$_2$ change from pre",
                                                                                  fontsize=7.5)
     S.save(fig, a.out)
