@@ -29,7 +29,7 @@ def one(item):
     from wfield_local import combined_encoding as ce
     label = item[0]
     V, ft, Ub, flat, parea, names, shape, pstat = ce.load_imaging(label)
-    z = il._load(label, il.XOUT / il.SESS_NAME)            # lick times only (identical in every ROI version)
+    z = il._load(label)           # lick times only (identical in every ROI version)
     t = z["bout_t"][z["bout_gap"] >= GAP]
     Q = np.linalg.qr(ce._slow_basis(ft, ce.DRIFT_MIN_PERIOD_S))[0]
     Vd = V.astype(np.float64) - Q @ (Q.T @ V.astype(np.float64))
