@@ -100,7 +100,7 @@ def iti_keep(label: str, t: np.ndarray) -> np.ndarray:
         return np.ones(len(t), bool)
     global _AUDIT
     if _AUDIT is None:
-        _AUDIT = pd.read_csv(il.OUT / "iti_timing_audit.csv").replace(np.inf, 1e9).set_index(["label", "t"])
+        _AUDIT = pd.read_csv(il.in_path_x("iti_timing_audit.csv")).replace(np.inf, 1e9).set_index(["label", "t"])
     A = _AUDIT.loc[label].reindex(np.asarray(t, float))
     gap2 = (A.gap >= 2.0).to_numpy()
     far1 = ((A.since_stop >= 1.0) & (A.to_strobe >= 1.0)).to_numpy()
@@ -129,7 +129,7 @@ def preds_path() -> Path:
     # the per-lick prediction CACHE keeps the basis-specific KEY_TAG (same names as before 10-27 late, so a plain cache can
     # never be read as split); plain Allen areas: + ROI version from v8 on (a v1 / v2 cache must never be reused)
     roi = f"_r{il.ROI_VERSION}" if SOURCE == "areas" and il.ROI_VERSION not in ("1", "2") else ""
-    return il.OUT / f"lick_order_preds{KEY_TAG}{roi}.csv.gz"
+    return il.resolve_cache(f"lick_order_preds{KEY_TAG}{roi}.csv.gz")     # = il.OUT/<name> by default
 
 
 def trial_set_sentence(extra=()) -> str:
@@ -180,7 +180,7 @@ def predictions() -> pd.DataFrame:
     # the lick-window SD (fallback) is inflated by the larger post-stroke lick response (Priya 10-27)
     sd_svd = {}
     if SOURCE in ("svd", "locanmf") and SRC_TAG.rstrip("M").endswith("F"):
-        fsd = il.OUT / f"basis_{'svdbasis' if SOURCE == 'svd' else 'locanmf'}" / "frame_sd.csv"
+        fsd = il.in_path_x(f"basis_{'svdbasis' if SOURCE == 'svd' else 'locanmf'}/frame_sd.csv")
         if fsd.exists():
             F = pd.read_csv(fsd, index_col=0)
             # LocaNMF component counts differ by animal: the CSV is NaN-padded to the largest count

@@ -22,6 +22,7 @@ lick_where_decoder_z.png + zscore_check/where_decoder_tests_z.csv from the z-sco
 from __future__ import annotations
 from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
+import os
 import sys
 from pathlib import Path
 
@@ -196,7 +197,11 @@ def split_names(cols: list[str]) -> list[str]:
 
 def sess_labels(sess_dir: Path | None = None) -> list[str]:
     """Session labels of an ITI session folder (default: the current ROI version's, il.SESS_NAME)."""
-    return sorted(p.stem for p in (Path(sess_dir) if sess_dir else il.XOUT / il.SESS_NAME).glob("*.npz"))
+    got = sorted(p.stem for p in (Path(sess_dir) if sess_dir else il.XOUT / il.SESS_NAME).glob("*.npz"))
+    if sess_dir is None and os.environ.get(il.ONLY_ENV):       # patch build (11-24): only these sessions
+        keep = {x.strip() for x in os.environ[il.ONLY_ENV].split(",")}
+        got = [x for x in got if x in keep]
+    return got
 
 
 def area_basis(sess_dir: Path | None = None, jobs: int | None = None, basis: str | None = None):

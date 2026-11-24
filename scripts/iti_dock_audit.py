@@ -160,7 +160,7 @@ def main() -> int:
     ap.add_argument("--jobs", type=int, default=8)
     a = ap.parse_args()
     from wfield_local import analysis_kit as ak
-    cov = pd.read_csv(il.OUT / "covref_covariates.csv.gz", usecols=["set", "label", "k", "t"])
+    cov = pd.read_csv(il.in_path_x("covref_covariates.csv.gz"), usecols=["set", "label", "k", "t"])
     cov = cov[cov.set == "iti"]
     items = [(lab, g.sort_values("k").t.to_numpy(float)) for lab, g in cov.groupby("label", sort=True)]
     got, fail = ak.fan_sessions(items, one, jobs=a.jobs, label="dock audit", log=lambda m: None)

@@ -139,6 +139,12 @@ _DOCK_AUDIT = None
 #: an explicit UPSTREAM read folder for a WFIELD_ITI_OUT_W run (lane E 11-24: the docked pass on the manuscript lineage reads
 #: the neural-tail chain's all-ITI tables): in_path order = OUT_W, then WFIELD_ITI_IN_W, then the production folder.
 IN_W_ENV = "WFIELD_ITI_IN_W"
+#: a PATCH folder read before WFIELD_ITI_IN_W (lane E 11-24, PS95 0818 / 0820 cam3 re-add): upstream tables with those
+#: sessions' rows spliced in (`scripts/patch_splice.py`, manifest beside them) and their per-session files
+PATCH_W_ENV = "WFIELD_ITI_PATCH_W"
+#: restrict `labels()` to these sessions (comma list; lane E 11-24): builds the rows of a few sessions in a scratch
+#: OUT_W for `patch_splice.py`; never set for a figure run
+ONLY_ENV = "WFIELD_ITI_ONLY_LABELS"
 
 
 def in_path(rel: str | Path) -> Path:
@@ -148,6 +154,10 @@ def in_path(rel: str | Path) -> Path:
     p = OUT_W / rel
     if p.exists() or not os.environ.get("WFIELD_ITI_OUT_W"):
         return p
+    if os.environ.get(PATCH_W_ENV):              # spliced upstream tables / per-session files (lane E 11-24)
+        q = Path(os.environ[PATCH_W_ENV]) / rel
+        if q.exists():
+            return q
     if os.environ.get(IN_W_ENV):                 # explicit upstream folder (lane E 11-24), e.g. a neural-tail OUT_W
         q = Path(os.environ[IN_W_ENV]) / rel
         if q.exists():
@@ -746,6 +756,22 @@ def tagged(name: str, tag: str | None = None) -> str:
     return f"{stem}{tag}{dot}{ext}"
 
 
+def resolve_cache(rel: str | Path) -> Path:
+    """A whole-cohort cache file (relative path, final name): the OUT_W copy when present; under a patch build
+    (WFIELD_ITI_ONLY_LABELS) always the OUT_W path (a new cache, never another folder's); else the PATCH folder's, the
+    IN_W folder's, the production one when present, else the OUT_X path (a new cache). Default runs: OUT/rel."""
+    rel = Path(rel)
+    if not os.environ.get("WFIELD_ITI_OUT_W"):
+        return OUT / rel
+    q = OUT_W / rel
+    if q.exists() or os.environ.get(ONLY_ENV):
+        return q
+    for env in (PATCH_W_ENV, IN_W_ENV):
+        if os.environ.get(env) and (Path(os.environ[env]) / rel).exists():
+            return Path(os.environ[env]) / rel
+    return OUT / rel if (OUT / rel).exists() else q
+
+
 def pred_file(rel: str) -> Path:
     """Per-lick prediction cache under OUT (relative path), named by basis + ROI version (PRED_TAG)."""
     p = Path(rel)
@@ -753,10 +779,8 @@ def pred_file(rel: str) -> Path:
         q = OUT_W / p.parent / tagged(p.name, PRED_TAG)
         if q.exists():
             return q
-    if os.environ.get("WFIELD_ITI_OUT_W"):     # opt-in redirect (11-23): the redirected copy, else production when it
-        q = OUT_W / p.parent / tagged(p.name, PRED_TAG)       # exists (read), else the redirected path (a new cache)
-        if q.exists() or not (OUT / p.parent / tagged(p.name, PRED_TAG)).exists():
-            return q
+    if os.environ.get("WFIELD_ITI_OUT_W"):     # opt-in redirect (11-23); + patch / upstream folders (11-24)
+        return resolve_cache(p.parent / tagged(p.name, PRED_TAG))
     return OUT / p.parent / tagged(p.name, PRED_TAG)
 
 
@@ -855,6 +879,10 @@ def labels(pattern: str = "*", sess_dir: Path | None = None, complete: bool = Tr
         miss = sorted(set(run_labels()) - set(got))
         if miss:
             raise RuntimeError(f"{d}: {len(miss)} session(s) of the frozen run not extracted: {miss[:5]}")
+    if os.environ.get(ONLY_ENV):
+        keep = {x.strip() for x in os.environ[ONLY_ENV].split(",") if x.strip()}
+        got = [x for x in got if x in keep]
+        print(f"[iti_licks.labels] {ONLY_ENV}: {len(got)} session(s) only (patch build)", flush=True)
     return got
 
 
