@@ -164,6 +164,53 @@ def jaw_table(path: str) -> pd.DataFrame:
     return J.set_index(["session", "trial_id"]).sort_index()
 
 
+#: `jaw_call` modes: "classes" = THE trial-class rule (2-D per-camera calls, 4-cam 3-D at `JAW_UNJUDGED_POSITIONS`);
+#: "3d" = the 4-cam 3-D jaw call at EVERY spout (Priya 11-23: six-position analyses on the four-camera 3-D kinematics);
+#: "2d" = the per-camera calls only (the pre-11-21 rule; no jaw at the hidden spouts).
+JAW_MODES = ("classes", "3d", "2d")
+
+
+def jaw_call(j: pd.DataFrame, position, mode: str = "classes") -> dict:
+    """THE per-trial jaw call from `jaw_table` rows ``j`` (one row per trial, aligned with ``position``): one definition
+    for `session_trials` and every consumer that needs a jaw onset (e.g. `scripts/revup_behaviour.py`; 11-23).
+    Returns arrays jaw_cam4 / jaw_cam1 / jaw_3d (1 / 0 / NaN), jaw_at_cue, jaw_onset_ms (the onset, or the re-onset
+    when the jaw was already moving at the cue; NaN when not judged or still), judged, hidden, use3.
+
+    SOURCE-AWARE CLOSE-SPOUT JAW (Priya 11-21, Q5: "use the four cameras"): at the spouts where neither 2-D camera
+    can judge the jaw (`JAW_UNJUDGED_POSITIONS`: cam4's chin hidden, cam1 at chance under the rod) the jaw is judged
+    by the 3-D jaw call of jaw_onsets.csv, but ONLY when that call came from the FOUR-camera 3-D (``jaw3d_source`` ==
+    "4cam": the side views see the jaw there -- PS93 0814 cue..stop jaw in 3-D 100 % at close_center, >= 3 views
+    94 %). A two-camera call is blanked there by jaw_onsets (the rod crosses the face in cam1) and the per-camera
+    calls stay masked, so a 2-cam table keeps the 11-03 default (no lick, no contact, no tongue -> no_response,
+    jaw_judged False). Elsewhere the per-camera calls stay the classifier (blind-reviewed 10-21). A 3-D movement
+    already under way at the cue has no 3-D re-onset, so that trial is unknown, as at-cue trials without a re-onset
+    are at every other spout. ``mode="3d"`` applies the 3-D branch at every spout (per-camera calls masked);
+    ``mode="2d"`` never uses it."""
+    if mode not in JAW_MODES:
+        raise ValueError(f"jaw_call mode {mode!r}: one of {JAW_MODES}")
+    n = len(j)
+    pos = pd.Series(np.asarray(position))
+    hidden = pos.isin(JAW_UNJUDGED_POSITIONS).to_numpy()
+    mask2d = np.ones(n, bool) if mode == "3d" else hidden
+    jaw_cam4 = np.where(mask2d, np.nan, pd.to_numeric(j.cam4_moved, errors="coerce").to_numpy(float))
+    jaw_cam1 = np.where(mask2d, np.nan, pd.to_numeric(j.cam1_moved, errors="coerce").to_numpy(float))
+    at_cue = j.onset_at_cue.fillna(False).astype(bool).to_numpy()
+    reon = pd.to_numeric(j.jaw_reonset_ms, errors="coerce").to_numpy(float)
+    on = pd.to_numeric(j.jaw_onset_ms, errors="coerce").to_numpy(float)
+    j3 = pd.to_numeric(j["jaw3d_moved"], errors="coerce").to_numpy(float) if "jaw3d_moved" in j else np.full(n, np.nan)
+    src3 = j["jaw3d_source"].fillna("").astype(str).to_numpy() if "jaw3d_source" in j else np.full(n, "")
+    at3 = j["jaw3d_at_cue"].fillna(False).astype(bool).to_numpy() if "jaw3d_at_cue" in j else np.zeros(n, bool)
+    on3 = (pd.to_numeric(j["jaw3d_onset_ms"], errors="coerce").to_numpy(float) if "jaw3d_onset_ms" in j
+           else np.full(n, np.nan))
+    where3 = {"classes": hidden, "3d": np.ones(n, bool), "2d": np.zeros(n, bool)}[mode]
+    use3 = where3 & (src3 == "4cam") & np.isfinite(j3)
+    at_cue = np.where(use3, at3, at_cue)
+    onset = np.where(use3, np.where(at3, np.nan, on3), np.where(mask2d, np.nan, np.where(at_cue, reon, on)))
+    judged = (((~np.isnan(jaw_cam4)) | (~np.isnan(jaw_cam1))) & (~at_cue | np.isfinite(reon))) | (use3 & ~at3)
+    return {"jaw_cam4": jaw_cam4, "jaw_cam1": jaw_cam1, "jaw_3d": np.where(use3, j3, np.nan), "jaw_at_cue": at_cue,
+            "jaw_onset_ms": onset, "judged": judged, "hidden": hidden, "use3": use3}
+
+
 def _trial_times(sd: Path) -> pd.DataFrame:
     """Per trial from windows.npz: cue time on the DAQ clock (s), strobe and stop (ms from the cue)."""
     w = np.load(sd / "windows.npz", allow_pickle=True)
@@ -359,35 +406,10 @@ def session_trials(label: str, window: str = DEFAULT_WINDOW, v36: Path | str | N
     else:
         j = pd.DataFrame(index=t.to_numpy(), columns=["cam4_moved", "cam1_moved", "jaw_onset_ms", "onset_at_cue",
                                                       "jaw_reonset_ms"], dtype=float)
-    hidden = T.position.isin(JAW_UNJUDGED_POSITIONS).to_numpy()
-    T["jaw_cam4"] = np.where(hidden, np.nan, pd.to_numeric(j.cam4_moved, errors="coerce").to_numpy(float))
-    T["jaw_cam1"] = np.where(hidden, np.nan, pd.to_numeric(j.cam1_moved, errors="coerce").to_numpy(float))
-    at_cue = j.onset_at_cue.fillna(False).astype(bool).to_numpy()
-    reon = pd.to_numeric(j.jaw_reonset_ms, errors="coerce").to_numpy(float)
-    on = pd.to_numeric(j.jaw_onset_ms, errors="coerce").to_numpy(float)
-    # SOURCE-AWARE CLOSE-SPOUT JAW (Priya 11-21, Q5: "use the four cameras"): at the spouts where neither 2-D camera
-    # can judge the jaw (`JAW_UNJUDGED_POSITIONS`: cam4's chin hidden, cam1 at chance under the rod) the jaw is judged
-    # by the 3-D jaw call of jaw_onsets.csv, but ONLY when that call came from the FOUR-camera 3-D (``jaw3d_source`` ==
-    # "4cam": the side views see the jaw there -- PS93 0814 cue..stop jaw in 3-D 100 % at close_center, >= 3 views
-    # 94 %). A two-camera call is blanked there by jaw_onsets (the rod crosses the face in cam1) and the per-camera
-    # calls stay masked, so a 2-cam table keeps the 11-03 default (no lick, no contact, no tongue -> no_response,
-    # jaw_judged False). Elsewhere the per-camera calls stay the classifier (blind-reviewed 10-21). A 3-D movement
-    # already under way at the cue has no 3-D re-onset, so that trial is unknown, as at-cue trials without a re-onset
-    # are at every other spout.
-    n = len(T)
-    j3 = pd.to_numeric(j["jaw3d_moved"], errors="coerce").to_numpy(float) if "jaw3d_moved" in j else np.full(n, np.nan)
-    src3 = j["jaw3d_source"].fillna("").astype(str).to_numpy() if "jaw3d_source" in j else np.full(n, "")
-    at3 = j["jaw3d_at_cue"].fillna(False).astype(bool).to_numpy() if "jaw3d_at_cue" in j else np.zeros(n, bool)
-    on3 = (pd.to_numeric(j["jaw3d_onset_ms"], errors="coerce").to_numpy(float) if "jaw3d_onset_ms" in j
-           else np.full(n, np.nan))
-    use3 = hidden & (src3 == "4cam") & np.isfinite(j3)
-    T["jaw_3d"] = np.where(use3, j3, np.nan)
-    at_cue = np.where(use3, at3, at_cue)
-    T["jaw_at_cue"] = at_cue
-    T["jaw_onset_ms"] = np.where(use3, np.where(at3, np.nan, on3),
-                                 np.where(hidden, np.nan, np.where(at_cue, reon, on)))
-    judged = (((T.jaw_cam4.notna() | T.jaw_cam1.notna()).to_numpy() & (~at_cue | np.isfinite(reon)))
-              | (use3 & ~at3))
+    jc = jaw_call(j, T.position.to_numpy())
+    hidden, use3, judged = jc["hidden"], jc["use3"], jc["judged"]
+    for c in ("jaw_cam4", "jaw_cam1", "jaw_3d", "jaw_at_cue", "jaw_onset_ms"):
+        T[c] = jc[c]
     # the jaw's movement counts only when its (re-)onset is inside the response window's end (Priya 11-04: after cue +
     # max_rt the spout is starting to move); the camera calls themselves are cue .. stop (`scripts/jaw_onsets.py`). A
     # moved call without an onset time keeps its call. A trial whose jaw moved only after the end is judged and still.
