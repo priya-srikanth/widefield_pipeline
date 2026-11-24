@@ -126,6 +126,14 @@ def main() -> int:
     F = flags(Wz)
     (il.OUT_W / "zscore_check").mkdir(parents=True, exist_ok=True)
     F.to_csv(il.OUT_W / "where_dockflag.csv", index=False)
+    import json
+    import os
+
+    from wfield_local import input_provenance       # which caches were subset, and from where (11-24)
+    src = {str(r): {"path": str(_all_iti(r)), "mtime": os.path.getmtime(_all_iti(r))} for r in (rel_z, rel_a, rel_u)}
+    (il.OUT_W / "where_dock_provenance.json").write_text(json.dumps(
+        {"inputs": src, "dock_audit": str(il.OUT / "iti_dock_audit.csv"), "pose3d_run_env": input_provenance.pose3d_run()},
+        indent=1), encoding="utf-8")
     print(f"ITI subset {il.ITI_SUBSET}: {int(F.keep.sum())} of {len(F)} where-cache ITI rows kept "
           f"({int((F.k < 0).sum())} rows without a lick_order match, dropped)")
     Wz2, A2, U2 = subset(Wz, F), subset(A, F), subset(U, F)

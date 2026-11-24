@@ -258,6 +258,9 @@ def _load_one(item):
         b = np.load(f)
         if basis_dir(source) == "svdbasis":
             mask_keys.check_obj(b, f)             # stale-read guard (11-09)
+        from wfield_local import input_provenance  # same lick set / 3-D table as the session file (11-24)
+        input_provenance.check_same_source(str(b["lick_sig"]) if "lick_sig" in b.files else None,
+                                           str(z["lick_sig"]) if "lick_sig" in z else None, str(f))
         from iti_basis_decoder import LAGS as LB
         from wfield_local import combined_encoding as ce
         ft = _frame_range(x, ce)                                # same edge rule as iti_basis_decoder.extract

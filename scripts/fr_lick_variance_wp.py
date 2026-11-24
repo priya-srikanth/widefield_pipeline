@@ -140,6 +140,12 @@ def main(argv=None) -> int:
     AU = pd.DataFrame(audit)
     V.to_csv(il.OUT_W / "fr_variance_wp_sessions.csv", index=False)
     AU.to_csv(il.OUT_W / "fr_variance_wp_audit.csv", index=False)
+    import json
+
+    from wfield_local import input_provenance       # lick set / 3-D table of the session files read (11-24)
+    (il.OUT_W / "fr_variance_wp_provenance.json").write_text(json.dumps(
+        {"session_file_lick_sigs": input_provenance.seen(), "pose3d_run_env": input_provenance.pose3d_run(),
+         "attempts_table": str(a.attempts)}, indent=1), encoding="utf-8")
     print("\n== audit per animal x epoch (rows / matched / kept)\n"
           + AU.groupby(["animal", "epoch"])[["rows", "matched", "kept_working", "dropped_not_working"]].sum()
           .to_string())

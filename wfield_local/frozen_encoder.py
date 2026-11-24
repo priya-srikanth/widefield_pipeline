@@ -2208,7 +2208,8 @@ def main(argv=None) -> int:
                   f"({len(sd_['labels'])} pre sessions)", flush=True)
         (out / "fit" / "BASIS_ONLY.json").write_text(json.dumps(
             {"design": design_name(), "frozen_design": DESIGN, "licks_all": LICKS_ALL, "pre": pre,
-             "note": "spatial basis only (basis_job + build_basis); no templates, statistics or fits"}, indent=1))
+             "note": "spatial basis only (basis_job + build_basis); no templates, statistics or fits",
+             "licks": "none (imaging only: the basis does not depend on the lick list or the 3-D table)"}, indent=1))
         return 0
     (out / "fit").mkdir(parents=True, exist_ok=True)
     spath = str(src_fit) if a.target != "areas" else None

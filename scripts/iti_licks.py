@@ -682,6 +682,7 @@ def _load(label: str, sess_dir: Path | None = None) -> dict:
     try:
         out = {k: z[k] for k in z.files}
         mask_keys.check_obj(out, p)
+        _record_input(out)
         return out
     except ValueError:
         # JUNE REFERENCE FILES written before 11-08 store epoch=None (`epochs.epoch_of` has no epoch for a session before
@@ -697,7 +698,14 @@ def _load(label: str, sess_dir: Path | None = None) -> dict:
                 a = np.array("")
             out[k] = a
         mask_keys.check_obj(out, p)
+        _record_input(out)
         return out
+
+
+def _record_input(out: dict) -> None:
+    """Note the lick set / 3-D table this session file was built on (`input_provenance`; footer of every figure)."""
+    from wfield_local import input_provenance
+    input_provenance.record(str(out["lick_sig"]) if "lick_sig" in out else None)
 
 
 # ------------------------------------------------------------------------------------------------ area basis (10-27 late)
