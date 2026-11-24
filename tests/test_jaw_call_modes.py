@@ -52,3 +52,22 @@ def test_reonset3d_option():
     assert np.isnan(off["jaw_onset_ms"][2]) and not off["judged"][2]
     assert on["jaw_onset_ms"][2] == 340.0 and on["judged"][2]
     assert np.allclose(on["jaw_onset_ms"][[0, 1]], [110.0, 200.0])
+
+
+def test_3d_mouth_mode():
+    """11-23 (Priya, adopted): 3-D (+ re-onset) OR an in-mouth lick; onset = the earlier; mouth_ms required."""
+    j = _j().assign(jaw3d_reonset_ms=[np.nan, np.nan, 340.0, np.nan], jaw3d_moved=[1, 0, 1, 1],
+                    jaw3d_onset_ms=[110.0, np.nan, 0.0, 90.0])
+    m = np.array([60.0, 250.0, np.nan, 400.0])
+    c = TC.jaw_call(j, POS, "3d_mouth", mouth_ms=m)
+    assert np.allclose(c["jaw_onset_ms"], [60.0, 250.0, 340.0, 400.0])
+    assert c["judged"].tolist() == [True, True, True, True]    # 2-cam 3-D row judged by its in-mouth lick only
+    assert c["jaw_mouth"].tolist() == [1.0, 1.0, 0.0, 1.0]
+    with pytest.raises(ValueError):
+        TC.jaw_call(j, POS, "3d_mouth")
+
+
+def test_mouth_lick_ms_window():
+    ev = pd.DataFrame({"daq_on_s": [9.9, 10.05, 10.5, 20.0, 31.0]})
+    r = TC.mouth_lick_ms(ev, [10.0, 19.0, 30.0, np.nan], [3500.0, 500.0, 3500.0, 3500.0])
+    assert np.allclose(r, [50.0, np.nan, 1000.0, np.nan], equal_nan=True)

@@ -153,7 +153,8 @@ def render(item) -> dict:
     tr = _traces(r)
     t0, t1 = -500.0, end_ms + 200.0
     L, Rm, PH = 150, 20, 56
-    SH = 12 + PH * len(tr) + 26
+    mouth_mode = bool(r.get("mouth_mode"))
+    SH = 12 + PH * (len(tr) + (1 if mouth_mode else 0)) + 26
     X = lambda t: int(L + (t - t0) / (t1 - t0) * (W_ - L - Rm))   # noqa: E731
     strip = np.zeros((SH, W_, 3), np.uint8)
     keys = list(tr)
@@ -194,6 +195,21 @@ def render(item) -> dict:
         ot = (f"{on:.0f}" if np.isfinite(on) else "-") + (
             (" / " + (f"{on_f:.0f}" if np.isfinite(on_f) else "-")) if fx is not None else "")
         vq._txt(strip, f"onset {ot}", (4, y0 + 48), 0.34, col)
+    if mouth_mode:                                 # NEW RULE row: in-mouth licks (cam1, fused-unmatched) + m3d call
+        y0 = 8 + len(keys) * PH
+        y1 = y0 + PH - 8
+        cv2.rectangle(strip, (L, y0), (W_ - Rm, y1), (60, 60, 60), 1)
+        evs = [float(x) for x in str(r.get("mouth_events_ms", "") or "").split(";") if x not in ("", "nan")]
+        for e in evs:
+            if t0 <= e <= t1:
+                cv2.line(strip, (X(e), y0 + 4), (X(e), y1 - 4), (255, 0, 255), 2, cv2.LINE_AA)
+        on_m = r.get("on_m3d", np.nan)
+        if np.isfinite(on_m):
+            cv2.line(strip, (X(on_m), y0), (X(on_m), y1), (255, 255, 255), 3, cv2.LINE_AA)
+        vq._txt(strip, "in-mouth lick", (4, y0 + 14), 0.38, (255, 0, 255))
+        vq._txt(strip, f"NEW: {r.get('m3d_moved', '?')}", (4, y0 + 32), 0.34, (255, 255, 255))
+        vq._txt(strip, "onset " + (f"{on_m:.0f}" if np.isfinite(on_m) else "-"), (4, y0 + 48), 0.34,
+                (255, 255, 255))
     cv2.line(strip, (X(0), 4), (X(0), SH - 24), COL["cue"], 1)
     lk = r.get("first_lick_ms", np.nan)
     if np.isfinite(lk):
@@ -202,16 +218,20 @@ def render(item) -> dict:
     if r.get("fix_variant"):
         legend = ("gray / colored tick = CURRENT rule; cyan line / lower cyan tick = FIXED rule (" + r["fix_variant"]
                   + " noise + 3-D re-onset); text = current / fixed; yellow = cue")
+    if mouth_mode:
+        legend = ("gray/colored = current; cyan = cap + 3-D re-onset; magenta = in-mouth lick (cam1); white tick = NEW "
+                  "rule onset (3-D cap + re-onset OR in-mouth); yellow = cue")
     vq._txt(strip, legend, (4, SH - 8), 0.34, (200, 200, 200))
     title = f"{r['id']}  mouse {MOUSE[a]}  {r['epoch']}  {r['pos']}"
     out = {}
-    kinds = ("reveal_fixed",) if r.get("fix_variant") else ("blind", "reveal")
+    kinds = (("reveal_mouth",) if mouth_mode else ("reveal_fixed",) if r.get("fix_variant")
+             else ("blind", "reveal"))
     for kind in kinds:
         H = TILE_H + (SH if kind != "blind" else 0)
         H += H % 2
-        od = Path(folder) / ("clips_reveal" if kind == "reveal_fixed" else f"clips_{kind}")
+        od = Path(folder) / ("clips_reveal" if kind.startswith("reveal_") else f"clips_{kind}")
         od.mkdir(exist_ok=True)
-        f_out = od / (f"{r['id']}_reveal_fixed.mp4" if kind == "reveal_fixed" else f"{r['id']}.mp4")
+        f_out = od / (f"{r['id']}_{kind}.mp4" if kind.startswith("reveal_") else f"{r['id']}.mp4")
         proc = subprocess.Popen([imageio_ffmpeg.get_ffmpeg_exe(), "-y", "-loglevel", "error", "-f", "rawvideo",
                                  "-pix_fmt", "bgr24", "-s", f"{W_}x{H}", "-r", "62.5", "-i", "-", "-c:v", "libx264",
                                  "-pix_fmt", "yuv420p", "-crf", "20", str(f_out)], stdin=subprocess.PIPE)
@@ -252,8 +272,13 @@ def main(argv=None) -> int:
     ap.add_argument("--ids", nargs="*", default=None)
     ap.add_argument("--fixed", choices=("mad", "cap"), default=None,
                     help="write ONLY clips_reveal/<id>_reveal_fixed.mp4: current AND fixed-rule thresholds / onsets")
+    ap.add_argument("--mouth", action="store_true",
+                    help="write ONLY clips_reveal/<id>_reveal_mouth.mp4: the --fixed cap rule + the in-mouth licks and "
+                         "the adopted 3d_mouth call (key_mouth.csv from scripts/jaw3d_mouth_eval.py blind)")
     a = ap.parse_args(argv)
     os.environ.setdefault("MKL_THREADING_LAYER", "SEQUENTIAL")
+    if a.mouth:
+        a.fixed = "cap"
     K = pd.read_csv(a.folder / "key.csv")
     QC = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis") / RUN / "imaging_encoding" / "qc"
     jcols = ["session", "trial_id", "cam4_moved", "cam1_moved", "cam4_onset_ms", "cam1_onset_ms", "cam4_reonset_ms",
@@ -284,6 +309,11 @@ def main(argv=None) -> int:
         pk = pd.to_numeric(Lk.t_ms, errors="coerce")
         fl.update({(lab, int(t)): float(v) for t, v in Lk[pk >= 70].groupby("trial_id").on_ms.min().items()})
     K["first_lick_ms"] = [fl.get((lab, int(t)), np.nan) for lab, t in zip(K.label, K.trial_id)]
+    if a.mouth:
+        Km = pd.read_csv(a.folder / "key_mouth.csv", usecols=["id", "on_m3d", "m3d_moved", "mouth_events_ms"])
+        Km["mouth_events_ms"] = Km.mouth_events_ms.fillna("").astype(str)
+        K = K.merge(Km, on="id", how="left")
+        K["mouth_mode"] = True
     if a.ids:
         K = K[K.id.isin(a.ids)]
     from wfield_local import parallel
@@ -291,7 +321,8 @@ def main(argv=None) -> int:
     res, fails = parallel.fan_out(items, render, jobs=a.jobs, label="clip")
     rows = sorted([x[1] for x in res], key=lambda d: d["id"]) + [{"id": it[0]["id"], "status": f"failed: {e}"}
                                                                    for it, e in fails]
-    name = "clip_status" + (f"_fixed_{a.fixed}" if a.fixed else "") + ("_subset" if a.ids else "") + ".csv"
+    name = ("clip_status" + ("_mouth" if a.mouth else f"_fixed_{a.fixed}" if a.fixed else "")
+            + ("_subset" if a.ids else "") + ".csv")
     pd.DataFrame(rows).sort_values("id").to_csv(a.folder / name, index=False)
     print(pd.DataFrame(rows).status.value_counts().to_string())
     return 0
