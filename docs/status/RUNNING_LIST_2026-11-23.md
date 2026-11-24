@@ -124,3 +124,6 @@ Worktree `wf_ccb_overnight1123`, branch `ccb/overnight-rebuild-1123` (from 2d1d4
   facerhythm delivered to `run_records/2026-11-23/page_updates/` (not published); PI deck `Overview_2026-11-24_fourcam.pptx`
   + CHANGELOG; O2 G4 bundle `enc_fourcam_20261124` ready except the smoke test (running); movement page mapped (assembly
   open); Fig 23.23 compare lane J6; rev-up neural finishing (`revup_j3m2`). Detail: INCONSISTENCY_FIXES.md progress log.
+- 11-24 ~05:30 CC-B fixes: task B done (rev-up neural + followup on the working-period tables; RESTnl twin and the 3-D
+  rewrite of followup part B left). Lane F: G4 ready except the smoke test (needs >= 40 GB free), frozen_encoder O2 port
+  scoped. Lane E (movement 18.5 / 2.2 / 2.6 + 15.x basis-only build) still running. INCONSISTENCY_FIXES.md progress log.
