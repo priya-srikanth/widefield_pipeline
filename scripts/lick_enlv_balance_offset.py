@@ -37,7 +37,9 @@ Change vs pre: per-animal table first (rule 8), then analysis_kit.boot_delta (pa
 Outputs <OUT_W>/enlv_licks/: enlv_table.csv.gz (per lick), enlv_sessions.csv, enlv_tests.csv (variant x measure x epoch),
 enlv_animals.csv, enlv_spout_tests.csv, enlv_compare.csv (ENLv vs cued / ITI all / docked / moving), enlv_counts_*.csv,
 enlv_arrival_*.csv, enlv_firstlick_latency.csv; figures/lick_enlv_*.png; figdata/lick_enlv_*.pkl.
-Usage: python scripts/lick_enlv_balance_offset.py --table      (per-lick table: features, readers, ENLv decoder)
+Usage: python scripts/lick_enlv_balance_offset.py --table [--allow-freeze]   (per-lick table: features, readers, ENLv
+       decoder; the frozen readers are LOAD-ONLY unless --allow-freeze: a store miss raises instead of fitting new
+       pre-stroke references, 11-24)
        python scripts/lick_enlv_balance_offset.py              (all tables + figures)
        python scripts/lick_enlv_balance_offset.py --plot-only  (redraw every figure from figdata)
 """
@@ -263,7 +265,16 @@ def table() -> pd.DataFrame:
     L["first"] = L["rank"] == 0
     L["n_in_trial"] = L.groupby(["label", "trial_id"]).lick_uid.transform("size")
     nf = len(names)
-    # frozen readers (ITI, cued): pre sessions by their held-out sibling, else the full model
+    # frozen readers (ITI, cued): pre sessions by their held-out sibling, else the full model.
+    # 11-24 GUARD: --table READS the frozen lick readers (and the ENLv reader below); on a store miss the freeze would
+    # FIT and store new pre-stroke references silently (it did on 11-24 14:04 in lane E's rp_enlv). Unless the run
+    # says --allow-freeze, the store is load-only here and a miss raises.
+    import os
+    from wfield_local import frozen_models as _fm
+    if "--allow-freeze" not in sys.argv:
+        os.environ[_fm.LOAD_ONLY_ENV] = "1"
+        print("frozen readers: LOAD ONLY (a store miss raises; pass --allow-freeze to fit + store new references)",
+              flush=True)
     fits = ex.readers(4)
     for sfx in ("", "_c"):
         F = L[[f"f{j}{sfx}" for j in range(nf)]].to_numpy(float)

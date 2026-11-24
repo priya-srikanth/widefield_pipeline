@@ -71,3 +71,8 @@ def test_nonlinear_preds_and_sm_coherence_read_through_the_redirect():
     assert 'il.OUT / "lick_order_preds' not in t and 'in_path_x("lick_order_preds' in t
     t = (root / "sm_coherence_cca.py").read_text(encoding="utf-8")
     assert 'pd.read_csv(ihc.IN / "iti_dock_audit.csv"' not in t and "refuse_truncated_dock_audit" in t
+
+
+def test_enlv_table_freeze_is_opt_in():
+    t = (Path(__file__).resolve().parents[1] / "scripts" / "lick_enlv_balance_offset.py").read_text(encoding="utf-8")
+    assert '"--allow-freeze" not in sys.argv' in t and "LOAD_ONLY_ENV" in t
