@@ -267,5 +267,34 @@ def lick_epoch_session(job) -> dict:
     from wfield_local.paths import PathResolver
     rv = PathResolver()
     zs = [np.load(f) for f in fro.session_keys(Path(fdir), animal, date)]
+    n_proj = sum(len(z["cue_daq_s"]) for z in zs)
+    gate = os.environ.get(TRIALS_ENV, "engaged")
+    if gate == "working":
+        zs = [working_subset(z, f"{animal}_{date}") for z in zs]
     L = lick_table(rv, animal, date, np.concatenate([z["cue_daq_s"] for z in zs]))
-    return {"animal": animal, "date": date, "epoch": str(zs[0]["epoch"]), **lick_epoch_summary(zs, L)}
+    return {"animal": animal, "date": date, "epoch": str(zs[0]["epoch"]), "trial_gate": gate, "n_projected": n_proj,
+            **lick_epoch_summary(zs, L)}
+
+
+#: TRIAL GATE (11-23, Priya: every six-position trial gate = the camera working period, not the DAQ engagement flag).
+#: Env ``FRV_TRIALS``: unset / "engaged" = every projected trial of the FaceRhythm bundle (its behavior-DAQ "engaged"
+#: set, as before); "working" = the projected trials inside the camera working period
+#: (`trial_classes.camera_period_trials`: first cue .. last camera lick minus stopped runs; Fig 3B / 3D). Working-period
+#: trials the bundle never projected (about 2 %, 201 of them in PS92_20260812) have no FaceRhythm expression and are
+#: not counted.
+TRIALS_ENV = "FRV_TRIALS"
+_TRIAL_KEYS = ("trials", "trials_err", "trials_D", "trials_lossy", "trial_id", "position", "cue_daq_s")
+
+
+def working_subset(z, label: str) -> dict:
+    """The proj file ``z`` (npz) as a dict restricted to its camera-working-period trials."""
+    from wfield_local import trial_classes as tc
+    S = tc.session_trials(label).dropna(subset=["cue_daq"])
+    w, _c, _h = tc.camera_period_trials(label[:5] + label[-4:], S.cue_daq.to_numpy(float))
+    keep_ids = set(S.trial_id.astype(int).to_numpy()[np.asarray(w, bool)])
+    m = np.isin(z["trial_id"].astype(int), list(keep_ids))
+    d = {k: z[k] for k in z.files}
+    for k in _TRIAL_KEYS:
+        if k in d:
+            d[k] = d[k][m]
+    return d

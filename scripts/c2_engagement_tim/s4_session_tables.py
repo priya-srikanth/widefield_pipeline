@@ -169,6 +169,20 @@ if not NO_TIM:
 # cache's own build. Older caches (frames_v3) have neither and are read as before.
 KP_JAWNOSE = os.environ.get("S4_KP_JAWNOSE", "")
 LICKS = os.environ.get("S4_LICKS", "")
+# S4_GATE=working (Priya 11-23: every six-position trial gate = the camera working period): frames whose OWNER trial is
+# outside the camera working period (<out_dir>/camera_working.csv ``work``, s0) get period code 0, so the pre-cue,
+# response and ITI means use working-period trials only (an ITI span belongs to the trial that just ended). Unset = no
+# trial gate (every trial inside the time match), as the manuscript's S15.
+GATE = os.environ.get("S4_GATE", "")
+_WORK = None
+
+
+def _working_ids(label):
+    global _WORK
+    if _WORK is None:
+        cw = pd.read_csv(OUT / "camera_working.csv")
+        _WORK = {lab: set(g.trial_id[g.work.astype(bool)].astype(int)) for lab, g in cw.groupby("label")}
+    return _WORK.get(label, set())
 
 
 def load(label):
@@ -181,6 +195,13 @@ def load(label):
         for st in ("kp", "fr"):
             if f"{st}_nearlick_cam4" in d:
                 d[f"{st}_nearlick"] = d[f"{st}_nearlick_cam4"]
+    if GATE == "working":
+        ids = np.array(sorted(_working_ids(label)), dtype=np.int64)
+        for st in ("kp", "fr"):
+            if f"{st}_per" in d:
+                per = d[f"{st}_per"].copy()
+                per[~np.isin(d[f"{st}_own"], ids)] = 0
+                d[f"{st}_per"] = per
     for st in ("kp", "fr"):
         if f"{st}_own" in d:
             rm_ = {int(t): r for (l, t), r in role_of.items() if l == label}
