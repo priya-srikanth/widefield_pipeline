@@ -55,3 +55,4 @@ Keep (never delete): `frozen_models/` stores; raw videos / scans; LP predictions
 | [ ] | `PAPER/ccB_caption_review_2026-11-23/sixpos/S12D_miss_correction_mm_ccB1123.*` (v1, gray hits) | `S12D_miss_correction_mm_v2_ccB1123` | 11-23 |
 | [ ] | `PAPER/ccB_caption_review_2026-11-23/twotone_s8d/S8D_miss_correction_px_ccB1123.*` (v1) | `S8D_miss_correction_px_v2_ccB1123` | 11-23 |
 | [ ] | `PAPER/ccB_caption_review_2026-11-23/twotone_s8d/S8D_miss_correction_px_v2_ccB1123.*` | `..._px_v3_ccB1123` (2 x 2) | 11-23 |
+| [ ] | `PAPER/ccB_caption_review_2026-11-23/twotone_s8d/S8D_miss_correction_px_v3_ccB1123.*` | `..._px_v4_ccB1123` | 11-23 |
