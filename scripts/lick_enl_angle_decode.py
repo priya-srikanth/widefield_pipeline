@@ -105,7 +105,7 @@ def session_trials(label: str) -> dict:
     # a licks_all lick between the cue and the behaviour first-lick onset -> that lick, not fl, was the first: flag
     n_between = np.searchsorted(bo, fl - 0.005) - np.searchsorted(bo, cue)
     # kinematics: bout-first post-cue licks, exact DAQ peak t
-    k = np.load(OUT / "firstlick_full" / f"{label}.npz")
+    k = np.load(il.in_path_x("firstlick_full") / f"{label}.npz")       # upstream copy in a redirected run (11-24)
     kt = np.asarray(k["t"], float)
     o = np.argsort(kt)
     kt = kt[o]
