@@ -49,7 +49,8 @@ FIRST = 5
 NMIN = 20
 KEY = ["animal", "date", "session", "epoch", "position"]
 VARIANTS = {"prod_median_all": "production (median, all licks)", "mean_all": "mean, all licks (new production)",
-            "mean_first5": "mean, post-cue licks 1-5 (candidate)"}
+            "mean_first5": "mean, post-cue licks 1-5 (candidate)",
+            "median_first5": "median, post-cue licks 1-5 (candidate)"}
 
 
 def _ids(session: str):
@@ -125,6 +126,225 @@ def stage_summ(out: Path):
     print(f"reach median-all vs production pose3d_sessions: {len(chk2)} matched of {len(rc)} rows / {len(rl)} prod, "
           f"max |diff| {d2:.3g}")
     _safe_write(S, out / "sixpos_first5_session_summary.csv")
+
+
+# ------------------------------------------------------------------------------------------- cohort-2 grid (11-23 late)
+#: the cohort-1 grid (Priya 11-23 late): measure x lick set x session summary. "trialmed" = median over each trial's
+#: licks of the set, then the mean over trials (no per-trial median for the first lick: one lick per trial)
+LICKSETS = ("all", "first5", "first")
+SUMMARIES = ("mean", "median", "trialmed")
+SUMMARY_NAME = {"mean": "session mean", "median": "session median", "trialmed": "per-trial median, session mean"}
+LICKSET_NAME = {"all": "all post-cue licks", "first5": "post-cue licks 1-5", "first": "first post-cue lick"}
+#: the family endpoint each (measure, lick set) occupies; licks 1-5 is a candidate REPLACEMENT of the all-lick cells
+ENDPOINT = {("speed", "all"): "speed_all", ("reach", "all"): "reach_all", ("speed", "first5"): "speed_all",
+            ("reach", "first5"): "reach_all", ("speed", "first"): "speed_first", ("reach", "first"): "reach_first"}
+SESSMEAN_SUMMARY = P3D / "kinematics_fused_postcue/c2_lick3d_session_summary_ungated_sessmean_cam3on.csv"
+
+
+def _grid_rows(L: pd.DataFrame, col: str, measure: str, lickset: str, gate: str) -> list[dict]:
+    rows = []
+    for key, d in L.groupby(KEY, sort=True):
+        if lickset == "first5":
+            d = d[d.lick_idx < FIRST]
+        elif lickset == "first":
+            d = d[d.lick_idx == 0]
+        v = d[[col, "trial_id"]].dropna(subset=[col])
+        tm = v.groupby("trial_id")[col].median()
+        base = dict(zip(KEY, key), measure=measure, lickset=lickset, lick_gate=gate,
+                    n=int(d.reach_mm.notna().sum()), n_trials=int(d.loc[d.reach_mm.notna(), "trial_id"].nunique()))
+        rows.append(base | {"summary": "mean", "value": v[col].mean()})
+        rows.append(base | {"summary": "median", "value": v[col].median()})
+        if lickset != "first":
+            rows.append(base | {"summary": "trialmed", "value": tm.mean()})
+    return rows
+
+
+def _nrule(measure: str, lickset: str):
+    """Minimum licks per session x spout: production n >= 20 for every lick3d endpoint; all-lick reach has none."""
+    return None if (measure, lickset) == ("reach", "all") else NMIN
+
+
+def stage_grid(out: Path):
+    """The cohort-2 grid: session table, one 180-cell family per (lick set, summary) with that lick set's two cells
+    swapped in (BH once over 180), cells table, star counts and figures."""
+    from wfield_local import orofacial_stats as st
+    f = out / "sixpos_grid_session_summary.csv"
+    if f.exists():
+        G = pd.read_csv(f, dtype={"date": str})
+    else:
+        L = _load_licks()
+        ids = json.load(open(out / "working_ids.json"))
+        keep = np.zeros(len(L), bool)
+        sv, tid = L.session.astype(str).to_numpy(), L.trial_id.to_numpy(float)
+        for s in np.unique(sv):
+            m = sv == s
+            keep[m] = np.isin(tid[m], np.asarray(ids.get(s, []), float))
+        Lg = L[keep]
+        rows = []
+        for ls in LICKSETS:
+            rows += _grid_rows(L, "speed_peak", "speed", ls, "ungated")
+            # reach: all-lick reach is production's working-period table; first-lick reach is the ungated lick3d one
+            rows += _grid_rows(L if ls == "first" else Lg, "reach_mm", "reach", ls,
+                               "ungated" if ls == "first" else "working_period")
+        G = pd.DataFrame(rows)
+        # reproduction checks vs production session tables
+        P = pd.read_csv(PROD_SUMMARY, dtype={"date": str})
+        Q = pd.read_csv(SESSMEAN_SUMMARY, dtype={"date": str})
+        for (ms, ls, sm), (tab, colp) in {("speed", "all", "median"): (P, "speed_all"),
+                                          ("speed", "first", "median"): (P, "speed_first"),
+                                          ("reach", "first", "median"): (P, "reach_first"),
+                                          ("speed", "all", "mean"): (Q, "speed_all"),
+                                          ("speed", "first", "mean"): (Q, "speed_first"),
+                                          ("reach", "first", "mean"): (Q, "reach_first")}.items():
+            g = G[(G.measure == ms) & (G.lickset == ls) & (G.summary == sm)].merge(tab[KEY + [colp]], on=KEY)
+            print(f"check {ms}/{ls}/{sm} vs {colp}: {len(g)} rows, max |diff| {np.nanmax(np.abs(g.value - g[colp])):.3g}")
+        _safe_write(G, f)
+    F0 = pd.read_csv(FINAL_FAMILY)
+    keep = ["metric", "pos", "epoch", "n_sessions", "n_pre_sessions", "n_animals", "mean_change", "p", "boot_change",
+            "boot_lo", "boot_hi", "q_fdr_metric", "q_family", "boot_sig", "agree", "star_aligned"]
+    cells, fams = [], {}
+    for ls in LICKSETS:
+        for sm in SUMMARIES:
+            if ls == "first" and sm == "trialmed":
+                continue
+            parts, swap = [], []
+            for ms in ("speed", "reach"):
+                ep = ENDPOINT[(ms, ls)]
+                d = G[(G.measure == ms) & (G.lickset == ls) & (G.summary == sm)]
+                d = _chg(d, "value", _nrule(ms, ls), "n")
+                parts.append(_test(d, ep))
+                swap.append(ep)
+            R = pd.concat(parts, ignore_index=True)
+            R = R[R.epoch.isin(EPOCHS) & R.pos.isin(POS)]
+            other = F0[~F0.metric.isin(swap)].copy()
+            other["q_fdr"] = other.q_fdr_metric
+            T = pd.concat([other[[c for c in other.columns if c in R.columns or c == "q_fdr"]], R], ignore_index=True)
+            F = st.apply_family_fdr(T).rename(columns={"q_fdr": "q_family"})
+            F["star_aligned"] = (F.agree == "both").astype(int)
+            fams[(ls, sm)] = F
+            _safe_write(F[keep], out / f"c2_scalar_family_grid_{ls}_{sm}_final180_boot4000_cam3on.csv")
+            oth = F[~F.metric.isin(swap)].merge(F0[["metric", "pos", "epoch", "star_aligned"]],
+                                                on=["metric", "pos", "epoch"], suffixes=("", "_f0"))
+            c = F[F.metric.isin(swap)][keep].copy()
+            c["measure"] = c.metric.str.split("_").str[0]
+            c["lickset"], c["summary"] = ls, sm
+            cells.append(c)
+            print(f"{ls}/{sm}: stars speed {int(c[c.measure == 'speed'].star_aligned.sum())}, reach "
+                  f"{int(c[c.measure == 'reach'].star_aligned.sum())}, family {int(F.star_aligned.sum())}; other-cell "
+                  f"flips vs final family {int((oth.star_aligned != oth.star_aligned_f0).sum())}")
+    C = pd.concat(cells, ignore_index=True)
+    # the production / final-family cells reproduced?
+    for ls, sm, ep in (("all", "mean", "speed_all"), ("all", "mean", "reach_all"), ("first", "mean", "speed_first"),
+                       ("first", "mean", "reach_first")):
+        a = C[(C.lickset == ls) & (C.summary == sm) & (C.metric == ep)].merge(
+            F0[F0.metric == ep], on=["pos", "epoch"], suffixes=("", "_f0"))
+        print(f"reproduce final family {ep} ({ls}/{sm}): max |dCI| "
+              f"{np.nanmax(np.abs(a.boot_lo - a.boot_lo_f0)):.2g}, star mismatches "
+              f"{int((a.star_aligned != a.star_aligned_f0).sum())}")
+    P0 = pd.read_csv(PROD_FAMILY)
+    for ls, ep in (("all", "speed_all"), ("all", "reach_all"), ("first", "reach_first")):
+        a = C[(C.lickset == ls) & (C.summary == "median") & (C.metric == ep)].merge(
+            P0[P0.metric == ep], on=["pos", "epoch"], suffixes=("", "_p0"))
+        print(f"median {ep} ({ls}) vs 162-cell production: max |dCI| {np.nanmax(np.abs(a.boot_lo - a.boot_lo_p0)):.2g},"
+              f" star mismatches {int((a.star_aligned != a.star_aligned_p0).sum())}")
+    C = C[["measure", "lickset", "summary"] + keep]
+    _safe_write(C, out / "sixpos_grid_cells.csv")
+    cnt = C.groupby(["measure", "lickset", "summary"]).star_aligned.sum().unstack("summary")
+    cnt = cnt.reindex(pd.MultiIndex.from_product([["speed", "reach"], LICKSETS]))[list(SUMMARIES)]
+    _safe_write(cnt.reset_index().rename(columns={"level_0": "measure", "level_1": "lickset"}),
+                out / "sixpos_grid_star_counts.csv")
+    print(cnt.to_string())
+    grid_figures(out, C, G)
+
+
+def _panel(ax, d: pd.DataFrame, r: pd.DataFrame, title: str | None, ylab: str | None, ep_col, mk):
+    from wfield_local import sig_marks
+    for pi, p in enumerate(POS):
+        for ei, e in enumerate(EPOCHS):
+            x0 = pi + (ei - 1) * 0.25
+            dd = d[(d.pos == p) & (d.epoch == e)]
+            rng = np.random.default_rng(pi * 10 + ei)
+            for a_, g in dd.groupby("animal"):
+                ax.scatter(x0 + rng.uniform(-0.07, 0.07, len(g)), g.chg, s=8, marker=mk.get(a_, "o"),
+                           facecolors="none", edgecolors=ep_col[e], linewidths=0.6, alpha=0.7)
+            rr = r[(r.pos == p) & (r.epoch == e)]
+            if len(rr):
+                rr = rr.iloc[0]
+                ax.errorbar(x0, rr.boot_change, yerr=[[rr.boot_change - rr.boot_lo], [rr.boot_hi - rr.boot_change]],
+                            fmt="_", color="k", ms=9, lw=1.1, capsize=0, zorder=5)
+                if rr.star_aligned:
+                    sig_marks.star_top(ax, x0, "*", fontsize=11)
+    ax.axhline(0, color="0.5", lw=0.7, ls="--")
+    ax.axvline(2.5, color="0.85", lw=0.7)
+    ax.set_xticks(range(6))
+    ax.set_xticklabels(["close\nipsi", "close\nmid", "close\ncontra", "far\nipsi", "far\nmid", "far\ncontra"], fontsize=7)
+    if title:
+        ax.set_title(title, fontsize=9)
+    if ylab:
+        ax.set_ylabel(ylab, fontsize=8.5)
+    ax.spines["right"].set_visible(False)
+
+
+def grid_figures(out: Path, C: pd.DataFrame, G: pd.DataFrame):
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
+    from wfield_local import sig_marks
+    ep_col = {"acute": "#d62728", "subacute": "#ff7f0e", "chronic": "#1f77b4"}
+    mk = {"PS92": "o", "PS93": "s", "PS94": "^", "PS95": "D"}
+    unit = {"speed": "peak 3-D speed change (mm/s)", "reach": "peak 3-D reach change (mm)"}
+    h = [Line2D([], [], ls="", marker="o", mfc="none", mec=c, label=e) for e, c in ep_col.items()]
+    h += [Line2D([], [], ls="", marker=m, mfc="none", mec="0.3", label=f"#{9 + k}") for k, m in enumerate(mk.values())]
+    note = ("change from own pre (mice #9-#12, four-camera post-cue licks); bar = nested bootstrap mean and 95% CI, "
+            "4,000 draws; * = 180-cell family q < 0.05 and CI excludes 0")
+
+    def data(ms, ls, sm):
+        d = G[(G.measure == ms) & (G.lickset == ls) & (G.summary == sm)]
+        d = _chg(d, "value", _nrule(ms, ls), "n")
+        return d[d.epoch.isin(EPOCHS)], C[(C.measure == ms) & (C.lickset == ls) & (C.summary == sm)]
+
+    def finish(fig, png):
+        sig_marks.reserve_headroom(fig)
+        fig.legend(handles=h, loc="lower center", ncol=7, fontsize=8, frameon=False)
+        fig.tight_layout(rect=(0, 0.035, 1, 0.95))
+        fig.savefig(png, dpi=200)
+        fig.savefig(png.with_suffix(".pdf"))
+        plt.close(fig)
+        print("wrote", png)
+
+    # 1) the comparison: rows speed / reach, columns median all / mean all / mean 1-5 / median 1-5
+    png = out / "sixpos_first5_comparison.png"
+    if png.exists():
+        sys.exit(f"refusing to overwrite {png}")
+    cols = (("all", "median", "median, all licks (old production)"), ("all", "mean", "mean, all licks (production)"),
+            ("first5", "mean", "mean, licks 1-5 (candidate)"), ("first5", "median", "median, licks 1-5 (candidate)"))
+    fig, axes = plt.subplots(2, 4, figsize=(17, 7.2), sharey="row")
+    for i, ms in enumerate(("speed", "reach")):
+        for j, (ls, sm, t) in enumerate(cols):
+            d, r = data(ms, ls, sm)
+            _panel(axes[i, j], d, r, t if i == 0 else None, unit[ms] if j == 0 else None, ep_col, mk)
+    fig.suptitle("Six-position peak 3-D speed and reach, " + note, fontsize=8.5)
+    finish(fig, png)
+    # 2) the full grid, one figure per measure: rows lick set, columns summary
+    for ms in ("speed", "reach"):
+        png = out / f"sixpos_grid_{ms}.png"
+        if png.exists():
+            sys.exit(f"refusing to overwrite {png}")
+        fig, axes = plt.subplots(3, 3, figsize=(14, 10), sharey="row")
+        for i, ls in enumerate(LICKSETS):
+            for j, sm in enumerate(SUMMARIES):
+                ax = axes[i, j]
+                if ls == "first" and sm == "trialmed":
+                    ax.axis("off")
+                    ax.text(0.5, 0.5, "first lick: one lick per trial,\nno per-trial median", ha="center",
+                            va="center", fontsize=9, color="0.4", transform=ax.transAxes)
+                    continue
+                d, r = data(ms, ls, sm)
+                _panel(ax, d, r, SUMMARY_NAME[sm] if i == 0 else None,
+                       f"{LICKSET_NAME[ls]}\n{unit[ms]}" if j == 0 else None, ep_col, mk)
+        fig.suptitle(f"Six-position peak 3-D {ms}: lick set x session summary; " + note, fontsize=8.5)
+        finish(fig, png)
 
 
 def _chg(S: pd.DataFrame, val: str, nmin: int | None, ncol: str) -> pd.DataFrame:
@@ -217,7 +437,10 @@ def stage_final(out: Path):
     sp, rc = S[S.endpoint == "speed_all"], S[S.endpoint == "reach_all"]
     spec = {"mean_all": {"speed_all": ("mean_all", NMIN, "n_all"), "reach_all": ("mean_all", None, None)},
             "mean_first5": {"speed_all": ("mean_first5", NMIN, "n_first5"),
-                            "reach_all": ("mean_first5", NMIN, "n_first5")}}
+                            "reach_all": ("mean_first5", NMIN, "n_first5")},
+            # 11-23 late (Priya): session MEDIAN over licks 1-5, same lick set / minimum / family
+            "median_first5": {"speed_all": ("median_first5", NMIN, "n_first5"),
+                              "reach_all": ("median_first5", NMIN, "n_first5")}}
     keep = ["metric", "pos", "epoch", "n_sessions", "n_pre_sessions", "n_animals", "mean_change", "p", "boot_change",
             "boot_lo", "boot_hi", "q_fdr_metric", "q_family", "boot_sig", "agree", "star_aligned"]
     fams = {}
@@ -238,14 +461,15 @@ def stage_final(out: Path):
         print(f"final-family reproduction {c}: max |diff| {np.nanmax(np.abs(a[c] - a[c + '_f0'])):.3g}")
     print("final-family reproduction star mismatches:", int((a.star_aligned != a.star_aligned_f0).sum()),
           "; stars", int(a.star_aligned.sum()), "vs", int(a.star_aligned_f0.sum()), "cells", len(a), len(F0))
-    f5, fa = fams["mean_first5"], fams["mean_all"]
-    oth = f5[~f5.metric.isin(["speed_all", "reach_all"])].merge(
-        fa[["metric", "pos", "epoch", "star_aligned"]], on=["metric", "pos", "epoch"], suffixes=("", "_meanall"))
-    print("other endpoints: star flips first5 vs mean-all family:",
-          int((oth.star_aligned != oth.star_aligned_meanall).sum()))
-    C = pd.concat([P0[P0.metric.isin(["speed_all", "reach_all"])].assign(variant="prod_median_all")[["variant"] + keep],
-                   fa[fa.metric.isin(["speed_all", "reach_all"])][["variant"] + keep],
-                   f5[f5.metric.isin(["speed_all", "reach_all"])][["variant"] + keep]], ignore_index=True)
+    fa = fams["mean_all"]
+    for v in ("mean_first5", "median_first5"):
+        oth = fams[v][~fams[v].metric.isin(["speed_all", "reach_all"])].merge(
+            fa[["metric", "pos", "epoch", "star_aligned"]], on=["metric", "pos", "epoch"], suffixes=("", "_meanall"))
+        print(f"other endpoints: star flips {v} vs mean-all family:",
+              int((oth.star_aligned != oth.star_aligned_meanall).sum()))
+    C = pd.concat([P0[P0.metric.isin(["speed_all", "reach_all"])].assign(variant="prod_median_all")[["variant"] + keep]]
+                  + [f[f.metric.isin(["speed_all", "reach_all"])][["variant"] + keep] for f in fams.values()],
+                  ignore_index=True)
     W = C.pivot_table(index=["metric", "pos", "epoch"], columns="variant",
                       values=["boot_change", "boot_lo", "boot_hi", "q_family", "star_aligned", "n_sessions"],
                       aggfunc="first")
@@ -254,9 +478,11 @@ def stage_final(out: Path):
     W["pos"] = pd.Categorical(W.pos, POS, ordered=True)
     W["metric"] = pd.Categorical(W.metric, ["speed_all", "reach_all"], ordered=True)
     W = W.sort_values(["metric", "pos", "epoch"]).reset_index(drop=True)
-    for v in ("mean_all", "mean_first5"):
+    for v in ("mean_all", "mean_first5", "median_first5"):
         W[f"flip_{v}_vs_prod"] = W[f"{v}__star_aligned"] - W["prod_median_all__star_aligned"]
     W["flip_first5_vs_mean_all"] = W["mean_first5__star_aligned"] - W["mean_all__star_aligned"]
+    W["flip_median_first5_vs_mean_all"] = W["median_first5__star_aligned"] - W["mean_all__star_aligned"]
+    W["flip_median_first5_vs_mean_first5"] = W["median_first5__star_aligned"] - W["mean_first5__star_aligned"]
     _safe_write(W, out / "sixpos_first5_comparison_final180.csv")
     st_ = {"prod_median_all (162-cell family)": {m: int(P0[P0.metric == m].star_aligned.sum())
                                                  for m in ("speed_all", "reach_all")} | {
@@ -280,8 +506,10 @@ def figure(out: Path, C: pd.DataFrame, S: pd.DataFrame):
     ep_col = {"acute": "#d62728", "subacute": "#ff7f0e", "chronic": "#1f77b4"}
     mk = {"PS92": "o", "PS93": "s", "PS94": "^", "PS95": "D"}
     vals = {"prod_median_all": ("median_all", NMIN, "n_all", None), "mean_all": ("mean_all", NMIN, "n_all", None),
-            "mean_first5": ("mean_first5", NMIN, "n_first5", NMIN)}
-    fig, axes = plt.subplots(2, 3, figsize=(13, 7.2), sharey="row")
+            "mean_first5": ("mean_first5", NMIN, "n_first5", NMIN),
+            "median_first5": ("median_first5", NMIN, "n_first5", NMIN)}
+    vals = {k: v for k, v in vals.items() if k in set(C.variant)}
+    fig, axes = plt.subplots(2, len(vals), figsize=(4.4 * len(vals), 7.2), sharey="row")
     for i, (metric, unit) in enumerate((("speed_all", "peak 3-D speed change (mm/s)"),
                                         ("reach_all", "peak 3-D reach change (mm)"))):
         src = S[S.endpoint == metric]
@@ -342,7 +570,7 @@ def figure(out: Path, C: pd.DataFrame, S: pd.DataFrame):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("stage", choices=["ids", "summ", "stats", "final", "all"])
+    ap.add_argument("stage", choices=["ids", "summ", "stats", "final", "grid", "all"])
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--jobs", type=int, default=4)
     a = ap.parse_args(argv)
@@ -355,6 +583,8 @@ def main(argv=None):
         stage_stats(a.out)
     if a.stage in ("final", "all"):
         stage_final(a.out)
+    if a.stage == "grid":
+        stage_grid(a.out)
 
 
 if __name__ == "__main__":

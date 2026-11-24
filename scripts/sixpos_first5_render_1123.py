@@ -45,9 +45,9 @@ def main(argv=None):
     S.apply() if hasattr(S, "apply") else None
 
     def draw(sx, fam_rows, col, ncol, ylab, stem, suffix, out):
-        for x in ("pdf", "svg", "png"):
-            if (out / f"{stem}{suffix}.{x}").exists():
-                sys.exit(f"refusing to overwrite {out / f'{stem}{suffix}.{x}'}")
+        if any((out / f"{stem}{suffix}.{x}").exists() for x in ("pdf", "svg", "png")):
+            print("exists, skipped (never overwritten):", out / f"{stem}{suffix}")
+            return
         V.SUFFIX = suffix
         dd = R.lick3d_changes(sx, col, ncol)
         R.check_n(dd, fam_rows, stem)
@@ -64,12 +64,20 @@ def main(argv=None):
          "C2_speed_all", "_stylecheck", a.check_dir)
 
     S_ = pd.read_csv(a.dir / "sixpos_first5_session_summary.csv")
-    F = pd.read_csv(a.dir / "c2_scalar_family_mean_first5_boot4000_cam3on.csv")
-    for metric, stem, ylab in (("speed_all", "C2_speed_licks15_onsetpeak", "peak speed,\nlicks 1-5 (Δ mm/s)"),
-                               ("reach_all", "C2_reach_licks15", "3D reach,\nlicks 1-5 (Δ mm)")):
-        sx = S_[S_.endpoint == metric].copy()
-        sx["pos"] = sx.position.map(M.POS3)
-        draw(sx, F[F.metric == metric].copy(), "mean_first5", "n_first5", ylab, stem, SUFFIX, a.dir)
+    # (session column, family file, panels): mean licks 1-5 = the first candidate; median licks 1-5 = 11-23 late
+    # (Priya), stars from the grid's 180-cell family with the median licks 1-5 cells. Existing files are skipped.
+    jobs = (("mean_first5", "c2_scalar_family_mean_first5_boot4000_cam3on.csv",
+             (("speed_all", "C2_speed_licks15_onsetpeak", "peak speed,\nlicks 1-5 (Δ mm/s)"),
+              ("reach_all", "C2_reach_licks15", "3D reach,\nlicks 1-5 (Δ mm)"))),
+            ("median_first5", "c2_scalar_family_grid_first5_median_final180_boot4000_cam3on.csv",
+             (("speed_all", "C2_speed_licks15_median", "peak speed, licks 1-5\nmedian (Δ mm/s)"),
+              ("reach_all", "C2_reach_licks15_median", "3D reach, licks 1-5\nmedian (Δ mm)"))))
+    for col, fam, panels in jobs:
+        F = pd.read_csv(a.dir / fam)
+        for metric, stem, ylab in panels:
+            sx = S_[S_.endpoint == metric].copy()
+            sx["pos"] = sx.position.map(M.POS3)
+            draw(sx, F[F.metric == metric].copy(), col, "n_first5", ylab, stem, SUFFIX, a.dir)
 
 
 if __name__ == "__main__":
