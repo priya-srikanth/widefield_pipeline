@@ -186,7 +186,7 @@ def lick_set() -> pd.DataFrame:
     P = pd.read_csv(lo.preds_path())
     P["k"] = P.groupby(["set", "label"]).cumcount()
     P = P[P.set == "iti"].copy()
-    C = pd.read_csv(OUT / f"covref_covariates{lo.SRC_TAG}.csv.gz", usecols=["set", "label", "k", "t", "reach_mm", "side_k"])
+    C = pd.read_csv(il.in_path_x(f"covref_covariates{lo.SRC_TAG}.csv.gz"), usecols=["set", "label", "k", "t", "reach_mm", "side_k"])
     P = P.merge(C, on=["set", "label", "k"], how="left", validate="one_to_one")
     res, fail = ak.fan_sessions(sorted(P.label.unique()), lrm._gaps, jobs=_RUN["jobs"])
     if fail:
