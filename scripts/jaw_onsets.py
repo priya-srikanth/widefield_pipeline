@@ -78,6 +78,41 @@ CENTRE = ("close_center", "far_center")
 #: 0.20 mm (Priya 11-22, after the blind check docs/status/JAW3D_BLIND_CHECK_2026-11-22.md: all 5 false positives were
 #: <= 0.22 mm; 0.20 removes 4 / 5 of them and 3 / 23 true calls). Was 0.10 mm (provisional).
 OVERRIDE_3D = {"degenerate_as_unknown": True, "deflection_threshold_min_px": 200.0}
+#: ONSET VARIANTS (CC-B 11-23, Priya "let's try"; ``JAW_ONSET_VARIANT``, default "" = production). Applied to BOTH the
+#: 2-D cameras and the 3-D call; tables of a variant go to a NEW file (--out) and their own cache (--cache-dir):
+#:   "mad"  pre-cue noise = 1.4826 x MAD around the median (`jaw_kinematics.BASELINE_NOISE`)
+#:   "cap"  the 4 x sd term capped at CAP_MULT x the floor (cam4 10 px, cam1 37.5 px, 3-D 0.50 mm)
+#: The 3-D re-onset (``jaw3d_reonset_ms``, same rule as the 2-D re-onset) is written in every mode; whether the classes
+#: use it is `trial_classes.jaw_call`'s ``reonset3d`` option.
+VARIANT_ENV = "JAW_ONSET_VARIANT"
+VARIANTS = ("", "mad", "cap")
+CAP_MULT = 2.5
+
+
+def lean() -> bool:
+    """``JAW_ONSETS_LEAN=1`` (variant tables, 11-23): skip the DAQ treadmill read and the 3-D NOSE (their columns
+    stay NaN); every jaw column is computed exactly as in a full run (checked against production)."""
+    import os
+    return os.environ.get("JAW_ONSETS_LEAN", "").strip() in ("1", "true")
+
+
+def variant() -> str:
+    import os
+    v = os.environ.get(VARIANT_ENV, "").strip().lower()
+    if v not in VARIANTS:
+        raise ValueError(f"{VARIANT_ENV}={v!r}: one of {VARIANTS}")
+    return v
+
+
+def with_variant(ov: dict, v: str | None = None) -> dict:
+    """``ov`` (an OVERRIDES entry or OVERRIDE_3D) with the onset variant applied."""
+    v = variant() if v is None else v
+    if v == "mad":
+        return {**ov, "baseline_noise": "mad"}
+    if v == "cap":
+        from wfield_local import jaw_kinematics as jk
+        return {**ov, "noise_cap": CAP_MULT * float(jk.params(ov)["deflection_threshold_min_px"])}
+    return ov
 
 
 def _laid_out(y: np.ndarray, idx: pd.DataFrame) -> tuple[np.ndarray, pd.DataFrame, np.ndarray]:
@@ -101,7 +136,7 @@ def _laid_out(y: np.ndarray, idx: pd.DataFrame) -> tuple[np.ndarray, pd.DataFram
 def _camera(y: np.ndarray, idx: pd.DataFrame, cam: str) -> pd.DataFrame:
     from wfield_local import jaw_kinematics as jk
     trace, trials, src = _laid_out(y, idx)
-    O = jk.jaw_onsets(trace, FPS, trials, OVERRIDES[cam])
+    O = jk.jaw_onsets(trace, FPS, trials, with_variant(OVERRIDES[cam]))
     td = idx.t_daq_ms.to_numpy(float)
     for col, ic in (("onset_ms", "onset_idx"), ("reonset_ms", "reonset_idx")):
         row = np.where(O[ic] >= 0, src[np.clip(O[ic], 0, None)], -1)
@@ -148,12 +183,13 @@ def _threed(s: str, root_d: str) -> pd.DataFrame | None:
     if not f.exists():
         return None
     blank = centre_blanked()
-    cols = ["trial_id", "position", "t_ms", "stop_ms", "t_daq_ms"] + [f"{p}_{a}" for p in ("jaw", "nose")
+    parts = ("jaw",) if lean() else ("jaw", "nose")
+    cols = ["trial_id", "position", "t_ms", "stop_ms", "t_daq_ms"] + [f"{p}_{a}" for p in parts
                                                                      for a in ("ml", "ap", "dv")]
     F = pd.read_csv(f, usecols=cols).drop_duplicates(["trial_id", "t_ms"]).sort_values(["trial_id", "t_ms"])
     F = F.reset_index(drop=True)
     out = {}
-    for part in ("jaw", "nose"):
+    for part in parts:
         X = F[[f"{part}_ml", f"{part}_ap", f"{part}_dv"]].to_numpy(float)
         dist = np.full(len(F), np.nan)
         rows = []
@@ -181,17 +217,20 @@ def _threed(s: str, root_d: str) -> pd.DataFrame | None:
         if f"{part}3d_disp_mm" not in R:
             R[f"{part}3d_disp_mm"] = np.nan
         trace, trials, src = _laid_out(dist, F[["trial_id", "position", "t_ms", "stop_ms", "t_daq_ms"]])
-        O = jk.jaw_onsets(trace, FPS, trials, OVERRIDE_3D)
-        row = np.where(O["onset_idx"] >= 0, src[np.clip(O["onset_idx"], 0, None)], -1)
-        O["onset_ms"] = np.where(row >= 0, F.t_daq_ms.to_numpy(float)[np.clip(row, 0, None)], np.nan)
+        O = jk.jaw_onsets(trace, FPS, trials, with_variant(OVERRIDE_3D))
+        for col, ic in (("onset_ms", "onset_idx"), ("reonset_ms", "reonset_idx")):
+            row = np.where(O[ic] >= 0, src[np.clip(O[ic], 0, None)], -1)
+            O[col] = np.where(row >= 0, F.t_daq_ms.to_numpy(float)[np.clip(row, 0, None)], np.nan)
         O = O.set_index(trials.trial_id.to_numpy())
         has = R[f"{part}3d_disp_mm"].notna()
         R[f"{part}3d_moved"] = O.jaw_pass_qc.reindex(R.index).where(has)
         R[f"{part}3d_onset_ms"] = O.onset_ms.reindex(R.index).where(has & (R[f"{part}3d_moved"] == 1))
         # the 3-D movement was already under way at the cue frame (as the per-camera ``onset_at_cue``)
         R[f"{part}3d_at_cue"] = (O.onset_frames.reindex(R.index) == 0) & has & (R[f"{part}3d_moved"] == 1)
+        # 11-23 (appended): the 3-D RE-ONSET of an at-cue trial, the 2-D re-onset rule (`jaw_kinematics.jaw_onsets`)
+        R[f"{part}3d_reonset_ms"] = O.reonset_ms.reindex(R.index).where(R[f"{part}3d_at_cue"])
         out[part] = R
-    return out["jaw"].join(out["nose"], how="outer")
+    return out["jaw"] if lean() else out["jaw"].join(out["nose"], how="outer")
 
 
 def _treadmill(a: str, d: str, ix4: pd.DataFrame) -> pd.DataFrame:
@@ -229,9 +268,12 @@ def session(job) -> pd.DataFrame:
     inputs = [sd / "windows.npz", sd / "clean.npz", d1 / "windows_index.csv", d1 / "windows_LP.csv"] + \
         ([Path(h5)] if h5 else []) + [pose3d_dir(root=root_d) / f"{s}_frames.csv.gz"]
     from wfield_local.pose3d import pose3d_source
-    ver = result_cache.code_version(jaw_kinematics, sys.modules[__name__], extra=pose3d_source())
-    return result_cache.cached(Path(root_o) / run / "imaging_encoding" / "qc" / "_cache" / "jaw_onsets", s, inputs, ver,
-                               lambda: _session(job))
+    ver = result_cache.code_version(jaw_kinematics, sys.modules[__name__],
+                                    extra=pose3d_source() + (f"|{variant()}" if variant() else "")
+                                    + ("|lean" if lean() else ""))
+    import os
+    cdir = os.environ.get("JAW_ONSETS_CACHE_DIR") or (Path(root_o) / run / "imaging_encoding" / "qc" / "_cache" / "jaw_onsets")
+    return result_cache.cached(Path(cdir), s, inputs, ver, lambda: _session(job))
 
 
 def _session(job) -> pd.DataFrame:
@@ -298,6 +340,8 @@ def _session(job) -> pd.DataFrame:
     up = np.where(oc == "cam4", out.cam4_up_px, out.cam1_up_px)
     out["jaw_dir"] = np.where(oc == "", "", np.where(op >= up, "open", "up"))
     try:
+        if lean():
+            raise RuntimeError("lean run: no treadmill")
         T = _treadmill(a, d, ix4).set_index("trial_id")
         out["tread_pre_mm_s"] = out.trial_id.map(T.tread_pre_mm_s)
         out["tread_post_mm_s"] = out.trial_id.map(T.tread_post_mm_s)
@@ -306,7 +350,8 @@ def _session(job) -> pd.DataFrame:
     # APPENDED 10-23: 3-D jaw / nose (descriptive; module docstring)
     T3 = _threed(s, root_d)
     for part in ("jaw", "nose"):
-        for c in ("disp_mm", "rest_mm", "down_mm", "up_mm", "back_mm", "side_ipsi_mm", "moved", "onset_ms", "at_cue"):
+        for c in ("disp_mm", "rest_mm", "down_mm", "up_mm", "back_mm", "side_ipsi_mm", "moved", "onset_ms", "at_cue",
+                  "reonset_ms"):
             col = f"{part}3d_{c}"
             out[col] = out.trial_id.map(T3[col]) if T3 is not None and col in T3 else np.nan
     out["jaw3d_at_cue"] = out.jaw3d_at_cue.fillna(False).astype(bool)
@@ -329,7 +374,13 @@ def main(argv=None) -> int:
                                                  "gets the table (default: lp_licks.input_run() = the adopted run)")
     ap.add_argument("--out", type=Path, default=None, help="write here instead (checks; the default file is WATCHED)")
     ap.add_argument("--force", action="store_true", help="overwrite an existing output file (refused otherwise)")
+    ap.add_argument("--cache-dir", type=Path, default=None, help="result cache folder (a variant run: its own)")
     a = ap.parse_args(argv)
+    import os
+    if a.cache_dir:
+        os.environ["JAW_ONSETS_CACHE_DIR"] = str(a.cache_dir)
+    if variant() and (a.out is None or a.cache_dir is None):
+        raise SystemExit(f"{VARIANT_ENV}={variant()}: needs --out <new file> and --cache-dir (never the production table)")
     from wfield_local import lp_licks
     from wfield_local import orofacial_outputs as oo
     run = a.run or lp_licks.input_run()

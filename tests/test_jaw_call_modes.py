@@ -42,3 +42,13 @@ def test_2d_mode():
 def test_bad_mode():
     with pytest.raises(ValueError):
         TC.jaw_call(_j(), POS, "x")
+
+
+def test_reonset3d_option():
+    """11-23 (Priya "let's try"): an at-cue 3-D movement takes its 3-D re-onset when reonset3d is on; default off."""
+    j = _j().assign(jaw3d_reonset_ms=[np.nan, np.nan, 340.0, np.nan])
+    off = TC.jaw_call(j, POS, "3d")
+    on = TC.jaw_call(j, POS, "3d", reonset3d=True)
+    assert np.isnan(off["jaw_onset_ms"][2]) and not off["judged"][2]
+    assert on["jaw_onset_ms"][2] == 340.0 and on["judged"][2]
+    assert np.allclose(on["jaw_onset_ms"][[0, 1]], [110.0, 200.0])

@@ -28,6 +28,7 @@ QC = Path("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__cle
 
 
 def session_job(label: str) -> pd.DataFrame | None:
+    """One session under the onset variant of ``JAW_ONSET_VARIANT`` ("" = production; `jaw_onsets.with_variant`)."""
     from scripts import jaw_onsets as jo
     from wfield_local import jaw_kinematics as jk
     a, d = label.split("_")
@@ -52,13 +53,14 @@ def session_job(label: str) -> pd.DataFrame | None:
         dist[k] = dd * 1000.0
         has[int(tid)] = float(np.percentile(dd[win & ok], 95))
     trace, trials, src = jo._laid_out(dist, F[["trial_id", "position", "t_ms", "stop_ms", "t_daq_ms"]])
-    O = jk.jaw_onsets(trace, jo.FPS, trials, jo.OVERRIDE_3D)
+    ov = jo.with_variant(jo.OVERRIDE_3D)
+    O = jk.jaw_onsets(trace, jo.FPS, trials, ov)
     td = F.t_daq_ms.to_numpy(float)
     for col, ic in (("onset_ms", "onset_idx"), ("reonset_ms", "reonset_idx")):
         row = np.where(O[ic] >= 0, src[np.clip(O[ic], 0, None)], -1)
         O[col] = np.where(row >= 0, td[np.clip(row, 0, None)], np.nan)
     # baseline / threshold / peak per trial, from the same snippet geometry as jaw_onsets
-    p = jk._resolve(jo.OVERRIDE_3D)
+    p = jk._resolve(ov)
     extra = []
     for r in jk._iter_trials(trials):
         stop_ms = jk.TW.stop_ms_of(r.cue_frame, r.stop_frame, jo.FPS)
@@ -68,8 +70,10 @@ def session_job(label: str) -> pd.DataFrame | None:
         t_ms = np.arange(-pre_f, post_f + 1) * (1000.0 / jo.FPS)
         c = jk.cue_frame_index(r.cue_frame)
         yw = np.full(pre_f + post_f + 1, np.nan) if c is None else jk._snippet(trace, c, pre_f, post_f, len(trace))
-        bm, bs = jk._compute_jaw_baseline(yw, t_ms, baseline_win_ms=p["baseline_win_ms"])
-        thr, term = jk._compute_jaw_threshold(bs, sd_mult=p["sd_mult"], min_px=p["min_px"])
+        bm, bs = jk._onset_baseline(yw, t_ms, p)
+        thr = jk.onset_threshold(bs, p)
+        term = ("px_floor" if thr <= p["min_px"] else "capped" if (p.get("noise_cap") is not None
+                and np.isfinite(bs) and p["sd_mult"] * bs > p["noise_cap"]) else "sd_scaled")
         m = jk._window_mask(t_ms, det) & np.isfinite(yw)
         peak = float(np.nanmax(np.abs(yw[m] - bm))) if m.any() and np.isfinite(bm) else np.nan
         extra.append({"trial_id": r.trial_id, "base_sd_um": bs, "thr_um": thr, "thr_term": term, "peak_um": peak})
@@ -106,7 +110,9 @@ def main(argv=None) -> int:
         print(f"{s}: FAILED {e}")
     T = pd.concat([r for _, r in res if r is not None], ignore_index=True)
     OUT.mkdir(parents=True, exist_ok=True)
-    name = "jaw3d_reonset_trials" + ("_subset" if a.labels else "") + ".csv.gz"
+    from scripts import jaw_onsets as jo
+    v = jo.variant()
+    name = "jaw3d_reonset_trials" + (f"_{v}" if v else "") + ("_subset" if a.labels else "") + ".csv.gz"
     T.to_csv(OUT / name, index=False, float_format="%.4g")
     print(f"{len(T)} trials, {T.label.nunique()} sessions -> {OUT / name}")
     return 0

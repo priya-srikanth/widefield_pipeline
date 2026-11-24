@@ -146,12 +146,13 @@ def jaw_table(path: str) -> pd.DataFrame:
     """`jaw_onsets.csv`, indexed by (session = "PS92_20260818", trial_id): cam4_moved / cam1_moved (1 / 0 / NaN = not
     judged), onset_at_cue (the jaw was already moving at the cue), jaw_reonset_ms (its next movement, if any)."""
     want = ["session", "trial_id", "cam4_moved", "cam1_moved", "jaw_onset_ms", "onset_at_cue", "jaw_reonset_ms",
-            "jaw3d_moved", "jaw3d_onset_ms", "jaw3d_at_cue", "jaw3d_source"]
+            "jaw3d_moved", "jaw3d_onset_ms", "jaw3d_at_cue", "jaw3d_source", "jaw3d_reonset_ms"]
     J = pd.read_csv(path, low_memory=False, usecols=lambda c: c in want)
     if "jaw_reonset_ms" not in J:
         J["jaw_reonset_ms"] = np.nan
     # 3-D jaw call (11-22, Q5): present only in jaw_onsets tables written since; absent = the per-camera rule alone
-    for c, v in (("jaw3d_moved", np.nan), ("jaw3d_onset_ms", np.nan), ("jaw3d_at_cue", False), ("jaw3d_source", "")):
+    for c, v in (("jaw3d_moved", np.nan), ("jaw3d_onset_ms", np.nan), ("jaw3d_at_cue", False), ("jaw3d_source", ""),
+                 ("jaw3d_reonset_ms", np.nan)):
         if c not in J:
             J[c] = v
     J["jaw3d_moved"] = pd.to_numeric(J.jaw3d_moved.replace({"True": 1, "False": 0, True: 1, False: 0}),
@@ -184,7 +185,19 @@ def class_jaw_mode(jaw: str | None = None) -> str:
     return v
 
 
-def jaw_call(j: pd.DataFrame, position, mode: str = "classes") -> dict:
+def class_reonset3d(flag: bool | None = None) -> bool:
+    """Whether the classes take the 3-D RE-ONSET of a jaw already moving at the cue (``jaw_call(reonset3d=...)``):
+    ``flag`` if given, else ``WIDEFIELD_JAW_REONSET3D`` (1 / true), else False (production)."""
+    import os as _os
+    if flag is not None:
+        return bool(flag)
+    return _os.environ.get(JAW_REONSET3D_ENV, "").strip().lower() in ("1", "true", "yes")
+
+
+JAW_REONSET3D_ENV = "WIDEFIELD_JAW_REONSET3D"
+
+
+def jaw_call(j: pd.DataFrame, position, mode: str = "classes", reonset3d: bool = False) -> dict:
     """THE per-trial jaw call from `jaw_table` rows ``j`` (one row per trial, aligned with ``position``): one definition
     for `session_trials` and every consumer that needs a jaw onset (e.g. `scripts/revup_behaviour.py`; 11-23).
     Returns arrays jaw_cam4 / jaw_cam1 / jaw_3d (1 / 0 / NaN), jaw_at_cue, jaw_onset_ms (the onset, or the re-onset
@@ -199,7 +212,9 @@ def jaw_call(j: pd.DataFrame, position, mode: str = "classes") -> dict:
     jaw_judged False). Elsewhere the per-camera calls stay the classifier (blind-reviewed 10-21). A 3-D movement
     already under way at the cue has no 3-D re-onset, so that trial is unknown, as at-cue trials without a re-onset
     are at every other spout. ``mode="3d"`` applies the 3-D branch at every spout (per-camera calls masked);
-    ``mode="2d"`` never uses it."""
+    ``mode="2d"`` never uses it. ``reonset3d`` (CC-B 11-23, Priya "let's try"; default False = production): a 3-D
+    movement already under way at the cue takes its 3-D RE-ONSET (``jaw3d_reonset_ms`` of jaw_onsets.csv, the 2-D
+    re-onset rule) instead of making the trial unknown, exactly as the per-camera calls do."""
     if mode not in JAW_MODES:
         raise ValueError(f"jaw_call mode {mode!r}: one of {JAW_MODES}")
     n = len(j)
@@ -218,9 +233,12 @@ def jaw_call(j: pd.DataFrame, position, mode: str = "classes") -> dict:
            else np.full(n, np.nan))
     where3 = {"classes": hidden, "3d": np.ones(n, bool), "2d": np.zeros(n, bool)}[mode]
     use3 = where3 & (src3 == "4cam") & np.isfinite(j3)
+    re3 = (pd.to_numeric(j["jaw3d_reonset_ms"], errors="coerce").to_numpy(float)
+           if (reonset3d and "jaw3d_reonset_ms" in j) else np.full(n, np.nan))
     at_cue = np.where(use3, at3, at_cue)
-    onset = np.where(use3, np.where(at3, np.nan, on3), np.where(mask2d, np.nan, np.where(at_cue, reon, on)))
-    judged = (((~np.isnan(jaw_cam4)) | (~np.isnan(jaw_cam1))) & (~at_cue | np.isfinite(reon))) | (use3 & ~at3)
+    onset = np.where(use3, np.where(at3, re3, on3), np.where(mask2d, np.nan, np.where(at_cue, reon, on)))
+    judged = ((((~np.isnan(jaw_cam4)) | (~np.isnan(jaw_cam1))) & (~at_cue | np.isfinite(reon)))
+              | (use3 & (~at3 | np.isfinite(re3))))
     return {"jaw_cam4": jaw_cam4, "jaw_cam1": jaw_cam1, "jaw_3d": np.where(use3, j3, np.nan), "jaw_at_cue": at_cue,
             "jaw_onset_ms": onset, "judged": judged, "hidden": hidden, "use3": use3}
 
@@ -314,7 +332,7 @@ def _pre_cue_contacts(animal: str, date: str, times: pd.DataFrame) -> set:
 def session_trials(label: str, window: str = DEFAULT_WINDOW, v36: Path | str | None = None,
                    c1: Path | str | None = None, jaw_csv: Path | str | None = None,
                    licks: str | None = None, frame_gate: bool | None = None,
-                   jaw: str | None = None) -> pd.DataFrame | None:
+                   jaw: str | None = None, reonset3d: bool | None = None) -> pd.DataFrame | None:
     """EVERY trial of one session (no engagement filter) with its class and the evidence behind it.
 
     label "PS92_0818" or "PS92_20260818". Returns None when the session has no v36 video outputs (no camera-defined
@@ -422,7 +440,7 @@ def session_trials(label: str, window: str = DEFAULT_WINDOW, v36: Path | str | N
         j = pd.DataFrame(index=t.to_numpy(), columns=["cam4_moved", "cam1_moved", "jaw_onset_ms", "onset_at_cue",
                                                       "jaw_reonset_ms"], dtype=float)
     jaw_mode = class_jaw_mode(jaw)
-    jc = jaw_call(j, T.position.to_numpy(), mode=jaw_mode)
+    jc = jaw_call(j, T.position.to_numpy(), mode=jaw_mode, reonset3d=class_reonset3d(reonset3d))
     hidden, use3, judged = jc["hidden"], jc["use3"], jc["judged"]
     for c in ("jaw_cam4", "jaw_cam1", "jaw_3d", "jaw_at_cue", "jaw_onset_ms"):
         T[c] = jc[c]
@@ -797,7 +815,7 @@ def class_source_signature(v36: Path | str | None = None, c1: Path | str | None 
     import sys
     v36, c1 = _paths(v36, c1)
     from wfield_local import session_licks as SL
-    key = (str(v36), str(c1), SL.signature(), class_jaw_mode())
+    key = (str(v36), str(c1), SL.signature(), class_jaw_mode(), class_reonset3d())
     if key not in _CLASS_SIG:
         h = hashlib.sha1()
 
@@ -817,6 +835,8 @@ def class_source_signature(v36: Path | str | None = None, c1: Path | str | None 
         stat(_jaw_csv(v36))
         if class_jaw_mode() != DEFAULT_JAW_MODE:      # non-default class jaw mode (11-23); default keys unchanged
             h.update(f"jaw={class_jaw_mode()};".encode())
+        if class_reonset3d():
+            h.update(b"reonset3d;")
         # + the fused four-camera train when it is the lick set (11-22; "" on the legacy source, keys unchanged)
         if SL.signature():
             h.update(SL.signature().encode())

@@ -110,6 +110,79 @@ def twod_job(label: str) -> pd.DataFrame | None:
     return pd.DataFrame(out, columns=["label", "trial_id", "position", "cam", "window", "moved"])
 
 
+def variant_job(label: str) -> pd.DataFrame | None:
+    """Pseudo-cue / real windows at the PRODUCTION floors under every onset variant ("" / mad / cap,
+    `jaw_onsets.with_variant`), for the 3-D call and the two 2-D cameras, with the at-cue flag and whether a re-onset
+    exists, so a class-equivalent call can be formed (at cue: re-onset taken, or the trial unjudged). ``--variants``."""
+    from scripts import jaw_onsets as jo
+    from wfield_local import jaw_kinematics as jk
+    from wfield_local import pose_windows as pw
+    from wfield_local import session_licks as SL
+    from wfield_local.paths import PathResolver
+    rv = PathResolver()
+    a, d = label.split("_")
+    d8 = d if len(d) == 8 else f"2026{d}"
+    sd = Path(rv.root("orofacial")) / "lp_r4_heatmap_20261013__clean_v37_sync60" / "sessions" / a / d8
+    if not (sd / "clean.npz").exists():
+        return None
+    F = None
+    f = P3D / f"{a}_{d8}_frames.csv.gz"
+    if f.exists():
+        F = pd.read_csv(f, usecols=["trial_id", "position", "t_ms", "stop_ms", "t_daq_ms", "jaw_ml", "jaw_ap", "jaw_dv"])
+        F = F.drop_duplicates(["trial_id", "t_ms"]).sort_values(["trial_id", "t_ms"]).reset_index(drop=True)
+    w = np.load(sd / "windows.npz", allow_pickle=False)
+    ix4 = pd.DataFrame({k: w[f"ix_{k}"] for k in ("trial_id", "position", "t_ms", "t_daq_ms", "stop_ms")})
+    y4 = np.load(sd / "clean.npz")["jaw_y"].astype(float)
+    d1 = Path(rv.root("dlc")) / "session_poses" / f"{a}_{d8}_cam1_full"
+    c1 = None
+    if (d1 / "windows_LP.csv").exists():
+        ix1 = pw.index(d1)
+        if "t_daq_ms" in ix1:
+            P = pw.lp(d1)
+            y1 = P[("jaw", "y")].to_numpy(float)
+            y1[P[("jaw", "likelihood")].to_numpy(float) < jo.CAM1_JAW_CUT] = np.nan
+            c1 = (y1, ix1.reset_index(drop=True))
+    L = SL.session_licks(label, include_cam1_only=True)
+    pk = pd.to_numeric(L.t_ms, errors="coerce")
+    pre_lick = set(L.trial_id[(pk >= -1500) & (pk < 0)].astype(int))
+    out = []
+    for wname, shift in WINDOWS.items():
+        jobs = []
+        if F is not None:
+            tt = F.t_ms.to_numpy(float) + shift
+            X = F[["jaw_ml", "jaw_ap", "jaw_dv"]].to_numpy(float)
+            ok_all = np.isfinite(X).all(1)
+            dist = np.full(len(F), np.nan)
+            for _tid, g in F.groupby("trial_id", sort=False):
+                k = g.index.to_numpy()
+                t = tt[k]
+                pre, win = (t >= -500) & (t < 0) & ok_all[k], (t >= 0) & (t <= 1000)
+                if pre.sum() < 20 or (win & ok_all[k]).sum() < max(20, 0.5 * win.sum()):
+                    continue
+                dist[k] = np.linalg.norm(X[k] - np.median(X[k][pre], axis=0), axis=1) * 1000.0
+            idx = F[["trial_id", "position", "t_ms", "stop_ms", "t_daq_ms"]].copy()
+            idx["t_ms"], idx["stop_ms"] = tt, 1000.0
+            jobs.append(("3d", dist, idx, jo.OVERRIDE_3D))
+        cams = [("cam4", y4, ix4)] + ([("cam1", c1[0], c1[1])] if c1 is not None else [])
+        for cam, y, ix in cams:
+            idx = ix[["trial_id", "position", "t_ms", "t_daq_ms", "stop_ms"]].copy()
+            idx["t_ms"] = idx.t_ms.to_numpy(float) + shift
+            idx["stop_ms"] = 1000.0
+            jobs.append((cam, y, idx, jo.OVERRIDES[cam]))
+        for sig, y, idx, ov in jobs:
+            trace, trials, _src = jo._laid_out(y, idx)
+            for v in jo.VARIANTS:
+                O = jk.jaw_onsets(trace, jo.FPS, trials, jo.with_variant(ov, v))
+                for r in O.itertuples():
+                    out.append((label, int(r.trial_id), sig, v or "prod", wname, r.jaw_pass_qc,
+                                bool(r.onset_frames == 0), bool(r.reonset_idx >= 0), int(r.trial_id) in pre_lick))
+    T = pd.DataFrame(out, columns=["label", "trial_id", "signal", "variant", "window", "moved", "at_cue",
+                                   "has_reonset", "precue_lick"])
+    pos = dict(zip(ix4.trial_id.astype(int), ix4.position.astype(str)))
+    T["position"] = T.trial_id.map(pos)
+    return T
+
+
 def main(argv=None) -> int:
     from wfield_local import run_mode as _rm_guard
     _rm_guard.require_default("jaw3d_floor_null")
@@ -118,15 +191,18 @@ def main(argv=None) -> int:
     ap.add_argument("--jobs", type=int, default=5)
     ap.add_argument("--labels", nargs="*", default=None)
     ap.add_argument("--twod", action="store_true", help="the 2-D per-camera calls instead (floor_null_2d_trials)")
+    ap.add_argument("--variants", action="store_true", help="every onset variant, 3-D + 2-D (floor_null_variants)")
     a = ap.parse_args(argv)
     os.environ.setdefault("MKL_THREADING_LAYER", "SEQUENTIAL")
     labels = a.labels or sorted(pd.read_csv(QC / "s1_trial_classes_cue_stop.csv.gz", usecols=["label"]).label.unique())
-    res, fails = ak.fan_sessions(labels, twod_job if a.twod else session_job, jobs=a.jobs)
+    job = variant_job if a.variants else twod_job if a.twod else session_job
+    res, fails = ak.fan_sessions(labels, job, jobs=a.jobs)
     for s, e in fails:
         print(f"{s}: FAILED {e}")
     T = pd.concat([r for _, r in res if r is not None], ignore_index=True)
     OUT.mkdir(parents=True, exist_ok=True)
-    name = ("floor_null_2d_trials" if a.twod else "floor_null_trials") + ("_subset" if a.labels else "") + ".csv.gz"
+    name = (("floor_null_variants" if a.variants else "floor_null_2d_trials" if a.twod else "floor_null_trials")
+            + ("_subset" if a.labels else "") + ".csv.gz")
     T.to_csv(OUT / name, index=False, float_format="%.4g")
     print(f"{len(T)} rows, {T.label.nunique()} sessions -> {OUT / name}")
     return 0
