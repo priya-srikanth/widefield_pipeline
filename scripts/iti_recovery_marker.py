@@ -79,7 +79,7 @@ def _stats(G: pd.DataFrame, beh: dict) -> dict:
 
 def compute() -> dict:
     """Post sessions (G), per-animal correlations (obs) and the permutation table (T); writes recovery_marker.csv."""
-    R = pd.read_csv(il.OUT / "contact_check.csv")
+    R = pd.read_csv(il.in_path_x("contact_check.csv"))
     pre = R[R.epoch == "pre"].groupby(["set", "animal"]).r_all.mean()
     R["r_norm"] = R.r_all / [pre.get((s_, a_), np.nan) for s_, a_ in zip(R.set, R.animal)]
     sd = {}
@@ -120,10 +120,10 @@ def compute() -> dict:
         p = (np.sum(np.abs(diff_null[kind]) >= abs(dm)) + 1) / (N_PERM + 1)
         rows.append({"set": "trial - iti", "kind": kind, "mean_r": round(dm, 3), "p_perm": p})
     T = pd.DataFrame(rows)
-    T.to_csv(il.OUT / f"recovery_marker{TAG}.csv", index=False)
+    T.to_csv(il.OUT_X / f"recovery_marker{TAG}.csv", index=False)
     cmp_ = [pd.read_csv(f).assign(beh=b) for b in BEH_LABEL
-            if (f := il.OUT / f"recovery_marker{'' if b == 'fc_aim' else '_' + b}.csv").exists()]
-    pd.concat(cmp_).to_csv(il.OUT / "recovery_marker_beh_compare.csv", index=False)
+            if (f := il.in_path_x(f"recovery_marker{'' if b == 'fc_aim' else '_' + b}.csv")).exists()]
+    pd.concat(cmp_).to_csv(il.OUT_X / "recovery_marker_beh_compare.csv", index=False)
     pd.set_option("display.width", 200)
     print("== within-animal correlation of frozen-decoder r (/ pre) with " + BEH_LABEL[BEH] + ", post sessions\n"
           + T.to_string(index=False))
@@ -185,7 +185,7 @@ def plot(F: dict) -> None:
                  f"{t_.loc[('trial', 'spread+day'), 'p_perm']:.3f}). p = within-animal permutation of behavior.",
                  fontsize=9.5, wrap=True)
     fig.tight_layout(rect=(0, 0, 1, 0.88))
-    save_png_svg(fig, il.OUT / "figures" / f"lick_recovery_marker{'' if beh == 'fc_aim' else '_' + beh}.png", dpi=110)
+    save_png_svg(fig, il.OUT_X / "figures" / f"lick_recovery_marker{'' if beh == 'fc_aim' else '_' + beh}.png", dpi=110)
     plt.close(fig)
 
 

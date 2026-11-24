@@ -102,7 +102,7 @@ def main(argv=None) -> int:
     assert_writable(run)
     T = session_table(run, a.variant)
     sfx = "" if a.variant == "joint" else f"_{a.variant}"   # one file set per variant (no_fr_dir once overwrote joint)
-    T.to_csv(run / f"residual_trend_sessions{sfx}.csv", index=False)
+    T.to_csv(_fe.fig_out(run) / f"residual_trend_sessions{sfx}.csv", index=False)
     rows = []
     for (an, w, ar), g in T.groupby(["animal", "window", "region"]):
         pre, post = g[g.epoch == "pre"], g[g.epoch != "pre"]
@@ -133,13 +133,13 @@ def main(argv=None) -> int:
                     r["chronic_slope_per_day"], r["chronic_slope_p"] = sl.slope, sl.pvalue
                 rows.append(r)
     R = pd.DataFrame(rows)
-    R.to_csv(run / f"residual_trend{sfx}.csv", index=False)
+    R.to_csv(_fe.fig_out(run) / f"residual_trend{sfx}.csv", index=False)
     pd.set_option("display.width", 250)
     show = R[(R.spout == "far_contra") & (R.region.isin(["SSp-m_left", "SSp-m_right"])) & (R.window == "lick")]
     print(show[["animal", "region", "epoch", "n_post", "pre_slope_per_day", "mean_residual", "trend_pred",
                 "dev_vs_trend", "z_vs_trend", "pi_halfwidth_mean", "dev_vs_flat", "z_vs_flat",
                 "chronic_slope_per_day", "chronic_slope_p"]].round(2).to_string(index=False))
-    fd = run / "figures"
+    fd = _fe.fig_out(run) / "figures"
     fd.mkdir(exist_ok=True)
     for w in WINDOWS:
         fig, axes = plt.subplots(2, 4, figsize=(15, 6.5), sharex=True)
@@ -176,7 +176,7 @@ def main(argv=None) -> int:
         with tst.active(None, text=trial_set_sentence(a.tag, w)):            # this figure's window
             fig.savefig(fd / f"residual_trend{sfx}_{w}.png", dpi=130)
         plt.close(fig)
-    print(f"-> {run / 'residual_trend.csv'}, {fd}/residual_trend_*.png")
+    print(f"-> {_fe.fig_out(run) / 'residual_trend.csv'}, {fd}/residual_trend_*.png")
     return 0
 
 

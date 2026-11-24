@@ -85,7 +85,7 @@ def main(argv=None) -> int:
     R["r_norm"] = R.r / [pre.r.get(k, np.nan) for k in key]
     R["lfl_d"] = R.lfl - [pre.lfl.get(k, np.nan) for k in key]
     sfx = "_unscaled" if unscaled else ""
-    R.to_csv(il.OUT / f"where_3axis{sfx}_sessions.csv", index=False)
+    R.to_csv(il.OUT_X / f"where_3axis{sfx}_sessions.csv", index=False)
     pd.set_option("display.width", 220)
     print(f"== {'UNSCALED' if unscaled else 'Z-SCORED'} features ({il.basis_label()})")
     print("\n== per animal (rule 8): like-for-like offset (same place), change vs pre (mm)")
@@ -101,7 +101,7 @@ def main(argv=None) -> int:
                 tests.append(dict(set=st, axis=ax_, measure=val, epoch=ep, point=ci.point, lo=ci.lo, hi=ci.hi,
                                   n_pos=int((am > 0).sum()), n=int(am.notna().sum())))
     T = pd.DataFrame(tests)
-    T.to_csv(il.OUT / f"where_3axis{sfx}_tests.csv", index=False)
+    T.to_csv(il.OUT_X / f"where_3axis{sfx}_tests.csv", index=False)
     print("\n== change vs pre (paired nested bootstrap); r_norm = r / pre - 1 shown as delta of the ratio; n_pos = animals > pre")
     print(T.round(3).to_string(index=False))
     return 0

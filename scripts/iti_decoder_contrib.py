@@ -124,7 +124,7 @@ def plot(D: dict) -> None:
                  "bars = mean of animals, dots = animals; the 14 areas with the largest chronic contribution per row; "
                  "contributions sum to the shift of the mean decoded position.", fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
-    fig.savefig(il.OUT / "figures" / il.tagged(f"{FIG}.png"), dpi=95)
+    fig.savefig(il.OUT_X / "figures" / il.tagged(f"{FIG}.png"), dpi=95)
     plt.close(fig)
 
 
@@ -143,7 +143,7 @@ def main() -> int:
         plot(load_fd(il.tagged(FIG)))
         return 0
     T = contributions()
-    T.to_csv(il.OUT / il.tagged("decoder_contrib.csv"), index=False)
+    T.to_csv(il.OUT_X / il.tagged("decoder_contrib.csv"), index=False)
     pd.set_option("display.width", 220)
     tot = T.groupby(["set", "axis", "animal", "epoch"]).contrib.sum().unstack("epoch")[EP]
     print("== per animal (rule 8): total shift of the mean decoded position (mm)\n" + tot.round(2).to_string())

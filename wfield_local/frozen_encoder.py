@@ -2109,6 +2109,13 @@ def out_root() -> Path:
     return lp_licks.output_dir(oo.encoding_root(oc.RUN, PathResolver()) / "_").parent
 
 
+def fig_out(run: Path) -> Path:
+    """WRITE folder of the readout / figure scripts of a frozen run (11-23, opt-in): FROZEN_FIG_OUT/<run folder name> when
+    set (a re-render beside a production frame, never inside it; reads stay on `run`), else `run` itself (unchanged)."""
+    r = os.environ.get("FROZEN_FIG_OUT")
+    return Path(r) / Path(run).name if r else Path(run)
+
+
 def main(argv=None) -> int:
     from wfield_local import analysis_kit as ak
     from wfield_local import config, epochs

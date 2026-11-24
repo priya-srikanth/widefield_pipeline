@@ -106,7 +106,7 @@ def compute() -> dict:
     for name, df in (("premodel", CV), ("weights", W), ("sessions", S), ("boot", B), ("matched", M),
                      ("decoder", D), ("decoder_sessions", Sd)):
         df.to_csv(OUT / f"enlv_target_{name}.csv", index=False)
-    ref = {k: pd.read_csv(il.OUT / f"baltarget_{k}.csv") for k in ("premodel", "weights", "boot", "decoder", "matched")}
+    ref = {k: pd.read_csv(il.in_path_x(f"baltarget_{k}.csv")) for k in ("premodel", "weights", "boot", "decoder", "matched")}
     F = {"CV": pd.concat([ref["premodel"], CV], ignore_index=True),
          "W": pd.concat([ref["weights"], W], ignore_index=True),
          "B": pd.concat([ref["boot"], B], ignore_index=True),

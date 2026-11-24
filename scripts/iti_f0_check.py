@@ -36,7 +36,7 @@ def f0(label: str) -> tuple[float, float]:
 
 
 def main() -> int:
-    R = pd.read_csv(il.OUT / "ramp_auc_sessions.csv")
+    R = pd.read_csv(il.in_path_x("ramp_auc_sessions.csv"))
     resp = R.groupby(["label", "animal", "epoch"]).resp_auc.mean().reset_index()
     rows = []
     for x in resp.label:
@@ -51,7 +51,7 @@ def main() -> int:
     for c in ("f0_470", "f0_415", "resp_auc"):
         S[f"{c}_rel"] = S[c] / S.animal.map(pre[c])
     S["resp_dF_rel"] = S.resp_auc_rel * S.f0_470_rel            # response in dF units, / pre
-    S.to_csv(il.OUT / "f0_check.csv", index=False)
+    S.to_csv(il.OUT_X / "f0_check.csv", index=False)
     pd.set_option("display.width", 200)
     print("== per animal (rule 8): F0 and response / pre mean")
     print(S.groupby(["animal", "epoch"])[["f0_470_rel", "f0_415_rel", "resp_auc_rel", "resp_dF_rel"]].mean()

@@ -53,10 +53,11 @@ N_PERM = 5000
 def _files(src: Path, z: bool) -> tuple[Path, Path]:
     """(per-lick predictions, per-session decoder r) for unscaled or within-session z-scored features."""
     # predictions: basis-specific cache names (il.PRED_TAG); decoder r tables: basis output tag (split = untagged)
-    if z:
-        return (src / "zscore_check" / il.tagged("where_preds_z.csv", il.PRED_TAG),
-                src / "zscore_check" / il.tagged("where_decoder_z.csv"))
-    return src / il.tagged("where_preds.csv", il.PRED_TAG), src / il.tagged("where_decoder.csv")
+    rels = ((f"zscore_check/{il.tagged('where_preds_z.csv', il.PRED_TAG)}", f"zscore_check/{il.tagged('where_decoder_z.csv')}")
+            if z else (il.tagged("where_preds.csv", il.PRED_TAG), il.tagged("where_decoder.csv")))
+    if Path(src) == Path(il.OUT):           # default source: a WFIELD_ITI_OUT_W re-render reads its own copy, else production
+        return il.in_path_x(rels[0]), il.in_path_x(rels[1])
+    return Path(src) / rels[0], Path(src) / rels[1]
 
 
 def session_measures(src: Path, z: bool = False) -> tuple[pd.DataFrame, str]:

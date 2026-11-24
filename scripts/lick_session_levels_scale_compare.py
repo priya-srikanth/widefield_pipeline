@@ -40,8 +40,8 @@ import lick_session_level_maps as lv  # noqa: E402
 from figdata import PRE_CMAP, load_fd, plot_only, save_fd, sym_lim  # noqa: E402
 
 STEM = "lick_session_levels_scale_compare"
-OUTZ = il.OUT / "session_levels_z"
-FIG = il.OUT / "figures"
+OUTZ = il.OUT_X / "session_levels_z"
+FIG = il.OUT_X / "figures"
 EP = lv.EP
 AN = ["PS92", "PS93", "PS94", "PS95"]
 VAR = (("", "unscaled"), ("_z", "z-scored"))
@@ -102,7 +102,7 @@ def c0_loads() -> pd.DataFrame:
     from iti_decoder_patterns import SPATIAL
     from figdata import grid_fns, imaging_grid
     P = pickle.loads((lv.BASE_OUTD / "patterns_gap2_enc.pkl").read_bytes())
-    sd = pd.read_csv(il.OUT / "basis_svdbasis" / "frame_sd.csv", index_col=0)      # as lv.frame_scale
+    sd = pd.read_csv(il.in_path_x("basis_svdbasis") / "frame_sd.csv", index_col=0)      # as lv.frame_scale
     inv = {x: 1.0 / sd.loc[x].to_numpy(float) for x in P}
     grid = imaging_grid()
     to_img, _ol = grid_fns(grid)

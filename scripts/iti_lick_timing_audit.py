@@ -76,7 +76,7 @@ def main() -> int:
     for it, err in fail:
         print(f"  !! {it[0]}: {err}", flush=True)
     D = pd.concat([r["df"] for _it, r in got], ignore_index=True)
-    D.to_csv(il.OUT / "iti_timing_audit.csv", index=False)
+    D.to_csv(il.OUT_X / "iti_timing_audit.csv", index=False)
     D["first1"] = D.gap >= 1.0
     D["first2"] = D.gap >= 2.0
     near = (D.since_stop < 1.0) | (D.to_strobe < 1.0)

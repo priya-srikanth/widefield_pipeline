@@ -168,7 +168,7 @@ def _session(label: str, var: str) -> dict:
     cc = cc[np.isfinite(cc)]
     f10, f05, Xf = win_means(cc)
     maxdiff = np.nan
-    wf = il.OUT / "cued_wide" / f"{label}.npz"
+    wf = il.in_path_x("cued_wide") / f"{label}.npz"
     if wf.exists():
         z = np.load(wf)
         ref = z["cue"].astype(float)
@@ -342,7 +342,7 @@ def sanity(T: pd.DataFrame, notes: pd.DataFrame, sfx: str = "") -> None:
           f"{list(notes.label[~notes.restw_ok])}")
     print(f"== validation vs cued_wide cue traces: max |diff| = {notes.maxdiff_vs_cued_wide.max():.4f} "
           f"(NaN sessions {int(notes.maxdiff_vs_cued_wide.isna().sum())})")
-    f = il.OUT / "area_auc_sessions_split_cued.csv"
+    f = il.in_path_x("area_auc_sessions_split_cued.csv")
     if f.exists() and not sfx:
         A = pd.read_csv(f)[["label", "area", "cue"]]
         J = T[T.restw_ok].merge(A, on=["label", "area"])

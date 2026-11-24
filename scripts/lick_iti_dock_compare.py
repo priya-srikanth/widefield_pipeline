@@ -72,7 +72,7 @@ def prep() -> int:
         if not (dst / f).exists():
             shutil.copy2(il.OUT / f, dst / f)
             print(f"  copied {f}")
-    B = pd.read_csv(il.OUT / "baltarget_licks.csv.gz")
+    B = pd.read_csv(il.in_path_x("baltarget_licks.csv.gz"))
     keep = il.iti_subset_keep(B)
     print(f"baltarget_licks: ITI {int(keep[(B.set == 'iti').to_numpy()].sum())} of {int((B.set == 'iti').sum())} kept")
     B[keep].to_csv(dst / "baltarget_licks.csv.gz", index=False)
@@ -86,7 +86,7 @@ def _terms_with_k() -> pd.DataFrame:
     import iti_lick_order as lo
     P = pd.read_csv(lo.preds_path(), usecols=["set", "label", "order", "pos", "act"])
     P["k"] = P.groupby(["set", "label"]).cumcount()
-    T = pd.read_csv(il.OUT / TERMS)
+    T = pd.read_csv(il.in_path_x(TERMS))
     T["set"] = T.set.replace({"cued": "trial"})
     key = ["set", "label", "order", "pos", "act"]
     for df in (T, P):
@@ -108,7 +108,7 @@ def sspn() -> int:
     S = T.groupby(["set", "animal", "label", "epoch"]).agg(diff_sspn=("ssp_n_diff", "mean"), total=("total", "mean"),
                                                            n_licks=("total", "size")).reset_index()
     S = S[S.n_licks >= 8]
-    R = pd.read_csv(il.OUT / "recmark_sessions.csv", usecols=["label", "day", "aim", "iti_ang"]).drop_duplicates("label")
+    R = pd.read_csv(il.in_path_x("recmark_sessions.csv"), usecols=["label", "day", "aim", "iti_ang"]).drop_duplicates("label")
     S = S.merge(R, on="label", how="left")
     S.to_csv(il.OUT_W / "itidock_sspn_sessions.csv", index=False)
     rows = []
@@ -163,7 +163,7 @@ def _track_rows(q, key, S: pd.DataFrame, xcol: str, ycol: str, loao: float, p_sh
 
 def compute() -> dict:
     from wfield_local import analysis_kit as ak
-    A = pd.read_csv(il.OUT / "iti_dock_audit.csv")
+    A = pd.read_csv(il.in_path_x("iti_dock_audit.csv"))
     keys = [k for k, _ in SETS + EXTRA]
     rows, trk = [], []
     for key in keys:

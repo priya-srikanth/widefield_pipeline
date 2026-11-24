@@ -33,7 +33,7 @@ AN = ["PS92", "PS93", "PS94", "PS95"]
 POS = ["close_ipsi", "close_mid", "close_contra", "far_ipsi", "far_mid", "far_contra"]
 MIN_LICKS = 40
 MIN_SPOUT = 10
-OUT = il.OUT / "session_patterns"
+OUT = il.OUT_X / "session_patterns"
 
 
 def _pattern(X: np.ndarray, y: np.ndarray) -> np.ndarray | None:

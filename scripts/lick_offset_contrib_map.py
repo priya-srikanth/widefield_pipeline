@@ -56,8 +56,8 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
 
-OUT = il.OUT / "offset_contrib"
-FIG = il.OUT / "figures"
+OUT = il.OUT_X / "offset_contrib"
+FIG = il.OUT_X / "figures"
 SIGMA = 0.1                      # mm, the held-out-chosen Gaussian width of the LATERAL same-place reference
 EP = ["acute", "subacute", "chronic"]
 AN = ["PS92", "PS93", "PS94", "PS95"]

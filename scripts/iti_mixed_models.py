@@ -43,10 +43,16 @@ COLS = ["animal", "epoch", "label", "value"]
 RIN = il.OUT_W if il.ITI_SUBSET else il.OUT
 
 
+def _rin(rel: str) -> Path:
+    """READ path of an upstream table: RIN/rel in a subset run, else il.in_path_x(rel) (a WFIELD_ITI_OUT_W re-render reads
+    its own copy when present, else production; default unchanged, 11-23)."""
+    return RIN / rel if il.ITI_SUBSET else il.in_path_x(rel)
+
+
 # --- session-level readers, one per producing table (shared with scripts/iti_lmm_figures.py; one row per session) ---
 def where_r(st: str, target: str = "lateral") -> pd.DataFrame:
     """Decoder r (Allen areas, z-scored features) for lick set `st` (iti / trial) / the animal's pre mean."""
-    d = pd.read_csv(RIN / "zscore_check" / il.tagged("where_decoder_z.csv"))
+    d = pd.read_csv(_rin(f"zscore_check/{il.tagged('where_decoder_z.csv')}"))
     g = d[(d.source == "areas") & (d.target == target) & (d.set == st)].copy()
     g["value"] = g.r / g.animal.map(g[g.epoch == "pre"].groupby("animal").r.mean())
     return g[COLS]
@@ -54,20 +60,20 @@ def where_r(st: str, target: str = "lateral") -> pd.DataFrame:
 
 def recovery_link(st: str, col: str = "lfl_lat") -> pd.DataFrame:
     """recovery_link_sessions_withpre_angle_z.csv column `col` (lfl_lat = lateral like-for-like offset, change vs pre)."""
-    r = pd.read_csv(il.OUT / il.tagged("recovery_link_sessions_withpre_angle_z.csv"))
+    r = pd.read_csv(il.in_path_x(il.tagged("recovery_link_sessions_withpre_angle_z.csv")))
     return r[r.set == st].rename(columns={col: "value"})[COLS]
 
 
 def overcorrection(spout: str, col: str = "lfl") -> pd.DataFrame:
     """overcorrection_sessions.csv (cued licks) at one spout (lfl = like-for-like offset, same place)."""
-    oc = pd.read_csv(il.OUT / il.tagged("overcorrection_sessions.csv"))
+    oc = pd.read_csv(il.in_path_x(il.tagged("overcorrection_sessions.csv")))
     return oc[oc.spout == spout].rename(columns={col: "value"})[COLS]
 
 
 def hemo_resp(variant: str = "adopted", roi: str = "key_mean") -> pd.DataFrame:
     """ITI post-lick response / the animal's pre ADOPTED response (hemo_check), one variant x ROI (mean of ROIs when
     `roi` is absent)."""
-    h = pd.read_csv(il.OUT / "hemo_check" / "variant_resp_sessions.csv")
+    h = pd.read_csv(il.in_path_x("hemo_check") / "variant_resp_sessions.csv")
     h = h[h.variant == variant]
     if roi in set(h.roi):
         h = h[h.roi == roi]
@@ -80,7 +86,7 @@ def lick_order(scope: str, st: str, col: str) -> pd.DataFrame:
     """lick_order_sessions<SRC_TAG>.csv (scripts/iti_lick_order.py; split basis = untagged) column `col` for scope (all
     spouts / far contra) x set."""
     import iti_lick_order as lo_
-    lo = pd.read_csv(RIN / f"lick_order_sessions{lo_.SRC_TAG}.csv")
+    lo = pd.read_csv(_rin(f"lick_order_sessions{lo_.SRC_TAG}.csv"))
     if col not in lo.columns:
         return pd.DataFrame(columns=COLS)
     return lo[(lo.scope == scope) & (lo.set == st)].rename(columns={col: "value"})[COLS]
@@ -100,7 +106,7 @@ def matched(scope: str = "all spouts", cls: str = "all", st: str = "iti", ref: s
     source follows iti_lick_order.SOURCE (env WFIELD_LICK_DECODER)."""
     import iti_lick_order as lo
     tag = ("" if ref == "pooled" else f"_{ref}") + lo.SRC_TAG
-    S = pd.read_csv(RIN / f"matched{tag}_sessions.csv")
+    S = pd.read_csv(_rin(f"matched{tag}_sessions.csv"))
     S = S[(S.scope == scope) & (S.cls == cls) & (S.set == st)]
     return S.rename(columns={"resid": "value"})[["animal", "epoch", "label", "value"]]
 
@@ -129,7 +135,7 @@ def main() -> int:
                    mx.lmm_table(L[L.measure != "aim_weighted"], ["measure"], models=("behaviour",), fdr_by=(),
                                 print_animals=False),
                    mx.lmm_table(L, ["measure"], models=("epoch",), fdr_by=(), print_animals=False)], ignore_index=True)
-    T.assign(aim_licks=rm.AIM).to_csv(il.OUT / il.tagged("mixed_models.csv", il.BASIS_TAG + rm.AIM_TAG), index=False)
+    T.assign(aim_licks=rm.AIM).to_csv(il.OUT_X / il.tagged("mixed_models.csv", il.BASIS_TAG + rm.AIM_TAG), index=False)
     pd.set_option("display.width", 240)
     print(mx.summary_table(T, ["measure"]).to_string())
     rows = []
@@ -143,7 +149,7 @@ def main() -> int:
                   ).dropna()
             rows.append(dict(measure=nm, epoch=ep, boot_point=ci.point, boot_lo=ci.lo, boot_hi=ci.hi,
                              n_dir=int((am * np.sign(ci.point) > 0).sum()), n_animals=len(am)))
-    pd.DataFrame(rows).assign(aim_licks=rm.AIM).to_csv(il.OUT / il.tagged("mixed_models_boot.csv", il.BASIS_TAG + rm.AIM_TAG),
+    pd.DataFrame(rows).assign(aim_licks=rm.AIM).to_csv(il.OUT_X / il.tagged("mixed_models_boot.csv", il.BASIS_TAG + rm.AIM_TAG),
                                                        index=False)
     return 0
 

@@ -236,7 +236,7 @@ def regress(item) -> dict:
 def regress_all(jobs: int) -> None:
     from wfield_local import analysis_kit as ak
     SESS_REG.mkdir(parents=True, exist_ok=True)
-    T = pd.read_csv(il.OUT / "enl_licks" / "enl_trials.csv.gz", usecols=["label", "trial_id", "pos", "strobe_s", "cue_s"])
+    T = pd.read_csv(il.in_path_x("enl_licks") / "enl_trials.csv.gz", usecols=["label", "trial_id", "pos", "strobe_s", "cue_s"])
     labs = sorted(p.stem for p in SESS.glob("*.npz"))
     items = [(lab, T[T.label == lab].reset_index(drop=True)) for lab in labs]
     got, fail = ak.fan_sessions(items, regress, jobs=jobs, key=lambda it: it[0], label="enlv regress")
@@ -248,8 +248,8 @@ def regress_all(jobs: int) -> None:
 def extract(jobs: int) -> None:
     from wfield_local import analysis_kit as ak
     SESS.mkdir(parents=True, exist_ok=True)
-    L = pd.read_csv(il.OUT / "enl_licks" / "enl_licks.csv.gz", usecols=["label", "lick_uid", "daq_on_s"])
-    T = pd.read_csv(il.OUT / "enl_licks" / "enl_trials.csv.gz", usecols=["label", "trial_id", "pos", "strobe_s", "cue_s"])
+    L = pd.read_csv(il.in_path_x("enl_licks") / "enl_licks.csv.gz", usecols=["label", "lick_uid", "daq_on_s"])
+    T = pd.read_csv(il.in_path_x("enl_licks") / "enl_trials.csv.gz", usecols=["label", "trial_id", "pos", "strobe_s", "cue_s"])
     run = set(il.run_labels())
     items = [(lab, g.reset_index(drop=True), T[T.label == lab].reset_index(drop=True))
              for lab, g in L.groupby("label", sort=True) if lab in run]

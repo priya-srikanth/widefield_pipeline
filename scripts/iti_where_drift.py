@@ -105,7 +105,7 @@ def compute(june: bool) -> dict:
                      pred_aug=c8 + b8 * np.log1p(g.gap))
         out.append(g.assign(resid=g.r - g.pred, resid_aug=g.r - g.pred_aug))
     P = pd.concat(out, ignore_index=True)
-    P.to_csv(il.OUT / f"where_drift{sfx}_pairs.csv", index=False)
+    P.to_csv(il.OUT_X / f"where_drift{sfx}_pairs.csv", index=False)
     pd.set_option("display.width", 220)
     if june:
         print("== EXTRAPOLATION CHECK: June pairs (no stroke, ~60 d) vs the AUGUST-only drift curve; residual < 0 = "
@@ -130,7 +130,7 @@ def compute(june: bool) -> dict:
             tests.append(dict(set=st, axis=ax_, epoch=ep, point=ci.point, lo=ci.lo, hi=ci.hi,
                               n_down=int((am < 0).sum()), n=int(am.notna().sum()), mean_gap=g[g.epoch == ep].gap.mean()))
     T = pd.DataFrame(tests)
-    T.to_csv(il.OUT / f"where_drift{sfx}_tests.csv", index=False)
+    T.to_csv(il.OUT_X / f"where_drift{sfx}_tests.csv", index=False)
     print("\n== r beyond elapsed-time drift, change vs pre (paired nested bootstrap)")
     print(T.round(3).to_string(index=False))
     fits = {}
@@ -218,7 +218,7 @@ def plot(F: dict) -> None:
                  f" [{t.loc[('trial', 'lat', 'chronic'), 'lo']:+.3f}, {t.loc[('trial', 'lat', 'chronic'), 'hi']:+.3f}]. "
                  "PROVISIONAL", fontsize=9.5)
     fig.tight_layout(rect=(0, 0, 1, 0.92 if june else 0.94))
-    save_png_svg(fig, il.OUT / "figures" / f"lick_where_drift{sfx}.png", dpi=95)
+    save_png_svg(fig, il.OUT_X / "figures" / f"lick_where_drift{sfx}.png", dpi=95)
     plt.close(fig)
 
 

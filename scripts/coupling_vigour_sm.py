@@ -183,7 +183,7 @@ def mov_columns(Kd: pd.DataFrame) -> tuple[np.ndarray, list[str]]:
 
 def _event_times(label: str, meta: pd.DataFrame, dock_t: np.ndarray) -> dict:
     """Exact DAQ peak times of the cued / iti_dock events, with the SAME masks as interhemi_crossarea._sets."""
-    fl = np.load(IN / "firstlick_full" / f"{label}.npz", allow_pickle=False)
+    fl = np.load(il.in_path_x("firstlick_full") / f"{label}.npz", allow_pickle=False)
     ang = lih._angle(fl["side_ml"], fl["reach_mm"])
     out = {"cued": fl["t"].astype(float)[np.isfinite(ang)]}
     z = il._load(label)
@@ -352,7 +352,7 @@ def session_work(item):
 def run(labels, jobs) -> None:
     from wfield_local import analysis_kit as ak
     M = lih._meta()
-    Aud = pd.read_csv(IN / "iti_dock_audit.csv", usecols=["label", "t", "dock"])
+    Aud = pd.read_csv(il.in_path_x("iti_dock_audit.csv"), usecols=["label", "t", "dock"])
     Aud = Aud[Aud.dock]
     dk = {x: np.round(g.t.to_numpy(float), 4) for x, g in Aud.groupby("label")}
     empty = pd.DataFrame(columns=["tk", "reach_mm", "gap", "since_stop", "to_strobe"])
