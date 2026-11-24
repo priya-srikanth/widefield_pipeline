@@ -89,3 +89,4 @@ Worktree `wf_ccb_overnight1123`, branch `ccb/overnight-rebuild-1123` (from 2d1d4
 `ccB_caption_review_2026-11-23/overnight/logs/`.
 
 - 11-23 ~21:30 started step 1: production cap jaw table `qc/jaw_onsets_cap_ccB1123.csv` (full run, 126 sessions, 6 jobs, ~1 min / session single).
+- 11-23 21:40 step 1 DONE: `qc/jaw_onsets_cap_ccB1123.csv` (126 sessions, 65,388 trials, has `jaw3d_reonset_ms`). Checks: every jaw column equals the lean review copy `jaw3d_qc/jaw_onsets_cap.csv` on all its trials; non-onset columns equal production `jaw_onsets.csv`. Step 2 launched (s1 snapshot -> `qc/jaw3dmouth_ccB1123/`, camera-gated attempts -> `qc/jaw3dmouth_ccB1123/sel-camera-...-stopA2jexrt3500c70_daqlk/`). Note: live Fig 3D stats reproduce exactly from `data_4cam_20261122/classes` (11-22 table).
