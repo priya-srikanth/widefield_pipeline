@@ -76,6 +76,7 @@ def _boot(S: pd.DataFrame, col: str, rng) -> list[dict]:
 def main() -> int:
     if not os.environ.get("WFIELD_ITI_OUT_W"):
         raise SystemExit("set WFIELD_ITI_OUT_W to a NEW folder")
+    il.OUT_W.mkdir(parents=True, exist_ok=True)
     from wfield_local import config, epochs
     from wfield_local import session_licks as SL
     att = (sys.argv[sys.argv.index("--attempts") + 1] if "--attempts" in sys.argv
