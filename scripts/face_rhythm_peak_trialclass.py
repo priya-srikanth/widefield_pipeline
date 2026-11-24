@@ -33,9 +33,12 @@ CLASS_TABLE = ("M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013
                "qc/s1_trial_classes_cue_stop.csv.gz")
 SUBSETS = {"all": None, "contact": ("contact",), "attempted": ("contact", "incomplete")}
 MATCH_S = 0.05
+#: ``--gate working`` (11-23, four-camera rule): grid trials must also be inside the camera working period (final class
+#: not in `trial_classes.OUT_OF_WORKING_PERIOD`, trials without video dropped)
+NOT_WP = ("stopped", "stopped_licking", "early_run", "after_end", "unknown", "no_video")
 
 
-def classes_for(t, C: pd.DataFrame, cue: np.ndarray) -> np.ndarray:
+def classes_for(t, C: pd.DataFrame, cue: np.ndarray, col: str = "cls") -> np.ndarray:
     """Class of each FR grid trial (nearest cue of the session's class rows within MATCH_S; '' = unmatched)."""
     c = C[C.label == t.label].sort_values("cue_s")
     out = np.full(len(cue), "", dtype=object)
@@ -45,11 +48,11 @@ def classes_for(t, C: pd.DataFrame, cue: np.ndarray) -> np.ndarray:
     i = np.clip(np.searchsorted(cs, cue), 1, len(cs) - 1)
     j = np.where(np.abs(cs[i - 1] - cue) <= np.abs(cs[i] - cue), i - 1, i)
     ok = np.abs(cs[j] - cue) <= MATCH_S
-    out[ok] = c.cls.to_numpy()[j[ok]]
+    out[ok] = c[col].to_numpy()[j[ok]]
     return out
 
 
-def peaks_subset(fdir: Path, window, C: pd.DataFrame, keep) -> tuple[pd.DataFrame, list, list]:
+def peaks_subset(fdir: Path, window, C: pd.DataFrame, keep, gate: str = "none") -> tuple[pd.DataFrame, list, list]:
     rows, match, mix = [], [], []
     for t in frc.sessions(fdir, "proj").itertuples():
         with np.load(t.file) as z:
@@ -59,6 +62,10 @@ def peaks_subset(fdir: Path, window, C: pd.DataFrame, keep) -> tuple[pd.DataFram
         cls = classes_for(t, C, cue)
         match.append({"label": t.label, "key": t.key, "n_grid": len(cue), "n_matched": int((cls != "").sum())})
         sel = np.ones(len(cue), bool) if keep is None else np.isin(cls, keep)
+        if gate == "working":
+            fin = classes_for(t, C, cue, "cls_final")
+            sel &= (fin != "") & ~np.isin(fin, NOT_WP)
+            match[-1]["n_working"] = int(((fin != "") & ~np.isin(fin, NOT_WP)).sum())
         groups = frc.position_groups(pos, "side")
         for g, m in groups.items():
             for k in ("contact", "incomplete", "jaw_only", "no_response", "unknown", "no_video", ""):
@@ -106,16 +113,23 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--subsets", nargs="+", default=list(SUBSETS), choices=list(SUBSETS))
     ap.add_argument("--window", type=float, nargs=2, default=(0.0, 4.0))
+    ap.add_argument("--class-table", default=CLASS_TABLE)
+    ap.add_argument("--gate", default="none", choices=("none", "working"),
+                    help="working: grid trials also inside the camera working period (four-camera rule, 11-23)")
+    ap.add_argument("--out-name", default="peak_trialclass_20261122", help="output folder under the readouts set")
     a = ap.parse_args(argv)
     rv = PathResolver()
     fdir = fro.factor_dir(rv, fro.BUNDLE, fro.SET)
-    out = frc.readouts_dir(fro.SET, rv) / "peak_trialclass_20261122"
+    out = frc.readouts_dir(fro.SET, rv) / a.out_name
     writeguard.assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
     names = frc.factor_names(fdir)
-    C = pd.read_csv(CLASS_TABLE, usecols=["label", "cue_s", "cls"])
+    C = pd.read_csv(a.class_table, usecols=["label", "cue_s", "cls", "cls_final"])
     for s in a.subsets:
-        S, match, mix = peaks_subset(fdir, tuple(a.window), C, SUBSETS[s])
+        f = out / f"peak_epoch_stats_side_{s}.csv"
+        if a.out_name != "peak_trialclass_20261122" and f.exists():
+            raise SystemExit(f"refusing to overwrite {f}")
+        S, match, mix = peaks_subset(fdir, tuple(a.window), C, SUBSETS[s], a.gate)
         S["name"] = [names[k] for k in S.factor]
         S.to_csv(out / f"peak_sessions_side_{s}.csv", index=False, float_format="%.6g")
         stats(S, names).to_csv(out / f"peak_epoch_stats_side_{s}.csv", index=False, float_format="%.6g")
