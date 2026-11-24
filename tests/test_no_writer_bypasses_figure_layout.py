@@ -42,7 +42,15 @@ SKIP_PARTS = {"archive"}
 #:   is no figure anywhere for them to be a sidecar of.
 EXEMPT_SITES = {"wfield_local/dlc_calibration.py": "writes into the calibration recording dir",
                 "wfield_local/o2_lp_runner.py": "writes pose predictions (<video stem>_<scorer>.csv/.npz, _done.json) "
-                                                "into an O2 run's out/ dir, not a figure dir"}
+                                                "into an O2 run's out/ dir, not a figure dir",
+                # 11-23 manuscript stats writers (integration 11-24): tables only (no savefig in the script) into their
+                # own --out-dir / review folder; "epoch" in the TABLE name is what matched, there is no figure to pair
+                "scripts/c2_weight_epoch_behavbase_stats.py": "stats tables only (no figure) into --out-dir",
+                "scripts/c2_weight_epoch_unified_stats.py": "stats table only (no figure) into --out-dir",
+                "scripts/caption_review_1123/overnight_family_hitrate.py": "stats tables only (no figure) into the "
+                                                                          "caption-review folder",
+                "scripts/face_rhythm_peak_trialclass.py": "peak stats tables only (no figure) into its own readouts "
+                                                          "folder"}
 #: (The K08 grant renderer that used to be exempted here moved to `grants/k08_2026/` on 2026-11-17;
 #: `grants/` is outside the scanned trees because nothing there is a pipeline writer.)
 

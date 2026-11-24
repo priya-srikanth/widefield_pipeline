@@ -32,6 +32,10 @@ BEHAVIOUR = {
     "qc_cam3_drop.py", "swap_cam3_on_20261123.py",
     # 11-22: Fig 5F FaceRhythm peak by trial class (reads FR proj + class table; new readouts folder)
     "face_rhythm_peak_trialclass.py",
+    # 11-23 CC-B manuscript arms (integration 11-24): FaceRhythm on the fused four-camera licks; six-position kinematics
+    # families / renders and the working-gate tally (trial classes + 3-D kinematics only, no imaging input; new names)
+    "face_rhythm_aligned_fourcam.py", "sixpos_bylicknum_1123.py", "sixpos_final_1123.py", "sixpos_final_render_1123.py",
+    "sixpos_first5_1123.py", "working_gate_tally_ccB1123.py",
     "apparatus_mouth.py", "cam1_clean_qc.py", "cam1_incomplete_licks.py", "cam1_lick_aim.py", "cam1_licks.py",
     "cam4_timing_check.py", "face_rhythm_aligned_maps.py", "face_rhythm_asym_aligned.py", "face_rhythm_band_maps.py",
     "face_rhythm_bout_split.py", "face_rhythm_evr_epochs.py", "face_rhythm_factor_clips.py",
