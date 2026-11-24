@@ -214,9 +214,15 @@ def table() -> pd.DataFrame:
     T = pd.read_csv(il.in_path_x("enl_licks") / "enl_trials.csv.gz", usecols=["label", "trial_id", "strobe_s", "cue_s"])
     L = L.merge(T, on=["label", "trial_id"], how="left", validate="many_to_one")
     K = il.lick_table()
-    K = K[K.context == "pre_cue"][["session", "lick_uid", "side_ml", "reach_mm"]].drop_duplicates(["session", "lick_uid"])
+    # 11-24: 3-D rows by LICK KEY when both tables carry it (the fused four-camera train: the kinematics table has no
+    # lick_uid and enl_licks' lick_uid is the row of THE session lick table); else by lick_uid (cam4 licks_all row)
+    on = "lick_key" if ("lick_key" in K.columns and "lick_key" in L.columns) else "lick_uid"
+    K = K[K.context == "pre_cue"][["session", on, "side_ml", "reach_mm"]].drop_duplicates(["session", on])
     L["session"] = L.label.str[:5] + "2026" + L.label.str[-4:]
-    L = L.merge(K, on=["session", "lick_uid"], how="left", validate="many_to_one")
+    if on == "lick_key":
+        K["lick_key"] = K.lick_key.astype(str)
+        L["lick_key"] = L.lick_key.astype(str)
+    L = L.merge(K, on=["session", on], how="left", validate="many_to_one")
     names, SD = wd.area_meta(basis="split")
     parts = []
     for lab, g in L.groupby("label", sort=True):
