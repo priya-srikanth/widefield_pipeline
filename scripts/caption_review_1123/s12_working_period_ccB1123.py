@@ -113,7 +113,8 @@ def cmd_wlc(mask: str, out: Path) -> None:
 
 
 # ------------------------------------------------------------------------------------------------ learned_compensation
-def cmd_lc(gate: str, wlc: Path, out: Path, dock_def: str = "phase", dock_audit: Path | None = None) -> None:
+def cmd_lc(gate: str, wlc: Path, out: Path, dock_def: str = "phase", dock_audit: Path | None = None,
+           pooled_pre: bool = False) -> None:
     _new_out(out)
     tim = out / "timing"
     tim.mkdir()
@@ -136,6 +137,8 @@ def cmd_lc(gate: str, wlc: Path, out: Path, dock_def: str = "phase", dock_audit:
     ex = {"WLC_OUT_DIR": str(wlc), "LC_OUT_DIR": str(out), "LC_DOCK_DEF": dock_def}
     if dock_audit is not None:
         ex["WFIELD_DOCK_AUDIT"] = str(dock_audit)
+    if pooled_pre:                                   # T3: one pooled pre row for a mouse with no qualifying pre session
+        ex["LC_POOLED_PRE"] = "1"
     _env(ex)
     from wfield_local import lp_licks
     lp_licks.attempts_path = lambda rv=None: att
@@ -184,6 +187,7 @@ def main() -> None:
     p.add_argument("--out", type=Path, required=True)
     p.add_argument("--dock-def", choices=["phase", "class", "class_q1"], default="phase")
     p.add_argument("--dock-audit", type=Path, default=None)
+    p.add_argument("--pooled-pre", action="store_true")
     p = sp.add_parser("recmech")
     p.add_argument("--wlc", type=Path, required=True)
     p.add_argument("--lc", type=Path, required=True)
@@ -195,7 +199,7 @@ def main() -> None:
     if a.cmd == "wlc":
         cmd_wlc(a.mask, a.out)
     elif a.cmd == "lc":
-        cmd_lc(a.gate, a.wlc, a.out, a.dock_def, a.dock_audit)
+        cmd_lc(a.gate, a.wlc, a.out, a.dock_def, a.dock_audit, a.pooled_pre)
     elif a.cmd == "recmech":
         cmd_recmech(a.wlc, a.lc, a.out)
     else:

@@ -485,6 +485,39 @@ def t3_cells(K: pd.DataFrame, val: str) -> tuple[pd.DataFrame, pd.DataFrame]:
     return K, cell[cell.n >= MIN_CELL]
 
 
+def _pooled_pre_rows(S3: pd.DataFrame, K: pd.DataFrame, T: pd.DataFrame) -> pd.DataFrame:
+    """LC_POOLED_PRE=1 (CC-A / Priya 11-24, S13F primary only): a mouse whose pre sessions ALL fail the per-session D_off
+    minimum gets ONE pooled pre row (label <animal>_pre_pooled): its pre docked licks pooled over sessions, the same cells
+    (previous spout, >= MIN_CELL licks, >= D_OFF_MIN_SPOUTS cells) and the same per-lick dv (reference = the mouse's pre
+    mean at the previous spout, own session left out, as before); cued_mean / GAP from its pre canonical cued trials
+    pooled per spout (>= MIN_CELL). Every other row is untouched; post-stroke sessions keep the per-session minimum."""
+    add = []
+    for an in sorted(S3.animal.unique()):
+        pre = S3[(S3.animal == an) & (S3.epoch == "pre")]
+        if "D_off" in pre and pre.D_off.notna().any():
+            continue
+        k = K[(K.animal == an) & (K.epoch == "pre") & np.isfinite(K.dv)]
+        g = k.groupby("prev_pos").agg(d=("dv", "mean"), n=("dv", "size")).reset_index()
+        g = g[g.n >= MIN_CELL]
+        r = {"label": f"{an}_pre_pooled", "animal": an, "epoch": "pre", "day": np.nan, "n_spouts": len(g),
+             "pooled_pre": True, "pooled_sessions": int(k.label.nunique()), "pooled_licks": int(len(k))}
+        print(f"pooled pre {an}: {len(k)} docked licks over {k.label.nunique()} sessions; cells >= {MIN_CELL} licks: "
+              f"{dict(zip(g.prev_pos, g.n))}", flush=True)
+        if len(g) >= D_OFF_MIN_SPOUTS:
+            r["D_off"] = float(g.d.mean())
+            cu = T[T.canonical & T.eE1.notna() & (T.animal == an) & (T.epoch == "pre")].groupby("pos").eE1.agg(
+                ["mean", "count"])
+            cu = cu[cu["count"] >= MIN_CELL]["mean"]
+            gc = g.assign(c=g.prev_pos.map(cu)).dropna(subset=["c"])
+            if len(gc) >= 4:
+                r["cued_mean"] = float(gc.c.mean())
+                r["GAP"] = float(gc.d.mean() - gc.c.mean())
+        add.append(r)
+    if add:
+        S3 = pd.concat([S3, pd.DataFrame(add)], ignore_index=True)
+    return S3
+
+
 def t2_contrast(C: pd.DataFrame, key: str = "phase", a: str = "retract", b: str = "docked") -> pd.DataFrame:
     W = C.pivot_table(index=["label", "animal", "epoch", "day"], columns=["grp", key], values="mean")
     W.columns = [f"{g}_{k}" for g, k in W.columns]
@@ -712,6 +745,8 @@ def cmd_summarise() -> None:
                 r[f"rel_{p}"] = float(gp.m.iloc[0] - gp.phi.iloc[0]) if len(gp) else np.nan
             rows.append(r)
         S3 = pd.DataFrame(rows)
+        if vn.endswith("(primary)") and os.environ.get("LC_POOLED_PRE", "").strip() == "1":
+            S3 = _pooled_pre_rows(S3, K, T)
         S3all[vn] = S3
         if vn.endswith("(primary)"):
             P(f"\n== T3 [{vn}] PER-ANIMAL (rule 8): session means")
