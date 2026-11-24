@@ -224,3 +224,82 @@ use), and recorded in that figure's caption provenance:
   - CC-A's new request: a pooled pre baseline for PS95, written up in `vls_stroke_paper/PROMPT_CC_B_S13F_pooled_baseline_2026-11-24.md`.
   - Lane E has it at top priority.
 - **G4 on the share:** 11 tags at 107; fr_A 60, fr_B 0. fr_S, fr_D, xyz2 and the 4 running/push comparison tags were not yet synced.
+
+## Addendum 2, 11-24 ~19:10 (pre-compaction; READ THIS FIRST when resuming)
+
+### Decisions since 18:45 (Priya)
+- **S13F (manuscript).**
+  - Primary = docked class from the LOGGED dock event, all licks of bouts whose first lick (>= 1 s gap) starts at or
+    after the dock event, NO quiet rule.
+  - PS95 / #12 uses a POOLED pre baseline (CC-A prompt `PROMPT_CC_B_S13F_pooled_baseline_2026-11-24.md`, Priya agreed).
+  - Result:
+
+    | | acute | subacute | chronic |
+    |---|---|---|---|
+    | D_off | -14.1* | -7.9* | -5.2* |
+    | Holm p | 0.002 | 0.002 | 0.010 |
+    | paired n | 3 | 3 | 4 |
+    | cued_mean | -13.2* | -9.6* | -5.9* |
+
+  - GAP (= D_off - cued endpoint error) is n.s. in every epoch. That supports l.162 / l.216, but "by the same amount"
+    is stronger than an n.s. test; I suggested "similar (no detectable difference)" for CC-A / Priya.
+  - Robustness, old docked phase: -12.4 / -7.0 / -6.7, Holm 0.002 / 0.002 / 0.040, n 3 / 4 / 4.
+  - Folders: `*_dockclass_pooledpre_laneE_20261124`. Reply: `vls_stroke_paper/REPLY_CC_B_S13F_pooled_baseline_2026-11-24.md`.
+  - **NEXT: CC-A redraws S13F** under a new name with n per epoch.
+- **Quiet rule by measure type:**
+  - behavioral landing: none;
+  - at-lick neural readouts: `iti_after_quiet_1s` (bout starts only);
+  - ramp / pre-lick windows: >= 2 s;
+  - lick order: all docked-bout licks.
+
+  Each caption states its rule.
+- **14:04 lick_reader entries ACCEPTED** (Priya: "ok for the 3d fits"); the v36 entries are kept.
+- **Lab IDs PS92-95 everywhere** except inside the current manuscript files (#9-#12). Memory `animal-ids-ps-everywhere`.
+- **CLAUDE.md rule 11** (pilot commit df01342b, NOT on main yet): a run writes only to its own new output folder. No
+  production defaults, no writes via read resolvers, protected folders read-only, frozen stores load-only unless
+  `--allow-freeze` plus approval, post-run mtime check, overwrites are incidents. Memory `write-only-own-output`. All
+  lanes have it.
+- **Lane F rule-11 fixes (CC-B decided):** a declared `--out-root <bundle>/frames/` for new frame builds; the shared
+  content-keyed input cache is an allowed shared write; the 3 finished frames stay in place with a README.
+- **Disk:** deleted (Priya OK) 116 GB of pre-11-21 input-cache entries plus the 78 GB `session_cache_rebuild_20261103`.
+  C: now has 213 GB free. Log: `run_records/2026-11-24/DELETED_caches_20261124.txt`.
+
+### New helpers since 18:45
+- **Write-guard plus efficiency helper.** Branch `ccb/writeguard-1124`, worktree `wf_writeguard1124`; no merge without
+  Priya.
+  - Write guards: a protected-root registry in writeguard, no production defaults, a read/write resolver test, frozen
+    stores load-only by default, `tools/protected_mtime_audit.py`.
+  - Then efficiency fixes 1, 2 and 4: the quiet FaceRhythm `own_series` cache, the csig / cross-root cache reuse, and
+    the frozen design-block cache.
+  - Report: `run_records/2026-11-24/WRITEGUARD_20261124.md`.
+- **Efficiency audit DONE:** `run_records/2026-11-24/EFFICIENCY_AUDIT_20261124.md`.
+  - Top finding: quiet_v2_fr re-read 5-9 GB of FaceRhythm spectrograms per session to rebuild an `own_series` that was
+    byte-identical to the 11-01 copy (~6 h waste).
+  - Next: the csig class signature invalidates every cache on a rule change, and the behavior cache is 207 GB.
+- **Naming phase 2 DONE:** `page_updates/<page>/index_<page>_20261124_names.html` for behavior / states / kinematics /
+  FaceRhythm; the movement TSV went to lane E. Record: `page_updates/CHANGELOG_names_20261124.md`.
+  - Fig 2.1 (own August pre): acute -.16* (misses Holm), subacute -.10**.
+
+### State at ~19:10
+- **G4 on O2:** on the share at 107: bins x3, drop, droppos, main, main_nolicksall, musall_shuf, nodir, trmodels;
+  shufpos 106; fr_A 60; fr_B 0. Not yet synced: fr_S, fr_D, bins_w1_xyz2, and the 4 running/push comparison tags.
+  - Priya re-syncs with `rsync -ahu`. Then: collect each tag plus `g4_running_compare.py`.
+  - Fix the lock-release bug before the next bundle.
+- **Frozen wave 1:** partial-refit gate is O2 job 60661908 (HOLD until it passes). frA_te is finishing; then lane F
+  adds the declared out-root and relaunches.
+- **Lane E:** readers2 (rp2_indep 36840, rp2_order 27868, rp_a 14468).
+  - Queued reruns: iti_prelick, where_signed_error, enl_angle_decode / target_test, the docked where family.
+  - Then rp_enlv_cmp, the caption diff with the n-mice table, and the page build (swaps + rev-up + naming TSV +
+    read-provenance + PS IDs) plus CHANGELOG. Nothing is published.
+- **Quiet chain (helper):** quiet_v2_fr ~done at 18:40; the rest (section-23 follow-ons, Fig 23.23, J6 compare) takes
+  ~4-6 h. The protected-folder check is armed for when the chain ends:
+  `run_records/2026-11-23/QUIET_CHAIN_PROTECTED_CHECK_20261124.txt`.
+- **FaceRhythm J7 maps:** power is collected (108/108). The maps, gradient and center steps wait for 10 GB free; run
+  them directly once RAM frees, then redo Figs 8.2-8.4.
+- **Retraction readout:** n.s.; the latency hypothesis is not supported.
+
+### Open for Priya
+- Merge of the pilot branch (rule 11) and, later, `ccb/writeguard-1124`.
+- Review the pages before any republish (HMS account; movement artifact Fnpn2KHknMwh3r13xADH7d).
+- The delete lists: lane E's `DELETE_CANDIDATES_laneE_20261124.md` and A.9 in `O2_G4_READY.md`.
+- Reboot when the queue is idle; resume the 2pRAM window.
