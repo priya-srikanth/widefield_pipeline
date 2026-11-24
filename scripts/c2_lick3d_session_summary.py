@@ -53,8 +53,11 @@ def default_licks(kin_dir: str | None = None) -> Path:
     return pose3d_dir() / (kin_dir or SL.kin_name()) / "licks.csv.gz"
 
 
-def summarise(L: pd.DataFrame) -> pd.DataFrame:
-    """The session x position summary of one 3-D lick table (see the module docstring)."""
+def summarise(L: pd.DataFrame, stat: str = "median") -> pd.DataFrame:
+    """The session x position summary of one 3-D lick table (see the module docstring). ``stat`` (11-23, Priya: session
+    MEANS over licks, as the angles and the two-tone cohort): "median" (the 11-19 recipe, default) or "mean" -- the
+    per-session statistic of every lick measure (and of the per-trial first-5 means); counts unchanged."""
+    agg = (lambda x: x.median()) if stat == "median" else (lambda x: x.mean())
     from wfield_local import config
     L = L[~((L.epoch == "pre") & L.date.astype(str).map(config.early_pre))]
     rows = []
@@ -64,10 +67,10 @@ def summarise(L: pd.DataFrame) -> pd.DataFrame:
         # n_first / n_all = licks WITH 3-D kinematics (finite reach): on the cam4 tables every row had them, so this is
         # the recipe's n; on the fused post-cue tables a lick without 3-D support keeps its row with NaN measures, and
         # n_first_rows / n_all_rows count every lick (11-22: counts reported both ways)
-        rows.append(dict(zip(KEY, key), n_first=int(f.reach_mm.notna().sum()), reach_first=f.reach_mm.median(),
-                         side_first=f.side_ml.median(), speed_first=f.speed_peak.median(), speed_first5=t5.median(),
-                         n_trials5=len(t5), n_all=int(d.reach_mm.notna().sum()), reach_all=d.reach_mm.median(),
-                         side_all=d.side_ml.median(), speed_all=d.speed_peak.median(), n_first_rows=len(f),
+        rows.append(dict(zip(KEY, key), n_first=int(f.reach_mm.notna().sum()), reach_first=agg(f.reach_mm),
+                         side_first=agg(f.side_ml), speed_first=agg(f.speed_peak), speed_first5=agg(t5),
+                         n_trials5=len(t5), n_all=int(d.reach_mm.notna().sum()), reach_all=agg(d.reach_mm),
+                         side_all=agg(d.side_ml), speed_all=agg(d.speed_peak), n_first_rows=len(f),
                          n_all_rows=len(d)))
     S = pd.DataFrame(rows, columns=COLS)
     return S.sort_values(["animal", "date", "position"], kind="stable").reset_index(drop=True)
@@ -89,6 +92,8 @@ def main(argv=None) -> int:
     g.add_argument("--licks", type=Path, default=None, help="explicit 3-D lick table (licks.csv.gz)")
     ap.add_argument("--out", type=Path, default=None, help=f"output CSV (default: <licks folder>/{NAME})")
     ap.add_argument("--force", action="store_true", help="overwrite an existing output")
+    ap.add_argument("--stat", choices=("median", "mean"), default="median",
+                    help="per-session statistic over licks (11-23: 'mean' = the session mean, Priya)")
     a = ap.parse_args(argv)
     src = a.licks or default_licks(a.kin_dir)
     out = a.out or src.parent / NAME
@@ -96,10 +101,10 @@ def main(argv=None) -> int:
         sys.exit(f"refusing to overwrite {out} (--force)")
     L = pd.read_csv(src, usecols=["trial_id", "lick_idx", "position", "reach_mm", "side_ml", "speed_peak", "animal",
                                   "date", "session", "epoch"])
-    S = summarise(L)
+    S = summarise(L, a.stat)
     pd.set_option("display.width", 220)
     print(f"input {src}: {len(L)} licks -> {len(S)} session x position rows, {S.session.nunique()} sessions")
-    print("== per animal (rule 8): epoch means of the session x position medians (mm, mm/s)")
+    print(f"== per animal (rule 8): epoch means of the session x position {a.stat}s (mm, mm/s)")
     print(per_animal(S).round(2).to_string())
     out.parent.mkdir(parents=True, exist_ok=True)
     S.to_csv(out, index=False, lineterminator="\n")   # LF line ends, as the hand-made copy (else CRLF on Windows)
