@@ -52,7 +52,7 @@ INPUT_CACHE = "C:/Users/SabatiniLab/wfield_cache/input_cache_rebuild_20261104"
 #: Priya 11-24: every pose regressor 3-D (jaw / nose from the four-camera frames, despiked; combined_encoding.JAW_ENV).
 BASE_ENV = {"OROFACIAL_GATE": "attempted", "COMBINED_ENCODING_LICKS": "fourcam", "COMBINED_ENCODING_ONLY": "full",
             "COMBINED_ENCODING_SUFFIX": "_gate-attempted", "COMBINED_ENCODING_TONGUE": "3d",
-            "COMBINED_ENCODING_JAW": "3d", "COMBINED_ENCODING_NOSE": "3d"}
+            "COMBINED_ENCODING_JAW": "3d", "COMBINED_ENCODING_NOSE": "3d", "COMBINED_ENCODING_POSE": "xyz3d"}
 POP_ENV = ("COMBINED_ENCODING_LICKS_ALL", "COMBINED_ENCODING_EXEC", "COMBINED_ENCODING_TARGET3D_TABLE",
            "COMBINED_ENCODING_EXEC3D_TABLE", "COMBINED_ENCODING_FR", "COMBINED_ENCODING_FR_GROUPS",
            "COMBINED_ENCODING_BINS_CALIB", "COMBINED_ENCODING_ENL_SOURCE")
@@ -127,7 +127,7 @@ ENVKEYS = ("O2F_RDIR", "O2F_IMDIR", "O2F_MASK")
 
 def expected_run_tag(key: str) -> str:
     """The v36 frame's running-model tag with this bundle's 3-D jaw / nose parts (the only intended design change)."""
-    extra = "|jaw3d|nose3d" + (f"={os.environ['COMBINED_ENCODING_NOSE_FRAMES']}"
+    extra = "|jaw3d|xyz3d|nose3d" + (f"={os.environ['COMBINED_ENCODING_NOSE_FRAMES']}"
                                if os.environ.get("COMBINED_ENCODING_NOSE_FRAMES") else "")
     return V36_RUN_MODE[key].replace("|tongue3d", "|tongue3d" + extra)
 
