@@ -311,6 +311,11 @@ BASE = (-1.5, -1.0)
 BOUT_GAP = 1.0                     # extraction: ITI onsets with no lick for >= 1 s (each lick's gap is saved)
 GAP_MAIN = 2.0                     # summaries: >= 2 s, so the -1.5..-1.0 s baseline starts >= 0.5 s after the last lick
 #                                    (with 1 s the acute baseline still carried the previous licks' decay)
+# Priya 11-24: the "after quiet" gap follows the analysis WINDOW -- 2 s for ramp / pre-lick windows reaching ~2 s before
+# the lick (the default above), 1 s for at-lick read-outs (decoded position 0-0.2 s, like-for-like, balance at the lick).
+# A run sets it with WFIELD_GAP_MAIN (the reader's config records it via input_provenance / its caption).
+if os.environ.get("WFIELD_GAP_MAIN", "").strip():
+    GAP_MAIN = float(os.environ["WFIELD_GAP_MAIN"])
 CUE_EXCL = (-2.0, 0.75)
 N_TRIAL_MAX = 1500
 FR_KEEP = ["fr_lick", "fr_right", "fr_left", "fr_close", "fr_far"]   # FaceRhythm master_v1 mode-A factors (no "other")
