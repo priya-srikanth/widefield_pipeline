@@ -891,7 +891,12 @@ def main(argv=None) -> int:
             fm = deliv / f"SuppVideo_mapping_{a.style}.csv"
             if fm.exists():
                 old = pd.read_csv(fm)
-                M = pd.concat([old[old.animal_lab_id != a.animal], M], ignore_index=True)
+                # keep this animal's rows for epochs NOT rendered in this run (an --epochs re-run must not drop them;
+                # bug 11-24: pre-only re-runs left the v5 mapping with the pre rows only)
+                keep = ~((old.animal_lab_id == a.animal) & old.epoch.isin(M.epoch.unique()))
+                M = pd.concat([old[keep], M], ignore_index=True)
+                M["_o"] = M.epoch.map({e: i for i, e in enumerate(EPOCHS)})
+                M = M.sort_values(["mouse", "_o", "rank"], kind="mergesort").drop(columns="_o")
             M.to_csv(fm, index=False)
     for v in vids:
         print("win copy", win_copy(Path(v)))
