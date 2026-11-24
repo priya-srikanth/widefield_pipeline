@@ -9,7 +9,8 @@ Plot only. Reads the tables written by `s12d_miss_correction_vs_pre.py` (commit 
                minus the same animal's pre-stroke misses in the same cell; change from own pre.
 Canvas: height of the live S12D panel (C2R_G_after_miss_r3_lp.pdf, 84.96 x 93.6 pt), C2R renderer style.
 
-    python s12d_mm_render.py <data_item2b_alt dir> <figures dir with vls_style.py> <out stem>
+    python s12d_mm_render.py <data_item2b_alt dir> <figures dir with vls_style.py> <out stem> [family stats csv]
+v3 (live S12 rule): pass s12d_mm_family_stats.csv (session MWU + BH in the S12 family AND CI excludes 0, "**").
 Refuses to overwrite an existing output.
 """
 from __future__ import annotations
@@ -26,14 +27,20 @@ LEG = "0.2"          # neutral dark legend markers (v2: hit = open, miss = fille
 DX = 0.19
 
 
-def main(data: str, figdir: str, stem: str) -> None:
+def main(data: str, figdir: str, stem: str, family: str = "") -> None:
     data, stem = Path(data), Path(stem)
     for x in ("pdf", "svg", "png"):
         if stem.with_suffix(f".{x}").exists():
             sys.exit(f"refusing to overwrite {stem.with_suffix('.' + x)}")
     S = pd.read_csv(data / "s12d_alt_sessions.csv")
-    ST = pd.read_csv(data / "s12d_alt_stats.csv")
-    ST["star"] = ST["star"].astype(str).str.lower().eq("true")
+    if family:   # v3: live S12 rule (session MWU + BH in the S12 family AND bootstrap CI), mark "**"
+        ST = pd.read_csv(family).rename(columns={"boot_change": "est", "boot_lo": "lo", "boot_hi": "hi"})
+        ST["star"] = ST["star"].astype(int).eq(1)
+        MARK = "**"
+    else:        # v1/v2: bootstrap CI only, mark "*"
+        ST = pd.read_csv(data / "s12d_alt_stats.csv")
+        ST["star"] = ST["star"].astype(str).str.lower().eq("true")
+        MARK = "*"
     sys.path.insert(0, figdir)
     import matplotlib.pyplot as plt
     import vls_style as VS
@@ -75,8 +82,8 @@ def main(data: str, figdir: str, stem: str) -> None:
         rg = hi - lo
         ax.set_ylim(lo - 0.06 * rg, hi + 0.30 * rg)                 # top band reserved for stars
         for x, col in stars:
-            ax.text(x, 0.99, "*", transform=ax.get_xaxis_transform(), ha="center", va="top", color=col,
-                    fontsize=8, fontweight="bold")
+            ax.text(x, 0.99, MARK, transform=ax.get_xaxis_transform(), ha="center", va="top", color=col,
+                    fontsize=7 if len(MARK) > 1 else 8, fontweight="bold")
         VS.zero_line(ax)
         ax.set_xticks(range(4))
         ax.set_xticklabels(XL)
@@ -105,9 +112,8 @@ def main(data: str, figdir: str, stem: str) -> None:
         fig.savefig(stem.with_suffix(f".{x}"), dpi=300 if x == "png" else None)
     print(f"canvas {w_in * 72:.2f} x {h_in * 72:.2f} pt -> {stem}")
     for m in ("gain_miss_lat", "gain_hit_lat", "gain_diff_lat", "binned_lat"):
-        print(ST[ST.metric == m][["metric", "epoch", "n_sessions", "n_licks", "pre_value", "est", "lo", "hi",
-                                  "star"]].round(3).to_string(index=False, header=m == "gain_miss_lat"))
+        print(ST[ST.metric == m][["metric", "epoch", "est", "lo", "hi", "star"]].round(3).to_string(index=False))
 
 
 if __name__ == "__main__":
-    main(*sys.argv[1:4])
+    main(*sys.argv[1:5])
