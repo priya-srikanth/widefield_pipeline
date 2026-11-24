@@ -98,13 +98,10 @@ def _gaps(label: str) -> pd.DataFrame:
     """ITI licks of one session -> time since the previous lick ONSET (s), for the 'first lick after a quiet period' set
     (Priya 10-28; >= il.GAP_MAIN = 2 s, the rule of the other ITI analyses). Module-level for spawn."""
     from wfield_local import config
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
     C = pd.read_csv(il.in_path(f"covref_covariates{lo.SRC_TAG}.csv.gz"), usecols=["set", "label", "k", "t"])
     C = C[(C.label == label) & (C.set == "iti")]
     an, date = config.animal_of(label), "2026" + label.split("_")[-1]
-    A = pd.read_csv(oo.session_dir(PathResolver(), oc.RUN, an, date) / "licks_all.csv", usecols=["daq_on_s", "daq_peak_s"])
+    A = __import__("wfield_local.session_licks", fromlist=["x"]).session_licks(f"{an}_{date}")[["daq_on_s", "daq_peak_s"]].copy()  # THE session lick table (fused four-camera train when selected), not cam4 licks_all (11-24)
     A = A[np.isfinite(A.daq_on_s)].sort_values("daq_on_s").reset_index(drop=True)
     gap = pd.Series(np.r_[np.inf, np.diff(A.daq_on_s.to_numpy(float))], index=A.daq_peak_s.to_numpy(float))
     gap = gap[~gap.index.duplicated()]

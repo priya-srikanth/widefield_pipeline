@@ -157,9 +157,6 @@ def regress(item) -> dict:
 
     from wfield_local import combined_encoding as ce
     from wfield_local import config
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
     label, T = item
     f = SESS_REG / f"{label}.npz"
     if f.exists() and int(np.load(f)["version"]) == REG_VERSION:
@@ -167,7 +164,7 @@ def regress(item) -> dict:
         return {"label": label, "cached": True}
     R, ft, cols = _signals(label)
     an, date = config.animal_of(label), "2026" + label.split("_")[-1]
-    A = pd.read_csv(oo.session_dir(PathResolver(), oc.RUN, an, date) / "licks_all.csv", usecols=["daq_on_s"])
+    A = __import__("wfield_local.session_licks", fromlist=["x"]).session_licks(f"{an}_{date}")[["daq_on_s"]].copy()  # THE session lick table (fused four-camera train when selected), not cam4 licks_all (11-24)
     on = np.sort(A.daq_on_s.to_numpy(float)[np.isfinite(A.daq_on_s.to_numpy(float))])
     T = T[np.isfinite(T.strobe_s) & np.isfinite(T.cue_s) & (T.cue_s > T.strobe_s)].sort_values("strobe_s")
     s, c = T.strobe_s.to_numpy(float), T.cue_s.to_numpy(float)

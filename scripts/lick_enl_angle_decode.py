@@ -97,11 +97,8 @@ def session_trials(label: str) -> dict:
         raise RuntimeError(f"{label}: spout labels differ from cued_wide")
     # pre-cue licks: EVERY lick of the session (licks_all.csv, all contexts) -- the behaviour table's lick_on_s holds
     # only the trial-context licks and has no pre-cue licks at all (checked 10-29: lick-free 100 % with it, ~82 % here)
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
     an, date = config.animal_of(label), "2026" + label.split("_")[-1]
-    A = pd.read_csv(oo.session_dir(PathResolver(), oc.RUN, an, date) / "licks_all.csv", usecols=["daq_on_s"])
+    A = __import__("wfield_local.session_licks", fromlist=["x"]).session_licks(f"{an}_{date}")[["daq_on_s"]].copy()  # THE session lick table (fused four-camera train when selected), not cam4 licks_all (11-24)
     bo = np.sort(A.daq_on_s.to_numpy(float))
     bo = bo[np.isfinite(bo)]
     nl = {L: np.searchsorted(bo, cue) - np.searchsorted(bo, cue - L) for L in (0.5, 1.0, LF_LONG)}
