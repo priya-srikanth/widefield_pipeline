@@ -84,7 +84,7 @@ if MASK_LOC:
 ITI_FILTER = "" if il.ITI_SUBSET else os.environ.get("WFIELD_ITI_FILTER", "")
 # WRITE ROOT for tables / figures: il.OUT (unchanged) unless a SUBSET filter is active, then il.OUT_W (= the filter's own
 # folder, or WFIELD_ITI_OUT_W) -- 10-29 late: before this a subset run wrote untagged files into il.OUT (primary names)
-WOUT = il.OUT_W if il.ITI_SUBSET else il.OUT
+WOUT = il.OUT_W if il.ITI_SUBSET else il.OUT_X     # = il.OUT by default (OUT_X routing, lane E 11-24)
 if ITI_FILTER:
     SRC_TAG += f"_{ITI_FILTER}"
 # KEY_TAG = the basis-specific tag built above (cache name, basis key); SRC_TAG = the OUTPUT tag: the canonical split basis
