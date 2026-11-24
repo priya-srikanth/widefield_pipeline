@@ -340,7 +340,7 @@ def render_supp(rv, P: dict, T: dict, row: dict, info: dict, out: Path, sfx: str
     tgt = P["tgt"]
     tgt_px = {c: P["spout_px"][c][list(tgt).index(pos_)] for c in order}
     crops = _crops(P, clips, P["nose_px"], P["mouth_px"], tgt_px)
-    v2 = style in ("v2", "v3")      # v3 (11-22): v2 + cam1 nose only where cam1 tracked it + latency-IQR picks
+    v2 = style in ("v2", "v3", "v5")      # v5 (11-24) renders as v3; v3 (11-22): v2 + cam1 nose only where cam1 tracked it + latency-IQR picks
     if v2:
         HEX = COL_V2
         crops2 = _crops_v2(P, clips)
@@ -400,7 +400,7 @@ def render_supp(rv, P: dict, T: dict, row: dict, info: dict, out: Path, sfx: str
                     sx, sy = tw[c] / box[2], th / box[3]
                     for q in ("nose", "jaw", "spout", "tongue"):
                         xy2, rep3 = cl["pts"][q][j, k], False
-                        if style == "v3" and q == "nose" and c == "cam1":
+                        if style in ("v3", "v5") and q == "nose" and c == "cam1":
                             # v3 (Priya 11-22): the bottom-view nose is ALWAYS the fused 3-D nose reprojected (smooth;
                             # never cam1's own point, never switching between the two), marked as Fig 3C v26c
                             if not np.isfinite(cl["rep"][q][j, k]).all():
@@ -698,6 +698,59 @@ def title_card(f_out: Path, hw: tuple, R: pd.DataFrame, ep: str, licks: str, sty
     return f_out
 
 
+TITLE_S_V4 = 5.0       # v4 cards (Priya 11-24): held ~5 s, only the essentials (selection rules live in the legend)
+
+
+def title_card_v4(f_out: Path, hw: tuple, mouse: str, ep: str, day, med_contra: float, chg_contra: float) -> Path:
+    """v4 title card (Priya 11-24): animal + epoch, spout, epoch-median aim error, change from pre, sign + slow motion;
+    no selection-rule / method text. Angles are + = contralesional (the mapping csv's *_pos_contra columns)."""
+    import cv2
+    h, w = hw
+    im = np.full((h, w, 3), 16, np.uint8)
+    im[: int(0.22 * h)] = EP_BGR[ep]
+    F_ = cv2.FONT_HERSHEY_SIMPLEX
+    fg = (0, 0, 0) if ep == "pre" else (255, 255, 255)
+    cv2.putText(im, f"Mouse {mouse}  -  {epoch_title(ep, day)}", (40, int(0.14 * h)), F_, 1.5, fg, 3, cv2.LINE_AA)
+    lines = ["far contralesional spout",
+             f"aim error vs target, epoch median {med_contra:+.0f} deg",
+             ("change from pre-stroke: reference epoch" if ep == "pre"
+              else f"change from pre-stroke: {chg_contra:+.0f} deg"),
+             "- = ipsilesional; 10x slow motion"]
+    for k, t in enumerate(lines):
+        cv2.putText(im, t, (40, int(0.34 * h) + k * 50), F_, 0.95, (235, 235, 235), 2, cv2.LINE_AA)
+    vw = H264Main(f_out, w, h)
+    for _ in range(int(TITLE_S_V4 * LC.OUT_FPS)):
+        vw.write(im)
+    vw.close()
+    return f_out
+
+
+def recard(deliv: Path, animal: str, src_style: str = "v3", style: str = "v4") -> Path:
+    """Rebuild one animal's deliverable from the EXISTING ``blocks_<src_style>`` clips with v4 title cards (no clip
+    re-render; same trials, same frames). Card numbers come from ``SuppVideo_mapping_<src_style>.csv``."""
+    M = pd.read_csv(deliv / f"SuppVideo_mapping_{src_style}.csv")
+    M = M[M.animal_lab_id == animal]
+    blocks = deliv / f"blocks_{src_style}"
+    parts = []
+    for ep in EPOCHS:
+        r = M[M.epoch == ep].iloc[0]
+        v = blocks / r.block_file
+        if not v.exists():
+            raise SystemExit(f"missing block {v}")
+        card = blocks / f"_title_{animal}_{ep}_{style}.mp4"
+        parts += [str(title_card_v4(card, _frame_hw(v), str(r.mouse), ep, int(r.day),
+                                    float(r.epoch_median_vs_target_deg_pos_contra),
+                                    float(r.epoch_change_from_pre_deg_pos_contra))), str(v)]
+    f4 = deliv / f"SuppVideo_mouse{mouse_label(animal)}_far_contralesional_{style}.mp4"
+    if f4.exists():
+        raise SystemExit(f"{f4} exists (new names only)")
+    concat(parts, f4)
+    for q in parts:
+        if Path(q).name.startswith("_title_"):
+            Path(q).unlink()
+    return f4
+
+
 def _frame_hw(f) -> tuple:
     import re
 
@@ -741,31 +794,40 @@ def main(argv=None) -> int:
     ap.add_argument("--n", type=int, default=2, help="trials per epoch")
     ap.add_argument("--jobs", type=int, default=2)
     ap.add_argument("--animal", default=ANIMAL)
-    ap.add_argument("--style", choices=("v1", "v2", "v3"), default="v1",
-                    help="v2 = supplementary deliverable (manuscript animal numbers, Fig 3C v26c framing / keypoints); "
+    ap.add_argument("--style", choices=("v1", "v2", "v3", "v5"), default="v1",
+                    help="v5 (Priya 11-24) = v3 clips, PRE examples by the same median rule as post-stroke, 5-s essentials-only "
+                         "title cards; v2 = supplementary deliverable (manuscript animal numbers, Fig 3C v26c framing / keypoints); "
                          "per-epoch blocks go to --out/blocks_v2, the combined video + mapping csv to --out")
     ap.add_argument("--licks", choices=("cam4", "fused"), default="cam4",
                     help="lick list for the selection (fused -> outputs suffixed _fused)")
     ap.add_argument("--epochs", nargs="*", default=list(EPOCHS), help="epochs to render (others: the existing clip "
                     "of the same suffix, else the unsuffixed cam4-list clip, is used for the 4-epoch file)")
     ap.add_argument("--win-only", action="store_true", help="only write the _win.mp4 copies of the clips in --out")
+    ap.add_argument("--recard", action="store_true", help="v4 (Priya 11-24): rebuild --animal's deliverable in --out "
+                    "from the existing blocks_v3 clips with 5-s essentials-only title cards (+ _win copy)")
     a = ap.parse_args(argv)
     if not str(a.out).replace("\\", "/").startswith("M:/MICROSCOPE/Priya/"):
         raise SystemExit("--out must be under M:/MICROSCOPE/Priya/")
+    if a.recard:
+        f4 = recard(a.out, a.animal)
+        print("v4", f4)
+        print("win copy", win_copy(f4))
+        return 0
     if a.win_only:
         for f in sorted(a.out.glob("supp4cam_*.mp4")):
             if not f.stem.endswith("_win"):
                 print("win copy", win_copy(f))
         return 0
     a.out.mkdir(parents=True, exist_ok=True)
-    vx = a.style in ("v2", "v3")
+    vx = a.style in ("v2", "v3", "v5")
     sfx = ("" if a.licks == "cam4" else f"_{a.licks}") + (f"_{a.style}" if vx else "")
     deliv = a.out
     if vx:
         a.out = a.out / f"blocks_{a.style}"
         a.out.mkdir(parents=True, exist_ok=True)
-    R = select(a.n, a.licks, a.animal, pre_rule="contact_q25" if vx else "median", lat_iqr=a.style == "v3")
-    if a.style == "v3":
+    R = select(a.n, a.licks, a.animal, pre_rule="contact_q25" if a.style in ("v2", "v3") else "median",
+               lat_iqr=a.style in ("v3", "v5"))
+    if a.style in ("v3", "v5"):
         R["rule"] = R["rule"] + "; " + LAT_RULE
     print(R[["epoch", "session", "epoch_median", "epoch_n", "session_median", "session_n"]].to_string())
     LC.PREP_DIR.mkdir(parents=True, exist_ok=True)
@@ -789,12 +851,21 @@ def main(argv=None) -> int:
         if old:
             seq.append(str(old[0]))
     if len(seq) == len(EPOCHS):
+        from wfield_local import epochs
         # THE supplementary deliverable (Priya 11-22): one video per animal, epochs in order, a title card before
         # each epoch, the epoch banner in every frame (the per-epoch clips stay as building blocks)
         hw = _frame_hw(seq[0])
         parts = []
         for ep, v in zip(EPOCHS, seq):
-            parts += [str(title_card(a.out / f"_title_{a.animal}_{ep}{sfx}.mp4", hw, R, ep, a.licks, a.style)), v]
+            fc = a.out / f"_title_{a.animal}_{ep}{sfx}.mp4"
+            if a.style == "v5":
+                r = R[R.epoch == ep].iloc[0]
+                day = epochs.days_since_stroke(f"{r.animal}_{r.session.split('_')[1][4:]}")
+                card = title_card_v4(fc, hw, mouse_label(a.animal), ep, day, -float(r.epoch_median),
+                                     -float(r.epoch_median - r.pre_median))
+            else:
+                card = title_card(fc, hw, R, ep, a.licks, a.style)
+            parts += [str(card), v]
         f4 = (deliv / f"SuppVideo_mouse{mouse_label(a.animal)}_far_contralesional_{a.style}.mp4" if vx
               else a.out / f"supp4cam_{a.animal}_farcontra_allepochs{sfx}.mp4")
         print("all-epochs file from", *seq, sep="\n  ")
