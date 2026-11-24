@@ -137,9 +137,10 @@ def apply_frame_env(key: str) -> None:
     os.environ.update({**BASE_ENV, **FRAMES[key]["env"], "WFIELD_INPUT_CACHE": INPUT_CACHE})
 
 
-def frame_out(key: str) -> Path:
+def frame_out(key: str, out_root=None) -> Path:
+    """The frame folder: the routed share root (`frozen_encoder.out_root`), or ``out_root`` (a TEST bundle only)."""
     from wfield_local import frozen_encoder as fe
-    return fe.out_root() / f"frozen_encoder_{FRAMES[key]['tag']}"
+    return Path(out_root or fe.out_root()) / f"frozen_encoder_{FRAMES[key]['tag']}"
 
 
 # ------------------------------------------------------------------------------------------------- capture (desktop)
@@ -257,6 +258,8 @@ def cmd_bundle(a) -> Path:
     from wfield_local.paths import PathResolver
     key = a.frame
     F = FRAMES[key]
+    if bool(a.labels) != bool(a.out_root):
+        raise SystemExit("a session subset needs --out-root (a TEST bundle never writes the share frame folder) and back")
     if fe._run_tag() != V36_RUN_MODE[key]:
         raise SystemExit(f"{key}: this env's frozen run tag {fe._run_tag()!r} != the v36 frame's {V36_RUN_MODE[key]!r}")
     repo = Path(__file__).resolve().parents[1]
@@ -264,7 +267,7 @@ def cmd_bundle(a) -> Path:
     if dirty:
         raise SystemExit(f"uncommitted changes in {repo} (the bundle archives HEAD):\n{dirty}")
     commit = op._git(repo, "rev-parse", "HEAD")
-    out = frame_out(key)
+    out = frame_out(key, a.out_root)
     if any((out / "joint" / "sessions").glob("*.json")):
         raise SystemExit(f"{out} already holds session outputs: not a bundle target (never overwrite a frame)")
     d = op._bundle_dir(a.name)
@@ -294,7 +297,8 @@ def cmd_bundle(a) -> Path:
     fe.summarise_drop = fe.summarise_musall = lambda *x, **k: None
     t0 = time.time()
     try:
-        rc = fe.main(["--all", "--jobs", str(a.jobs), "--tag", F["tag"], "--reuse-stats", *F["args"]])
+        rc = fe.main([*(a.labels or ["--all"]), "--jobs", str(a.jobs), "--tag", F["tag"], "--reuse-stats", *F["args"],
+                      *(["--out-root", str(a.out_root)] if a.out_root else [])])
     finally:
         fe.stats_job, fe._fan, fe.summarise_drop, fe.summarise_musall = saved
     t_main = (time.time() - t0) / 60
@@ -338,7 +342,7 @@ def cmd_bundle(a) -> Path:
     rmeta = {"frame": key, "tag": F["tag"], "args": F["args"], "jobs": list(F["jobs"]), "basis": is_basis(key),
              "identity": ident, "run_tag": fe._run_tag(), "v36_run_mode": V36_RUN_MODE[key], "frame_dir": str(out),
              "variants": _variants(out), "svf_variants": [v for v in SVF_VARIANTS if v in _variants(out)],
-             "n_sessions": len(labels), "commit": commit, "attempts_table": str(att), "attempts_sha256": att_sha,
+             "n_sessions": len(labels), "commit": commit, "test_out_root": str(a.out_root or ""), "attempts_table": str(att), "attempts_sha256": att_sha,
              "pre_stats": {"size": st.st_size, "mtime": st.st_mtime}, "bundle_main_min": round(t_main, 1),
              "created": datetime.datetime.now().isoformat(timespec="seconds")}
     rmeta_f.write_text(json.dumps(rmeta, indent=1), encoding="utf-8", newline="\n")
@@ -564,7 +568,7 @@ def cmd_collect(a) -> int:
         op.verify_identity(rmeta["identity"])
     except o2_bundle.BundleMismatch as ex:
         raise SystemExit(f"refusing: this bundle is not of the current run ({ex})") from None
-    out = frame_out(key)
+    out = frame_out(key, rmeta.get("test_out_root") or None)
     if str(out) != rmeta["frame_dir"]:
         raise SystemExit(f"frame folder {out} differs from the bundle's {rmeta['frame_dir']}")
     st = (out / "fit" / "pre_stats.pkl").stat()
@@ -645,6 +649,8 @@ def main(argv=None) -> int:
     b.add_argument("--name", required=True)
     b.add_argument("--user", required=True)
     b.add_argument("--jobs", type=int, default=3)
+    b.add_argument("--out-root", default=None, help="TEST bundles only: frame folder parent instead of the share")
+    b.add_argument("labels", nargs="*", help="TEST bundles only: a session subset (default --all)")
     c = sub.add_parser("check")
     c.add_argument("--frame", required=True, choices=sorted(FRAMES))
     c.add_argument("--name", required=True)
