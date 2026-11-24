@@ -136,6 +136,11 @@ if ITI_SUBSET and not os.environ.get("WFIELD_ITI_OUT_W"):
 _DOCK_AUDIT = None
 
 
+#: an explicit UPSTREAM read folder for a WFIELD_ITI_OUT_W run (lane E 11-24: the docked pass on the manuscript lineage reads
+#: the neural-tail chain's all-ITI tables): in_path order = OUT_W, then WFIELD_ITI_IN_W, then the production folder.
+IN_W_ENV = "WFIELD_ITI_IN_W"
+
+
 def in_path(rel: str | Path) -> Path:
     """READ path of an upstream table / folder that writers put under OUT_W: OUT_W/rel when it exists there, else the
     default write root's copy (OUT, or OUT/itifilter_<f> under an ITI subset). Default runs (OUT_W == default) are
@@ -143,6 +148,10 @@ def in_path(rel: str | Path) -> Path:
     p = OUT_W / rel
     if p.exists() or not os.environ.get("WFIELD_ITI_OUT_W"):
         return p
+    if os.environ.get(IN_W_ENV):                 # explicit upstream folder (lane E 11-24), e.g. a neural-tail OUT_W
+        q = Path(os.environ[IN_W_ENV]) / rel
+        if q.exists():
+            return q
     return (OUT / f"itifilter_{ITI_SUBSET}" if ITI_SUBSET else OUT) / rel
 
 

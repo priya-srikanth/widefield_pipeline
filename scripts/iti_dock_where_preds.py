@@ -98,9 +98,9 @@ def main() -> int:
     rel_z = Path("zscore_check") / il.tagged("where_preds_z.csv", il.PRED_TAG)
     rel_a = Path(il.tagged("where_angle_reach_preds.csv.gz", il.PRED_TAG))
     rel_u = Path(il.tagged("where_preds.csv", il.PRED_TAG))
-    Wz = pd.read_csv(il.OUT / rel_z)
-    A = pd.read_csv(il.OUT / rel_a)
-    U = pd.read_csv(il.OUT / rel_u)
+    Wz = pd.read_csv(il.in_path(rel_z))
+    A = pd.read_csv(il.in_path(rel_a))
+    U = pd.read_csv(il.in_path(rel_u))
     # the three caches are row-aligned (same extraction): check before reusing one flag vector
     for nm, X, c in (("angle_reach", A, "act_sag"), ("unscaled", U, "act_lat")):
         if len(X) != len(Wz) or not np.allclose(X[c].to_numpy(float), Wz[c].to_numpy(float), equal_nan=True):
@@ -114,7 +114,7 @@ def main() -> int:
     Wz2.to_csv(il.OUT_W / rel_z, index=False)
     A2.to_csv(il.OUT_W / rel_a, index=False)
     U2.to_csv(il.OUT_W / rel_u, index=False)
-    R0 = pd.read_csv(il.OUT / "zscore_check" / il.tagged("where_decoder_z.csv"))
+    R0 = pd.read_csv(il.in_path(Path("zscore_check") / il.tagged("where_decoder_z.csv")))
     chk = r_table(Wz, A)                                     # reproduce the published ITI r from the full caches
     m = R0[R0.set == "iti"].merge(chk, on=["label", "target"], suffixes=("", "_chk"))
     print(f"check vs published where_decoder_z ITI rows: max |dr| {np.abs(m.r - m.r_chk).max():.2e} over {len(m)} rows"
