@@ -109,7 +109,9 @@ def main(argv=None) -> int:
     from frozen_area_maps import area_image, outline, paint
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--tag", default=_design_tag("gate-attempted_v7g3_t3d_frA"))
-    ap.add_argument("--layer2", default=_design_tag("allsession_encoder_v7g3_t3d_frA"))
+    ap.add_argument("--layer2", default=_design_tag("allsession_encoder_v7g3_t3d_frA"),
+                    help="all-session encoder run for the Layer 2 panels; 'none' = residual only (no Layer 2 panel, no "
+                         "layer2_boot.csv; lane E 11-24: the manuscript-lineage sync60 frame has no all-session run)")
     ap.add_argument("--reuse", action="store_true", help="reuse sessions.csv (figures / tables only)")
     ap.add_argument("--out", default=None, help="output folder (default <E>/specificity_control/<tag>)")
     a = ap.parse_args(argv)
@@ -119,7 +121,8 @@ def main(argv=None) -> int:
     run = frozen_encoder.out_root() / f"frozen_encoder_{a.tag}"
     out = Path(a.out) if a.out else run_mode.subdir(E_BASE / "specificity_control", make=True) / a.tag
     assert_writable(out / "_")
-    l2dir = Path(a.layer2) if Path(a.layer2).is_absolute() else E / a.layer2       # absolute: a dry-run folder
+    no_l2 = a.layer2.lower() == "none"                   # explicit opt-out, never a silent fallback
+    l2dir = None if no_l2 else (Path(a.layer2) if Path(a.layer2).is_absolute() else E / a.layer2)  # absolute: dry run
     (out / "figures").mkdir(parents=True, exist_ok=True)
     if a.reuse and (out / "sessions.csv").exists():
         T = pd.read_csv(out / "sessions.csv")
@@ -144,33 +147,35 @@ def main(argv=None) -> int:
                   ignore_index=True)
     A.to_csv(out / "area_boot.csv", index=False)
 
-    # LAYER 2 by area
-    L = pd.read_csv(l2dir / "allsession_changes_by_session.csv")
-    L = L[L.fit == "combined"].copy()
-    L["change_ref"] = L["change_ref"] / 1e3                 # stored x1e3 -> R2 fraction
-    LG = []
-    for (an,), g in L.groupby(["animal"]):
-        nlab = g.label.nunique()
-        have = set(g.groupby("area").label.nunique().loc[lambda s, n=nlab: s == n].index)
-        for gname, areas in GROUPS.items():
-            use = [x for x in areas if x in have]
-            if use:
-                LG.append(g[g.area.isin(use)].groupby(["label", "epoch"]).change_ref.mean().reset_index()
-                          .assign(animal=an, area=gname))
-    LG = pd.concat(LG, ignore_index=True)
-    o = LG[LG.area == "orofacial"].set_index("label")
-    c = LG[LG.area == "control"].set_index("label")
-    LG = pd.concat([LG, (o[["change_ref"]] - c[["change_ref"]]).join(o[["epoch", "animal"]]).reset_index()
-                    .assign(area="orofacial - control")], ignore_index=True)
-    LB = ffc.boot(LG, "change_ref", ref_epoch="pre_late", keys=("area",))
-    LB.to_csv(out / "layer2_boot.csv", index=False)
-    perL = LG[LG.area.isin(["orofacial", "control", "orofacial - control"])].groupby(["area", "animal", "epoch"]) \
-        .change_ref.mean().unstack("epoch")
-    print("\n== per animal: Layer 2 change_ref (R2), group means\n"
-          + perL.reindex(columns=["pre_late", "acute", "subacute", "chronic"]).round(4).to_string())
-    print("\n== Layer 2 epoch - pre_late (nested bootstrap)\n"
-          + LB[LB.epoch != "pre_late_split"][["area", "epoch", "point", "lo", "hi", "n_up", "n"]].round(4).to_string(index=False))
-    LA = ffc.boot(L, "change_ref", ref_epoch="pre_late", epochs=["chronic"], keys=("area",))
+    L = LB = LA = None
+    if not no_l2:
+        # LAYER 2 by area
+        L = pd.read_csv(l2dir / "allsession_changes_by_session.csv")
+        L = L[L.fit == "combined"].copy()
+        L["change_ref"] = L["change_ref"] / 1e3                 # stored x1e3 -> R2 fraction
+        LG = []
+        for (an,), g in L.groupby(["animal"]):
+            nlab = g.label.nunique()
+            have = set(g.groupby("area").label.nunique().loc[lambda s, n=nlab: s == n].index)
+            for gname, areas in GROUPS.items():
+                use = [x for x in areas if x in have]
+                if use:
+                    LG.append(g[g.area.isin(use)].groupby(["label", "epoch"]).change_ref.mean().reset_index()
+                              .assign(animal=an, area=gname))
+        LG = pd.concat(LG, ignore_index=True)
+        o = LG[LG.area == "orofacial"].set_index("label")
+        c = LG[LG.area == "control"].set_index("label")
+        LG = pd.concat([LG, (o[["change_ref"]] - c[["change_ref"]]).join(o[["epoch", "animal"]]).reset_index()
+                        .assign(area="orofacial - control")], ignore_index=True)
+        LB = ffc.boot(LG, "change_ref", ref_epoch="pre_late", keys=("area",))
+        LB.to_csv(out / "layer2_boot.csv", index=False)
+        perL = LG[LG.area.isin(["orofacial", "control", "orofacial - control"])].groupby(["area", "animal", "epoch"]) \
+            .change_ref.mean().unstack("epoch")
+        print("\n== per animal: Layer 2 change_ref (R2), group means\n"
+              + perL.reindex(columns=["pre_late", "acute", "subacute", "chronic"]).round(4).to_string())
+        print("\n== Layer 2 epoch - pre_late (nested bootstrap)\n"
+              + LB[LB.epoch != "pre_late_split"][["area", "epoch", "point", "lo", "hi", "n_up", "n"]].round(4).to_string(index=False))
+        LA = ffc.boot(L, "change_ref", ref_epoch="pre_late", epochs=["chronic"], keys=("area",))
 
     # ALM / tjM1 / MOs_rest / MOp_rest (Priya 10-27): per-ROI residual next to the whole MOp / MOs, both windows, every
     # post epoch (docs/status/ALM_TJM1_ROWS_PLAN_20261027.md)
@@ -181,7 +186,7 @@ def main(argv=None) -> int:
     has_split = any(x in esr.SPLIT_AREAS for x in SR)
     # ... and in LAYER 2 when the all-session run has the ROI targets (`allsession_encoder --roi-targets`, Priya 10-28:
     # "can definitely do the frA panel"); not in any GROUP, so the group values are unchanged
-    SRL = [x for x in SR0 if x in set(L.area)]
+    SRL = [] if no_l2 else [x for x in SR0 if x in set(L.area)]
     l2_split = any(x in esr.SPLIT_AREAS for x in SRL)
     if l2_split:
         LBS = ffc.boot(L[L.area.isin(SRL)], "change_ref", ref_epoch="pre_late", keys=("area",))
@@ -206,31 +211,33 @@ def main(argv=None) -> int:
     from wfield_local.cat_points import MODEL_COLORS as _MC      # the shared model palette (Priya 11-07)
     ffc.COL.update({"residual_z": _MC[2]})
     nx = has_split + l2_split                            # extra panels: residual by ROI, Layer 2 by ROI
-    fig, axs = plt.subplots(3 + nx, 1, figsize=(13, 11 + 3.6 * nx))
+    nl2 = 0 if no_l2 else 1
+    fig, axs = plt.subplots(2 + nl2 + nx, 1, figsize=(13, 7.4 + 3.6 * nl2 + 3.6 * nx))
     for ax, w in zip(axs[:2], WINDOWS):
         Bw = B[(B.window == w) & B.q.isin(["residual_z"])].rename(columns={"q": "frame"})
         ffc.bars(ax, Bw, ["residual_z"], gl, "change from pre (pre-SD units)",
                  f"RESIDUAL (data - frozen prediction), {w} window, in each animal's pre-SD units")
         ax.legend(fontsize=8, frameon=False, loc="upper left", bbox_to_anchor=(1.0, 1.0))
-    LBp = LB.copy()
-    LBp["frame"] = "layer2"
-    LBp["epoch"] = LBp.epoch.replace({"pre_late_split": "pre_split"})
-    ffc.COL["layer2"] = _MC[0]
-    ffc.bars(axs[2], LBp, ["layer2"], gl, "change_ref minus pre_late (R2)",
-             "LAYER 2: mapping change beyond pre-stroke drift, by area group")
+    if not no_l2:
+        LBp = LB.copy()
+        LBp["frame"] = "layer2"
+        LBp["epoch"] = LBp.epoch.replace({"pre_late_split": "pre_split"})
+        ffc.COL["layer2"] = _MC[0]
+        ffc.bars(axs[2], LBp, ["layer2"], gl, "change_ref minus pre_late (R2)",
+                 "LAYER 2: mapping change beyond pre-stroke drift, by area group")
     if has_split:
         ffc.ALAB.update({x: esr.side_label(x) for x in SR})
         ffc.COL.update({"cue": _MC[1], "lick": _MC[2]})
-        ffc.bars(axs[3], BS, list(WINDOWS), SR, "change from pre (pre-SD units)",
+        ffc.bars(axs[2 + nl2], BS, list(WINDOWS), SR, "change from pre (pre-SD units)",
                  "RESIDUAL by ROI: MOp, tjM1, MOp_rest, MOs, ALM, MOs_rest (ROI v8 on the stat mask; ALM / tjM1 / rests from "
                  "the frozen run's basis twin)")
-        axs[3].legend(fontsize=8, frameon=False, loc="upper left", bbox_to_anchor=(1.0, 1.0))
+        axs[2 + nl2].legend(fontsize=8, frameon=False, loc="upper left", bbox_to_anchor=(1.0, 1.0))
     if l2_split:
         ffc.ALAB.update({x: esr.side_label(x) for x in SRL})
         LBSp = LBS.copy()
         LBSp["frame"] = "layer2"
         LBSp["epoch"] = LBSp.epoch.replace({"pre_late_split": "pre_split"})
-        ffc.bars(axs[3 + has_split], LBSp, ["layer2"], SRL, "change_ref minus pre_late (R2)",
+        ffc.bars(axs[2 + nl2 + has_split], LBSp, ["layer2"], SRL, "change_ref minus pre_late (R2)",
                  f"LAYER 2 by ROI: MOp, tjM1, MOp_rest, MOs, ALM, MOs_rest (ROI v8 on the stat mask, as extra targets of "
                  f"{l2dir.name})")
     fig.suptitle(f"NEURAL: is the chronic change SPECIFIC to orofacial cortex? Frozen frame ({a.tag}); orofacial = SSp-m, "
@@ -239,7 +246,7 @@ def main(argv=None) -> int:
                  fontsize=9.5)
     from wfield_local.sig_marks import reserve_headroom
     reserve_headroom(fig)                # the `bars` stars sit in the top band (10-30), no top spine (11-03)
-    fig.subplots_adjust(left=0.07, right=0.86, top=1 - 1.0 / (11 + 3.6 * nx), bottom=0.05, hspace=0.45)
+    fig.subplots_adjust(left=0.07, right=0.86, top=1 - 1.0 / (7.4 + 3.6 * nl2 + 3.6 * nx), bottom=0.05, hspace=0.45)
     save_png_svg(fig, out / "figures" / "specificity_groups.png", dpi=105)
     plt.close(fig)
 
@@ -258,9 +265,10 @@ def main(argv=None) -> int:
             if has_split:
                 panels.append((f"{lab}, {w}: ALM / tjM1 split", s.point.to_dict(), (s.lo > 0) | (s.hi < 0), "pre-SD units",
                                img_s, nm_s, ol_s, len(panels) - 1))
-    s = LA[LA.epoch == "chronic"].set_index("area")
-    panels.append(("Layer 2 change beyond drift", s.point.to_dict(), (s.lo > 0) | (s.hi < 0), "R2", img, nm, ol, None))
-    if l2_split:
+    if not no_l2:
+        s = LA[LA.epoch == "chronic"].set_index("area")
+        panels.append(("Layer 2 change beyond drift", s.point.to_dict(), (s.lo > 0) | (s.hi < 0), "R2", img, nm, ol, None))
+    if l2_split and not no_l2:
         panels.append(("Layer 2: ALM / tjM1 split", s.point.to_dict(), (s.lo > 0) | (s.hi < 0), "R2", img_s, nm_s, ol_s,
                        len(panels) - 1))
     fig, axs = plt.subplots(1, len(panels), figsize=(3.3 * len(panels), 4.2))

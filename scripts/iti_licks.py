@@ -96,8 +96,16 @@ def encoder_run(suffix: str = "") -> Path:
     return frozen_encoder.out_root() / f"frozen_encoder_{ENCODER_TAG}{suffix}"
 
 
+#: explicit override of the TE basis run folder (lane E 11-24): a `frozen_encoder --basis-only` folder on the manuscript
+#: lineage. When set it is used as given (te_basis_spatial still refuses a missing pickle); never a silent fallback.
+TE_BASIS_ENV = "WFIELD_TE_BASIS_RUN"
+
+
 def te_basis_run() -> Path:
-    """The TE design's shared-basis encoder run (fit/spatial_<animal>.pkl): the svdbasis source of the ITI readers."""
+    """The TE design's shared-basis encoder run (fit/spatial_<animal>.pkl): the svdbasis source of the ITI readers.
+    WFIELD_TE_BASIS_RUN = an explicit folder (e.g. a `frozen_encoder --basis-only` run) overrides the default."""
+    if os.environ.get(TE_BASIS_ENV):
+        return Path(os.environ[TE_BASIS_ENV])
     from wfield_local import frozen_encoder
     return frozen_encoder.out_root() / f"frozen_encoder_{TE_ENCODER_TAG}_te_basis"
 

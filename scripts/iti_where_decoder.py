@@ -175,9 +175,10 @@ def _K():
 def _frame_range(x: str, ce) -> np.ndarray:
     """(first, last) imaging frame time of a session -- all the basis branch needs from the imaging (the edge rule).
     Cached in basis_frame_range/<label>.npy so the full imaging is read once per session, ever."""
-    f = il.OUT / "basis_frame_range" / f"{x}.npy"
+    f = il.in_path_x(Path("basis_frame_range") / f"{x}.npy")   # redirected copy first under WFIELD_ITI_OUT_W (11-24)
     if f.exists():
         return np.load(f)
+    f = il.OUT_X / "basis_frame_range" / f"{x}.npy"             # = il.OUT by default (byte-identical)
     ft = ce.load_imaging(x)[1]
     r = np.array([ft[0], ft[-1]], float)
     f.parent.mkdir(exist_ok=True)
@@ -250,7 +251,7 @@ def _load_one(item):
             rec[st] = (il.area_features(Xa, z["cols"], x, sess_dir, AREA_SOURCES[source]), z[kt].astype(float))
             rec[f"{st}_pos"] = z["iti_pos" if st == "iti" else "tr_pos"].astype(str)
     else:
-        f = il.OUT / f"basis_{basis_dir(source)}" / "sessions" / f"{x}.npz"
+        f = il.in_path_x(Path(f"basis_{basis_dir(source)}") / "sessions" / f"{x}.npz")   # = il.OUT by default
         if not f.exists():
             return x, None
         keepc = locanmf_keep(str(z["animal"])) if source == "locanmfM" else None
