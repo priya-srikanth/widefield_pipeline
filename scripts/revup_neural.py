@@ -88,10 +88,12 @@ import iti_licks as il  # noqa: E402
 import restnl  # noqa: E402
 from wfield_local import enl_window, mask_keys  # noqa: E402
 
-OUT = il.OUT_W / "revup"
+# REVUP_NEURAL_OUT (11-24): an explicit output folder (the RESTW inputs stay in OUT_W/precue_restw); figures beside it
+import os as _os  # noqa: E402
+OUT = Path(_os.environ["REVUP_NEURAL_OUT"]) if _os.environ.get("REVUP_NEURAL_OUT", "").strip() else il.OUT_W / "revup"
 SESS = OUT / "sessions"
-FIGS = il.OUT_W / "figures"
-VERSION = 3                     # 3 (11-05): + enl_lo, the trial's sliding lick-free ENL window start (lag, s)
+FIGS = (OUT / "figures") if _os.environ.get("REVUP_NEURAL_OUT", "").strip() else il.OUT_W / "figures"
+VERSION = 4                     # 3 (11-05): + enl_lo, the trial's sliding lick-free ENL window start (lag, s); 4 (11-24): ITI licks from the session lick table (fused), not cam4 licks_all
 LAGS_C = np.round(np.arange(-3.0, 10.0001, 0.05), 3)     # cue-aligned, into the ITI
 LAGS_L = np.round(np.arange(-3.0, 2.0001, 0.05), 3)      # lick-aligned
 AREAS = ["ALM", "tjM1", "SSp-m", "SSp-n", "SSs", "RSPd", "VISp"]
