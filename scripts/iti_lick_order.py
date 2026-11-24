@@ -125,11 +125,22 @@ DEC_LAB = {"areas_split": "Allen areas + ALM / tjM1 split", "areas": "Allen area
 CONTRIB_HOOK = None      # optional callable(set, animal, {label: (epoch, X scaled, act, order, pos)}, {held-out pre label | None: (scaler, ridge)})
 
 
+#: rebuild the per-lick prediction cache instead of reading an existing one (lane E 11-24); see preds_path
+REDO_ENV = "WFIELD_LICK_ORDER_REDO"
+
+
 def preds_path() -> Path:
     # the per-lick prediction CACHE keeps the basis-specific KEY_TAG (same names as before 10-27 late, so a plain cache can
     # never be read as split); plain Allen areas: + ROI version from v8 on (a v1 / v2 cache must never be reused)
     roi = f"_r{il.ROI_VERSION}" if SOURCE == "areas" and il.ROI_VERSION not in ("1", "2") else ""
-    return il.resolve_cache(f"lick_order_preds{KEY_TAG}{roi}.csv.gz")     # = il.OUT/<name> by default
+    name = f"lick_order_preds{KEY_TAG}{roi}.csv.gz"
+    if os.environ.get(REDO_ENV, "").strip() == "1":
+        # lane E 11-24 (Priya: option a): REBUILD the cache in WFIELD_ITI_OUT_W (never an upstream / production copy);
+        # the frozen ITI decoders then re-freeze as NEW store entries when the pre training rows changed
+        if not os.environ.get("WFIELD_ITI_OUT_W"):
+            raise SystemExit(f"{REDO_ENV}=1 needs WFIELD_ITI_OUT_W (a new folder)")
+        return il.OUT_W / name
+    return il.resolve_cache(name)     # = il.OUT/<name> by default
 
 
 def trial_set_sentence(extra=()) -> str:
