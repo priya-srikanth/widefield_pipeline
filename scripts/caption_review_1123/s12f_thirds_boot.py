@@ -54,7 +54,7 @@ def render(figdir: str, S: pd.DataFrame, stem: str):
                          'ytick.major.size': 2})
     fig, axs = plt.subplots(1, 4, figsize=(5.6, 1.35))
     for ax, a in zip(axs, AN):
-        TC.draw_animal(ax, S[S.animal == a], lambda r: St.EP[r.epoch], "o", 1.8, pre_label_fs=6.3)
+        TC.draw_animal(ax, S[S.animal == a], lambda r: St.EP[r.epoch], "o", pre_label_fs=6.3)
         ax.set_title(NUM[a], pad=2)
         ax.set_xlabel("sessions (thirds)", labelpad=8)
     axs[0].set_ylabel("Δ first-lick\nangle (deg)")
@@ -77,8 +77,10 @@ def main(figdir: str, t1: str, out: str, stem: str):
     R, A = TC.analyze(S, "six-position (n = 4)", boot, NUM)
     R.to_csv(o / "thirds_boot_lmm_sixpos.csv", index=False)
     A.to_csv(o / "thirds_per_animal_sixpos.csv", index=False)
-    for nm, gap in (("pairs_gap2_sixpos.csv", TC.MAX_GAP), ("pairs_gap1_sixpos.csv", 1)):
-        TC.pairs(S, gap).to_csv(o / nm, index=False)
+    TC.pairs(S, None).to_csv(o / "pairs_anygap_sixpos.csv", index=False)
+    G = TC.gap_table(S, "six-position (n = 4)")
+    G.to_csv(o / "pair_gaps_sixpos.csv", index=False)
+    print(G.pivot_table(index="post", columns="gap", values="n_pairs", fill_value=0))
     print(S[S.post == 1].groupby("animal").day.agg(["min", "max", "size"]))
     with open(o / "tables_sixpos.md", "w", encoding="utf-8") as f:
         f.write("| Quantity | Pre | Post | Stroke effect, bootstrap [95% CI] | Mixed model [95% CI], p "
