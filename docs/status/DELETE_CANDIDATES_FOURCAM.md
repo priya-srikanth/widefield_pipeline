@@ -32,6 +32,16 @@ Roots: `E` = `M:/MICROSCOPE/Priya/Widefield/LP_analysis/lp_r4_heatmap_20261013__
 | [ ] | `S/scalar_family_boot4000_cam3excl/` | cam3-on (exclusion test superseded) | 11-23 |
 | [ ] | `PAPER/_to_delete/c1_aim_acc_boot5000_2026-11-23/` | 4,000-draw S8F tables | 11-23 |
 | [ ] | `C:/Users/SabatiniLab/wfield_cache` entries keyed on superseded inputs | rebuilt on demand | -- |
+| [ ] | `<sync60>/cohort_pre_cam3on_20261123/` | copy of `<sync60>/cohort` before the 11-23 re-run (keep until the stars are checked) | 11-23 |
+| [ ] | `face_rhythm/cam4/validation/master_pre_v1/` (+ `lick_epochs/`) | `master_pre_v1_fourcam_20261123/` (once the page points at it) | 11-23 |
+| [ ] | `face_rhythm/cam4/readouts/master_pre_v1/enl_decode/` | `enl_decode_fourcam_20261123/` | 11-23 |
+| [ ] | `face_rhythm/cam4/readouts/master_pre_v1_fourcam_20261123/`, `factors/master_pre_v1/labels_suggested_pre_fourcam_20261123.json` | numerically equal to the originals (redundant) | 11-23 |
+| [ ] | `Widefield/within_session_decline/` (11-07, v36) | `Widefield/within_session_decline_fourcam_20261123/` | 11-23 |
+| [ ] | `session_poses/cam1_licks/trial_classes/` (11-03) | `session_poses/cam1_licks_v37_sync60/trial_classes/` | 11-23 |
+| [ ] | `labcams/grant_figures/lmm_hidden_20261103/` | `lmm_hidden_fourcam_20261123/` | 11-23 |
+| [ ] | `E/iti_licks_cam3on/lick_correction/` behavior tables | byte-identical in `E/iti_licks_lickcorr_fourcam_20261123/lick_correction/` (+ neural) | 11-23 |
+| [ ] | `E/within_lick_correction_fourcam_launch2v_cam3on/` | byte-identical summaries in `..._launch2v_neural_20261123/` (+ neural) | 11-23 |
+| [ ] | `lp_stage/reanalysis_20261123/mc_scratch_treadmill/` | scratch MC for c2_treadmill_extras (its npz output is superseded by c2_s13_treadmill_from_fr) | 11-23 |
 
 Keep (never delete): `frozen_models/` stores; raw videos / scans; LP predictions; `qc_cam3_drop_20261122/clips/`.
 | [ ] | `C:/Users/SabatiniLab/.widefield_session_cache_restnlfv1/` (Phase B RESTnl, bare env, 11-22 06:34) | `rebuild_20261123_fourcam/session_cache_restnlfv1` (built after the class rebuild and the cam1-only rule) once D5 finishes | 11-23 |
