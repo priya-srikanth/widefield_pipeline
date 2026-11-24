@@ -77,7 +77,7 @@ def amplitude_table(store, align, variant, refs=("restnl", "rest", "restw", "raw
     return pd.DataFrame(rows)
 
 
-def render(arm: str, aligns) -> list:
+def render(arm: str, aligns, supplement_only: bool = False) -> list:
     import pandas as pd
 
     from wfield_local import epoch_maps as em
@@ -95,7 +95,7 @@ def render(arm: str, aligns) -> list:
         variant, _wname = ALIGN_VARIANT[align]
         wname = f"{tst.arm_caption(align, variant)} | {GATE[arm].replace('trial gate', 'licks')}, {tst.gate_text()} | pre: August only"
         with tst.active(variant, align):                        # every figure states its trial set (Priya 11-09)
-            for fn in (em._fig_15r_reference_maps, em._fig_15rpa_reference_by_animal):
+            for fn in (() if supplement_only else (em._fig_15r_reference_maps, em._fig_15rpa_reference_by_animal)):
                 for p in (fn(out, align, variant, wname) or []):
                     print(f"  -> {p}", flush=True)
                     made.append(p)
@@ -105,6 +105,8 @@ def render(arm: str, aligns) -> list:
                     out, align, lambda v, a=align, lk=lk: f"{tst.arm_caption(a, v)} | {lk}, {tst.gate_text()} | pre: August only"):
                 print(f"  -> {p}", flush=True)
                 made.append(p)
+        if supplement_only:                         # class-rule re-draw (CC-B 11-23 late): supplements only
+            continue
         os.environ["WIDEFIELD_MAP_REFS"] = "restnl"
         store, _rel, _ntr = prm.maps_by_epoch(align, variant)
         A = amplitude_table(store, align, variant)
@@ -114,7 +116,9 @@ def render(arm: str, aligns) -> list:
                                                                            values="ratio")
         print(f"  .. per-animal far-contra acute / pre amplitude ({align}/{variant}):\n{fc.round(3).to_string()}",
               flush=True)
-    pd.DataFrame({"figure": [str(p) for p in made]}).to_csv(out / "data" / f"restnl_maps_made_{arm}.csv", index=False)
+    made_csv = f"restnl_maps_made_{arm}{'_supplement' if supplement_only else ''}.csv"
+    (out / "data").mkdir(exist_ok=True)
+    pd.DataFrame({"figure": [str(p) for p in made]}).to_csv(out / "data" / made_csv, index=False)
     return made
 
 
@@ -135,6 +139,9 @@ def main(argv=None) -> int:
     ap.add_argument("--arm", choices=tuple(ARMS), required=True)
     ap.add_argument("--aligns", nargs="+", default=None, choices=tuple(ALIGN_VARIANT))
     ap.add_argument("--plot-only", action="store_true")
+    ap.add_argument("--supplement-only", action="store_true",
+                    help="draw ONLY the working-arm supplements (period supplement + jaw-only panels), e.g. after a "
+                         "class-rule change (jaw rule 3d_mouth, 11-23); primary maps and amplitude tables untouched")
     a = ap.parse_args(argv)
     setup_env(a.arm)
     from wfield_local import parallel
@@ -143,7 +150,9 @@ def main(argv=None) -> int:
         plot_only(out_dir())
         return 0
     aligns = a.aligns or (["precue"] if a.arm == "enl1s" else ["precue", "cue", "lick"])
-    render(a.arm, aligns)
+    if a.supplement_only:
+        aligns = [x for x in aligns if ALIGN_VARIANT[x][0] == "working"]
+    render(a.arm, aligns, supplement_only=a.supplement_only)
     return 0
 
 
