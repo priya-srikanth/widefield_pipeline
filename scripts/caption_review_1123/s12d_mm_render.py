@@ -1,7 +1,7 @@
 """S12D, millimeter version (Priya 11-23): correction gain after a miss and after a hit, change from own pre-stroke.
 
 Plot only. Reads the tables written by `s12d_miss_correction_vs_pre.py` (commit 12e055c3); nothing is recomputed.
-  left (main)  gain_miss_lat (epoch colors) and gain_hit_lat (gray) side by side per epoch: fraction of lick k's lateral
+  left (main)  gain_miss_lat (filled) and gain_hit_lat (open), both in the epoch color, side by side per epoch: fraction of lick k's lateral
                error (mm, vs the animal's pre-stroke contact-lick mean lateral position at that spout) corrected by
                lick k+1; session change from the animal's own pre-stroke session mean; markers and bars =
                boot_delta estimate and 95 % interval (4,000 draws, seed 0); * = interval excludes 0 (top band).
@@ -22,7 +22,7 @@ import pandas as pd
 
 EPS = ["pre", "acute", "subacute", "chronic"]
 XL = ["pre", "ac", "sub", "chr"]
-HIT = "0.62"
+LEG = "0.2"          # neutral dark legend markers (v2: hit = open, miss = filled, both in the epoch color)
 DX = 0.19
 
 
@@ -36,7 +36,6 @@ def main(data: str, figdir: str, stem: str) -> None:
     ST["star"] = ST["star"].astype(str).str.lower().eq("true")
     sys.path.insert(0, figdir)
     import matplotlib.pyplot as plt
-    from matplotlib.legend_handler import HandlerTuple
     import vls_style as VS
     VS.apply()
     plt.rcParams.update({"font.size": 6.8, "axes.labelsize": 6.8, "axes.titlesize": 6.8, "xtick.labelsize": 6.5,
@@ -51,22 +50,24 @@ def main(data: str, figdir: str, stem: str) -> None:
         d["chg"] = d[m] - d.animal.map(d[d.epoch == "pre"].groupby("animal")[m].mean())
         return d
 
-    def draw(ax, m, dx, muted, stars):
+    def draw(ax, m, dx, hollow, stars):
+        """Epoch colors for both classes: miss = filled circles, hit (hollow=True) = open circles (Priya 11-23 v2)."""
         d = chg(m)
         for j, ep in enumerate(EPS):
             x = j + dx
             v = d[d.epoch == ep].chg.to_numpy()
-            col = HIT if muted else C[ep]
-            ec = "0.4" if muted else "k"
-            ax.plot(x + (rng.rand(len(v)) - .5) * 0.13, v, "o", ms=1.6, mfc=col, mec="none", alpha=0.35, zorder=1)
+            col = C[ep]
+            pt = dict(mfc="none", mec=col, mew=0.45) if hollow else dict(mfc=col, mec="none")
+            mk = dict(mfc="white", mec=col, mew=0.9) if hollow else dict(mfc=col, mec="k", mew=0.4)
+            ax.plot(x + (rng.rand(len(v)) - .5) * 0.13, v, "o", ms=1.8 if hollow else 1.6, alpha=0.4, zorder=1, **pt)
             if ep == "pre":
-                ax.plot([x], [0], "o", ms=3.6, mfc=col, mec=ec, mew=0.4, zorder=3)
+                ax.plot([x], [0], "o", ms=3.6, zorder=3, **mk)
                 continue
             r = ST[(ST.metric == m) & (ST.epoch == ep)].iloc[0]
-            ax.errorbar([x], [r.est], yerr=[[r.est - r.lo], [r.hi - r.est]], fmt="o", ms=3.6, color=col, mfc=col,
-                        mec=ec, mew=0.4, elinewidth=0.9, capsize=0, zorder=3)
+            ax.errorbar([x], [r.est], yerr=[[r.est - r.lo], [r.hi - r.est]], fmt="o", ms=3.6, color=col,
+                        elinewidth=0.9, capsize=0, zorder=3, **mk)
             if r.star:
-                stars.append((x, "0.45" if muted else C[ep]))
+                stars.append((x, col))
         return d
 
     def finish(ax, vals, stars, ylab):
@@ -94,11 +95,10 @@ def main(data: str, figdir: str, stem: str) -> None:
     d1 = draw(a0, "gain_miss_lat", -DX / 1.0 * 0.95, False, st0)
     d2 = draw(a0, "gain_hit_lat", DX * 0.95, True, st0)
     finish(a0, np.r_[d1.chg, d2.chg], st0, "Δ correction gain\n(fraction of lateral error)")
-    hm = tuple(plt.Line2D([], [], marker="o", ls="none", ms=3.6, mfc=C[e], mec="k", mew=0.4) for e in EPS[1:])
-    hh = plt.Line2D([], [], marker="o", ls="none", ms=3.6, mfc=HIT, mec="0.4", mew=0.4)
-    a0.legend([hm, hh], ["after a miss", "after a hit"], loc="lower left", bbox_to_anchor=(0.0, 1.0), ncol=2, frameon=False,
-              borderaxespad=0.1, handlelength=2.0, handletextpad=0.3, columnspacing=1.0,
-              handler_map={tuple: HandlerTuple(ndivide=None, pad=0.0)})
+    hm = plt.Line2D([], [], marker="o", ls="none", ms=3.6, mfc=LEG, mec=LEG, mew=0.4)
+    hh = plt.Line2D([], [], marker="o", ls="none", ms=3.6, mfc="white", mec=LEG, mew=0.9)
+    a0.legend([hm, hh], ["after a miss", "after a hit"], loc="lower left", bbox_to_anchor=(0.0, 1.0), ncol=2,
+              frameon=False, borderaxespad=0.1, handlelength=1.0, handletextpad=0.3, columnspacing=1.2)
     d3 = draw(a1, "binned_lat", 0.0, False, st1)
     finish(a1, d3.chg.to_numpy(), st1, "Δ correction after a miss,\nerror-matched (mm)")
     for x in ("pdf", "svg", "png"):
