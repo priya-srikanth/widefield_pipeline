@@ -182,6 +182,8 @@ def test_raw_outputs_do_not_depend_on_the_rest_rows(monkeypatch, tmp_path):
     pd.DataFrame({"label": labs, "set": "trial", "bal_spout": np.linspace(0, 1, len(labs))}).to_csv(
         tmp_path / "balmatch_sessions.csv", index=False)
     monkeypatch.setattr(lih, "IN", tmp_path)
+    monkeypatch.setattr(lih.il, "OUT", tmp_path)                 # reads now go through il.in_path_x (11-23)
+    monkeypatch.delenv("WFIELD_ITI_OUT_W", raising=False)
     monkeypatch.setattr(lih, "N_BOOT", 200)
     out = {}
     for shift in (0.0, 3.0):
