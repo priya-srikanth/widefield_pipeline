@@ -86,7 +86,7 @@ def session_trials(label: str) -> dict:
     """One session (module-level for spawn): per first-lick trial row of cued_wide -> cue, onset, pre-cue lick counts,
     matched kinematics, ENL features."""
     from wfield_local import config, epochs
-    z = np.load(OUT / "cued_wide" / f"{label}.npz")
+    z = np.load(il.in_path_x("cued_wide") / f"{label}.npz")     # upstream copy in a redirected run (11-24)
     d = il._load(label)
     cue, fl = il._first_lick_times(label, d["first_rt"])
     ok = np.isfinite(fl) & np.isfinite(cue)
