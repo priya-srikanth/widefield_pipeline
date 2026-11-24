@@ -323,6 +323,9 @@ LITERAL = {
     # run + qc/jaw_onsets.csv), write only under vls_stroke_paper/ccB_caption_review_2026-11-23/s10a_onsets/
     "scripts/caption_review_1123/s10a_onsets_analysis.py",
     "scripts/caption_review_1123/s10a_onsets_extract.py",
+    # S10A / S10E on the 3d_mouth jaw rule + working period (overnight 11-23, item 3e): reads the rebuild root by
+    # literal, writes only under vls_stroke_paper/data_4cam_20261122/s10a_jaw3dmouth_wp/
+    "scripts/caption_review_1123/s10_jaw3dmouth_wp.py",
     # six-position engagement / TIM review scripts (11-20, VLS paper engagement prompt): read the rebuild root by
     # literal, write only under vls_stroke_paper/review/ on the share
     "scripts/c2_engagement_tim/s0_camera_working.py",
