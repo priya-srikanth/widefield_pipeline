@@ -26,6 +26,7 @@ Treadmill speed (`behavior_events.session_speed`, the one definition) is CACHED 
 """
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import numpy as np
@@ -46,6 +47,31 @@ DIRECTIONS = ("left", "centre", "right")
 
 
 LICK_COLS = ["trial_id", "position", "bout_idx", "daq_on_s", "peak_angle_deg"]
+#: DIRECTION SOURCE (11-23, four-camera rule; CC-B audit violation 5). Env ``FRV_DIRECTION``: unset / "cam4" = the cam4
+#: image angle ``peak_angle_deg`` (as before; licks cam4 missed -> "unknown"); "3d" = the four-camera 3-D lick angle of
+#: the six-position kinematics, atan2(side_ml, hypot(out_ap, down_dv)) (= the fused kinematics' ``midline`` column, the
+#: Fig 4D aim angle), signed + = CONTRALESIONAL (`arhmm_features.contra_sign`), taken only where the lick has >= 2
+#: camera views (the kinematics rule) and joined by LICK KEY to the fused lick table; other licks -> "unknown". The same
+#: +-ANGLE_DEG rule classifies it (right / contralesional > +12 deg, left / ipsilesional < -12 deg); internally it is
+#: stored as ``peak_angle_deg`` = -angle so the cam4 sign convention (+ = the animal's left) and the class code are shared.
+DIRECTION_ENV = "FRV_DIRECTION"
+_KIN3D: dict = {}
+
+
+def _kin3d_angles(rv, label: str) -> pd.Series:
+    """3-D lick angle (deg, + = contralesional) by lick_key for ``label`` (n_views >= 2), from the adopted run's
+    ``kinematics_fused/licks.csv.gz`` (all contexts; memoised per process)."""
+    from wfield_local import pose3d
+    from wfield_local.arhmm_features import contra_sign
+    f = pose3d.pose3d_dir(rv) / "kinematics_fused" / "licks.csv.gz"
+    if str(f) not in _KIN3D:
+        K = pd.read_csv(f, usecols=["session", "lick_key", "n_views", "side_ml", "out_ap", "down_dv"])
+        K = K[(K.n_views >= 2) & K[["side_ml", "out_ap", "down_dv"]].notna().all(1)]
+        K = K.assign(ang=np.degrees(np.arctan2(K.side_ml, np.hypot(K.out_ap, K.down_dv))))
+        _KIN3D.clear()
+        _KIN3D[str(f)] = {s: g.set_index("lick_key").ang for s, g in K.groupby("session")}
+    a = _KIN3D[str(f)].get(label, pd.Series(dtype=float))
+    return a * contra_sign(label.split("_")[0])
 
 
 def _session_lick_rows(rv, animal: str, date: str) -> pd.DataFrame:
@@ -62,6 +88,8 @@ def _session_lick_rows(rv, animal: str, date: str) -> pd.DataFrame:
     C = C.assign(lick_key=sl.lick_key(C.trial_id, C.t_ms)).drop_duplicates("lick_key").set_index("lick_key")
     for c in ("bout_idx", "peak_angle_deg"):
         A[c] = C[c].reindex(A.lick_key.to_numpy()).to_numpy()
+    if os.environ.get(DIRECTION_ENV, "cam4") == "3d":
+        A["peak_angle_deg"] = -_kin3d_angles(rv, f"{animal}_{date}").reindex(A.lick_key.to_numpy()).to_numpy()
     return A[LICK_COLS]
 
 
@@ -239,5 +267,34 @@ def lick_epoch_session(job) -> dict:
     from wfield_local.paths import PathResolver
     rv = PathResolver()
     zs = [np.load(f) for f in fro.session_keys(Path(fdir), animal, date)]
+    n_proj = sum(len(z["cue_daq_s"]) for z in zs)
+    gate = os.environ.get(TRIALS_ENV, "engaged")
+    if gate == "working":
+        zs = [working_subset(z, f"{animal}_{date}") for z in zs]
     L = lick_table(rv, animal, date, np.concatenate([z["cue_daq_s"] for z in zs]))
-    return {"animal": animal, "date": date, "epoch": str(zs[0]["epoch"]), **lick_epoch_summary(zs, L)}
+    return {"animal": animal, "date": date, "epoch": str(zs[0]["epoch"]), "trial_gate": gate, "n_projected": n_proj,
+            **lick_epoch_summary(zs, L)}
+
+
+#: TRIAL GATE (11-23, Priya: every six-position trial gate = the camera working period, not the DAQ engagement flag).
+#: Env ``FRV_TRIALS``: unset / "engaged" = every projected trial of the FaceRhythm bundle (its behavior-DAQ "engaged"
+#: set, as before); "working" = the projected trials inside the camera working period
+#: (`trial_classes.camera_period_trials`: first cue .. last camera lick minus stopped runs; Fig 3B / 3D). Working-period
+#: trials the bundle never projected (about 2 %, 201 of them in PS92_20260812) have no FaceRhythm expression and are
+#: not counted.
+TRIALS_ENV = "FRV_TRIALS"
+_TRIAL_KEYS = ("trials", "trials_err", "trials_D", "trials_lossy", "trial_id", "position", "cue_daq_s")
+
+
+def working_subset(z, label: str) -> dict:
+    """The proj file ``z`` (npz) as a dict restricted to its camera-working-period trials."""
+    from wfield_local import trial_classes as tc
+    S = tc.session_trials(label).dropna(subset=["cue_daq"])
+    w, _c, _h = tc.camera_period_trials(label[:5] + label[-4:], S.cue_daq.to_numpy(float))
+    keep_ids = set(S.trial_id.astype(int).to_numpy()[np.asarray(w, bool)])
+    m = np.isin(z["trial_id"].astype(int), list(keep_ids))
+    d = {k: z[k] for k in z.files}
+    for k in _TRIAL_KEYS:
+        if k in d:
+            d[k] = d[k][m]
+    return d
