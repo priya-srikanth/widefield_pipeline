@@ -21,7 +21,10 @@ from wfield_local import analysis_kit as ak  # noqa: E402
 il.split_only("iti_where_signed_error")      # outputs not basis-tagged: split basis only (10-27 late)
 E = sys.argv[1]
 pd.set_option("display.width", 220)
-p = pd.read_csv(Path(E) / il.tagged("where_preds.csv", il.PRED_TAG))
+_f = Path(E) / il.tagged("where_preds.csv", il.PRED_TAG)
+# 11-24: <dir> is the OUTPUT folder; the predictions come from it when present, else through pred_file (the redirected /
+# patched upstream cache), so a reader pass into a new folder works
+p = pd.read_csv(_f if _f.exists() else il.pred_file("where_preds.csv"))
 p["spout"] = np.where(p["set"] == "trial", p["pos"], p["near_pos"])
 p = p.dropna(subset=["act_lat", "dec_lat", "spout"])
 p["err"] = p.dec_lat - p.act_lat
