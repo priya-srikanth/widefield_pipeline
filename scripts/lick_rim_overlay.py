@@ -47,7 +47,7 @@ def compute(jobs: int) -> dict:
     from wfield_local import analysis_kit as ak
     from wfield_local import combined_encoding as ce
     labels = sorted(p.stem for p in (il.XOUT / il.SESS_NAME).glob("*.npz"))
-    pre = [x for x in labels if str(il._load(x, il.XOUT / il.SESS_NAME)["epoch"]) == "pre"]
+    pre = [x for x in labels if str(il._load(x)["epoch"]) == "pre"]
     got, fail = ak.fan_sessions([(x,) for x in pre], one, jobs=jobs, label="rim overlay", log=lambda m: None)
     for it, err in fail:
         print("  !!", it[0], err, flush=True)
