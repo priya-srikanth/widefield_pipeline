@@ -40,7 +40,7 @@ _1s (docked AND gap >= 2 / 1 s: ramp / pre-lick windows vs at-lick read-outs).
 iti_dock_arrival.csv: per log-aligned trial, dock - stop and dock - dock_start (the arrival distribution).
 Outputs <OUT_W>/iti_dock_audit.csv (per lick), iti_dock_census.csv (per animal x epoch x lick set: n and share by
 phase), iti_dock_sessions.csv (per session: source, n licks, reconstruction constants used).
-Usage: python scripts/iti_dock_audit.py [--jobs 8]
+Usage: python scripts/iti_dock_audit.py [--jobs 8] [--licks-session  (count-only: all session-file ITI licks)]
 """
 from __future__ import annotations
 
@@ -232,9 +232,14 @@ def main() -> int:
     ap.add_argument("--jobs", type=int, default=8)
     a = ap.parse_args()
     from wfield_local import analysis_kit as ak
-    cov = pd.read_csv(il.in_path_x("covref_covariates.csv.gz"), usecols=["set", "label", "k", "t"])
-    cov = cov[cov.set == "iti"]
-    items = [(lab, g.sort_values("k").t.to_numpy(float)) for lab, g in cov.groupby("label", sort=True)]
+    if "--licks-session" in sys.argv:
+        # COUNT-ONLY variant (lane E 11-24): every ITI lick of the session files (iti_t), not the decoder cache's rows;
+        # its k is the session-file row, NOT the lick_order cache key -- never use this audit as a subset filter
+        items = [(lab, il._load(lab)["iti_t"].astype(float)) for lab in il.labels()]
+    else:
+        cov = pd.read_csv(il.in_path_x("covref_covariates.csv.gz"), usecols=["set", "label", "k", "t"])
+        cov = cov[cov.set == "iti"]
+        items = [(lab, g.sort_values("k").t.to_numpy(float)) for lab, g in cov.groupby("label", sort=True)]
     got, fail = ak.fan_sessions(items, one, jobs=a.jobs, label="dock audit", log=lambda m: None)
     for it, err in fail:
         print(f"  !! {it[0]}: {err}", flush=True)
