@@ -847,6 +847,16 @@ def resolve_cache(rel: str | Path) -> Path:
 SUBSET_COPIES = ("where_preds_z.csv", "where_angle_reach_preds.csv.gz", "where_preds.csv")
 
 
+def pred_file_out(rel: str) -> Path:
+    """WRITE path of a per-lick prediction cache: always under OUT_X (OUT by default; the redirected OUT_W in a reader
+    pass), never an upstream / patch / production copy that `pred_file` may resolve to for READING (lane E 11-24: a
+    reader pass wrote its recomputed where_preds into the patch folder through pred_file)."""
+    p = Path(rel)
+    q = out_x() / p.parent / tagged(p.name, PRED_TAG)
+    q.parent.mkdir(parents=True, exist_ok=True)
+    return q
+
+
 def pred_file(rel: str) -> Path:
     """Per-lick prediction cache under OUT (relative path), named by basis + ROI version (PRED_TAG)."""
     p = Path(rel)

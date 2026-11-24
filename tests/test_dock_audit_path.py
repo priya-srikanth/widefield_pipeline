@@ -76,3 +76,11 @@ def test_nonlinear_preds_and_sm_coherence_read_through_the_redirect():
 def test_enlv_table_freeze_is_opt_in():
     t = (Path(__file__).resolve().parents[1] / "scripts" / "lick_enlv_balance_offset.py").read_text(encoding="utf-8")
     assert '"--allow-freeze" not in sys.argv' in t and "LOAD_ONLY_ENV" in t
+
+
+def test_prediction_caches_are_written_under_out_x_only():
+    root = Path(__file__).resolve().parents[1] / "scripts"
+    import re
+    for f in root.glob("*.py"):
+        t = f.read_text(encoding="utf-8", errors="replace")
+        assert not re.search(r"to_csv\(il\.pred_file\(", t), f"{f.name} writes through pred_file (a READ path)"

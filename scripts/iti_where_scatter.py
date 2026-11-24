@@ -359,7 +359,7 @@ def main() -> int:
         R = _groups(pd.read_csv(il.pred_file("zscore_check/where_preds_z.csv")))
     else:
         R = predictions()
-        R.to_csv(il.pred_file("where_preds.csv"), index=False)   # basis-specific name (il.PRED_TAG)
+        R.to_csv(il.pred_file_out("where_preds.csv"), index=False)   # basis-specific name (il.PRED_TAG)
         pd.set_option("display.width", 200)
         print("== licks per set / epoch / animal (rule 8)")
         print(R.groupby(["set", "animal", "epoch"]).size().unstack("epoch").reindex(columns=EP).to_string())
