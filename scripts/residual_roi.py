@@ -95,12 +95,14 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--tag", default=_design_tag("gate-attempted_v7g3_t3d"))
     ap.add_argument("--by-spout", action="store_true", help="per-spout version (Fig 10, 10c-10g counterparts)")
-    ap.add_argument("--out", default=None, help="opt-in output folder of --by-spout (11-23; default specificity_control/<tag>)")
+    ap.add_argument("--out", default=None, help="opt-in folder: --by-spout output (11-23); without --by-spout, the specificity_control --out folder read "
+                         "and written (11-24); default specificity_control/<tag>")
     a = ap.parse_args(argv)
     if a.by_spout:
         return by_spout(a.tag, a.out)
     from wfield_local import run_mode
-    out = run_mode.subdir(E_BASE / "specificity_control") / a.tag      # specificity_control's mode-routed folder (N10)
+    out = (Path(a.out) if a.out else                                    # --out (11-24): a specificity_control --out folder
+           run_mode.subdir(E_BASE / "specificity_control") / a.tag)    # specificity_control's mode-routed folder (N10)
     T = pd.read_csv(out / "sessions.csv")
     T = T[T.area != "cortex"]
     B = pd.concat([ffc.boot(T, c, epochs=EPS).assign(q=c) for c in ("residual", "residual_z")], ignore_index=True)
