@@ -151,6 +151,74 @@ def sample(out: Path, n_a: int, n_b: int, n_c: int) -> None:
           f"skipped {len(skipped)} sessions")
 
 
+# ------------------------------------------------------------------------------------------------ six-spout sample (11-23)
+
+VALID = Path("M:/MICROSCOPE/Priya/stroke_orofacial_pipeline_outputs/vls_stroke_paper/ccB_caption_review_2026-11-23/"
+             "jaw3d_qc/jaw3d_vs_2d_trials.csv.gz")
+SEED6 = 20261123
+
+
+def sample6(out: Path, n_per: int, n_anchor: int) -> None:
+    """CC-B 11-23 (audit violation 1): DISAGREEMENT trials between the per-camera 2-D jaw call (production classes,
+    jaw="camera") and the four-camera 3-D call at all six spouts (jaw="3d_all"), from
+    `scripts/jaw3d_all_validate.py build`. Jaw-decided trials only (no contact, no lick / tongue). Groups:
+      E  2-D jaw_only, 3-D no_response ("2-D only")          ``n_per`` per spout (5 spouts with a 2-D call)
+      F  2-D no_response, 3-D jaw_only ("3-D only")          ``n_per`` per spout
+      G  both jaw_only (anchor)  /  H  both no_response (anchor)   ``n_anchor`` each, any 2-D spout
+    Stratified round-robin over animal x epoch inside each spout (seed `SEED6`); the ids are shuffled across groups."""
+    from wfield_local.paths import PathResolver
+    rv = PathResolver()
+    V = pd.read_csv(VALID, low_memory=False)
+    V = V[V.epoch.isin(["pre", "acute", "subacute", "chronic"]) & ~V.frame_gated.astype(bool)
+          & (V.position != "close_center") & (V.cls_detail_2d != "tongue_at_lips")]
+    grp = {"E": (V.cls_2d == "jaw_only") & (V.cls_3d == "no_response"),
+           "F": (V.cls_2d == "no_response") & (V.cls_3d == "jaw_only"),
+           "G": (V.cls_2d == "jaw_only") & (V.cls_3d == "jaw_only"),
+           "H": (V.cls_2d == "no_response") & (V.cls_3d == "no_response")}
+    V["group"] = np.select(list(grp.values()), list(grp.keys()), "")
+    V = V[V.group != ""].copy()
+    V["session"] = V.label.map(lambda x: "_".join(_label_parts(x)))
+    usable = {s: _usable(rv, *s.split("_")) for s in sorted(V.session.unique())}
+    skipped = {s: w for s, w in usable.items() if w}
+    V = V[V.session.map(lambda s: not usable[s])].reset_index(drop=True)
+    rng = np.random.default_rng(SEED6)
+
+    def pick(D: pd.DataFrame, n: int) -> list:
+        strata = {k: list(rng.permutation(v.index.to_numpy()))
+                  for k, v in sorted(D.groupby(["animal", "epoch"]), key=lambda kv: kv[0])}
+        keys, got = sorted(strata), []
+        while len(got) < n and any(strata[k] for k in keys):
+            for k in keys:
+                if strata[k] and len(got) < n:
+                    got.append(strata[k].pop(0))
+        return got
+    picks = []
+    for g in ("E", "F"):
+        for pos in ("close_L", "close_R", "far_L", "far_center", "far_R"):
+            picks += pick(V[(V.group == g) & (V.position == pos)], n_per)
+    for g in ("G", "H"):
+        picks += pick(V[V.group == g], n_anchor)
+    K = V.loc[picks].copy()
+    stops = {}
+    for s in sorted(K.session.unique()):
+        a, d = s.split("_")
+        stops[s] = dict(zip(*_trial_cues(a, d)[["trial_id", "stop_ms"]].to_numpy().T))
+    K["stop_ms"] = [float(stops[s].get(t, np.nan)) for s, t in zip(K.session, K.trial_id)]
+    K = K.iloc[rng.permutation(len(K))].reset_index(drop=True)
+    K.insert(0, "id", [f"Q{i + 1:03d}" for i in range(len(K))])
+    K["date"] = K.session.str.split("_").str[1]
+    out.mkdir(parents=True, exist_ok=False)
+    keep = ["id", "group", "label", "session", "animal", "date", "epoch", "trial_id", "position", "pos", "stop_ms",
+            "cls_2d", "cls_3d", "cam4_moved", "cam1_moved", "cam4_open_px", "cam1_open_px", "jaw3d_moved",
+            "jaw3d_onset_ms", "jaw3d_disp_mm", "jaw3d_rest_mm", "jaw_onset_ms_2d"]
+    K[keep].to_csv(out / "key.csv", index=False)
+    pd.Series(skipped, name="reason").rename_axis("session").to_csv(out / "skipped_sessions.csv")
+    pd.DataFrame({"id": sorted(K.id), "verdict": "", "confidence": "", "onset_ms": "", "note": ""}).to_csv(
+        out / "scores_TO_FILL.csv", index=False)
+    print(K.groupby(["group", "pos"]).size().to_string())
+    print(f"wrote {len(K)} trials -> {out / 'key.csv'}; skipped {len(skipped)} sessions")
+
+
 # ------------------------------------------------------------------------------------------------ rendering
 
 def _frames_at(t_daq: np.ndarray, src: np.ndarray, targets: np.ndarray, tol_ms: float = 8.0) -> np.ndarray:
@@ -407,16 +475,20 @@ def unblind(out: Path) -> None:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("cmd", choices=("sample", "render", "unblind"))
+    ap.add_argument("cmd", choices=("sample", "sample6", "render", "unblind"))
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--jobs", type=int, default=2)
     ap.add_argument("--zoom", action="store_true", help="render pass 2 (strips_zoom/: native-resolution chin + diff)")
     ap.add_argument("--n-a", type=int, default=40)
     ap.add_argument("--n-b", type=int, default=40)
     ap.add_argument("--n-c", type=int, default=20)
+    ap.add_argument("--n-per", type=int, default=4, help="sample6: trials per spout and direction")
+    ap.add_argument("--n-anchor", type=int, default=5, help="sample6: agreement anchors per kind")
     a = ap.parse_args(argv)
     if a.cmd == "sample":
         sample(a.out, a.n_a, a.n_b, a.n_c)
+    elif a.cmd == "sample6":
+        sample6(a.out, a.n_per, a.n_anchor)
     elif a.cmd == "render":
         render(a.out, a.jobs, a.zoom)
     else:

@@ -168,6 +168,20 @@ def jaw_table(path: str) -> pd.DataFrame:
 #: "3d" = the 4-cam 3-D jaw call at EVERY spout (Priya 11-23: six-position analyses on the four-camera 3-D kinematics);
 #: "2d" = the per-camera calls only (the pre-11-21 rule; no jaw at the hidden spouts).
 JAW_MODES = ("classes", "3d", "2d")
+#: WHICH `jaw_call` mode the CLASSES use (CC-B 11-23, audit violation 1): ``session_trials(jaw=...)``, else this env var,
+#: else "classes" (production, unchanged). "3d" = the trial classes with the 4-cam 3-D jaw at all six spouts (tables
+#: under NEW names: qc/*_jaw3d_all*); a non-default mode enters `class_source_signature`, so caches never mix.
+JAW_CLASS_ENV = "WIDEFIELD_JAW_CALL"
+DEFAULT_JAW_MODE = "classes"
+
+
+def class_jaw_mode(jaw: str | None = None) -> str:
+    """The jaw mode of the trial classes: ``jaw`` if given, else ``WIDEFIELD_JAW_CALL``, else "classes"."""
+    import os as _os
+    v = (jaw or _os.environ.get(JAW_CLASS_ENV, "").strip() or DEFAULT_JAW_MODE).lower()
+    if v not in JAW_MODES:
+        raise ValueError(f"{JAW_CLASS_ENV} / jaw = {v!r}: one of {JAW_MODES}")
+    return v
 
 
 def jaw_call(j: pd.DataFrame, position, mode: str = "classes") -> dict:
@@ -299,7 +313,8 @@ def _pre_cue_contacts(animal: str, date: str, times: pd.DataFrame) -> set:
 
 def session_trials(label: str, window: str = DEFAULT_WINDOW, v36: Path | str | None = None,
                    c1: Path | str | None = None, jaw_csv: Path | str | None = None,
-                   licks: str | None = None, frame_gate: bool | None = None) -> pd.DataFrame | None:
+                   licks: str | None = None, frame_gate: bool | None = None,
+                   jaw: str | None = None) -> pd.DataFrame | None:
     """EVERY trial of one session (no engagement filter) with its class and the evidence behind it.
 
     label "PS92_0818" or "PS92_20260818". Returns None when the session has no v36 video outputs (no camera-defined
@@ -406,7 +421,8 @@ def session_trials(label: str, window: str = DEFAULT_WINDOW, v36: Path | str | N
     else:
         j = pd.DataFrame(index=t.to_numpy(), columns=["cam4_moved", "cam1_moved", "jaw_onset_ms", "onset_at_cue",
                                                       "jaw_reonset_ms"], dtype=float)
-    jc = jaw_call(j, T.position.to_numpy())
+    jaw_mode = class_jaw_mode(jaw)
+    jc = jaw_call(j, T.position.to_numpy(), mode=jaw_mode)
     hidden, use3, judged = jc["hidden"], jc["use3"], jc["judged"]
     for c in ("jaw_cam4", "jaw_cam1", "jaw_3d", "jaw_at_cue", "jaw_onset_ms"):
         T[c] = jc[c]
@@ -440,11 +456,12 @@ def session_trials(label: str, window: str = DEFAULT_WINDOW, v36: Path | str | N
     T.loc[gated, "cls"] = "unknown"
     T.loc[gated, "cls_detail"] = "unknown"
     T["licks_source"] = "fused" if use_fused else "cam4+cam1"
+    T["jaw_call"] = jaw_mode
     T["window"] = window
     T["has_cam1"] = has_cam1
     return T[["trial_id", "position", "cue_daq", "strobe_ms", "stop_ms", "cls", "window", "has_cam1", "n_contacts",
               "n_licks", "n_nocontact", "first_lick_ms", "jaw_cam4", "jaw_cam1", "jaw_at_cue", "jaw_onset_ms",
-              "jaw_judged", "jaw_3d", "frame_gated", "licks_source", "cls_detail"]]
+              "jaw_judged", "jaw_3d", "frame_gated", "licks_source", "cls_detail", "jaw_call"]]
 
 
 def _frame_gated(animal: str, date: str, trial_id: pd.Series) -> np.ndarray:
@@ -780,7 +797,7 @@ def class_source_signature(v36: Path | str | None = None, c1: Path | str | None 
     import sys
     v36, c1 = _paths(v36, c1)
     from wfield_local import session_licks as SL
-    key = (str(v36), str(c1), SL.signature())
+    key = (str(v36), str(c1), SL.signature(), class_jaw_mode())
     if key not in _CLASS_SIG:
         h = hashlib.sha1()
 
@@ -798,6 +815,8 @@ def class_source_signature(v36: Path | str | None = None, c1: Path | str | None 
         for f in (sorted(Path(c1).glob("*_events.csv")) if Path(c1).exists() else []):
             stat(f)
         stat(_jaw_csv(v36))
+        if class_jaw_mode() != DEFAULT_JAW_MODE:      # non-default class jaw mode (11-23); default keys unchanged
+            h.update(f"jaw={class_jaw_mode()};".encode())
         # + the fused four-camera train when it is the lick set (11-22; "" on the legacy source, keys unchanged)
         if SL.signature():
             h.update(SL.signature().encode())
