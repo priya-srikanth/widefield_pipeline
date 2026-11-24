@@ -101,3 +101,16 @@ Worktree `wf_ccb_overnight1123`, branch `ccb/overnight-rebuild-1123` (from 2d1d4
 - 11-23 ~00:20 DECIDED (Priya via lead): Fig 3D = new rule + working period (render `overnight/FigureS11_trial_classes_c2_4cam_v28b_jaw3dmouth_new_wp_ccB1123.*`, caption in SECTION section 2); S16B = working period (acute walking **), S16 helper re-rendering the B traces. Recorded at the top of SECTION_overnight_rebuild.md.
 - 11-23 ~00:40 S16 working-period render delivered: `overnight/S_treadmill_running_jaw3dmouth_wp_ccB1123.*`; README_overnight_S16 marks the working-period tables PRIMARY. CC-B overnight rebuild complete; hand-back sent.
 - 11-23 ~00:50 S16 render detail: row B vs live figure gains acute walking ** and subacute push ** (the live figure lacked the subacute push star that the delivered table already had); S16 commit f2ee66da.
+
+## CC-B inconsistency fixes (Priya 11-23 late: "fix all inconsistencies"; record `Widefield/run_records/2026-11-23/INCONSISTENCY_FIXES.md`)
+
+- 11-23 23:25 task A (imaging root classes) IN PLACE. Findings: the pinned render code (e1a3c85d) has no `3d_mouth` mode, so
+  every step computes classes live on the OLD jaw rule whatever table it reads; the imaging root had no in-root s1 snapshot
+  (`working_trials.snapshot_path` is not rebuild-routed, and the rebuild fence refuses the production one). Fix: worktree
+  `wf_fourcam_j3m`, branch `ccb/fourcam-j3m-render-1123` (merge e1a3c85d + ccb/jaw3d-mouthlick-1123, profile + jaw env, 57aa4800);
+  in-root `qc/jaw3dmouth_ccB1123/` (cap jaw table + new-rule s1 copies); queue lanes J1-J4 (steps.py `*_j3m`, 22 steps incl.
+  `s_classes_j3m` = in-root trial_attempts rebuild, old copied to `*_jawprod`). 18 pending class-dependent steps superseded
+  (placeholder .done text on old names); lane H ended via a temporary skipped marker. Rule effect vs old table: attempted 0,
+  working period 11 trials, run class 385, raw class 1,375 (jaw-only <-> no-response). DONE steps with old-rule jaw-only
+  panels (not requeued, lead to decide): f4_restnl_maps_contact (15r supplement, 7.6 h); running f1_epoch (12s/12b stopped,
+  15r supplement) and f4_restnl_maps_lp. s_classes_j3m waits on MAXRUN 3 (3 steps running).
