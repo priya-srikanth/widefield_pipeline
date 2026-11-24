@@ -61,16 +61,33 @@ SEED = 0
 SETS = ("first", "later", "iti", "firstjaw")
 
 
+#: lane E 11-24: explicit output folder (a NEW folder; the routed default is unchanged) and the within-lick-correction
+#: folder whose licks_scored.csv.gz is read (default: <OUT>/../within_lick_correction, as before). In fused mode the
+#: licks_scored table must carry lick_key (the fused four-camera train's lick identity) and the join is by lick_key.
+OUT_ENV = "PRELICK_OUT_DIR"
+WLC_ENV = "PRELICK_WLC_DIR"
+
+
 def out_root() -> Path:
+    import os
+    if os.environ.get(OUT_ENV, "").strip():
+        return Path(os.environ[OUT_ENV].strip())
     from wfield_local import run_mode
     return run_mode.encoding_out_root(V36) / "prelick_hemisphere_tuning"     # routed (coordinator 11-04)
+
+
+def wlc_dir() -> Path:
+    import os
+    if os.environ.get(WLC_ENV, "").strip():
+        return Path(os.environ[WLC_ENV].strip())
+    return out_root().parent / "within_lick_correction"
 
 
 OUT = out_root()
 SESS = OUT / "sessions"
 FIGS = OUT / "figures"
 FD = OUT / "figdata"
-WLC = OUT.parent / "within_lick_correction"
+WLC = wlc_dir()
 
 
 def _bins_of(w: tuple) -> np.ndarray:
@@ -81,9 +98,14 @@ def _bins_of(w: tuple) -> np.ndarray:
 def _items() -> list:
     """(label, sid, licks_scored subset, jaw subset) per imaging session (curated, PS92-95, in licks_scored)."""
     from wfield_local import analysis_kit as ak
-    L = pd.read_csv(WLC / "licks_scored.csv.gz", usecols=["sid", "label", "animal", "epoch", "lick_uid", "trial_id",
+    L = pd.read_csv(WLC / "licks_scored.csv.gz", usecols=lambda c: c in ["sid", "label", "animal", "epoch", "lick_uid",
+                                                                         "lick_key", "trial_id",
                                                           "lick_idx", "context", "pos", "onset_ok", "theta_L",
                                                           "reach", "speed_peak", "contact"])
+    from wfield_local import session_licks as SL
+    if SL.fused_on() and "lick_key" not in L:
+        raise RuntimeError(f"{WLC / 'licks_scored.csv.gz'}: no lick_key column; fused mode joins the four-camera train "
+                           f"by lick_key (set {WLC_ENV} to a licks_scored built on the fused train)")
     L = L[L.animal.isin(AN)]
     labs = sorted(set(lc.imaging_labels()) & set(ak.curated_labels()) & set(L.label.unique()))
     labs = [x for x in labs if x[:4] in AN]
@@ -149,12 +171,16 @@ def extract(item) -> dict:
     B = il._behaviour(label)
     T = B.trials.set_index("trial_id")
     from wfield_local import session_licks as SL
-    if SL.fused_on():         # 11-24: the within-lick-correction licks carry lick_uid = a cam4 licks_all row
-        raise RuntimeError(f"{label}: prelick tuning joins licks_scored.lick_uid (cam4 licks_all rows); rebuild it on the "
-                           "fused four-camera train (lick_key) before running in fused mode")
-    A = pd.read_csv(oo.session_dir(PathResolver(), oc.RUN, an, date) / "licks_all.csv",
-                    usecols=["trial_id", "lick_idx", "context", "segment", "daq_on_s"])
-    A["lick_uid"] = np.arange(len(A))
+    if SL.fused_on():         # 11-24: THE session lick table (fused four-camera train), joined by lick_key
+        A = SL.session_licks(sid)[["trial_id", "lick_idx", "context", "segment", "daq_on_s", "lick_key"]].copy()
+        A["lick_key"] = A.lick_key.astype(str)
+        Ls = Ls.assign(lick_key=Ls.lick_key.astype(str))
+        on = "lick_key"
+    else:                     # cam4 licks_all, lick_uid = its row (unchanged)
+        A = pd.read_csv(oo.session_dir(PathResolver(), oc.RUN, an, date) / "licks_all.csv",
+                        usecols=["trial_id", "lick_idx", "context", "segment", "daq_on_s"])
+        A["lick_uid"] = np.arange(len(A))
+        on = "lick_uid"
     t_all = np.sort(np.concatenate([A.daq_on_s.to_numpy(float), np.asarray(B.lick_on_s, float)]))
     t_all = t_all[np.isfinite(t_all)]
     ev = np.sort(np.concatenate([T.cue_s.to_numpy(float), T.strobe_s.to_numpy(float)]))
@@ -167,7 +193,7 @@ def extract(item) -> dict:
 
     D = Ls[Ls.onset_ok.astype(bool) & np.isfinite(Ls.theta_L) & np.isfinite(Ls.reach)
            & np.isfinite(Ls.speed_peak)].copy()
-    D = D.merge(A[["lick_uid", "daq_on_s", "segment"]], on="lick_uid", how="left", validate="one_to_one")
+    D = D.merge(A[[on, "daq_on_s", "segment"]], on=on, how="left", validate="one_to_one")
     D = D[np.isfinite(D.daq_on_s) & (D.daq_on_s > lo) & (D.daq_on_s < hi)].copy()
     D["t"] = D.daq_on_s.astype(float)
     D["engaged"] = D.trial_id.map(T.engaged).fillna(False).astype(bool)
