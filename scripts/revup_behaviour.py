@@ -31,7 +31,10 @@ this script always read that untagged table); pre = the AUGUST pre-stroke sessio
                 `cam1_licks.keep_mask`) NOT matched to a cam4 lick = small / incomplete mouth openings cam4 does not
                 register, counted cue .. first lick (n_cam1_pre)
     jaw         `qc/jaw_onsets.csv` (cam4 + cam1, cam1 floor 15 px; searched cue .. stop): onset, or its re-onset when
-                the jaw was already deflected at the cue
+                the jaw was already deflected at the cue. 11-23: through `trial_classes.jaw_call` (`jaw_onsets`), mode
+                env REVUP_JAW: "classes" (default) = the trial classes' rule (4-cam 3-D jaw at the close-center spout,
+                where both 2-D cameras are masked; at-cue 3-D = unknown), "3d" = the 4-cam 3-D jaw at every spout,
+                "2d" = the per-camera calls only (the rule until 11-23); the session cache folder carries the mode
     FR vigor   FaceRhythm master_pre_v1 (cam4), UNBLANKED (`face_rhythm_outputs.fr_signals(blank=False)`, absolute),
                 non-directional lick vigor = sum of the six lick factors (fr_direction_mechanism.LICK); z vs the
                 session's pre-cue (-0.5..0 s) distribution (median / 1.4826 MAD); fr_onset = first time after
@@ -145,10 +148,11 @@ def sess_dir() -> Path:
     of what a cached session holds, so another train never reads these pickles)."""
     from wfield_local import session_licks as SL
     sig = SL.signature()
+    jm = "" if jaw_mode() == "2d" else f"_jaw-{jaw_mode()}"    # 11-23: the jaw rule is part of a cached session
     if not sig:
-        return REV / SESS
+        return REV / f"{SESS}{jm}"
     import hashlib
-    return REV / f"{SESS}_fused_{hashlib.sha1(sig.encode()).hexdigest()[:8]}"
+    return REV / f"{SESS}_fused_{hashlib.sha1(sig.encode()).hexdigest()[:8]}{jm}"
 
 
 def inputs_sig(label: str) -> str:
@@ -248,11 +252,8 @@ def session(label: str) -> dict:
         n_cam1_pre_win = _count(e_small, cue, np.minimum(upto, stop)).astype(float)
     else:
         n_cam1_pre = first_cam1 = n_cam1_pre_win = np.full(len(b), np.nan)
-    # jaw onsets (cue .. stop)
-    J = _jaw(f"{an}_{date}")
-    jt = b[["trial_id"]].merge(J, on="trial_id", how="left")
-    jaw_ms = np.where(jt.onset_at_cue.fillna(False).astype(bool), jt.jaw_reonset_ms, jt.jaw_onset_ms).astype(float)
-    jaw_judged = (jt.cam4_moved.notna() | jt.cam1_moved.notna()).to_numpy()
+    # jaw onsets (cue .. stop): THE trial-class jaw call (`trial_classes.jaw_call`, mode `jaw_mode()`; 11-23)
+    jaw_ms, jaw_judged = jaw_onsets(f"{an}_{date}", b.trial_id.to_numpy())
     # FaceRhythm vigour
     out_fr = {"cue": np.full((len(b), len(LAGS_CUE)), np.nan, np.float32),
               "lick": np.full((len(b), len(LAGS_LICK)), np.nan, np.float32),
@@ -351,18 +352,38 @@ def _revup(T: pd.DataFrame) -> pd.DataFrame:
     return T
 
 
-_JAW = {}
+JAW_ENV = "REVUP_JAW"
+_JAWPOS: dict = {}
 
 
-def _jaw(session: str) -> pd.DataFrame:
-    if not _JAW:
-        J = pd.read_csv(QC / "jaw_onsets.csv", usecols=["session", "trial_id", "cam4_moved", "cam1_moved",
-                                                       "jaw_onset_ms", "onset_at_cue", "jaw_reonset_ms"],
-                        low_memory=False)
-        J["onset_at_cue"] = J.onset_at_cue.astype(str).str.lower().eq("true")
-        _JAW.update({s: g.drop(columns="session") for s, g in J.groupby("session")})
-    return _JAW.get(session, pd.DataFrame(columns=["trial_id", "cam4_moved", "cam1_moved", "jaw_onset_ms",
-                                                   "onset_at_cue", "jaw_reonset_ms"]))
+def jaw_mode() -> str:
+    """The jaw rule (`trial_classes.JAW_MODES`), env `REVUP_JAW` (inherited by spawned workers): "classes" (default
+    since 11-23 = the trial classes' source-aware call: 2-D per camera, 4-cam 3-D at the close-center spout), "3d"
+    (4-cam 3-D at every spout; Priya 11-23) or "2d" (the per-camera calls only = this script until 11-23, when the
+    close-center spout never had a jaw onset)."""
+    from wfield_local import trial_classes as TC
+    m = os.environ.get(JAW_ENV, "").strip().lower() or "classes"
+    if m not in TC.JAW_MODES:
+        raise ValueError(f"{JAW_ENV}={m!r}: one of {TC.JAW_MODES}")
+    return m
+
+
+def jaw_onsets(session: str, trial_ids, mode: str | None = None) -> tuple[np.ndarray, np.ndarray]:
+    """(jaw onset ms from the cue, jaw judged) per trial id of ``session`` ("PS92_20260818") from this run's
+    qc/jaw_onsets.csv through `trial_classes.jaw_call` (one definition of the jaw call; module docstring)."""
+    from wfield_local import trial_classes as TC
+    J = TC.jaw_table(str(QC / "jaw_onsets.csv"))
+    if not _JAWPOS:
+        P = pd.read_csv(QC / "jaw_onsets.csv", usecols=["session", "trial_id", "position"])
+        _JAWPOS.update({k: g.set_index("trial_id").position for k, g in P.groupby("session")})
+    ids = np.asarray(trial_ids)
+    if session in J.index.get_level_values(0):
+        j = J.loc[session].reindex(ids)
+    else:
+        j = pd.DataFrame(index=ids, columns=list(J.columns), dtype=float)
+    p = _JAWPOS.get(session, pd.Series(dtype=object)).reindex(ids)
+    jc = TC.jaw_call(j, p.fillna("").astype(str).to_numpy(), mode or jaw_mode())
+    return jc["jaw_onset_ms"].astype(float), jc["judged"].astype(bool)
 
 
 # ------------------------------------------------------------------------------------------------ assemble
