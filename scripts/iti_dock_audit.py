@@ -35,8 +35,8 @@ bout started at or after dock arrival (a bout already in progress at arrival -- 
 trial_start included (also those continuing into the docked window); "other": every other ITI lick (as today). Dock
 arrival = the behavior log's `dock` event (the spout reported at the dock; trial_windows._log_events_daq, DAQ clock) where
 the log aligns, else the reconstruction below. Sensitivity columns iti_class_s04 / _s05 / _s07 use dock arrival = trial
-stop + 0.4 / 0.5 / 0.7 s instead. Filter flags dockbout (= iti_class docked), dockbout_s04 / _s05 / _s07, retractbout, iti_after_quiet (docked
-AND gap >= 2 s).
+stop + 0.4 / 0.5 / 0.7 s instead. Filter flags dockbout (= iti_class docked), dockbout_s04 / _s05 / _s07, retractbout, iti_after_quiet_2s /
+_1s (docked AND gap >= 2 / 1 s: ramp / pre-lick windows vs at-lick read-outs).
 iti_dock_arrival.csv: per log-aligned trial, dock - stop and dock - dock_start (the arrival distribution).
 Outputs <OUT_W>/iti_dock_audit.csv (per lick), iti_dock_census.csv (per animal x epoch x lick set: n and share by
 phase), iti_dock_sessions.csv (per session: source, n licks, reconstruction constants used).
@@ -211,7 +211,10 @@ def flags(D: pd.DataFrame) -> pd.DataFrame:
     if "iti_class" in D:
         D["dockbout"] = D.iti_class == "docked"
         D["retractbout"] = D.iti_class == "retraction"
-        D["iti_after_quiet"] = after_quiet(D.iti_class.to_numpy(), D.gap.to_numpy(float))
+        # Priya 11-24: the quiet gap follows the analysis window -- 2 s for ramp / pre-lick windows reaching ~2 s
+        # before the lick, 1 s (= the docked gap-based bout start) for at-lick read-outs
+        D["iti_after_quiet_2s"] = after_quiet(D.iti_class.to_numpy(), D.gap.to_numpy(float), 2.0)
+        D["iti_after_quiet_1s"] = after_quiet(D.iti_class.to_numpy(), D.gap.to_numpy(float), il.BOUT_GAP)
         for k in ALT_ARRIVAL:
             D[f"dockbout_{k}"] = D[f"iti_class_{k}"] == "docked"
     D["notdock_n"] = False

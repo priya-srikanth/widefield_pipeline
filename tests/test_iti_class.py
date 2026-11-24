@@ -53,3 +53,4 @@ def test_after_quiet_needs_docked_and_two_seconds():
     gap = np.array([2.0, 1.99, 5.0, 5.0])
     assert list(da.after_quiet(cls, gap, quiet=2.0)) == [True, False, False, False]
     assert not da.after_quiet(np.array(["docked"]), np.array([np.nan]), quiet=2.0)[0]
+    assert list(da.after_quiet(cls, gap, quiet=1.0)) == [True, True, False, False]   # the 1 s (bout-start) flag

@@ -132,7 +132,8 @@ def te_basis_spatial(animal: str, fit: Path | None = None) -> Path:
 ITI_SUBSET_FILTERS = ("dock", "dock01", "gap2dock", "far1s", "notdock", "notdock_n",
                       # 11-24 (Priya): docked = bouts STARTING at or after dock arrival; retraction-started bouts; and
                       # the dock-arrival sensitivity variants (iti_dock_audit.iti_class)
-                      "dockbout", "retractbout", "dockbout_s04", "dockbout_s05", "dockbout_s07", "iti_after_quiet")
+                      "dockbout", "retractbout", "dockbout_s04", "dockbout_s05", "dockbout_s07", "iti_after_quiet_1s",
+                      "iti_after_quiet_2s")
 ITI_SUBSET = os.environ.get("WFIELD_ITI_FILTER", "") if os.environ.get("WFIELD_ITI_FILTER", "") in ITI_SUBSET_FILTERS else ""
 if ITI_SUBSET and not os.environ.get("WFIELD_ITI_OUT_W"):
     OUT_W = OUT / f"itifilter_{ITI_SUBSET}"
