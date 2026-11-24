@@ -76,3 +76,16 @@
   by another helper). The O2 G4 bundle is HELD: one session built (`rebuild_20261123_fourcam/o2/enc_fourcam_20261123`);
   the full input build, env diff and smoke test are not done.
 - 19:54-20:00 S16 treadmill rebuilt (DECISIONS). Delivered to `data_4cam_20261122/treadmill/*_fourcam_20261123.csv`.
+
+## CC-B overnight rebuild (manuscript, six-position jaw rule + working period)
+
+**Decisions (Priya 11-23).** Jaw call = ONE rule at all six spouts: four-camera 3-D jaw (cap + 3-D re-onset) OR an
+in-mouth lick (`trial_classes.jaw_call(mode="3d_mouth")`); grooming false calls = noted limitation (option a). Every
+six-position trial gate = camera working period (camera-tagged `trial_attempts`, `canonical` = working period), except
+S4C epochs. Decisions still needed from Priya are listed at the top of
+`ccB_caption_review_2026-11-23/SECTION_overnight_rebuild.md` as they come up.
+
+Worktree `wf_ccb_overnight1123`, branch `ccb/overnight-rebuild-1123` (from 2d1d4db3). Logs:
+`ccB_caption_review_2026-11-23/overnight/logs/`.
+
+- 11-23 ~21:30 started step 1: production cap jaw table `qc/jaw_onsets_cap_ccB1123.csv` (full run, 126 sessions, 6 jobs, ~1 min / session single).
