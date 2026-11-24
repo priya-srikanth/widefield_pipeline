@@ -219,7 +219,21 @@ def cmd_run(jobs: int) -> None:
           flush=True)
     # ---------------------------------------------------------------- ITI table
     import iti_licks as _il                                          # the ITI family's routed folder (11-04)
-    D = pd.read_csv(_il.dock_audit_path(), usecols=["label", "onset", "phase", "since_stop", "src"])
+    # LC_DOCK_DEF (11-24, Priya): which licks count as DOCKED for T2 / T3. "phase" (default, as before) = the audit's
+    # docked phase; "class" = iti_class docked (the bout STARTED at or after dock arrival; retraction carry-over out);
+    # "class_q1" = class AND iti_after_quiet_1s (docked bout starts, >= 1 s quiet: Priya's choice for at-lick read-outs,
+    # S13F). Docked-phase licks the definition drops become phase "other".
+    dock_def = os.environ.get("LC_DOCK_DEF", "phase").strip() or "phase"
+    if dock_def not in ("phase", "class", "class_q1"):
+        raise SystemExit(f"LC_DOCK_DEF={dock_def!r}: phase | class | class_q1")
+    extra = {"class": ["iti_class"], "class_q1": ["iti_class", "iti_after_quiet_1s"]}.get(dock_def, [])
+    D = pd.read_csv(_il.dock_audit_path(), usecols=["label", "onset", "phase", "since_stop", "src", *extra])
+    if dock_def == "class":
+        D.loc[(D.phase == "docked") & (D.iti_class != "docked"), "phase"] = "docked_other"
+    elif dock_def == "class_q1":
+        D.loc[(D.phase == "docked") & ~((D.iti_class == "docked") & D.iti_after_quiet_1s.astype(bool)), "phase"] =             "docked_other"
+    print(f"dock definition {dock_def}: {_il.dock_audit_path()} ({len(D)} audited ITI licks, "
+          f"{int((D.phase == 'docked').sum())} docked)", flush=True)
     I = LS[LS.context == "iti"].copy()
     rows, diag = [], []
     for sid, g in I.groupby("sid", sort=True):
