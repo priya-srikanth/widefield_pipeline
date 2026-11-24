@@ -90,6 +90,9 @@ def _kin(label: str, t: np.ndarray) -> pd.DataFrame:
     from wfield_local import orofacial_outputs as oo
     from wfield_local.paths import PathResolver
     an, date = config.animal_of(label), "2026" + label.split("_")[-1]
+    from wfield_local import session_licks as SL
+    if SL.fused_on():         # 11-24: nearest-cam4-onset + lick_uid join; not valid on the fused four-camera train
+        raise RuntimeError(f"{label}: reembedding_test._kin joins cam4 onsets / lick_uid; rebuild it on lick_key first")
     A = pd.read_csv(oo.session_dir(PathResolver(), oc.RUN, an, date) / "licks_all.csv", usecols=["daq_on_s"])
     Kt = il.lick_table()
     Kt = Kt[Kt.session == f"{an}_{date}"].drop_duplicates("lick_uid").set_index("lick_uid")
