@@ -1914,6 +1914,18 @@ def area_masks_for(inputs, parea, pstat, names, flat, shape) -> dict:
     return area_basis.session_area_masks(parea, pstat, names, flat, shape)
 
 
+#: PROGRESS LINES (11-24, after the cancelled G4 smoke's .out held only its header after 18 min): with
+#: COMBINED_ENCODING_PROGRESS=1 (the O2 runner sets it) `run_session` prints timestamped, flushed lines per stage --
+#: design built (+ shape), each model's penalty search and each model's scoring (start / end). Off by default.
+PROGRESS_ENV = "COMBINED_ENCODING_PROGRESS"
+
+
+def _progress(msg: str) -> None:
+    if os.environ.get(PROGRESS_ENV, "") in ("1", "true", "yes"):
+        import time as _t
+        print(f"[{_t.strftime('%H:%M:%S')}] {msg}", flush=True)
+
+
 def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs: dict | None = None) -> dict:
     """``inputs`` (from `session_inputs`) = run without touching the share (O2); None = load everything here."""
     from wfield_local import config
@@ -2410,9 +2422,12 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
                 *(k for k in models if k.startswith(("video:", "fr:", "frvideo:", "frpts:", "frboth:")))}
         models = {k: v for k, v in models.items() if k in keep}
     model_alphas = {"full": dict(alphas)}
-    for name, spec in models.items():
+    _progress(f"{label}: design built, {sum(len(v) for v in layout.values())} columns x {len(ridx)} fit frames; "
+              f"{len(models)} models")
+    for k_, (name, spec) in enumerate(models.items()):
         if name == "full":
             continue
+        _progress(f"{label}: penalties {k_ + 1}/{len(models)} {name} start")
         if name.split(":")[0].startswith("shuf"):
             # a SHUFFLE keeps the full model's structure and penalties (the comparison is "same model, the variable's
             # information destroyed"); searching here only cost time (2026-10-18 speed-up)
@@ -2423,6 +2438,7 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
         for g in present:
             al[g] = max(ALPHA_GRID, key=lambda a: score(spec, {**al, g: a}))
         model_alphas[name] = al
+        _progress(f"{label}: penalties {k_ + 1}/{len(models)} {name} end")
     # evaluate: per model x window -> pixel SSE (as e), shared total t per window
     areas = list(am["areas"])                               # AREA BASIS (Priya 11-04): split + plain, one set
     res = {"label": label, "animal": animal, "date": date, "epoch": epoch_,
@@ -2454,7 +2470,8 @@ def run_session(label: str, order: str = "movement_first", seed: int = 0, inputs
     tot_pix = {}
     amask = am["areas"]                                       # pixel indices (area_basis, v8 masks)
     bas = {n: "+".join(b for b in ("split", "plain") if n in am[b]) for n in areas}
-    for name, spec in models.items():
+    for k_, (name, spec) in enumerate(models.items()):
+        _progress(f"{label}: fit + score {k_ + 1}/{len(models)} {name} start")
         ix = cols(spec)
         pen = np.array([model_alphas[name][pen_of_col[i]] for i in ix])
         fitted = eng.betas(ix, pen)

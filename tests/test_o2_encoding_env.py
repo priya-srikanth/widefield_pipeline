@@ -294,3 +294,28 @@ def test_bundle_refuses_2d_pose_parts_on_a_fourcam_bundle(monkeypatch):
     with pytest.raises(SystemExit):
         m.check_pose_modes(m.pose_modes(), "fourcam")
     m.check_pose_modes(m.pose_modes(), "cam4")              # a cam4 / combined bundle keeps its 2-D parts
+
+
+def test_runner_progress_lock_and_readback():
+    """11-24 guards: stamped stage lines, the per-session lock (atomic create, stale after the job limit, released at
+    exit) taken BEFORE any work, and the read-back after save; run_session prints per-model progress when asked."""
+    m = _mod()
+    r = m.RUNNER
+    for s_ in ("COMBINED_ENCODING_PROGRESS", "inputs loaded", "save start", "save end", "read-back ok",
+               "os.O_CREAT | os.O_EXCL", "LOCK_STALE_S", "atexit.register", "exiting without work"):
+        assert s_ in r, s_
+    assert r.index("O_EXCL") < r.index("pickle.loads((b / \"inputs\"") < r.index("ce.run_session(")
+    import inspect
+    from wfield_local import combined_encoding as ce
+    src = inspect.getsource(ce.run_session)
+    assert "_progress(" in src and "penalties" in src and "fit + score" in src
+
+
+def test_runner_lock_is_atomic_and_exclusive(tmp_path):
+    import os
+    lk = tmp_path / "S.lock"
+    fd = os.open(lk, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+    os.close(fd)
+    import pytest
+    with pytest.raises(FileExistsError):
+        os.open(lk, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
