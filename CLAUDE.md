@@ -123,6 +123,31 @@ camera acquisition). See `README.md` for setup, `docs/archive/MIGRATION.md` for 
      behavioral-state decoder (`locomotor_decoder.frozen_state_models`, kind `state`) go through
      `frozen_models.load_or_fit`; never refit a pre-stroke reference in memory per render. `docs/FROZEN_MODELS.md` §7.
 
+11. **A RUN WRITES ONLY TO ITS OWN NEW OUTPUT FOLDER. NEVER WRITE INTO PRODUCTION, PATCH, MANUSCRIPT OR FROZEN-STORE
+   FOLDERS AS A SIDE EFFECT.** (Priya, 2026-11-24: "why are all these overwrites happening!!!") On 11-24, four
+   incidents in one day came from the same flaws:
+   - 00:27: a rev-up run wrote 6 figures into production `iti_licks/figures`, because its output folder defaulted to
+     production when an override was missing.
+   - 14:04: a reader step silently froze 12 decoders, as a side effect of a figure step.
+   - ~15:13: two reader steps saved recomputed caches through a READ resolver (`iti_licks.pred_file`) and overwrote a
+     patch folder.
+   - A neural-tail step froze ACAd-variant decoders on a truncated input table.
+
+   The rules:
+   - **Declare the write folder before launching.** It must be NEW, and nothing else may be written. A script with no
+     output folder given REFUSES; it never falls back to a production default.
+   - **Read resolvers are never write paths.** `pred_file`, `in_path_x`, `in_path` and any redirect-aware getter return a
+     place to READ. Writers use an explicit out-path (`pred_file_out` / `OUT_X`).
+   - **Production, manuscript-lineage, patch (P / P2) and the manuscript folder are read-only during a run.** Writing
+     there needs an explicit, logged production-write decision from Priya.
+   - **The frozen stores are load-only by default.** Fitting / freezing a new reference needs an explicit
+     `--allow-freeze` and Priya's approval, and the run must print what it froze. A reader that finds no matching
+     model ERRORS; it never fits one silently.
+   - **After every chain, check the protected folders** for files modified inside the run window, and report any hit
+     immediately.
+   - **Overwrites are incidents:** record what, when, which inputs read the bad copy, and the repair, in the run record and
+     the handoff. Never silently re-run over them.
+
 ## The three commands (end of day)
 
 Everything below is orchestrated; these are the only lines that need typing.
