@@ -236,6 +236,7 @@ def main() -> int:
     ap.add_argument("--jobs", type=int, default=8)
     ap.add_argument("--licks-session", action="store_true", help="count-only: every session-file ITI lick")
     a = ap.parse_args()
+    il.OUT_W.mkdir(parents=True, exist_ok=True)       # a redirected (new) output folder may not exist yet
     from wfield_local import analysis_kit as ak
     if a.licks_session:
         # COUNT-ONLY variant (lane E 11-24): every ITI lick of the session files (iti_t), not the decoder cache's rows;
