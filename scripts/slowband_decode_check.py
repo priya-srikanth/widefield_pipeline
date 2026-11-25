@@ -80,6 +80,9 @@ def main(argv=None) -> int:
     from wfield_local import lp_licks              # run-mode routing (rebuild 11-03): identity for the default run
     out = lp_licks.output_dir(oo.encoding_root(a.run, PathResolver()) / "qc")
     writeguard.assert_writable(out)
+    # 11-25 (four-camera queue f1_slowband): a tagged run's routed qc folder may not exist yet; the script computed all
+    # 108 sessions (30 min) and only then failed at to_csv. Create it BEFORE the compute.
+    Path(out).mkdir(parents=True, exist_ok=True)
     name = "slowband_decode_all.csv" if a.all else "slowband_decode.csv"
     # CURATED sessions only (Priya 10-20: "only sessions from our curated analysis list" -- no early June / 0805, no
     # stroke-day 0817); from 08-06 = the August-only baseline + post-stroke

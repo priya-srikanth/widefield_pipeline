@@ -43,7 +43,15 @@ from wfield_local.figure_layout import save_png_svg  # noqa: E402
 from wfield_local.orofacial_cohort import EPOCH_LINE, POS_ORDER  # noqa: E402
 
 T = "hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk"
-Q = Path(f"M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/{T}/cohort1_quiet_spikes")
+# 11-25: the quiet chain's OWN resolver (`quiet_area_spikes.OUT`: QS_OUT_ROOT, else the run-mode-routed cohort_out under
+# the profile's rebuild root). Was hard-wired to rebuild_20261103, which the four-camera root's fence refused (T kept
+# for readers of this module).
+def _quiet_root() -> Path:
+    from quiet_area_spikes import OUT as _QOUT
+    return Path(_QOUT)
+
+
+Q = _quiet_root()
 # QS_RESTYLE_BASE / QS_RESTYLE_FOL pick the run folders (default = the production sync-end run, base summary and
 # follow-ons in one folder).
 BASE = Q / os.environ.get("QS_RESTYLE_BASE", "v2_quiet_lp_c1guard_syncend_20261118")
@@ -154,7 +162,7 @@ def finish(fig, name, title, foot, top=0.9):
     fig.suptitle(title, fontsize=9.5, y=0.997, va="top")
     fig.text(0.01, 0.003, foot, fontsize=7, wrap=True, va="bottom", color="0.25")
     fig.tight_layout(rect=(0, 0.06, 1, top))
-    OUT.mkdir(exist_ok=True)
+    OUT.mkdir(parents=True, exist_ok=True)
     save_png_svg(fig, OUT / name, dpi=110)
     plt.close(fig)
     print("wrote", OUT / name)
@@ -498,7 +506,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--only", nargs="*", default=list(FAMILIES))
     a = ap.parse_args()
-    OUT.mkdir(exist_ok=True)
+    OUT.mkdir(parents=True, exist_ok=True)
     for k in a.only:
         RECORDS_START = len(RECORDS)
         FAMILIES[k](np.random.default_rng(0))     # one seeded rng per family: a family's draws do not depend on order

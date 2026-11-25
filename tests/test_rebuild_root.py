@@ -341,7 +341,7 @@ LITERAL = {
     "scripts/c2_engagement_tim/s0_camera_working.py",
     # (s4_session_tables.py left 11-22: its literal two-camera pose3d read now goes through pose3d_dir)
     "scripts/cohort2_qc/channel_drift.py",
-    "scripts/cohort2_qc/quiet_restyle_figs.py",   # quiet restyle 11-18: same literal rebuild_20261103 root as its siblings
+    # (scripts/cohort2_qc/quiet_restyle_figs.py left 11-25: its root is quiet_area_spikes.OUT, the chain's resolver)
     "scripts/cohort2_qc/cohort1_impact.py",
     "scripts/cohort2_qc/compare_hemo_variants_1029.py",
     "scripts/cohort2_qc/epileptiform_gallery.py",
