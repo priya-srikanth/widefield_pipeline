@@ -51,7 +51,7 @@ import state_space_sim as S  # noqa: E402
 BASIS_DIR = S.SVD_BASIS
 OUT = S.ROOT / "why_cleaner_lick"
 FIGS = S.ROOT / "page_figs"
-SS_MAPS = S.ROOT / "chronic_maps_lick_svd_rest" / "maps.npz"
+SS_MAPS = S.ROOT / f"chronic_maps_lick_svd_rest{S.RSFX}" / "maps.npz"   # RSFX: the RESTnl lick set (11-25 fix)
 EPS = S.POST
 POS = ["close_L", "close_center", "close_R", "far_L", "far_center", "far_R"]     # = S.POS order (L = ipsilesional)
 COLS = ["mean", *S.POS]

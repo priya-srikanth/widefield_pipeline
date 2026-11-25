@@ -34,7 +34,10 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent / "rebuild_figs"))
 
-LNMF_INPUTS = Path("M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/grant_figures/LP_licks_gateLP_hv-meegkit_hpfit_"
+# WF_SS_AD_INPUTS (11-25): the aligned decoder's LocaNMF capture of the lineage being run (four-camera rebuild:
+# <rebuild_20261123_fourcam>/labcams/grant_figures/LP_licks_gateLP_..._inmem-epoch/epoch/data/aligned_decoder/inputs_lick_lick.pkl);
+# unset = the v36 capture below.
+LNMF_INPUTS = Path(os.environ.get("WF_SS_AD_INPUTS") or "M:/MICROSCOPE/Priya/Widefield/rebuild_20261103/labcams/grant_figures/LP_licks_gateLP_hv-meegkit_hpfit_"
                    "lag_refitT_swapmask_lnmfproj_pre0801_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt"
                    "3500c70_daqlk_inmem-epoch/epoch/data/aligned_decoder/inputs_lick_lick.pkl")
 

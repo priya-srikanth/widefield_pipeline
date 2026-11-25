@@ -91,7 +91,7 @@ def __getattr__(name):                                  # `L.ENC_SHARE` stays va
 
 CACHE = "C:/Users/SabatiniLab/wfield_cache/input_cache_rebuild_20261104"
 JUNE = ("0606", "0607", "0608")                     # the curated June pre days (configs/animals.yaml date_policy)
-TIMES = S.ITI_W / "cued_first_lick_times.csv"        # the rebuild run's OUT_W (iti_licks._first_lick_times rows)
+TIMES = S.TABLES / "cued_first_lick_times.csv"        # the rebuild run's OUT_W (iti_licks._first_lick_times rows)
 
 RUNNER = r'''"""Runs on O2: one session (task = SLURM_ARRAY_TASK_ID) of the state-space joint-LocaNMF extraction.
 See scripts/o2_state_space_lnmf.py (bundle side) for the definitions."""

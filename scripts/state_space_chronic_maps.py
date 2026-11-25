@@ -244,7 +244,7 @@ def kin_covariates(lab, n):
     """(n, 8) per-trial tongue / jaw kinematics + contact + landing (KIN_COLS), NaN where a trial has no 3-D match; rows =
     the extract's trial rows (joined through the landing table's row -> trial_id)."""
     if not _KIN:
-        T = pd.read_csv(S.ROOT / "shift_behavior_lick_svd" / "trials.csv.gz",
+        T = pd.read_csv(S.ROOT / f"shift_behavior_lick_svd{S.RSFX}" / "trials.csv.gz",
                         usecols=["label", "trial_id", "n_licks", "n_contacts", "rt_s", "reach_mm", "speed"])
         L = pd.read_csv(R.LANDING, usecols=["label", "row", "trial_id", "side_ml", "out_ap", "down_dv"])
         J = L.merge(T, on=["label", "trial_id"], how="left")
