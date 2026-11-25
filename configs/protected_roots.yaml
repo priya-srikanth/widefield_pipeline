@@ -1,0 +1,98 @@
+# PROTECTED ROOTS (CLAUDE.md rule 11, Priya 2026-11-24): folders a run may only READ. Enforced by
+# wfield_local/protected_roots.py through writeguard.assert_writable, figure_layout.save_png_svg and a process-wide
+# audit hook (every Python-level open-for-write / mkdir / rename / remove under one of these roots is refused).
+#
+# A write under a protected root is allowed only when
+#   - kind != frozen_store and the path lies inside a folder named in WFIELD_RUN_OUT (the run's declared NEW output
+#     root; several roots separated by os.pathsep, ";" on Windows), or the active WIDEFIELD_REBUILD_ROOT;
+#   - kind != frozen_store and WFIELD_ALLOW_PRODUCTION_WRITE=<reason> is set (the reason is logged, rule 11:
+#     "an explicit, logged production-write decision from Priya");
+#   - kind == frozen_store and WFIELD_ALLOW_FREEZE=1 (or --allow-freeze on the command line).
+#
+# PATHS. `share:` entries are relative to the Priya root of the MICROSCOPE share and match on every mount (M:, N:,
+# the UNC form, /Volumes/Priya), so a drive-letter swap never disarms them. One glob per path segment (fnmatch).
+# `local:` entries are absolute paths on this machine; "{frozen_local}" = frozen_models.local_dir().
+# kinds: production | manuscript_lineage | patch | manuscript | frozen_store | superseded
+#
+# ADD a folder here when it is adopted as production, used as a patch (P / P2) or retired; never remove one without
+# Priya's decision. tools/protected_mtime_audit.py lists files changed in these roots after a run.
+
+share:
+  # --- the current lineage (lp_r4_heatmap_20261013__clean_v37_sync60): production subfolders -------------------
+  - path: Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v37_sync60/imaging_encoding/iti_licks
+    kind: production
+    hint: "set WFIELD_ITI_OUT_W=<new folder> (the iti_licks family writes OUT_W / OUT_X there); REVUP_OUT_DIR for revup_*"
+  - path: Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v37_sync60/imaging_encoding/iti_licks_cam3on
+    kind: production
+  - path: Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v37_sync60/imaging_encoding/frozen_encoder_gate-attempted_v7g3_t3d_frA*
+    kind: production
+    hint: "frozen_encoder --out-root <new folder> (or FROZEN_OUT_ROOT); readout figures: FROZEN_FIG_OUT"
+  - path: Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v37_sync60/imaging_encoding/iti_licks_neuraltail_fourcam_20261123
+    kind: manuscript_lineage
+  - path: Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v37_sync60/imaging_encoding/frozen_figs_neuraltail_fourcam_20261123
+    kind: manuscript_lineage
+  - path: Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v37_sync60/imaging_encoding/manuscript_cam3on_20261123
+    kind: manuscript_lineage
+  - path: Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v37_sync60/imaging_encoding/learned_compensation
+    kind: production
+    hint: "set LC_OUT_DIR=<new folder>"
+  - path: Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v37_sync60/imaging_encoding/within_lick_correction
+    kind: production
+  - path: Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v37_sync60/imaging_encoding/specificity_control
+    kind: production
+  - path: Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v37_sync60/imaging_encoding/matched_residual
+    kind: production
+  - path: Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v37_sync60/imaging_encoding/qc
+    kind: production
+  - path: Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v37_sync60/imaging_encoding/revup_fourcam
+    kind: production
+  - path: Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v37_sync60/imaging_encoding/revup_fourcam_cam3on
+    kind: production
+  - path: Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v37_sync60/cohort
+    kind: production
+  - path: Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v37_sync60/cohort_pre_cam3on_20261123
+    kind: production
+  - path: Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v37_sync60/run.json
+    kind: production
+  - path: Widefield/within_session_decline
+    kind: production
+    hint: "set WSD_OUT=<new folder>"
+  # --- declared patch folders (P / P2, lane E 11-24) -----------------------------------------------------------
+  - path: Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v37_sync60/imaging_encoding/iti_licks_patched_ps95_laneE_20261124
+    kind: patch
+  - path: Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v37_sync60/imaging_encoding/iti_licks_patched_fusedorder_laneE_20261124
+    kind: patch
+  - path: Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v37_sync60/imaging_encoding/iti_licks_resplice_laneE_20261124
+    kind: patch
+  # --- superseded lineages: nothing writes there any more ------------------------------------------------------
+  - path: Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v35
+    kind: superseded
+  - path: Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v36
+    kind: superseded
+  - path: Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v37
+    kind: superseded
+  - path: Widefield/LP_analysis/lp_r4_heatmap_20261013__clean_v37_sync
+    kind: superseded
+  # --- rebuild roots: a run with WIDEFIELD_REBUILD_ROOT=<that root> writes inside it; nobody else does ------------
+  - path: Widefield/rebuild_20261103
+    kind: production
+    hint: "only a WIDEFIELD_REBUILD_ROOT run of that root writes here"
+  - path: Widefield/rebuild_20261123_fourcam
+    kind: production
+    hint: "only a WIDEFIELD_REBUILD_ROOT run of that root writes here"
+  # --- frozen stores: load-only unless WFIELD_ALLOW_FREEZE=1 / --allow-freeze -----------------------------------
+  - path: Widefield/labcams/frozen_models*
+    kind: frozen_store
+  - path: Widefield/LP_analysis/*/frozen_models*
+    kind: frozen_store
+  - path: Widefield/rebuild_*/frozen_models*
+    kind: frozen_store
+  # --- manuscript ----------------------------------------------------------------------------------------------
+  - path: stroke_orofacial_pipeline_outputs/vls_stroke_paper
+    kind: manuscript
+  - path: Widefield/manuscript_stats
+    kind: manuscript
+
+local:
+  - path: "{frozen_local}"
+    kind: frozen_store

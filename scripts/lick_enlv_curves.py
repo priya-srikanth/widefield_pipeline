@@ -769,6 +769,7 @@ def run() -> dict:
 
 
 def main() -> int:
+    il.require_out_w(__file__)   # rule 11 (11-24): refuses the production iti_licks default before any compute
     from wfield_local import trial_set_text as tst
     tst.declare(text=trial_set_sentence())
     if figdata.plot_only() and "--all-only" in sys.argv:       # just the combined figure, from its own figdata

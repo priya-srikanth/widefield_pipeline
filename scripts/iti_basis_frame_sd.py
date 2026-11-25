@@ -30,6 +30,7 @@ def frame_sd(item) -> np.ndarray:
 
 
 def main() -> int:
+    il.require_out_w(__file__)   # rule 11 (11-24): refuses the production iti_licks default before any compute
     from wfield_local import analysis_kit as ak
     ap = argparse.ArgumentParser()
     ap.add_argument("--sources", nargs="+", default=["svdbasis", "locanmf"], choices=["svdbasis", "locanmf"])

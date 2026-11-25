@@ -236,6 +236,7 @@ def trial_set_sentence() -> str:
 
 
 def main(argv=None) -> int:
+    il.require_out_w(__file__)   # rule 11 (11-24): refuses the production iti_licks default before any compute
     from wfield_local import analysis_kit as ak
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--sources", nargs="+", default=["locanmf", "svdbasis"], choices=["locanmf", "svdbasis"])

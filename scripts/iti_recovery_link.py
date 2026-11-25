@@ -134,6 +134,7 @@ def trial_set_sentence(beh: str = "hit", z: bool = False, src: Path | None = Non
 
 
 def main(argv=None) -> int:
+    il.require_out_w(__file__)   # rule 11 (11-24): refuses the production iti_licks default before any compute
     from wfield_local import trial_set_text as tst
     ap = argparse.ArgumentParser()
     # SUBSET ITI filter (WFIELD_ITI_FILTER=dock / gap2dock / ..., 11-17): default --src = il.OUT_W, the folder of the

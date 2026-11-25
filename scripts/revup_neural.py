@@ -901,6 +901,7 @@ def draw_precue(R: pd.DataFrame) -> None:
 
 
 def main() -> int:
+    il.require_out_w(__file__)                         # rule 11: refuses the production iti_licks default
     jobs = int(sys.argv[sys.argv.index("--jobs") + 1]) if "--jobs" in sys.argv else 8
     if "--plot-only" not in sys.argv:
         if not SFX:   # restnl: no re-extraction, the restw-referenced cache is shifted at load

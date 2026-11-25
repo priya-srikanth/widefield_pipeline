@@ -119,6 +119,7 @@ def trial_set_sentence() -> str:
 
 
 def main() -> int:
+    il.require_out_w(__file__)   # rule 11 (11-24): refuses the production iti_licks default before any compute
     from wfield_local import trial_set_text as tst
     tst.declare(text=trial_set_sentence())          # every figure states its lick set (Priya 11-09)
     if "--plot-only" in sys.argv and FD.exists():

@@ -148,6 +148,16 @@ camera acquisition). See `README.md` for setup, `docs/archive/MIGRATION.md` for 
    - **Overwrites are incidents:** record what, when, which inputs read the bad copy, and the repair, in the run record and
      the handoff. Never silently re-run over them.
 
+   **Enforced in code (ccb/writeguard-1124):** `configs/protected_roots.yaml` lists the protected roots;
+   `wfield_local/protected_roots.py` refuses every Python-level write under them (an audit hook installed at package
+   import, plus `writeguard.assert_writable` and `figure_layout.save_png_svg`) unless the path is inside the run's
+   declared `WFIELD_RUN_OUT` (or its `WIDEFIELD_REBUILD_ROOT`), or `WFIELD_ALLOW_PRODUCTION_WRITE=<reason>` is set
+   (logged). Frozen stores open only with `WFIELD_ALLOW_FREEZE=1` / `--allow-freeze`; `frozen_models.load_or_fit` and a
+   new `frozen_encoder` frame are load-only by default (a miss raises `FrozenMissError`). Writers with an env-var output
+   folder call `protected_roots.out_from_env`; the iti_licks family calls `il.require_out_w(__file__)` (no
+   `WFIELD_ITI_OUT_W` = refuse). `tests/test_no_write_through_read_resolver.py` fails on a write through `pred_file` /
+   `in_path(_x)`. After a chain: `python tools/protected_mtime_audit.py --since "<start>"` (exit 1 = hits).
+
 ## The three commands (end of day)
 
 Everything below is orchestrated; these are the only lines that need typing.

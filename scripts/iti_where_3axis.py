@@ -34,6 +34,7 @@ AXES = {"lat": 0, "fwd": 1, "down": 4}                       # columns of iti_wh
 
 
 def main(argv=None) -> int:
+    il.require_out_w(__file__)   # rule 11 (11-24): refuses the production iti_licks default before any compute
     from wfield_local import frozen_readouts
     unscaled = "--unscaled" in (argv if argv is not None else sys.argv[1:])
     il.split_only("iti_where_3axis")

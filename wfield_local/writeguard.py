@@ -33,7 +33,7 @@ from __future__ import annotations
 
 import os
 
-__all__ = ["WriteGuardError", "assert_writable", "is_writable",
+__all__ = ["WriteGuardError", "assert_writable", "is_writable", "assert_not_protected",
            "warn_if_partial_aggregate", "covers_all",
            "assert_deletable", "is_original_data"]
 
@@ -70,6 +70,9 @@ def assert_writable(path: str | os.PathLike[str]) -> None:
     c = _normalize(path)
     if not c:
         return
+    # PROTECTED ROOTS (CLAUDE.md rule 11, 11-24): production / manuscript-lineage / patch / manuscript folders and the
+    # frozen stores are read-only during a run (configs/protected_roots.yaml; wfield_local/protected_roots.py)
+    assert_not_protected(path)
     # REBUILD ROOT (11-03, fourth review): during a rebuild-root run every data-tree write outside the root is refused
     # (the same rule the process audit hook enforces on every open; wfield_local/rebuild_root.py)
     if os.environ.get("WIDEFIELD_REBUILD_ROOT", "").strip():
@@ -107,6 +110,17 @@ def assert_writable(path: str | os.PathLike[str]) -> None:
                 f"refusing a {tag} run's write outside a {tag} directory:\n  path: {path}\n"
                 f"  under this lick source / ENL window every share output must sit under .../{tag}/... so it can "
                 "never replace the default (DAQ contact, 2 s ENL) version; route the writer with lp_licks.output_dir().")
+
+
+def assert_not_protected(path: str | os.PathLike[str], what: str = "write") -> None:
+    """Raise :class:`WriteGuardError` when ``path`` lies under a PROTECTED root (CLAUDE.md rule 11) that this run may not
+    write: not inside its declared ``WFIELD_RUN_OUT`` / rebuild root, no ``WFIELD_ALLOW_PRODUCTION_WRITE=<reason>``, and
+    for a frozen store no ``WFIELD_ALLOW_FREEZE=1`` / ``--allow-freeze``. See `protected_roots`."""
+    from wfield_local import protected_roots
+    try:
+        protected_roots.check(path, what)
+    except protected_roots.ProtectedWriteError as ex:
+        raise WriteGuardError(str(ex)) from None
 
 
 def in_keyed_store(c: str) -> bool:

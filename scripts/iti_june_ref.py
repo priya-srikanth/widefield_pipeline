@@ -32,6 +32,7 @@ LABELS = [f"{a}_{d}" for a in ("PS92", "PS93", "PS94", "PS95") for d in ("0606",
 
 
 def main(argv=None) -> int:
+    il.require_out_w(__file__)   # rule 11 (11-24): refuses the production iti_licks default before any compute
     ap = argparse.ArgumentParser()
     ap.add_argument("--jobs", type=int, default=3)
     a = ap.parse_args(argv)

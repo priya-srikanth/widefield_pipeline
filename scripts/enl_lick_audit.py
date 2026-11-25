@@ -293,6 +293,7 @@ def figure(S, Pp):
 
 
 def main() -> int:
+    il.require_out_w(__file__)   # rule 11 (11-24): refuses the production iti_licks default before any compute
     # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import time
     from wfield_local import writeguard

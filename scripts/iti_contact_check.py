@@ -39,6 +39,7 @@ def contact_of(label: str, t: np.ndarray) -> np.ndarray:
 
 
 def main() -> int:
+    il.require_out_w(__file__)   # rule 11 (11-24): refuses the production iti_licks default before any compute
     il.split_only("iti_contact_check")   # outputs not basis-tagged: split basis only (10-27 late)
     from wfield_local import analysis_kit as ak
     from wfield_local import frozen_readouts

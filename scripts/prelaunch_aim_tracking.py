@@ -1353,6 +1353,8 @@ def _plot_secondary(fd, plt, EC, AM):
 
 # ================================================================================================ main
 def main() -> int:
+    from wfield_local import protected_roots as _pr
+    _pr.out_from_env("PAT_OUT", OUT, "prelaunch_aim_tracking")   # rule 11: no production default
     # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     cmd = sys.argv[1] if len(sys.argv) > 1 else "plot"
     if "--plot-only" in sys.argv or cmd == "plot":

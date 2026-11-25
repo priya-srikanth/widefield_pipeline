@@ -610,6 +610,7 @@ def draw(D_by_fam: dict) -> None:
 
 
 def main() -> int:
+    il.require_out_w(__file__)   # rule 11 (11-24): refuses the production iti_licks default before any compute
     from wfield_local import trial_set_text as tst
     tst.declare(text=trial_set_sentence())                      # draw() narrows it per map family
     if plot_only():

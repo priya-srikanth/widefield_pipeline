@@ -131,6 +131,7 @@ def plot(S: pd.DataFrame, path: Path) -> None:
 
 
 def main() -> int:
+    il.require_out_w(__file__)   # rule 11 (11-24): refuses the production iti_licks default before any compute
     from wfield_local import analysis_kit as ak
     ap = argparse.ArgumentParser()
     ap.add_argument("--jobs", type=int, default=8)

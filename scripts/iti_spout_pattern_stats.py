@@ -214,6 +214,7 @@ def plot_all(D: dict) -> None:
 
 
 def main(argv=None) -> int:
+    il.require_out_w(__file__)   # rule 11 (11-24): refuses the production iti_licks default before any compute
     st = "iti" if "--iti" in (argv if argv is not None else sys.argv[1:]) else "trial"
     sfx = "_iti" if st == "iti" else ""
     from wfield_local import trial_set_text as tst

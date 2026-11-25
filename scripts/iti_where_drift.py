@@ -230,6 +230,7 @@ def trial_set_sentence(june: bool = False) -> str:
 
 
 def main(argv=None) -> int:
+    il.require_out_w(__file__)   # rule 11 (11-24): refuses the production iti_licks default before any compute
     from wfield_local import trial_set_text as tst
     il.split_only("iti_where_drift")   # outputs not basis-tagged: split basis only (10-27 late)
     argv = argv if argv is not None else sys.argv[1:]

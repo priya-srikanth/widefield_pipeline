@@ -36,6 +36,7 @@ def f0(label: str) -> tuple[float, float]:
 
 
 def main() -> int:
+    il.require_out_w(__file__)   # rule 11 (11-24): refuses the production iti_licks default before any compute
     R = pd.read_csv(il.in_path_x("ramp_auc_sessions.csv"))
     resp = R.groupby(["label", "animal", "epoch"]).resp_auc.mean().reset_index()
     rows = []

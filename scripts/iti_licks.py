@@ -145,6 +145,22 @@ def out_x() -> Path:
     return OUT_W if os.environ.get("WFIELD_ITI_OUT_W") else OUT
 
 
+def require_out_w(script: str = "") -> Path:
+    """REFUSE A PRODUCTION DEFAULT (CLAUDE.md rule 11, 11-24): call first thing in a writer's main(). Without
+    WFIELD_ITI_OUT_W, OUT_W / OUT_X fall back to the production iti_licks folder, so the run stops here, before any
+    compute, with the fix in the message. An explicit WFIELD_ITI_OUT_W (every chain since 11-23) passes unchanged; a
+    production write needs WFIELD_ALLOW_PRODUCTION_WRITE=<reason> (Priya's logged decision). Returns OUT_X."""
+    from wfield_local import protected_roots
+    name = Path(script).name if script else "this script"
+    if not os.environ.get("WFIELD_ITI_OUT_W", "").strip()             and not os.environ.get(protected_roots.ALLOW_PRODUCTION_ENV, "").strip():
+        raise SystemExit(f"[protected] {name}: no output folder given. Without WFIELD_ITI_OUT_W its tables / figures "
+                         f"would go to the production folder {OUT_W} (CLAUDE.md rule 11). Set WFIELD_ITI_OUT_W=<new "
+                         f"folder>; a production write needs {protected_roots.ALLOW_PRODUCTION_ENV}=<reason>.")
+    for p in {OUT_W, out_x()}:
+        protected_roots.require_out(p, f"{name} output folder", "set WFIELD_ITI_OUT_W=<new folder>")
+    return out_x()
+
+
 def __getattr__(name: str):
     """`il.OUT_X` = out_x() at access time (module attribute, PEP 562)."""
     if name == "OUT_X":

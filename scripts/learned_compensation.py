@@ -1068,6 +1068,8 @@ def cmd_plot() -> None:
 
 
 def main() -> int:
+    from wfield_local import protected_roots as _pr
+    _pr.out_from_env("LC_OUT_DIR", OUT, "learned_compensation")   # rule 11: no production default
     # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     a = sys.argv[1:]
     jobs = int(a[a.index("--jobs") + 1]) if "--jobs" in a else 3

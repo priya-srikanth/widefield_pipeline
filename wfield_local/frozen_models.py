@@ -58,8 +58,33 @@ FREEZE_VERSION = 2          # 2 = training-data fingerprint + selection + hemo v
 #: LP_licks only: "lp" freezes LP-TRAINED sensitivity models under their own spec (see `load_or_fit`).
 LP_FROZEN_ENV = "WIDEFIELD_LP_FROZEN"
 #: "1" = LOAD ONLY: a miss raises instead of fitting (11-09, the LP `joint_xsession` run that must load the attempt-
-#: coding LP decoder, copy D, and nothing else). Unset = the normal load-or-fit.
+#: coding LP decoder, copy D, and nothing else). SINCE 11-24 (CLAUDE.md rule 11) LOAD-ONLY IS THE DEFAULT: a miss fits
+#: only when the run allows freezing (ALLOW_FREEZE_ENV=1 or --allow-freeze); this variable set to "1" still forces
+#: load-only even then (lane E's script-level guard, e.g. lick_enlv_balance_offset --table).
 LOAD_ONLY_ENV = "WIDEFIELD_FROZEN_LOAD_ONLY"
+#: "1" (or --allow-freeze on the command line) = this run may FIT and STORE new pre-stroke references (Priya's approval
+#: required; every freeze prints "[frozen] FROZE <animal> <id>"). Same name as protected_roots.ALLOW_FREEZE_ENV.
+ALLOW_FREEZE_ENV = "WFIELD_ALLOW_FREEZE"
+
+
+class FrozenMissError(RuntimeError):
+    """No stored model matches the spec and this run may not freeze one (load-only default, CLAUDE.md rule 11)."""
+
+
+def allow_freeze() -> bool:
+    """True when this run may fit + store new frozen references (WFIELD_ALLOW_FREEZE=1 or --allow-freeze) and
+    WIDEFIELD_FROZEN_LOAD_ONLY is not forcing load-only."""
+    from wfield_local import protected_roots
+    if os.environ.get(LOAD_ONLY_ENV, "").strip().lower() in ("1", "true", "yes", "on"):
+        return False
+    return protected_roots.allow_freeze()
+
+
+def add_allow_freeze_arg(ap) -> None:
+    """Add ``--allow-freeze`` to an argparse parser (the flag is read from sys.argv by `allow_freeze`)."""
+    ap.add_argument("--allow-freeze", action="store_true",
+                    help="allow fitting + storing NEW frozen pre-stroke references on a store miss (Priya's approval; "
+                         "default: load-only, a miss raises)")
 
 STATUS_NEW, STATUS_HIT, STATUS_SPEC_CHANGED = "frozen-new", "frozen-hit", "SPEC-CHANGED"
 
@@ -554,10 +579,19 @@ def load_or_fit(spec, fit, *, meta=None, refreeze=None, log=print):
         raise RuntimeError(f"[frozen] the LP arm's DAQ-trained cross-check ({LP_FROZEN_ENV}=daq) loads DAQ-frozen models, "
                            f"but none is stored for {_slug(spec)} ({spec['animal']}); run the DAQ path first, or unset "
                            f"{LP_FROZEN_ENV} for the LP-trained default")
-    # LOAD-ONLY RUNS (11-09): a run whose job is to SCORE with a stored model must never mint a new one on a miss.
-    if os.environ.get(LOAD_ONLY_ENV, "").strip().lower() in ("1", "true", "yes", "on"):
-        raise RuntimeError(f"[frozen] {LOAD_ONLY_ENV} is set and no stored model matches {_slug(spec)} "
-                           f"({spec['animal']}); refusing to fit a new one")
+    # LOAD-ONLY BY DEFAULT (11-09 opt-in; the default since 11-24, CLAUDE.md rule 11): a reader that finds no matching
+    # model ERRORS; it never fits one silently (11-24 14:04: a figure step froze 12 lick readers; 01:03: a neural-tail
+    # step froze ACAd-variant decoders on a truncated input). Fitting needs WFIELD_ALLOW_FREEZE=1 / --allow-freeze.
+    if not allow_freeze():
+        forced = os.environ.get(LOAD_ONLY_ENV, "").strip().lower() in ("1", "true", "yes", "on")
+        raise FrozenMissError(
+            f"[frozen] no stored model matches {_slug(spec)} ({spec['animal']} {spec.get('kind')}/{spec.get('align')}/"
+            f"{spec.get('source')}, {len(spec.get('train_labels') or [])} pre-stroke sessions, spec_id {spec_id(spec)}) "
+            f"in {local_dir()}" + (f" (refreeze={refreeze!r} asked)" if refreeze else "")
+            + (f"; {LOAD_ONLY_ENV}=1 forces load-only; refusing to fit a new one" if forced else
+               f"; frozen stores are LOAD-ONLY by default. Check the store / WIDEFIELD_FROZEN_MODEL_DIR first; to fit "
+               f"and store a new reference (Priya's approval) set {ALLOW_FREEZE_ENV}=1 or pass --allow-freeze; refusing to fit "
+               f"a new one"))
     prior = [s for s in siblings(spec) if s["dir"].name != _slug(spec)]
     if refreeze:
         for s in prior:
@@ -654,6 +688,10 @@ def _write(spec, payload, meta, log=print):
                 pass
     log(f"[frozen] {spec['animal']} {_slug(spec)}: FROZEN on {len(spec['train_labels'])} "
         f"pre-stroke session(s)")
+    froze = f"[frozen] FROZE {spec['animal']} {_slug(spec)} -> {d}"     # rule 11: a run prints what it froze
+    log(froze)
+    if log is not print:
+        print(froze, flush=True)
     return d
 
 

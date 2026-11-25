@@ -13,6 +13,13 @@ import pytest
 from wfield_local import frozen_models as F
 
 
+@pytest.fixture(autouse=True)
+def _allow_freeze(monkeypatch):
+    """These tests exercise the FIT path of load_or_fit; since 11-24 (CLAUDE.md rule 11) a store is load-only unless the
+    run allows freezing, which tests/test_protected_roots.py and test_load_only_is_the_default cover."""
+    monkeypatch.setenv("WFIELD_ALLOW_FREEZE", "1")
+
+
 def spec(**kw):
     base = dict(animal="PS99", kind="decoder", align="cue", source="locanmf",
                 train_labels=["PS99_0101", "PS99_0102"], basis_id="abc123", n_features=380, train_data=None)
@@ -287,3 +294,26 @@ def test_state_13n_running_line_is_measured_not_literal():
     assert "RUNNING-class recall 0.98 -> 0.92, losing 6%" in line
     assert "0.95" not in line
     assert es._acute_line({}, {}) == "retained values: see the bars"
+
+
+def test_load_only_is_the_default(tmp_path, monkeypatch):
+    """CLAUDE.md rule 11 (11-24): without WFIELD_ALLOW_FREEZE / --allow-freeze a miss raises FrozenMissError naming the
+    spec and nothing is written; with it the model is fitted, stored and a FROZE line printed."""
+    monkeypatch.delenv("WFIELD_ALLOW_FREEZE", raising=False)
+    monkeypatch.delenv(F.LOAD_ONLY_ENV, raising=False)
+    monkeypatch.setattr("sys.argv", ["pytest"])
+    s = spec()
+    calls = []
+    with pytest.raises(F.FrozenMissError, match=F.spec_id(s)):
+        F.load_or_fit(s, lambda: calls.append(1) or {"m": 1}, log=lambda *a: None)
+    assert not calls and not (tmp_path / "frozen" / "PS99").exists()
+    monkeypatch.setattr("sys.argv", ["x.py", "--allow-freeze"])
+    lines = []
+    _payload, status = F.load_or_fit(s, lambda: {"m": 1}, log=lines.append)
+    assert status == F.STATUS_NEW and any(x.startswith("[frozen] FROZE PS99") for x in lines)
+    monkeypatch.setattr("sys.argv", ["pytest"])
+    monkeypatch.delenv("WFIELD_ALLOW_FREEZE")
+    assert F.load_or_fit(s, lambda: {"m": 2}, log=lambda *a: None) == ({"m": 1}, F.STATUS_HIT)
+    monkeypatch.setenv("WFIELD_ALLOW_FREEZE", "1")
+    monkeypatch.setenv(F.LOAD_ONLY_ENV, "1")              # lane E's script-level guard still wins
+    assert not F.allow_freeze()

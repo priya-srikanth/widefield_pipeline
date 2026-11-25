@@ -769,6 +769,7 @@ def draw_enl(stem: str) -> None:
 
 
 def main() -> int:
+    il.require_out_w(__file__)   # rule 11 (11-24): refuses the production iti_licks default before any compute
     if window_mode() == "fixed":
         return main_fixed()
     from wfield_local import analysis_kit as ak

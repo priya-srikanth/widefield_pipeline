@@ -306,6 +306,7 @@ def report(F: dict) -> None:
 
 
 def main() -> int:
+    il.require_out_w(__file__)   # rule 11 (11-24): refuses the production iti_licks default before any compute
     if plot_only():
         F = load_fd(FD)
     else:
