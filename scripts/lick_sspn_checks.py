@@ -34,7 +34,7 @@ TARGETS = [("iti", "iti_ang"), ("iti", "aim"), ("trial", "aim")]
 
 
 def _recovery() -> pd.DataFrame:
-    return pd.read_csv(il.OUT_W / "recmark_sessions.csv", usecols=["label", "day", "aim", "iti_ang"]).drop_duplicates("label")
+    return pd.read_csv(il.in_path_x("recmark_sessions.csv"), usecols=["label", "day", "aim", "iti_ang"]).drop_duplicates("label")
 
 
 def _track(S: pd.DataFrame, cols: list[str], tag: str) -> pd.DataFrame:
