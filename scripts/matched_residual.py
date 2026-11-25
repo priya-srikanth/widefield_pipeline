@@ -102,9 +102,11 @@ def main(argv=None) -> int:
     import frozen_fr_compare as ffc
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--tag", default=_design_tag("gate-attempted_v7g3_t3d_frA"))
+    ap.add_argument("--out", default=None, help="output folder (default <E>/matched_residual/<tag>; lane E 11-25: a "
+                                                "re-render beside a frame it may not write into)")
     a = ap.parse_args(argv)
     run = E / f"frozen_encoder_{a.tag}"
-    out = E / "matched_residual" / a.tag
+    out = Path(a.out) if a.out else E / "matched_residual" / a.tag
     (out / "figures").mkdir(parents=True, exist_ok=True)
     R = trial_residuals(run)
     B = trial_behaviour()
