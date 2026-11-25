@@ -45,8 +45,6 @@ def session_blocks(label: str) -> list[dict]:
 
 
 def main(argv=None) -> int:
-    from wfield_local import run_mode as _rm_guard
-    _rm_guard.require_default("position_block_durations")   # unrouted share writer: refuses in a non-default run mode
     from wfield_local import analysis_kit as ak
     from wfield_local import combined_encoding as ce
     from wfield_local import orofacial_cohort as oc
@@ -56,8 +54,19 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--run", default=oc.RUN)
     ap.add_argument("--jobs", type=int, default=4)
+    ap.add_argument("--out", default=None, help="output folder; REQUIRED in a tagged run (11-25: a run-independent "
+                    "behavior table, e.g. the rebuild root's untagged imaging_encoding/qc = run_mode.behaviour_qc_dir(), "
+                    "where slowband_caveat_figure reads it); refuses to replace an existing table there")
     a = ap.parse_args(argv)
-    out = oo.encoding_root(a.run, PathResolver()) / "qc"
+    if a.out is None:
+        from wfield_local import run_mode as _rm_guard
+        _rm_guard.require_default("position_block_durations")   # no --out: refuses in a non-default run mode
+        out = oo.encoding_root(a.run, PathResolver()) / "qc"
+    else:
+        from pathlib import Path as _P
+        out = _P(a.out)
+        if (out / "position_block_summary.csv").exists():
+            raise SystemExit(f"{out / 'position_block_summary.csv'} exists: not replaced (give a new --out)")
     writeguard.assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
     got, fail = ak.fan_sessions(ce.sessions_available(), session_blocks, jobs=a.jobs)

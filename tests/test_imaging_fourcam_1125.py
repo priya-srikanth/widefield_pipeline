@@ -79,3 +79,11 @@ def test_restnl_coverage_needs_a_stage_and_has_no_literal_cache():
     assert "CACHE" not in names                       # the legacy RESTnl cache dir literal is gone
     assert ".widefield_session_cache_restnl" not in src
     assert "require_default" not in src               # routed instead of refused
+
+
+def test_position_blocks_tagged_run_needs_an_explicit_out():
+    src = (REPO / "scripts" / "position_block_durations.py").read_text(encoding="utf-8")
+    body = src[src.index("def main("):]
+    assert '"--out"' in body
+    assert body.index("if a.out is None:") < body.index("require_default(")       # the refusal only guards the default path
+    assert "not replaced" in body                                                  # never overwrites an existing table
