@@ -22,7 +22,24 @@ VARIANTS = [("adopted", "adopted\nsignal"), ("fast300", "slow band\nremoved"), (
 ACOL = {"PS92": "#1b9e77", "PS93": "#d95f02", "PS94": "#7570b3", "PS95": "#e7298a"}
 
 
-def main() -> int:
+def blocks_path(q, arg=None):
+    """position_block_summary.csv to read (11-25): --blocks PATH, else the run's own tagged qc ``q`` (where
+    position_block_durations writes in a tagged run), else the untagged behavior qc (the default run / a seeded root)."""
+    from pathlib import Path as _P
+
+    from wfield_local import run_mode
+    if arg:
+        return _P(arg)
+    own = _P(q) / "position_block_summary.csv"
+    return own if own.exists() else run_mode.behaviour_qc_dir() / "position_block_summary.csv"
+
+
+def main(argv=None) -> int:
+    import argparse
+    ap = argparse.ArgumentParser(description=__doc__.split(chr(10))[0])
+    ap.add_argument("--blocks", default=None, help="position_block_summary.csv (default: the run's tagged qc, else the "
+                    "untagged behavior qc)")
+    a = ap.parse_args(argv)
     # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import matplotlib
     matplotlib.use("Agg")
@@ -34,7 +51,9 @@ def main() -> int:
     q.mkdir(parents=True, exist_ok=True)
     D = pd.read_csv(q / "slowband_decode.csv")
     # position_block_durations: a run-independent behaviour table (untagged, seeded)
-    B = pd.read_csv(run_mode.behaviour_qc_dir() / "position_block_summary.csv")[["label", "median"]]
+    bp = blocks_path(q, a.blocks)
+    print(f"position blocks: {bp}")
+    B = pd.read_csv(bp)[["label", "median"]]
     D = D.merge(B, on="label", how="left")
     P = D[D["set"] == "pre"]
     fig, axs = plt.subplots(2, 2, figsize=(12.5, 9.2))

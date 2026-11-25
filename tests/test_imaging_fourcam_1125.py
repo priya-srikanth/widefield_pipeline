@@ -81,9 +81,34 @@ def test_restnl_coverage_needs_a_stage_and_has_no_literal_cache():
     assert "require_default" not in src               # routed instead of refused
 
 
-def test_position_blocks_tagged_run_needs_an_explicit_out():
-    src = (REPO / "scripts" / "position_block_durations.py").read_text(encoding="utf-8")
-    body = src[src.index("def main("):]
-    assert '"--out"' in body
-    assert body.index("if a.out is None:") < body.index("require_default(")       # the refusal only guards the default path
-    assert "not replaced" in body                                                  # never overwrites an existing table
+def test_position_blocks_write_to_the_runs_own_tagged_qc(monkeypatch, tmp_path):
+    """Rule 11 (coordinator 11-25): a tagged run writes the block tables under ITS tag, never the untagged qc."""
+    monkeypatch.syspath_prepend(str(REPO / "scripts"))
+    sys.modules.pop("position_block_durations", None)
+    pb = importlib.import_module("position_block_durations")
+    from wfield_local import lp_licks, run_mode
+    monkeypatch.setattr(lp_licks, "output_tag", lambda *a, **k: "sometag")
+    monkeypatch.setattr(run_mode, "encoding_out_root", lambda run=None: tmp_path / "enc" / "sometag")
+    out = pb.default_out()
+    assert out == tmp_path / "enc" / "sometag" / "qc"
+    out.mkdir(parents=True)
+    (out / "position_block_summary.csv").write_text("label,median")
+    with pytest.raises(SystemExit):
+        pb.default_out()                                   # never replaces a table in a tagged run
+    assert pb.default_out(out=tmp_path / "new") == tmp_path / "new"
+    sys.modules.pop("position_block_durations", None)
+
+
+def test_slowband_figure_reads_blocks_from_arg_then_tagged_qc_then_behavior_qc(monkeypatch, tmp_path):
+    monkeypatch.syspath_prepend(str(REPO / "scripts"))
+    sys.modules.pop("slowband_caveat_figure", None)
+    sf = importlib.import_module("slowband_caveat_figure")
+    from wfield_local import run_mode
+    monkeypatch.setattr(run_mode, "behaviour_qc_dir", lambda: tmp_path / "beh")
+    q = tmp_path / "tag" / "qc"
+    q.mkdir(parents=True)
+    assert sf.blocks_path(q) == tmp_path / "beh" / "position_block_summary.csv"
+    (q / "position_block_summary.csv").write_text("label,median")
+    assert sf.blocks_path(q) == q / "position_block_summary.csv"
+    assert sf.blocks_path(q, str(tmp_path / "x.csv")) == tmp_path / "x.csv"
+    sys.modules.pop("slowband_caveat_figure", None)
