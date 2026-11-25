@@ -297,13 +297,11 @@ def compute(E: dict) -> tuple[pd.DataFrame, dict, pd.DataFrame]:
         return D, [*names, *extra, "_row"], SD2
     lo.wd.area_basis = patched
     lo.CONTRIB_HOOK = _hook_factory(len(extra))
-    lo.FROZEN_TAG_EXTRA = "_acad"     # own frozen-store tag (lane E 11-24; the main lick-order entries keep theirs)
     try:
         lo.predictions()
     finally:
         lo.wd.area_basis = orig
         lo.CONTRIB_HOOK = None
-        lo.FROZEN_TAG_EXTRA = ""
     names = wd.area_meta()[0]
     rows, val = [], []
     for key, sess in HOOK.items():
