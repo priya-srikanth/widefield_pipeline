@@ -159,8 +159,12 @@ def test_grant_kit_save_carries_it(camera, fake_run_stamp, tmp_path):
     plt.close(fig)
 
 
-def test_map_bundle_records_it_and_replot_restores_it(camera, fake_run_stamp, tmp_path):
+def test_map_bundle_records_it_and_replot_restores_it(camera, fake_run_stamp, tmp_path, monkeypatch):
     from wfield_local import epoch_figures as ef
+    from wfield_local import trial_classes as tc
+    # the sidecar's working_excluded_sessions row scans every REAL session's frame coverage off the share (100 min
+    # cold, 11-24); this test checks the trial_set / title only
+    monkeypatch.setattr(tc, "working_excluded_sessions", lambda *a, **k: [])
     cells = {("far contra", "pre"): np.ones((6, 5)), ("far contra", "acute"): np.zeros((6, 5))}
     name = "epoch_15r_position_RESTNLref_cue_working"
     with tst.active("working", "cue"):
@@ -414,8 +418,12 @@ def test_iti_filter_from_the_env(monkeypatch, name):
 
 def test_filter_names_match_the_drivers():
     from pathlib import Path
+    import ast
     src = (Path(__file__).resolve().parents[1] / "scripts" / "iti_licks.py").read_text(encoding="utf-8")
-    assert "ITI_SUBSET_FILTERS = " + repr(tst.ITI_SUBSET_FILTERS).replace("'", '"') in src
+    # compare VALUES (the driver's tuple spans lines with comments since 11-24), not the source text
+    node = next(n for n in ast.parse(src).body if isinstance(n, ast.Assign)
+                and any(getattr(t, "id", None) == "ITI_SUBSET_FILTERS" for t in n.targets))
+    assert tuple(ast.literal_eval(node.value)) == tst.ITI_SUBSET_FILTERS
     src2 = (Path(__file__).resolve().parents[1] / "scripts" / "iti_lick_order.py").read_text(encoding="utf-8")
     assert '{"gap2": gap2, "far1": far1, "gap2far1": gap2 & far1}' in src2
     assert set(tst.ITI_REFIT_FILTERS) | set(tst.ITI_SUBSET_FILTERS) == set(tst.ITI_FILTER_TEXT)
