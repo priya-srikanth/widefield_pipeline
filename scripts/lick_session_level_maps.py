@@ -275,8 +275,14 @@ def build_maps(P: dict, sel: np.ndarray) -> dict:
     """{animal: {key: {label, epoch, day, n, M (sessions, drawn pixels) / animal's pre RMS of the all-lick map}}}.
     Scaled variant: each session's A and B divided by its frame SD per component first (module docstring)."""
     from iti_decoder_patterns import SPATIAL
-    from recovery_timing import series
-    s = series("lick")
+    import os
+    if os.environ.get("WFIELD_DAYS_ATTEMPTS_CSV", "").strip():
+        # lane E 11-24: session days straight from the camera-tagged attempts table (recovery_timing.series also needs
+        # the camera-gated hit table, which only the session DAY is taken from here)
+        s = pd.read_csv(os.environ["WFIELD_DAYS_ATTEMPTS_CSV"], usecols=["label", "day"]).drop_duplicates("label")
+    else:
+        from recovery_timing import series
+        s = series("lick")
     days = dict(zip(s.label, s.day))
     inv = frame_scale(sorted(P))
 
