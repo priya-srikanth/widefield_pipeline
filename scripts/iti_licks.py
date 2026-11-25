@@ -96,8 +96,16 @@ def encoder_run(suffix: str = "") -> Path:
     return frozen_encoder.out_root() / f"frozen_encoder_{ENCODER_TAG}{suffix}"
 
 
+#: explicit override of the TE basis run folder (lane E 11-24): a `frozen_encoder --basis-only` folder on the manuscript
+#: lineage. When set it is used as given (te_basis_spatial still refuses a missing pickle); never a silent fallback.
+TE_BASIS_ENV = "WFIELD_TE_BASIS_RUN"
+
+
 def te_basis_run() -> Path:
-    """The TE design's shared-basis encoder run (fit/spatial_<animal>.pkl): the svdbasis source of the ITI readers."""
+    """The TE design's shared-basis encoder run (fit/spatial_<animal>.pkl): the svdbasis source of the ITI readers.
+    WFIELD_TE_BASIS_RUN = an explicit folder (e.g. a `frozen_encoder --basis-only` run) overrides the default."""
+    if os.environ.get(TE_BASIS_ENV):
+        return Path(os.environ[TE_BASIS_ENV])
     from wfield_local import frozen_encoder
     return frozen_encoder.out_root() / f"frozen_encoder_{TE_ENCODER_TAG}_te_basis"
 
@@ -121,11 +129,26 @@ def te_basis_spatial(animal: str, fit: Path | None = None) -> Path:
 # (rule 10: lick_order_preds cache unchanged) and only drop ITI rows downstream (`iti_subset_keep`, flags from
 # iti_dock_audit.py). Their outputs keep the untagged file names inside their own folder <OUT>/itifilter_<filter>/
 # (OUT_W is redirected there unless WFIELD_ITI_OUT_W is set), so a primary output can never be overwritten.
-ITI_SUBSET_FILTERS = ("dock", "dock01", "gap2dock", "far1s", "notdock", "notdock_n")
+ITI_SUBSET_FILTERS = ("dock", "dock01", "gap2dock", "far1s", "notdock", "notdock_n",
+                      # 11-24 (Priya): docked = bouts STARTING at or after dock arrival; retraction-started bouts; and
+                      # the dock-arrival sensitivity variants (iti_dock_audit.iti_class)
+                      "dockbout", "retractbout", "dockbout_s04", "dockbout_s05", "dockbout_s07", "iti_after_quiet_1s",
+                      "iti_after_quiet_2s")
 ITI_SUBSET = os.environ.get("WFIELD_ITI_FILTER", "") if os.environ.get("WFIELD_ITI_FILTER", "") in ITI_SUBSET_FILTERS else ""
 if ITI_SUBSET and not os.environ.get("WFIELD_ITI_OUT_W"):
     OUT_W = OUT / f"itifilter_{ITI_SUBSET}"
 _DOCK_AUDIT = None
+
+
+#: an explicit UPSTREAM read folder for a WFIELD_ITI_OUT_W run (lane E 11-24: the docked pass on the manuscript lineage reads
+#: the neural-tail chain's all-ITI tables): in_path order = OUT_W, then WFIELD_ITI_IN_W, then the production folder.
+IN_W_ENV = "WFIELD_ITI_IN_W"
+#: a PATCH folder read before WFIELD_ITI_IN_W (lane E 11-24, PS95 0818 / 0820 cam3 re-add): upstream tables with those
+#: sessions' rows spliced in (`scripts/patch_splice.py`, manifest beside them) and their per-session files
+PATCH_W_ENV = "WFIELD_ITI_PATCH_W"
+#: restrict `labels()` to these sessions (comma list; lane E 11-24): builds the rows of a few sessions in a scratch
+#: OUT_W for `patch_splice.py`; never set for a figure run
+ONLY_ENV = "WFIELD_ITI_ONLY_LABELS"
 
 
 def in_path(rel: str | Path) -> Path:
@@ -135,6 +158,14 @@ def in_path(rel: str | Path) -> Path:
     p = OUT_W / rel
     if p.exists() or not os.environ.get("WFIELD_ITI_OUT_W"):
         return p
+    if os.environ.get(PATCH_W_ENV):              # spliced upstream tables / per-session files (lane E 11-24)
+        q = Path(os.environ[PATCH_W_ENV]) / rel
+        if q.exists():
+            return q
+    if os.environ.get(IN_W_ENV):                 # explicit upstream folder (lane E 11-24), e.g. a neural-tail OUT_W
+        q = Path(os.environ[IN_W_ENV]) / rel
+        if q.exists():
+            return q
     return (OUT / f"itifilter_{ITI_SUBSET}" if ITI_SUBSET else OUT) / rel
 
 
@@ -158,16 +189,42 @@ def in_path_x(rel: str | Path) -> Path:
     return in_path(rel) if os.environ.get("WFIELD_ITI_OUT_W") else OUT / rel
 
 
+def dock_audit_path() -> Path:
+    """READ path of iti_dock_audit.csv for the ITI-subset filters: under WFIELD_ITI_OUT_W the first of OUT_W, PATCH_W,
+    IN_W that holds it (a rebuilt audit, lane E 11-24), else OUT/iti_dock_audit.csv exactly as before. WFIELD_DOCK_AUDIT
+    (an explicit file) wins over all of them."""
+    if os.environ.get("WFIELD_DOCK_AUDIT", "").strip():
+        return Path(os.environ["WFIELD_DOCK_AUDIT"].strip())
+    if os.environ.get("WFIELD_ITI_OUT_W"):
+        q = in_path("iti_dock_audit.csv")
+        if q.exists():
+            return q
+    return OUT / "iti_dock_audit.csv"
+
+
+def refuse_truncated_dock_audit(path: Path) -> None:
+    """REFUSE a dock audit built on the truncated 11-22 lick-order cache (exact-time join to cam4 licks_all; lane E 11-24)
+    when the fused four-camera train is the lick set: the rebuilt audits carry `iti_class` (iti_dock_audit 11-24)."""
+    from wfield_local import session_licks as SL
+    if not SL.fused_on():
+        return
+    cols = pd.read_csv(path, nrows=0).columns
+    if "iti_class" not in cols:
+        raise SystemExit(f"{path}: dock audit without iti_class = built on the truncated lick-order cache (11-22); "
+                         "use the rebuilt audit (WFIELD_ITI_PATCH_W / WFIELD_ITI_OUT_W, iti_dock_audit.py 11-24)")
+
+
 def iti_subset_keep(df: pd.DataFrame) -> np.ndarray:
     """Boolean per row of a per-lick table for ITI_SUBSET: rows of set 'iti' are kept only if flagged in
-    <OUT>/iti_dock_audit.csv (key label x k, k = the row's index within (set, label) of the frozen prediction cache);
+    `dock_audit_path()` (key label x k, k = the row's index within (set, label) of the frozen prediction cache);
     other sets are kept. `k` is taken from the table or, if absent, as the cumcount within (set, label) -- valid only for
     a table in prediction-cache order. All True when no subset filter is active."""
     if not ITI_SUBSET:
         return np.ones(len(df), bool)
     global _DOCK_AUDIT
     if _DOCK_AUDIT is None:
-        A = pd.read_csv(OUT / "iti_dock_audit.csv", usecols=["label", "k", ITI_SUBSET])
+        refuse_truncated_dock_audit(dock_audit_path())
+        A = pd.read_csv(dock_audit_path(), usecols=["label", "k", ITI_SUBSET])
         _DOCK_AUDIT = A.set_index(["label", "k"])[ITI_SUBSET].astype(bool)
     k = df["k"] if "k" in df else df.groupby(["set", "label"]).cumcount()
     iti = (df["set"] == "iti").to_numpy()
@@ -188,7 +245,8 @@ def bout_subset_keep(label: str, bout_t: np.ndarray) -> np.ndarray:
         return np.ones(len(bout_t), bool)
     global _BOUT_AUDIT
     if _BOUT_AUDIT is None:
-        A = pd.read_csv(OUT / "iti_dock_audit.csv", usecols=["label", "onset", ITI_SUBSET]).dropna(subset=["onset"])
+        refuse_truncated_dock_audit(dock_audit_path())
+        A = pd.read_csv(dock_audit_path(), usecols=["label", "onset", ITI_SUBSET]).dropna(subset=["onset"])
         _BOUT_AUDIT = {x: (g.sort_values("onset").onset.to_numpy(float), g.sort_values("onset")[ITI_SUBSET].to_numpy(bool))
                        for x, g in A.groupby("label")}
     if label not in _BOUT_AUDIT or not len(bout_t):
@@ -270,6 +328,11 @@ BASE = (-1.5, -1.0)
 BOUT_GAP = 1.0                     # extraction: ITI onsets with no lick for >= 1 s (each lick's gap is saved)
 GAP_MAIN = 2.0                     # summaries: >= 2 s, so the -1.5..-1.0 s baseline starts >= 0.5 s after the last lick
 #                                    (with 1 s the acute baseline still carried the previous licks' decay)
+# Priya 11-24: the "after quiet" gap follows the analysis WINDOW -- 2 s for ramp / pre-lick windows reaching ~2 s before
+# the lick (the default above), 1 s for at-lick read-outs (decoded position 0-0.2 s, like-for-like, balance at the lick).
+# A run sets it with WFIELD_GAP_MAIN (the reader's config records it via input_provenance / its caption).
+if os.environ.get("WFIELD_GAP_MAIN", "").strip():
+    GAP_MAIN = float(os.environ["WFIELD_GAP_MAIN"])
 CUE_EXCL = (-2.0, 0.75)
 N_TRIAL_MAX = 1500
 FR_KEEP = ["fr_lick", "fr_right", "fr_left", "fr_close", "fr_far"]   # FaceRhythm master_v1 mode-A factors (no "other")
@@ -501,6 +564,7 @@ def extract(item) -> dict:
         f, cols=np.array(cols), epoch=epochs.epoch_of(label) or "", animal=an, clock_med_s=clock,
         mask_sig=_mask_sig(),                     # the brain / stat masks the ROI traces were built on (11-09)
         lick_sig=_lick_sig(),                     # the lick set + kinematics table it was built on (11-22)
+        pose3d_run=__import__("wfield_local.input_provenance", fromlist=["x"]).pose3d_run(),   # 3-D run (11-24)
         bout_peth=_sample(R, ft, to[bout], LAGS_P).astype(f16), bout_side=iti.side_ml.to_numpy(float)[bout], bout_gap=gap[bout],
         # bout_pos = the trial-WINDOW label (the UPCOMING trial for 'lead' licks) -- NOT a spout to group by; use
         # bout_prev_pos = the PREVIOUS trial's spout, the rule of iti_pos (10-28; files before then lack it:
@@ -594,7 +658,7 @@ def fr_unblanked_session(label: str) -> dict:
     from wfield_local import face_rhythm_outputs as fro
     from wfield_local.paths import PathResolver
     f = OUT_W / FRU_DIR / f"{label}.npz"
-    d = np.load(XOUT / SESS_NAME / f"{label}.npz", allow_pickle=False)     # lazy: only bout_t / first_rt are read
+    d = np.load(session_path(label), allow_pickle=False)     # lazy: only bout_t / first_rt are read
     bt = np.asarray(d["bout_t"], float)
     if f.exists():
         z = np.load(f, allow_pickle=False)
@@ -660,11 +724,13 @@ def _load(label: str, sess_dir: Path | None = None) -> dict:
     """One session extract. EVERY read is mask-checked (11-09): many readers (interhemi_crossarea, coupling_vigour_sm,
     lick_cued_ramp, ...) never call `extract`, so `check_extract_masks` alone would not stop a stale file."""
     from wfield_local import mask_keys
-    p = (sess_dir or XOUT / SESS_NAME) / f"{label}.npz"
+    p = Path(sess_dir) / f"{label}.npz" if sess_dir else session_path(label)
     z = np.load(p, allow_pickle=False)
     try:
         out = {k: z[k] for k in z.files}
         mask_keys.check_obj(out, p)
+        check_superseded_3d(label, out, p)
+        _record_input(out)
         return out
     except ValueError:
         # JUNE REFERENCE FILES written before 11-08 store epoch=None (`epochs.epoch_of` has no epoch for a session before
@@ -680,7 +746,76 @@ def _load(label: str, sess_dir: Path | None = None) -> dict:
                 a = np.array("")
             out[k] = a
         mask_keys.check_obj(out, p)
+        check_superseded_3d(label, out, p)
+        _record_input(out)
         return out
+
+
+#: SESSION-FILE OVERRIDES (lane E 11-24, Priya: re-extract PS95_0818 / 0820 from the current 3-D tables without touching
+#: production): WFIELD_ITI_SESS_W = a folder holding <SESS_NAME>/<label>.npz for the sessions rebuilt there; `_load` and
+#: every reader through `session_path` take a label's file from it when present, else the production extract.
+SESS_W_ENV = "WFIELD_ITI_SESS_W"
+#: session files built on a SUPERSEDED 3-D table version: refused on read in every process, so the old version cannot come
+#: back through any folder (11-23: PS95 0818 / 0820 cam3 re-added; the 11-22 kinematics_fused/licks.csv.gz signature)
+SUPERSEDED_3D = {"PS95_0818": "kinematics_fused:68514379:1795378063329284000",
+                 "PS95_0820": "kinematics_fused:68514379:1795378063329284000"}
+
+
+def session_path(label: str) -> Path:
+    """The session file `_load` reads: the WFIELD_ITI_SESS_W override when it holds this label, else XOUT/SESS_NAME."""
+    w = os.environ.get(SESS_W_ENV)
+    if w and (Path(w) / SESS_NAME / f"{label}.npz").exists():
+        return Path(w) / SESS_NAME / f"{label}.npz"
+    return XOUT / SESS_NAME / f"{label}.npz"
+
+
+_KIN_FULL: dict = {}
+
+
+def session_lick_table(label: str, kin_cols=(), cam4_cols=()) -> pd.DataFrame:
+    """THE session lick table (`session_licks.session_licks`: the fused four-camera train when selected) of ``label``,
+    with per-lick columns joined BY LICK KEY, never by time (lane E 11-24, Priya "fix everything"): ``kin_cols`` from the
+    whole-session four-camera kinematics table (`kin_all_path`; e.g. contact), NaN where a lick has no 3-D row;
+    ``cam4_cols`` from the cam4 licks_all.csv (cam4-only measurements such as rise_start_ms / tip_to_spout_px), NaN for
+    the fused licks cam4 never saw."""
+    from wfield_local import config
+    from wfield_local import orofacial_cohort as oc
+    from wfield_local import orofacial_outputs as oo
+    from wfield_local import session_licks as SL
+    from wfield_local.paths import PathResolver
+    an, date = config.animal_of(label), "2026" + label.split("_")[-1]
+    A = SL.session_licks(f"{an}_{date}").reset_index(drop=True)
+    if kin_cols:
+        p = kin_all_path()
+        key = (str(p), p.stat().st_mtime_ns)
+        if _KIN_FULL.get("key") != key:
+            _KIN_FULL.update(key=key, K=pd.read_csv(p))
+        K = _KIN_FULL["K"]
+        K = K[K.session == f"{an}_{date}"]
+        J = SL.align_kin(A, K, list(kin_cols), f"{an}_{date}")
+        for c in kin_cols:
+            A[c] = J[c].to_numpy()
+    if cam4_cols:
+        C = pd.read_csv(oo.session_dir(PathResolver(), oc.RUN, an, date) / "licks_all.csv",
+                        usecols=lambda c: c in ("trial_id", "t_ms", *cam4_cols))
+        C = C.assign(lick_key=SL.lick_key(C.trial_id, C.t_ms)).drop_duplicates("lick_key").set_index("lick_key")
+        for c in cam4_cols:
+            A[c] = C[c].reindex(A.lick_key.to_numpy()).to_numpy()
+    return A
+
+
+def check_superseded_3d(label: str, out: dict, p) -> None:
+    """REFUSE a session file built on a superseded 3-D table version (`SUPERSEDED_3D`)."""
+    bad = SUPERSEDED_3D.get(str(label))
+    if bad and "lick_sig" in out and str(out["lick_sig"]).endswith(bad):
+        raise RuntimeError(f"{p}: {label} was extracted from a superseded 3-D table ({bad}); re-extract it into "
+                           f"{SESS_W_ENV} (iti_licks.extract) and point the run at that folder.")
+
+
+def _record_input(out: dict) -> None:
+    """Note the lick set / 3-D table this session file was built on (`input_provenance`; footer of every figure)."""
+    from wfield_local import input_provenance
+    input_provenance.record(str(out["lick_sig"]) if "lick_sig" in out else None)
 
 
 # ------------------------------------------------------------------------------------------------ area basis (10-27 late)
@@ -692,6 +827,36 @@ def tagged(name: str, tag: str | None = None) -> str:
     return f"{stem}{tag}{dot}{ext}"
 
 
+def resolve_cache(rel: str | Path) -> Path:
+    """A whole-cohort cache file (relative path, final name): the OUT_W copy when present; under a patch build
+    (WFIELD_ITI_ONLY_LABELS) always the OUT_W path (a new cache, never another folder's); else the PATCH folder's, the
+    IN_W folder's, the production one when present, else the OUT_X path (a new cache). Default runs: OUT/rel."""
+    rel = Path(rel)
+    if not os.environ.get("WFIELD_ITI_OUT_W"):
+        return OUT / rel
+    q = OUT_W / rel
+    if q.exists() or os.environ.get(ONLY_ENV):
+        return q
+    for env in (PATCH_W_ENV, IN_W_ENV):
+        if os.environ.get(env) and (Path(os.environ[env]) / rel).exists():
+            return Path(os.environ[env]) / rel
+    return OUT / rel if (OUT / rel).exists() else q
+
+
+#: the per-lick caches iti_dock_where_preds.py writes a subset copy of (a redirected subset run must read the copy)
+SUBSET_COPIES = ("where_preds_z.csv", "where_angle_reach_preds.csv.gz", "where_preds.csv")
+
+
+def pred_file_out(rel: str) -> Path:
+    """WRITE path of a per-lick prediction cache: always under OUT_X (OUT by default; the redirected OUT_W in a reader
+    pass), never an upstream / patch / production copy that `pred_file` may resolve to for READING (lane E 11-24: a
+    reader pass wrote its recomputed where_preds into the patch folder through pred_file)."""
+    p = Path(rel)
+    q = out_x() / p.parent / tagged(p.name, PRED_TAG)
+    q.parent.mkdir(parents=True, exist_ok=True)
+    return q
+
+
 def pred_file(rel: str) -> Path:
     """Per-lick prediction cache under OUT (relative path), named by basis + ROI version (PRED_TAG)."""
     p = Path(rel)
@@ -699,10 +864,12 @@ def pred_file(rel: str) -> Path:
         q = OUT_W / p.parent / tagged(p.name, PRED_TAG)
         if q.exists():
             return q
-    if os.environ.get("WFIELD_ITI_OUT_W"):     # opt-in redirect (11-23): the redirected copy, else production when it
-        q = OUT_W / p.parent / tagged(p.name, PRED_TAG)       # exists (read), else the redirected path (a new cache)
-        if q.exists() or not (OUT / p.parent / tagged(p.name, PRED_TAG)).exists():
-            return q
+        if os.environ.get("WFIELD_ITI_OUT_W") and p.name in SUBSET_COPIES:
+            # lane E 11-24: never fall back to the all-ITI cache in a redirected subset run (silent unfiltered figures)
+            raise FileNotFoundError(f"{q}: the {ITI_SUBSET} copy of {p.name} is missing -- run iti_dock_where_preds.py "
+                                    "in this WFIELD_ITI_OUT_W first")
+    if os.environ.get("WFIELD_ITI_OUT_W"):     # opt-in redirect (11-23); + patch / upstream folders (11-24)
+        return resolve_cache(p.parent / tagged(p.name, PRED_TAG))
     return OUT / p.parent / tagged(p.name, PRED_TAG)
 
 
@@ -801,6 +968,10 @@ def labels(pattern: str = "*", sess_dir: Path | None = None, complete: bool = Tr
         miss = sorted(set(run_labels()) - set(got))
         if miss:
             raise RuntimeError(f"{d}: {len(miss)} session(s) of the frozen run not extracted: {miss[:5]}")
+    if os.environ.get(ONLY_ENV):
+        keep = {x.strip() for x in os.environ[ONLY_ENV].split(",") if x.strip()}
+        got = [x for x in got if x in keep]
+        print(f"[iti_licks.labels] {ONLY_ENV}: {len(got)} session(s) only (patch build)", flush=True)
     return got
 
 

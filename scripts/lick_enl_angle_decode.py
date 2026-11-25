@@ -86,7 +86,7 @@ def session_trials(label: str) -> dict:
     """One session (module-level for spawn): per first-lick trial row of cued_wide -> cue, onset, pre-cue lick counts,
     matched kinematics, ENL features."""
     from wfield_local import config, epochs
-    z = np.load(OUT / "cued_wide" / f"{label}.npz")
+    z = np.load(il.in_path_x("cued_wide") / f"{label}.npz")     # upstream copy in a redirected run (11-24)
     d = il._load(label)
     cue, fl = il._first_lick_times(label, d["first_rt"])
     ok = np.isfinite(fl) & np.isfinite(cue)
@@ -97,18 +97,15 @@ def session_trials(label: str) -> dict:
         raise RuntimeError(f"{label}: spout labels differ from cued_wide")
     # pre-cue licks: EVERY lick of the session (licks_all.csv, all contexts) -- the behaviour table's lick_on_s holds
     # only the trial-context licks and has no pre-cue licks at all (checked 10-29: lick-free 100 % with it, ~82 % here)
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
     an, date = config.animal_of(label), "2026" + label.split("_")[-1]
-    A = pd.read_csv(oo.session_dir(PathResolver(), oc.RUN, an, date) / "licks_all.csv", usecols=["daq_on_s"])
+    A = __import__("wfield_local.session_licks", fromlist=["x"]).session_licks(f"{an}_{date}")[["daq_on_s"]].copy()  # THE session lick table (fused four-camera train when selected), not cam4 licks_all (11-24)
     bo = np.sort(A.daq_on_s.to_numpy(float))
     bo = bo[np.isfinite(bo)]
     nl = {L: np.searchsorted(bo, cue) - np.searchsorted(bo, cue - L) for L in (0.5, 1.0, LF_LONG)}
     # a licks_all lick between the cue and the behaviour first-lick onset -> that lick, not fl, was the first: flag
     n_between = np.searchsorted(bo, fl - 0.005) - np.searchsorted(bo, cue)
     # kinematics: bout-first post-cue licks, exact DAQ peak t
-    k = np.load(OUT / "firstlick_full" / f"{label}.npz")
+    k = np.load(il.in_path_x("firstlick_full") / f"{label}.npz")       # upstream copy in a redirected run (11-24)
     kt = np.asarray(k["t"], float)
     o = np.argsort(kt)
     kt = kt[o]

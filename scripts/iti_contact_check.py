@@ -26,13 +26,9 @@ MIN_N = 15
 
 
 def contact_of(label: str, t: np.ndarray) -> np.ndarray:
-    """DAQ contact flag of each lick (exact DAQ peak time match into licks_all.csv); NaN where unmatched."""
-    from wfield_local import config
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
-    an, date = config.animal_of(label), "2026" + label.split("_")[-1]
-    A = pd.read_csv(oo.session_dir(PathResolver(), oc.RUN, an, date) / "licks_all.csv", usecols=["daq_peak_s", "contact"])
+    """Spout-contact flag of each lick: THE session lick table's row of that lick (its own peak value) with the
+    four-camera kinematics `contact` joined by lick key (11-24; was an exact-peak match into cam4 licks_all.csv)."""
+    A = il.session_lick_table(label, kin_cols=["contact"])[["daq_peak_s", "contact"]]   # by lick key (11-24)
     A = A.dropna(subset=["daq_peak_s"]).drop_duplicates("daq_peak_s").set_index("daq_peak_s").contact
     c = A.reindex(np.asarray(t, float)).map({True: 1.0, False: 0.0, "True": 1.0, "False": 0.0})
     return c.to_numpy(float)

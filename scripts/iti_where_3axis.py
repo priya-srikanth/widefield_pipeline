@@ -75,7 +75,7 @@ def main(argv=None) -> int:
     R = pd.DataFrame(rows)
     sfx_ = "_unscaled" if unscaled else ""
     L = pd.concat(lick_rows, ignore_index=True)
-    L.to_csv(il.pred_file(f"where_3axis{sfx_}_preds.csv.gz"), index=False)
+    L.to_csv(il.pred_file_out(f"where_3axis{sfx_}_preds.csv.gz"), index=False)
     for ax_ in AXES:                               # like-for-like offset per lick, per axis (same-place pre reference)
         L[f"lfl_{ax_}"] = lfl.offset(L, f"act_{ax_}", f"dec_{ax_}", lfl.SIGMA_MM, f"3-axis {ax_} (mm)")[0]
     M = L.groupby(["set", "label"])[[f"lfl_{ax_}" for ax_ in AXES]].mean()

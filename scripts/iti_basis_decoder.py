@@ -91,7 +91,9 @@ def extract(item) -> dict:
         res[f"{st}_X"] = il._sample(R, ft, t[ok], LAGS).astype(np.float32)
         res[f"{st}_y"] = y[ok]
     out.parent.mkdir(parents=True, exist_ok=True)
-    np.savez_compressed(out, **res, **mask_keys.stamp())
+    from wfield_local import input_provenance       # the session file's lick set + this env's 3-D run (11-24)
+    np.savez_compressed(out, **res, **mask_keys.stamp(),
+                        **input_provenance.stamp_keys(str(d["lick_sig"]) if "lick_sig" in d else None))
     return {"label": label, "n_feat": R.shape[1]}
 
 

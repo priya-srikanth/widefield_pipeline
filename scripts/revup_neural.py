@@ -165,9 +165,6 @@ def session_worker(label: str) -> dict:
             return {"label": label, "cached": True}
     from wfield_local import combined_encoding as ce
     from wfield_local import config
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
     src = np.load(il.OUT_W / "precue_restw" / f"{label}.npz")
     mask_keys.check_obj(src, il.OUT_W / "precue_restw" / f"{label}.npz")   # stale-read guard (11-09)
     d = il._load(label)
@@ -200,7 +197,7 @@ def session_worker(label: str) -> dict:
     nxt = np.where(j < len(st_all), st_all[np.minimum(j, len(st_all) - 1)], ft[-1])
     # licks: behaviour (cam4 in-trial) onsets + whole-session video licks (licks_all.csv, ITI included)
     an, date = config.animal_of(label), "2026" + label.split("_")[-1]
-    A = pd.read_csv(oo.session_dir(PathResolver(), oc.RUN, an, date) / "licks_all.csv", usecols=["context", "daq_on_s"])
+    A = __import__("wfield_local.session_licks", fromlist=["x"]).session_licks(f"{an}_{date}")[["context", "daq_on_s"]].copy()  # THE session lick table (fused four-camera train when selected), not cam4 licks_all (11-24)
     bo = np.sort(np.asarray(B.lick_on_s, float)[np.isfinite(B.lick_on_s)])
     ao = np.sort(A.daq_on_s.to_numpy(float)[np.isfinite(A.daq_on_s.to_numpy(float))])
     iti_on = np.sort(A.daq_on_s.to_numpy(float)[(A.context == "iti").to_numpy() & np.isfinite(A.daq_on_s.to_numpy(float))])

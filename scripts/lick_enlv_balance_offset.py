@@ -37,7 +37,9 @@ Change vs pre: per-animal table first (rule 8), then analysis_kit.boot_delta (pa
 Outputs <OUT_W>/enlv_licks/: enlv_table.csv.gz (per lick), enlv_sessions.csv, enlv_tests.csv (variant x measure x epoch),
 enlv_animals.csv, enlv_spout_tests.csv, enlv_compare.csv (ENLv vs cued / ITI all / docked / moving), enlv_counts_*.csv,
 enlv_arrival_*.csv, enlv_firstlick_latency.csv; figures/lick_enlv_*.png; figdata/lick_enlv_*.pkl.
-Usage: python scripts/lick_enlv_balance_offset.py --table      (per-lick table: features, readers, ENLv decoder)
+Usage: python scripts/lick_enlv_balance_offset.py --table [--allow-freeze]   (per-lick table: features, readers, ENLv
+       decoder; the frozen readers are LOAD-ONLY unless --allow-freeze: a store miss raises instead of fitting new
+       pre-stroke references, 11-24)
        python scripts/lick_enlv_balance_offset.py              (all tables + figures)
        python scripts/lick_enlv_balance_offset.py --plot-only  (redraw every figure from figdata)
 """
@@ -214,9 +216,15 @@ def table() -> pd.DataFrame:
     T = pd.read_csv(il.in_path_x("enl_licks") / "enl_trials.csv.gz", usecols=["label", "trial_id", "strobe_s", "cue_s"])
     L = L.merge(T, on=["label", "trial_id"], how="left", validate="many_to_one")
     K = il.lick_table()
-    K = K[K.context == "pre_cue"][["session", "lick_uid", "side_ml", "reach_mm"]].drop_duplicates(["session", "lick_uid"])
+    # 11-24: 3-D rows by LICK KEY when both tables carry it (the fused four-camera train: the kinematics table has no
+    # lick_uid and enl_licks' lick_uid is the row of THE session lick table); else by lick_uid (cam4 licks_all row)
+    on = "lick_key" if ("lick_key" in K.columns and "lick_key" in L.columns) else "lick_uid"
+    K = K[K.context == "pre_cue"][["session", on, "side_ml", "reach_mm"]].drop_duplicates(["session", on])
     L["session"] = L.label.str[:5] + "2026" + L.label.str[-4:]
-    L = L.merge(K, on=["session", "lick_uid"], how="left", validate="many_to_one")
+    if on == "lick_key":
+        K["lick_key"] = K.lick_key.astype(str)
+        L["lick_key"] = L.lick_key.astype(str)
+    L = L.merge(K, on=["session", on], how="left", validate="many_to_one")
     names, SD = wd.area_meta(basis="split")
     parts = []
     for lab, g in L.groupby("label", sort=True):
@@ -257,7 +265,16 @@ def table() -> pd.DataFrame:
     L["first"] = L["rank"] == 0
     L["n_in_trial"] = L.groupby(["label", "trial_id"]).lick_uid.transform("size")
     nf = len(names)
-    # frozen readers (ITI, cued): pre sessions by their held-out sibling, else the full model
+    # frozen readers (ITI, cued): pre sessions by their held-out sibling, else the full model.
+    # 11-24 GUARD: --table READS the frozen lick readers (and the ENLv reader below); on a store miss the freeze would
+    # FIT and store new pre-stroke references silently (it did on 11-24 14:04 in lane E's rp_enlv). Unless the run
+    # says --allow-freeze, the store is load-only here and a miss raises.
+    import os
+    from wfield_local import frozen_models as _fm
+    if "--allow-freeze" not in sys.argv:
+        os.environ[_fm.LOAD_ONLY_ENV] = "1"
+        print("frozen readers: LOAD ONLY (a store miss raises; pass --allow-freeze to fit + store new references)",
+              flush=True)
     fits = ex.readers(4)
     for sfx in ("", "_c"):
         F = L[[f"f{j}{sfx}" for j in range(nf)]].to_numpy(float)
@@ -464,8 +481,18 @@ def tests(S: pd.DataFrame, meas, keys) -> tuple[pd.DataFrame, pd.DataFrame]:
 def compare(T: pd.DataFrame, TS: pd.DataFrame) -> pd.DataFrame:
     """ENLv (primary, every reader) vs cued / ITI all / ITI docked / ITI moving on the same quantities."""
     from wfield_local import analysis_kit as ak
+    import os
     root = il.OUT
     fold = {"ITI all": root, "ITI docked": root / "itifilter_dock", "ITI moving": root / "itifilter_notdock"}
+    # lane E 11-24: the comparison folders of a redirected run (WFIELD_ENLV_CMP_ALL / _DOCK / _MOVING); a set without
+    # its tables is left out of the comparison and named
+    env = {"ITI all": "WFIELD_ENLV_CMP_ALL", "ITI docked": "WFIELD_ENLV_CMP_DOCK", "ITI moving": "WFIELD_ENLV_CMP_MOVING"}
+    if os.environ.get(env["ITI all"]):
+        root = Path(os.environ[env["ITI all"]])
+        fold = {k: Path(os.environ[v]) for k, v in env.items() if os.environ.get(v)}
+    for k in [k for k, v in fold.items() if not (v / "matched_loclin_tests.csv").exists()]:
+        print(f"  comparison set {k!r}: no matched_loclin_tests.csv in {fold[k]} -- left out", flush=True)
+        fold.pop(k)
     rows = []
 
     def add(q, src, ep, point, lo_, hi_, d: dict):

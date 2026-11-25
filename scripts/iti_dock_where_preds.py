@@ -33,6 +33,18 @@ import iti_lick_order as lo  # noqa: E402
 MIN_N = 20          # as iti_where_decoder.decode (>= 20 licks per session)
 
 
+def _all_iti(rel) -> Path:
+    """The ALL-ITI cache this script subsets: the first of WFIELD_ITI_PATCH_W/rel (spliced upstream, lane E 11-24) and
+    WFIELD_ITI_IN_W/rel (explicit upstream folder, manuscript lineage) that holds it, else the production OUT/rel (as
+    before). Never the subset folder itself. Same order as `iti_licks.in_path`, so the where caches and the lick_order
+    cache (`iti_lick_order.preds_path`) come from the same folder."""
+    import os
+    for env in (il.PATCH_W_ENV, il.IN_W_ENV):
+        if os.environ.get(env) and (Path(os.environ[env]) / rel).exists():
+            return Path(os.environ[env]) / rel
+    return il.OUT / rel
+
+
 def _vec_r(P: np.ndarray, Y: np.ndarray) -> float:
     P, Y = P - P.mean(0), Y - Y.mean(0)
     return float((P * Y).sum() / np.sqrt((P ** 2).sum() * (Y ** 2).sum()))
@@ -98,23 +110,40 @@ def main() -> int:
     rel_z = Path("zscore_check") / il.tagged("where_preds_z.csv", il.PRED_TAG)
     rel_a = Path(il.tagged("where_angle_reach_preds.csv.gz", il.PRED_TAG))
     rel_u = Path(il.tagged("where_preds.csv", il.PRED_TAG))
-    Wz = pd.read_csv(il.OUT / rel_z)
-    A = pd.read_csv(il.OUT / rel_a)
-    U = pd.read_csv(il.OUT / rel_u)
+    Wz = pd.read_csv(_all_iti(rel_z))
+    A = pd.read_csv(_all_iti(rel_a))
+    U = pd.read_csv(_all_iti(rel_u))
     # the three caches are row-aligned (same extraction): check before reusing one flag vector
     for nm, X, c in (("angle_reach", A, "act_sag"), ("unscaled", U, "act_lat")):
-        if len(X) != len(Wz) or not np.allclose(X[c].to_numpy(float), Wz[c].to_numpy(float), equal_nan=True):
-            raise SystemExit(f"{nm} cache not row-aligned with {rel_z}")
+        if len(X) != len(Wz) or (X["label"].to_numpy() != Wz["label"].to_numpy()).any():
+            raise SystemExit(f"{nm} cache not row-aligned with {rel_z} (row count / session order)")
+        bad = ~np.isclose(X[c].to_numpy(float), Wz[c].to_numpy(float), equal_nan=True)
+        if bad.any():
+            # same rows, same sessions in the same order, different 3-D values: an upstream table re-run between the
+            # two caches (lane E 11-24: PS95_0818 / 0820 cam3 re-added on 11-23 after the 11-22 z-scored cache). The flag
+            # is per row, so it is reused; the sessions are reported, and a hard mismatch elsewhere still refuses.
+            sess = sorted(set(Wz.loc[bad, "label"]))
+            print(f"  {nm}: {bad.sum()} rows in {len(sess)} session(s) differ in {c} from {rel_z}: {sess}", flush=True)
+            if len(sess) > 3:
+                raise SystemExit(f"{nm} cache differs from {rel_z} in {len(sess)} sessions: not the same extraction")
     F = flags(Wz)
     (il.OUT_W / "zscore_check").mkdir(parents=True, exist_ok=True)
     F.to_csv(il.OUT_W / "where_dockflag.csv", index=False)
+    import json
+    import os
+
+    from wfield_local import input_provenance       # which caches were subset, and from where (11-24)
+    src = {str(r): {"path": str(_all_iti(r)), "mtime": os.path.getmtime(_all_iti(r))} for r in (rel_z, rel_a, rel_u)}
+    (il.OUT_W / "where_dock_provenance.json").write_text(json.dumps(
+        {"inputs": src, "dock_audit": str(il.dock_audit_path()), "pose3d_run_env": input_provenance.pose3d_run()},
+        indent=1), encoding="utf-8")
     print(f"ITI subset {il.ITI_SUBSET}: {int(F.keep.sum())} of {len(F)} where-cache ITI rows kept "
           f"({int((F.k < 0).sum())} rows without a lick_order match, dropped)")
     Wz2, A2, U2 = subset(Wz, F), subset(A, F), subset(U, F)
     Wz2.to_csv(il.OUT_W / rel_z, index=False)
     A2.to_csv(il.OUT_W / rel_a, index=False)
     U2.to_csv(il.OUT_W / rel_u, index=False)
-    R0 = pd.read_csv(il.OUT / "zscore_check" / il.tagged("where_decoder_z.csv"))
+    R0 = pd.read_csv(_all_iti(Path("zscore_check") / il.tagged("where_decoder_z.csv")))
     chk = r_table(Wz, A)                                     # reproduce the published ITI r from the full caches
     m = R0[R0.set == "iti"].merge(chk, on=["label", "target"], suffixes=("", "_chk"))
     print(f"check vs published where_decoder_z ITI rows: max |dr| {np.abs(m.r - m.r_chk).max():.2e} over {len(m)} rows"

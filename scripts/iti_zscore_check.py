@@ -30,7 +30,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import iti_licks as il  # noqa: E402
 
-OUTZ = il.OUT / "zscore_check"
+OUTZ = il.OUT_X / "zscore_check"          # = il.OUT/zscore_check by default (OUT_X routing, 11-24)
 
 
 def session_sd(item) -> dict:
@@ -97,7 +97,7 @@ def main() -> int:
         wd.load = load0
     pd.set_option("display.width", 220)
     Rz.to_csv(OUTZ / il.tagged("where_decoder_z.csv"), index=False)
-    R0 = pd.read_csv(il.OUT / il.tagged("where_decoder.csv"))
+    R0 = pd.read_csv(il.in_path_x(il.tagged("where_decoder.csv")))
     R0 = R0[R0.source == "areas"]
     rows = []
     for tag, R in (("unscaled", R0), ("z-scored", Rz)):
@@ -107,7 +107,7 @@ def main() -> int:
     print("== frozen r, normalized change vs pre (mean of animals)")
     print(pd.concat(rows).reset_index().set_index(["set", "target", "version"]).sort_index().round(3).to_string())
     # (b) -> like-for-like offsets (was beyond-pull; 10-27 late)
-    P.to_csv(il.pred_file("zscore_check/where_preds_z.csv"), index=False)
+    P.to_csv(il.pred_file_out("zscore_check/where_preds_z.csv"), index=False)
     if il.AREA_BASIS == "split":                          # its outputs are not basis-tagged
         bp.main(z=True)
     return 0

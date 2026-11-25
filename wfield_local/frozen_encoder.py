@@ -475,8 +475,10 @@ def te_lick_parts(parts: dict, B, T, animal: str, date: str, rv, ft: np.ndarray,
     on_x = np.asarray([] if ex is None else ex, float)
     tg_x = target_of(on_x)
     from wfield_local import session_licks as SL
-    A = pd.read_csv(oo.session_dir(rv, ce._run(), animal, date) / "licks_all.csv",
-                    usecols=lambda c: c in ("trial_id", "t_ms", "context", "onset_context", "daq_on_s"))
+    # THE session lick table (fused four-camera train when selected; lane E 11-24), rows joined to the kinematics BY
+    # LICK KEY (rows_for), never the cam4 licks_all.csv
+    A = SL.session_licks(f"{animal}_{date}", rv).reset_index(drop=True)
+    A = A[[c for c in ("trial_id", "t_ms", "context", "onset_context", "daq_on_s", "lick_key") if c in A]]
     K = _kin_all(rv)
     K = K[K.session == f"{animal}_{date}"]
     K = K.drop_duplicates("lick_key" if "lick_key" in K else "lick_uid")
@@ -2149,7 +2151,16 @@ def main(argv=None) -> int:
     ap.add_argument("--roi-targets", action="store_true",
                     help="EXACT ALM / tjM1 / MOs_rest / MOp_rest rows: the area run (--fit-from = --alphas-from) re-scored "
                          "with the 8 ROI-mean targets added, penalties held; Musall R2 only (ROI_TARGETS comment)")
+    # SPATIAL BASIS ONLY (lane E 11-24, Priya: the te_basis svdbasis readers of movement page 15.11-15.20 on the manuscript
+    # lineage): pass 2 alone -- the per-animal shared SVD basis of the August pre sessions (basis_job + build_basis, an
+    # eigendecomposition of the pre imaging on the design's frames), written as fit/spatial_<animal>.pkl. NO template
+    # pass, NO pre statistics, NO ridge fit, no variant scored. Requires --target basis and --out-root (a NEW parent
+    # folder): it never writes into an existing frame.
+    ap.add_argument("--basis-only", action="store_true",
+                    help="write only fit/spatial_<animal>.pkl (shared SVD basis of the pre sessions; no regression)")
     a = ap.parse_args(argv)
+    if a.basis_only and (a.target != "basis" or not a.out_root or a.fit_from or a.reuse_stats or a.trials_only):
+        raise SystemExit("--basis-only: --target basis with a NEW --out-root, no --fit-from / --reuse-stats / --trials-only")
     if a.roi_targets:
         if a.target != "areas" or not a.fit_from or not a.alphas_from or a.trials_only or _push_free():
             raise SystemExit("--roi-targets: Allen-area targets with --fit-from and --alphas-from (the area run), "
@@ -2186,6 +2197,22 @@ def main(argv=None) -> int:
         raise SystemExit("--fit-from must be another run folder")
     sp = src_fit / "pre_stats.pkl"
     tp = src_fit / "templates.pkl"
+    if a.basis_only:
+        if any((out / "fit").glob("spatial_*.pkl")):
+            raise SystemExit(f"--basis-only: {out / 'fit'} already holds spatial_*.pkl; refusing to overwrite")
+        (out / "fit").mkdir(parents=True, exist_ok=True)
+        bparts, bfail = ak.fan_sessions(pre, basis_job, jobs=a.jobs, label="basis")
+        if bfail:
+            raise RuntimeError(f"basis pass failed: {bfail}")
+        for an_, sd_ in build_basis([b for _l, b in bparts]).items():
+            (out / "fit" / f"spatial_{an_}.pkl").write_bytes(pickle.dumps(_stamp_masks(sd_), protocol=pickle.HIGHEST_PROTOCOL))
+            print(f"  {an_} shared basis: K = {len(sd_['names'])} components, {sd_['evr'][-1]:.3f} of pre variance "
+                  f"({len(sd_['labels'])} pre sessions)", flush=True)
+        (out / "fit" / "BASIS_ONLY.json").write_text(json.dumps(
+            {"design": design_name(), "frozen_design": DESIGN, "licks_all": LICKS_ALL, "pre": pre,
+             "note": "spatial basis only (basis_job + build_basis); no templates, statistics or fits",
+             "licks": "none (imaging only: the basis does not depend on the lick list or the 3-D table)"}, indent=1))
+        return 0
     (out / "fit").mkdir(parents=True, exist_ok=True)
     spath = str(src_fit) if a.target != "areas" else None
     spat_ok = a.target == "areas" or all((src_fit / f"spatial_{config.animal_of(x)}.pkl").exists() for x in pre)

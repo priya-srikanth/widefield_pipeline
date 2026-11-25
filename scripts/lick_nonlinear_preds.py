@@ -23,8 +23,10 @@ import iti_licks as il  # noqa: E402
 
 
 def main() -> int:
-    N = pd.read_csv(il.OUT / "nonlinear_decoder_preds.csv.gz")
-    L = pd.read_csv(il.OUT / "lick_order_preds_areas_splitr8.csv.gz")
+    # 11-24: through the redirect (in_path_x: OUT_W, PATCH_W, IN_W, else OUT) -- the KEY cache is the recounted one in
+    # a redirected run, never the production 11-22 (truncated) copy; the output goes to OUT_X
+    N = pd.read_csv(il.in_path_x("nonlinear_decoder_preds.csv.gz"))
+    L = pd.read_csv(il.in_path_x("lick_order_preds_areas_splitr8.csv.gz"))
     out = []
     for (st, lab), g in L.groupby(["set", "label"], sort=False):
         n = N[(N.set == st) & (N.label == lab)]
@@ -40,7 +42,7 @@ def main() -> int:
           f"r {np.corrcoef(M.lin_check[M.lin_check.notna()], L.dec[M.lin_check.notna()])[0, 1]:.5f}")
     if np.nanmax(d) > 0.1:
         raise SystemExit("linear columns disagree -- the two tables are not the same licks / decoder")
-    M.drop(columns="lin_check").to_csv(il.OUT / "lick_order_preds_nonlinear.csv.gz", index=False)
+    M.drop(columns="lin_check").to_csv(il.OUT_X / "lick_order_preds_nonlinear.csv.gz", index=False)
     return 0
 
 

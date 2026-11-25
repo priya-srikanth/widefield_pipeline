@@ -17,6 +17,7 @@ Usage: python scripts/iti_session_patterns.py
 """
 from __future__ import annotations
 
+import os
 import pickle
 import sys
 
@@ -83,12 +84,34 @@ def family_sentence(fam: str) -> str:
     return tst.union(wd.iti_caption("", extra=ex, **kw), wd.cued_caption(extra=ex, **kw))
 
 
+#: explicit attempts table for the session DAY when `recovery_timing.series` is unavailable (lane E 11-24: the manuscript
+#: lineage has no decoder_retention table); e.g. the camera-tagged jaw3dmouth table. Only label -> day is read.
+DAYS_ENV = "WFIELD_DAYS_ATTEMPTS_CSV"
+
+
+def session_days(series) -> dict:
+    """{label: day}: `recovery_timing.series` when it works, else (explicitly logged) label -> day of the attempts table
+    named by WFIELD_DAYS_ATTEMPTS_CSV, else of this run's attempts table (as iti_check_figures._days)."""
+    try:
+        S = series("lick")
+        return dict(zip(S.label, S.day))
+    except (SystemExit, FileNotFoundError) as ex:
+        from wfield_local import config
+        from wfield_local import lp_licks
+        f = os.environ.get(DAYS_ENV) or str(lp_licks.attempts_path())
+        print(f"[session_days] recovery_timing.series unavailable ({ex}); days from {f}", flush=True)
+        import pandas as pd
+        T = pd.read_csv(f, usecols=["label", "day"]).drop_duplicates("label")
+        T = T[~T.label.map(config.early_pre)]
+        return dict(zip(T.label, T.day))
+
+
 def main() -> int:
     from recovery_timing import series
 
     from wfield_local import orofacial_cohort as oc
     OUT.mkdir(parents=True, exist_ok=True)
-    days = dict(zip(series("lick").label, series("lick").day))
+    days = session_days(series)
     todo = [a for a in AN if not (OUT / f"{a}.pkl").exists()]
     if not todo:
         print("all cached")

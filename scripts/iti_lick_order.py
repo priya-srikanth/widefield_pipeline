@@ -84,7 +84,7 @@ if MASK_LOC:
 ITI_FILTER = "" if il.ITI_SUBSET else os.environ.get("WFIELD_ITI_FILTER", "")
 # WRITE ROOT for tables / figures: il.OUT (unchanged) unless a SUBSET filter is active, then il.OUT_W (= the filter's own
 # folder, or WFIELD_ITI_OUT_W) -- 10-29 late: before this a subset run wrote untagged files into il.OUT (primary names)
-WOUT = il.OUT_W if il.ITI_SUBSET else il.OUT
+WOUT = il.OUT_W if il.ITI_SUBSET else il.OUT_X     # = il.OUT by default (OUT_X routing, lane E 11-24)
 if ITI_FILTER:
     SRC_TAG += f"_{ITI_FILTER}"
 # KEY_TAG = the basis-specific tag built above (cache name, basis key); SRC_TAG = the OUTPUT tag: the canonical split basis
@@ -100,7 +100,7 @@ def iti_keep(label: str, t: np.ndarray) -> np.ndarray:
         return np.ones(len(t), bool)
     global _AUDIT
     if _AUDIT is None:
-        _AUDIT = pd.read_csv(il.OUT / "iti_timing_audit.csv").replace(np.inf, 1e9).set_index(["label", "t"])
+        _AUDIT = pd.read_csv(il.in_path_x("iti_timing_audit.csv")).replace(np.inf, 1e9).set_index(["label", "t"])
     A = _AUDIT.loc[label].reindex(np.asarray(t, float))
     gap2 = (A.gap >= 2.0).to_numpy()
     far1 = ((A.since_stop >= 1.0) & (A.to_strobe >= 1.0)).to_numpy()
@@ -125,11 +125,22 @@ DEC_LAB = {"areas_split": "Allen areas + ALM / tjM1 split", "areas": "Allen area
 CONTRIB_HOOK = None      # optional callable(set, animal, {label: (epoch, X scaled, act, order, pos)}, {held-out pre label | None: (scaler, ridge)})
 
 
+#: rebuild the per-lick prediction cache instead of reading an existing one (lane E 11-24); see preds_path
+REDO_ENV = "WFIELD_LICK_ORDER_REDO"
+
+
 def preds_path() -> Path:
     # the per-lick prediction CACHE keeps the basis-specific KEY_TAG (same names as before 10-27 late, so a plain cache can
     # never be read as split); plain Allen areas: + ROI version from v8 on (a v1 / v2 cache must never be reused)
     roi = f"_r{il.ROI_VERSION}" if SOURCE == "areas" and il.ROI_VERSION not in ("1", "2") else ""
-    return il.OUT / f"lick_order_preds{KEY_TAG}{roi}.csv.gz"
+    name = f"lick_order_preds{KEY_TAG}{roi}.csv.gz"
+    if os.environ.get(REDO_ENV, "").strip() == "1":
+        # lane E 11-24 (Priya: option a): REBUILD the cache in WFIELD_ITI_OUT_W (never an upstream / production copy);
+        # the frozen ITI decoders then re-freeze as NEW store entries when the pre training rows changed
+        if not os.environ.get("WFIELD_ITI_OUT_W"):
+            raise SystemExit(f"{REDO_ENV}=1 needs WFIELD_ITI_OUT_W (a new folder)")
+        return il.OUT_W / name
+    return il.resolve_cache(name)     # = il.OUT/<name> by default
 
 
 def trial_set_sentence(extra=()) -> str:
@@ -156,11 +167,8 @@ VCOL = {"landing": "0.45", "decoded": "#2c7fb8", "lfl": "#7b3294"}
 def _bout_idx(label: str, t: np.ndarray) -> np.ndarray:
     """Index of each lick (exact DAQ peak time t) within its bout of the session's licks (gap >= BOUT_GAP)."""
     from wfield_local import config
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
     an, date = config.animal_of(label), "2026" + label.split("_")[-1]
-    A = pd.read_csv(oo.session_dir(PathResolver(), oc.RUN, an, date) / "licks_all.csv", usecols=["daq_on_s", "daq_peak_s"])
+    A = __import__("wfield_local.session_licks", fromlist=["x"]).session_licks(f"{an}_{date}")[["daq_on_s", "daq_peak_s"]].copy()  # THE session lick table (fused four-camera train when selected), not cam4 licks_all (11-24)
     A = A[np.isfinite(A.daq_on_s)].sort_values("daq_on_s").reset_index(drop=True)
     on = A.daq_on_s.to_numpy(float)
     start = np.r_[True, np.diff(on) >= il.BOUT_GAP]
@@ -183,7 +191,7 @@ def predictions() -> pd.DataFrame:
     # the lick-window SD (fallback) is inflated by the larger post-stroke lick response (Priya 10-27)
     sd_svd = {}
     if SOURCE in ("svd", "locanmf") and SRC_TAG.rstrip("M").endswith("F"):
-        fsd = il.OUT / f"basis_{'svdbasis' if SOURCE == 'svd' else 'locanmf'}" / "frame_sd.csv"
+        fsd = il.in_path_x(f"basis_{'svdbasis' if SOURCE == 'svd' else 'locanmf'}/frame_sd.csv")
         if fsd.exists():
             F = pd.read_csv(fsd, index_col=0)
             # LocaNMF component counts differ by animal: the CSV is NaN-padded to the largest count

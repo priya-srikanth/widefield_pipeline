@@ -186,7 +186,7 @@ def lick_set() -> pd.DataFrame:
     P = pd.read_csv(lo.preds_path())
     P["k"] = P.groupby(["set", "label"]).cumcount()
     P = P[P.set == "iti"].copy()
-    C = pd.read_csv(OUT / f"covref_covariates{lo.SRC_TAG}.csv.gz", usecols=["set", "label", "k", "t", "reach_mm", "side_k"])
+    C = pd.read_csv(il.in_path_x(f"covref_covariates{lo.SRC_TAG}.csv.gz"), usecols=["set", "label", "k", "t", "reach_mm", "side_k"])
     P = P.merge(C, on=["set", "label", "k"], how="left", validate="one_to_one")
     res, fail = ak.fan_sessions(sorted(P.label.unique()), lrm._gaps, jobs=_RUN["jobs"])
     if fail:
@@ -224,7 +224,7 @@ def _one(item):
     Xp[okp] = d["iti_X"][rows[okp]].astype(np.float32)
     an, date = config.animal_of(label), "2026" + label.split("_")[-1]
     sd = oo.session_dir(PathResolver(), oc.RUN, an, date)
-    A = pd.read_csv(sd / "licks_all.csv", usecols=["daq_on_s", "daq_peak_s", "trial_id", "rise_start_ms"])
+    A = il.session_lick_table(label, cam4_cols=["rise_start_ms"])[["daq_on_s", "daq_peak_s", "trial_id", "rise_start_ms"]]
     A = A[np.isfinite(A.daq_on_s)].drop_duplicates("daq_peak_s")
     A = A.set_index("daq_peak_s").reindex(tq)
     on = A.daq_on_s.to_numpy(float)

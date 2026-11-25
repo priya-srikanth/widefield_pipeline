@@ -35,6 +35,7 @@ from __future__ import annotations
 from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import sys
+import os
 from pathlib import Path
 
 import numpy as np
@@ -70,7 +71,9 @@ WIDE = "cued_wide"
 # READ root for the derived caches (cued_wide/, bout_prev_pos.csv): OUT_W as before, but il.OUT in a SUBSET run (dock,
 # ...; 10-29), whose OUT_W is the subset's own output folder (the caches are not subset-specific)
 # (11-17: a WFIELD_ITI_OUT_W re-render without a subset reads the caches from OUT too -- they are never in a new folder)
-RIN = il.OUT_W if (il.OUT_W / WIDE).exists() else il.OUT
+# (11-24 lane E: + the explicit upstream folder WFIELD_ITI_IN_W, e.g. the neural-tail run that extracted cued_wide)
+RIN = next((Path(r) for r in (il.OUT_W, os.environ.get(il.PATCH_W_ENV), os.environ.get(il.IN_W_ENV))
+            if r and (Path(r) / WIDE).exists()), il.OUT)     # OUT_W, then the patch folder, then IN_W (11-24)
 # response-size AUC windows (iti_licks.CUED_RESP_WIN / ITI_RESP_WIN; Priya 11-17): cued / cue 0..1.0 s (10-28 evening:
 # "0-1 s should be default now"), ITI 0..0.5 s (11-17: "for ITI let's use 0-0.5")
 RESP_W = il.CUED_RESP_WIN

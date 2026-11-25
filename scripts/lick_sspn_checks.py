@@ -113,7 +113,7 @@ def check3() -> pd.DataFrame:
     L = pd.read_csv(il.OUT_W / "offset_contrib" / f"terms_licks_{TAG}.csv.gz")
     Pr = pd.read_csv(lo.preds_path(), usecols=["set", "label", "act"])
     Pr["k"] = Pr.groupby(["set", "label"]).cumcount()
-    C = pd.read_csv(il.OUT_W / f"covref_covariates{lo.SRC_TAG}.csv.gz",
+    C = pd.read_csv(il.in_path_x(f"covref_covariates{lo.SRC_TAG}.csv.gz"),
                     usecols=["set", "label", "k", "fr_lick", "fr_right", "fr_left", "fr_close", "fr_far"])
     Pr = Pr.merge(C, on=["set", "label", "k"], how="left")
     Pr = Pr.drop_duplicates(["set", "label", "act"])

@@ -54,7 +54,7 @@ def pairs(june: bool = False) -> pd.DataFrame:
     # Allen areas in the basis (split by default, Priya 10-27 late) + frame SDs: the shared loader
     D, names, S = wd.area_basis()
     if june:
-        from iti_june_ref import JUNE
+        JUNE = il.in_path_x("june_ref")       # the June reference folder (iti_june_ref.py), upstream copy when redirected
         DJ, _nj, SJ = wd.area_basis(JUNE / il.SESS_NAME)     # June: its own SD / split tables (june_ref/)
         for d in DJ.values():
             d["epoch"] = "june"

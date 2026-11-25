@@ -100,6 +100,11 @@ def load(enc: Path, wlc: Path | None = None) -> dict[str, pd.DataFrame]:
     return out
 
 
+def _n(v) -> int:
+    """A count cell of the unstacked table: NaN (animal without that epoch, e.g. a sparse docked set) -> 0."""
+    return 0 if v is None or pd.isna(v) else int(v)
+
+
 def per_animal(D: dict[str, pd.DataFrame]) -> pd.DataFrame:
     rows = []
     for src, (_, ms) in SOURCES.items():
@@ -111,7 +116,7 @@ def per_animal(D: dict[str, pd.DataFrame]) -> pd.DataFrame:
                 for e in EPOCHS:
                     rows.append({"source": src, "metric": m, "animal": a, "epoch": e, "pre": r.get("pre"),
                                  "value": r.get(e), "change": r.get(e) - r.get("pre"),
-                                 "n_pre": int(n.loc[a].get("pre", 0) or 0), "n_epoch": int(n.loc[a].get(e, 0) or 0)})
+                                 "n_pre": _n(n.loc[a].get("pre", 0)), "n_epoch": _n(n.loc[a].get(e, 0))})
     return pd.DataFrame(rows)
 
 

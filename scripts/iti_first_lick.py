@@ -182,7 +182,7 @@ def plot(T: pd.DataFrame) -> None:
                  "paired nested bootstrap CI, k/n animals. + = contralesional.\n"
                  f"Like-for-like FIRST - LATER, change vs pre (PROVISIONAL):\n{txt}", fontsize=8.5)
     fig.tight_layout(rect=(0, 0, 1, 0.82))
-    save_png_svg(fig, il.OUT / "figures" / "lick_cued_first_lick.png", dpi=100)
+    save_png_svg(fig, il.OUT_X / "figures" / "lick_cued_first_lick.png", dpi=100)
     plt.close(fig)
 
 
@@ -209,13 +209,13 @@ def main() -> int:
         P.to_csv(f, index=False)
     print("lick_idx share first:", P.groupby("epoch").lick_idx.apply(lambda s: (s == 0).mean()).round(3).to_dict())
     S = sessions(P)
-    S.to_csv(il.OUT / "first_lick_sessions.csv", index=False)
+    S.to_csv(il.OUT_X / "first_lick_sessions.csv", index=False)
     pd.set_option("display.width", 220)
     print("== per animal (rule 8): far contra, like-for-like offset by class")
     fc = S[S.spout == "far_contra"]
     print(fc.pivot_table(index=["animal", "cls"], columns="epoch", values="lfl").reindex(columns=EPS).round(2).to_string())
     T = tests(S)
-    T.to_csv(il.OUT / "first_lick_tests.csv", index=False)
+    T.to_csv(il.OUT_X / "first_lick_tests.csv", index=False)
     print(T.round(3).to_string(index=False))
     save_fd("lick_cued_first_lick", dict(T=T))
     plot(T)

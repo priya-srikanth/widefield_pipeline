@@ -129,7 +129,7 @@ def _items(labs: list[str]) -> list:
                               "since_stop", "prev_pos"])
     IT = IT[IT.label.isin(labs)]
     import iti_licks as _il
-    DA = pd.read_csv(_il.OUT_W / "iti_dock_audit.csv", usecols=["label", "onset", "dock01"])
+    DA = pd.read_csv(_il.dock_audit_path(), usecols=["label", "onset", "dock01"])
     DA = DA[DA.label.isin(labs)]
     return [Item((lab, LS[LS.label == lab].reset_index(drop=True), IT[IT.label == lab].reset_index(drop=True),
                   DA[DA.label == lab].reset_index(drop=True))) for lab in labs]
@@ -173,9 +173,6 @@ def extract(item) -> dict:
     import iti_licks as il
     from wfield_local import combined_encoding as ce
     from wfield_local import config, epochs
-    from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
-    from wfield_local.paths import PathResolver
     an, date = config.animal_of(label), "2026" + label.split("_")[-1]
     z = np.load(S25 / "sessions" / f"{label}.npz", allow_pickle=True)
     mask_keys.check_obj(z, S25 / "sessions" / f"{label}.npz")   # stale-read guard (11-09)
@@ -212,7 +209,7 @@ def extract(item) -> dict:
     # behaviour / licks
     B = il._behaviour(label)
     T = B.trials.sort_values("trial_id").set_index("trial_id")
-    A = pd.read_csv(oo.session_dir(PathResolver(), oc.RUN, an, date) / "licks_all.csv", usecols=["daq_on_s"])
+    A = il.session_lick_table(label)[["daq_on_s"]]     # THE session lick table (fused four-camera train; 11-24)
     on_all = A.daq_on_s.to_numpy(float)
     t_all = np.sort(np.concatenate([on_all, np.asarray(B.lick_on_s, float)]))
     t_all = t_all[np.isfinite(t_all)]
