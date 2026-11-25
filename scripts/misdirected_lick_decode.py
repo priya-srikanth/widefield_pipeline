@@ -19,7 +19,7 @@ Per session, from the O2 bundle inputs (imaging + behavior; `scripts/o2_encoding
 Caveats: contacted licks carry a touch response that misdirected licks lack (both templates have it); widefield GCaMP is
 slow relative to a ~7 Hz lick rhythm, so a lick's window overlaps its neighbors (baseline subtraction helps).
 
-    python scripts/misdirected_lick_decode.py [--run ...] [--name enc_v36_20261019] [--dev 15] [--min-probe 15]
+    python scripts/misdirected_lick_decode.py [--run ...] [--name enc_fourcam3d_20261124] [--dev 15] [--min-probe 15]
 
 Output -> <LP_analysis>/<run>/cohort/tables/misdirected_licks/{decode_licks.csv, decode_sessions.csv, decode.png}
 """
@@ -284,7 +284,8 @@ def main(argv=None) -> int:
     oc._repo_on_path()
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--run", default=oc.RUN)
-    ap.add_argument("--name", default="enc_v36_20261019", help="O2 bundle holding the session inputs")
+    ap.add_argument("--name", default="enc_fourcam3d_20261124",
+                    help="O2 bundle holding the session inputs (four-camera G4 since 11-25; enc_v36_20261019 inputs deleted)")
     ap.add_argument("--dev", type=float, default=15.0)
     ap.add_argument("--min-probe", type=int, default=15, help="sessions with fewer misdirected licks are skipped")
     ap.add_argument("--method", choices=("templates", "decoder"), default="templates",
