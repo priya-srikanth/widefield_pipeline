@@ -106,10 +106,14 @@ def cmd_times(a) -> None:
                     "COMBINED_ENCODING_SUFFIX": "_gate-attempted", "COMBINED_ENCODING_TONGUE": "3d", "FROZEN_FR": "1",
                     "COMBINED_ENCODING_FR": "master_pre_v1", "COMBINED_ENCODING_FR_GROUPS": "master_v1:A",
                     "FROZEN_LICKSPOUT": "1"})
-        tmp = out / "_behaviour_times.json"
-        cmd = [sys.executable, __file__, "behaviour-times", "--json", str(tmp), "--jobs", str(a.jobs), *need]
-        subprocess.run(cmd, env=env, check=True, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-        bt = json.loads(tmp.read_text())
+        # the profile process may not write outside the rebuild root (its fence): it returns the times on stdout
+        cmd = [sys.executable, __file__, "behaviour-times", "--jobs", str(a.jobs), *need]
+        r = subprocess.run(cmd, env=env, capture_output=True, text=True,
+                           creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        print(r.stderr[-4000:], flush=True)
+        if r.returncode:
+            raise SystemExit(f"behaviour-times failed (rc {r.returncode}): {r.stdout[-2000:]}")
+        bt = json.loads(next(x for x in r.stdout.splitlines() if x.startswith("BTJSON "))[7:])
         for lab in need:
             tb = np.asarray(bt[lab], float)
             t = rows[lab]
@@ -139,7 +143,7 @@ def cmd_behaviour_times(a) -> None:
     res, fail = kit.fan_sessions(a.labels, _bt_worker, jobs=min(a.jobs, len(a.labels)), label="times")
     if fail:
         raise SystemExit(f"behaviour times failed: {fail}")
-    Path(a.json).write_text(json.dumps(dict(res)))
+    print("BTJSON " + json.dumps(dict(res)), flush=True)
 
 
 # ------------------------------------------------------------------------------------------------------------ extract
@@ -310,6 +314,118 @@ def cmd_extract(a) -> None:
         raise SystemExit(f"{len(fail)} sessions failed: {fail}")
 
 
+# --------------------------------------------------------------------------------------- whole-session trace cache
+# Priya 11-25 ("cache appropriately"): every session's whole-session projected component traces, both bases, float32,
+# so a later trial-set / first-lick change re-samples rows (`_sample`) without re-projecting. Content key = the basis
+# ids, the U_atlas file (path, size, mtime), the drift period, and the V source (G4 input pickle: path, size, mtime).
+# `load_traces` is the ONLY reader: it recomputes the key from the live files and REFUSES a stale entry; it never
+# computes into the cache (the cache is written only by `cache`, a declared run).
+TRACE_VERSION = 1
+
+
+class StaleCacheError(RuntimeError):
+    """A cached trace whose content key no longer matches its inputs."""
+
+
+def _stat(p) -> dict:
+    st = Path(p).stat()
+    return {"path": str(Path(p)).replace("\\", "/"), "size": st.st_size, "mtime_ns": st.st_mtime_ns}
+
+
+def trace_key(label: str, lnmf_bundle, svd_bundle, inputs) -> dict:
+    """The content key of ``label``'s traces from the bundles' metadata and the live input files."""
+    from wfield_local.paths import PathResolver
+    ml = json.loads((Path(lnmf_bundle) / "bundle.json").read_text())
+    ms = json.loads((Path(svd_bundle) / "bundle.json").read_text())
+    an = label.split("_")[0]
+    return {"version": TRACE_VERSION, "label": label, "lnmf_basis": ml["bases"][an], "svd_basis": ms["basis_id"],
+            "uatlas": _stat(Path(PathResolver().root("microscope")) / ml["uatlas"][label]), "drift_s": DRIFT_S,
+            "v_source": _stat(Path(inputs) / f"{label}.pkl")}
+
+
+def load_traces(label: str, cache_dir, lnmf_bundle, svd_bundle, inputs):
+    """(ft, {'lnmf': (T, ncomp), 'svd': (T, 100)}) float32 drift-removed traces of ``label``; raises FileNotFoundError on a
+    miss and StaleCacheError when the stored key differs from the live inputs. Never computes."""
+    f = Path(cache_dir) / f"{label}.npz"
+    z = np.load(f, allow_pickle=False)
+    have, want = json.loads(str(z["key"])), trace_key(label, lnmf_bundle, svd_bundle, inputs)
+    if have != want:
+        raise StaleCacheError(f"{f}: stored key {have} != live {want}; rebuild with `state_space_fourcam_extract.py cache`")
+    return z["ft"], {"lnmf": z["lnmf"], "svd": z["svd"]}
+
+
+def _cache_worker(item):
+    label, cfg = item
+    import iti_licks as il
+    from wfield_local import combined_encoding as ce
+    t0 = time.time()
+    lb, sb, out = Path(cfg["lnmf"]), Path(cfg["svd"]), Path(cfg["cache"])
+    key = trace_key(label, lb, sb, cfg["inputs"])
+    x = pickle.loads((Path(cfg["inputs"]) / f"{label}.pkl").read_bytes())
+    V, ft = np.asarray(x["imaging"][0], np.float64), np.asarray(x["imaging"][1], float)
+    del x
+    pz = np.load(lb / "proj" / f"{label}.npz")
+    Q = np.linalg.qr(ce._slow_basis(ft, DRIFT_S))[0]
+    L = V @ np.asarray(pz["op_lnmf"], np.float64).T                     # (T, ncomp) = project_uv's C.T
+    L -= Q @ (Q.T @ L)
+    Vd = V - Q @ (Q.T @ V)
+    Sv = Vd @ np.asarray(pz["op_svd"], np.float64).T                    # (T, 100)
+    # check: re-sampled from the cached traces, every row's first_cue / first_peth must equal the extraction's files
+    rows = np.load(lb / "rows" / f"{label}.npz")
+    dev = {}
+    for nm, R, d in (("lnmf", L, lb), ("svd", Sv, sb)):
+        o = np.load(d / "out" / "sessions" / f"{label}.npz")
+        for k, t, lags in (("first_cue", rows["cue_s"], il.LAGS_C), ("first_peth", rows["lick_s"], il.LAGS_P)):
+            a_, b_ = _sample(R, ft, np.asarray(t, float), lags), o[k]
+            fin = np.isfinite(a_) & np.isfinite(b_)
+            dev[f"{nm}_{k}"] = float(np.max(np.abs(a_[fin] - b_[fin])) / (np.nanstd(b_) or 1.0)) if fin.any() else 0.0
+    if max(dev.values()) > TOL:
+        raise RuntimeError(f"{label}: cached traces do not reproduce the extraction files: {dev}")
+    out.mkdir(parents=True, exist_ok=True)
+    np.savez(out / f"{label}.npz", lnmf=L.astype(np.float32), svd=Sv.astype(np.float32), ft=ft,
+             key=json.dumps(key, sort_keys=False))
+    return {"label": label, "T": len(ft), "mb": round((out / f"{label}.npz").stat().st_size / 2**20, 1),
+            "seconds": round(time.time() - t0, 1), **dev}
+
+
+def cmd_cache(a) -> None:
+    lb, sb = S.LNMF.parents[1], S.SVD.parents[1]
+    out = Path(a.out)
+    inputs = Path(os.environ["WF_SS_ENC_INPUTS"])
+    labels = a.labels or sorted(p.stem for p in Path(S.ITI).glob("PS9*.npz"))
+    todo = [x for x in labels if not (out / f"{x}.npz").exists()]
+    cfg = {"lnmf": str(lb), "svd": str(sb), "cache": str(out), "inputs": str(inputs)}
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "README.md").write_text(f"""# State-space whole-session projected traces (four-camera rebuild, CC-B 11-25)
+
+Priya 11-25: "go ahead with state space locaNMF/SVD re-extraction and cache appropriately".
+One file per session `<label>.npz`: `lnmf` (T, ncomp) and `svd` (T, 100) float32 drift-removed component traces (the
+arithmetic of `o2_state_space_lnmf` / `o2_state_space_svd`), `ft` (T,) frame times (s, DAQ clock), `key` (JSON).
+
+Content key (`scripts/state_space_fourcam_extract.py:trace_key`): version {TRACE_VERSION}; label; LocaNMF pinned basis id;
+cohort SVD basis id; U_atlas path + size + mtime_ns; drift period (s); V source = the G4 input pickle path + size +
+mtime_ns ({inputs}).
+Reader: `state_space_fourcam_extract.load_traces(label, cache_dir, lnmf_bundle, svd_bundle, inputs)`. It recomputes the
+key from the live files and raises StaleCacheError on any difference; it never computes into this folder. Re-sample rows
+with `state_space_fourcam_extract._sample(trace, ft, times, lags)`.
+Written by `state_space_fourcam_extract.py cache` (a declared run, WIDEFIELD_REBUILD_ROOT = this root); each file was
+checked to reproduce the per-row extraction files ({lb.name}, {sb.name}) on every row (tolerance {TOL} x SD).
+Operators: `{lb}/proj/<label>.npz`.
+""")
+    from wfield_local import analysis_kit as kit
+    res, fail = kit.fan_sessions([(x, cfg) for x in todo], _cache_worker, jobs=min(a.jobs, max(1, len(todo))),
+                                 label="cache")
+    rows = [r for _, r in res]
+    if rows:
+        D = pd.DataFrame(rows)
+        f = out / "check.csv"
+        old = pd.read_csv(f) if f.exists() else pd.DataFrame()
+        pd.concat([old, D], ignore_index=True).drop_duplicates("label", keep="last").to_csv(f, index=False)
+        print(D.describe().T.to_string(), flush=True)
+    if fail:
+        raise SystemExit(f"{len(fail)} sessions failed: {fail}")
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     sp = ap.add_subparsers(dest="cmd", required=True)
@@ -317,7 +433,6 @@ def main(argv=None) -> int:
     p.add_argument("--tables", required=True)
     p.add_argument("--jobs", type=int, default=3)
     p = sp.add_parser("behaviour-times")
-    p.add_argument("--json", required=True)
     p.add_argument("--jobs", type=int, default=3)
     p.add_argument("labels", nargs="+")
     p = sp.add_parser("extract")
@@ -326,8 +441,12 @@ def main(argv=None) -> int:
     p.add_argument("--svd-name", required=True)
     p.add_argument("--jobs", type=int, default=3)
     p.add_argument("labels", nargs="*")
+    p = sp.add_parser("cache")
+    p.add_argument("--out", required=True)
+    p.add_argument("--jobs", type=int, default=2)
+    p.add_argument("labels", nargs="*")
     a = ap.parse_args(argv)
-    {"times": cmd_times, "behaviour-times": cmd_behaviour_times, "extract": cmd_extract}[a.cmd](a)
+    {"times": cmd_times, "behaviour-times": cmd_behaviour_times, "extract": cmd_extract, "cache": cmd_cache}[a.cmd](a)
     return 0
 
 
