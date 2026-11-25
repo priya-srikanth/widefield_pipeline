@@ -120,7 +120,7 @@ def build_licks() -> pd.DataFrame:
     L = L.merge(R, on=["set", "label", "k"], how="left", validate="one_to_one")
     C = pd.read_csv(OUT / "covref_covariates.csv.gz", usecols=["set", "label", "k", "t"])
     L = L.merge(C, on=["set", "label", "k"], how="left", validate="one_to_one")
-    A = pd.read_csv(OUT / "iti_timing_audit.csv", usecols=["label", "t", "since_stop", "to_strobe"])
+    A = pd.read_csv(il.in_path_x("iti_timing_audit.csv"), usecols=["label", "t", "since_stop", "to_strobe"])
     A["tr"] = A.t.round(4)
     A = A.drop_duplicates(["label", "tr"]).drop(columns="t")
     L["tr"] = L.t.round(4)
