@@ -142,6 +142,17 @@ def protected_guard_warn(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def fresh_input_provenance():
+    """`input_provenance` keeps a process-wide record of the inputs loaded, and caption sentences append it (lane E
+    11-24). Clear it around every test so one test's loads never reach another test's caption (11-24: ~90 trial-set
+    tests failed only in the full run, their sentences carrying an earlier test's fused-lick signature)."""
+    from wfield_local import input_provenance
+    input_provenance.reset()
+    yield
+    input_provenance.reset()
+
+
+@pytest.fixture(autouse=True)
 def no_share_writes(monkeypatch):
     """Fail any test that opens-for-write, mkdirs, copies or removes on a real share.
 

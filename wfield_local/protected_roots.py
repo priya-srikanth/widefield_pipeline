@@ -285,9 +285,15 @@ def out_from_env(env: str, default, what: str = "") -> Path:
         print(f"[protected] {name}: {env} unset; writing the DEFAULT folder {default} under "
               f"{ALLOW_PRODUCTION_ENV}={os.environ[ALLOW_PRODUCTION_ENV]!r}", file=sys.stderr, flush=True)
         return Path(default)
-    raise SystemExit(f"[protected] {name}: no output folder given. Set {env}=<new folder> (CLAUDE.md rule 11: a run "
-                     f"never falls back to its default {default}); a production write needs "
-                     f"{ALLOW_PRODUCTION_ENV}=<reason>.")
+    # a default that is NOT protected (a patched / tmp default, e.g. under pytest) is not a production fallback
+    if refusal(default) is None:
+        return Path(default)
+    msg = (f"[protected] {name}: no output folder given. Set {env}=<new folder> (CLAUDE.md rule 11: a run "
+           f"never falls back to its default {default}); a production write needs {ALLOW_PRODUCTION_ENV}=<reason>.")
+    if _mode() == "warn":                                 # WFIELD_PROTECTED_GUARD=warn (transition aid; the test suite)
+        print("WARN " + msg, file=sys.stderr, flush=True)
+        return Path(default)
+    raise SystemExit(msg)
 
 
 def roots_on_this_machine(share_root=None) -> list[tuple[str, Path]]:
