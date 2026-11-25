@@ -83,9 +83,17 @@ def test_every_attempts_reader_reads_this_runs_table(monkeypatch):
     assert "- lp_r4_heatmap_20261013__clean_v36/imaging_encoding/qc/trial_attempts.csv" not in seeds
 
 
+#: relabel_fc_by_class is NOT here since 11-24 (lane E, Priya 11-23 decisions 1-2): it reads the CAMERA-TAGGED attempts
+#: table on the 3d_mouth jaw rule of this run (`default_attempts()`, under the run root E / qc / jaw3dmouth_ccB1123),
+#: overridable with --attempts / RELABEL_ATTEMPTS_CSV -- deliberately not the generic lp_licks.attempts_path() table.
 ATTEMPT_READERS = ["cohort2_qc/attempt_effort", "cohort2_qc/quiet_lick_lfo", "cohort2_qc/quiet_task_events",
-                   "interhemi_crossarea", "matched_residual", "recovery_timing", "relabel_fc_by_class",
+                   "interhemi_crossarea", "matched_residual", "recovery_timing",
                    "state_spout_check", "stopped_trial_traces", "summary_figures_1021"]
+
+
+def test_relabel_reads_the_camera_tagged_attempts_table():
+    src = (REPO / "scripts" / "relabel_fc_by_class.py").read_text(encoding="utf-8")
+    assert 'E / "qc" / "jaw3dmouth_ccB1123"' in src and "RELABEL_ATTEMPTS_CSV" in src
 
 
 @pytest.mark.parametrize("name", ATTEMPT_READERS)

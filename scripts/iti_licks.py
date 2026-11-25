@@ -183,10 +183,20 @@ def require_out_w(script: str = "") -> Path:
     production write needs WFIELD_ALLOW_PRODUCTION_WRITE=<reason> (Priya's logged decision). Returns OUT_X."""
     from wfield_local import protected_roots
     name = Path(script).name if script else "this script"
-    if not os.environ.get("WFIELD_ITI_OUT_W", "").strip()             and not os.environ.get(protected_roots.ALLOW_PRODUCTION_ENV, "").strip():
-        raise SystemExit(f"[protected] {name}: no output folder given. Without WFIELD_ITI_OUT_W its tables / figures "
-                         f"would go to the production folder {OUT_W} (CLAUDE.md rule 11). Set WFIELD_ITI_OUT_W=<new "
-                         f"folder>; a production write needs {protected_roots.ALLOW_PRODUCTION_ENV}=<reason>.")
+    # No WFIELD_ITI_OUT_W: the write root is OUT (out_x). Refuse only when THAT folder is protected (the production
+    # default always is: configs/protected_roots.yaml); a patched OUT (tests, tmp) is not a production default
+    # (11-24: the unconditional refusal broke ~150 trial-set tests that run writers against a tmp OUT).
+    if (not os.environ.get("WFIELD_ITI_OUT_W", "").strip()
+            and not os.environ.get(protected_roots.ALLOW_PRODUCTION_ENV, "").strip()):
+        if protected_roots.refusal(out_x()) is None:
+            return out_x()
+        msg = (f"[protected] {name}: no output folder given. Without WFIELD_ITI_OUT_W its tables / figures "
+               f"would go to the production folder {OUT_W} (CLAUDE.md rule 11). Set WFIELD_ITI_OUT_W=<new "
+               f"folder>; a production write needs {protected_roots.ALLOW_PRODUCTION_ENV}=<reason>.")
+        if protected_roots._mode() == "warn":          # WFIELD_PROTECTED_GUARD=warn (transition aid; the test suite)
+            print("WARN " + msg, file=sys.stderr, flush=True)
+            return out_x()
+        raise SystemExit(msg)
     for p in {OUT_W, out_x()}:
         protected_roots.require_out(p, f"{name} output folder", "set WFIELD_ITI_OUT_W=<new folder>")
     return out_x()
