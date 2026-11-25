@@ -72,3 +72,10 @@ def test_no_hits_exit_zero_and_time_formats(tree):
     m.parse_time("14:04")
     with pytest.raises(ValueError):
         m.parse_time("yesterday")
+
+
+def test_exclude_drops_declared_run_outputs(tree, capsys):
+    share, reg, t, (old, new, deep) = tree
+    _tool().main(["--since", str(t - 600), "--exclude", "*/a/b/*", "--registry", str(reg), "--share-root", str(share)])
+    out = capsys.readouterr().out
+    assert str(new) in out and str(deep) not in out

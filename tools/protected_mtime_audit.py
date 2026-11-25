@@ -8,7 +8,10 @@ MICROSCOPE mount, plus the local frozen store and a WIDEFIELD_FROZEN_MODEL_DIR s
 
 Usage:
     python tools/protected_mtime_audit.py --since "2026-11-24 14:00" [--until "2026-11-24 18:00"] [--depth 4]
-        [--kinds production patch frozen_store] [--share-root M:/MICROSCOPE/Priya] [--out <new report.tsv>]
+        [--kinds production patch frozen_store] [--exclude "*rebuild_20261123_fourcam*"] [--share-root M:/MICROSCOPE/Priya]
+        [--out <new report.tsv>]
+``--exclude`` (fnmatch on the full path, repeatable) drops the declared outputs of runs that legitimately write inside
+a protected root (an active rebuild root's own run). A per-root count is printed first.
 Exit code: 0 = no hit, 1 = hits (so a chain wrapper can stop on it), 2 = bad arguments.
 """
 from __future__ import annotations
@@ -82,6 +85,7 @@ def main(argv=None) -> int:
     ap.add_argument("--depth", type=int, default=6)
     ap.add_argument("--kinds", nargs="+", default=None)
     ap.add_argument("--share-root", default=None, help="MICROSCOPE Priya root (default: the machine profile's)")
+    ap.add_argument("--exclude", nargs="+", default=[], help="fnmatch patterns (full path) to leave out")
     ap.add_argument("--registry", default=None, help="registry yaml (default configs/protected_roots.yaml)")
     ap.add_argument("--out", default=None, help="also write the hits as TSV to this NEW file")
     a = ap.parse_args(argv)
@@ -99,14 +103,22 @@ def main(argv=None) -> int:
         roots = [(k, r) for k, r in roots if k in a.kinds]
     t_start = time.time()
     hits = []
+    import fnmatch
+    excl = [x.replace("\\", "/").lower() for x in a.exclude]
     for kind, root in roots:
         for m, p in scan(root, t0, t1, a.depth):
+            ps = str(p).replace("\\", "/").lower()
+            if any(fnmatch.fnmatchcase(ps, x) for x in excl):
+                continue
             hits.append((m, kind, root, p))
     hits.sort()
     win = f"{time.strftime('%Y-%m-%d %H:%M', time.localtime(t0))} .. " + \
           (time.strftime('%Y-%m-%d %H:%M', time.localtime(t1)) if t1 else "now")
     print(f"[protected-audit] {len(roots)} roots, window {win}, depth {a.depth}: {len(hits)} file(s) modified "
           f"({time.time() - t_start:.1f} s)")
+    from collections import Counter
+    for (kind, root), n in sorted(Counter((k, str(r)) for _m, k, r, _p in hits).items()):
+        print(f"  {n:6d}  {kind:<18} {root}")
     for m, kind, _root, p in hits:
         print(f"{time.strftime('%m-%d %H:%M:%S', time.localtime(m))}\t{kind}\t{p}")
     if a.out:
