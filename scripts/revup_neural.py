@@ -88,10 +88,12 @@ import iti_licks as il  # noqa: E402
 import restnl  # noqa: E402
 from wfield_local import enl_window, mask_keys  # noqa: E402
 
-OUT = il.OUT_W / "revup"
+# REVUP_NEURAL_OUT (11-24): an explicit output folder (the RESTW inputs stay in OUT_W/precue_restw); figures beside it
+import os as _os  # noqa: E402
+OUT = Path(_os.environ["REVUP_NEURAL_OUT"]) if _os.environ.get("REVUP_NEURAL_OUT", "").strip() else il.OUT_W / "revup"
 SESS = OUT / "sessions"
-FIGS = il.OUT_W / "figures"
-VERSION = 3                     # 3 (11-05): + enl_lo, the trial's sliding lick-free ENL window start (lag, s)
+FIGS = (OUT / "figures") if _os.environ.get("REVUP_NEURAL_OUT", "").strip() else il.OUT_W / "figures"
+VERSION = 4                     # 3 (11-05): + enl_lo, the trial's sliding lick-free ENL window start (lag, s); 4 (11-24): ITI licks from the session lick table (fused), not cam4 licks_all
 LAGS_C = np.round(np.arange(-3.0, 10.0001, 0.05), 3)     # cue-aligned, into the ITI
 LAGS_L = np.round(np.arange(-3.0, 2.0001, 0.05), 3)      # lick-aligned
 AREAS = ["ALM", "tjM1", "SSp-m", "SSp-n", "SSs", "RSPd", "VISp"]
@@ -843,7 +845,15 @@ def draw_late(CV: dict, LC: pd.DataFrame) -> None:
     ax = fig.add_subplot(gs[-1, 0:3])
     lax = fig.add_subplot(gs[-1, 3:6])
     lax.axis("off")
-    s = LC[LC.tau == 0.0].groupby(["label", "animal", "epoch"])[["r_late_normal", "r_late_spont", "r_normal_spont"]].first()
+    # 11-24 (four-camera lick list + jaw rule 3d_mouth, attempted trials): almost no late first licks remain (2 / 48,853
+    # trials), so no session has the >= 2 late licks `late_compare` needs and LC is EMPTY -- draw the empty panel and say so
+    if LC.empty or "tau" not in LC:
+        ax.text(0.5, 0.5, "no session with >= 2 late first licks (four-camera lick list)", ha="center", va="center",
+                transform=ax.transAxes)
+        ax.set_axis_off()
+        s = pd.DataFrame(columns=["r_late_normal", "r_late_spont", "r_normal_spont"])
+    else:
+        s = LC[LC.tau == 0.0].groupby(["label", "animal", "epoch"])[["r_late_normal", "r_late_spont", "r_normal_spont"]].first()
     for k, c in enumerate(["r_late_normal", "r_late_spont", "r_normal_spont"]):
         for (lab, an, ep), v in s[c].items():
             ax.scatter(k + np.random.default_rng(hash(lab) % 2**32).uniform(-0.15, 0.15), v, color=EPOCH_LINE[ep],
@@ -853,7 +863,8 @@ def draw_late(CV: dict, LC: pd.DataFrame) -> None:
     ax.set_ylabel("per-session shape r\n(-1.5..+1 s)", fontsize=8)
     ax.tick_params(labelsize=7)
     lax.legend(handles=[plt.Line2D([], [], color=cc[g], lw=1.6, label=f"trace: {g}") for g in cc] +
-               _ep_an_handles(sorted(LC.animal.dropna().unique())), loc="center left", ncol=2, fontsize=9,
+               _ep_an_handles(sorted(LC.animal.dropna().unique()) if "animal" in LC else []), loc="center left", ncol=2,
+               fontsize=9,
                frameon=False, title="traces (rows 1-4) / shape r markers (bottom)", title_fontsize=9)
     top = _suptitle(fig, _rl("NEURAL: LATE first licks (first lick after the trial stop, spout gone) vs NORMAL first licks (in-window, all "
                  "spouts) vs SPONTANEOUS ITI bout starts (>= 2 s quiet), first-lick-aligned, above RESTW. Sessions with >= 2 "
