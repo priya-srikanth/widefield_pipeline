@@ -86,6 +86,26 @@ def add_allow_freeze_arg(ap) -> None:
                     help="allow fitting + storing NEW frozen pre-stroke references on a store miss (Priya's approval; "
                          "default: load-only, a miss raises)")
 
+#: A FREEZE ALLOW-LIST (11-25, matched-draws render; this branch predates the 11-24 load-only default): a comma list
+#: of spec KINDS (and optionally ``kind:align`` prefixes) a miss may fit and store; a miss of anything else RAISES, as
+#: under LOAD_ONLY_ENV. Unset = unchanged behavior. E.g. ``matched_frozen:cue-working-draws250`` lets a render mint
+#: only the new matched-draw specs while every epoch decoder it reads must already be stored.
+FREEZE_ONLY_ENV = "WIDEFIELD_FREEZE_ONLY"
+
+
+def freeze_allowed(spec) -> bool:
+    """False when FREEZE_ONLY_ENV is set and ``spec`` matches none of its ``kind`` / ``kind:align-prefix`` items."""
+    v = os.environ.get(FREEZE_ONLY_ENV, "").strip()
+    if not v:
+        return True
+    for item in (x.strip() for x in v.split(",")):
+        if not item:
+            continue
+        kind, _, pre = item.partition(":")
+        if spec.get("kind") == kind and str(spec.get("align", "")).startswith(pre):
+            return True
+    return False
+
 STATUS_NEW, STATUS_HIT, STATUS_SPEC_CHANGED = "frozen-new", "frozen-hit", "SPEC-CHANGED"
 
 #: Values of a per-family opt-out env var (WIDEFIELD_<FAMILY>_FROZEN) that turn the stored default OFF (11-02 pass 2).
@@ -592,6 +612,10 @@ def load_or_fit(spec, fit, *, meta=None, refreeze=None, log=print):
                f"; frozen stores are LOAD-ONLY by default. Check the store / WIDEFIELD_FROZEN_MODEL_DIR first; to fit "
                f"and store a new reference (Priya's approval) set {ALLOW_FREEZE_ENV}=1 or pass --allow-freeze; refusing to fit "
                f"a new one"))
+    if not freeze_allowed(spec):
+        raise RuntimeError(f"[frozen] {FREEZE_ONLY_ENV}={os.environ.get(FREEZE_ONLY_ENV)!r} does not allow freezing "
+                           f"{_slug(spec)} ({spec['animal']} {spec.get('kind')}/{spec.get('align')}) and no stored model "
+                           f"matches it; refusing to fit a new one")
     prior = [s for s in siblings(spec) if s["dir"].name != _slug(spec)]
     if refreeze:
         for s in prior:

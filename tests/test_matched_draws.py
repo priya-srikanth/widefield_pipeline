@@ -394,3 +394,30 @@ def test_no_matched_reader_compares_the_frozen_column_with_the_labels_directly()
                    # june_august_drift only NAMES the mode in its docstring: it has its own draws, seeds and store spec
                    and p.name not in ("grant_confusion.py", "matched_draws_pilot.py", "june_august_drift.py"))
     assert asked == sorted(MATCHED_READERS), asked
+
+
+# ------------------------------------------------------------------------------------------ the freeze allow-list
+def test_freeze_only_lets_a_render_mint_only_the_listed_kinds(monkeypatch, tmp_path):
+    """WIDEFIELD_FREEZE_ONLY: a miss of a listed kind / align prefix fits and stores; any other miss raises (the
+    matched-draws render must find every epoch decoder it reads already stored)."""
+    from wfield_local import frozen_models as fm
+    monkeypatch.delenv(fm.LOAD_ONLY_ENV, raising=False)
+    monkeypatch.setenv(fm.FREEZE_ONLY_ENV, "matched_frozen:cue-working-draws250")
+    ok = {"kind": "matched_frozen", "align": "cue-working-draws250-labelseed1"}
+    assert fm.freeze_allowed(ok)
+    assert not fm.freeze_allowed({"kind": "matched_frozen", "align": "cue-working-seed684029838"})
+    assert not fm.freeze_allowed({"kind": "epoch_decoder", "align": "cue"})
+    monkeypatch.setenv(fm.FREEZE_ONLY_ENV, "matched_frozen")
+    assert fm.freeze_allowed({"kind": "matched_frozen", "align": "lick-lick-seed1"})
+    monkeypatch.delenv(fm.FREEZE_ONLY_ENV)
+    assert fm.freeze_allowed({"kind": "epoch_decoder", "align": "cue"})
+    # through load_or_fit, on an empty tmp store: the disallowed miss raises before any fit
+    monkeypatch.setenv("WIDEFIELD_FROZEN_MODEL_DIR", str(tmp_path / "store"))
+    monkeypatch.setenv(fm.ALLOW_FREEZE_ENV, "1")   # main: load-only is the default; the allow-list narrows an allowed freeze
+    monkeypatch.setenv(fm.FREEZE_ONLY_ENV, "matched_frozen")
+    spec = fm.make_spec("PS92", "epoch_decoder", align="cue", source="locanmf", train_labels=["PS92_0810"],
+                        post_s=2.0, n_features=3, train_data=(np.zeros((4, 3)), np.arange(4)))
+    called = []
+    with pytest.raises(RuntimeError, match="WIDEFIELD_FREEZE_ONLY"):
+        fm.load_or_fit(spec, lambda: called.append(1) or {"m": 1})
+    assert not called and not (tmp_path / "store").exists()

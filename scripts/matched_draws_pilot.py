@@ -281,9 +281,35 @@ def cmd_dryrun(a):
         return _real_find(spec)
 
     _real_find = frozen_models.find
+    _real_lof = frozen_models.load_or_fit
+    other = []
+
+    def _lof(spec, fit, **kw):
+        """Every OTHER stored model the render asks for (the frozen epoch decoders of `_epoch_arm` and the paired
+        families): loaded when stored, recorded and stopped (never fitted) when not."""
+        d, _o = _real_find(spec)
+        other.append(dict(animal=spec["animal"], kind=spec["kind"], align=spec["align"],
+                          slug=frozen_models._slug(spec), exists=int(d is not None)))
+        if d is None:
+            raise _Stop()
+        return _real_lof(spec, fit, **kw)
+
     rows = []
     for align, variant in PAIRS:
         for an in (a.animals or gc.ANIMALS):
+            gc_animals, gc.ANIMALS = gc.ANIMALS, (an,)
+            frozen_models.load_or_fit = _lof
+            n0 = len(other)
+            try:
+                gc._collect_5c_cached.__wrapped__(align, variant, "frozen")     # what `_epoch_arm` loads first
+            except Exception:                                                     # noqa: BLE001
+                if len(other) == n0:
+                    raise
+            finally:
+                frozen_models.load_or_fit = _real_lof
+                gc.ANIMALS = gc_animals
+            for o in other[n0:]:
+                print(f"[pilot] {an} {align}/{variant} (also read): {o['slug']} exists={o['exists']}", flush=True)
             seen.clear()
             gc_animals, gc.ANIMALS = gc.ANIMALS, (an,)
             frozen_models.find = _find
@@ -308,15 +334,51 @@ def cmd_dryrun(a):
                              folder=str(frozen_models.local_dir() / an / frozen_models._slug(spec))))
             print(f"[pilot] {an} {align}/{variant}: {rows[-1]['slug']} exists={rows[-1]['exists']}", flush=True)
     _write(_new(out / f"dryrun_new_frozen_ids_draws{a.draws}{a.suffix}.csv"), rows)
+    _write(_new(out / f"dryrun_other_stored_models_draws{a.draws}{a.suffix}.csv"), other)
     (_new(out / f"dryrun_env_draws{a.draws}{a.suffix}.json")).write_text(json.dumps(
         {k: v for k, v in sorted(os.environ.items()) if k.startswith(("WIDEFIELD_", "WFIELD_", "FROZEN_"))}, indent=1),
         encoding="utf-8")
     return 0
 
 
+def cmd_summarize(a):
+    """Per-animal, then per-session table of the SD of the session's matched far-contra recall (= SD of its gap:
+    the refit column does not depend on the draw) at each N, and the cost per session, from `draws` outputs."""
+    rows = []
+    for f in a.files:
+        with open(f, newline="", encoding="utf-8") as fh:
+            rows += list(csv.DictReader(fh))
+    out = _out_dir(a.out)
+    tab = []
+    for r in rows:
+        spd = float(r["s_per_draw"]) if r["s_per_draw"] not in ("", "nan") else float("nan")
+        d = dict(animal=r["animal"], label=r["label"], n_trials=int(r["n_trials"]), n_farcontra=int(r["n_farcontra"]),
+                 refit_recall=round(float(r["refit_recall"]), 4), matched_mean=round(float(r["matched_recall_mean"]), 4),
+                 gap_mean=round(float(r["gap_mean"]), 4), sd_one_draw=round(float(r["sd_one_draw"]), 4),
+                 s_per_draw=round(spd, 3), refit_s=round(float(r["refit_s"]), 2))
+        for n in N_GRID:
+            d[f"sd_N{n}"] = round(float(r[f"sd_mean_N{n}"]), 4)
+            e = r.get(f"sd_emp_N{n}", "")
+            d[f"emp_N{n}"] = round(float(e), 4) if e not in ("", "nan") else ""
+            d[f"s_N{n}"] = round(float(r["refit_s"]) + n * spd, 1) if spd == spd else ""
+        tab.append(d)
+    tab.sort(key=lambda d: (d["animal"], d["label"]))
+    _write(_new(out / f"pilot_summary{a.tag}.csv"), tab)
+    for n in N_GRID:
+        v = [d[f"sd_N{n}"] for d in tab]
+        ok = sum(x < 0.01 for x in v)
+        print(f"N={n:>4}: SD of a session's far-contra matched recall / gap: median {np.median(v):.4f}, "
+              f"max {max(v):.4f}; {ok}/{len(v)} sessions < 0.01")
+    return 0
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
+    sm = sub.add_parser("summarize")
+    sm.add_argument("files", nargs="+")
+    sm.add_argument("--out", required=True)
+    sm.add_argument("--tag", default="")
     c = sub.add_parser("compare")
     c.add_argument("a")
     c.add_argument("b")
@@ -339,7 +401,8 @@ def main(argv=None):
     a = ap.parse_args(argv)
     if a.cmd == "draws" and not a.animals:
         ap.error("draws needs --animals")
-    return {"draws": cmd_draws, "legacy": cmd_legacy, "dryrun": cmd_dryrun, "compare": cmd_compare}[a.cmd](a)
+    return {"draws": cmd_draws, "legacy": cmd_legacy, "dryrun": cmd_dryrun, "compare": cmd_compare,
+            "summarize": cmd_summarize}[a.cmd](a)
 
 
 if __name__ == "__main__":
