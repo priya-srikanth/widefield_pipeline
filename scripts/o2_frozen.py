@@ -50,6 +50,7 @@ INPUT_CACHE = "C:/Users/SabatiniLab/wfield_cache/input_cache_rebuild_20261104"
 #: the v36 page-lineage env (o2_partial.env_noFR) with the four-camera inputs: fused four-camera licks, no 10-23 cam4
 #: EXEC3D snapshot (it would override the fused post-cue kinematics; dropped as in G4). Gate set HERE, per bundle.
 #: Priya 11-24: every pose regressor 3-D (jaw / nose from the four-camera frames, despiked; combined_encoding.JAW_ENV).
+POSE_ENV = "COMBINED_ENCODING_POSE"
 BASE_ENV = {"OROFACIAL_GATE": "attempted", "COMBINED_ENCODING_LICKS": "fourcam", "COMBINED_ENCODING_ONLY": "full",
             "COMBINED_ENCODING_SUFFIX": "_gate-attempted", "COMBINED_ENCODING_TONGUE": "3d",
             "COMBINED_ENCODING_JAW": "3d", "COMBINED_ENCODING_NOSE": "3d", "COMBINED_ENCODING_POSE": "xyz3d"}
@@ -76,6 +77,12 @@ SVF_VARIANTS = ("joint", "no_target", "no_spout", "no_task", "no_movement", "no_
 FRAMES = {
     "spont_frA": {"tag": "gate-attempted_v7g3_t3d_spont_frA", "env": {**SPLIT, **FR_A}, "args": [],
                   "jobs": ("predict", "svf", "partial"), "wave": 1},
+    # SENSITIVITY FRAME (Priya 11-25 "let's do it"; lane E's RESULTS_frameA_check_20261125: frame A's larger chronic
+    # residual sits in the 3-D nose position columns (PS92 / 94 / 95) and 3-D jaw_mag (PS93)): frame A with the jaw and
+    # nose entering as 3-D SPEED only (combined_encoding POSE=xyz3d_spd; no jaw / nose position columns; tongue, FR,
+    # licks, gate, pre set, modes unchanged). Built from the wave-1 inputs (bundle --inputs-from o2f_wave1_20261124).
+    "spont_frA_spd": {"tag": "gate-attempted_v7g3_t3d_spont_frA_spd", "env": {**SPLIT, **FR_A, POSE_ENV: "xyz3d_spd"},
+                      "args": [], "jobs": ("predict", "svf", "partial"), "wave": 1.5},
     "spont_frA_basis": {"tag": "gate-attempted_v7g3_t3d_spont_frA_basis", "env": {**SPLIT, **FR_A},
                         "args": ["--target", "basis", "--no-drop-spout", "--variants", *"joint no_target no_spout "
                                  "no_task no_movement no_fr no_fr_dir no_fr_all no_lick no_exec_within no_other "
@@ -109,6 +116,7 @@ _K0 = "spline_thr|k0=1.5"
 _FRA = "|fr=master_pre_v1:master_v1:A"
 V36_RUN_MODE = {
     "spont_frA": f"{_K0}|tongue3d{_FRA}|licksall-split",
+    "spont_frA_spd": f"{_K0}|tongue3d{_FRA}|licksall-split",
     "spont_frA_basis": f"{_K0}|tongue3d{_FRA}|licksall-split",
     "frA_te": f"{_K0}|te|tongue3d{_FRA}",
     "frA_te_basis": f"{_K0}|te|tongue3d{_FRA}",
@@ -126,9 +134,13 @@ ENVKEYS = ("O2F_RDIR", "O2F_IMDIR", "O2F_MASK")
 
 
 def expected_run_tag(key: str) -> str:
-    """The v36 frame's running-model tag with this bundle's 3-D jaw / nose parts (the only intended design change)."""
-    extra = "|jaw3d|xyz3d|nose3d" + (f"={os.environ['COMBINED_ENCODING_NOSE_FRAMES']}"
-                               if os.environ.get("COMBINED_ENCODING_NOSE_FRAMES") else "")
+    """The v36 frame's running-model tag with this bundle's 3-D jaw / nose parts (the only intended design change):
+    the pose layout (xyz3d, or xyz3d_spd = speed-only jaw / nose) is the frame's own setting (FRAMES env)."""
+    layout = os.environ.get(POSE_ENV, "").strip()
+    if layout not in ("xyz3d", "xyz3d_spd"):
+        raise SystemExit(f"{POSE_ENV}={layout!r}: every O2 frozen frame is on a 3-D pose layout")
+    extra = f"|jaw3d|{layout}|nose3d" + (f"={os.environ['COMBINED_ENCODING_NOSE_FRAMES']}"
+                                         if os.environ.get("COMBINED_ENCODING_NOSE_FRAMES") else "")
     return V36_RUN_MODE[key].replace("|tongue3d", "|tongue3d" + extra)
 
 
@@ -164,11 +176,70 @@ def frame_out(key: str, out_root=None) -> Path:
     return Path(out_root or fe.out_root()) / f"frozen_encoder_{FRAMES[key]['tag']}"
 
 
+# --------------------------------------------------------------------------- inputs REUSED from an earlier bundle
+#: `bundle --inputs-from <bundle>` (11-25, the speed-only sensitivity frame): every session's loader values are REPLAYED
+#: from that bundle's runs/<frame>/inputs/<label>.pkl + imaging/<label>.pkl (o2_partial.Replay, as an O2 task does) for
+#: the templates, the pre statistics and the capture pass alike, so no share / cache read and no re-extraction; the new
+#: bundle's inputs/<label>.pkl is THIN (this frame's design digest + sums only) and names the source bundle. The O2
+#: runner reads the loader values from the SIBLING bundle on scratch (<scratch>/o2/<source bundle>), else from the
+#: recorded absolute path (the desktop pilot). The analysis-mask digest of every source pickle must be this bundle's.
+INPUTS_FROM_ENV = "O2F_INPUTS_FROM"                     # desktop: the source bundle's runs/<frame> folder
+
+
+def _reuse_src():
+    """(runs/<frame> dir, imaging dir, {bundle, frame, path}) of the bundle whose inputs are replayed, or None."""
+    p = os.environ.get(INPUTS_FROM_ENV)
+    if not p:
+        return None
+    r = Path(p)
+    return r, r.parent.parent / "imaging", {"bundle": r.parent.parent.name, "frame": r.name, "path": str(r.parent.parent)}
+
+
+def _source_pickles(sb: Path, frame: str, label: str, mask_sig: str) -> tuple[dict, dict]:
+    """(inputs, imaging) pickles of ``label`` in source bundle ``sb``; both must carry this bundle's mask digest."""
+    from wfield_local import mask_keys
+    inp = pickle.loads((sb / "runs" / frame / "inputs" / f"{label}.pkl").read_bytes())
+    img = pickle.loads((sb / "imaging" / f"{label}.pkl").read_bytes())
+    for d_, what in ((inp, "inputs"), (img, "imaging")):
+        if d_.get(mask_keys.FIELD) != mask_sig:
+            raise RuntimeError(f"{label}: source {what} pickle masks {d_.get(mask_keys.FIELD)} != this bundle's {mask_sig}")
+    return inp, img
+
+
+def _replay_of(label: str):
+    """(context, source meta): the Replay of the source bundle's recorded loaders, or a null context without reuse."""
+    import contextlib
+    src = _reuse_src()
+    if src is None:
+        return contextlib.nullcontext(), None
+    r, _imdir, meta = src
+    inp, img = _source_pickles(r.parent.parent, r.name, label, os.environ["O2F_MASK"])
+    return op.Replay({**img["memo"], **inp["memo"]}, inp["files"], inp["globs"]), meta
+
+
+def template_replay_job(label: str) -> dict:
+    """`frozen_encoder.template_job` on the source bundle's replayed loaders (bundle --inputs-from)."""
+    from wfield_local import frozen_encoder as fe
+    rep, _src = _replay_of(label)
+    with rep:
+        return fe.session_design(label, template_only=True)
+
+
 # ------------------------------------------------------------------------------------------------- capture (desktop)
 def _save_capture(label: str, rec, d: dict, rdir: Path, imdir: Path, mask_sig: str) -> dict:
-    """o2_partial.capture_worker's output files from a finished Recorder + the design it saw."""
+    """o2_partial.capture_worker's output files from a finished Recorder + the design it saw; ``rec`` None = the
+    loaders were replayed from another bundle (INPUTS_FROM_ENV): a thin inputs pickle naming it, no imaging pickle."""
     from wfield_local import combined_encoding as ce
     from wfield_local import mask_keys
+    if rec is None:
+        src = _reuse_src()[2]
+        out = {mask_keys.FIELD: mask_sig, "label": label, "inputs_from": src, "design": op.design_digest(d),
+               "design_sums": op.design_sums(d), "n_frames": int(len(d["X"])), "n_cols": int(d["X"].shape[1])}
+        dst = rdir / "inputs" / f"{label}.pkl"
+        tmp = dst.with_suffix(".tmp")
+        tmp.write_bytes(pickle.dumps(out, protocol=5))
+        os.replace(tmp, dst)
+        return {"label": label, "MB": round(dst.stat().st_size / 1e6), "loaders": ["replayed:" + src["bundle"]]}
     imaging = {k: v for k, v in rec.memo.items() if v[0] == "load_imaging"}
     other = {k: v for k, v in rec.memo.items() if v[0] != "load_imaging"}
     ip = imdir / f"{label}.pkl"
@@ -216,13 +287,18 @@ def stats_capture_job(item):
     if mask_keys.signature() != mask_sig:
         raise RuntimeError(f"{item[0]}: worker masks differ from the bundle's {mask_sig}")
     rec, holder, orig, sd = _recording(item[0])
+    rep, src = _replay_of(item[0])
     fe.session_design = sd
     try:
-        with rec:
-            out = fe.stats_job(item)
+        with rep:
+            if src is None:
+                with rec:
+                    out = fe.stats_job(item)
+            else:                                        # replayed loaders: nothing to record (INPUTS_FROM_ENV)
+                out = fe.stats_job(item)
     finally:
         fe.session_design = orig
-    _save_capture(item[0], rec, holder[-1], rdir, imdir, mask_sig)
+    _save_capture(item[0], None if src else rec, holder[-1], rdir, imdir, mask_sig)
     return out
 
 
@@ -235,8 +311,14 @@ def capture_job(job):
     if mask_keys.signature() != mask_sig:
         raise RuntimeError(f"{label}: worker masks differ from the bundle's {mask_sig}")
     an = config.animal_of(label)
-    with op.Recorder(label) as rec:
-        d = fe.session_design(label, fe._templates_of(tpath, an), spatial=fe._spatial_of(spath, an))
+    rep, src = _replay_of(label)
+    with rep:
+        if src is None:
+            with op.Recorder(label) as rec:
+                d = fe.session_design(label, fe._templates_of(tpath, an), spatial=fe._spatial_of(spath, an))
+        else:
+            rec = None
+            d = fe.session_design(label, fe._templates_of(tpath, an), spatial=fe._spatial_of(spath, an))
     return _save_capture(label, rec, d, rdir, imdir, mask_sig)
 
 
@@ -280,8 +362,20 @@ def cmd_bundle(a) -> Path:
     key = a.frame
     F = FRAMES[key]
     want = expected_run_tag(key)
-    if bool(a.labels) != bool(a.out_root):
-        raise SystemExit("a session subset needs --out-root (a TEST bundle never writes the share frame folder) and back")
+    if a.labels and not a.out_root:
+        raise SystemExit("a session subset needs --out-root (a TEST bundle never writes the share frame folder)")
+    src_bundle = None
+    if a.inputs_from:                                    # replay another bundle's recorded loaders (INPUTS_FROM_ENV)
+        src_bundle = Path(a.inputs_from) if Path(a.inputs_from).is_absolute() else op._bundle_dir(a.inputs_from)
+        src_frame = a.inputs_frame or key
+        src_r = src_bundle / "runs" / src_frame
+        if not (src_r / "labels.txt").exists() or not (src_bundle / "imaging").is_dir():
+            raise SystemExit(f"--inputs-from: {src_r} has no labels.txt / {src_bundle}/imaging")
+        src_meta = json.loads((src_bundle / "bundle.json").read_text())
+        if src_meta.get(o2_bundle.MASK_FIELD) != mask_keys.signature():
+            raise SystemExit(f"--inputs-from: {src_bundle} masks {src_meta.get(o2_bundle.MASK_FIELD)} != "
+                             f"{mask_keys.signature()}")
+        os.environ[INPUTS_FROM_ENV] = str(src_r)
     if fe._run_tag() != want:
         raise SystemExit(f"{key}: this env's frozen run tag {fe._run_tag()!r} != the v36 frame's + 3-D jaw / nose {want!r}")
     repo = Path(__file__).resolve().parents[1]
@@ -292,10 +386,11 @@ def cmd_bundle(a) -> Path:
     out = frame_out(key, a.out_root)
     if any((out / "joint" / "sessions").glob("*.json")):
         raise SystemExit(f"{out} already holds session outputs: not a bundle target (never overwrite a frame)")
-    d = op._bundle_dir(a.name)
+    d = Path(a.bundle_root) / a.name if a.bundle_root else op._bundle_dir(a.name)
     writeguard.assert_writable(d)
     rdir = d / "runs" / key
-    for sub in (d / "imaging", d / "logs", rdir / "inputs", rdir / "fit", rdir / "fits", rdir / "tables"):
+    for sub in (*(() if src_bundle else (d / "imaging",)), d / "logs", rdir / "inputs", rdir / "fit", rdir / "fits",
+                rdir / "tables"):
         sub.mkdir(parents=True, exist_ok=True)
     ident = op.identity()
     mask_sig = mask_keys.signature()
@@ -314,15 +409,17 @@ def cmd_bundle(a) -> Path:
     os.environ.update({"O2F_RDIR": str(rdir), "O2F_IMDIR": str(d / "imaging"), "O2F_MASK": mask_sig})
     # frozen_encoder.main, unchanged except: the pre statistics also record; the predict fan-out captures; summaries
     # wait for collect (they read the predictions)
-    saved = (fe.stats_job, fe._fan, fe.summarise_drop, fe.summarise_musall)
+    saved = (fe.stats_job, fe._fan, fe.summarise_drop, fe.summarise_musall, fe.template_job)
     fe.stats_job, fe._fan = stats_capture_job, _capture_fan
     fe.summarise_drop = fe.summarise_musall = lambda *x, **k: None
+    if src_bundle:                                       # the template pass replays too (no share / cache read)
+        fe.template_job = template_replay_job
     t0 = time.time()
     try:
         rc = fe.main([*(a.labels or ["--all"]), "--jobs", str(a.jobs), "--tag", F["tag"], "--reuse-stats", *F["args"],
                       *(["--out-root", str(a.out_root)] if a.out_root else [])])
     finally:
-        fe.stats_job, fe._fan, fe.summarise_drop, fe.summarise_musall = saved
+        fe.stats_job, fe._fan, fe.summarise_drop, fe.summarise_musall, fe.template_job = saved
     t_main = (time.time() - t0) / 60
     if rc:
         print(f"[o2_frozen] frozen_encoder.main returned {rc} (capture failures above)", flush=True)
@@ -365,6 +462,7 @@ def cmd_bundle(a) -> Path:
              "identity": ident, "run_tag": fe._run_tag(), "v36_run_mode": V36_RUN_MODE[key], "frame_dir": str(out),
              "variants": _variants(out), "svf_variants": [v for v in SVF_VARIANTS if v in _variants(out)],
              "n_sessions": len(labels), "commit": commit, "test_out_root": str(a.out_root or ""), "attempts_table": str(att), "attempts_sha256": att_sha,
+             "inputs_from": (_reuse_src()[2] if src_bundle else None),
              "pre_stats": {"size": st.st_size, "mtime": st.st_mtime}, "bundle_main_min": round(t_main, 1),
              "created": datetime.datetime.now().isoformat(timespec="seconds")}
     rmeta_f.write_text(json.dumps(rmeta, indent=1), encoding="utf-8", newline="\n")
@@ -459,7 +557,16 @@ def run_task(b, frame: str, mode: str, label: str, out=None, audit: bool = False
     op.verify_identity(rmeta["identity"])
     from wfield_local import mask_keys, o2_bundle
     inp = pickle.loads((r / "inputs" / f"{label}.pkl").read_bytes())
-    img = pickle.loads((b / "imaging" / f"{label}.pkl").read_bytes())
+    src = inp.get("inputs_from")
+    if src:                                              # loader values of a SIBLING bundle (INPUTS_FROM_ENV)
+        sb = b.parent / src["bundle"]
+        if not (sb / "runs" / src["frame"] / "inputs" / f"{label}.pkl").exists():
+            sb = Path(src["path"])
+        full, img = _source_pickles(sb, src["frame"], label, meta[o2_bundle.MASK_FIELD])
+        inp = {**full, **{k: inp[k] for k in ("design", "design_sums", "n_frames", "n_cols")}}
+        print(f"{label}: loader values replayed from {sb} (frame {src['frame']})", flush=True)
+    else:
+        img = pickle.loads((b / "imaging" / f"{label}.pkl").read_bytes())
     o2_bundle.check_inputs(meta, inp, label)
     o2_bundle.check_inputs(meta, img, label + " (imaging)")
     base = Path(out) if out else r
@@ -551,6 +658,26 @@ sbatch --array=1-{n}%60 --mem={mem} -t {TIME[mode]} --export=ALL,FRAME={key},MOD
 ```
 Desktop after the rsync back: `python scripts/o2_frozen.py collect --frame {key} --name {meta['name']} --mode {mode}`
 """)
+    reuse_txt = ""
+    for key in meta["frames"]:
+        rm = json.loads((d / "runs" / key / "run.json").read_text())
+        src = rm.get("inputs_from")
+        if not src:
+            continue
+        sb = f"{b.rsplit('/', 1)[0]}/{src['bundle']}"
+        share_sb = f"{share_b.rsplit('/', 1)[0]}/{src['bundle']}"
+        reuse_txt += f"""
+## Inputs of {key} are REUSED from bundle {src['bundle']} (frame {src['frame']}): the runner reads that bundle's
+## runs/{src['frame']}/inputs/<label>.pkl + imaging/<label>.pkl from the SIBLING folder on scratch, {sb}.
+## Check it is still there (scratch purge) BEFORE submitting; if not, restore it from the share (transfer node):
+```bash
+ls {sb}/imaging | wc -l; ls {sb}/runs/{src['frame']}/inputs | wc -l     # both must print {rm['n_sessions']}
+# only if missing:
+mkdir -p {sb}/runs/{src['frame']}
+rsync -ah {share_sb}/imaging/ {sb}/imaging/
+rsync -ah {share_sb}/runs/{src['frame']}/inputs/ {sb}/runs/{src['frame']}/inputs/
+```
+"""
     txt = f"""# O2 frozen-encoder frames: {meta['name']}
 
 code {meta['commit']} ({Path(meta['code_root']).name}); profile {meta['profile']}; analysis masks {meta['mask_sig']}
@@ -564,7 +691,7 @@ tables/ (attempts table + calibration files). No share reads.
 mkdir -p {b}
 rsync -ah {share_b}/ {b}/
 ```
-## Jobs
+{reuse_txt}## Jobs
 """ + "\n".join(blocks) + f"""
 ## Back to the share (transfer node), per frame when its arrays are done
 ```bash
@@ -671,7 +798,13 @@ def main(argv=None) -> int:
     b.add_argument("--name", required=True)
     b.add_argument("--user", required=True)
     b.add_argument("--jobs", type=int, default=3)
-    b.add_argument("--out-root", default=None, help="TEST bundles only: frame folder parent instead of the share")
+    b.add_argument("--out-root", default=None, help="frame folder parent instead of the share's routed root (required "
+                   "for a session subset; a full build may declare <bundle>/frames, rule 11)")
+    b.add_argument("--bundle-root", default=None, help="parent folder of the bundle instead of <rebuild root>/o2 "
+                   "(a local pilot); the O2 commands assume the share's o2 folder")
+    b.add_argument("--inputs-from", default=None, help="bundle (name under <rebuild root>/o2, or a path) whose recorded "
+                   "loader values are replayed for every pass instead of reading the share (INPUTS_FROM_ENV)")
+    b.add_argument("--inputs-frame", default=None, help="frame of --inputs-from to replay (default: this frame's key)")
     b.add_argument("--nose-frames", default="", help="session_poses run folder of a re-triangulated 3-D nose "
                    "(COMBINED_ENCODING_NOSE_FRAMES; default the adopted run)")
     b.add_argument("labels", nargs="*", help="TEST bundles only: a session subset (default --all)")

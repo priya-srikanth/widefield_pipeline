@@ -463,7 +463,16 @@ POSE3D_MODES = ("", "cam4", "3d")
 #: rest. (2-D layout, unset: tongue x, y, prot | speed; jaw x | y, speed; nose x | y -- tongue prot counted as DIR.)
 #: Unset = the previous layouts (2-D, or JAW / NOSE=3d mapped onto the 2-D x / y). Outputs: the encoder folder name
 #: gains "_xyz3d", the frozen run tag "|xyz3d".
+#: SPEED-ONLY JAW / NOSE (Priya 11-25, "let's do it": the frozen-frame sensitivity test of frame A's 3-D jaw / nose
+#: POSITION columns, lane E's RESULTS_frameA_check_20261125): ``COMBINED_ENCODING_POSE=xyz3d_spd`` = the xyz3d layout
+#: with the jaw entering as its 3-D speed ONLY and the nose as its 3-D speed ONLY (no jaw / nose ml, ap, dv columns);
+#: the tongue is unchanged. nose_speed = |d (nose_ml, nose_ap, nose_dv) / dt| (mm/s) on the same despiked,
+#: mouth-centred nose frames as the xyz3d nose columns, built like jaw_speed (`speed_3d`; the nose has no per-trial rest
+#: reference, and a constant offset does not enter a speed). The frozen DIR | MAG rule: jaw_dir / nose_dir are EMPTY
+#: (dropped from the frozen variables), jaw_mag = jaw speed, nose_mag = nose speed. Folder suffix "_xyz3d_spd", frozen
+#: run tag "|xyz3d_spd". xyz3d itself is unchanged (pinned: tests/test_frozen_encoder.py).
 POSE_ENV = "COMBINED_ENCODING_POSE"
+POSE_3D_LAYOUTS = ("xyz3d", "xyz3d_spd")
 POSE_LAYOUTS = {
     "": {"tongue": ("tongue_x", "tongue_y", "tongue_prot", "tongue_speed"), "jaw": ("jaw_x", "jaw_y", "jaw_speed"),
          "nose": ("nose_x", "nose_y"), "tongue_ps": ("tongue_prot", "tongue_speed"), "jaw_nd": ("jaw_y", "jaw_speed"),
@@ -475,18 +484,44 @@ POSE_LAYOUTS = {
               "nose_nd": ("nose_dv",),
               "dir_kin": ("tongue_ml", "tongue_ap", "jaw_ml", "jaw_ap", "nose_ml", "nose_ap"),
               "dir_n": {"tongue": 2, "jaw": 2, "nose": 2}},
+    "xyz3d_spd": {"tongue": ("tongue_ml", "tongue_ap", "tongue_dv", "tongue_prot", "tongue_speed"),
+                  "jaw": ("jaw_speed",), "nose": ("nose_speed",),
+                  "tongue_ps": ("tongue_dv", "tongue_prot", "tongue_speed"), "jaw_nd": ("jaw_speed",),
+                  "nose_nd": ("nose_speed",), "dir_kin": ("tongue_ml", "tongue_ap"),
+                  "dir_n": {"tongue": 2, "jaw": 0, "nose": 0}},
 }
 
 
 def pose_layout() -> str:
-    """The pose layout: "" (2-D / mapped) or "xyz3d" (POSE_ENV); xyz3d refuses unless tongue, jaw, nose are 3-D."""
+    """The pose layout: "" (2-D / mapped), "xyz3d" or "xyz3d_spd" (POSE_ENV); a 3-D layout refuses unless tongue, jaw,
+    nose are 3-D."""
     v = os.environ.get(POSE_ENV, "").strip()
     if v not in POSE_LAYOUTS:
-        raise ValueError(f"{POSE_ENV}={v!r}; expected xyz3d or unset")
+        raise ValueError(f"{POSE_ENV}={v!r}; expected one of {POSE_3D_LAYOUTS} or unset")
     if v and not (os.environ.get(TONGUE_ENV, "") == "3d" and pose3d_mode(JAW_ENV) == "3d"
                   and pose3d_mode(NOSE_ENV) == "3d"):
-        raise ValueError(f"{POSE_ENV}=xyz3d needs {TONGUE_ENV}, {JAW_ENV} and {NOSE_ENV} = 3d")
+        raise ValueError(f"{POSE_ENV}={v} needs {TONGUE_ENV}, {JAW_ENV} and {NOSE_ENV} = 3d")
     return v
+
+
+def speed_3d(ml, ap, dv, fps: float = 250.0) -> np.ndarray:
+    """|d (ml, ap, dv) / dt| in mm/s on consecutive pose rows: the jaw_speed formula of `jaw_3d_xyz` (np.gradient per
+    axis, NaN where a neighbour is NaN), for the nose of the xyz3d_spd layout."""
+    ml, ap, dv = (np.asarray(v, float) for v in (ml, ap, dv))
+    if len(ml) <= 1:
+        return np.full(len(ml), np.nan)
+    return np.linalg.norm(np.column_stack([np.gradient(v) for v in (ml, ap, dv)]), axis=1) * fps
+
+
+def derived_analog(analog: dict, key: str):
+    """A layout trace DERIVED from traces the behaviour already holds, or None: today only ``nose_speed`` (xyz3d_spd)
+    from the xyz3d nose_ml / nose_ap / nose_dv, so a behaviour recorded under xyz3d (an O2 bundle's inputs, the local
+    input cache) serves the speed-only layout without re-reading the pose files. Identical to the load-time value:
+    both are `speed_3d` of the same despiked, mouth-centred nose columns on the pose rows."""
+    if key == "nose_speed" and all(k in analog for k in ("nose_ml", "nose_ap", "nose_dv")):
+        t, ml = analog["nose_ml"]
+        return (t, speed_3d(ml, analog["nose_ap"][1], analog["nose_dv"][1]))
+    return None
 SPIKE_MM = 1.0
 SPIKE_RETURN = 3
 _CAMS3D = ("cam1", "cam4", "cam2", "cam3")
@@ -863,7 +898,7 @@ def _load_behaviour(animal: str, date: str, rv) -> Behaviour:
         tx, ty, prot = tongue_3d_traces(S["index"], tx4, F3)
     layout = pose_layout()                                        # POSE_ENV (checks tongue / jaw / nose are 3-D)
     xyz = {}
-    if layout == "xyz3d":
+    if layout in POSE_3D_LAYOUTS:
         xyz["tongue_dv"] = tongue_3d_dv(S["index"], tx4, F3)
     fps = 250.0
     jaw_mode, nose_mode = pose3d_mode(JAW_ENV), pose3d_mode(NOSE_ENV)
@@ -883,21 +918,24 @@ def _load_behaviour(animal: str, date: str, rv) -> Behaviour:
         P = pose3d_part(pd.read_csv(f3, usecols=lambda c, need=need: c in need), part)[0]
         if part == "jaw":
             jx, jy, jsp = jaw_3d_traces(S["index"], P, fps)
-            if layout == "xyz3d":
+            if layout in POSE_3D_LAYOUTS:
                 xyz.update(jaw_3d_xyz(S["index"], P, fps))
         else:
             nx, ny = nose_3d_traces(S["index"], P)
-            if layout == "xyz3d":
+            if layout in POSE_3D_LAYOUTS:
                 xyz.update(nose_3d_xyz(S["index"], P))
+                if layout == "xyz3d_spd":                          # the nose's 3-D speed, as the jaw's (speed-only layout)
+                    xyz["nose_speed"] = speed_3d(xyz["nose_ml"], xyz["nose_ap"], xyz["nose_dv"], fps)
     sp = lambda v: np.abs(np.gradient(v)) * fps                                   # noqa: E731
     run_t, run_v = session_speed(h5)
-    if layout == "xyz3d":                                          # POSE_ENV: explicit axis names, no 2-D aliases
+    if layout in POSE_3D_LAYOUTS:                                  # POSE_ENV: explicit axis names, no 2-D aliases
         analog = {"tongue_ml": (t_pose, tx), "tongue_ap": (t_pose, ty), "tongue_dv": (t_pose, xyz["tongue_dv"]),
                   "tongue_prot": (t_pose, prot),                   # reach = 3-D distance, its own column
                   "tongue_speed": (t_pose, np.linalg.norm(np.column_stack(   # 3-D speed |d(ml, ap, dv)/dt| (11-24)
                       [np.gradient(v) for v in (tx, ty, xyz["tongue_dv"])]), axis=1) * fps),
                   **{k: (t_pose, xyz[k]) for k in ("jaw_ml", "jaw_ap", "jaw_dv", "jaw_speed",
                                                    "nose_ml", "nose_ap", "nose_dv")},
+                  **({"nose_speed": (t_pose, xyz["nose_speed"])} if "nose_speed" in xyz else {}),
                   "running": (np.asarray(run_t, float), np.asarray(run_v, float))}
     else:
         analog = {"tongue_x": (t_pose, tx), "tongue_y": (t_pose, ty), "tongue_prot": (t_pose, prot),
@@ -1156,11 +1194,15 @@ def exec_bins(B: Behaviour, weights: bool = False):
 
 
 def _pose_block(out: dict, B, ft, blk: str, LY: dict) -> None:
-    """out[blk] = the layout's traces of pose block ``blk`` (POSE_LAYOUTS); refuses a behaviour of another layout."""
-    miss = [k for k in LY[blk] if k not in B.analog]
+    """out[blk] = the layout's traces of pose block ``blk`` (POSE_LAYOUTS); refuses a behaviour of another layout (a
+    trace `derived_analog` can build from the behaviour's own traces, e.g. nose_speed from xyz3d, is derived)."""
+    traces = {}
+    for k in LY[blk]:
+        traces[k] = B.analog[k] if k in B.analog else derived_analog(B.analog, k)
+    miss = [k for k, v in traces.items() if v is None]
     if miss:
         raise KeyError(f"{blk}: behaviour has no {miss} ({POSE_ENV}={pose_layout()!r}; rebuild the inputs)")
-    out[blk] = np.hstack([_analog_cols(*B.analog[k], ft) for k in LY[blk]])
+    out[blk] = np.hstack([_analog_cols(*traces[k], ft) for k in LY[blk]])
 
 
 def _event_cols(times, ft, lags, amp=None, spacing=None) -> np.ndarray:
@@ -2705,7 +2747,7 @@ def out_dir(rv, order: str) -> Path:
                                                          + (f"_bw{bins_width():g}" if os.environ.get(BINS_ENV)
                                                             and bins_width() != 1.0 else "")
                                                          + licks_all_suffix()
-                                                         + ("_xyz3d" if pose_layout() == "xyz3d" else "")
+                                                         + (f"_{pose_layout()}" if pose_layout() else "")
                                                          + os.environ.get(SUFFIX_ENV, ""))
 
 

@@ -113,13 +113,21 @@ def _ce():
 #: exec_within + other. target vs exec_locked are perfectly confounded by design (both follow the spout); only
 #: exec_within separates them, so read target / executed only as the ordered bracket (target_first / exec_first).
 SPLIT_VARS = ("lick_onset", "tongue_mag", "jaw_mag", "tongue_dir", "jaw_dir", "nose_dir")
+#: SPEED-ONLY JAW / NOSE (COMBINED_ENCODING_POSE=xyz3d_spd, Priya 11-25; `combined_encoding.POSE_LAYOUTS`): the jaw and
+#: nose blocks are one speed trace each, so their DIR variables (jaw_dir / nose_dir = the horizontal positions) have no
+#: columns and are not frozen variables of this design; jaw_mag = jaw speed (lick group), nose_mag = nose speed (other).
+#: Everything else (groups, penalties, variants, templates) is frame A's. Read at import like the other design switches.
+POSE_SPD = os.environ.get("COMBINED_ENCODING_POSE", "").strip() == "xyz3d_spd"
+_SPD_DROP = ("jaw_dir", "nose_dir")
+if POSE_SPD:
+    SPLIT_VARS = tuple(v for v in SPLIT_VARS if v not in _SPD_DROP)
 _LICK_BASE = ("lick_onset", "tongue_mag", "jaw_mag")
 TEMPLATE_S = (-4.0, 8.0)                                 # cue-relative span of the spout-locked templates (s)
 #: NOSE IS "OTHER" (Priya 10-23: "why is nose direction in the lick group? did we show it's lick locked?" -> no: only
 #: 4 / 21 / 29 / 13 % of nose x's pre-stroke variance (PS92-95) is in its spout-locked template, vs 44-61 % for lick
 #: onsets; "nose_dir" = nose lateral POSITION, "nose_mag" = nose vertical position, both mouth-relative). Both parts of
 #: nose x go to "other" with nose y and running (uninstructed). Grouping only: same columns / statistics / joint fit.
-_NOSE_OTHER = {"nose_dir:spl", "nose_dir:dev"}
+_NOSE_OTHER = set() if POSE_SPD else {"nose_dir:spl", "nose_dir:dev"}
 FGROUP = {"cue": "timing", "arrival": "timing", "pos_enl": "target", "pos_cue": "target",
           **{f"{v}:spl": "exec_locked" for v in SPLIT_VARS},
           **{f"{v}:dev": ("lick" if v in _LICK_BASE else "exec_within") for v in SPLIT_VARS},
@@ -563,11 +571,18 @@ def split_blocks(raw: dict) -> dict:
     # DIR | MAG per part from the encoder's pose layout (`combined_encoding.POSE_LAYOUTS`; xyz3d: (ml, ap) | (dv,
     # [prot,] speed) for all three parts, the 11-24 rule; 2-D: tongue x, y, prot | speed; jaw x | y, speed; nose x | y)
     LY = ce.POSE_LAYOUTS[ce.pose_layout()]
+    if (ce.pose_layout() == "xyz3d_spd") != POSE_SPD:
+        raise ValueError(f"frozen_encoder was imported with POSE_SPD={POSE_SPD} but the encoder layout is "
+                         f"{ce.pose_layout()!r}: COMBINED_ENCODING_POSE changed after import")
     for part in ("tongue", "jaw", "nose"):
         nd, nt = LY["dir_n"][part], len(LY[part])
         if raw[part].shape[1] != nt * nl:
             raise ValueError(f"{part}: {raw[part].shape[1]} columns, expected {nt * nl} ({LY[part]})")
-        out[f"{part}_dir"], out[f"{part}_mag"] = raw[part][:, :nd * nl], raw[part][:, nd * nl:]
+        if nd:
+            out[f"{part}_dir"] = raw[part][:, :nd * nl]
+        elif f"{part}_dir" in SPLIT_VARS:                # a layout without DIR columns must have dropped the variable
+            raise ValueError(f"{part}_dir has no columns in layout {ce.pose_layout()!r} but is a frozen variable")
+        out[f"{part}_mag"] = raw[part][:, nd * nl:]
     if SPONT:                                            # the encoder's own spontaneous-lick variables, unchanged
         if set(ce.SPLIT_LICK_VARS) != set(SPONT_VARS) or any(SPONT_GROUP.get(g) != FGROUP[v] or ce.PEN_GROUP_OF[v] != FPEN[v]
                                                              for v, g in ce.SPLIT_LICK_VARS.items()):
@@ -1027,7 +1042,8 @@ def _run_tag() -> str:
     return ((_run_mode() + f"|k0={_knot0():g}" + ("|push" if _push_on() else "")) + ("|te" if TE else "")
             + ("|tongue3d" if os.environ.get("COMBINED_ENCODING_TONGUE", "") == "3d" else "")    # TONGUE_ENV
             + ("|jaw3d" if os.environ.get("COMBINED_ENCODING_JAW", "") == "3d" else "")          # JAW_ENV (11-24)
-            + ("|xyz3d" if os.environ.get("COMBINED_ENCODING_POSE", "") == "xyz3d" else "")      # POSE_ENV (11-24)
+            + (f"|{os.environ['COMBINED_ENCODING_POSE'].strip()}"                                  # POSE_ENV (11-24):
+               if os.environ.get("COMBINED_ENCODING_POSE", "").strip() else "")                  # |xyz3d, |xyz3d_spd
             + ("|nose3d" + (f"={os.environ['COMBINED_ENCODING_NOSE_FRAMES']}"
                             if os.environ.get("COMBINED_ENCODING_NOSE_FRAMES") else "")
                if os.environ.get("COMBINED_ENCODING_NOSE", "") == "3d" else "")                  # NOSE_ENV (11-24)
@@ -1281,9 +1297,11 @@ if TE:
     FGROUP = {"cue": "timing", "arrival": "timing", "pos_enl": "target", "pos_cue": "target",
               **{f"lick_onset@tgt:{q}": "target" for q in LICKSPOUT_POS},
               **{f"lick_onset@land:{q}": "execution" for q in TE_LAND},
-              **{v: "execution" for v in ("tongue_mag", "tongue_dir", "jaw_mag", "jaw_dir", "exec_angle")},
+              **{v: "execution" for v in ("tongue_mag", "tongue_dir", "jaw_mag", "jaw_dir", "exec_angle")
+                 if v not in _SPD_DROP or not POSE_SPD},
               **{v: "execution" for v in FR_VARS},
-              "contact": "contact", "nose_dir": "other", "nose_mag": "other", "running": "other", "push": "other"}
+              "contact": "contact", **({} if POSE_SPD else {"nose_dir": "other"}),
+              "nose_mag": "other", "running": "other", "push": "other"}
     FGROUPS = ("timing", "target", "execution", "contact", "other")
     SUPER = {"task": ("timing", "target"), "movement": ("execution", "other"), "nontask": ("execution", "other")}
     FPEN = {v: ("lick" if v.startswith("lick_onset@") or v in ("exec_angle", "contact")

@@ -302,7 +302,7 @@ def test_runner_progress_lock_and_readback():
     m = _mod()
     r = m.RUNNER
     for s_ in ("COMBINED_ENCODING_PROGRESS", "inputs loaded", "save start", "save end", "read-back ok",
-               "os.O_CREAT | os.O_EXCL", "LOCK_STALE_S", "atexit.register", "exiting without work"):
+               "os.O_CREAT | os.O_EXCL", "LOCK_STALE_S", "release_lock_on_exit", "exiting without work"):
         assert s_ in r, s_
     assert r.index("O_EXCL") < r.index("pickle.loads((b / \"inputs\"") < r.index("ce.run_session(")
     import inspect

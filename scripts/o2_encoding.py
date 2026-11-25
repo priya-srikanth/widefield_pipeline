@@ -141,8 +141,8 @@ except FileExistsError:
     fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
 os.write(fd, f"{os.environ.get('SLURM_JOB_ID', '')}_{os.environ.get('SLURM_ARRAY_TASK_ID', '')} {time.ctime()}".encode())
 os.close(fd)
-import atexit
-atexit.register(lambda: lock.unlink(missing_ok=True))
+from wfield_local import o2_bundle as _o2b
+_o2b.release_lock_on_exit(lock)                  # at exit AND on SIGTERM (scancel / time limit): no stale lock (11-25)
 stamp(f"{label}: start (tag {tag}, order {order}, only {os.environ.get('ONLY', '')!r}, exec {os.environ.get('EXEC', '') or 'bundle'})")
 from wfield_local import combined_encoding as ce
 inputs = pickle.loads((b / "inputs" / f"{label}.pkl").read_bytes())
