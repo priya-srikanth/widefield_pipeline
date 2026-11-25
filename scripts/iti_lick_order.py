@@ -122,6 +122,9 @@ def locanmf_inmask(animal: str) -> np.ndarray:
 
 DEC_LAB = {"areas_split": "Allen areas + ALM / tjM1 split", "areas": "Allen areas, plain",
            "nonlinear": "NON-LINEAR RBF kernel ridge on Allen areas + ALM / tjM1 split (lick_nonlinear_preds)"}.get(SOURCE, SOURCE)
+#: extra label for the frozen-store TAG only (lane E 11-24): a caller that changes the basis (lick_acad_midline_control
+#: appends ACAd columns, "_acad") gets its own tag so its entries are not listed under the main lick-order tag; "" = main
+FROZEN_TAG_EXTRA = ""
 CONTRIB_HOOK = None      # optional callable(set, animal, {label: (epoch, X scaled, act, order, pos)}, {held-out pre label | None: (scaler, ridge)})
 
 
@@ -231,7 +234,7 @@ def predictions() -> pd.DataFrame:
             if len(pre) < 3:
                 continue
             # STORED BY DEFAULT (11-02 pass 2, `frozen_readouts`, opt-out WIDEFIELD_ITI_FROZEN=0)
-            fits = frozen_readouts.pre_loso_ridge(a, f"iti_lick_order-{SOURCE}{SRC_TAG}-{st}", pre,
+            fits = frozen_readouts.pre_loso_ridge(a, f"iti_lick_order-{SOURCE}{SRC_TAG}{FROZEN_TAG_EXTRA}-{st}", pre,
                                                   {q: S[q][1] for q in pre}, {q: S[q][2] for q in pre},
                                                   np.logspace(-1, 5, 13))
             if CONTRIB_HOOK is not None:                 # lick_offset_contrib_map.py: the scaled features + frozen fit
