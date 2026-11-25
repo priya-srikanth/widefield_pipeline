@@ -91,14 +91,13 @@ def test_iti_lick_rate_counts_the_working_period_only(monkeypatch, tmp_path):
     monkeypatch.syspath_prepend(str(REPO / "scripts"))
     import iti_lick_rate as ilr
 
-    from wfield_local import orofacial_outputs as oo
     T = pd.DataFrame({"trial_id": [1, 2, 3, 4], "cue_s": [10.0, 20.0, 30.0, 40.0], "strobe_s": [7.0, 17.0, 27.0, 37.0],
                       "stop_s": [13.0, 23.0, 33.0, 43.0]})
     monkeypatch.setattr(ilr.il, "_behaviour", lambda lab: type("B", (), {"trials": T})())
-    (tmp_path / "licks_all.csv").write_text(
-        "trial_id,context,contact\n1,iti,False\n1,iti,True\n2,iti,False\n3,iti,False\n3,iti,False\n4,iti,False\n",
-        encoding="utf-8")
-    monkeypatch.setattr(oo, "session_dir", lambda *a, **k: tmp_path)
+    # the fused four-camera session table (11-24: iti_lick_rate reads il.session_lick_table, not cam4 licks_all.csv)
+    L = pd.DataFrame({"trial_id": [1, 1, 2, 3, 3, 4], "context": ["iti"] * 6,
+                      "contact": [False, True, False, False, False, False]})
+    monkeypatch.setattr(ilr.il, "session_lick_table", lambda lab, kin_cols=None: L.copy())
     # trials 1-2 working, 3-4 after the camera quit
     monkeypatch.setattr(tc, "camera_period_trials", lambda lab, cs: (np.array([1, 1, 0, 0], bool), None, True))
     monkeypatch.setattr(tc, "working_trial_ids", lambda lab: ({1: True, 2: True, 3: False, 4: False}, True))
