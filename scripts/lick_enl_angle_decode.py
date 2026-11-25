@@ -44,6 +44,7 @@ from __future__ import annotations
 from wfield_local.figure_layout import save_png_svg  # PNG + svg/<name>.svg twin (2026-11-06)
 
 import functools
+import os
 import sys
 from pathlib import Path
 
@@ -547,8 +548,14 @@ def main() -> int:
     print(C.to_string(index=False))
     C.to_csv(OUT / "enl_angle_decode_counts.csv", index=False)
     PRE, SS, CF = [], [], []
+    # ENL_VARIANTS (Priya 11-24, option ii): run only the listed (window, lick-free rule) variants, e.g.
+    # ENL_VARIANTS=1.0:slide = the primary (W 1.0 s, sliding lick-free window); every variant run freezes its decoder
+    only = [tuple(v.split(":")) for v in os.environ.get("ENL_VARIANTS", "").replace(" ", "").split(",") if v]
     for W in WINDOWS:
         for lf in LF_RULES:
+            if only and (f"{W:g}", lf) not in {(f"{float(w):g}", r) for w, r in only}:
+                print(f"== variant W={W} lickfree={lf}: skipped (ENL_VARIANTS={os.environ['ENL_VARIANTS']})", flush=True)
+                continue
             p, s, c = run_variant(T, W, lf, nshuf, names)
             PRE.append(p); SS.append(s); CF.append(c)
             print(f"\n== PRE W={W} lickfree={lf}\n" + p.round(3).to_string(index=False), flush=True)
