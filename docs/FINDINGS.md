@@ -41,6 +41,22 @@ window larger in orofacial cortex but shared with non-orofacial cortex), a contr
 cortex-wide and grows with time -- not concentrated in orofacial cortex; whether it is a stroke effect (diaschisis, state)
 or slow drift cannot be decided without a time-matched no-stroke reference.
 
+**Candidate thesis (11-25, Priya; CC-B): the spout representation is preserved after the stroke, the motor behavior
+changes.** What it rests on, four-camera 3-D lineage: (a) at the deficit spout (far contra) the acute SSp-m response
+falls (ipsilesional -0.49 of pre, contralesional -0.25) and the whole fall is the LICK-driven part of the response
+(4/4 animals), with the spout-identity (target) part unchanged (~0) and no unexplained residual (section 4 item 1;
+per-session G4 fits agree: lick part -24, target +0.1, residual -0.4 x1e-3 dF/F, SSp-m ipsi); the movement-first
+ordering makes the target part a lower bound, so "unchanged" is the strong direction; (b) pooled over spouts the acute
+evoked response is NOT smaller (3/4 at or above pre; larger chronically everywhere), so the fall is far-contra-specific;
+(c) pre-cue ENL position decoding survives movement removal (section 3); (d) a within-session refit recovers the
+far-contra accuracy the frozen decoder loses (Fig 4.4 pooled refit-minus-frozen gap +0.10 / +0.13 / +0.17 acute /
+subacute / chronic, 4/4, Bonferroni; four-camera 11-25). Against it, to state: the frozen far-contra decoder accuracy
+falls acutely (Fig 2.3, -0.61), so the READOUT pattern changes even where the information is retained; target and
+executed kernels are confounded by design. STATUS: CANDIDATE. Pending: the frozen-frame (wave-1 frame A) render of
+page Figs 17.1 / 17.2, the six-spout control (is the lick-part fall far-contra-specific in the decomposition?), and the
+frame-A residual check (speeds-only sensitivity frame on O2, readings 2.2 / 2.4 / 2.5 / 2.6 / 18.5 / 18.6 UNDER CHECK).
+Record: vls_stroke_paper/CHANGES_SINCE_20261124.md (11-25); run_records/2026-11-25/g4_key_results_ccB1125/.
+
 **Where things stand, state-space maps with movement removed (11-09, revised after the encoder / epoch-coupling /
 June / rest tests; 0c items 7-8, running list B28-B45):** the post-stroke change in cortical lick responses has two
 layers. (1) ACTIVITY: the cortex responds MORE after the first lick, most over bilateral anterolateral orofacial cortex
@@ -1548,6 +1564,10 @@ bootstrap unless stated; LICK DATA = behavior only.*
    Fig 8, 8b).
    **FROZEN + FaceRhythm (10-25, ENCODING_FINDINGS 8.10):** unchanged: predicted -.58 / -.61 vs measured -.30 / -.53 (SSp-m contra /
    ipsi, lick), target part ~0; FaceRhythm takes part of the lick share (page Fig 9-9b, 1).
+   **FOUR-CAMERA 3-D (11-25, G4 per-session enc_fourcam3d_20261124, lick-aligned):** same reading: SSp-m ipsi acute
+   measured -20.9, lick part -23.9, target +0.1, residual -0.4 (x1e-3 dF/F; 4/4; PS92-95 measured -33.5 / -26.9 /
+   -14.3 / -9.1); chronic rise = lick part, residual +0.04..+0.06 of pre (4/4). Frozen-frame (wave-1 frame A) render
+   of Figs 17.1 / 17.2 and the six-spout control PENDING. Feeds the 11-25 candidate thesis in section 0.
 2. **Chronically cortex responds MORE than the pre-stroke mapping predicts for the same behavior (the residual).**
    Residual +.32 / +.43 of the pre response (ipsi / contra SSp-m) with predicted change ~0, 4 / 4. Pixel maps,
    calibrated bins (random pre splits within the nominal 5 %): all six spouts pooled, 32 px, lick window 19 / 35 / 30
