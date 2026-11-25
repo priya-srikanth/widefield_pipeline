@@ -537,6 +537,7 @@ render_profile.apply("%s")
 os.environ["WIDEFIELD_REBUILD_ROOT"] = str(root)
 os.environ["WIDEFIELD_FROZEN_MODEL_DIR"] = str(root / "frozen_models")
 os.environ["WIDEFIELD_SESSION_CACHE"] = str(root / "session_cache")
+os.environ["WFIELD_ALLOW_FREEZE"] = "1"                         # 11-24: stores are load-only by default (rule 11)
 import importlib
 from wfield_local import session_cache
 importlib.reload(session_cache)

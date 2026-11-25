@@ -591,6 +591,7 @@ def stems() -> list:
 
 
 def main() -> int:
+    il.require_out_w(__file__)   # rule 11 (11-24): refuses the production iti_licks default before any compute
     import matplotlib
     matplotlib.use("Agg")
     from wfield_local import analysis_kit as ak

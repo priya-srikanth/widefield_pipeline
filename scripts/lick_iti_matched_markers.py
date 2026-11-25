@@ -502,6 +502,7 @@ def plot_farcontra(S: pd.DataFrame, M: pd.DataFrame, A: pd.DataFrame) -> None:
 
 # ------------------------------------------------------------------------------------------------ main
 def main() -> int:
+    il.require_out_w(__file__)   # rule 11 (11-24): refuses the production iti_licks default before any compute
     cmd = sys.argv[1] if len(sys.argv) > 1 else ""
     from wfield_local import writeguard
     writeguard.assert_writable(il.OUT_W)

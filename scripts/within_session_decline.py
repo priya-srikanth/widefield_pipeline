@@ -194,6 +194,8 @@ def extract_times(jobs: int | None):
 
 
 def main():
+    from wfield_local import protected_roots as _pr
+    _pr.out_from_env("WSD_OUT", OUT, "within_session_decline")   # rule 11: no production default
     ap = argparse.ArgumentParser()
     ap.add_argument("stage", choices=["extract", "times", "analyze", "plot"])
     ap.add_argument("--jobs", type=int, default=None)

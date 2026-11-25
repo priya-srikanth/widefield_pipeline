@@ -195,6 +195,7 @@ def trial_set_sentence() -> str:
 
 
 def main() -> int:
+    il.require_out_w(__file__)   # rule 11 (11-24): refuses the production iti_licks default before any compute
     from wfield_local import trial_set_text as tst
     tst.declare(text=trial_set_sentence())          # the --plot-only replot too
     if plot_only():                       # redraw from figdata only: no data, no bootstrap
@@ -206,7 +207,7 @@ def main() -> int:
         P = pd.read_csv(f)
     else:
         P = predictions()
-        P.to_csv(f, index=False)
+        P.to_csv(il.pred_file_out("first_lick_preds.csv.gz"), index=False)   # rule 11: never through pred_file
     print("lick_idx share first:", P.groupby("epoch").lick_idx.apply(lambda s: (s == 0).mean()).round(3).to_dict())
     S = sessions(P)
     S.to_csv(il.OUT_X / "first_lick_sessions.csv", index=False)

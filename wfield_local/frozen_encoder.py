@@ -2158,6 +2158,8 @@ def main(argv=None) -> int:
     # folder): it never writes into an existing frame.
     ap.add_argument("--basis-only", action="store_true",
                     help="write only fit/spatial_<animal>.pkl (shared SVD basis of the pre sessions; no regression)")
+    from wfield_local import frozen_models as _fm
+    _fm.add_allow_freeze_arg(ap)                         # rule 11 (11-24): a NEW frame (pre statistics) needs it
     a = ap.parse_args(argv)
     if a.basis_only and (a.target != "basis" or not a.out_root or a.fit_from or a.reuse_stats or a.trials_only):
         raise SystemExit("--basis-only: --target basis with a NEW --out-root, no --fit-from / --reuse-stats / --trials-only")
@@ -2243,6 +2245,16 @@ def main(argv=None) -> int:
             # byte-for-byte (the source fit stays read-only); an existing copy is left alone.
             copy_fit_spatial(src_fit, out / "fit", sorted({config.animal_of(x) for x in pre}))
     else:
+        # FREEZING A NEW FRAME (CLAUDE.md rule 11, 11-24): no saved statistics means this run computes NEW pre-stroke
+        # statistics + templates (+ spatial basis) and fits a new frozen frame in `out`. Load-only by default: that needs
+        # --allow-freeze / WFIELD_ALLOW_FREEZE=1 (Priya's approval). --fit-from / --reuse-stats re-score a saved frame.
+        if not (a.allow_freeze or _fm.allow_freeze()):
+            raise SystemExit(f"[frozen] {out}: no usable saved statistics, so this run would FREEZE a new frame (pre "
+                             f"statistics, templates, fits). Frames are load-only by default (CLAUDE.md rule 11): pass "
+                             f"--fit-from / --reuse-stats to re-score a saved frame, or --allow-freeze "
+                             f"(WFIELD_ALLOW_FREEZE=1) with Priya's approval.")
+        print(f"[frozen] FROZE frozen_encoder frame {out} (new pre statistics + templates + fits; --allow-freeze)",
+              flush=True)
         # pass 1 (behaviour only): the animals' SPOUT-LOCKED templates from their pre sessions (FGROUP comment)
         tparts, tfail = ak.fan_sessions(pre, template_job, jobs=a.jobs, label="template")
         if tfail:

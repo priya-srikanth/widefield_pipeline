@@ -358,3 +358,21 @@ section G = the animal's whole pre pool (engaged + no-lick); iti_readout = its e
   (`tests/test_frozen_fingerprint.py`); their per-session FRAME-level SD scaling (scripts' feature building, no centering
   over lick samples; DECISIONS fa70b651) is untouched.
 - Tests use temp stores only.
+
+## 9. LOAD-ONLY BY DEFAULT (CLAUDE.md rule 11, Priya 2026-11-24)
+
+On 11-24 two steps froze references as a side effect: a figure step (`lick_enlv_balance_offset --table`, 14:04, 12
+lick readers) and a neural-tail step (01:03, ACAd-variant decoders on a truncated input). Since then:
+
+- `frozen_models.load_or_fit` LOADS. A miss raises `FrozenMissError` naming the spec (animal, kind / align / source,
+  n pre sessions, spec_id, store). It fits and stores only when the run allows freezing: `WFIELD_ALLOW_FREEZE=1` or
+  `--allow-freeze` on the command line (copied into the env, so spawned workers inherit it). Every freeze prints
+  `[frozen] FROZE <animal> <slug> -> <dir>`.
+- `WIDEFIELD_FROZEN_LOAD_ONLY=1` (lane E's script-level guard) still forces load-only even when freezing is allowed.
+- `refreeze=` and an unreadable stored model also need the allowance (both write the store).
+- `frozen_encoder` refuses to compute a NEW frame (pre statistics, templates, fits) without `--allow-freeze`;
+  `--fit-from` / `--reuse-stats` re-scoring of a saved frame is unaffected.
+- The stores themselves are protected roots (`configs/protected_roots.yaml`, kind `frozen_store`: labcams/frozen_models*,
+  every LP_analysis/<run>/frozen_models*, every rebuild_*/frozen_models*, the local store and a
+  WIDEFIELD_FROZEN_MODEL_DIR store): any other write there (publish copies, supersede renames) also needs the allowance.
+- A freeze still needs Priya's approval; the flag records that the run was meant to freeze, it does not replace her.

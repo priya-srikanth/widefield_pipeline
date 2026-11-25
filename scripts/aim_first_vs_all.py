@@ -93,6 +93,7 @@ def tests(S: pd.DataFrame, n_boot: int | None = None) -> pd.DataFrame:
 
 
 def main(argv=None) -> int:
+    il.require_out_w(__file__)   # rule 11 (11-24): refuses the production iti_licks default before any compute
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--preds", type=Path, default=None, help="where-decoder lick table (default: il.pred_file cache)")
     ap.add_argument("--first-preds", type=Path, default=None, help="first-lick table (default: il.pred_file cache)")

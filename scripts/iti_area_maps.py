@@ -341,6 +341,7 @@ def changes(T: pd.DataFrame, val: str) -> pd.DataFrame:
 
 def main() -> int:
     """Compute every statistic, save the four figdata files, then draw (`draw_all` = the --plot-only path)."""
+    il.require_out_w(__file__)   # rule 11 (11-24): refuses the production iti_licks default before any compute
     from frozen_area_maps import area_image, outline
     labels = il.labels()
     D = {x: il.subset_bouts(il._load(x), x) for x in labels}

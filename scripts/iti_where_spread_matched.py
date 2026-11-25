@@ -51,6 +51,7 @@ def matched_r(act: np.ndarray, dec: np.ndarray, pre_act: np.ndarray, rng) -> tup
 
 
 def main(argv=None) -> int:
+    il.require_out_w(__file__)   # rule 11 (11-24): refuses the production iti_licks default before any compute
     il.split_only("iti_where_spread_matched")   # outputs not basis-tagged: split basis only (10-27 late)
     z = "--z" in (argv if argv is not None else sys.argv[1:])
     fp = il.pred_file("zscore_check/where_preds_z.csv") if z else il.pred_file("where_preds.csv")

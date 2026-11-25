@@ -909,6 +909,8 @@ def cmd_plot() -> None:
 
 
 def main() -> int:
+    from wfield_local import protected_roots as _pr
+    _pr.out_from_env("PST_OUT", OUT, "prelick_svd_tuning")   # rule 11: no production default
     from wfield_local import parallel
     parallel.pin_blas()
     args = [a for a in sys.argv[1:] if not a.startswith("--") and a not in (_arg("--jobs"), _arg("--only"),

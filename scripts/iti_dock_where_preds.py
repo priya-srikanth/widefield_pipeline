@@ -105,6 +105,7 @@ def r_table(Wz: pd.DataFrame, A: pd.DataFrame) -> pd.DataFrame:
 
 
 def main() -> int:
+    il.require_out_w(__file__)   # rule 11 (11-24): refuses the production iti_licks default before any compute
     if not il.ITI_SUBSET or il.OUT_W == il.OUT:
         raise SystemExit("needs WFIELD_ITI_FILTER in " + ", ".join(il.ITI_SUBSET_FILTERS) + " (writes under OUT_W only)")
     rel_z = Path("zscore_check") / il.tagged("where_preds_z.csv", il.PRED_TAG)

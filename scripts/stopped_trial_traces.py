@@ -1046,6 +1046,7 @@ def _tc_sel() -> str:
 
 
 def main() -> int:
+    il.require_out_w(__file__)   # rule 11 (11-24): refuses the production iti_licks default before any compute
     # wired to the camera trial gate 11-07 (Priya option a): `_states` takes the camera classes under gate=camera
     from wfield_local import analysis_kit as ak
     if plot_only():

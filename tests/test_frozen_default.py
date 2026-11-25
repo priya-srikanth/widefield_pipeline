@@ -23,6 +23,13 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 
 
+@pytest.fixture(autouse=True)
+def _allow_freeze(monkeypatch):
+    """These tests exercise the FIT path of load_or_fit; since 11-24 (CLAUDE.md rule 11) a store is load-only unless the
+    run allows freezing, which tests/test_protected_roots.py and test_load_only_is_the_default cover."""
+    monkeypatch.setenv("WFIELD_ALLOW_FREEZE", "1")
+
+
 class _Recorder:
     """Stands in for `frozen_models.load_or_fit`: records the spec, runs the fit (a store miss), returns its payload."""
 

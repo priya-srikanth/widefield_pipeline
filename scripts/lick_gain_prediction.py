@@ -71,6 +71,7 @@ def run() -> pd.DataFrame:
 
 
 def main() -> int:
+    il.require_out_w(__file__)   # rule 11 (11-24): refuses the production iti_licks default before any compute
     il.split_only("lick_gain_prediction")   # outputs not basis-tagged: split basis only (10-27 late)
     G = run()
     import iti_lick_order as lo

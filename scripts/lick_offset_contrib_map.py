@@ -634,6 +634,7 @@ def _coords() -> list[str]:
 
 
 def main() -> int:
+    il.require_out_w(__file__)   # rule 11 (11-24): refuses the production iti_licks default before any compute
     from figdata import load_fd, plot_only, save_fd
 
     from wfield_local import trial_set_text as tst
