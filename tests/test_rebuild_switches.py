@@ -484,6 +484,7 @@ def test_engagement_states_store_opt_out(monkeypatch):
 
 
 def test_engagement_states_store_freezes(monkeypatch, tmp_path):
+    monkeypatch.setenv("WFIELD_ALLOW_FREEZE", "1")   # fits into a tmp store (load-only default since 11-24)
     from types import SimpleNamespace
 
     from wfield_local import frozen_models as fm

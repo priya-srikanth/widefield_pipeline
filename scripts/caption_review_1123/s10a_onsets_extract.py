@@ -133,6 +133,7 @@ def main() -> None:
     labels = a.labels or sorted(pd.read_csv(REVUP, usecols=["label"]).label.unique())
     from wfield_local import parallel
     res, fails = parallel.fan_out([(x, a.out) for x in labels], _one, jobs=a.jobs, label="session")
+    res = sorted(res, key=lambda t: str(t[0]))            # fan_out returns COMPLETION order (rule 9)
     for _it, r in res:
         print(r, flush=True)
     for it, e in fails:

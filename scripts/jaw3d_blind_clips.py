@@ -319,6 +319,7 @@ def main(argv=None) -> int:
     from wfield_local import parallel
     items = [(r.to_dict(), str(a.folder)) for _, r in K.sort_values("id").iterrows()]
     res, fails = parallel.fan_out(items, render, jobs=a.jobs, label="clip")
+    res = sorted(res, key=lambda t: str(t[1]["id"]))      # fan_out returns COMPLETION order (rule 9)
     rows = sorted([x[1] for x in res], key=lambda d: d["id"]) + [{"id": it[0]["id"], "status": f"failed: {e}"}
                                                                    for it, e in fails]
     name = ("clip_status" + ("_mouth" if a.mouth else f"_fixed_{a.fixed}" if a.fixed else "")
