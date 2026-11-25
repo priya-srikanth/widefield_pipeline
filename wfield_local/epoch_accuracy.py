@@ -97,6 +97,7 @@ def _gap_at(y, p, code):
     PRESENT but unreadable by the pre-stroke model. Zero = both fail together, which is what a
     genuinely degraded code looks like.
     """
+    from wfield_local.grant_confusion import paired_frozen_hits
     from wfield_local.grant_figures import REFIT_UNAVAILABLE
 
     if code is None:
@@ -107,7 +108,8 @@ def _gap_at(y, p, code):
     m = (y == code) & (p[:, 1] != REFIT_UNAVAILABLE)
     if not m.any():
         return None
-    return float(np.mean(p[m, 1] == y[m]) - np.mean(p[m, 0] == y[m]))
+    # the frozen column through its one reader (a multi-draw matched record holds the fraction of draws correct)
+    return float(np.mean(p[m, 1] == y[m]) - np.mean(paired_frozen_hits(y[m], p[m])))
 def _gap_of(record, position):
     """`_gap_at` for one whole record, at one position NAME. `None` when the class is absent."""
     if record is None:
@@ -266,7 +268,8 @@ def _overall_at(y, p, arm):
     m = p[:, 1] != REFIT_UNAVAILABLE
     if m.sum() < 20:
         return None
-    fz = float((p[m, 0] == y[m]).mean())
+    from wfield_local.grant_confusion import paired_frozen_hits
+    fz = float(paired_frozen_hits(y[m], p[m]).mean())
     rf = float((p[m, 1] == y[m]).mean())
     return {"frozen": fz, "refit": rf, "gap": rf - fz}[arm]
 def _overall_of(record, arm):
@@ -350,7 +353,9 @@ def _frozen_vs_refit_overall(out_dir, align, variant, wname, *, matched=False):
                                "chronically",
                                "gap = refit - frozen, paired within trial",
                                "delta panel is epoch - pre, so the frozen arm goes NEGATIVE when "
-                               "the readout is worse"])
+                               "the readout is worse"]
+                        # many matched draws (WIDEFIELD_MATCHED_DRAWS): say what the frozen arm is; legacy unchanged
+                        + ([G.matched_note()] if matched and G.matched_draws() is not None else []))
     made = ef.bar_row(
         values, out_dir, name=f"epoch_{key}_frozen_refit_overall_{align}_{variant}",
         title=f"Frozen vs refit decoding, pooled over positions{what}, {wname}",
@@ -437,7 +442,7 @@ def _frozen_vs_refit(out_dir, align, variant, wname, *, matched=False):
         return None
     key = "5rm" if matched else "5r"
     what = (" (training-set MATCHED)" if matched else "")
-    note_arm = (["frozen arm trained on a size-matched random subset of pre-stroke BLOCKS",
+    note_arm = ([G.matched_note(),
                  "the pre gap is cross-session generalization, not training-set size"]
                 if matched else
                 ["each session scored by a 5-fold block-CV decoder fitted on ITSELF",

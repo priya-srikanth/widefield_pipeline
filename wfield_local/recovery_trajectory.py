@@ -94,7 +94,8 @@ def _pre_pair(pre_entry):
     m = p[:, 1] != REFIT_UNAVAILABLE            # drop classes the refit arm was never asked about
     if m.sum() < 20:
         return None, None
-    return float((p[m, 0] == y[m]).mean()), float((p[m, 1] == y[m]).mean())
+    from wfield_local.grant_confusion import paired_frozen_hits
+    return float(paired_frozen_hits(y[m], p[m]).mean()), float((p[m, 1] == y[m]).mean())
 
 
 def _session_pair(record):
@@ -110,7 +111,8 @@ def _session_pair(record):
     m = p[:, 1] != REFIT_UNAVAILABLE
     if m.sum() < 20:
         return None
-    return float((p[m, 0] == y[m]).mean()), float((p[m, 1] == y[m]).mean()), int(m.sum())
+    from wfield_local.grant_confusion import paired_frozen_hits
+    return float(paired_frozen_hits(y[m], p[m]).mean()), float((p[m, 1] == y[m]).mean()), int(m.sum())
 
 
 def series(align: str = "cue", variant: str = "working", matched: bool = False) -> list[dict]:

@@ -626,6 +626,114 @@ def _matched_frozen(pipe_of, Xp, Yp, Bp, n_target, rng):
     from wfield_local import spout_scaling
     fitted.spout_pi_train_ = spout_scaling.class_prior(Yp[keep])
     return fitted, int(keep.sum())
+#: MANY MATCHED DRAWS PER SCORED SESSION (Priya 2026-11-25: "Average each session over many matched draws - yes, could
+#: be more than this even"). WHY: with ONE draw per session the matched model is a single random ~400-trial subset of
+#: the pre-stroke blocks, and the old seed (`_seed(animal, align, class) + 1000003 * n_trials + first block`) moves with
+#: the session's TRIAL COUNT -- a one-trial change in the trial set gave a completely different matched model, and
+#: per-session far-contra values moved by up to 0.4 between the v36 and four-camera lineages for that reason alone.
+#:
+#:   unset / "legacy"  ONE draw, the old seed rule: reproduces every stored `matched_frozen` entry and table exactly
+#:                     (pinned, tests/test_matched_draws.py). THE DEFAULT on this branch: a render opts in.
+#:   an integer N >= 1 N draws per scored session, draw d seeded by `matched_draw_seed(session label, d)` -- a stable
+#:                     hash of the LABEL and the DRAW INDEX only, never of the trial count. Stored under its OWN spec
+#:                     (`matched_spec_align`: "...-draws<N>-labelseed1"), so the legacy entries are never touched.
+#:
+#: HOW N DRAWS ENTER A RECORD (`matched_frozen_column` / `paired_frozen_hits`): the record stays ONE (y, p, blocks) per
+#: session with ``p`` (n, 2); column 1 is the within-session refit label as before (fitted once -- it does not depend
+#: on the draw), column 0 is ``MATCHED_FRAC_BASE + (fraction of the valid draws whose prediction is correct on that
+#: trial)``. Every reducer reads the frozen column through `paired_frozen_hits`, whose mean over any trial set is
+#: EXACTLY the mean over draws of that draw's accuracy on that set (all draws score the same trials). Trial counts,
+#: block ids, the paired refit column and the hierarchical bootstrap (animals -> sessions -> blocks) are untouched,
+#: so the comparison stays paired at the trial level and the bootstrap costs what it did with one draw.
+#: (Rejected: N stacked copies of each trial -- every count / min-trial gate inflates N-fold and each bootstrap draw
+#: concatenates N-fold arrays; a per-trial random pick of one draw -- keeps Bernoulli noise the average removes.)
+#: The base is not a label, so a reader that still compares column 0 with ``y`` gets a frozen accuracy of exactly 0,
+#: never a plausible number (tests/test_matched_draws.py also greps for such readers).
+MATCHED_DRAWS_ENV = "WIDEFIELD_MATCHED_DRAWS"
+MATCHED_DRAWS_LEGACY = "legacy"
+#: Name of the label seed rule; part of the spec's align and of the hashed seed text. Bump it if the rule changes.
+MATCHED_SEED_RULE = "labelseed1"
+#: Offset of the encoded per-trial fraction in column 0 (a power of two: fraction + base is exact to ~4e-15).
+MATCHED_FRAC_BASE = 16.0
+#: Read-only hooks for `scripts/matched_draws_pilot.py`; None (the default) changes nothing. CAPTURE: a list that
+#: receives one dict per scored session (animal, label, pre, y, refit, hits [n_draws x n_trials bool], seeds).
+#: ONLY_LABELS: a set of session labels -- under it the matched arm scores only those sessions (others return None).
+MATCHED_DRAW_CAPTURE = None
+MATCHED_ONLY_LABELS = None
+
+
+def matched_draws():
+    """None = the legacy single draw (old seed rule); else N, the number of label-seeded draws per scored session."""
+    import os
+
+    v = os.environ.get(MATCHED_DRAWS_ENV, "").strip().lower()
+    if v in ("", MATCHED_DRAWS_LEGACY):
+        return None
+    try:
+        n = int(v)
+    except ValueError:
+        n = 0
+    if n < 1:
+        raise ValueError(f"{MATCHED_DRAWS_ENV} must be '{MATCHED_DRAWS_LEGACY}' (or unset) or an integer >= 1, got {v!r}")
+    return n
+
+
+def matched_draw_seed(label: str, draw: int) -> int:
+    """Seed of matched draw ``draw`` for the scored session ``label``: blake2b of the rule name, the label and the draw
+    index (stable across processes, machines and Python versions; NOT `hash`). Nothing about the session's trials
+    enters, so a changed trial count moves at most where the same block order is cut (`_matched_frozen` adds whole
+    blocks in the drawn order until n_target), never the order itself. The same label draws the same pre-stroke block
+    order in every window and class (their pools differ only where the class changes the pre rows)."""
+    import hashlib
+
+    txt = f"matched-draws|{MATCHED_SEED_RULE}|{label}|{int(draw)}"
+    return int.from_bytes(hashlib.blake2b(txt.encode("utf-8"), digest_size=8).digest(), "big") >> 1
+
+
+def matched_tag() -> str:
+    """"" for the legacy single draw, else ``draws<N>-labelseed1``: enters the store spec, the collector's cache key
+    and the figure notes."""
+    n = matched_draws()
+    return "" if n is None else f"draws{n}-{MATCHED_SEED_RULE}"
+
+
+def matched_spec_align(an, align, variant) -> str:
+    """The ``align`` field of the `matched_frozen` spec. Legacy: ``<align>-<class>-seed<base>`` (unchanged, so the
+    stored single-draw entries still hit). Multi-draw: ``<align>-<class>-draws<N>-labelseed1`` -- a NEW spec id."""
+    tag = matched_tag()
+    return f"{align}-{variant}-{tag}" if tag else f"{align}-{variant}-seed{abs(_seed(an, align, variant))}"
+
+
+def matched_note() -> str:
+    """What the matched frozen arm is, for figure notes / captions (provenance, Priya 11-06)."""
+    n = matched_draws()
+    if n is None:
+        return "frozen arm trained on a size-matched random subset of pre-stroke BLOCKS"
+    return (f"frozen arm = mean over {n} size-matched random subsets of pre-stroke BLOCKS per scored session "
+            f"(draws seeded by session label)")
+
+
+def matched_frozen_column(hits, n_valid):
+    """Column 0 of a multi-draw matched record: ``MATCHED_FRAC_BASE + hits / n_valid`` (``hits`` = per-trial count of
+    the valid draws whose prediction was correct)."""
+    return MATCHED_FRAC_BASE + np.asarray(hits, float) / float(n_valid)
+
+
+def paired_frozen_hits(y, p):
+    """Per-trial correctness of the FROZEN column of a paired record, as floats in [0, 1]: THE ONE READER of column 0.
+
+    One-draw records (modes "paired", legacy "paired_matched") hold the predicted label there: 1.0 where it equals
+    ``y``, else 0.0 -- so ``paired_frozen_hits(y, p).mean()`` is exactly the old ``(p[:, 0] == y).mean()``. Multi-draw
+    matched records hold the encoded fraction of draws correct (`matched_frozen_column`). Decided per trial, so pooled
+    record sets read correctly too."""
+    y, p = np.asarray(y), np.asarray(p)
+    c0 = p[:, 0]
+    if c0.dtype.kind != "f":
+        return (c0 == y).astype(float)
+    enc = c0 >= MATCHED_FRAC_BASE
+    return np.where(enc, c0 - MATCHED_FRAC_BASE, (c0 == y).astype(float))
+
+
 #: When a list, `_collect_5c_cached` appends every session's REFIT inputs to it (dict animal, label, pre, X, y, blk) --
 #: exactly the arrays `_refit_pred` sees for the 5r figures. Read-only hook for `scripts/refit_matched_pre.py`
 #: (D6, Priya 11-08); None (the default) changes nothing.
@@ -791,6 +899,9 @@ def _collect_5c(align, variant="working", mode="frozen"):
     # besides the output tag that already carries the run's selection tag
     run = (lp_licks.output_tag() or "", sc or "z", spout_scaling.centre_rows() if sc else "",
            _tc.run_selection(), _wt.selection())
+    if mode == "paired_matched" and matched_tag():
+        # many matched draws: their own key (PREPENDED; the legacy key is the tuple it always was)
+        run = (matched_tag(),) + run
     return _collect_5c_cached(align, variant, mode, run)
 
 
@@ -894,7 +1005,7 @@ def _collect_5c_cached(align, variant="working", mode="frozen", _run=None):
             elif mode == "paired_matched" and epoch_frozen_on():
                 from wfield_local import trial_classes as _tcm
                 mm_spec = frozen_models.make_spec(
-                    an, "matched_frozen", align=f"{align}-{variant}-seed{abs(_seed(an, align, variant))}",
+                    an, "matched_frozen", align=matched_spec_align(an, align, variant),
                     source="locanmf", train_labels=[kept[i] for i in sorted(pre_i)], post_s=2.0,
                     basis_id=bd.get("basis_id"), n_features=int(XE.shape[1]),
                     train_data=(XE, YE, GE, XU, YU, GU, (not_eng if bd.get("cls") is None else None), BE_all, BU_all,
@@ -917,6 +1028,21 @@ def _collect_5c_cached(align, variant="working", mode="frozen", _run=None):
                 A, B = (XEs, XUs) if frozen_frame else (XE, XU)
                 return np.vstack([A[me]] + ([B[mu]] if mu.any() else []))
 
+            def _matched_X(model, X, X_refit, sess, me, mu, fr=fr, bd=bd, XE=XE, XU=XU, uw=uw, RX=RX, RG=RG):
+                """The rows a matched model scores: ITS OWN bal_em frame (centre from this session's engaged rows, its
+                own training prior); identity under session_z."""
+                if fr["scaling"] != "session_z":
+                    if [int(c) for c in model.classes_] == list(range(6)):
+                        Xe_, Xu_ = _frozen_score_rows(bd, model, model.spout_pi_train_, sess,
+                                                      XE[me], XU[mu] if mu.any() else None,
+                                                      centre_rows=RX[RG == sess] if uw else None)
+                        X = np.vstack([Xe_] + ([Xu_] if Xu_ is not None else []))
+                    else:
+                        X = X_refit        # a subset missing a spout: no 6-class EM; production frame
+                return X
+
+            n_draws = matched_draws() if mode == "paired_matched" else None
+
             def rec(X, y, blk, model, pool=None, X_refit=None, sess=None, me=None, mu=None, pool_tag="post",
                     an=an, fr=fr, bd=bd, XE=XE, XU=XU):
                 # loop variables bound as defaults: rec is only called within this iteration, but a late-binding
@@ -935,9 +1061,41 @@ def _collect_5c_cached(align, variant="working", mode="frozen", _run=None):
                 if mode == "paired_matched":
                     if pool is None:
                         return None
+                    if MATCHED_ONLY_LABELS is not None and (sess is None or bd["kept"][sess] not in MATCHED_ONLY_LABELS):
+                        return None
                     k = min(5, int(np.unique(blk).size))
                     # what the refit model gets: (k-1)/k of this session's trials
                     n_target = int(round(len(y) * max(k - 1, 1) / max(k, 1)))
+                if mode == "paired_matched" and n_draws is not None:
+                    # N LABEL-SEEDED DRAWS (see MATCHED_DRAWS_ENV). The refit column first: it does not depend on the
+                    # draw, and a session the refit cannot be fitted on is absent from the record set either way.
+                    lab_s = bd["kept"][sess]
+                    rf = _refit_pred(_pipe, X if X_refit is None else X_refit, y, blk)
+                    if rf is None:
+                        return None
+                    hits, n_ok, per_draw, seeds = np.zeros(len(y), float), 0, [], []
+                    for d_i in range(n_draws):
+                        seed_d = matched_draw_seed(lab_s, d_i)
+                        got = _mf(pool_tag, pool, n_target, seed_d)
+                        if got is None:
+                            continue               # a subset that cannot carry two classes: this draw does not vote
+                        h = np.asarray(got[0].predict(_matched_X(got[0], X, X_refit, sess, me, mu))) == y
+                        hits += h
+                        n_ok += 1
+                        if MATCHED_DRAW_CAPTURE is not None:
+                            per_draw.append(h)
+                            seeds.append(seed_d)
+                    if not n_ok:
+                        return None
+                    if n_ok < n_draws:
+                        print(f"  [5rm] {an} {align} {variant} {lab_s}: {n_ok} of {n_draws} matched draws valid "
+                              "(the others could not carry two classes)", flush=True)
+                    if MATCHED_DRAW_CAPTURE is not None:
+                        MATCHED_DRAW_CAPTURE.append(dict(animal=an, label=lab_s, pre=sess in bd["pre_i"], y=y,
+                                                         refit=np.asarray(rf), hits=np.asarray(per_draw, bool),
+                                                         seeds=seeds, n_target=n_target))
+                    return (y, np.column_stack([matched_frozen_column(hits, n_ok), np.asarray(rf, float)]), blk)
+                if mode == "paired_matched":
                     # SEEDED PER SCORED SESSION, not per animal. One seed per animal makes
                     # `rng.permutation` return the same block ORDER every time, so every session of
                     # that animal is scored by very nearly the SAME matched model -- one draw
@@ -947,16 +1105,7 @@ def _collect_5c_cached(align, variant="working", mode="frozen", _run=None):
                     if got is None:
                         return None
                     model = got[0]
-                    # the matched model scores in ITS OWN bal_em frame (centre from this session's engaged
-                    # rows, its own training prior); identity under session_z
-                    if fr["scaling"] != "session_z":
-                        if [int(c) for c in model.classes_] == list(range(6)):
-                            Xe_, Xu_ = _frozen_score_rows(bd, model, model.spout_pi_train_, sess,
-                                                          XE[me], XU[mu] if mu.any() else None,
-                                                          centre_rows=RX[RG == sess] if uw else None)
-                            X = np.vstack([Xe_] + ([Xu_] if Xu_ is not None else []))
-                        else:
-                            X = X_refit        # a subset missing a spout: no 6-class EM; production frame
+                    X = _matched_X(model, X, X_refit, sess, me, mu)
                 fz = np.asarray(model.predict(X))
                 if mode == "frozen":
                     return (y, fz, blk)
