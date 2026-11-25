@@ -793,6 +793,49 @@ def class_source_signature(v36: Path | str | None = None, c1: Path | str | None 
     return _CLASS_SIG[key]
 
 
+_SESSION_SIG: dict = {}
+
+
+def _class_code_digest() -> str:
+    """The CODE part of `class_source_signature` (class functions + cam1 keep rule + frame-coverage gate + threshold)."""
+    import sys
+
+    from wfield_local import cam1_licks, frame_coverage, map_collect
+    return "|".join((map_collect.code_digest(map_collect.closure(sys.modules[__name__], *CLASS_CODE_ROOTS)),
+                     map_collect.code_digest(map_collect.closure(cam1_licks, "keep_mask")),
+                     map_collect.code_digest(map_collect.closure(frame_coverage, "coverage_table", "trial_windows_s",
+                                                                 "_session_coverage", "fusion_cams")),
+                     f"cov>={frame_coverage.MIN_FRAME_COVERAGE}"))
+
+
+def session_class_signature(label: str) -> str:
+    """sha1[:10] of ONE session's camera-class rows (efficiency audit 11-24 item 2, Priya approved): `session_trials`
+    for the default and the run's gate window (every column: class, evidence, coverage gate), the session's own fused
+    lick rows when the fused train is the lick set, and the class CODE (`_class_code_digest`). Enters that session's
+    camera-gated cache kinds (`session_cache.effective_kind(kind, label)`) in place of the cohort-wide
+    `class_source_signature`, so a rule change that relabels trials in 11 sessions invalidates those 11, not all 108.
+    Memoised per process."""
+    import hashlib
+
+    from wfield_local import session_licks as SL
+    key = (label, SL.signature(), gate_window())
+    if key not in _SESSION_SIG:
+        h = hashlib.sha1(_class_code_digest().encode())
+        for w in sorted({DEFAULT_WINDOW, gate_window()}):
+            T = session_trials(label, window=w)
+            if T is None:
+                h.update(f"[{w}:nocls]".encode())
+                continue
+            h.update(f"[{w}:{','.join(map(str, T.columns))}:{len(T)}]".encode())
+            h.update(pd.util.hash_pandas_object(T, index=False).to_numpy().tobytes())
+        if SL.fused_on():
+            L = SL.session_licks(label)
+            h.update(f"[licks:{SL.signature()}:{','.join(map(str, L.columns))}:{len(L)}]".encode())
+            h.update(pd.util.hash_pandas_object(L, index=False).to_numpy().tobytes())
+        _SESSION_SIG[key] = h.hexdigest()[:10]
+    return _SESSION_SIG[key]
+
+
 def camera_engaged_period(label: str, cue_s) -> np.ndarray:
     """``bool[n_cues]``: the session's camera WORKING PERIOD for the REST-BASELINE gates (`rest_engagement`,
     `rest_by_position`), which ask "is this rest inside the working period", not "did this trial respond": the cues
