@@ -37,7 +37,11 @@ def main() -> int:
     a = ap.parse_args()
     for source in a.sources:
         d = il.OUT_X / f"basis_{source}"
-        labels = sorted(p.stem for p in (d / "sessions").glob("*.npz"))
+        d.mkdir(parents=True, exist_ok=True)
+        # sessions = the basis session files the decoders read (redirected run: the upstream copy, read only; 11-25)
+        labels = sorted(p.stem for p in (il.in_path_x(f"basis_{source}") / "sessions").glob("*.npz"))
+        if not labels:
+            raise SystemExit(f"no basis_{source}/sessions/*.npz under {il.in_path_x(f'basis_{source}')}")
         res, fails = ak.fan_sessions([(x, source) for x in labels], frame_sd, jobs=a.jobs, label=f"frame SD {source}")
         if fails:
             print("FAILED:", [f[0] for f in fails])

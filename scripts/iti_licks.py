@@ -183,6 +183,19 @@ def __getattr__(name: str):
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
+#: explicit folder holding basis_<source>/frame_sd.csv (iti_basis_frame_sd.py written into a new folder; lane E 11-25)
+FRAME_SD_ENV = "WFIELD_FRAME_SD_DIR"
+
+
+def frame_sd_path(source: str) -> Path:
+    """READ path of basis_<source>/frame_sd.csv (source = svdbasis | locanmf): WFIELD_FRAME_SD_DIR when set, else
+    in_path_x as before."""
+    rel = f"basis_{source}/frame_sd.csv"
+    if os.environ.get(FRAME_SD_ENV, "").strip():
+        return Path(os.environ[FRAME_SD_ENV].strip()) / rel
+    return in_path_x(rel)
+
+
 def in_path_x(rel: str | Path) -> Path:
     """READ path matching OUT_X: `in_path(rel)` under WFIELD_ITI_OUT_W (the redirected copy when it exists, else the
     production one), else OUT/rel exactly as before."""
