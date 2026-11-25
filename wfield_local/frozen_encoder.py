@@ -43,6 +43,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -609,6 +610,92 @@ def raw_blocks(B, ft, **kw) -> dict:
         return split_blocks(_ce().raw_blocks(B, ft, **kw))
 
 
+#: DESIGN-RAW SIDECAR (efficiency audit 11-24 item 4, Priya approved). `raw_blocks` + `_fr_columns` are ~83 % of a warm
+#: `session_design` (measured PS92_0806, four-camera spont_frA env: 17.0 + 20.5 of 44.9 s) and identical across the
+#: template / basis / statistics / capture passes of a frame and across frames that share the behaviour + FR inputs.
+#: They are built once per session and stored as <dir>/<label>_<key>.pkl, dir = FROZEN_DESIGN_RAW_CACHE (OPT-IN: unset
+#: or "0" = no sidecar, unchanged behaviour). ~0.6 GB per session (PS92_0806: 577 MB), ~60 GB per 107-session env:
+#: point it at a disk with room (and delete it after the wave; it is derived and rebuilt on demand).
+#: The key (`design_raw_key`) is the CONTENT the blocks are built from: a sha1 of the loaded Behaviour object and of the
+#: frame times, the FaceRhythm projection files (stat), the design env (FROZEN_* / COMBINED_ENCODING_* / OROFACIAL_* /
+#: WIDEFIELD_*, minus pure output / scheduling switches) and a digest of the building code. Relabelled designs
+#: (`relabel=`, the permuted spouts) are never cached.
+DESIGN_RAW_ENV = "FROZEN_DESIGN_RAW_CACHE"
+DESIGN_RAW_VERSION = 1
+_DESIGN_RAW_ENV_SKIP = {DESIGN_RAW_ENV, "FROZEN_OUT_ROOT", "FROZEN_FIG_OUT", "WIDEFIELD_MAX_JOBS", "WIDEFIELD_MAP_JOBS",
+                        "WIDEFIELD_SESSION_CACHE", "WIDEFIELD_SESSION_CACHE_READ_FROM", "WIDEFIELD_FROZEN_MODEL_DIR",
+                        "WIDEFIELD_FROZEN_LOAD_ONLY", "WIDEFIELD_REBUILD_ROOT"}
+
+
+def design_raw_dir() -> Path | None:
+    v = os.environ.get(DESIGN_RAW_ENV, "").strip()
+    if v.lower() in ("0", "off", "no", "none", "false"):
+        return None
+    return Path(v) if v else None
+
+
+def design_raw_key(label: str, B, ft: np.ndarray, animal: str, date: str, rv) -> str:
+    """sha1[:16] of what `raw_blocks(B, ft)` + `_fr_columns` read (see DESIGN_RAW_ENV)."""
+    import hashlib
+    import pickle
+
+    from wfield_local import map_collect
+    h = hashlib.sha1(f"design_raw v{DESIGN_RAW_VERSION}|{label}|".encode())
+    h.update(hashlib.sha1(pickle.dumps(B, protocol=pickle.HIGHEST_PROTOCOL)).digest())
+    h.update(np.ascontiguousarray(np.asarray(ft, float)).tobytes())
+    env = sorted((k, v) for k, v in os.environ.items()
+                 if k.startswith(("FROZEN_", "COMBINED_ENCODING_", "OROFACIAL_", "WIDEFIELD_")) and k not in _DESIGN_RAW_ENV_SKIP)
+    h.update(repr(env).encode())
+    if FR_VARS:
+        from wfield_local import face_rhythm_outputs as fro
+        fdir = fro.factor_dir(rv, set_name=os.environ["COMBINED_ENCODING_FR"])
+        for f in sorted(fro.session_keys(fdir, animal, date)):
+            h.update(map_collect.stat_sig(f).encode() + b";")
+        for f in sorted(p for p in Path(fdir).iterdir() if p.is_file()) if Path(fdir).is_dir() else []:
+            h.update(map_collect.stat_sig(f).encode() + b";")
+    ce = _ce()
+    from wfield_local import face_rhythm_outputs as fro
+    from wfield_local import fr_groups, trial_windows
+    h.update(map_collect.code_digest(
+        map_collect.closure(sys.modules[__name__], "raw_blocks", "_fr_columns", "split_blocks", "_licks_all_env"),
+        map_collect.closure(ce, "raw_blocks"), map_collect.closure(fro, "fr_signals"),
+        map_collect.closure(fr_groups, "group", "spec"), map_collect.closure(trial_windows, "trial_bounds")).encode())
+    return h.hexdigest()[:16]
+
+
+def _design_raw_build(B, ft, animal: str, date: str, rv) -> dict:
+    raw = raw_blocks(B, ft)
+    if FR_VARS:                                          # FaceRhythm columns (FROZEN_FR); split like pose if FR_SPLIT
+        raw.update(_fr_columns(animal, date, rv, ft))
+    return raw
+
+
+def design_raw(label: str, B, ft: np.ndarray, animal: str, date: str, rv) -> dict:
+    """`raw_blocks(B, ft)` + `_fr_columns` (unpermuted), through the design-raw sidecar when one is configured. Always a
+    fresh dict (session_design replaces raw["running"] / adds raw["push"])."""
+    import pickle
+    d = design_raw_dir()
+    if d is None:
+        return _design_raw_build(B, ft, animal, date, rv)
+    f = d / f"{label}_{design_raw_key(label, B, ft, animal, date, rv)}.pkl"
+    if f.exists():
+        try:
+            with open(f, "rb") as fh:
+                return pickle.load(fh)
+        except Exception:                                # noqa: BLE001 - torn / stale entry: rebuild it
+            pass
+    raw = _design_raw_build(B, ft, animal, date, rv)
+    d.mkdir(parents=True, exist_ok=True)
+    tmp = f.with_name(f"{f.name}.{os.getpid()}.tmp")
+    with open(tmp, "wb") as fh:
+        pickle.dump(raw, fh, protocol=pickle.HIGHEST_PROTOCOL)
+    try:
+        os.replace(tmp, f)                               # atomic; a concurrent worker wrote the same content
+    except OSError:
+        tmp.unlink(missing_ok=True)
+    return raw
+
+
 def spont_counts(B) -> dict:
     """{n_post, n_pre, n_iti, n_contacts}: the split design's lick counts (`combined_encoding.split_licks`; every lick in
     exactly one kernel) and its whole-window contacts; {} for v7g3_t3d."""
@@ -774,11 +861,11 @@ def session_design(label: str, templates: dict | None = None, template_only: boo
         lab_r = np.array([relabel.get(p_, p_) for p_ in T.pos.to_numpy()], dtype=object)
         raw = raw_blocks(B, ft, pos_perm={"pos_enl": lab_r, "pos_cue": lab_r})
         pos_split = np.array([relabel.get(p_, p_) for p_ in pos_of], dtype=object)
+        if FR_VARS:                                      # FaceRhythm columns (FROZEN_FR); split like pose if FR_SPLIT
+            raw.update(_fr_columns(animal, date, rv, ft))
     else:
-        raw = raw_blocks(B, ft)
+        raw = design_raw(label, B, ft, animal, date, rv)  # raw blocks + FR columns, built once per session (sidecar)
         pos_split = pos_of
-    if FR_VARS:                                          # FaceRhythm columns (FROZEN_FR); split like pose if FR_SPLIT
-        raw.update(_fr_columns(animal, date, rv, ft))
     xc = {v: _centred(raw[v][ridx].astype(np.float64)) for v in SPLIT_VARS}
     if template_only:
         run0 = np.abs(raw["running"][ridx, 0].astype(np.float64))         # lag-0 |speed| on trial frames (RUN_CAP_Q)
