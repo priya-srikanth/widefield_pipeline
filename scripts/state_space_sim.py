@@ -349,7 +349,9 @@ def _bcache():
 
 def _check_extract(z, p):
     """An Allen ITI extract (it has `cols`) must be on the current analysis masks; component files pass."""
-    if "cols" in z.files:
+    # 11-25: the BASIS decides, not the `cols` key -- the cohort-SVD files carry `cols` (svd#k_side) too, so every SVD
+    # file was refused as a mask-less Allen extract (their mask is checked by `_check_svd_mask`)
+    if BASIS == "allen" and "cols" in z.files:
         from wfield_local import mask_keys
         mask_keys.check_obj(z, p, rebuild=True)
 
