@@ -815,6 +815,7 @@ def trial_set_sentence(history: bool = False) -> str:
 
 
 def main() -> int:
+    il.require_out_w(__file__)   # rule 11 (11-24): refuses the production iti_licks default before any compute
     from wfield_local import writeguard
     writeguard.assert_writable(OUT / "enl_hist_test.csv")
     il.split_only("lick_enl_offset_explore.py")

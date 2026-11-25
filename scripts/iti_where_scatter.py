@@ -346,6 +346,7 @@ def _plot_scatter(F: dict, z: bool) -> None:
 
 
 def main() -> int:
+    il.require_out_w(__file__)   # rule 11 (11-24): refuses the production iti_licks default before any compute
     from wfield_local import trial_set_text as tst
     il.split_only("iti_where_scatter")   # outputs not basis-tagged: split basis only (10-27 late)
     tag = "_z" if "--z" in sys.argv else ""   # --z: z-scored predictions from iti_zscore_check.py -> *_z figures / tables

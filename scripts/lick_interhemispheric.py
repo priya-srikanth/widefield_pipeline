@@ -1029,6 +1029,7 @@ def plot_simple() -> None:
 
 # ------------------------------------------------------------------------------------------------ main
 def main() -> None:
+    il.require_out_w(__file__)   # rule 11 (11-24): refuses the production iti_licks default before any compute
     # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     ap = argparse.ArgumentParser()
     ap.add_argument("--jobs", type=int, default=4)

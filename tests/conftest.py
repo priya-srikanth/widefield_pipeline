@@ -133,6 +133,26 @@ def _refuse(path, how: str):
 
 
 @pytest.fixture(autouse=True)
+def protected_guard_warn(monkeypatch):
+    """The rule-11 write guard (wfield_local.protected_roots, iti_licks.require_out_w) runs in WARN mode under pytest
+    (11-24): tests run writers against tmp folders that the guard cannot tell from a production default, and REAL share
+    writes are already failed by `no_share_writes` below. tests/test_protected_roots.py deletes this variable in its own
+    fixture, so the guard's refusals are still tested in enforce mode."""
+    monkeypatch.setenv("WFIELD_PROTECTED_GUARD", "warn")
+
+
+@pytest.fixture(autouse=True)
+def fresh_input_provenance():
+    """`input_provenance` keeps a process-wide record of the inputs loaded, and caption sentences append it (lane E
+    11-24). Clear it around every test so one test's loads never reach another test's caption (11-24: ~90 trial-set
+    tests failed only in the full run, their sentences carrying an earlier test's fused-lick signature)."""
+    from wfield_local import input_provenance
+    input_provenance.reset()
+    yield
+    input_provenance.reset()
+
+
+@pytest.fixture(autouse=True)
 def no_share_writes(monkeypatch):
     """Fail any test that opens-for-write, mkdirs, copies or removes on a real share.
 

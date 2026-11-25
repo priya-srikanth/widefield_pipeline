@@ -292,6 +292,7 @@ def test_state_space_svd_basis_mask_checked(tmp_path, monkeypatch):
 
 # ------------------------------------------------------------------------------------------------ item 5: DAQ_RUN_FP
 def test_lp_daq_cross_check_refuses_a_daq_model_on_other_masks(masks, monkeypatch, tmp_path):
+    monkeypatch.setenv("WFIELD_ALLOW_FREEZE", "1")   # fits into a tmp store (load-only default since 11-24)
     from wfield_local import frozen_models as fm
     from wfield_local import mask_keys
     for k in ("WIDEFIELD_HEMO_VARIANT", "WIDEFIELD_TRIAL_GATE", "WIDEFIELD_LICK_SOURCE", "WIDEFIELD_LP_FROZEN",

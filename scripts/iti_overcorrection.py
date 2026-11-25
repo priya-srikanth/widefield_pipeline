@@ -143,6 +143,7 @@ def trial_set_sentence() -> str:
 
 
 def main(argv=None) -> int:
+    il.require_out_w(__file__)   # rule 11 (11-24): refuses the production iti_licks default before any compute
     from wfield_local import trial_set_text as tst
     angle = "--angle" in (argv if argv is not None else sys.argv[1:])
     sfx = "_angle" if angle else ""

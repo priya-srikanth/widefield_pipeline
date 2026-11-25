@@ -56,8 +56,8 @@ cohorts:
                           #   which are not registered and are filtered out of discovery by the animals list
 
   cohort2:
-    description: "PS118, PS120-122: PS118/120 Thy1-GCaMP6s GP4.3 + PS121/122 VGLUT1-Cre x RiboL1-jGCaMP8s, 470 nm; same task; VLS stroke later"
-    animals: [PS118, PS120, PS121, PS122]
+    description: "PS118, PS120-122: PS118/120 Thy1-GCaMP6s GP4.3 + PS121/122 VGLUT1-Cre x RiboL1-jGCaMP8s, 470 nm; same task; VLS stroke later. PS132-134 added 2026-11-23 (first imaging + camera sessions that day; rig behavior training from 2026-11-12)"
+    animals: [PS118, PS120, PS121, PS122, PS132, PS133, PS134]
     animals_file: cohort2/animals.yaml
     sessions_file: cohort2/sessions.yaml
     output_subdir: cohort2

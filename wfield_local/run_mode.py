@@ -242,7 +242,7 @@ def cache_tag() -> str:
     return "_".join(cache_parts())
 
 
-def session_kind_tag() -> str:
+def session_kind_tag(exclude=()) -> str:
     """Suffix of the SESSION-CACHE KIND (`session_cache.effective_kind`): the `cache_parts` with the detector part
     (`config.LICK_DETECTOR_TAG`, ``daqlk``) ALWAYS present (perf 2026-11-06).
 
@@ -255,10 +255,12 @@ def session_kind_tag() -> str:
     part is set (lickdet already returns the same string there), so no tagged run's key moves; the untagged (and
     LP-only / gate-LP-only) kinds gain ``-daqlk`` and their old untagged entries simply stop being read (never
     deleted: the prune in `session_cache._store` globs ``<label>__<kind>__*``, which cannot match the old kind)."""
+    # ``exclude`` (11-24, efficiency audit item 2): parts left out of THIS kind -- `session_cache.effective_kind` drops the
+    # cohort-wide csig for gate-free kinds (tf-*) and swaps it for the session's own class signature on the others.
     from wfield_local import config
     out = []
     for name, fn in _ALL:
-        if name not in _CACHE:
+        if name not in _CACHE or name in exclude:
             continue
         p = config.LICK_DETECTOR_TAG if name == "lickdet" else fn()
         if p:

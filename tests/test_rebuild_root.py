@@ -339,10 +339,10 @@ LITERAL = {
     # S10A / S10E on the 3d_mouth jaw rule + working period (overnight 11-23, item 3e): reads the rebuild root by
     # literal, writes only under vls_stroke_paper/data_4cam_20261122/s10a_jaw3dmouth_wp/
     "scripts/caption_review_1123/s10_jaw3dmouth_wp.py",
-    "scripts/caption_review_1123/revup_tables_wp.py",
     # S12 on the camera working period (CC-B overnight 11-23, item 3f): reads the rebuild root's imaging_encoding and
     # manuscript_stats by literal, writes only NEW *_wp_ccB1123 folders (or a scratch dir) given on the command line
     "scripts/caption_review_1123/s12_working_period_ccB1123.py",
+    "scripts/caption_review_1123/revup_tables_wp.py",
     # six-position engagement / TIM review scripts (11-20, VLS paper engagement prompt): read the rebuild root by
     # literal, write only under vls_stroke_paper/review/ on the share
     "scripts/c2_engagement_tim/s0_camera_working.py",
@@ -537,6 +537,7 @@ render_profile.apply("%s")
 os.environ["WIDEFIELD_REBUILD_ROOT"] = str(root)
 os.environ["WIDEFIELD_FROZEN_MODEL_DIR"] = str(root / "frozen_models")
 os.environ["WIDEFIELD_SESSION_CACHE"] = str(root / "session_cache")
+os.environ["WFIELD_ALLOW_FREEZE"] = "1"                         # 11-24: stores are load-only by default (rule 11)
 import importlib
 from wfield_local import session_cache
 importlib.reload(session_cache)

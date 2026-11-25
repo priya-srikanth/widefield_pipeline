@@ -545,6 +545,7 @@ def _draw(F: dict) -> None:
 
 
 def main() -> int:
+    il.require_out_w(__file__)   # rule 11 (11-24): refuses the production iti_licks default before any compute
     il.split_only("iti_check_figures")
     if plot_only():                                   # redraw from figdata only: no CSV, no bootstrap
         for stem in (SUBSET_STEMS if il.ITI_SUBSET else STEMS):      # a subset run draws only compute_subset's figures

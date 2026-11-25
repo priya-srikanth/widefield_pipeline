@@ -29,7 +29,7 @@ def test_default_is_cohort1_and_unchanged(cohort):
 
 def test_cohort2_sees_only_its_animals(cohort):
     cohort("cohort2")
-    assert set(config.animals()) == {"PS118", "PS120", "PS121", "PS122"}
+    assert set(config.animals()) == {"PS118", "PS120", "PS121", "PS122", "PS132", "PS133", "PS134"}
     assert not {config.animal_of(s) for s in config.load_sessions()} & {"PS92", "PS93", "PS94", "PS95"}
     assert config.date_policy()["cross_session_exclude"] == []   # cohort1's June exclusions do not carry over
     assert config.stroke_cutoff() is None                        # cohort1's lesion dates do not leak in

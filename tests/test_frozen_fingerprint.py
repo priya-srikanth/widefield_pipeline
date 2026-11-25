@@ -16,6 +16,13 @@ TR = ["PS92_0810", "PS92_0811"]
 
 
 @pytest.fixture(autouse=True)
+def _allow_freeze(monkeypatch):
+    """These tests exercise the FIT path of load_or_fit; since 11-24 (CLAUDE.md rule 11) a store is load-only unless the
+    run allows freezing, which tests/test_protected_roots.py and test_load_only_is_the_default cover."""
+    monkeypatch.setenv("WFIELD_ALLOW_FREEZE", "1")
+
+
+@pytest.fixture(autouse=True)
 def _env(monkeypatch, tmp_path):
     for k in ("WIDEFIELD_HEMO_VARIANT", "WIDEFIELD_TRIAL_GATE", "WIDEFIELD_LICK_SOURCE", "WIDEFIELD_LP_FROZEN",
               "WIDEFIELD_ENL_WINDOW_S", "WIDEFIELD_GATE_SOURCE"):

@@ -29,6 +29,7 @@ EP = ["acute", "subacute", "chronic"]
 
 
 def main(z: bool | None = None) -> int:
+    il.require_out_w(__file__)   # rule 11 (11-24): refuses the production iti_licks default before any compute
     il.split_only("iti_where_beyond_pull")
     z = ("--z" in sys.argv) if z is None else z
     src = il.pred_file("zscore_check/where_preds_z.csv" if z else "where_preds.csv")

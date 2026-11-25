@@ -717,8 +717,27 @@ def preprocess_session(s: dict, params: dict, rv: PathResolver, dry_run: bool,
     # 3 cross-register to the animal's reference (6/6) -> emit allen_aligned_affine8v1
     ref = reference_for(animal, params, rv)
     if ref is not None:
-        ensure_reference_allen_dir(animal, ref, rv, dry_run, redo)
-        _cross_register(animal, mmdd, mc, results, svd, ref, rv, dry_run)
+        if mmdd == ref[0]:
+            # THIS session IS its own Allen reference (first session of a new animal, reference_date ==
+            # its own date). Two things differ from the normal path:
+            #  (1) there is nothing to cross-register against -- calling _cross_register collides the two
+            #      identical session keys in the xday config (landmark-less entry overwrites the reference
+            #      -> KeyError 'landmarks' in cross_day_align);
+            #  (2) the dir must be built into THIS session's own LOCAL results so the E:->N: mirror push in
+            #      _finish_session carries it. ensure_reference_allen_dir builds into ref_results (N:), which
+            #      the push then DELETES (N:-only file not present on E:), leaving the maps step with no
+            #      U_atlas. So build straight into `results` (local), pre-push.
+            allen_out = Path(results) / str(config.defaults()["locanmf"]["allen_dir_name"])
+            if (allen_out / "U_atlas.npy").exists() and not (redo or redo_svd):
+                print(f"[xreg] {animal} {mmdd} self-reference Allen dir exists", flush=True)
+            else:
+                print(f"[xreg] {animal} {mmdd} IS its own reference; building its Allen dir from "
+                      f"{Path(ref[2]).name} into local results (pre-push)", flush=True)
+                _run(["wfield_local.apply_allen_transform", results, "--landmarks", ref[2],
+                      "--output", str(allen_out)], dry_run)
+        else:
+            ensure_reference_allen_dir(animal, ref, rv, dry_run, redo)
+            _cross_register(animal, mmdd, mc, results, svd, ref, rv, dry_run)
 
     # the hemo variant is built from the SVT, so a fresh SVD must rebuild it too
     _finish_session(s, params, rv, dry_run, redo or redo_svd, animal, mmdd, sess, yyyymmdd, mc, binp, results, svd,

@@ -100,6 +100,14 @@ def test_lp_blocks_set_the_lick_source_and_lp_folders_need_it(monkeypatch, tmp_p
     figure_layout.sidecar_for(lp_dir, "x", ".csv")
 
 
+def _is_primary_checkout() -> bool:
+    """True when this repo is the MAIN checkout (.git is a directory), not a linked worktree: `code_check` refuses a
+    rebuild profile from there on purpose (the editable-install trap), so the subprocess check cannot pass."""
+    from pathlib import Path
+    return (Path(__file__).resolve().parents[1] / ".git").is_dir()
+
+
+@pytest.mark.skipif(_is_primary_checkout(), reason="rebuild profile refuses the main checkout by design (code_check)")
 def test_check_honours_the_block_and_unknown_blocks_raise(tmp_path):
     """Re-verify item 3: --check applies the block's env (an LP block's full tag is LP_licks_<run tag>); an unknown block
     name raises instead of running without its env."""

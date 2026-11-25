@@ -81,6 +81,10 @@ def save_png_svg(fig, fname, *args, **kwargs):
         trial_set_text.stamp(fig, below=kwargs.get("bbox_inches") == "tight")
     except Exception as ex:                                            # noqa: BLE001 - never cost the figure
         warnings.warn(f"[trial set] caption not written ({type(ex).__name__}: {ex})", RuntimeWarning, stacklevel=2)
+    if isinstance(fname, (str, os.PathLike)):
+        # PROTECTED ROOTS (CLAUDE.md rule 11, 11-24: a rev-up run wrote 6 figures into production iti_licks/figures)
+        from wfield_local import writeguard
+        writeguard.assert_not_protected(fname, "save a figure to")
     out = fig.savefig(fname, *args, **kwargs)
     if not isinstance(fname, (str, os.PathLike)):
         return out

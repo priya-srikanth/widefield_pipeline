@@ -1,4 +1,4 @@
-# COHORT 2 per-animal metadata (PS118, PS120, PS121, PS122) -- started imaging 2026-10-29.
+# COHORT 2 per-animal metadata (PS118, PS120, PS121, PS122; PS132-134 from 2026-11-23) -- started imaging 2026-10-29.
 # Same schema as configs/animals.yaml (cohort1, PS92-95); read that file's header for what each field means.
 # NOT pooled with cohort1: see configs/cohorts.yaml. docs/NEW_COHORT_2026-10-29.md = what to do per machine.
 #
@@ -77,6 +77,52 @@ animals:
     stroke_date: null
     stroke_laterality: "L"
     reference_date: "1103"        # Allen reference = 11-03 (large 509x480 ROI); raw on M:, landmarks read-from-M: 2026-11-08
+    reference_landmarks: v1
+    exclude: []
+
+  # PS132-134 ADDED 2026-11-23 (Priya: cohort 2, with PS118). Behavior training on the rig from 2026-11-12
+  # (logs archived, not analyzed); 2026-11-23 = first imaging + 4-camera + behavior session for each.
+  # sex / date_of_birth / genotype / reference_date are NOT ENTERED yet (null = unknown, not a default):
+  # fill them in, and pick each animal's Allen reference session before cross-registration can run.
+  PS132:
+    color: "mediumblue"             # >= 25 CIELAB from model/epoch/animal colours (test_cat_points_epoch_convention)
+    marker: "X"
+    sex: null
+    date_of_birth: null
+    genotype: null                  # TO FILL IN
+    indicator_nm: 470               # assumed same as the rest of cohort2; confirm
+    characteristics: {}
+    stroke_date: null
+    stroke_laterality: "L"          # planned (same as cohort); confirm
+    reference_date: "1123"        # Allen reference = 11-23 (first session, large 509x480 ROI); landmarks drawn 2026-11-24
+    reference_landmarks: v1
+    exclude: []
+
+  PS133:
+    color: "darkolivegreen"
+    marker: "h"
+    sex: null
+    date_of_birth: null
+    genotype: null                  # TO FILL IN
+    indicator_nm: 470               # assumed; confirm
+    characteristics: {}
+    stroke_date: null
+    stroke_laterality: "L"          # planned; confirm
+    reference_date: "1123"        # Allen reference = 11-23 (first session, large 509x480 ROI); landmarks drawn 2026-11-24
+    reference_landmarks: v1
+    exclude: []
+
+  PS134:
+    color: "darkkhaki"
+    marker: "*"
+    sex: null
+    date_of_birth: null
+    genotype: null                  # TO FILL IN
+    indicator_nm: 470               # assumed; confirm
+    characteristics: {}
+    stroke_date: null
+    stroke_laterality: "L"          # planned; confirm
+    reference_date: "1123"        # Allen reference = 11-23 (first session, large 509x480 ROI); landmarks drawn 2026-11-24
     reference_landmarks: v1
     exclude: []
 

@@ -40,6 +40,7 @@ def main(kin: str, prod: str, out: str) -> None:
     # parallel (calling gated_sessions twice re-reads every session's classes 4 times: ~3 h on this box)
     sess = sorted(set(L.session.astype(str)) | set(J.session.astype(str)))
     res, fail = parallel.fan_out(sess, _ids, jobs=4, label="session")
+    res = sorted(res, key=lambda t: str(t[0]))            # fan_out returns COMPLETION order (rule 9)
     if fail:
         sys.exit(f"working-period ids failed: {fail[:3]}")
     ids = dict(r for _s, r in res)

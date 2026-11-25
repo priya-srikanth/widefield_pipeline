@@ -95,6 +95,7 @@ def test_learned_compensation_summarize_alias_and_unknown_command(monkeypatch):
 def test_skip_if_exists_caches_follow_the_lick_set(monkeypatch):
     import revup_behaviour as rb
     import within_lick_correction as wlc
+    monkeypatch.setenv(rb.JAW_ENV, "2d")                            # the jaw rule is in the folder name too (default classes, 11-23)
     monkeypatch.setattr(SL, "signature", lambda rv=None: "")
     assert rb.sess_dir().name == rb.SESS and wlc.licks_name() == "licks"
     monkeypatch.setattr(SL, "signature", lambda rv=None: "fused:fz:abc")

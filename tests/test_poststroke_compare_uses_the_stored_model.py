@@ -32,6 +32,8 @@ def isolated(tmp_path, monkeypatch):
     monkeypatch.setattr(F, "local_dir", lambda: tmp_path / "frozen")
     monkeypatch.setattr(F, "server_dir", lambda: None)
     monkeypatch.setattr(F, "_session_sig", lambda lab: f"sig::{lab}")
+    # the store is a tmp folder these tests fill: allow fitting (load-only is the default since 11-24, rule 11)
+    monkeypatch.setenv("WFIELD_ALLOW_FREEZE", "1")
     return tmp_path
 
 

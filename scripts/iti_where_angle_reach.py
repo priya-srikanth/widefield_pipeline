@@ -164,6 +164,7 @@ def trial_set_sentence() -> str:
 
 
 def main() -> int:
+    il.require_out_w(__file__)   # rule 11 (11-24): refuses the production iti_licks default before any compute
     from wfield_local import trial_set_text as tst
     tst.declare(text=trial_set_sentence())
     if plot_only():                       # redraw from figdata only: no data, no bootstrap
@@ -177,7 +178,7 @@ def main() -> int:
     (il.OUT_W / "figures").mkdir(parents=True, exist_ok=True)
     P = pd.read_csv(f) if f.exists() else predictions()
     if not f.exists():
-        P.to_csv(f, index=False)
+        P.to_csv(il.pred_file_out(PREDS), index=False)      # rule 11: a new cache goes under OUT_X, never through pred_file
     S = sessions(P)
     S.to_csv(il.OUT_W / "where_angle_reach_sessions.csv", index=False)
     pd.set_option("display.width", 220)

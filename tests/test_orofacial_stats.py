@@ -54,6 +54,7 @@ def test_session_change_tests_default_draws_match_analysis_kit():
     from wfield_local import analysis_kit as ak
     assert inspect.signature(st.session_change_tests).parameters["n_boot"].default == ak.N_BOOT == 4000
 
+
 def test_c2_weight_epoch_unified_uses_4000_draws():
     import importlib.util
     import sys

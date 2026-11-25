@@ -77,15 +77,28 @@ def _hp(x, w):
     return y
 
 
-def own_series(label):
-    """Session's OWN FR fit projected on its 5 Hz spectrogram (absolute) + its own 20-PC point PCA at 25 Hz, cached in
-    FR_OUT/own_series (the spectrogram read is 5-9 GB per session). -> (t5, W5 abs, t25, pcs25)."""
-    cache = FR_OUT / "own_series" / f"{label}.npz"
-    if cache.exists():
-        z = np.load(cache)
-        return z["t5"], z["W5"], z["t25"], z["P25"]
+#: OWN-SERIES STORE (efficiency audit 11-24 item 1, Priya approved): `own_series` depends only on the FaceRhythm files of
+#: the session (own fit, 5 Hz spectrogram, 25 Hz points, timing sidecar), the master scale / freqs / normaliser params
+#: and the code -- never on licks, gates, imaging or the run tag. It used to be cached in FR_OUT/own_series, i.e. inside
+#: the run-tag folder, so every quiet re-run (new rebuild root / tag) re-read 5-9 GB per session (~6.9 h on 11-24) to
+#: write byte-identical files. Now: one RUN-INDEPENDENT store, keyed on exactly those inputs (`own_series_key`):
+#: QS_FR_OWN_SERIES_DIR if set, else <WFIELD_INPUT_CACHE or ~/wfield_cache>/fr_own_series/<label>_<key>.npz.
+OWN_SERIES_ENV = "QS_FR_OWN_SERIES_DIR"
+OWN_SERIES_VERSION = 1           # file layout of the cached npz (t5, W5, t25, P25); the code itself is digested
+
+
+def own_series_store() -> Path:
+    env = os.environ.get(OWN_SERIES_ENV, "").strip()
+    if env:
+        return Path(env)
+    base = os.environ.get("WFIELD_INPUT_CACHE", "").strip()
+    return (Path(base) if base else Path.home() / "wfield_cache") / "fr_own_series"
+
+
+def _own_inputs(label):
+    """(sd, keys, s, freqs, fr_norm, fr_ex, od, frt) of a session's FaceRhythm inputs (shared by key and build)."""
     from wfield_local import face_rhythm_outputs as fro
-    from wfield_local.face_rhythm.factors import cp, files as ff
+    from wfield_local.face_rhythm.factors import files as ff
     sd = fro.factor_dir()
     animal, mmdd = label.split("_")
     keys = [f.stem for f in fro.session_keys(sd, animal, f"2026{mmdd}")]
@@ -98,6 +111,55 @@ def own_series(label):
     fr_norm, fr_ex = float(pr.get("vqt_norm", 0.95)), float(pr.get("one_over_f", 0.5))
     od = ff.out_dir(sd)
     frt = ff._sidecar_module("face_rhythm_timing")
+    return sd, keys, s, freqs, fr_norm, fr_ex, od, frt
+
+
+def own_series_key(label, inputs=None) -> str:
+    """sha1[:12] of everything `own_series` reads: per FR task the stat (name, size, mtime) of own/<key>.npz,
+    <key>_session.npz, <key>_points.npz and the timing sidecar (`face_rhythm_timing.path`); the master scale of the
+    animal, the freqs and the normaliser params (VALUES, not the master file's stat: those are what is used); and a
+    digest of the code (`own_series_build`, `cp.project_rows` / `_scaled` / `normaliser`, the timing helpers, the npz
+    readers). A changed timing sidecar (t5 / t25 fixes) or code change gives a new key; nothing falls back to another."""
+    import hashlib
+
+    from wfield_local import map_collect
+    from wfield_local.face_rhythm.factors import cp, files as ff
+    sd, keys, s, freqs, fr_norm, fr_ex, od, frt = inputs or _own_inputs(label)
+    h = hashlib.sha1(f"own_series v{OWN_SERIES_VERSION}|{label}|s={s!r}|norm={fr_norm!r}|ex={fr_ex!r}|".encode())
+    h.update(np.ascontiguousarray(freqs).tobytes())
+    for key in keys:
+        for f in (sd / "own" / f"{key}.npz", od / f"{key}_session.npz", od / f"{key}_points.npz",
+                  frt.path(od.parent, key)):
+            h.update(map_collect.stat_sig(f).encode() + b";")
+    h.update(map_collect.code_digest(own_series_build, cp.project_rows, cp._scaled, cp.normaliser, frt.load, frt.lossy,
+                                     ff.npz_memmap, ff.npz_small).encode())
+    return h.hexdigest()[:12]
+
+
+def own_series(label):
+    """Session's OWN FR fit projected on its 5 Hz spectrogram (absolute) + its own 20-PC point PCA at 25 Hz, cached in
+    the run-independent store (`own_series_store`, key `own_series_key`; the spectrogram read is 5-9 GB per session).
+    -> (t5, W5 abs, t25, pcs25)."""
+    inputs = _own_inputs(label)
+    cache = own_series_store() / f"{label}_{own_series_key(label, inputs)}.npz"
+    if cache.exists():
+        z = np.load(cache)
+        return z["t5"], z["W5"], z["t25"], z["P25"]
+    out = own_series_build(label, inputs)
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    tmp = cache.with_name(f"{cache.stem}.{os.getpid()}.part.npz")
+    np.savez_compressed(tmp, **out)
+    try:
+        os.replace(tmp, cache)                       # atomic publish; a concurrent worker wrote the same bytes
+    except OSError:
+        tmp.unlink(missing_ok=True)
+    return out["t5"], out["W5"], out["t25"], out["P25"]
+
+
+def own_series_build(label, inputs=None) -> dict:
+    """The computation behind `own_series` (unchanged from the FR_OUT/own_series version)."""
+    from wfield_local.face_rhythm.factors import cp, files as ff
+    sd, keys, s, freqs, fr_norm, fr_ex, od, frt = inputs or _own_inputs(label)
     T5, W5, T25, P25 = [], [], [], []
     for key in keys:
         zo = np.load(sd / "own" / f"{key}.npz")
@@ -127,10 +189,7 @@ def own_series(label):
             pcs[frt.lossy(tm["drop25"][:len(pcs)])] = np.nan
         T25.append(t25)
         P25.append(pcs)
-    out = dict(t5=np.concatenate(T5), W5=np.concatenate(W5), t25=np.concatenate(T25), P25=np.concatenate(P25))
-    cache.parent.mkdir(parents=True, exist_ok=True)
-    np.savez_compressed(cache, **out)
-    return out["t5"], out["W5"], out["t25"], out["P25"]
+    return dict(t5=np.concatenate(T5), W5=np.concatenate(W5), t25=np.concatenate(T25), P25=np.concatenate(P25))
 
 
 def face_regressors(label, ft, w):

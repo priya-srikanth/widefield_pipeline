@@ -514,6 +514,7 @@ def trial_set_sentence(W: float = 1.0, lf: str = LF_PRIMARY) -> str:
 
 
 def main() -> int:
+    il.require_out_w(__file__)   # rule 11 (11-24): refuses the production iti_licks default before any compute
     from wfield_local import writeguard
     writeguard.assert_writable(OUT / "enl_angle_decode_pre.csv")
     il.split_only("lick_enl_angle_decode.py")

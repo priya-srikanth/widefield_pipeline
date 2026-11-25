@@ -83,7 +83,7 @@ def _child(mask1_path, stat1_path, uc_path):
     # READ-ONLY at the cache layer. Never patch the builders themselves: the cache key hashes their SOURCE
     # (`_raw_maps_code`), so a replaced `session_raw_maps` moves every key and reads a warm cache as cold (11-08).
     def read_only(session, kind, compute, params=None, verbose=True):
-        fp = (session_cache.CACHE_DIR / f"{session['label']}__{session_cache.effective_kind(kind)}__"
+        fp = (session_cache.CACHE_DIR / f"{session['label']}__{session_cache.effective_kind(kind, session['label'])}__"
               f"{session_cache.session_signature(session, params)}.pkl")
         if not fp.exists():
             _cold()

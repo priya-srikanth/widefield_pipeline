@@ -627,7 +627,7 @@ class BasisSource:
             return self._vc
         if session_cache._disabled():
             return None
-        fp = session_cache.CACHE_DIR / f"{self.label}__{session_cache.effective_kind(self._vc_kind)}__"
+        fp = session_cache.CACHE_DIR / f"{self.label}__{session_cache.effective_kind(self._vc_kind, self.label)}__"
         for p in _cache_glob(session_cache.CACHE_DIR, f"{fp.name}*.pkl"):
             try:
                 import pickle

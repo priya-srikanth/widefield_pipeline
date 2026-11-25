@@ -52,7 +52,8 @@ FS = 31.23
 VAR = "hemo_meegkit_hpfit"
 CODE = {0: "close C", 1: "close L", 2: "close R", 3: "far C", 4: "far L", 5: "far R"}
 ORDER = [1, 0, 2, 4, 3, 5]
-GENO = {"PS118": "Thy1-6s", "PS120": "Thy1-6s, no signal", "PS121": "RiboL1-8s", "PS122": "RiboL1-8s"}
+GENO = {"PS118": "Thy1-6s", "PS120": "Thy1-6s, no signal", "PS121": "RiboL1-8s", "PS122": "RiboL1-8s",
+        "PS132": "Thy1-6s", "PS133": "Thy1-6s", "PS134": "Thy1-6s"}   # new GP4.3 animals, first sessions 2026-11-23
 EXCLUDE_AFTER_MIN = {("PS122", "20261029"): 110.0}
 RESP_S = 3.5
 

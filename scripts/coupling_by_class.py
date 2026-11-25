@@ -118,6 +118,8 @@ def boot_delta_r(J, ix, ep, cl, animals, rng, nested=True):
 
 
 def main() -> int:
+    from wfield_local import protected_roots as _pr
+    _pr.out_from_env("WFIELD_COUPLING_OUT", DW, "coupling_by_class")   # rule 11: no production default
     # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     import matplotlib
     matplotlib.use("Agg")

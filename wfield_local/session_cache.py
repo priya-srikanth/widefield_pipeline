@@ -183,13 +183,58 @@ def session_signature(session, params=None) -> str:
     return hashlib.sha1("|".join(parts).encode()).hexdigest()[:16]
 
 
+#: READ-THROUGH (efficiency audit 11-24 item 2c, Priya approved): earlier cache dirs (os.pathsep-separated; e.g. the
+#: previous rebuild root's session_cache) searched for an entry of the IDENTICAL file name (same label, same effective
+#: kind with every run tag, same input signature incl. CACHE_VERSION) when this cache misses. A hit is copied into
+#: CACHE_DIR (this run's own store) and served; the earlier dir is only READ. Replaces the manual tf seed copies.
+READ_FROM_ENV = "WIDEFIELD_SESSION_CACHE_READ_FROM"
+
+
+def read_from_dirs() -> list[Path]:
+    return [Path(x) for x in os.environ.get(READ_FROM_ENV, "").split(os.pathsep) if x.strip()]
+
+
+def _load(fp: Path):
+    with open(fp, "rb") as fh:
+        return pickle.load(fh)
+
+
+def _legacy_tf_names(lab: str, kind: str, sig: str) -> list[str]:
+    """Glob patterns of a tf-* entry written under the OLD rule, when the cohort csig was in every kind (csig is the
+    last cache part, so the old kind = this kind + "_csig-<sha>", or + "-csig-<sha>" when it was the only part).
+    tf-* is gate-free (`_trial_features` applies no class or gate), so any csig variant holds the same features."""
+    return [f"{lab}__{kind}_csig-*__{sig}.pkl", f"{lab}__{kind}-csig-*__{sig}.pkl"]
+
+
+def _find_existing(lab: str, kind: str, sig: str, fp: Path):
+    """(path, how) of a reusable entry for a miss at ``fp``: an identical name in a read-through dir, else (tf-* only)
+    a legacy csig-named tf entry in this dir or a read-through dir. (None, "") if none."""
+    for d in read_from_dirs():
+        q = d / fp.name
+        try:
+            if q.exists():
+                return q, f"read-through {d}"
+        except OSError:
+            continue
+    if kind.startswith("tf-"):
+        for d in [CACHE_DIR, *read_from_dirs()]:
+            for pat in _legacy_tf_names(lab, kind, sig):
+                try:
+                    hits = sorted(d.glob(pat))
+                except OSError:
+                    hits = []
+                if hits:
+                    return hits[-1], f"legacy csig tf entry {hits[-1].name}"
+    return None, ""
+
+
 def cached(session, kind, compute, params=None, verbose=True):
     """Return `compute()` for (session, kind), memoized to disk under a signature of the session's inputs.
     `compute` is a zero-arg callable producing a picklable result."""
     if _disabled():
         return compute()
-    kind = effective_kind(kind)
     lab = session["label"]
+    kind = effective_kind(kind, lab)
     sig = session_signature(session, params)
     sup = _attempts_supplement_token(lab)
     if sup:                     # a session served from the opt-in LP attempts supplement: its own key, tracking that file
@@ -197,10 +242,19 @@ def cached(session, kind, compute, params=None, verbose=True):
     fp = CACHE_DIR / f"{lab}__{kind}__{sig}.pkl"
     if fp.exists():
         try:
-            with open(fp, "rb") as fh:
-                return pickle.load(fh)
+            return _load(fp)
         except Exception:
             pass  # corrupt/partial -> recompute below
+    src, how = _find_existing(lab, kind, sig, fp)
+    if src is not None:
+        try:
+            res = _load(src)
+        except Exception:                                                # noqa: BLE001 - unreadable: compute instead
+            res = None
+        else:
+            if verbose:
+                print(f"  [cache] {lab}/{kind} from {how}", flush=True)
+            return _store(fp, lab, kind, res, verbose=False)
     return _store(fp, lab, kind, compute(), verbose)
 
 
@@ -217,7 +271,7 @@ def _attempts_supplement_token(label: str) -> str:
     return lp_licks.supplement_token(label)
 
 
-def effective_kind(kind: str) -> str:
+def effective_kind(kind: str, label: str | None = None) -> str:
     """The kind as it lands in the file name under the current run's switches (LP source, LP gate, run mode). Readers
     that glob the cache directly (e.g. `joint_locanmf.BasisSource.variance_captured`) must use this too."""
     # LP_licks (WIDEFIELD_LICK_SOURCE=lp, 2026-10-21): EVERY kind is tagged, here, once -- features, categories, CD arms,
@@ -243,11 +297,33 @@ def effective_kind(kind: str) -> str:
     # lick detector is one and the same in every run, so the untagged run now keys ``<kind>-daqlk`` like a pre-only
     # run (the two held identical content under split keys). Tagged runs' kinds are unchanged; output names are
     # untouched (`run_mode.cache_tag` / `keyed_name` keep the old rule).
-    from wfield_local import run_mode
-    _mt = run_mode.session_kind_tag()
+    # CLASS SIGNATURE (efficiency audit 11-24 item 2, Priya approved). Under the camera gate the cohort-wide csig used to
+    # enter EVERY kind, so one relabelled trial anywhere (or a class-code edit) made every session's every kind cold:
+    #   * tf-* (gate-free trial features, as the gate_source exemption above) carry NO class signature;
+    #   * every other kind, given its ``label``, carries THAT session's class signature ``csigs-<sha>``
+    #     (`trial_classes.session_class_signature`: its own class rows + fused lick rows + the class code);
+    #   * a caller without a label keeps the cohort csig (unchanged behaviour).
+    from wfield_local import run_mode, trial_classes
+    if kind.startswith("tf-"):
+        _mt = run_mode.session_kind_tag(exclude=("csig",))
+    elif label is not None and trial_classes.camera_gate_on() and _session_csig(label):
+        _mt = "_".join(x for x in (run_mode.session_kind_tag(exclude=("csig",)), f"csigs-{_session_csig(label)}") if x)
+    else:
+        _mt = run_mode.session_kind_tag()
     if _mt:
         kind = f"{kind}-{_mt}"
     return kind
+
+
+def _session_csig(label: str) -> str:
+    """`trial_classes.session_class_signature(label)`, or "" when the session's classes cannot be built here (an
+    unseeded rebuild root, a test tree): the kind then keeps the cohort csig -- the old, conservative key, never a
+    looser one."""
+    from wfield_local import trial_classes
+    try:
+        return trial_classes.session_class_signature(label)
+    except Exception:                                                    # noqa: BLE001
+        return ""
 
 
 def _store(fp, lab, kind, res, verbose=True):

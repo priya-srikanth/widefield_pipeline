@@ -212,6 +212,7 @@ def plot(F: dict, show_low: bool = False, out_dir: Path | None = None) -> None:
 
 
 def main() -> int:
+    il.require_out_w(__file__)   # rule 11 (11-24): refuses the production iti_licks default before any compute
     show_low = "--show-low-hits" in sys.argv
     out_dir = Path(sys.argv[sys.argv.index("--out") + 1]) if "--out" in sys.argv else None
     if plot_only():

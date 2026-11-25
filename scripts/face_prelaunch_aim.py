@@ -902,6 +902,8 @@ def plot_secondary(fd) -> None:
 
 # ================================================================================================ Q5 offset
 def main() -> int:
+    from wfield_local import protected_roots as _pr
+    _pr.out_from_env("FPA_OUT", OUT, "face_prelaunch_aim")   # rule 11: no production default
     # coordinator 11-04: routed (outputs under the run tag), no longer refused in a tagged run
     cmd = sys.argv[1] if len(sys.argv) > 1 else ""
     jobs = int(_arg("--jobs", 4))

@@ -59,7 +59,7 @@ import revup_behaviour as rb  # noqa: E402
 REV, FIG = rb.REV, rb.FIG
 JS = REV / "jaw_sessions"
 FD = REV / "figdata"
-VERSION = 2                        # 2: ITI licks filtered as revup_behaviour (finite onset AND peak)
+VERSION = 3                        # 2: ITI licks filtered as revup_behaviour (finite onset AND peak); 3 (11-24): ITI bout starts from the session lick table (fused), not cam4 licks_all
 EP4 = rb.EP4
 GATES = ["canonical", "neural", "attempted", "canonical_attempted"]
 DTJ = 0.01
@@ -575,6 +575,8 @@ def plots() -> None:
 
 
 def main(argv=None) -> int:
+    from wfield_local import protected_roots as _pr
+    _pr.out_from_env("REVUP_OUT_DIR", REV, "revup_followup")    # rule 11: no production default
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--jobs", type=int, default=8)
     ap.add_argument("--plot-only", action="store_true")

@@ -90,6 +90,7 @@ def test_no_video_session_is_logged_and_a_post_session_without_rows_raises(camer
 def test_pooled_frozen_loso_survives_a_pre_session_without_working_rows(camera, monkeypatch, tmp_path, capsys):
     """Review 8A B1: the pooled_frozen_loso sequence (section D / joint_xsession / nightly ROI decoder) with a no-video
     PRE session (PS93_0813: 0 working rows) must not raise; it logs EXCLUDED and leaves that session out of the band."""
+    monkeypatch.setenv("WFIELD_ALLOW_FREEZE", "1")   # fits into a tmp store (load-only default since 11-24)
     # these synthetic pools have < 20 working rows per spout, which the 11-04 Wt centre refuses by design; this test
     # is about which sessions are excluded / refused, so it runs on the label-free working centre (W)
     camera.setenv(ss.SCORE_CENTRE_ENV, "working")

@@ -97,6 +97,7 @@ def test_routed_output_creates_the_tagged_folder(monkeypatch, tmp_path):
 def test_lp_final_daq_cross_check_finds_its_model(monkeypatch):
     """N2: the DAQ run (lp_final_render.setup(source="daq"): no gate-LP) freezes under sel-daq-quittail; the LP run
     with the LP-inclusive gate and WIDEFIELD_LP_FROZEN=daq must find that model. A camera-gate LP run must NOT."""
+    monkeypatch.setenv("WFIELD_ALLOW_FREEZE", "1")   # fits into a tmp store (load-only default since 11-24)
     kw = dict(align="cue", source="locanmf", train_labels=["PS92_0810", "PS92_0811"])
     daq = fm.make_spec("PS92", "epoch_decoder", train_data=np.ones((3, 2)), **kw)
     assert daq["selection"] == "sel-daq-quittail"

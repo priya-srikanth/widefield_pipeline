@@ -254,9 +254,21 @@ ITI_FILTER_TEXT = {
     "notdock": "onset while the spout MOVES (before / during retraction, outbound to the next target)",
     "notdock_n": "onset while the spout moves, randomly drawn to the number of docked licks per session x gap stratum "
                  "(seed 0)",
+    # 11-24 (Priya; iti_dock_audit.iti_class / after_quiet): bouts start at an onset >= 1 s after the previous onset
+    "dockbout": "docked bout: the bout STARTS at or after the logged dock arrival and the onset is before the next "
+                "trial_start (all licks of the bout)",
+    "retractbout": "retraction bout: the bout starts between the trial stop and the logged dock arrival (spout "
+                   "retracting), onset before the next trial_start",
+    "dockbout_s04": "docked bout with dock arrival = trial stop + 0.4 s instead of the logged event (sensitivity)",
+    "dockbout_s05": "docked bout with dock arrival = trial stop + 0.5 s instead of the logged event (sensitivity)",
+    "dockbout_s07": "docked bout with dock arrival = trial stop + 0.7 s instead of the logged event (sensitivity)",
+    "iti_after_quiet_1s": "docked bout start with no lick onset of any context in the preceding 1 s",
+    "iti_after_quiet_2s": "docked bout start with no lick onset of any context in the preceding 2 s",
 }
 ITI_REFIT_FILTERS = ("gap2", "far1", "gap2far1")
-ITI_SUBSET_FILTERS = ("dock", "dock01", "gap2dock", "far1s", "notdock", "notdock_n")
+ITI_SUBSET_FILTERS = ("dock", "dock01", "gap2dock", "far1s", "notdock", "notdock_n",
+                      "dockbout", "retractbout", "dockbout_s04", "dockbout_s05", "dockbout_s07", "iti_after_quiet_1s",
+                      "iti_after_quiet_2s")
 #: what an ITI lick is, in the 3-D whole-session lick table (`iti_licks.lick_table`, context "iti")
 ITI_CONTEXT = ("3-D whole-session lick table, context iti: after a trial's response window and before the next spout "
                "arrival; no cue")

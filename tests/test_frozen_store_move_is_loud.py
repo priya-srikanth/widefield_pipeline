@@ -13,11 +13,20 @@ training set against.
 """
 from __future__ import annotations
 
+import pytest
+
 from pathlib import Path
 
 from wfield_local import frozen_models as fm
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+@pytest.fixture(autouse=True)
+def _allow_freeze(monkeypatch):
+    """These tests exercise the FIT path of load_or_fit; since 11-24 (CLAUDE.md rule 11) a store is load-only unless the
+    run allows freezing, which tests/test_protected_roots.py and test_load_only_is_the_default cover."""
+    monkeypatch.setenv("WFIELD_ALLOW_FREEZE", "1")
 
 
 def _fresh():

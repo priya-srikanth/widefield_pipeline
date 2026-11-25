@@ -124,6 +124,7 @@ def main() -> int:
     readout, epochs descriptive): time (y ~ post + post:lday), behavior (y ~ post + post:deficit, deficit = weighted
     signed aim, pre - session, WFIELD_AIM lick set) and epoch (y ~ C(epoch)), random-effects ladder per animal; the paired nested bootstrap per epoch
     alongside for the page figures."""
+    il.require_out_w(__file__)   # rule 11 (11-24): refuses the production iti_licks default before any compute
     from wfield_local import mixed_models as mx
     M = measures()
     L = pd.concat([d.assign(measure=nm) for nm, d in M.items()], ignore_index=True).rename(columns={"value": "y"})
