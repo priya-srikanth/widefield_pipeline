@@ -332,6 +332,9 @@ RESOLVED = {
     "wfield_local/sync_audit.py",
 }
 LITERAL = {
+    # joint 3-D like-for-like match (CC-B 11-26, Priya "sure let's try the joint 3d match"): reads the lane E reader
+    # inputs of clean_v37_sync60 by literal (load-only), writes only the NEW --out / --record folders given on the CLI
+    "scripts/joint3d_1126/lick_matched_joint3d.py",
     # G4 key-results page (CC-B 11-25, merged 11-26): read the rebuild root's G4 / v36 imaging_encoding by literal,
     # build_page writes only run_records/2026-11-25/g4_key_results_ccB1125/; the table scripts write the dir given on the CLI
     "scripts/g4figs_1125/build_page.py",
