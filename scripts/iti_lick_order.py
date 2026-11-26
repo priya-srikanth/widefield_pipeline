@@ -191,7 +191,7 @@ def predictions() -> pd.DataFrame:
     # the lick-window SD (fallback) is inflated by the larger post-stroke lick response (Priya 10-27)
     sd_svd = {}
     if SOURCE in ("svd", "locanmf") and SRC_TAG.rstrip("M").endswith("F"):
-        fsd = il.in_path_x(f"basis_{'svdbasis' if SOURCE == 'svd' else 'locanmf'}/frame_sd.csv")
+        fsd = il.frame_sd_path("svdbasis" if SOURCE == "svd" else "locanmf")
         if fsd.exists():
             F = pd.read_csv(fsd, index_col=0)
             # LocaNMF component counts differ by animal: the CSV is NaN-padded to the largest count

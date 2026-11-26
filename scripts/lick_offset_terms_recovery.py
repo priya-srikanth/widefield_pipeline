@@ -79,7 +79,7 @@ def main() -> int:
     tst.declare(text=trial_set_sentence())
     T = pd.read_csv(il.OUT_W / "offset_contrib" / f"terms_sessions_{TAG}.csv")
     S = components(T)
-    R = pd.read_csv(il.OUT_W / "recmark_sessions.csv", usecols=["label", "day", "aim", "iti_ang"]).drop_duplicates("label")
+    R = pd.read_csv(il.in_path_x("recmark_sessions.csv"), usecols=["label", "day", "aim", "iti_ang"]).drop_duplicates("label")
     S = S.merge(R, on="label", how="left")
     S.to_csv(il.OUT_W / "offterm_sessions.csv", index=False)
     pd.set_option("display.width", 230)

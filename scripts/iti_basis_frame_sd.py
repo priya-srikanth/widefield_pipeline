@@ -37,8 +37,15 @@ def main() -> int:
     ap.add_argument("--jobs", type=int, default=8)
     a = ap.parse_args()
     for source in a.sources:
+        # sessions = the basis session files the decoders read (redirected run: the upstream copy, read only; 11-25);
+        # resolved BEFORE the output folder exists (in_path prefers an existing OUT_W copy)
+        src = il.in_path_x(f"basis_{source}/sessions")
+        labels = sorted(p.stem for p in src.glob("*.npz"))
+        if not labels:
+            raise SystemExit(f"no basis_{source}/sessions/*.npz under {src}")
+        print(f"{source}: {len(labels)} sessions from {src}", flush=True)
         d = il.OUT_X / f"basis_{source}"
-        labels = sorted(p.stem for p in (d / "sessions").glob("*.npz"))
+        d.mkdir(parents=True, exist_ok=True)
         res, fails = ak.fan_sessions([(x, source) for x in labels], frame_sd, jobs=a.jobs, label=f"frame SD {source}")
         if fails:
             print("FAILED:", [f[0] for f in fails])

@@ -436,7 +436,7 @@ def confound_links(S: pd.DataFrame) -> pd.DataFrame:
 
 def pix_r(pix: dict) -> dict:
     """Per (animal, ch): r map of mirrored d with iti_ang over post sessions; plus the mean map and n."""
-    R = pd.read_csv(il.OUT_W / "recmark_sessions.csv", usecols=["label", "day", "iti_ang"]).drop_duplicates("label")
+    R = pd.read_csv(il.in_path_x("recmark_sessions.csv"), usecols=["label", "day", "iti_ang"]).drop_duplicates("label")
     R = R.set_index("label")
     out = {}
     for (a, ch), D in pix.items():

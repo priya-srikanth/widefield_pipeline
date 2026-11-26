@@ -53,7 +53,7 @@ def _session(label: str) -> pd.DataFrame:
     """Per first post-cue lick: contact flag, time to next contact lick, angle covariates, pooled contra / ipsi values
     per area (ratio_010_050)."""
     from wfield_local import config
-    f = il.OUT_W / "firstlick_full" / f"{label}.npz"
+    f = il.in_path_x("firstlick_full") / f"{label}.npz"
     if not f.exists():
         return pd.DataFrame()
     z = np.load(f, allow_pickle=True)
@@ -113,7 +113,7 @@ def _predict(D: pd.DataFrame, vs: list[str], method: str, fit: np.ndarray) -> np
 
 def licks() -> pd.DataFrame:
     from wfield_local import analysis_kit as ak
-    labs = sorted(p.stem for p in (il.OUT_W / "firstlick_full").glob("*.npz"))
+    labs = sorted(p.stem for p in (il.in_path_x("firstlick_full")).glob("*.npz"))
     res, fail = ak.fan_sessions(labs, _session, jobs=6)
     if fail:
         raise RuntimeError(f"failed: {fail[:5]}")
