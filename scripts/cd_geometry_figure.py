@@ -362,6 +362,9 @@ def figure(got, out, nulls=None, normalise=False):
                           if normalise else
                           "C  UNREMOVED shared amplitude\nsqrt(1-overlap) x scale", fontsize=8)
 
+        for a_ in (axes[0][j], axes[1][j], axes[2][j]):
+            a_.spines["top"].set_visible(False)       # no top frame line (Priya 11-03)
+            a_.spines["right"].set_visible(False)
         ax.set_xticks(x)
         ax.set_xticklabels(POST, fontsize=8)
         ax.set_xlim(-0.5, len(POST) - 0.5)
@@ -407,17 +410,31 @@ def main(argv=None) -> int:
     ap.add_argument("--occluded", default="drop", choices=("drop", "keep"),
                     help="which arm's dumps to read -- must MATCH the render, since the two are "
                          "stored under different tags. Default `drop`, as the render's is.")
-    ap.add_argument("--out", default=None)
+    ap.add_argument("--out", default=None,
+                    help="the first figure's path; the vs-ceiling twin is written BESIDE it (never into --dir)")
+    ap.add_argument("--null-dir", default=None,
+                    help="where `cd_overlap_null` persisted its draws (its --out); default --dir. 11-26: the null of a "
+                         "rebuild root is built in its own NEW run folder (rule 11), not beside the production dumps")
+    ap.add_argument("--dir-lick", default=None,
+                    help="the dumps of the LICK column, when they live in another arm's folder (four-camera root: the "
+                         "LP-lick + LP-gate arm, LP_licks_gateLP_<tag>/epoch); default --dir")
     ap.add_argument("--suffix", default="",
                     help="appended to BOTH output stems (e.g. _nolines), so a redraw does not overwrite the "
                          "published PNGs")
     args = ap.parse_args(argv)
 
     d = Path(args.dir)
-    got, problems = collect(d, aligns=tuple(args.align), gate=args.gate,
-                            reference=args.reference,
-                            mask_occluded=args.occluded == "drop")
-    nulls = load_nulls(d, aligns=tuple(args.align), gate=args.gate)
+    dl = Path(args.dir_lick) if args.dir_lick else d
+    nd = Path(args.null_dir) if args.null_dir else d
+    al_main = tuple(a for a in args.align if not (args.dir_lick and a == "lick"))
+    got, problems = collect(d, aligns=al_main, gate=args.gate, reference=args.reference,
+                            mask_occluded=args.occluded == "drop") if al_main else ({}, [])
+    if args.dir_lick and "lick" in args.align:
+        g2, p2 = collect(dl, aligns=("lick",), gate=args.gate, reference=args.reference,
+                         mask_occluded=args.occluded == "drop")
+        got.update(g2)
+        problems += p2
+    nulls = load_nulls(nd, aligns=tuple(args.align), gate=args.gate)
     # THE TRIAL SET on both figures (Priya 11-09): the alignments actually drawn, under this gate
     from wfield_local import trial_set_text as tst
     tst.declare(text=trial_set_sentence([al for al in ALIGNS if any(k[1] == al for k in got)] or list(args.align),
@@ -434,7 +451,8 @@ def main(argv=None) -> int:
     # THE NORMALISED VIEW IS A SECOND FIGURE, not a replacement -- see its own subtitle. Only drawn
     # when there is a ceiling to normalise BY; otherwise it would be a figure of ones and NaNs.
     if nulls:
-        out2 = d / f"cd_cim_geometry_{args.gate}{suffix}_vs_ceiling{args.suffix}.png"
+        out2 = ((out.parent / f"{out.stem}_vs_ceiling{out.suffix}") if args.out else
+                d / f"cd_cim_geometry_{args.gate}{suffix}_vs_ceiling{args.suffix}.png")
         print(f"-> {figure(got, out2, nulls, normalise=True)}")
     return 0
 
