@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import html
 import shutil
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -553,8 +554,11 @@ figcaption { color:var(--muted); font-size:.86rem; margin-top:6px } figcaption b
 table.num { border-collapse:collapse; font-size:.8rem; font-variant-numeric:tabular-nums; margin:4px 0 10px } table.num td, table.num th { border-bottom:1px solid var(--rule); padding:2px 7px; text-align:right; white-space:nowrap } table.num td.t, table.num th:first-child { text-align:left }
 b.star { color:var(--accent) } .small { font-size:.82rem; color:var(--muted) } code { font-size:.85em }
 """
+    sys.path.insert(0, str(Path(__file__).parent))
+    import allspouts_section
+    allspouts = allspouts_section.section(PAGE, fig_block, details, prov, LINEAGE)
     doc = f"""<!doctype html><html lang=en><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>G4 key results</title><style>{style}</style></head>
-<body><nav class=toc><b>G4 key results</b><ol><li><a href="#summary">What G4 shows</a></li><li><a href="#tables">Shares, R&sup2;, penalties</a></li>{toc}<li><a href="#skipped">Skipped</a></li></ol></nav>
+<body><nav class=toc><b>G4 key results</b><ol><li><a href="#summary">What G4 shows</a></li><li><a href="#tables">Shares, R&sup2;, penalties</a></li>{toc}<li><a href="#allspouts">Six spouts + frozen 17.x</a></li><li><a href="#skipped">Skipped</a></li></ol></nav>
 <div class=main><div class=wrap>
 <h1>G4 per-session encoder (four-camera 3-D): key results of the Movement (Execution) Coding page</h1>
 <p class=sub>Local build 2026-11-25 (CC-B helper), not published. G4 = enc_fourcam3d_20261124: combined_encoding per-session fits, 20 tags x 107 sessions, fused four-camera licks, 3-D tongue / jaw / nose, jaw rule 3d_mouth, attempted gate, working period, August-only pre, running model thr_push. Figures 1.6, 1.13&ndash;1.15, 17.1&ndash;17.2, 21.x and 22.x of the page re-rendered from these fits with the page's own readers; old lineage = the v36 collected fits read by the same reader. Pooled numbers are each animal's change from its own pre with the nested animals &rarr; sessions bootstrap; per-animal tables come first in every "Inputs &amp; settings" block.</p>
@@ -576,7 +580,7 @@ b.star { color:var(--accent) } .small { font-size:.82rem; color:var(--muted) } c
 <p class=small>Reduced models: in G4 main the drop:position model re-selects a different lick / orofacial penalty than the full model in ~54% of sessions (mean |&Delta;log10| 0.9&ndash;1.0 for lick and orofacial, 0.25 for uninstructed); drop:instructed differs in 35%. The bins_w1 contest models (nokin:tgtbin / nokin:exbin / nokin:none) keep median penalties flat across epochs (lick 3&ndash;4, task 4, orofacial 1 &rarr; 2 chronic, uninstructed 1 &rarr; 2 chronic).</p>
 </section>
 <section id=figs><h2>Figures</h2>{''.join(figs)}</section>
-<section id=skipped><h2>Skipped and not re-rendered</h2>
+{allspouts}<section id=skipped><h2>Skipped and not re-rendered</h2>
 <ul>
 <li><b>Fig 22.2</b> (time-shifted FaceRhythm, contest_fr_lags): needs the frozen frame <code>_frA_frlag</code>, which does not exist on this lineage (no fit run here).</li>
 <li><b>Figs 22.3 / 22.4</b> (direction vs directionless by area): images were cut from the page 10-29 (docs/CUT_FIGURES.md); the G4 numbers are in the table under Fig 22.5 (fr_encoding_summary/direction/bootstrap.csv).</li>

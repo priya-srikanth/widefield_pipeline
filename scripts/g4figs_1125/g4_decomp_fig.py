@@ -28,10 +28,17 @@ EP = ["acute", "subacute", "chronic"]
 PARTS = [("d_data", "measured", "k"), ("d_full", "predicted", "#b2abd2"), ("d_instructed", "lick part", "#e66101"),
          ("d_pos_part", "target part", "#6a3d9a"), ("d_uninstructed", "uninstructed", "#5e7ea0"),
          ("d_residual", "residual", "#1b9e77")]
+#: frozen-frame parts (lp_encoder_decompose on a frozen_encoder_<tag>/joint run): --frozen
+PARTS_FROZEN = [("d_data", "measured", "k"), ("d_full", "predicted", "#b2abd2"), ("d_lick", "lick part", "#e66101"),
+                ("d_target", "target part", "#6a3d9a"), ("d_other", "other (spontaneous)", "#5e7ea0"),
+                ("d_residual", "residual", "#1b9e77")]
 
 
 def main() -> int:
+    global PARTS
     src, out, label = Path(sys.argv[1]), Path(sys.argv[2]), sys.argv[3]
+    if "--frozen" in sys.argv:
+        PARTS = PARTS_FROZEN
     out.mkdir(parents=True, exist_ok=True)
     D = pd.read_csv(src)
     D = D[D.pos == "far_contra"]

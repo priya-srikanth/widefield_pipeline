@@ -84,7 +84,7 @@ def _route(p):
     parts = rel.parts
     if parts and parts[0].startswith("frozen_encoder_"):
         # frozen frames (read-only here; the guard refuses writes outside OUT): the real four-camera encoding root
-        return WindowsPath(REAL_ROOT, *parts)
+        return WindowsPath(V36 if V36_MODE else REAL_ROOT, *parts)
     if len(parts) >= 2 and parts[0] in FOLDERS and parts[1].lower() == "sessions":
         return WindowsPath(_sessions_dir(FOLDERS[parts[0]]), *parts[2:])
     return VP(str(p))
