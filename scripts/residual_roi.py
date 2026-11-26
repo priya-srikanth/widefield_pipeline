@@ -109,7 +109,7 @@ def main(argv=None) -> int:
     B = B[B.epoch.isin(EPS)].copy()
     import encoder_split_rows as esr
     # split ROIs re-partition MOs / MOp: not counted (docstring); a SPLIT-basis frame (11-26) has them as its areas,
-    # primary, and counted as the parents they partition (`encoder_split_rows.n_allen`) -- the same count either way
+    # primary, and corrects over every area row tested (`encoder_split_rows.bonf_count`, Priya 11-26)
     allen = esr.primary_rows(B.area)
     sf = esr.is_split_frame(B.area)
     B["p_bonf"] = esr.bonf_allen(B, ["q", "window", "epoch"])
@@ -195,7 +195,7 @@ def by_spout(tag: str, out_dir: str | None = None) -> int:
     B = B[B.epoch.isin(EPS)].copy()
     import encoder_split_rows as esr
     allen = esr.primary_rows(B.area)                     # Bonferroni over the Allen areas only (module docstring; a
-    sf = esr.is_split_frame(B.area)                      # split-basis frame's ROIs count as their parents, 11-26)
+    sf = esr.is_split_frame(B.area)                      # split-basis frame: over every area row tested, 11-26)
     B["p_bonf"] = esr.bonf_allen(B, ["q", "window", "spout", "epoch"])
     an_cols = [c for c in ("PS92", "PS93", "PS94", "PS95") if c in B]
     B["n_same"] = [int(np.nansum(np.sign(r[an_cols].to_numpy(float)) == np.sign(r.point))) for _, r in B.iterrows()]

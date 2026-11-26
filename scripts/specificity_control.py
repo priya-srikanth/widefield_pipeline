@@ -6,7 +6,10 @@ changed mapping everywhere. Three tests, all within animal, nested bootstrap ani
   1. RESIDUAL BY AREA (data - frozen prediction, evoked: lick 0..1 s vs -0.3..-0.1 s around the first lick; cue 0.5..1.5 s
      vs -0.5..0 s; from the frozen run's saved PETHs, mean over the six spouts), in each animal's PRE-SD units per area
      (z = (residual - pre mean) / pre SD). OROFACIAL areas vs CONTROL areas (visual, retrosplenial, trunk / lower-limb
-     somatosensory) and their contrast.
+     somatosensory) and their contrast. OROFACIAL = SSp-m, SSp-n, MOp, MOs (both sides) on a PLAIN frame; on a SPLIT-basis
+     frame (frozen FROZEN_AREA_BASIS=split, Priya 11-26) OROFACIAL = SSp-m, SSp-n, ALM, tjM1 (both sides): the
+     anterolateral orofacial motor ROIs replace whole MOs / MOp, MOs_rest / MOp_rest are NOT members; equal weight per
+     area, as before (`groups_for`). CONTROL is the same on both.
   2. LAYER 2 BY AREA (`allsession_encoder` combined fit, change_ref, epoch minus pre_late = beyond pre-stroke drift),
      orofacial vs control and the contrast.
 
@@ -40,6 +43,16 @@ CONTROL = [a + s for a in ("VISp", "VISam", "VISa", "VISrl", "VISal", "VISl", "V
                            "SSp-ll", "SSp-tr") for s in SIDES]
 GROUPS = {"orofacial": OROFACIAL, "orofacial contra": [a for a in OROFACIAL if a.endswith("_right")],
           "orofacial ipsi": [a for a in OROFACIAL if a.endswith("_left")], "control": CONTROL}
+#: SPLIT-basis frames (Priya 11-26): orofacial = SSp-m, SSp-n, ALM, tjM1 (MOs_rest / MOp_rest not members); control unchanged
+OROFACIAL_SPLIT = [a + s for a in ("SSp-m", "SSp-n", "ALM", "tjM1") for s in SIDES]
+GROUPS_SPLIT = {"orofacial": OROFACIAL_SPLIT, "orofacial contra": [a for a in OROFACIAL_SPLIT if a.endswith("_right")],
+                "orofacial ipsi": [a for a in OROFACIAL_SPLIT if a.endswith("_left")], "control": CONTROL}
+
+
+def groups_for(areas) -> dict:
+    """The area groups of a table: GROUPS (plain frame, unchanged) or GROUPS_SPLIT (split-basis frame, 11-26)."""
+    import encoder_split_rows as esr
+    return GROUPS_SPLIT if esr.is_split_frame(list(areas)) else GROUPS
 EP4 = ["pre", "acute", "subacute", "chronic"]
 
 
@@ -83,18 +96,12 @@ def add_measures(T: pd.DataFrame) -> pd.DataFrame:
 
 def group_means(T: pd.DataFrame, cols) -> pd.DataFrame:
     """Per session x window: mean over each group's areas present in that animal's every session (fixed area set)."""
-    import encoder_split_rows as esr
-    if esr.is_split_frame(T.area.unique()):
-        # NEEDS A DECISION (Priya; SPLIT_BASIS_INVENTORY_20261104 item 2): OROFACIAL names whole MOs / MOp, which a
-        # split-basis frame (frozen FROZEN_AREA_BASIS=split, 11-26) does not have. Dropping them silently would change the
-        # group; ALM + tjM1 + MOs_rest + MOp_rest in, and with which weights, is Priya's call. sessions.csv is written.
-        raise SystemExit("specificity_control groups: split-basis frame -- the orofacial group's MOs / MOp membership "
-                         "needs a decision (sessions.csv written; residual_roi can run on it)")
+    groups = groups_for(T.area.unique())                 # split-basis frame: orofacial = SSp-m, SSp-n, ALM, tjM1
     rows = []
     for (an, w), g in T.groupby(["animal", "window"]):
         nlab = g.label.nunique()
         have = set(g.groupby("area").label.nunique().loc[lambda s, n=nlab: s == n].index)
-        for gname, areas in GROUPS.items():
+        for gname, areas in groups.items():
             use = [a for a in areas if a in have]
             if not use:
                 continue
@@ -161,10 +168,11 @@ def main(argv=None) -> int:
         L = L[L.fit == "combined"].copy()
         L["change_ref"] = L["change_ref"] / 1e3                 # stored x1e3 -> R2 fraction
         LG = []
+        lgroups = groups_for(L.area.unique())            # the all-session run's own basis (11-26)
         for (an,), g in L.groupby(["animal"]):
             nlab = g.label.nunique()
             have = set(g.groupby("area").label.nunique().loc[lambda s, n=nlab: s == n].index)
-            for gname, areas in GROUPS.items():
+            for gname, areas in lgroups.items():
                 use = [x for x in areas if x in have]
                 if use:
                     LG.append(g[g.area.isin(use)].groupby(["label", "epoch"]).change_ref.mean().reset_index()
@@ -247,8 +255,9 @@ def main(argv=None) -> int:
         ffc.bars(axs[2 + nl2 + has_split], LBSp, ["layer2"], SRL, "change_ref minus pre_late (R2)",
                  f"LAYER 2 by ROI: MOp, tjM1, MOp_rest, MOs, ALM, MOs_rest (ROI v8 on the stat mask, as extra targets of "
                  f"{l2dir.name})")
+    sf = esr.is_split_frame(T.area.unique())             # split-basis frame (11-26): its own orofacial group
     fig.suptitle(f"NEURAL: is the chronic change SPECIFIC to orofacial cortex? Frozen frame ({a.tag}); orofacial = SSp-m, "
-                 "SSp-n, MOp, MOs; control = visual, retrosplenial, SSp trunk / lower limb.\nBars = mean of animals; "
+                 + ("SSp-n, ALM, tjM1 (split-basis frame); control" if sf else "SSp-n, MOp, MOs; control") + " = visual, retrosplenial, SSp trunk / lower limb.\nBars = mean of animals; "
                  "whisker 95 % nested CI; * excludes 0; dots = animals; gray band = pre split-half range. contra = right.",
                  fontsize=9.5)
     from wfield_local.sig_marks import reserve_headroom
@@ -259,6 +268,9 @@ def main(argv=None) -> int:
 
     # FIGURE 2: area maps (chronic - pre)
     img, nm = area_image(T.label.iloc[0])
+    if sf:                                               # split-basis frame: the maps are drawn on the split ROIs, and
+        img, nm = esr.split_image(img, nm)               # no separate 'split' companion panels
+        has_split = l2_split = False
     ol = outline(img)
     # split panels (10-27): MOs / MOp painted as ALM + MOs_rest / tjM1 + MOp_rest, on the colour scale of the Allen panel
     # of the same window (one scale per pair)
@@ -296,7 +308,8 @@ def main(argv=None) -> int:
         cb.set_label(unit, fontsize=7)
         cb.ax.tick_params(labelsize=6)
     fig.suptitle("NEURAL: CHRONIC minus pre by Allen area (frozen frame). Black outline = area whose 95 % nested CI "
-                 "excludes 0 (uncorrected, 41 areas). Image left = ipsilesional."
+                 + (f"excludes 0 (uncorrected, {T[T.area != 'cortex'].area.nunique()} areas; split-basis frame). "
+                    if sf else "excludes 0 (uncorrected, 41 areas). ") + "Image left = ipsilesional."
                  + ("\n'split' panels: MOs / MOp drawn as ALM + MOs_rest / tjM1 + MOp_rest (ROI v8), same scale as the panel "
                     "to their left." if (has_split or l2_split) else ""), fontsize=9)
     fig.subplots_adjust(left=0.01, right=0.99, top=0.8 if (has_split or l2_split) else 0.84, bottom=0.08, wspace=0.05)

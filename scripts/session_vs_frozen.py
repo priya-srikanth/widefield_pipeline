@@ -129,11 +129,10 @@ def frozen_r2(run: Path, variant: str, measure: str = "frame", areas=None) -> pd
     rows = []
     for f in sorted((run / variant / "sessions").glob("*.json")):
         m = json.loads(f.read_text())
-        if areas != "all":                               # named areas on a split-basis frame (11-26): refuse, not drop
-            from wfield_local.frozen_encoder import check_requested_areas
-            check_requested_areas(m["areas"], areas or AREAS, f"session_vs_frozen.frozen_r2 {run.name}")
+        from wfield_local.frozen_encoder import split_area_list   # split-basis frame (11-26): MOp -> tjM1 + MOp_rest
+        want = m["areas"] if areas == "all" else split_area_list(areas or AREAS, m["areas"])
         for w, dd in m["r2_musall"].items():
-            for a in (m["areas"] if areas == "all" else (areas or AREAS)):
+            for a in want:
                 if a in m["areas"]:
                     rows.append({"label": m["label"], "window": w, "area": a, "variant": variant,
                                  "frozen": dd[measure][m["areas"].index(a)]})
@@ -158,9 +157,11 @@ def self_r2(sdir: Path, measure: str = "frame", areas=None) -> pd.DataFrame:
     rows = []
     for f in sorted(sdir.glob("*.json")):
         m = json.loads(f.read_text())
+        from wfield_local.frozen_encoder import split_area_list   # split-basis frame (11-26): MOp -> tjM1 + MOp_rest
+        want = m["areas"] if areas == "all" else split_area_list(areas or AREAS, m["areas"])
         for v, ww in m["r2_musall"].items():
             for w, dd in ww.items():
-                for a in (m["areas"] if areas == "all" else (areas or AREAS)):
+                for a in want:
                     if a in m["areas"]:
                         rows.append({"label": m["label"], "animal": m["animal"], "epoch": m["epoch"],
                                      "n_trials": m["n_trials"], "window": w, "area": a, "variant": v,
@@ -260,13 +261,16 @@ def area_maps(run: Path, out: Path, variants, split=None) -> None:
     has_split = bool(B.area.isin(esr.SPLIT_AREAS).any())
     if has_split:                                       # MOs / MOp drawn as their split ROIs (residual_roi.py)
         img, nm = esr.split_image(img, nm)
+    sf = esr.is_split_frame(B.area.unique())            # split-basis frame (11-26): the ROIs ARE the areas
+    if sf:
+        has_split = False
     ol = outline(img)
     (out / "figures").mkdir(exist_ok=True)
     for w in ("cue", "lick"):
         fig, axs = plt.subplots(2, len(qs), figsize=(2.6 * len(qs) + 0.6, 6.2), squeeze=False)
         for j, q in enumerate(qs):
             Bq = B[(B.q == q) & (B.window == w)]
-            lim = np.nanpercentile(np.abs(Bq[~Bq.area.isin(esr.SPLIT_AREAS)].point), 98) or 1e-3   # Allen scale
+            lim = np.nanpercentile(np.abs(Bq[esr.primary_rows(Bq.area)].point), 98) or 1e-3   # Allen scale
             for i, ep in enumerate(("acute", "chronic")):
                 ax = axs[i, j]
                 s_ = Bq[Bq.epoch == ep].set_index("area")
@@ -276,7 +280,7 @@ def area_maps(run: Path, out: Path, variants, split=None) -> None:
                 if np.isfinite(sg).any():
                     ax.contour(np.nan_to_num(sg), levels=[0.5], colors="w", linewidths=3.4)
                     ax.contour(np.nan_to_num(sg), levels=[0.5], colors="k", linewidths=1.6)
-                sa = s_[~s_.index.isin(esr.SPLIT_AREAS)]
+                sa = s_[esr.primary_rows(s_.index)]
                 up, dn = int(((sa.p_bonf < .05) & (sa.point > 0)).sum()), int(((sa.p_bonf < .05) & (sa.point < 0)).sum())
                 txt = f"sig {up} up / {dn} down"
                 if has_split:
@@ -298,7 +302,9 @@ def area_maps(run: Path, out: Path, variants, split=None) -> None:
                      "Outline = significant after Bonferroni over areas (nested bootstrap). Image left = ipsilesional."
                      + ("\nMOs / MOp drawn as ALM + MOs_rest / tjM1 + MOp_rest (ROI v8 on the stat mask; self = ROI targets "
                         f"of the self-fit, frozen = ROI R2 from {split[0].name}); Allen Bonferroni count and color scale."
-                        if has_split else ""), fontsize=8.5)
+                        if has_split else "")
+                     + ("\nSplit-basis frame: ALM / tjM1 / MOs_rest / MOp_rest are areas (ROI v8); Bonferroni over every "
+                        "area tested." if sf else ""), fontsize=8.5)
         fig.subplots_adjust(left=0.04, right=0.99, bottom=0.08, top=0.83 if has_split else 0.86, wspace=0.06, hspace=0.3)
         save_png_svg(fig, out / "figures" / f"remap_area_maps_{w}.png", dpi=110)
         plt.close(fig)
@@ -352,9 +358,11 @@ def summarise(run: Path, out: Path, variants) -> None:
     cols = {q: cp.model_color(i) for i, q in enumerate(qs)}
     ffc.COL.update(cols)
     (out / "figures").mkdir(exist_ok=True)
+    from wfield_local.frozen_encoder import split_area_list   # split-basis frame (11-26): tjM1 + MOp_rest side by side
     for w in ffc.WINDOWS:
         fig, ax = plt.subplots(1, 1, figsize=(15, 4.8))
-        ffc.bars(ax, B[(B.window == w) & B.q.isin(qs)].assign(frame=lambda d: d.q), qs, AREAS, "remap: (self - frozen) epoch - pre (R2)",
+        ffc.bars(ax, B[(B.window == w) & B.q.isin(qs)].assign(frame=lambda d: d.q), qs,
+                 split_area_list(AREAS, B.area.unique()), "remap: (self - frozen) epoch - pre (R2)",
                  "black = full model; colors = each group's UNIQUE R2, self-fit minus frozen")
         ax.legend(fontsize=8, frameon=False, loc="upper left", bbox_to_anchor=(1.0, 1.0))
         fig.suptitle(f"NEURAL: per-session vs FROZEN encoder, {w} window, {run.name.replace('frozen_encoder_', '')}. "

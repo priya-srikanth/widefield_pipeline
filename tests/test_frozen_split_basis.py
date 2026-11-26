@@ -170,11 +170,16 @@ def _old_bonf(B, keys, ref=None):
     return np.minimum(B.p.to_numpy(float) * B.set_index(list(keys)).index.map(n).to_numpy(float), 1.0)
 
 
-def test_bonferroni_count_same_for_plain_twin_and_split_frames():
+def _split_frame(allen):
+    import encoder_split_rows as esr
+    return [a for a in allen if not a.startswith(("MOs_", "MOp_"))] + list(esr.SPLIT_AREAS)
+
+
+def test_bonferroni_plain_unchanged_split_frame_counts_every_row():
     import encoder_split_rows as esr
     rng = np.random.default_rng(1)
     allen = _allen_areas()
-    split_frame = [a for a in allen if not a.startswith(("MOs_", "MOp_"))] + list(esr.SPLIT_AREAS)
+    split_frame = _split_frame(allen)
 
     def tab(areas):
         return pd.DataFrame([{"q": q, "window": w, "area": a, "p": rng.uniform(0, 0.05)}
@@ -184,9 +189,10 @@ def test_bonferroni_count_same_for_plain_twin_and_split_frames():
         np.testing.assert_array_equal(esr.bonf_allen(T, ["q", "window"]), _old_bonf(T, ["q", "window"]))
     sp = PT[PT.area.isin(esr.SPLIT_AREAS)]
     np.testing.assert_array_equal(esr.bonf_allen(sp, ["q", "window"], ref=P), _old_bonf(sp, ["q", "window"], ref=P))
-    # split-basis frame: its ROIs count as the parents they partition -> the plain frame's count (12 here)
-    np.testing.assert_allclose(esr.bonf_allen(S, ["q", "window"]), np.minimum(S.p * len(allen), 1.0))
-    assert esr.n_allen(split_frame) == esr.n_allen(allen) == len(allen)
+    # split-basis frame (Priya 11-26): over EVERY area row tested (ALM / tjM1 / rests count): 16 here, 45 on the atlas
+    np.testing.assert_allclose(esr.bonf_allen(S, ["q", "window"]), np.minimum(S.p * len(split_frame), 1.0))
+    assert esr.bonf_count(split_frame) == len(split_frame) == len(allen) + 4
+    assert esr.bonf_count(allen) == esr.bonf_count(allen + list(esr.SPLIT_AREAS)) == len(allen)
     # primary rows: plain + twin -> the Allen rows only (as before); split frame -> every row
     np.testing.assert_array_equal(esr.primary_rows(PT.area), ~PT.area.isin(esr.SPLIT_AREAS).to_numpy())
     assert esr.primary_rows(S.area).all()
@@ -194,13 +200,158 @@ def test_bonferroni_count_same_for_plain_twin_and_split_frames():
     assert not esr.is_split_frame(allen)
 
 
-def test_named_area_readers_refuse_a_split_frame_instead_of_dropping():
+def test_split_area_list_side_by_side_and_plain_unchanged():
     import encoder_split_rows as esr
     allen = _allen_areas() + ["cortex"]
-    split_frame = [a for a in allen if not a.startswith(("MOs_", "MOp_"))] + list(esr.SPLIT_AREAS)
-    want = ["cortex", "SSp-m_right", "MOp_right"]
-    fe.check_requested_areas(allen, want)                                       # plain: no-op
-    fe.check_requested_areas(allen + list(esr.SPLIT_AREAS), want)              # plain + twin: no-op
-    fe.check_requested_areas(split_frame, ["cortex", "SSp-m_right", "ALM_right"])
-    with pytest.raises(SystemExit, match="needs a decision"):
-        fe.check_requested_areas(split_frame, want)
+    want = ["cortex", "SSp-m_right", "MOp_right", "MOp_left", "MOs_right"]
+    assert fe.split_area_list(want, allen) == want                               # plain: unchanged
+    assert fe.split_area_list(want, allen + list(esr.SPLIT_AREAS)) == want      # plain + twin rows: unchanged
+    assert fe.split_area_list(want, _split_frame(allen)) == [
+        "cortex", "SSp-m_right", "tjM1_right", "MOp_rest_right", "tjM1_left", "MOp_rest_left", "ALM_right",
+        "MOs_rest_right"]
+
+
+# --------------------------------------------------------------------------------------- readers on fake frames
+def _write_frame(root, folder, areas, variants=("joint",), seed=0):
+    import json
+    rng = np.random.default_rng(seed)
+    for v in variants:
+        d = root / folder / v / "sessions"
+        d.mkdir(parents=True, exist_ok=True)
+        for lab, ep in (("PS92_0806", "pre"), ("PS92_0901", "acute")):
+            r2 = {w: {m: rng.uniform(0, 1, len(areas)).tolist() for m in ("frame", "trial", "avg")}
+                  for w in ("cue", "lick")}
+            (d / f"{lab}.json").write_text(json.dumps({"label": lab, "animal": "PS92", "epoch": ep, "areas": areas,
+                                                       "r2_musall": r2, "n_trials": 100}))
+    return root / folder
+
+
+def _old_session_r2(E, folder, variant, AREAS, measure="frame", areas=None):
+    """frozen_fr_compare.session_r2 before 11-26, verbatim."""
+    import glob
+    import json
+    rows = []
+    for f in sorted(glob.glob(str(E / folder / variant / "sessions" / "*.json"))):
+        m = json.loads(Path(f).read_text())
+        for w in ("cue", "lick"):
+            fr = m["r2_musall"][w][measure]
+            for a in (AREAS if areas is None else areas):
+                if a in m["areas"]:
+                    rows.append({"label": m["label"], "animal": m["animal"], "epoch": m["epoch"], "window": w,
+                                 "area": a, "r2": fr[m["areas"].index(a)]})
+    return pd.DataFrame(rows)
+
+
+def _old_table(sdir, AREAS, measure="frame", areas=None):
+    """partial_refit.table before 11-26, verbatim."""
+    import json
+    areas = AREAS if areas is None else areas
+    rows = []
+    for f in sorted(sdir.glob("*.json")):
+        m = json.loads(f.read_text())
+        for v, ww in m["scores"].items():
+            for w, dd in ww.items():
+                for key, vals in dd.items():
+                    if key not in (measure,) and not key.startswith("spout:"):
+                        continue
+                    for a in (m["areas"] if areas == "all" else areas):
+                        if a in m["areas"]:
+                            rows.append((m["label"], m["animal"], m["epoch"], v, w, key, a, vals[m["areas"].index(a)]))
+    return pd.DataFrame(rows, columns=["label", "animal", "epoch", "variant", "window", "measure", "area", "r2"])
+
+
+def _old_frozen_r2(run, variant, AREAS, measure="frame", areas=None):
+    """session_vs_frozen.frozen_r2 before 11-26, verbatim."""
+    import json
+    rows = []
+    for f in sorted((run / variant / "sessions").glob("*.json")):
+        m = json.loads(f.read_text())
+        for w, dd in m["r2_musall"].items():
+            for a in (m["areas"] if areas == "all" else (areas or AREAS)):
+                if a in m["areas"]:
+                    rows.append({"label": m["label"], "window": w, "area": a, "variant": variant,
+                                 "frozen": dd[measure][m["areas"].index(a)]})
+    return pd.DataFrame(rows)
+
+
+def _same(a, b):
+    pd.testing.assert_frame_equal(a, b)
+    assert a.to_csv().encode() == b.to_csv().encode()
+
+
+def test_session_r2_plain_byte_identical_split_side_by_side(tmp_path, monkeypatch):
+    import frozen_fr_compare as ffc
+    monkeypatch.setattr(ffc, "E", tmp_path)
+    allen = _allen_areas() + ["cortex"]
+    _write_frame(tmp_path, "plain", allen)
+    _write_frame(tmp_path, "twin", allen + list(__import__("encoder_split_rows").SPLIT_AREAS))
+    _write_frame(tmp_path, "split", _split_frame(allen))
+    for folder in ("plain", "twin"):
+        for areas in (None, ["cortex", "MOp_right", "MOs_left"]):
+            _same(ffc.session_r2(folder, "joint", areas=areas), _old_session_r2(tmp_path, folder, "joint", ffc.AREAS,
+                                                                                areas=areas))
+    S = ffc.session_r2("split", "joint")
+    assert list(dict.fromkeys(S.area)) == ["cortex", "SSp-m_right", "SSp-m_left", "tjM1_right", "MOp_rest_right",
+                                           "tjM1_left", "MOp_rest_left"]
+    assert all(a in ffc.ALAB for a in S.area)
+
+
+def test_partial_refit_and_svf_tables_plain_identical_split_expanded(tmp_path):
+    import json
+
+    import partial_refit as pr
+    import session_vs_frozen as svf
+    allen = _allen_areas() + ["cortex"]
+    for kind, areas in (("plain", allen), ("split", _split_frame(allen))):
+        sd = tmp_path / kind / "sessions"
+        sd.mkdir(parents=True)
+        rng = np.random.default_rng(3)
+        for lab in ("PS92_0806", "PS92_0901"):
+            sc = {"joint": {w: {"frame": rng.uniform(0, 1, len(areas)).tolist()} for w in ("cue", "lick")}}
+            (sd / f"{lab}.json").write_text(json.dumps({"label": lab, "animal": "PS92", "epoch": "pre", "areas": areas,
+                                                        "scores": sc}))
+    for areas in (None, "all"):
+        kw = {} if areas is None else {"areas": areas}
+        _same(pr.table(tmp_path / "plain" / "sessions", **kw), _old_table(tmp_path / "plain" / "sessions", pr.AREAS,
+                                                                          areas=areas))
+    S = pr.table(tmp_path / "split" / "sessions")
+    assert list(dict.fromkeys(S.area)) == fe.split_area_list(pr.AREAS, _split_frame(allen))
+    run_p = _write_frame(tmp_path, "frozen_encoder_plain", allen)
+    run_s = _write_frame(tmp_path, "frozen_encoder_split", _split_frame(allen))
+    for areas in (None, "all", ["SSp-m_right", "MOs_left"]):
+        _same(svf.frozen_r2(run_p, "joint", areas=areas), _old_frozen_r2(run_p, "joint", svf.AREAS, areas=areas))
+    Fs = svf.frozen_r2(run_s, "joint")
+    assert list(dict.fromkeys(Fs.area)) == fe.split_area_list(svf.AREAS, _split_frame(allen))
+    assert len(svf.frozen_r2(run_s, "joint", areas="all")) == 2 * 2 * len(_split_frame(allen))
+
+
+def test_contest_lines_unique_table_split_frame(tmp_path, monkeypatch):
+    import contest_lines as cl
+    allen = _allen_areas() + ["cortex"]
+    monkeypatch.setattr(cl, "E", tmp_path)
+    for tag, areas in (("p", allen), ("s", _split_frame(allen))):
+        (tmp_path / f"frozen_encoder_{tag}").mkdir()
+        pd.DataFrame([{"label": "PS92_0806", "animal": "PS92", "epoch": "pre", "align": "cue", "area": a,
+                       "measure": "frame", "variant": v, "r2": 0.5} for a in areas for v in ("joint", "no_target")]) \
+            .to_csv(tmp_path / f"frozen_encoder_{tag}" / "frozen_musall_r2.csv", index=False)
+    P = cl.unique_table("p", {"target": "target"})
+    assert set(P.area) == set(cl.AREAS)
+    S = cl.unique_table("s", {"target": "target"})
+    assert set(S.area) == set(fe.split_area_list(cl.AREAS, _split_frame(allen)))
+
+
+def test_specificity_orofacial_group_on_split_frames():
+    import specificity_control as sc
+    allen = _allen_areas() + ["VISp_left", "VISp_right"]
+    assert sc.groups_for(allen) is sc.GROUPS                                         # plain: unchanged
+    g = sc.groups_for(_split_frame(allen))
+    assert g["orofacial"] == [f"{a}_{h}" for a in ("SSp-m", "SSp-n", "ALM", "tjM1") for h in ("left", "right")]
+    assert g["control"] == sc.CONTROL
+    rows = [{"animal": "PS92", "label": lab, "epoch": ep, "window": "cue", "area": a, "residual": 1.0 + k,
+             "residual_z": float(k)} for lab, ep in (("PS92_0806", "pre"), ("PS92_0901", "acute"))
+            for k, a in enumerate(_split_frame(allen))]
+    T = pd.DataFrame(rows)
+    G = sc.group_means(T, ("residual_z", "residual"))
+    oro = G[G.area == "orofacial"].set_index("label").residual_z.sort_index()
+    want = T[T.area.isin(g["orofacial"])].groupby("label").residual_z.mean().sort_index()
+    np.testing.assert_allclose(oro.to_numpy(), want.to_numpy())

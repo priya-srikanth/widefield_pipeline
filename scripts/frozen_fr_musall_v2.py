@@ -37,7 +37,8 @@ BILAT = ["SSp-m", "SSp-n", "MOp", "MOs", "SSs", "RSPd"]
 AREA_RUN = ["cortex", "VISp_right"] + [f"{b}_{h}" for b in BILAT for h in ("right", "left")]
 SPLIT = ("ALM_right", "ALM_left", "tjM1_right", "tjM1_left")
 CHECK = ("SSp-m_right", "SSp-m_left", "SSp-n_right", "SSp-n_left", "MOp_right", "MOp_left")
-CI = BILAT + ["ALM", "tjM1"]
+CI = BILAT + ["ALM", "tjM1"] + ["MOs_rest", "MOp_rest"]   # rests: split-basis frames only (11-26; MOp / MOs -> split
+#                                                        pairs via frozen_fr_compare.session_r2); absent on plain frames
 KEY = ["label", "animal", "epoch", "window", "area"]
 
 

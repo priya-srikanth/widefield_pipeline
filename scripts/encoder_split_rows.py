@@ -251,18 +251,12 @@ def pix_union_paths(enc_root, tag: str) -> tuple:
     return Path(enc_root) / f"frozen_encoder_{tag}{PIX_UNION}", Path(enc_root) / f"frozen_encoder_{tag}_basis"
 
 
-def allen_unit(area: str) -> str:
-    """The Allen area a row stands for in the Bonferroni count: a split ROI -> its parent (ALM_right -> MOs_right), any
-    other area -> itself. "SPLIT ROIs ARE NOT EXTRA AREAS" (10-27): they re-partition MOs / MOp."""
-    return PARENT.get(area, area)
-
-
-def n_allen(areas) -> int:
-    """The Bonferroni count of an area list: the number of distinct Allen areas it covers (`allen_unit`). The same for a
-    PLAIN frame's 41 areas, the plain areas + their basis-twin split rows, and a SPLIT-basis frame's areas (frozen encoder
-    FROZEN_AREA_BASIS=split, 11-26: MOs / MOp replaced by ALM + MOs_rest / tjM1 + MOp_rest), so p_bonf does not depend on
-    which basis a frame was built in."""
-    return len({allen_unit(a) for a in areas})
+def bonf_count(areas) -> int:
+    """The Bonferroni count of one test family's area list. PLAIN frame (+ its basis-twin / ROI-target split rows beside
+    their parents): the Allen areas only -- "split ROIs are not extra areas" (10-27), unchanged. SPLIT-basis frame (frozen
+    FROZEN_AREA_BASIS=split, Priya 11-26): every area row tested (ALM / tjM1 / MOs_rest / MOp_rest count; 45)."""
+    a = list(dict.fromkeys(areas))
+    return len(a) if is_split_frame(a) else sum(x not in SPLIT_AREAS for x in a)
 
 
 def primary_rows(areas) -> np.ndarray:
@@ -283,13 +277,12 @@ def is_split_frame(areas) -> bool:
 
 
 def bonf_allen(B, keys, ref=None) -> np.ndarray:
-    """p_bonf = min(p x number of ALLEN areas in the row's ``keys`` group, 1): the split ROIs re-partition MOs / MOp, so
-    they are tested with the Allen count and do not change it (as `residual_roi.py`). Rows of B: area, p, *keys; the
-    count comes from ``ref`` (default B: e.g. the Allen table when B holds the split rows only) and is `n_allen` of the
-    group's areas -- for a table with the parents present, the distinct non-split areas (unchanged); for a split-basis
-    frame (11-26) its ROIs count as the parents they partition."""
+    """p_bonf = min(p x the row's ``keys`` group count, 1) (`bonf_count`): a plain frame's split rows re-partition MOs /
+    MOp, so they are tested with the Allen count and do not change it (as `residual_roi.py`); a split-basis frame (11-26)
+    corrects over every area row it tests. Rows of B: area, p, *keys; the count comes from ``ref`` (default B: e.g. the
+    Allen table when B holds the split rows only)."""
     ref = B if ref is None else ref
-    n = ref.groupby(list(keys)).area.agg(lambda s: n_allen(s.unique()))
+    n = ref.groupby(list(keys)).area.agg(lambda s: bonf_count(s.unique()))
     return np.minimum(B.p.to_numpy(float) * B.set_index(list(keys)).index.map(n).to_numpy(float), 1.0)
 
 

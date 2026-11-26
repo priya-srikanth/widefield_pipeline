@@ -283,7 +283,9 @@ def check_tag(tag: str, what: str = "run") -> None:
 #: FROZEN_AREA_BASIS = split | plain selects it; UNSET means plain everywhere EXCEPT `main` building a NEW frame (no saved
 #: statistics), which defaults to split. A run on an EXISTING frame (--reuse-stats / --fit-from / --trials-only, and the
 #: readers that rebuild a frame's designs: `adopt_frame_area_basis`) takes the basis the frame recorded. Spatial targets
-#: (basis / grid) have no area basis. On O2 the masks are bundled (`o2_frozen` capture; the v8 rim needs
+#: (basis / grid) have no area basis. SPLIT IS PRIMARY for every frozen-encoder analysis (Priya 11-26: "basically
+#: everything should use the split frame"); a NEW plain frame is robustness only and needs the explicit opt-in (logged).
+#: Readers with named MOp / MOs: `split_area_list` (tjM1 + MOp_rest, ALM + MOs_rest side by side). On O2 the masks are bundled (`o2_frozen` capture; the v8 rim needs
 #: `beta_maps.brain_mask()`, a share read), never rebuilt there (`bundled_area_masks`).
 AREA_BASIS_ENV = "FROZEN_AREA_BASIS"
 AREA_BASES = ("split", "plain")
@@ -379,17 +381,30 @@ _SPLIT_PARENTS = {"MOs_left", "MOs_right", "MOp_left", "MOp_right"}
 _SPLIT_ROIS = {f"{n}_{h}" for n in ("ALM", "tjM1", "MOs_rest", "MOp_rest") for h in ("left", "right")}
 
 
-def check_requested_areas(frame_areas, wanted, where: str = "reader") -> None:
-    """READERS WITH NAMED AREAS (11-26): a split-basis frame has no whole MOs / MOp, so a reader asking for them would
-    silently drop those rows (`if a in m["areas"]`). Refuse instead: which split ROIs replace a named MOs / MOp panel
-    (tjM1 + MOp_rest side by side, or a pixel-weighted parent) is a design decision per figure. Plain frames: no-op."""
+#: Priya 11-26 (decision 1): on a split frame a named MOp panel / group member becomes tjM1 + MOp_rest SIDE BY SIDE, a
+#: named MOs one ALM + MOs_rest (same hemisphere, in that order)
+SPLIT_PANELS = {"MOp": ("tjM1", "MOp_rest"), "MOs": ("ALM", "MOs_rest")}
+
+
+def is_split_area_list(frame_areas) -> bool:
+    """True for a split-basis frame's own area list: split ROIs present, their parents MOs / MOp absent."""
     have = set(frame_areas)
-    if not (have & _SPLIT_ROIS) or (have & _SPLIT_PARENTS):
-        return
-    miss = sorted(set(wanted) & _SPLIT_PARENTS)
-    if miss:
-        raise SystemExit(f"{where}: split-basis frame (FROZEN_AREA_BASIS=split) has no {miss}; which split ROIs replace "
-                         "them in this reader needs a decision")
+    return bool(have & _SPLIT_ROIS) and not (have & _SPLIT_PARENTS)
+
+
+def split_area_list(wanted, frame_areas) -> list:
+    """READERS WITH NAMED AREAS (Priya 11-26): the reader's area list for a frame. A split-basis frame has no whole MOs /
+    MOp, so each named ``MOp_<h>`` becomes ``tjM1_<h>, MOp_rest_<h>`` and each ``MOs_<h>`` becomes ``ALM_<h>, MOs_rest_<h>``
+    in place (`SPLIT_PANELS`); every other name stays. A PLAIN frame (or plain + basis-twin rows) gets ``wanted``
+    unchanged, so its outputs are byte-identical."""
+    wanted = list(wanted)
+    if not is_split_area_list(frame_areas):
+        return wanted
+    out = []
+    for a in wanted:
+        par, _, h = a.partition("_")
+        out += [f"{x}_{h}" for x in SPLIT_PANELS[par]] if a in _SPLIT_PARENTS else [a]
+    return out
 
 
 def split_area_targets(label: str, Ub, flat, pstat, am: dict) -> tuple:
@@ -2521,6 +2536,9 @@ def main(argv=None) -> int:
             raise SystemExit("--roi-targets re-scores a PLAIN-basis area run (a split frame has the ROIs as targets)")
         print(f"[frozen] Allen-area targets, area basis {basis}" + (f" ({_AREA_TAG[1:]}split in the run tag)"
                                                                      if basis == "split" else ""), flush=True)
+        if basis == "plain" and frame_area_basis(src_fit.parent) is None:   # Priya 11-26: split is primary everywhere
+            print(f"[frozen] NEW frame on the PLAIN area basis = ROBUSTNESS, explicit opt-in "
+                  f"(--target plain / {AREA_BASIS_ENV}=plain); the primary basis is split", flush=True)
     elif os.environ.pop(AREA_BASIS_ENV, None):           # spatial targets have no area basis (run tag unchanged)
         print(f"[frozen] {a.target} targets: {AREA_BASIS_ENV} ignored", flush=True)
     if a.basis_only:
