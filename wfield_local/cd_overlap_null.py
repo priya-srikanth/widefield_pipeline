@@ -240,8 +240,10 @@ def epoch_null_folds(pre_sessions, ep_chunks, t, stats=None, k=None, n_draw=N_DR
     chronic epoch holds more trials than the pre sessions can supply while leaving a reference A), each draw trims B
     to the target as before AND subsamples the EPOCH's folds, stratified by session, to B's achieved count, so the
     observed and the null share one trial count; the observed statistic then varies over draws and its median is the
-    point. `rng_e` is a separate stream, so B's draws are identical to the uncapped run and a cell that is NOT
-    subsampled is unchanged.
+    point. `rng_e` is a separate stream for the epoch's subsample. B's draws share one stream across an animal's
+    epochs, so they are bit-identical to the uncapped run only up to the first capped epoch (a capped target moves B's
+    draws and everything after it); later uncapped cells are statistically, not bitwise, equivalent (measured 11-26:
+    every uncapped PS93 cell bit-identical, PS92 subacute not, after its capped acute).
 
     `pre_sessions` is `grand_means_folds`' per-session fold list. Everything else -- the paired
     difference, what is and is not claimed -- is identical to `epoch_null`; only the matching unit
