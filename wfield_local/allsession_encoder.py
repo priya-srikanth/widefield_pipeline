@@ -157,6 +157,8 @@ def main(argv=None) -> int:
     fe.check_tag(a.src, "--from")                       # the frozen design (v7g3_t3d | _spont) is in both tags
     fe.check_tag(a.tag, "allsession")
     src = fe.out_root() / f"frozen_encoder_{a.src}"
+    if fe.adopt_frame_area_basis(src) == "split" and a.roi_targets:     # the frame's area basis (11-26)
+        raise SystemExit(f"{src} is a split-basis frame: its ALM / tjM1 / rests are targets already (no --roi-targets)")
     out = (Path(a.out_root) if a.out_root else E) / f"allsession_encoder_{a.tag}"
     assert_writable(out)
     (out / "fit").mkdir(parents=True, exist_ok=True)

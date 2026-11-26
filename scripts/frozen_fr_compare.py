@@ -71,6 +71,8 @@ def session_r2(folder: str, variant: str, measure: str = "frame", areas=None) ->
     rows = []
     for f in sorted(glob.glob(str(E / folder / variant / "sessions" / "*.json"))):
         m = json.loads(Path(f).read_text())
+        from wfield_local.frozen_encoder import check_requested_areas
+        check_requested_areas(m["areas"], AREAS if areas is None else areas, f"session_r2 {folder}")   # split frame (11-26)
         for w in WINDOWS:
             fr = m["r2_musall"][w][measure]
             for a in (AREAS if areas is None else areas):

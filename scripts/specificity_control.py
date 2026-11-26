@@ -63,8 +63,8 @@ def session_rows(run: Path, variant: str = "joint") -> pd.DataFrame:
     T = pd.DataFrame(rows)
     # ALM / tjM1 / MOs_rest / MOp_rest rows (Priya 10-27): same quantity from the run's BASIS twin over the ROI v8 masks
     # (encoder_split_rows; the area run saved area means only). Not in any GROUP, so every group value is unchanged.
-    if Path(f"{run}_basis").is_dir():
-        import encoder_split_rows as esr
+    import encoder_split_rows as esr
+    if Path(f"{run}_basis").is_dir() and not T.area.isin(esr.SPLIT_AREAS).any():   # a split-basis frame has them (11-26)
         T = pd.concat([T, esr.residual_rows(run, list(T.label.unique()), variant)], ignore_index=True)
     return T
 
@@ -83,6 +83,13 @@ def add_measures(T: pd.DataFrame) -> pd.DataFrame:
 
 def group_means(T: pd.DataFrame, cols) -> pd.DataFrame:
     """Per session x window: mean over each group's areas present in that animal's every session (fixed area set)."""
+    import encoder_split_rows as esr
+    if esr.is_split_frame(T.area.unique()):
+        # NEEDS A DECISION (Priya; SPLIT_BASIS_INVENTORY_20261104 item 2): OROFACIAL names whole MOs / MOp, which a
+        # split-basis frame (frozen FROZEN_AREA_BASIS=split, 11-26) does not have. Dropping them silently would change the
+        # group; ALM + tjM1 + MOs_rest + MOp_rest in, and with which weights, is Priya's call. sessions.csv is written.
+        raise SystemExit("specificity_control groups: split-basis frame -- the orofacial group's MOs / MOp membership "
+                         "needs a decision (sessions.csv written; residual_roi can run on it)")
     rows = []
     for (an, w), g in T.groupby(["animal", "window"]):
         nlab = g.label.nunique()

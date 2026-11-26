@@ -414,6 +414,9 @@ def table(sdir: Path, measure: str = "frame", areas=AREAS) -> pd.DataFrame:
     rows = []
     for f in sorted(sdir.glob("*.json")):
         m = json.loads(f.read_text())
+        if areas != "all":                               # named areas on a split-basis frame (11-26): refuse, not drop
+            from wfield_local.frozen_encoder import check_requested_areas
+            check_requested_areas(m["areas"], areas, f"partial_refit.table {sdir}")
         for v, ww in m["scores"].items():
             for w, dd in ww.items():
                 for key, vals in dd.items():
@@ -435,6 +438,7 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     __import__("wfield_local.frozen_encoder", fromlist=["check_tag"]).check_tag(a.tag)   # refits: design = env (8.51)
     run = E / f"frozen_encoder_{a.tag}"
+    __import__("wfield_local.frozen_encoder", fromlist=["x"]).adopt_frame_area_basis(run)   # the frame's area basis (11-26)
     out = __import__("wfield_local.frozen_encoder", fromlist=["fig_out"]).fig_out(run) / "partial_refit"   # FROZEN_FIG_OUT (11-23)
     sdir = out / "sessions"
     sdir.mkdir(parents=True, exist_ok=True)

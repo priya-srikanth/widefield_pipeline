@@ -242,6 +242,16 @@ def _reduce(name, v, label):
     targets: the same rows in the same order -> identical area means); _kin_all keeps this session's rows (its only
     reader filters by session first)."""
     import numpy as np
+    if name == "load_imaging" and _fe().area_basis() == "split":
+        # SPLIT area basis (frozen_encoder AREA BASIS, 11-26): its areas carry the v8 rim, outside the stat mask, so the
+        # kept pixels are the stat mask + every split-area pixel; pstat marks the stat pixels within them (same order, so
+        # Ub[pstat] -- cortex, spatial targets -- is the full imaging's). The masks themselves travel in the inputs pickle.
+        V, ft, Ub, flat, parea, names, shape, pstat = v
+        ps = np.asarray(pstat, bool)
+        am = _fe().area_mask_record(label, parea, ps, names, flat, shape)
+        keep = ps | np.isin(np.asarray(flat), np.concatenate([np.asarray(x) for x in am["pix"].values()]))
+        return ("imaging_reduced", (V, ft, np.ascontiguousarray(Ub[keep]), np.asarray(flat)[keep], np.asarray(parea)[keep],
+                                    names, shape, ps[keep]))
     if name == "load_imaging":
         V, ft, Ub, flat, parea, names, shape, pstat = v
         ps = np.asarray(pstat, bool)

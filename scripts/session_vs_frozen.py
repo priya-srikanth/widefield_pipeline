@@ -129,6 +129,9 @@ def frozen_r2(run: Path, variant: str, measure: str = "frame", areas=None) -> pd
     rows = []
     for f in sorted((run / variant / "sessions").glob("*.json")):
         m = json.loads(f.read_text())
+        if areas != "all":                               # named areas on a split-basis frame (11-26): refuse, not drop
+            from wfield_local.frozen_encoder import check_requested_areas
+            check_requested_areas(m["areas"], areas or AREAS, f"session_vs_frozen.frozen_r2 {run.name}")
         for w, dd in m["r2_musall"].items():
             for a in (m["areas"] if areas == "all" else (areas or AREAS)):
                 if a in m["areas"]:
@@ -187,6 +190,8 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     __import__("wfield_local.frozen_encoder", fromlist=["check_tag"]).check_tag(a.tag)   # refits: design = env (8.51)
     run = E / f"frozen_encoder_{a.tag}"
+    if __import__("wfield_local.frozen_encoder", fromlist=["x"]).adopt_frame_area_basis(run) == "split" and a.roi_targets:
+        raise SystemExit(f"{run} is a split-basis frame: its ALM / tjM1 / rests are targets already (no --roi-targets)")
     out = Path(a.out) if a.out else run / ("session_vs_frozen_roi" if a.roi_targets else "session_vs_frozen")
     sdir = out / "sessions"
     sdir.mkdir(parents=True, exist_ok=True)

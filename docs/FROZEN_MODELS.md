@@ -261,6 +261,13 @@ from the analysis desktop. Lick models and the attempt pool's cue / lick / ENL 2
 The afternoon definition is `WIDEFIELD_WORKING_TRIALS=in_working_jaw` (tag without the class suffix) and loads the 29
 afternoon models unchanged; nothing was retired.
 
+**2026-11-26: frozen-ENCODER Allen-area targets default to the ALM / tjM1 SPLIT for NEW frames (Priya: "all our allen maps
+should be split" -> "ok"; DECISIONS 2026-11-26).** `frozen_encoder --target split | plain | areas` / `FROZEN_AREA_BASIS`;
+masks = `area_basis` (v8, the per-session encoder's); cortex stays the stat mask. A split frame's run tag ends in
+`|areas-split`; plain adds nothing, so every existing frame (all plain) keeps its run tag, statistics and outputs and is
+read in its own basis (`adopt_frame_area_basis`); asking for the other basis on an existing frame folder refuses. Plain =
+robustness. Not a `frozen_models` store kind: no spec id moved.
+
 ## 7. EVERY PRE-STROKE DECODER IS FROZEN — the rule for this and future cohorts (Priya, 2026-10-15)
 
 *"Establish in the code for future cohorts that we will make a frozen pre-stroke decoder that is cached / stored

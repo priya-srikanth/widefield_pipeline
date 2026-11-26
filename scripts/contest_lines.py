@@ -33,6 +33,8 @@ def unique_table(tag: str, qs: dict) -> pd.DataFrame:
     """Per session x window x area unique R2 of each group: {series label: group}."""
     from wfield_local import config
     D = pd.read_csv(E / f"frozen_encoder_{tag}" / "frozen_musall_r2.csv")
+    from wfield_local.frozen_encoder import check_requested_areas
+    check_requested_areas(D.area.unique(), AREAS, f"contest_lines {tag}")   # split-basis frame (11-26): refuse, not drop
     D = D[(D.measure == "frame") & (~D.label.map(config.early_pre)) & D.area.isin(AREAS)]
     W = D.pivot_table(index=["label", "animal", "epoch", "align", "area"], columns="variant", values="r2").reset_index()
     rows = []

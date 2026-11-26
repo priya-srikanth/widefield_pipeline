@@ -136,7 +136,8 @@ def main(argv=None) -> int:
     B = pd.concat([ffc.boot(U[U.q == q], "u", epochs=["acute", "chronic"], keys=("window", "measure", "area")).assign(q=q)
                    for q in qs], ignore_index=True)
     B = B[B.epoch.isin(["acute", "chronic"])].copy()
-    B["p_bonf"] = np.minimum(B.p * B.groupby(["q", "window", "measure", "epoch"]).area.transform("nunique"), 1.0)
+    import encoder_split_rows as esr                     # count = Allen areas covered (a split-basis frame's ROIs count as
+    B["p_bonf"] = esr.bonf_allen(B, ["q", "window", "measure", "epoch"])   # their parents, 11-26; plain: nunique as before)
     B.to_csv(out / f"peth_trial_area{sfx}.csv", index=False)
     pre = U[U.epoch == "pre"].groupby(["q", "window", "measure", "area", "animal"]).u.mean() \
         .groupby(["q", "window", "measure", "area"]).mean()
