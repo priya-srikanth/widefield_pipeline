@@ -95,6 +95,15 @@ FRAMES = {
                         "args": ["--target", "basis", "--no-drop-spout", "--variants", *"joint no_target no_spout "
                                  "no_task no_movement no_fr no_fr_dir no_fr_all no_lick no_exec_within no_other "
                                  "no_spont".split()], "jobs": ("predict",), "wave": 1},
+    # BASIS TWIN of spont_frA_spd (Priya 11-26, option a): spont_frA_basis's design + variants with the speed-only jaw /
+    # nose layout, so encoder_split_rows (ALM / tjM1 rows) and frozen_residual_significance (pixel residual maps) read
+    # <spd run>_basis. Built from the wave-1a2 spont_frA_basis recorded loaders (bundle --inputs-from o2f_wave1a2_20261124
+    # --inputs-frame spont_frA_basis).
+    "spont_frA_spd_basis": {"tag": "gate-attempted_v7g3_t3d_spont_frA_spd_basis",
+                            "env": {**SPLIT, **FR_A, POSE_ENV: "xyz3d_spd"},
+                            "args": ["--target", "basis", "--no-drop-spout", "--variants", *"joint no_target no_spout "
+                                     "no_task no_movement no_fr no_fr_dir no_fr_all no_lick no_exec_within no_other "
+                                     "no_spont".split()], "jobs": ("predict",), "wave": 1.5},
     "frA_te": {"tag": "gate-attempted_v7g3_t3d_frA_te", "env": {**NONE, **FR_A, "FROZEN_DESIGN": "te", **CALIB},
                "args": ["--no-drop-spout"], "jobs": ("predict",), "wave": 1},
     "frA_te_basis": {"tag": "gate-attempted_v7g3_t3d_frA_te_basis", "env": {**NONE, **FR_A, "FROZEN_DESIGN": "te", **CALIB},
@@ -127,6 +136,7 @@ V36_RUN_MODE = {
     "spont_frA_spd": f"{_K0}|tongue3d{_FRA}|licksall-split",
     "spont_frA_frlag": f"{_K0}|tongue3d{_FRA}|frlags={FR_LAGS}|licksall-split",
     "spont_frA_basis": f"{_K0}|tongue3d{_FRA}|licksall-split",
+    "spont_frA_spd_basis": f"{_K0}|tongue3d{_FRA}|licksall-split",
     "frA_te": f"{_K0}|te|tongue3d{_FRA}",
     "frA_te_basis": f"{_K0}|te|tongue3d{_FRA}",
     "spont_frA_lsland": f"{_K0}|tongue3d{_FRA}|lickspout|lickland|licksall-split",
@@ -177,6 +187,17 @@ def apply_frame_env(key: str, nose_frames: str = "") -> None:
         if bp is None or not Path(bp).is_file():
             raise SystemExit(f"epoch boundaries file missing: {bp}")
         os.environ["WIDEFIELD_EPOCH_BOUNDARIES"] = str(bp)
+
+
+def declared_out_root(rmeta: dict):
+    """The frame-folder parent a bundle's run.json DECLARES, or None (a frame routed to the share root at bundle time).
+    Two spellings exist: ``test_out_root`` (this code; a TEST session subset, "" for a routed full bundle) and
+    ``out_root`` (the rule-11 bundles of 05e363a4 / ca1ad428, e.g. o2f_wave1a2_20261124 / o2f_wave1b2_20261124, whose
+    frames live in <bundle>/frames). Both set and different -> SystemExit (11-26)."""
+    o, t = str(rmeta.get("out_root") or ""), str(rmeta.get("test_out_root") or "")
+    if o and t and Path(o) != Path(t):
+        raise SystemExit(f"run.json declares two frame roots: out_root {o} vs test_out_root {t}; refusing")
+    return o or t or None
 
 
 def frame_out(key: str, out_root=None) -> Path:
@@ -583,6 +604,12 @@ def run_task(b, frame: str, mode: str, label: str, out=None, audit: bool = False
         img = pickle.loads((b / "imaging" / f"{label}.pkl").read_bytes())
     o2_bundle.check_inputs(meta, inp, label)
     o2_bundle.check_inputs(meta, img, label + " (imaging)")
+    # 11-26: the task's analysis-mask digest = the bundle's (just verified on every input pickle; the desktop computed it
+    # from the masks at bundle time). Recomputing it reads the brain / stat / painted masks off the share, which O2 does
+    # not have: a BASIS frame's predict (`_spatial_of` -> check_saved_masks) failed the audited check on exactly those
+    # reads (wave-1a2 spont_frA_basis and spont_frA_spd_basis, PS95_0812).
+    _sig = meta[o2_bundle.MASK_FIELD]
+    mask_keys.signature = lambda *a_, **k_: _sig
     base = Path(out) if out else r
     if _done_marker(base, mode, label).exists():
         print("done already", label)
@@ -726,12 +753,24 @@ def cmd_collect(a) -> int:
     meta = json.loads((d / "bundle.json").read_text())
     r = d / "runs" / key
     rmeta = json.loads((r / "run.json").read_text())
+    oroot = declared_out_root(rmeta)      # out_root (rule-11 bundles) or test_out_root (TEST bundles)
+    if not oroot:
+        raise SystemExit(f"refusing: bundle {a.name} frame {key} declares no out-root (out_root / test_out_root empty; "
+                         f"frame_dir {rmeta.get('frame_dir')}); collecting it would route to fe.out_root(), the "
+                         "production default -- rebuild the bundle with --out-root (rule 11)")
     try:
         o2_bundle.verify_masks(meta)
         op.verify_identity(rmeta["identity"])
     except o2_bundle.BundleMismatch as ex:
         raise SystemExit(f"refusing: this bundle is not of the current run ({ex})") from None
-    out = frame_out(key, rmeta.get("test_out_root") or None)
+    # 11-26 (combined 11eb7cbf + ea88178d, Priya): FROZEN_OUT_ROOT = the bundle's DECLARED root (out_root or
+    # test_out_root) for EVERY mode, so the svf / partial summaries (`fr_musall.E` = fe.out_root() at THEIR import below)
+    # and the predict summaries land beside the frame; apply_frame_env cleared it, and unset they would write
+    # <production imaging_encoding>/frozen_encoder_<tag>/... A bundle that declares no root is refused above.
+    if "fr_musall" in sys.modules:
+        raise SystemExit("fr_musall imported before collect set FROZEN_OUT_ROOT")
+    os.environ["FROZEN_OUT_ROOT"] = str(oroot)
+    out = frame_out(key, oroot)
     if str(out) != rmeta["frame_dir"]:
         raise SystemExit(f"frame folder {out} differs from the bundle's {rmeta['frame_dir']}")
     st = (out / "fit" / "pre_stats.pkl").stat()
@@ -743,6 +782,14 @@ def cmd_collect(a) -> int:
     missing = sorted(set(labels) - have)
     if missing and not a.partial:
         raise SystemExit(f"{len(missing)} of {len(labels)} sessions missing: {missing[:8]} (--partial to collect anyway)")
+    # the summary root (predict: fe.out_root(); svf / partial: fr_musall.E) = the frame's parent, checked BEFORE any write
+    if mode == "predict":
+        sroot = fe.out_root()
+    else:
+        import fr_musall
+        sroot = fr_musall.E
+    if Path(sroot) / out.name != out:
+        raise SystemExit(f"summary root {sroot} is not the frame's parent {out.parent}: refusing")
     dst_root = {"predict": out, "svf": out / "session_vs_frozen", "partial": out / "partial_refit"}[mode]
     writeguard.assert_writable(dst_root)
     files = [f for f in src.rglob("*") if f.is_file() and f.suffix in (".json", ".npz", ".csv")]

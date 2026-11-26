@@ -14,7 +14,7 @@ changed mapping everywhere. Three tests, all within animal, nested bootstrap ani
      a run with the ROI targets (`allsession_encoder --roi-targets`, e.g. allsession_encoder_v7g3_t3d_frA_roi): an extra
      "LAYER 2 by ROI" panel + layer2_split_boot.csv + a split Layer 2 map panel (Priya 10-28).
 Usage: python scripts/specificity_control.py [--tag gate-attempted_v7g3_t3d_frA] [--layer2 allsession_encoder_v7g3_t3d_frA]
-       [--out DIR]
+       [--out DIR] [--basis-run <bundle>/frames/frozen_encoder_<tag>_basis | none]
 Output: <E>/specificity_control/<tag>/{sessions.csv, boot.csv, layer2_boot.csv, [split_boot.csv, layer2_split_boot.csv],
         figures/*.png}
 """
@@ -43,7 +43,9 @@ GROUPS = {"orofacial": OROFACIAL, "orofacial contra": [a for a in OROFACIAL if a
 EP4 = ["pre", "acute", "subacute", "chronic"]
 
 
-def session_rows(run: Path, variant: str = "joint") -> pd.DataFrame:
+def session_rows(run: Path, variant: str = "joint", basis_run=None) -> pd.DataFrame:
+    """Per session x window x area evoked data / full / residual (x1e3) of the area run ``run``, plus the ALM / tjM1 /
+    rest rows from its basis twin (``basis_run`` = the --basis-run option; `encoder_split_rows.basis_twin`)."""
     from wfield_local import config
     rows = []
     for js in sorted((run / variant / "sessions").glob("*.json")):
@@ -63,10 +65,28 @@ def session_rows(run: Path, variant: str = "joint") -> pd.DataFrame:
     T = pd.DataFrame(rows)
     # ALM / tjM1 / MOs_rest / MOp_rest rows (Priya 10-27): same quantity from the run's BASIS twin over the ROI v8 masks
     # (encoder_split_rows; the area run saved area means only). Not in any GROUP, so every group value is unchanged.
-    if Path(f"{run}_basis").is_dir():
-        import encoder_split_rows as esr
-        T = pd.concat([T, esr.residual_rows(run, list(T.label.unique()), variant)], ignore_index=True)
+    # 11-26: the twin is named (--basis-run) or the sibling `<run>_basis`; which one is PRINTED, and a named twin that is
+    # absent / incomplete REFUSES (the sibling lookup alone skipped the rows silently)
+    import encoder_split_rows as esr
+    labels = list(T.label.unique())
+    twin = esr.basis_twin(run, basis_run, labels, variant)
+    if twin is not None:
+        S = esr.residual_rows(run, labels, variant, basis=twin)
+        check_split_rows(S, labels)
+        T = pd.concat([T, S], ignore_index=True)
     return T
+
+
+def check_split_rows(S: pd.DataFrame, labels) -> None:
+    """SystemExit unless every session has every split ROI (the rows must exist after the render, 11-26)."""
+    import encoder_split_rows as esr
+    n = S.groupby("label").area.nunique().reindex(list(labels)).fillna(0) if not S.empty else \
+        pd.Series(0, index=list(labels))
+    bad = sorted(n.index[n < len(esr.SPLIT_AREAS)])
+    if S.empty or bad:
+        raise SystemExit(f"split rows incomplete: {len(bad)} of {len(labels)} sessions lack ALM / tjM1 / rest rows "
+                         f"{bad[:8]}; refusing")
+    print(f"split rows: {len(S)} rows, {S.label.nunique()} sessions x {S.area.nunique()} ROIs", flush=True)
 
 
 def add_measures(T: pd.DataFrame) -> pd.DataFrame:
@@ -114,6 +134,9 @@ def main(argv=None) -> int:
                          "layer2_boot.csv; lane E 11-24: the manuscript-lineage sync60 frame has no all-session run)")
     ap.add_argument("--reuse", action="store_true", help="reuse sessions.csv (figures / tables only)")
     ap.add_argument("--out", default=None, help="output folder (default <E>/specificity_control/<tag>)")
+    ap.add_argument("--basis-run", default=None, help="the area run's BASIS twin folder for the ALM / tjM1 / rest rows "
+                    "(11-26), e.g. <o2 bundle>/frames/frozen_encoder_<tag>_basis; REQUIRED to exist and cover every "
+                    "session when given; 'none' = no split rows; default = the sibling <run>_basis (printed)")
     a = ap.parse_args(argv)
     from wfield_local import frozen_encoder, run_mode
     from wfield_local.writeguard import assert_writable
@@ -126,8 +149,13 @@ def main(argv=None) -> int:
     (out / "figures").mkdir(parents=True, exist_ok=True)
     if a.reuse and (out / "sessions.csv").exists():
         T = pd.read_csv(out / "sessions.csv")
+        import encoder_split_rows as esr
+        has = bool(T.area.isin(esr.SPLIT_AREAS).any())
+        print(f"split rows: {'present' if has else 'NONE'} in the reused {out / 'sessions.csv'}", flush=True)
+        if a.basis_run and a.basis_run.lower() != "none" and not has:
+            raise SystemExit("--basis-run given but the reused sessions.csv has no split rows: drop --reuse; refusing")
     else:
-        T = add_measures(session_rows(run))
+        T = add_measures(session_rows(run, basis_run=a.basis_run))
         T.to_csv(out / "sessions.csv", index=False)
     ffc.ALAB.update({g: g for g in (*GROUPS, "orofacial - control")})
     cols = ("residual_z", "residual")
