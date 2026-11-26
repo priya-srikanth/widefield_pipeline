@@ -189,6 +189,17 @@ def apply_frame_env(key: str, nose_frames: str = "") -> None:
         os.environ["WIDEFIELD_EPOCH_BOUNDARIES"] = str(bp)
 
 
+def declared_out_root(rmeta: dict):
+    """The frame-folder parent a bundle's run.json DECLARES, or None (a frame routed to the share root at bundle time).
+    Two spellings exist: ``test_out_root`` (this code; a TEST session subset, "" for a routed full bundle) and
+    ``out_root`` (the rule-11 bundles of 05e363a4 / ca1ad428, e.g. o2f_wave1a2_20261124 / o2f_wave1b2_20261124, whose
+    frames live in <bundle>/frames). Both set and different -> SystemExit (11-26)."""
+    o, t = str(rmeta.get("out_root") or ""), str(rmeta.get("test_out_root") or "")
+    if o and t and Path(o) != Path(t):
+        raise SystemExit(f"run.json declares two frame roots: out_root {o} vs test_out_root {t}; refusing")
+    return o or t or None
+
+
 def frame_out(key: str, out_root=None) -> Path:
     """The frame folder: the routed share root (`frozen_encoder.out_root`), or ``out_root`` (a TEST bundle only)."""
     from wfield_local import frozen_encoder as fe
@@ -742,19 +753,24 @@ def cmd_collect(a) -> int:
     meta = json.loads((d / "bundle.json").read_text())
     r = d / "runs" / key
     rmeta = json.loads((r / "run.json").read_text())
+    oroot = declared_out_root(rmeta)      # out_root (rule-11 bundles) or test_out_root (TEST bundles)
+    if not oroot:
+        raise SystemExit(f"refusing: bundle {a.name} frame {key} declares no out-root (out_root / test_out_root empty; "
+                         f"frame_dir {rmeta.get('frame_dir')}); collecting it would route to fe.out_root(), the "
+                         "production default -- rebuild the bundle with --out-root (rule 11)")
     try:
         o2_bundle.verify_masks(meta)
         op.verify_identity(rmeta["identity"])
     except o2_bundle.BundleMismatch as ex:
         raise SystemExit(f"refusing: this bundle is not of the current run ({ex})") from None
-    if rmeta.get("test_out_root"):
-        # 11-26: a bundle with a declared out-root (rule 11): the svf / partial summaries read `fr_musall.E`
-        # (= fe.out_root(), evaluated at THEIR import below), so route FROZEN_OUT_ROOT there too; apply_frame_env
-        # cleared it, and unset they would write <production imaging_encoding>/frozen_encoder_<tag>/...
-        if "fr_musall" in sys.modules:
-            raise SystemExit("fr_musall imported before collect set FROZEN_OUT_ROOT")
-        os.environ["FROZEN_OUT_ROOT"] = str(rmeta["test_out_root"])
-    out = frame_out(key, rmeta.get("test_out_root") or None)
+    # 11-26 (combined 11eb7cbf + ea88178d, Priya): FROZEN_OUT_ROOT = the bundle's DECLARED root (out_root or
+    # test_out_root) for EVERY mode, so the svf / partial summaries (`fr_musall.E` = fe.out_root() at THEIR import below)
+    # and the predict summaries land beside the frame; apply_frame_env cleared it, and unset they would write
+    # <production imaging_encoding>/frozen_encoder_<tag>/... A bundle that declares no root is refused above.
+    if "fr_musall" in sys.modules:
+        raise SystemExit("fr_musall imported before collect set FROZEN_OUT_ROOT")
+    os.environ["FROZEN_OUT_ROOT"] = str(oroot)
+    out = frame_out(key, oroot)
     if str(out) != rmeta["frame_dir"]:
         raise SystemExit(f"frame folder {out} differs from the bundle's {rmeta['frame_dir']}")
     st = (out / "fit" / "pre_stats.pkl").stat()
@@ -766,6 +782,14 @@ def cmd_collect(a) -> int:
     missing = sorted(set(labels) - have)
     if missing and not a.partial:
         raise SystemExit(f"{len(missing)} of {len(labels)} sessions missing: {missing[:8]} (--partial to collect anyway)")
+    # the summary root (predict: fe.out_root(); svf / partial: fr_musall.E) = the frame's parent, checked BEFORE any write
+    if mode == "predict":
+        sroot = fe.out_root()
+    else:
+        import fr_musall
+        sroot = fr_musall.E
+    if Path(sroot) / out.name != out:
+        raise SystemExit(f"summary root {sroot} is not the frame's parent {out.parent}: refusing")
     dst_root = {"predict": out, "svf": out / "session_vs_frozen", "partial": out / "partial_refit"}[mode]
     writeguard.assert_writable(dst_root)
     files = [f for f in src.rglob("*") if f.is_file() and f.suffix in (".json", ".npz", ".csv")]
@@ -794,10 +818,6 @@ def cmd_collect(a) -> int:
          "missing": missing, "collected": datetime.datetime.now().isoformat(timespec="seconds")}, indent=1),
         encoding="utf-8")
     print(f"collected {len(rel)} files -> {dst_root}; summarising", flush=True)
-    if mode != "predict":
-        import fr_musall
-        if Path(fr_musall.E) / out.name != out:
-            raise SystemExit(f"summary root {fr_musall.E} is not the frame's parent {out.parent}: refusing")
     if mode == "predict":
         if is_basis(key) or "--no-drop-spout" in FRAMES[key]["args"]:
             pass

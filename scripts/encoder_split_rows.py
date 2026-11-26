@@ -151,16 +151,60 @@ def basis_evoked(basis_run: str, variant: str, label: str, animal: str) -> tuple
     return meta["evoked_parts"], meta["pos_order"], ev
 
 
-def residual_rows(run: Path, labels, variant: str = "joint", by_spout: bool = False):
+def basis_twin(run, basis_run=None, labels=None, variant: str = "joint"):
+    """The basis-target twin of the area run ``run`` that the readers' ALM / tjM1 / rest rows come from, or None (no
+    split rows). Always PRINTS which twin was used (11-26: the sibling lookup used to skip the rows silently).
+
+    ``basis_run`` (the readers' ``--basis-run``):
+      None    the sibling folder `<run>_basis` (the pre-11-26 behavior, kept for the old frames); absent -> None, with a
+              printed NO-SPLIT-ROWS notice naming the folder looked for.
+      "none"  explicit opt-out: None.
+      a path  REQUIRED: SystemExit unless it is a folder named `<run name>_basis` holding fit/ and <variant>/sessions.
+              For a twin that is not a sibling, e.g. a frame collected into an O2 bundle's frames/ folder while the
+              area run lives elsewhere (o2f_wave1a2_20261124 / spont_frA_basis vs LP_analysis/.../spont_frA).
+    ``labels``: the area run's sessions; a twin (explicit or sibling) missing any of them is refused (SystemExit)."""
+    run = Path(run)
+    if basis_run is not None and str(basis_run).strip().lower() == "none":
+        print(f"split rows: none (--basis-run none) for {run.name}", flush=True)
+        return None
+    if basis_run is None:
+        twin, how = Path(f"{run}_basis"), "sibling"
+        if not twin.is_dir():
+            print(f"split rows: NONE -- no basis twin at {twin} (sibling lookup); no ALM / tjM1 / rest rows. Pass "
+                  "--basis-run <folder> for a twin elsewhere, or --basis-run none to silence this", flush=True)
+            return None
+    else:
+        twin, how = Path(basis_run), "--basis-run"
+        if not twin.is_dir():
+            raise SystemExit(f"--basis-run {twin}: no such folder (split rows expected; refusing)")
+        if twin.name != f"{run.name}_basis":
+            raise SystemExit(f"--basis-run {twin}: folder name {twin.name!r} is not the twin of the area run "
+                             f"{run.name!r} (expected {run.name}_basis); refusing")
+        if not (twin / "fit").is_dir():
+            raise SystemExit(f"--basis-run {twin}: no fit/ (not a basis frame?); refusing")
+    sess = twin / variant / "sessions"
+    if not sess.is_dir():
+        raise SystemExit(f"basis twin {twin} ({how}): no {variant}/sessions (not predicted / collected yet?); refusing")
+    if labels is not None:
+        miss = sorted(lab for lab in labels if not (sess / f"{lab}.npz").exists() or not (sess / f"{lab}.json").exists())
+        if miss:
+            raise SystemExit(f"basis twin {twin} ({how}): {len(miss)} of {len(list(labels))} sessions of the area run "
+                             f"missing: {miss[:8]}; refusing")
+    print(f"split rows: basis twin {twin} ({how})", flush=True)
+    return twin
+
+
+def residual_rows(run: Path, labels, variant: str = "joint", by_spout: bool = False, basis=None):
     """Split-row counterpart of `specificity_control.session_rows` (mean of the six spouts; columns data, full, residual,
     x1e3 dF/F) or, with ``by_spout``, of `residual_roi.spout_table` (one row per spout; column residual), for the
-    sessions ``labels`` of the area-target run ``run``, read from its basis twin `<run>_basis` (module docstring)."""
+    sessions ``labels`` of the area-target run ``run``, read from its basis twin ``basis`` (default the sibling
+    `<run>_basis`; `basis_twin` resolves and checks it) (module docstring)."""
     import json
 
     import pandas as pd
 
     from wfield_local import config
-    basis = Path(f"{run}_basis")
+    basis = Path(basis) if basis is not None else Path(f"{run}_basis")
     rows = []
     for lab in labels:
         an = config.animal_of(lab)
