@@ -16,6 +16,7 @@ areas only: the split ROIs re-partition MOs / MOp, they are not extra areas, so 
 one extra map row per window with MOs / MOp drawn as their split ROIs; per spout: companion `*_split.png` figures.
 
 Usage: python scripts/residual_roi.py [--tag gate-attempted_v7g3_t3d]   (10b's frame; also run --tag ..._frA)
+       [--by-spout --out DIR --basis-run <bundle>/frames/frozen_encoder_<tag>_basis | none]
 Output: <E>/specificity_control/<tag>/residual_roi.csv, figures/residual_roi_{raw,z}.png
 """
 from __future__ import annotations
@@ -38,7 +39,7 @@ SPOUTS = ["close_ipsi", "close_mid", "close_contra", "far_ipsi", "far_mid", "far
 RESP = {"cue": ((0.5, 1.5), (-0.5, 0.0)), "lick": ((0.0, 1.0), (-0.3, -0.1))}
 
 
-def spout_table(run: Path) -> pd.DataFrame:
+def spout_table(run: Path, basis_run=None) -> pd.DataFrame:
     """Per session x window x spout x area residual (x1e3) + pre-SD z per animal x window x spout x area (Fig 10 / 10c-g
     counterparts). Same evoked windows as specificity_control.session_rows, spouts kept separate."""
     from wfield_local import config
@@ -60,16 +61,27 @@ def spout_table(run: Path) -> pd.DataFrame:
                     if ar != "cortex":
                         rows.append((m["label"], m["animal"], m["epoch"], w, sp, ar, float(res[si, ai])))
     T = pd.DataFrame(rows, columns=["label", "animal", "epoch", "window", "spout", "area", "residual"])
-    return add_split_z(T, run)
+    return add_split_z(T, run, basis_run)
 
 
-def add_split_z(T: pd.DataFrame, run: Path) -> pd.DataFrame:
-    """Append the ALM / tjM1 / rest rows per spout (basis twin of ``run``) when missing, then the pre-SD z of every row
-    (per animal x window x spout x area, as before)."""
+def add_split_z(T: pd.DataFrame, run: Path, basis_run=None) -> pd.DataFrame:
+    """Append the ALM / tjM1 / rest rows per spout (basis twin of ``run``: ``basis_run`` = --basis-run, else the sibling
+    `<run>_basis`; `encoder_split_rows.basis_twin` prints which, and refuses a named twin that is absent / incomplete)
+    when missing, then the pre-SD z of every row (per animal x window x spout x area, as before)."""
     import encoder_split_rows as esr
     T = T.drop(columns=["residual_z"], errors="ignore")
-    if Path(f"{run}_basis").is_dir() and not T.area.isin(esr.SPLIT_AREAS).any():
-        T = pd.concat([T, esr.residual_rows(run, list(T.label.unique()), by_spout=True)], ignore_index=True)
+    if T.area.isin(esr.SPLIT_AREAS).any():
+        print(f"split rows: already in the table ({T[T.area.isin(esr.SPLIT_AREAS)].label.nunique()} sessions)", flush=True)
+    else:
+        labels = list(T.label.unique())
+        twin = esr.basis_twin(run, basis_run, labels)
+        if twin is not None:
+            S = esr.residual_rows(run, labels, by_spout=True, basis=twin)
+            bad = sorted(set(labels) - set(S.label))
+            if S.empty or bad:
+                raise SystemExit(f"split rows incomplete: {len(bad)} sessions without rows {bad[:8]}; refusing")
+            print(f"split rows: {len(S)} rows, {S.label.nunique()} sessions x {S.area.nunique()} ROIs", flush=True)
+            T = pd.concat([T, S], ignore_index=True)
     pre = T[T.epoch == "pre"].groupby(["animal", "window", "spout", "area"]).residual.agg(["mean", "std"])
     j = T.join(pre, on=["animal", "window", "spout", "area"])
     T["residual_z"] = (j.residual - j["mean"]) / j["std"]
@@ -97,14 +109,25 @@ def main(argv=None) -> int:
     ap.add_argument("--by-spout", action="store_true", help="per-spout version (Fig 10, 10c-10g counterparts)")
     ap.add_argument("--out", default=None, help="opt-in folder: --by-spout output (11-23); without --by-spout, the specificity_control --out folder read "
                          "and written (11-24); default specificity_control/<tag>")
+    ap.add_argument("--basis-run", default=None, help="--by-spout: the area run's BASIS twin folder for the ALM / tjM1 / "
+                    "rest rows (11-26), e.g. <o2 bundle>/frames/frozen_encoder_<tag>_basis; REQUIRED to exist and cover "
+                    "every session when given; 'none' = no split rows; default = the sibling <run>_basis (printed). "
+                    "Pooled (no --by-spout): checks that specificity_control's sessions.csv carries the rows")
     a = ap.parse_args(argv)
     if a.by_spout:
-        return by_spout(a.tag, a.out)
+        return by_spout(a.tag, a.out, a.basis_run)
     from wfield_local import run_mode
     out = (Path(a.out) if a.out else                                    # --out (11-24): a specificity_control --out folder
            run_mode.subdir(E_BASE / "specificity_control") / a.tag)    # specificity_control's mode-routed folder (N10)
     T = pd.read_csv(out / "sessions.csv")
     T = T[T.area != "cortex"]
+    import encoder_split_rows as esr
+    has = bool(T.area.isin(esr.SPLIT_AREAS).any())
+    print(f"split rows: {'present' if has else 'NONE'} in {out / 'sessions.csv'} (specificity_control --basis-run)",
+          flush=True)
+    if a.basis_run and a.basis_run.lower() != "none" and not has:
+        raise SystemExit("--basis-run given but sessions.csv has no split rows: re-run specificity_control with "
+                         "--basis-run; refusing")
     B = pd.concat([ffc.boot(T, c, epochs=EPS).assign(q=c) for c in ("residual", "residual_z")], ignore_index=True)
     B = B[B.epoch.isin(EPS)].copy()
     import encoder_split_rows as esr
@@ -169,7 +192,7 @@ def main(argv=None) -> int:
     return 0
 
 
-def by_spout(tag: str, out_dir: str | None = None) -> int:
+def by_spout(tag: str, out_dir: str | None = None, basis_run=None) -> int:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -184,7 +207,8 @@ def by_spout(tag: str, out_dir: str | None = None) -> int:
     assert_writable(out / "_")
     cache = out / "sessions_by_spout.csv"
     run = frozen_encoder.out_root() / f"frozen_encoder_{tag}"
-    T = add_split_z(pd.read_csv(cache), run) if cache.exists() else spout_table(run)     # split rows added if missing
+    T = (add_split_z(pd.read_csv(cache), run, basis_run) if cache.exists()       # split rows added if missing
+         else spout_table(run, basis_run))
     T.to_csv(cache, index=False)
     B = pd.concat([ffc.boot(T, c, epochs=EPS, keys=("window", "spout", "area")).assign(q=c)
                    for c in ("residual", "residual_z")], ignore_index=True)

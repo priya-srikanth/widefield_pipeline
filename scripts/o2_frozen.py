@@ -179,6 +179,17 @@ def apply_frame_env(key: str, nose_frames: str = "") -> None:
         os.environ["WIDEFIELD_EPOCH_BOUNDARIES"] = str(bp)
 
 
+def declared_out_root(rmeta: dict):
+    """The frame-folder parent a bundle's run.json DECLARES, or None (a frame routed to the share root at bundle time).
+    Two spellings exist: ``test_out_root`` (this code; a TEST session subset, "" for a routed full bundle) and
+    ``out_root`` (the rule-11 bundles of 05e363a4 / ca1ad428, e.g. o2f_wave1a2_20261124 / o2f_wave1b2_20261124, whose
+    frames live in <bundle>/frames). Both set and different -> SystemExit (11-26)."""
+    o, t = str(rmeta.get("out_root") or ""), str(rmeta.get("test_out_root") or "")
+    if o and t and Path(o) != Path(t):
+        raise SystemExit(f"run.json declares two frame roots: out_root {o} vs test_out_root {t}; refusing")
+    return o or t or None
+
+
 def frame_out(key: str, out_root=None) -> Path:
     """The frame folder: the routed share root (`frozen_encoder.out_root`), or ``out_root`` (a TEST bundle only)."""
     from wfield_local import frozen_encoder as fe
@@ -731,7 +742,14 @@ def cmd_collect(a) -> int:
         op.verify_identity(rmeta["identity"])
     except o2_bundle.BundleMismatch as ex:
         raise SystemExit(f"refusing: this bundle is not of the current run ({ex})") from None
-    out = frame_out(key, rmeta.get("test_out_root") or None)
+    oroot = declared_out_root(rmeta)      # 11-26: also the rule-11 bundles' `out_root` (they were refused here)
+    if rmeta.get("out_root") and mode != "predict":
+        # the svf / partial summaries read `fr_musall.E` (= fe.out_root() at THEIR import below): route FROZEN_OUT_ROOT
+        # to the declared root, or they would write <production imaging_encoding>/frozen_encoder_<tag>/...
+        if "fr_musall" in sys.modules:
+            raise SystemExit("fr_musall imported before collect set FROZEN_OUT_ROOT")
+        os.environ["FROZEN_OUT_ROOT"] = str(oroot)
+    out = frame_out(key, oroot)
     if str(out) != rmeta["frame_dir"]:
         raise SystemExit(f"frame folder {out} differs from the bundle's {rmeta['frame_dir']}")
     st = (out / "fit" / "pre_stats.pkl").stat()
