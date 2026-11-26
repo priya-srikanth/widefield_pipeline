@@ -202,9 +202,46 @@ def _cim_and_norm(chunks, t, stats, k, drop=None):
     return cdt.condition_independent_modes(G, t, k=k), cdt.dev_norm(G, t)
 
 
+def stratified_fold_subsample(sessions, n_target, rng):
+    """``(chunks, n, k)`` -- the epoch's folds trimmed to ~`n_target` trials, STRATIFIED BY SESSION.
+
+    Each session keeps the same fraction of its folds (rounded, at least one), then single folds are dropped / added
+    back at random while that improves the match, so the total lands within about one fold of the target. Folds are
+    1/8 of a session's trials, interleaved (`cd_trajectories._event_average_folds`): the finest unit the cache holds.
+    """
+    frac = float(n_target) / max(1.0, float(sum(c[1] for _l, ch in sessions for c in ch)))
+    kept, spare = [], []
+    for j, (_lab, ch) in enumerate(sessions):
+        idx = [int(x) for x in rng.permutation(len(ch))]
+        m = int(min(len(ch), max(1, round(frac * len(ch)))))
+        kept += [(j, i) for i in idx[:m]]
+        spare += [(j, i) for i in idx[m:]]
+    tot = float(sum(sessions[j][1][i][1] for j, i in kept))
+    for pool, sign in ((list(kept), -1), (list(spare), +1)):
+        for o in rng.permutation(len(pool)):
+            j, i = pool[int(o)]
+            cand = tot + sign * sessions[j][1][i][1]
+            if abs(cand - n_target) < abs(tot - n_target) and (sign > 0 or len(kept) > 1):
+                if sign < 0:
+                    kept.remove((j, i))
+                else:
+                    kept.append((j, i))
+                tot = cand
+    chunks = [sessions[j][1][i] for j, i in kept]
+    return chunks, tot, len({j for j, _i in kept})
+
+
 def epoch_null_folds(pre_sessions, ep_chunks, t, stats=None, k=None, n_draw=N_DRAW, rng=None,
-                     drop=None):
+                     drop=None, ep_sessions=None, cap_frac=None, rng_e=None):
     """`epoch_null` with FOLD-level trimming of B. Same outputs, finer match.
+
+    MATCHING IN THE OTHER DIRECTION (Priya 11-26, chronic fix): with `cap_frac` and the epoch's own fold list
+    (`ep_sessions`), the target is ``min(epoch total, cap_frac x pre total)``. When the epoch's total exceeds it (a
+    chronic epoch holds more trials than the pre sessions can supply while leaving a reference A), each draw trims B
+    to the target as before AND subsamples the EPOCH's folds, stratified by session, to B's achieved count, so the
+    observed and the null share one trial count; the observed statistic then varies over draws and its median is the
+    point. `rng_e` is a separate stream, so B's draws are identical to the uncapped run and a cell that is NOT
+    subsampled is unchanged.
 
     `pre_sessions` is `grand_means_folds`' per-session fold list. Everything else -- the paired
     difference, what is and is not claimed -- is identical to `epoch_null`; only the matching unit
@@ -214,14 +251,26 @@ def epoch_null_folds(pre_sessions, ep_chunks, t, stats=None, k=None, n_draw=N_DR
     n_target = float(sum(int(c[1]) for c in ep_chunks))
     if len(pre_sessions) < 2 or not ep_chunks:
         return None
+    n_epoch = n_target
+    sub = False
+    if cap_frac is not None and ep_sessions:
+        n_pre = float(sum(c[1] for _l, ch in pre_sessions for c in ch))
+        n_target = min(n_epoch, float(cap_frac) * n_pre)
+        sub = n_epoch > n_target
+        rng_e = np.random.default_rng(12345) if rng_e is None else rng_e
     cimE, devE = _cim_and_norm(ep_chunks, t, stats, k, drop)
     out = {"obs_cos": [], "null_cos": [], "obs_scale": [], "null_scale": [],
-           "n_B": [], "n_A": [], "k_B": []}
+           "n_B": [], "n_A": [], "k_B": [], "n_E_sub": []}
     for _ in range(n_draw):
         got = fold_matched_split(pre_sessions, n_target, rng=rng)
         if got is None:
             continue
         B_chunks, A_chunks, n_B, k_B = got
+        if sub:
+            E_chunks, n_Es, _kE = stratified_fold_subsample(ep_sessions, n_B, rng_e)
+            cimE, devE = _cim_and_norm(E_chunks, t, stats, k, drop)
+        else:
+            n_Es = n_epoch
         cimB, devB = _cim_and_norm(B_chunks, t, stats, k, drop)
         cimA, devA = _cim_and_norm(A_chunks, t, stats, k, drop)
         if cimA is None or cimB is None or cimE is None or not devA:
@@ -233,11 +282,12 @@ def epoch_null_folds(pre_sessions, ep_chunks, t, stats=None, k=None, n_draw=N_DR
         out["n_B"].append(n_B)
         out["n_A"].append(sum(c[1] for c in A_chunks))
         out["k_B"].append(k_B)
+        out["n_E_sub"].append(n_Es)
     if not out["obs_cos"]:
         return None
     res = {k_: np.asarray(v, float) for k_, v in out.items()}
     res.update({"n_target": n_target, "k_target": len(ep_chunks), "k": int(k) if k else None,
-                "unit": "fold"})
+                "unit": "fold", "n_epoch": n_epoch, "epoch_subsampled": bool(sub)})
     res["d_cos"] = res["obs_cos"] - res["null_cos"]
     res["d_scale"] = res["obs_scale"] - res["null_scale"]
     res["p_not_worse_cos"] = float(np.mean(res["d_cos"] >= 0))
@@ -328,7 +378,7 @@ def epoch_null(pre, ep_chunks, t, stats=None, k=None, n_draw=N_DRAW, rng=None,
 
 
 def run_animal(animal, align="precue", gate="lick", n_draw=N_DRAW, seed=0, verbose=True,
-               mask_occluded=True, use_folds=True):
+               mask_occluded=True, use_folds=True, cap_frac=None):
     """Every post-stroke epoch's matched null for one animal, off the CACHED per-session means.
 
     NOTHING IS PROJECTED HERE when `cd_trajectories` has been run for this (animal, align, gate):
@@ -406,7 +456,8 @@ def run_animal(animal, align="precue", gate="lick", n_draw=N_DRAW, seed=0, verbo
             continue
         if gmf.get("pre"):
             r = epoch_null_folds(gmf["pre"], gm[ep], t, stats=stats, k=k, n_draw=n_draw,
-                                 rng=rng, drop=drop)
+                                 rng=rng, drop=drop, ep_sessions=gmf.get(ep), cap_frac=cap_frac,
+                                 rng_e=np.random.default_rng([seed, 7, ("acute", "subacute", "chronic").index(ep)]))
         else:
             r = epoch_null(gm["pre"], gm[ep], t, stats=stats, k=k, n_draw=n_draw, rng=rng,
                            drop=drop)
@@ -434,7 +485,7 @@ def report(out):
         _off = abs(np.median(r["n_B"]) - r["n_target"]) / max(r["n_target"], 1)
         match = (f"{np.median(r['n_B']):.0f}/{r['n_target']:.0f} ({_off:+.0%}), "
                  f"{np.median(r['k_B']):.0f}/{r['k_target']:.0f}s"
-                 f"{'' if r.get('unit') != 'fold' else ' F'}")
+                 f"{'' if r.get('unit') != 'fold' else ' F'}{' S' if r.get('epoch_subsampled') else ''}")
         L.append(f"  {ep:9s} {match:26s} {oc[0]:12.3f} "
                  f"{f'{nc[0]:.3f} [{nc[1]:.3f},{nc[2]:.3f}]':>22s} {os_[0]:10.3f} "
                  f"{f'{ns[0]:.3f} [{ns[1]:.3f},{ns[2]:.3f}]':>22s} "
@@ -464,7 +515,7 @@ def _one(item):
     out = m.run_animal(item["animal"], item["align"], item["gate"], n_draw=item["n_draw"],
                        seed=item["seed"], verbose=False,
                        mask_occluded=item.get("mask_occluded", True),
-                       use_folds=item.get("use_folds", True))
+                       use_folds=item.get("use_folds", True), cap_frac=item.get("cap_frac"))
     if out is None:
         return None
     if item.get("out"):
@@ -487,6 +538,9 @@ def main(argv=None) -> int:
     ap.add_argument("--occluded", default="drop", choices=("drop", "keep"),
                     help="must MATCH the CD render, or the null calibrates a different space from "
                          "the observation. Default `drop`, as the render's is.")
+    ap.add_argument("--cap-frac", type=float, default=None,
+                    help="CHRONIC FIX (Priya 11-26): target = min(epoch trials, CAP x pre trials); an epoch above it is "
+                         "subsampled (folds, stratified by session) to B's count in every draw. Default off = unchanged")
     ap.add_argument("--jobs", type=int, default=None)
     ap.add_argument("--out", default=None,
                     help="directory to persist into (its results/ subdir); default is the "
@@ -500,7 +554,8 @@ def main(argv=None) -> int:
 
     items = [{"animal": a, "align": al, "gate": args.gate, "n_draw": args.draws,
               "seed": args.seed, "out": str(out),
-              "mask_occluded": args.occluded == "drop", "use_folds": not args.no_folds}
+              "mask_occluded": args.occluded == "drop", "use_folds": not args.no_folds,
+              "cap_frac": args.cap_frac}
              for a in (args.animal or ["PS92", "PS93", "PS94", "PS95"]) for al in args.align]
 
     from wfield_local import analysis_kit as ak
