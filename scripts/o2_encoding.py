@@ -92,6 +92,18 @@ if "LICKS_ALL" in os.environ:                    # submit-time override of the b
         os.environ["COMBINED_ENCODING_LICKS_ALL"] = v_
 if os.environ.get("TRIALS"):                     # per-trial outputs mode (combined_encoding.TRIALS_ENV; default auto)
     os.environ["COMBINED_ENCODING_TRIALS"] = os.environ["TRIALS"]
+exec_built = bundle_env.get("COMBINED_ENCODING_EXEC", "")
+if os.environ.get("EXEC"):                       # per-tag executed set (11-24: xyz2 beside polar; inputs re-derived below)
+    if exec_built not in ("polar", "xyz2") or os.environ["EXEC"] not in ("polar", "xyz2"):
+        raise SystemExit(f"EXEC={os.environ['EXEC']}: only polar <-> xyz2 re-derive (bundle built {exec_built!r})")
+    os.environ["COMBINED_ENCODING_EXEC"] = os.environ["EXEC"]
+os.environ["COMBINED_ENCODING_PROGRESS"] = "1"      # timestamped stage lines (11-24; combined_encoding.PROGRESS_ENV)
+
+
+def stamp(msg):
+    print(f"[{time.strftime('%H:%M:%S')}] {msg}", flush=True)
+
+
 attempts = {}
 if os.environ.get("ATTEMPTS"):                   # engagement re-derived from a shipped table (combined_encoding.ATTEMPTS_ENV)
     import hashlib
@@ -109,16 +121,50 @@ out = b / "out" / tag
                                           "fr_groups": os.environ.get("FR_GROUPS", ""),
                                           "bins_width": os.environ.get("BINS_WIDTH", ""),
                                           "licks_all": os.environ.get("COMBINED_ENCODING_LICKS_ALL", ""),
+                                          "exec": os.environ.get("EXEC", ""),
                                           **attempts, "bundle_env": bundle_env, "tag": tag}))
 if (out / "sessions" / f"{label}.json").exists():
     print("done already", label); sys.exit(0)
+# PER-SESSION LOCK (11-24): two tasks writing one session (a resubmitted index overlapping a running one) can never run
+# at once -- atomic create; released on exit; stale (taken over) after the job time limit LOCK_STALE_S
+LOCK_STALE_S = 6 * 3600 + 600
+lock = out / "sessions" / f"{label}.lock"
+try:
+    fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+except FileExistsError:
+    age = time.time() - lock.stat().st_mtime
+    if age < LOCK_STALE_S:
+        print(f"{label}: another task holds {lock} ({age / 60:.0f} min old); exiting without work", flush=True)
+        sys.exit(0)
+    print(f"{label}: stale lock ({age / 3600:.1f} h > job limit), taking it over", flush=True)
+    lock.unlink(missing_ok=True)
+    fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+os.write(fd, f"{os.environ.get('SLURM_JOB_ID', '')}_{os.environ.get('SLURM_ARRAY_TASK_ID', '')} {time.ctime()}".encode())
+os.close(fd)
+from wfield_local import o2_bundle as _o2b
+_o2b.release_lock_on_exit(lock)                  # at exit AND on SIGTERM (scancel / time limit): no stale lock (11-25)
+stamp(f"{label}: start (tag {tag}, order {order}, only {os.environ.get('ONLY', '')!r}, exec {os.environ.get('EXEC', '') or 'bundle'})")
 from wfield_local import combined_encoding as ce
 inputs = pickle.loads((b / "inputs" / f"{label}.pkl").read_bytes())
+stamp(f"{label}: inputs loaded")
+if os.environ.get("EXEC") and os.environ["EXEC"] != exec_built:
+    inputs["behaviour"] = ce.rederive_exec(inputs["behaviour"], os.environ["EXEC"])
 if (b / "bundle.json").exists():                 # the pickle's analysis masks == the bundle's record (11-09)
     o2_bundle.check_inputs(json.loads((b / "bundle.json").read_text()), inputs, label)
 t0 = time.time()
 res = ce.run_session(label, order, inputs=inputs)
+stamp(f"{label}: save start")
 ce.save(res, out)
+stamp(f"{label}: save end")
+import numpy as np
+z = np.load(out / "sessions" / f"{label}.npz")          # READ-BACK of what was saved
+_n = len(z["map_keys"])
+_ok = z["maps"].shape[0] == _n and (out / "sessions" / f"{label}_regions.csv").exists()
+z.close()
+json.loads((out / "sessions" / f"{label}.json").read_text())
+if not _ok:
+    raise SystemExit(f"{label}: read-back failed ({out / 'sessions'})")
+stamp(f"{label}: read-back ok ({_n} maps)")
 R = res["region"]
 full = float(R[(R.model == "full") & (R.window == "all") & (R.area == "cortex")].r2.iloc[0])
 print(f"{label}: {order} only={os.environ.get('ONLY', '')} video={os.environ.get('VIDEO', '')} "
@@ -233,7 +279,10 @@ FULL_RUNS = (("bins_w1", "movement_first", "nokin:", "BINS=1"),
              ("fr_A", "movement_first", "fr:", "FR=master_pre_v1,FR_GROUPS=master_v1:A"),
              ("fr_B", "movement_first", "fr:", "FR=master_pre_v1,FR_GROUPS=master_v1:B"),
              ("fr_S", "movement_first", "fr:", "FR=master_pre_v1,FR_GROUPS=master_v1:S"),
-             ("fr_D", "movement_first", "fr:", "FR=master_pre_v1,FR_GROUPS=master_v1:D"))
+             ("fr_D", "movement_first", "fr:", "FR=master_pre_v1,FR_GROUPS=master_v1:D"),
+             # Priya 11-24: the target-vs-executed contest of bins_w1 (nokin:, Figs 1.x) with the per-lick executed /
+             # target terms in xyz2 (lick 3-D peak vs spout 3-D position) instead of polar; production stays polar
+             ("bins_w1_xyz2", "movement_first", "nokin:", "BINS=1,EXEC=xyz2"))
 
 
 def set_licks_all(mode: str, environ=None) -> None:
@@ -251,6 +300,23 @@ def set_licks_all(mode: str, environ=None) -> None:
         env[ce.LICKS_ALL_ENV] = want
     else:
         env.pop(ce.LICKS_ALL_ENV, None)
+
+
+def pose_modes() -> dict:
+    """Each pose part's source + the layout under this env (recorded in bundle.json; `check_pose_modes`)."""
+    from wfield_local import combined_encoding as ce
+    return {"tongue": os.environ.get(ce.TONGUE_ENV, "") or "cam4", "jaw": ce.pose3d_mode(ce.JAW_ENV) or "cam4",
+            "nose": ce.pose3d_mode(ce.NOSE_ENV) or "cam4", "layout": ce.pose_layout() or "2d",
+            "nose_frames": os.environ.get(ce.NOSE_FRAMES_ENV, "")}
+
+
+def check_pose_modes(modes: dict, lick_mode: str) -> None:
+    """REFUSE a four-camera bundle (fourcam lick set) with any 2-D pose part (Priya 11-24: every pose regressor 3-D)."""
+    if lick_mode == "fourcam":
+        two_d = [p for p in ("tongue", "jaw", "nose") if modes[p] != "3d"]
+        if two_d:
+            raise SystemExit(f"four-camera bundle with 2-D pose parts {two_d} ({modes}): set COMBINED_ENCODING_TONGUE / "
+                             "_JAW / _NOSE=3d (and COMBINED_ENCODING_POSE=xyz3d)")
 
 
 def cmd_bundle(a) -> Path:
@@ -274,6 +340,8 @@ def cmd_bundle(a) -> Path:
     if dirty:
         raise SystemExit(f"uncommitted changes in {repo} (the bundle archives HEAD):\n{dirty}")
     commit = _git(repo, "rev-parse", "HEAD")
+    pose = pose_modes()
+    check_pose_modes(pose, ce.lick_mode())               # before any input is built (11-24 guard)
     # the run's attempts table (OROFACIAL_GATE=attempted) is read at BUNDLE time (Behaviour.trials.engaged)
     attempts = None
     if oc.ENGAGEMENT_GATE != "reference":
@@ -323,7 +391,7 @@ def cmd_bundle(a) -> Path:
     meta = {"identity": ident, "commit": commit, "code_root": str(repo), "name": a.name,
             "profile": os.environ.get("O2_BUNDLE_PROFILE", ""), "rebuild_root": str(rebuild_root.root() or ""),
             "attempts_table": str(attempts or ""), "attempts_sha256": attempts_sha, "cams": a.cams, "fr": a.fr, "n_sessions": len(ok),
-            **({o2_bundle.MASK_FIELD: mask_sig} if mask_sig else {}),
+            **({o2_bundle.MASK_FIELD: mask_sig} if mask_sig else {}), "pose": pose,
             "created": datetime.datetime.now().isoformat(timespec="seconds")}
     meta_f.write_text(json.dumps(meta, indent=1), encoding="utf-8", newline="\n")
     code = d / "code"
@@ -549,6 +617,8 @@ def cmd_collect(a) -> int:
         if not (isinstance(v, str) and v.startswith("@")):
             os.environ[k] = v
     _set_env(meta)
+    if meta.get("exec"):                                       # the run's own executed set (submit-time EXEC, 11-24)
+        os.environ[ce.EXEC_ENV] = meta["exec"]
     if "licks_all" in meta:                                    # the run's own LICKS_ALL (submit-time override)
         if meta["licks_all"]:
             os.environ[ce.LICKS_ALL_ENV] = meta["licks_all"]

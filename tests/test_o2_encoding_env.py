@@ -123,7 +123,7 @@ def test_runner_applies_settings_before_importing_and_verifies():
     assert r.index("for k, v in bundle_env.items():") < r.index("o2_bundle.verify(") < r.index("from wfield_local import combined_encoding as ce")
     assert "del os.environ[k]" in r                                             # nothing from the O2 shell leaks in
     tags = [t for t, *_ in m.FULL_RUNS]
-    assert len(tags) == 15 and len(set(tags)) == 15 and {"main", "main_nolicksall", "fr_A", "bins_w05",
+    assert len(tags) == 16 and len(set(tags)) == 16 and {"main", "main_nolicksall", "fr_A", "bins_w05", "bins_w1_xyz2",
                                                          "musall_shuf"} <= set(tags)
 
 
@@ -277,3 +277,45 @@ def test_refresh_code_ships_the_attempts_table(tmp_path, monkeypatch):
     meta = json.loads((d / "bundle.json").read_text())
     assert meta["attempts_sha256"] == ce.file_sha256(new) == ce.file_sha256(d / "tables" / "trial_attempts.csv")
     assert (d / "tables" / f"trial_attempts_{old[:12]}.csv").exists()                  # the earlier table is kept
+
+
+def test_bundle_refuses_2d_pose_parts_on_a_fourcam_bundle(monkeypatch):
+    """11-24 guard: a fourcam bundle needs tongue / jaw / nose all 3-D; the modes are recorded (bundle.json "pose")."""
+    import pytest
+    m = _mod()
+    for k in ("COMBINED_ENCODING_TONGUE", "COMBINED_ENCODING_JAW", "COMBINED_ENCODING_NOSE"):
+        monkeypatch.setenv(k, "3d")
+    monkeypatch.setenv("COMBINED_ENCODING_POSE", "xyz3d")
+    md = m.pose_modes()
+    assert md == {"tongue": "3d", "jaw": "3d", "nose": "3d", "layout": "xyz3d", "nose_frames": ""}
+    m.check_pose_modes(md, "fourcam")
+    monkeypatch.delenv("COMBINED_ENCODING_POSE")
+    monkeypatch.setenv("COMBINED_ENCODING_NOSE", "cam4")
+    with pytest.raises(SystemExit):
+        m.check_pose_modes(m.pose_modes(), "fourcam")
+    m.check_pose_modes(m.pose_modes(), "cam4")              # a cam4 / combined bundle keeps its 2-D parts
+
+
+def test_runner_progress_lock_and_readback():
+    """11-24 guards: stamped stage lines, the per-session lock (atomic create, stale after the job limit, released at
+    exit) taken BEFORE any work, and the read-back after save; run_session prints per-model progress when asked."""
+    m = _mod()
+    r = m.RUNNER
+    for s_ in ("COMBINED_ENCODING_PROGRESS", "inputs loaded", "save start", "save end", "read-back ok",
+               "os.O_CREAT | os.O_EXCL", "LOCK_STALE_S", "release_lock_on_exit", "exiting without work"):
+        assert s_ in r, s_
+    assert r.index("O_EXCL") < r.index("pickle.loads((b / \"inputs\"") < r.index("ce.run_session(")
+    import inspect
+    from wfield_local import combined_encoding as ce
+    src = inspect.getsource(ce.run_session)
+    assert "_progress(" in src and "penalties" in src and "fit + score" in src
+
+
+def test_runner_lock_is_atomic_and_exclusive(tmp_path):
+    import os
+    lk = tmp_path / "S.lock"
+    fd = os.open(lk, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+    os.close(fd)
+    import pytest
+    with pytest.raises(FileExistsError):
+        os.open(lk, os.O_CREAT | os.O_EXCL | os.O_WRONLY)

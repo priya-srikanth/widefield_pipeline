@@ -120,3 +120,29 @@ def check_inputs(meta: dict, inputs: dict, label: str = "") -> None:
     have = inputs.get(MASK_FIELD) if isinstance(inputs, dict) else None
     if have != rec:
         raise BundleMismatch(f"{label}: inputs pickle built on analysis masks {have!r}, the bundle records {rec!r}.")
+
+
+def release_lock_on_exit(lock):
+    """Runner side: unlink the per-session ``lock`` at exit AND on SIGTERM / SIGINT / SIGHUP (scancel and the Slurm time
+    limit deliver SIGTERM, which skips atexit: the 11-24 G4 arrays left stale locks that blocked every resubmitted index
+    until LOCK_STALE_S). The handler unlinks the lock and exits with 128 + signal (the shell convention), which also runs
+    the atexit hooks. Returns the handler (tests)."""
+    import atexit
+    import signal
+    from pathlib import Path as _P
+    lock = _P(lock)
+
+    def _release(signum=None, frame=None):
+        lock.unlink(missing_ok=True)
+        if signum is not None:
+            raise SystemExit(128 + int(signum))
+    atexit.register(_release)
+    for name in ("SIGTERM", "SIGINT", "SIGHUP"):
+        sig = getattr(signal, name, None)
+        if sig is None:
+            continue
+        try:
+            signal.signal(sig, _release)
+        except (ValueError, OSError):            # not the main thread / unsupported here: atexit still covers exit
+            pass
+    return _release

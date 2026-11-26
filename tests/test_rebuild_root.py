@@ -332,6 +332,12 @@ RESOLVED = {
     "wfield_local/sync_audit.py",
 }
 LITERAL = {
+    # G4 key-results page (CC-B 11-25, merged 11-26): read the rebuild root's G4 / v36 imaging_encoding by literal,
+    # build_page writes only run_records/2026-11-25/g4_key_results_ccB1125/; the table scripts write the dir given on the CLI
+    "scripts/g4figs_1125/build_page.py",
+    "scripts/g4figs_1125/g4_contest_tables.py",
+    "scripts/g4figs_1125/g4_penalties.py",
+    "scripts/g4figs_1125/g4_shares.py",
     # S10A onsets (caption review 11-23, ccB): read the rebuild root's imaging_encoding by literal (the cam3-on rev-up
     # run + qc/jaw_onsets.csv), write only under vls_stroke_paper/ccB_caption_review_2026-11-23/s10a_onsets/
     "scripts/caption_review_1123/s10a_onsets_analysis.py",
