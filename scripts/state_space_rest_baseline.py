@@ -95,6 +95,10 @@ def main():
     print(f"{len(got)} done, {len(bad)} without a usable rest baseline {bad}, {len(fail)} failed "
           f"{[(i, str(e)[:80]) for i, e in fail]}")
 
+    if fail or not any(r["ok"] for _i, r in got):     # 11-26: 119/119 failed sessions exited 0 -> a false .done marker
+        sys.exit(f"{Path(__file__).name}: {len(fail)} of {len(todo)} session(s) FAILED"
+                 + ("" if got else " and none succeeded") + " -- not done; fix the cause and re-run (done sessions are kept)")
+
 
 if __name__ == "__main__":
     main()

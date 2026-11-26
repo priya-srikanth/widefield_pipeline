@@ -43,7 +43,10 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 PROFILE = os.environ.get("WF_SS_PROFILE", "cohort1_rebuild_20261103")   # WF_SS_PROFILE: 11-23 four-camera root
-ENC = "enc_rebuild_20261104b"                       # the rebuild's O2 encoding bundle (its inputs/ are reused)
+# The rebuild's O2 encoding bundle: its env.json gives the lineage settings `_env` applies (its inputs/ are reused).
+# WF_SS_ENC_BUNDLE overrides the name (11-26: the four-camera root has no enc_rebuild_20261104b; its bundle is
+# enc_fourcam3d_20261124, the G4 build WF_SS_ENC_INPUTS already reads). Default unchanged, so v36 runs reproduce.
+ENC = os.environ.get("WF_SS_ENC_BUNDLE") or "enc_rebuild_20261104b"
 import state_space_sim as S  # noqa: E402
 
 
