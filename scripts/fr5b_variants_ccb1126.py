@@ -47,6 +47,8 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 POS = "far_R"
+#: canonical spout order (orofacial_cohort.POS_ORDER: close ipsi, mid, contra, far ipsi, mid, contra; R = contralesional)
+ALL_POS = ("close_L", "close_center", "close_R", "far_L", "far_center", "far_R")
 LO, HI = -0.1, 0.2
 PROD_NPZ = Path("M:/MICROSCOPE/Priya/DeepLabCut/Widefield/face_rhythm/cam4/readouts/master_pre_v1/"
                 "aligned_fourcam_ccB1123/data/aligned_point_maps_fourcam.npz")
@@ -84,13 +86,14 @@ def lick_frame_sums(pcs, t, comps, okf, ev):
 
 
 def job(item: tuple) -> dict:
-    fdir, key, cache = item
+    fdir, key, cache = item[:3]
+    sub, positions = (item[3], tuple(item[4])) if len(item) > 3 else ("perlick", (POS,))
     import scripts.face_rhythm_aligned_fourcam as F4
     from scripts.pose3d_kinematics import fused_lick_table
     from wfield_local.face_rhythm import common as frc
     from wfield_local.face_rhythm import face as frface
     from wfield_local.paths import PathResolver
-    f_out = Path(cache) / "perlick" / f"{key}.npz"
+    f_out = Path(cache) / sub / f"{key}.npz"
     if f_out.exists():
         raise RuntimeError(f"refusing to overwrite {f_out}")
     fdir = Path(fdir)
@@ -111,7 +114,7 @@ def job(item: tuple) -> dict:
     ton = A.daq_on_s.to_numpy(float)
     k = F4.assign_licks(ton, cue_all, wp)
     sel = k >= 0
-    sel[sel] = pos_all[k[sel]] == POS
+    sel[sel] = np.isin(pos_all[k[sel]], positions)
     L = A[sel].reset_index(drop=True)
     kk = k[sel]
     ev = ton[sel]
@@ -121,8 +124,9 @@ def job(item: tuple) -> dict:
     np.savez(f_out, S1=S1.astype(np.float32), nf=nf, daq_on_s=ev, rel_s=ev - cue_all[kk], cue_ix=kk,
              trial_id=L.trial_id.to_numpy(), lick_key=np.array(L.lick_key.astype(str).tolist(), dtype=str),
              contact=L.contact.astype(bool).to_numpy(), onset_context=np.array(L.onset_context.astype(str).tolist(), dtype=str),
+             position=np.array(pos_all[kk].tolist(), dtype=str),
              animal=animal, date=date, epoch=epoch, label=label, key=key)
-    return {"key": key, "label": label, "animal": animal, "epoch": epoch, "n_far_R": int(sel.sum()),
+    return {"key": key, "label": label, "animal": animal, "epoch": epoch, "n_licks": int(sel.sum()),
             "n_contact": int(L.contact.sum()), "n_post": int((ev - cue_all[kk] >= 0).sum())}
 
 
@@ -132,17 +136,19 @@ def cmd_licks(a) -> int:
     from wfield_local.face_rhythm import common as frc
     from wfield_local.paths import PathResolver
     cache = Path(a.cache)
-    if (cache / "perlick").exists() and not a.keys:
-        raise SystemExit(f"refusing: {cache / 'perlick'} exists (a run writes only to its own new folder)")
+    sub = "perlick6" if a.all_positions else "perlick"
+    poss = list(ALL_POS) if a.all_positions else [POS]
+    if (cache / sub).exists() and not a.keys:
+        raise SystemExit(f"refusing: {cache / sub} exists (a run writes only to its own new folder)")
     rv = PathResolver()
     fdir = fro.factor_dir(rv, fro.BUNDLE, fro.SET)
     keys = a.keys or frc.session_keys(fdir)
-    got, fail = ak.fan_sessions([(str(fdir), k, str(cache)) for k in keys], job, jobs=a.jobs, key=lambda it: it[1],
+    got, fail = ak.fan_sessions([(str(fdir), k, str(cache), sub, poss) for k in keys], job, jobs=a.jobs, key=lambda it: it[1],
                                 label="fr5b")
     R = pd.DataFrame([r for _, r in got])
     if fail:
         print("FAILED:", [f[0] for f in fail], flush=True)
-    R.to_csv(cache / ("perlick_counts_test.csv" if a.keys else "perlick_counts.csv"), index=False)
+    R.to_csv(cache / (f"{sub}_counts_test.csv" if a.keys else f"{sub}_counts.csv"), index=False)
     print(R.to_string(), flush=True)
     return 0
 
@@ -388,6 +394,7 @@ def main(argv=None) -> int:
     s1.add_argument("--cache", required=True)
     s1.add_argument("--jobs", type=int, default=2)
     s1.add_argument("--keys", nargs="*", default=None)
+    s1.add_argument("--all-positions", action="store_true", help="all six spouts -> <cache>/perlick6/")
     s2 = sp.add_parser("maps")
     s2.add_argument("--cache", required=True)
     s2.add_argument("--out", required=True)
