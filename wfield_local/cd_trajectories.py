@@ -1169,8 +1169,14 @@ def stored_cd_reference(animal, align, basis, train, fit, *, method, reference, 
 
 def analyse_animal(animal, align="precue", *, method="dom", post_s=None, orth=False,
                    gate="lick", reference="contrast", mask_occluded=True, verbose=True,
-                   exclude_fit=None, project_only=None):
+                   exclude_fit=None, project_only=None, keep_trials=False):
     """Per-position directions from PRE-STROKE success, and trajectories for every class x epoch.
+
+    ``keep_trials`` (default False = unchanged) also returns ``session_trials``: per (session, epoch, cd, trial
+    position) the PER-TRIAL fitting-window means of the same sliced courses the traces average (`fit_window_mask`).
+    It exists for the trial-matched migration null (`wfield_local.cd_migration_null`, 11-26), which has to subsample
+    TRIALS within a session; the session means the dumps carry cannot be trimmed. Never persisted (`save_result`
+    drops it).
 
     ``exclude_fit`` (labels) leaves those sessions out of EVERYTHING fitted on pre -- the directions, the poles, the
     z-score frame and the condition-independent mode; ``project_only`` (labels) restricts pass 2 to those sessions.
@@ -1308,6 +1314,9 @@ def analyse_animal(animal, align="precue", *, method="dom", post_s=None, orth=Fa
                               dirs, args.post_s, stats=stats)
     draw = use
     acc, sess = {}, {}
+    trials_wm = {}
+    wmask = (fit_window_mask(np.arange(-pre_n, post_frames) / args.fs, align, float(args.post_s))
+             if keep_trials else None)
     for s, ep, arms in book:
         if not any(arms[c]["y"] for c in draw):
             continue
@@ -1343,6 +1352,10 @@ def analyse_animal(animal, align="precue", *, method="dom", post_s=None, orth=Fa
                     # arrangements put the smallest two-sided p at 0.125. With sessions the
                     # exchangeable unit is the ~44 sessions instead.
                     sess.setdefault((s["label"], ep, int(cd_p), int(tr_p)), []).append(sl)
+                    if keep_trials:
+                        with np.errstate(invalid="ignore"):
+                            wm = np.nanmean(sl[:, wmask], axis=1) if sl.size else np.zeros(0, np.float32)
+                        trials_wm.setdefault((s["label"], ep, int(cd_p), int(tr_p)), []).append(wm)
 
     out = {"animal": animal, "align": align, "method": method,
            "basis_id": basis.basis_id, "ncomp": int(basis.ncomp),
@@ -1381,6 +1394,8 @@ def analyse_animal(animal, align="precue", *, method="dom", post_s=None, orth=Fa
             # float32: 44 sessions x 36 cells x ~220 frames is ~14 MB per (animal, alignment) at
             # float64 and half that here, which is the price of making every cell testable.
             out["session_traces"][key] = {"mean": np.nanmean(A, 0).astype(np.float32), "n": n}
+    if keep_trials:
+        out["session_trials"] = {k: np.concatenate(v).astype(np.float32) for k, v in trials_wm.items()}
     out["anchor"] = _anchor(out, args.post_s)
     if Ge:
         tt = np.arange(-pre_n, post_frames) / args.fs
@@ -1547,7 +1562,7 @@ def save_result(res, out_dir, orth=None, mask_occluded=None):
     """
     from wfield_local import results_store as rs
 
-    payload = {k: v for k, v in res.items() if k not in ("traces", "session_traces")}
+    payload = {k: v for k, v in res.items() if k not in ("traces", "session_traces", "session_trials")}
     payload["traces"] = {f"{ep}|{int(cd)}|{int(tr)}": v
                          for (ep, cd, tr), v in res["traces"].items()}
     # SAME FLATTENING, different arity. A session label can contain no "|" -- they are `PS95_0912`
