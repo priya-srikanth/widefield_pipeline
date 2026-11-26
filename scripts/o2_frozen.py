@@ -95,6 +95,15 @@ FRAMES = {
                         "args": ["--target", "basis", "--no-drop-spout", "--variants", *"joint no_target no_spout "
                                  "no_task no_movement no_fr no_fr_dir no_fr_all no_lick no_exec_within no_other "
                                  "no_spont".split()], "jobs": ("predict",), "wave": 1},
+    # BASIS TWIN of spont_frA_spd (Priya 11-26, option a): spont_frA_basis's design + variants with the speed-only jaw /
+    # nose layout, so encoder_split_rows (ALM / tjM1 rows) and frozen_residual_significance (pixel residual maps) read
+    # <spd run>_basis. Built from the wave-1a2 spont_frA_basis recorded loaders (bundle --inputs-from o2f_wave1a2_20261124
+    # --inputs-frame spont_frA_basis).
+    "spont_frA_spd_basis": {"tag": "gate-attempted_v7g3_t3d_spont_frA_spd_basis",
+                            "env": {**SPLIT, **FR_A, POSE_ENV: "xyz3d_spd"},
+                            "args": ["--target", "basis", "--no-drop-spout", "--variants", *"joint no_target no_spout "
+                                     "no_task no_movement no_fr no_fr_dir no_fr_all no_lick no_exec_within no_other "
+                                     "no_spont".split()], "jobs": ("predict",), "wave": 1.5},
     "frA_te": {"tag": "gate-attempted_v7g3_t3d_frA_te", "env": {**NONE, **FR_A, "FROZEN_DESIGN": "te", **CALIB},
                "args": ["--no-drop-spout"], "jobs": ("predict",), "wave": 1},
     "frA_te_basis": {"tag": "gate-attempted_v7g3_t3d_frA_te_basis", "env": {**NONE, **FR_A, "FROZEN_DESIGN": "te", **CALIB},
@@ -127,6 +136,7 @@ V36_RUN_MODE = {
     "spont_frA_spd": f"{_K0}|tongue3d{_FRA}|licksall-split",
     "spont_frA_frlag": f"{_K0}|tongue3d{_FRA}|frlags={FR_LAGS}|licksall-split",
     "spont_frA_basis": f"{_K0}|tongue3d{_FRA}|licksall-split",
+    "spont_frA_spd_basis": f"{_K0}|tongue3d{_FRA}|licksall-split",
     "frA_te": f"{_K0}|te|tongue3d{_FRA}",
     "frA_te_basis": f"{_K0}|te|tongue3d{_FRA}",
     "spont_frA_lsland": f"{_K0}|tongue3d{_FRA}|lickspout|lickland|licksall-split",
