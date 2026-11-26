@@ -63,6 +63,7 @@ POP_ENV = ("COMBINED_ENCODING_LICKS_ALL", "COMBINED_ENCODING_EXEC", "COMBINED_EN
 CALIB = {"FROZEN_LICKLAND_CALIB": "C:/Users/SabatiniLab/wfield_cache/pose3d_inputs/exec_bins_calib_fourcam_20261124.csv"}
 FR_A = {"FROZEN_FR": "1", "COMBINED_ENCODING_FR": "master_pre_v1", "COMBINED_ENCODING_FR_GROUPS": "master_v1:A"}
 SPLIT, NONE = {"FROZEN_LICKS_ALL": "split"}, {"FROZEN_LICKS_ALL": "none"}
+FR_LAGS = "-0.3,-0.2,-0.1,0.1,0.2,0.3"                  # the v36 spont_frA_frlag frame's FROZEN_FR_LAGS
 _LS_VARIANTS = ("joint target_first exec_first no_target no_spout no_task no_movement no_lickspout no_exec_locked "
                 "no_exec_within no_lick no_other no_spont no_contact no_fr no_fr_dir task_only lick_only spout_only "
                 "other_only movement_only fr_only novar_arrival novar_contact novar_cue novar_exec_angle novar_fr_close "
@@ -83,6 +84,13 @@ FRAMES = {
     # licks, gate, pre set, modes unchanged). Built from the wave-1 inputs (bundle --inputs-from o2f_wave1_20261124).
     "spont_frA_spd": {"tag": "gate-attempted_v7g3_t3d_spont_frA_spd", "env": {**SPLIT, **FR_A, POSE_ENV: "xyz3d_spd"},
                       "args": [], "jobs": ("predict", "svf", "partial"), "wave": 1.5},
+    # LAGGED FACERHYTHM (coordinator 11-25, Fig 22.2 contest_fr_lags): frame A's exact design (xyz3d, positions kept)
+    # plus the FROZEN_FR_LAGS copies of the v36 page-lineage spont_frA_frlag frame (run tag |frlags=-0.3,...,0.3; its
+    # variant list, RENDER_QUEUE_DAQLK_20261105 t_frame_frlag). Lag copies are built outside the recorded loader
+    # (`frozen_encoder.fr_lag_columns`), so the wave-1 inputs replay for it too.
+    "spont_frA_frlag": {"tag": "gate-attempted_v7g3_t3d_spont_frA_frlag", "env": {**SPLIT, **FR_A, "FROZEN_FR_LAGS": FR_LAGS},
+                        "args": ["--variants", *"joint no_fr no_fr_dir no_frfacelead no_frcortexlead no_movement".split()],
+                        "jobs": ("predict", "svf", "partial"), "wave": 1.5},
     "spont_frA_basis": {"tag": "gate-attempted_v7g3_t3d_spont_frA_basis", "env": {**SPLIT, **FR_A},
                         "args": ["--target", "basis", "--no-drop-spout", "--variants", *"joint no_target no_spout "
                                  "no_task no_movement no_fr no_fr_dir no_fr_all no_lick no_exec_within no_other "
@@ -117,6 +125,7 @@ _FRA = "|fr=master_pre_v1:master_v1:A"
 V36_RUN_MODE = {
     "spont_frA": f"{_K0}|tongue3d{_FRA}|licksall-split",
     "spont_frA_spd": f"{_K0}|tongue3d{_FRA}|licksall-split",
+    "spont_frA_frlag": f"{_K0}|tongue3d{_FRA}|frlags={FR_LAGS}|licksall-split",
     "spont_frA_basis": f"{_K0}|tongue3d{_FRA}|licksall-split",
     "frA_te": f"{_K0}|te|tongue3d{_FRA}",
     "frA_te_basis": f"{_K0}|te|tongue3d{_FRA}",
@@ -484,7 +493,12 @@ def cmd_bundle(a) -> Path:
     rv = PathResolver()
     b = f"{oi.scratch(a.user)}/o2/{a.name}"
     (d / "run_frozen.sbatch").write_text(SBATCH.format(name=a.name, b=b), encoding="utf-8", newline="\n")
-    write_commands(d, meta, b, oi.o2_path(d, rv), a.user)
+    try:
+        share_b = oi.o2_path(d, rv)
+    except ValueError as ex:                             # a local pilot bundle (--bundle-root off the share): no O2 commands
+        print(f"[o2_frozen] no COMMANDS.md: {ex}", flush=True)
+    else:
+        write_commands(d, meta, b, share_b, a.user)
     print(f"[o2_frozen] {key}: {len(labels)} sessions bundled -> {rdir} (frozen_encoder.main {t_main:.1f} min)")
     return d
 

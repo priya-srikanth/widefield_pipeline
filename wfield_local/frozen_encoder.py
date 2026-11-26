@@ -541,14 +541,24 @@ def _fr_columns(animal: str, date: str, rv, ft: np.ndarray) -> dict:
     missing = [v for v in FR_VARS if v not in sig]
     if missing:
         raise ValueError(f"FaceRhythm {fr_set}: grouped traces {missing} missing (got {list(sig)})")
-    out = {v: np.asarray(sig[v][1], float)[:, None] for v in FR_VARS}
-    if FR_LAGS:                                          # FROZEN_FR_LAGS: face leading / cortex leading copies
-        from wfield_local import movement_encoding as ME
-        fs = ME.frame_fs(ft)
-        for v in FR_VARS:
-            x = out[v][:, 0]
-            for side, lags in (("facelead", [lg for lg in FR_LAGS if lg > 0]), ("cortexlead", [lg for lg in FR_LAGS if lg < 0])):
-                out[f"{v}:{side}"] = np.column_stack([ME._shift(x, int(round(lg * fs))) for lg in lags])
+    return {v: np.asarray(sig[v][1], float)[:, None] for v in FR_VARS}
+
+
+def fr_lag_columns(cols: dict, ft: np.ndarray) -> dict:
+    """``cols`` (`_fr_columns`) + the FROZEN_FR_LAGS copies: <v>:facelead (lags > 0: the face value from BEFORE the
+    frame) and <v>:cortexlead (lags < 0: from AFTER the frame) per FR variable; ``cols`` unchanged without lags. Pure
+    and OUTSIDE the recorded loader (11-25): an O2 bundle replays `_fr_columns` as recorded WITHOUT lags (the wave-1
+    inputs), and the lag copies are rebuilt here from the lag-0 column, exactly as they were built inside the loader
+    before (same `ME._shift`, same rounding)."""
+    if not FR_LAGS:
+        return cols
+    from wfield_local import movement_encoding as ME
+    fs = ME.frame_fs(ft)
+    out = dict(cols)
+    for v in FR_VARS:
+        x = out[v][:, 0]
+        for side, lags in (("facelead", [lg for lg in FR_LAGS if lg > 0]), ("cortexlead", [lg for lg in FR_LAGS if lg < 0])):
+            out[f"{v}:{side}"] = np.column_stack([ME._shift(x, int(round(lg * fs))) for lg in lags])
     return out
 
 
@@ -794,7 +804,7 @@ def session_design(label: str, templates: dict | None = None, template_only: boo
         raw = raw_blocks(B, ft)
         pos_split = pos_of
     if FR_VARS:                                          # FaceRhythm columns (FROZEN_FR); split like pose if FR_SPLIT
-        raw.update(_fr_columns(animal, date, rv, ft))
+        raw.update(fr_lag_columns(_fr_columns(animal, date, rv, ft), ft))   # lags built outside the loader
     xc = {v: _centred(raw[v][ridx].astype(np.float64)) for v in SPLIT_VARS}
     if template_only:
         run0 = np.abs(raw["running"][ridx, 0].astype(np.float64))         # lag-0 |speed| on trial frames (RUN_CAP_Q)

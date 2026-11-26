@@ -210,3 +210,57 @@ def test_release_lock_on_exit_handles_sigterm(tmp_path):
     assert ex.value.code == 128 + int(signal.SIGTERM) and not lock.exists()
     h(None, None)                                     # atexit path: idempotent
     assert not lock.exists()
+
+
+_SUB_LAG = r"""
+import os, numpy as np
+os.environ.update({"COMBINED_ENCODING_TONGUE": "3d", "COMBINED_ENCODING_JAW": "3d", "COMBINED_ENCODING_NOSE": "3d",
+                   "COMBINED_ENCODING_POSE": "xyz3d", "FROZEN_LICKS_ALL": "split", "FROZEN_FR": "1",
+                   "COMBINED_ENCODING_FR": "master_pre_v1", "COMBINED_ENCODING_FR_GROUPS": "master_v1:A",
+                   "FROZEN_FR_LAGS": "-0.3,-0.2,-0.1,0.1,0.2,0.3"})
+from wfield_local import frozen_encoder as fe
+from wfield_local import movement_encoding as ME
+assert fe.FR_LAGS == (-0.3, -0.2, -0.1, 0.1, 0.2, 0.3) and "|frlags=-0.3,-0.2,-0.1,0.1,0.2,0.3" in fe._run_tag()
+ft = np.arange(0, 20, 1 / 30.0)
+rng = np.random.default_rng(0)
+cols = {v: rng.normal(size=(len(ft), 1)) for v in fe.FR_VARS}
+out = fe.fr_lag_columns(cols, ft)
+fs = ME.frame_fs(ft)
+for v in fe.FR_VARS:
+    assert out[v] is cols[v]
+    assert out[f"{v}:facelead"].shape == (len(ft), 3) and out[f"{v}:cortexlead"].shape == (len(ft), 3)
+    np.testing.assert_array_equal(out[f"{v}:facelead"][:, 0], ME._shift(cols[v][:, 0], int(round(0.1 * fs))))
+    np.testing.assert_array_equal(out[f"{v}:cortexlead"][:, 2], ME._shift(cols[v][:, 0], int(round(-0.1 * fs))))
+assert all(f"{v}:facelead" in fe.FGROUP and fe.FGROUP[f"{v}:facelead"] == fe.FGROUP[v] for v in fe.FR_VARS)
+assert "no_frfacelead" in fe.VARIANTS and "no_frcortexlead" in fe.VARIANTS
+print("LAG-OK")
+"""
+
+
+def test_fr_lag_columns_outside_the_loader():
+    """FROZEN_FR_LAGS copies are built by `fr_lag_columns` from the lag-0 column (so a replayed `_fr_columns` recorded
+    without lags serves a lagged frame); without lags the columns pass through unchanged."""
+    env = {k: v for k, v in os.environ.items() if not k.startswith(("COMBINED_ENCODING_", "FROZEN_"))}
+    env.update({"PYTHONPATH": str(REPO), "MKL_THREADING_LAYER": "SEQUENTIAL"})
+    p = subprocess.run([sys.executable, "-c", _SUB_LAG], env=env, capture_output=True, text=True, cwd=str(REPO))
+    assert p.returncode == 0, p.stderr[-3000:]
+    assert "LAG-OK" in p.stdout
+    from wfield_local import frozen_encoder as fe
+    if not fe.FR_LAGS:
+        cols = {"a": np.zeros((3, 1))}
+        assert fe.fr_lag_columns(cols, np.arange(3.0)) is cols
+    import inspect
+    src = inspect.getsource(fe._fr_columns)
+    assert "FR_LAGS" not in src and "fr_lag_columns(_fr_columns(" in inspect.getsource(fe.session_design)
+
+
+def test_o2_frozen_frlag_frame_definition():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("o2f_lag", REPO / "scripts" / "o2_frozen.py")
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    f, a = m.FRAMES["spont_frA_frlag"], m.FRAMES["spont_frA"]
+    assert f["env"] == {**a["env"], "FROZEN_FR_LAGS": "-0.3,-0.2,-0.1,0.1,0.2,0.3"} and f["jobs"] == a["jobs"]
+    assert f["args"] == ["--variants", "joint", "no_fr", "no_fr_dir", "no_frfacelead", "no_frcortexlead", "no_movement"]
+    assert m.V36_RUN_MODE["spont_frA_frlag"] == m.V36_RUN_MODE["spont_frA"].replace(
+        "|licksall-split", "|frlags=-0.3,-0.2,-0.1,0.1,0.2,0.3|licksall-split")
