@@ -93,6 +93,9 @@ BEHAVIOUR = {
     # four-camera lick example clips (11-22): production pose / lick tables + raw video only (no imaging); writes the
     # clips, stills and README tables into the --out folder it is given (under the four-camera 3-D folder)
     "pose3d_lick_clips.py",
+    # Fig 5B variants (CC-B 11-26): production FaceRhythm readouts + four-camera 3-D lick table read by literal (no
+    # imaging); writes only a NEW --cache / --out folder it is given (refuses an existing one)
+    "fr5b_variants_ccb1126.py",
 }
 INDIRECT = {
     # lick_correction.py left the list 11-21: it reads the 3-D table via pose3d_dir() (no share-root literal left) and

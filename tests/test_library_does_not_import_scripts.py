@@ -17,6 +17,7 @@ KNOWN = {
     "wfield_local/face_rhythm_readouts.py",  # face_rhythm_mesh_qc
     "wfield_local/orofacial_cohort.py",      # pose_kinematics_demo (now re-exports wfield_local.kinematics_chain)
     "wfield_local/pose3d_side.py",           # apparatus_mouth._rig, pose3d.PROD / _cgroup
+    "wfield_local/cd_migration_null.py",     # scripts.cd_migration.matrices, lazily, only for its reproduction check (CC-B 11-26)
 }
 
 
