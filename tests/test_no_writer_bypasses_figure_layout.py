@@ -50,7 +50,12 @@ EXEMPT_SITES = {"wfield_local/dlc_calibration.py": "writes into the calibration 
                 "scripts/caption_review_1123/overnight_family_hitrate.py": "stats tables only (no figure) into the "
                                                                           "caption-review folder",
                 "scripts/face_rhythm_peak_trialclass.py": "peak stats tables only (no figure) into its own readouts "
-                                                          "folder"}
+                                                          "folder",
+                # 11-26 merge (cd-null-chronic): the same flat tables main wrote as a literal
+                # f"cd_migration_null_{align}_per_animal.csv"; the --figure-name `stem` variable is what now matches.
+                # No reader resolves them through find_sidecar (grep 11-26); moving them is a separate change.
+                "wfield_local/cd_migration_null.py": "per-animal / pooled tables beside its own figure, path as before "
+                                                     "the 11-26 --figure-name stem"}
 #: (The K08 grant renderer that used to be exempted here moved to `grants/k08_2026/` on 2026-11-17;
 #: `grants/` is outside the scanned trees because nothing there is a pipeline writer.)
 

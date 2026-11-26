@@ -166,7 +166,8 @@ def choose_joint(P: pd.DataFrame, jobs: int) -> tuple[dict, pd.DataFrame]:
                                      log=lambda m: print(m[:110], flush=True))
     if fail:
         raise SystemExit(f"grid search failed: {fail}")
-    res = sorted((r for _it, r in res), key=lambda r: r[0])      # completion order -> (set, animal) order
+    res = sorted(res, key=lambda it_r: it_r[1][0])               # completion order -> (set, animal) order
+    res = [r for _it, r in res]
     combos = res[0][1]
     R = np.concatenate([r[2] for r in res], axis=1)
     NE = np.concatenate([r[3] for r in res], axis=1)
