@@ -31,8 +31,13 @@ draw would need a reference the store does not hold.
 
 WHAT IS NOT CLAIMED. The draws resample which pre sessions / trials stand in for E; they are not a permutation of an
 exchangeable label and they share sessions. `frac_null_ge` = the fraction of draws whose null change is at least as
-large as the observed one IN THE OBSERVED DIRECTION -- a fraction of draws, NOT a p-value. A cell "clears" its null in
-an animal when that fraction is <= 0.025 (two-sided 95% band); the cohort reading counts animals (rule 8).
+large as the observed one IN THE OBSERVED DIRECTION -- a fraction of draws, NOT a p-value. It is PAIRED (both sides
+share the draw's A), so it compares M_E with the spread of M_B and the noise of the reference A drops out of it -- the
+same pairing `cd_overlap_null` uses, and on its own it would be optimistic, because a real pre-vs-pre difference also
+carries A's noise. So a cell "clears" its null in an animal only when BOTH hold: the paired fraction is <= 0.025, AND
+the observed change (median over draws) lies outside the 2.5-97.5% band of the UNPAIRED null M_B - M_A (which carries
+A's noise). The cohort reading counts animals (rule 8). Measured on the PS92 smoke run: cells inside the unpaired band
+could still reach a paired fraction of 0.000, which is why the paired fraction alone is not the criterion.
 
     python -m wfield_local.cd_migration_null --align lick --out <NEW folder>
 """
@@ -244,11 +249,16 @@ def cohort_table(got):
                                  "null_median": float(np.asarray(r["null_med"])[i, j]),
                                  "null_lo95": float(np.asarray(r["null_lo"])[i, j]),
                                  "null_hi95": float(np.asarray(r["null_hi"])[i, j]),
-                                 "frac_draws_null_ge_obs": fr, "clears": bool(fr <= CLEAR_FRAC),
+                                 "frac_draws_null_ge_obs": fr, "paired_clear": bool(fr <= CLEAR_FRAC),
+                                 "outside_null95": bool(not (float(np.asarray(r["null_lo"])[i, j])
+                                                             <= float(np.asarray(r["obs_med"])[i, j])
+                                                             <= float(np.asarray(r["null_hi"])[i, j]))),
                                  "n_trials_E_row": float(np.asarray(r["n_E"])[i]),
                                  "B_match_frac_row": float(np.asarray(r["match_frac"])[i]),
                                  "n_E_sessions": int(r["k_E"]), "n_pre_sessions": int(r["n_pre_sessions"])})
     df = pd.DataFrame(recs)
+    if not df.empty:
+        df["clears"] = df["paired_clear"] & df["outside_null95"]
     if df.empty:
         return df, df
     keys = ["epoch", "trials", "on_direction"]
@@ -339,8 +349,8 @@ def figure(got, path):
                         label=f"{a} (one value per animal; color = epoch)")
             ax.legend(fontsize=6.5, frameon=False, loc="lower left")
     fig.suptitle("Lick-window migration vs its trial-matched pre-vs-pre null (four-camera root)\n"
-                 "k/4 = animals whose change clears their own null (fraction of draws <= 0.025) in the pooled "
-                 "direction; boxed = 3/4 or more. Fractions of draws, not p-values.", fontsize=8.5)
+                 "k/4 = animals whose change clears their own null in the pooled direction (outside the gray 95% band of "
+                 "pre-vs-pre changes AND paired fraction of draws <= 0.025); boxed = 3/4 or more. Not p-values.", fontsize=8.5)
     save_png_svg(fig, Path(path), dpi=160)
     plt.close(fig)
     return path
