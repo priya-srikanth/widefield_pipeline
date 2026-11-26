@@ -593,6 +593,12 @@ def run_task(b, frame: str, mode: str, label: str, out=None, audit: bool = False
         img = pickle.loads((b / "imaging" / f"{label}.pkl").read_bytes())
     o2_bundle.check_inputs(meta, inp, label)
     o2_bundle.check_inputs(meta, img, label + " (imaging)")
+    # 11-26: the task's analysis-mask digest = the bundle's (just verified on every input pickle; the desktop computed it
+    # from the masks at bundle time). Recomputing it reads the brain / stat / painted masks off the share, which O2 does
+    # not have: a BASIS frame's predict (`_spatial_of` -> check_saved_masks) failed the audited check on exactly those
+    # reads (wave-1a2 spont_frA_basis and spont_frA_spd_basis, PS95_0812).
+    _sig = meta[o2_bundle.MASK_FIELD]
+    mask_keys.signature = lambda *a_, **k_: _sig
     base = Path(out) if out else r
     if _done_marker(base, mode, label).exists():
         print("done already", label)
