@@ -731,6 +731,13 @@ def cmd_collect(a) -> int:
         op.verify_identity(rmeta["identity"])
     except o2_bundle.BundleMismatch as ex:
         raise SystemExit(f"refusing: this bundle is not of the current run ({ex})") from None
+    if rmeta.get("test_out_root"):
+        # 11-26: a bundle with a declared out-root (rule 11): the svf / partial summaries read `fr_musall.E`
+        # (= fe.out_root(), evaluated at THEIR import below), so route FROZEN_OUT_ROOT there too; apply_frame_env
+        # cleared it, and unset they would write <production imaging_encoding>/frozen_encoder_<tag>/...
+        if "fr_musall" in sys.modules:
+            raise SystemExit("fr_musall imported before collect set FROZEN_OUT_ROOT")
+        os.environ["FROZEN_OUT_ROOT"] = str(rmeta["test_out_root"])
     out = frame_out(key, rmeta.get("test_out_root") or None)
     if str(out) != rmeta["frame_dir"]:
         raise SystemExit(f"frame folder {out} differs from the bundle's {rmeta['frame_dir']}")
@@ -771,6 +778,10 @@ def cmd_collect(a) -> int:
          "missing": missing, "collected": datetime.datetime.now().isoformat(timespec="seconds")}, indent=1),
         encoding="utf-8")
     print(f"collected {len(rel)} files -> {dst_root}; summarising", flush=True)
+    if mode != "predict":
+        import fr_musall
+        if Path(fr_musall.E) / out.name != out:
+            raise SystemExit(f"summary root {fr_musall.E} is not the frame's parent {out.parent}: refusing")
     if mode == "predict":
         if is_basis(key) or "--no-drop-spout" in FRAMES[key]["args"]:
             pass
