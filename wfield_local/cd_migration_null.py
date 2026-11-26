@@ -44,6 +44,7 @@ could still reach a paired fraction of 0.000, which is why the paired fraction a
 from __future__ import annotations
 
 import argparse
+import textwrap
 from pathlib import Path
 
 import numpy as np
@@ -275,6 +276,14 @@ def cohort_table(got):
     return df, pooled
 
 
+#: Provenance line for the figure (Priya 11-06: window, licks, trials, gate, baseline, correction on every caption).
+PROVENANCE = ("Lick window [0, 1) s from the first lick; fused four-camera LP licks "
+              "(lp_side_r2b_prod_20261118_3net_20261121_sync60_gapfix60); success (lick) trials, LP-inclusive gate on the "
+              "camera trial gate, jaw3dmouth rule; FROZEN pre directions (August pre, 11-25 entries); change = epoch minus "
+              "the animal's own pre (A); 1000 trial-matched draws per animal x epoch; no test, no multiple-comparison "
+              "correction.")
+
+
 def figure(got, path):
     """Top: pooled dM (vs A) per epoch, each cell labelled k/4 = animals whose change clears their own null in the
     pooled direction (boxed at >= 3/4). Bottom: the far-contra row per animal (open marker: shape = animal, color =
@@ -327,7 +336,7 @@ def figure(got, path):
         for k, a in enumerate(animals):
             for _, row in R[R["animal"] == a].iterrows():
                 x = pos_names.index(row["on_direction"]) + offs[k]
-                ax.plot([x + 0.06] * 2, [row["null_lo95"], row["null_hi95"]], color="0.6", lw=2.4,
+                ax.plot([x] * 2, [row["null_lo95"], row["null_hi95"]], color="0.75", lw=3.0,
                         solid_capstyle="butt", zorder=1)
                 ax.plot(x, row["dM_vs_A_median"], ls="none", marker=cp.animal_marker(a), mfc="none",
                         mec=cp.epoch_color(ep), mew=1.4, ms=6, zorder=3)
@@ -350,7 +359,8 @@ def figure(got, path):
             ax.legend(fontsize=6.5, frameon=False, loc="lower left")
     fig.suptitle("Lick-window migration vs its trial-matched pre-vs-pre null (four-camera root)\n"
                  "k/4 = animals whose change clears their own null in the pooled direction (outside the gray 95% band of "
-                 "pre-vs-pre changes AND paired fraction of draws <= 0.025); boxed = 3/4 or more. Not p-values.", fontsize=8.5)
+                 "pre-vs-pre changes AND paired fraction of draws <= 0.025); boxed = 3/4 or more. Not p-values.\n"
+                 + textwrap.fill(PROVENANCE, 190), fontsize=8.5)
     save_png_svg(fig, Path(path), dpi=160)
     plt.close(fig)
     return path
