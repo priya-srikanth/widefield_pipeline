@@ -170,6 +170,7 @@ def main():
     sub = (f"first-lick-aligned, cohort SVD basis{xf}; {what}; change vs own pre (pre sessions "
            f"leave-one-out), mean of 4 animals, units of each animal's pre-template pixel RMS")
     OUT.mkdir(parents=True, exist_ok=True)
+    FIGS.mkdir(parents=True, exist_ok=True)              # page_figs{RSFX} may not exist yet (11-26: chronic_maps made it)
 
     # ---- WHERE x WHEN heat map
     B = {ep: boot(rows, "area_bin", ep, rng) for ep in EPS}

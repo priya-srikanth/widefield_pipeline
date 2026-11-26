@@ -60,6 +60,7 @@ def main():
         print(f"  {full}: r {r_an} | within slope {b:+.4f}/deg p={p:.3f} | lmm {b1:+.4f} p={p1:.3f} | "
               f"+epoch {b2:+.4f} p={p2:.3f}", flush=True)
     OUT.mkdir(parents=True, exist_ok=True)
+    FIGS.mkdir(parents=True, exist_ok=True)              # page_figs{RSFX} may not exist yet (11-26: chronic_maps made it)
     R = pd.DataFrame(rows)
     R.to_csv(OUT / "coupling.csv", index=False)
 

@@ -133,6 +133,7 @@ def main():
     Dl = Tr.copy()
     Dl[bcols] = Tr[bcols].to_numpy() - base
     OUT.mkdir(parents=True, exist_ok=True)
+    FIGS.mkdir(parents=True, exist_ok=True)              # page_figs{RSFX} may not exist yet (11-26: chronic_maps made it)
     Dl.to_csv(OUT / "traces.csv", index=False)
 
     # ---- per-spout early / late change, nested bootstrap
