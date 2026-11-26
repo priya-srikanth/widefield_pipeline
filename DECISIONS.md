@@ -24732,3 +24732,44 @@ frame), then "prioritize items needed for the MANUSCRIPT" (results-page items pa
   bootstrap only), first 95 min 2 -> 3 (push cue-minus-control subacute gains its star; CI 0.0009 to 0.194, fragile).
   Session counts are unchanged. Tables are in `vls_stroke_paper/data_4cam_20261122/treadmill/*_fourcam_20261123.csv` +
   `README_fourcam_20261123.md`; full outputs in `manuscript_stats/c2_4cam_sync60_20261122/treadmill_fourcam_20261123/`.
+
+## 2026-11-26 -- Split is the PRIMARY area basis of every frozen-encoder analysis; plain = robustness only; existing frames unchanged (Priya)
+Priya 11-26: "all our allen maps should be [the ALM / tjM1] split" -> "ok"; then "basically everything should use the split
+frame". The per-session encoder has used the split basis since 11-04 (`combined_encoding.area_masks_for`); the frozen
+encoder still predicted PLAIN Allen areas (MOs / MOp whole), and split rows existed only through basis-target twins
+(`scripts/encoder_split_rows.py`), which the four-camera frames never ran.
+- **Split is primary for every frozen-encoder analysis going forward; plain is robustness only.** Every NEW frame is split
+  (`frozen_encoder` AREA BASIS block; `--target split | plain | areas`, env `FROZEN_AREA_BASIS`). A new PLAIN frame needs an
+  explicit opt-in (`--target plain` or `FROZEN_AREA_BASIS=plain`) and the run logs it as robustness. No default path makes a
+  new plain frame: `frozen_encoder.main` and `o2_frozen bundle` resolve a new frame to split; the readers that rebuild
+  designs take their source frame's basis; `o2_partial` refuses split frames (its steps are the existing plain v36 frames;
+  split frames bundle through `o2_frozen`, which carries the masks).
+- **Masks = `area_basis` v8 WITH the rim (Priya: ok).** `area_basis.session_area_masks`' split list (ALM / tjM1 + disjoint
+  MOs_rest / MOp_rest per hemisphere replace MOs / MOp; every area on the stat mask + the v8 rim, the per-session encoder's
+  masks; no new mask definition). "cortex" stays the eroded STAT mask mean, so frozen cortex readouts compare across bases.
+  Consequence: a split frame's non-MO areas carry the rim too (SSp-m split vs plain r = 0.9996 on PS92_0806), and its ALM /
+  tjM1 are not the stat-mask-only twin rows.
+- **Existing frames unchanged.** Identity = the run tag: split adds `|areas-split` (pre_stats `run_mode`, session json
+  `run_tag` + an `area_basis` block, trials npz); plain adds nothing, so every existing frame's run tag, statistics and
+  outputs are byte-identical (four-camera spont_frA, PS92_0806: plain names = the saved 42; plain design digest = main's,
+  and X'X / X'Y / Y'Y equal the saved statistics exactly with BLAS pinned). A run on an existing frame (`--reuse-stats` /
+  `--fit-from` / `--trials-only`, and the readers that rebuild designs: partial_refit, session_vs_frozen, frozen_relabel,
+  epoch_kernels, allsession_encoder via `adopt_frame_area_basis`) takes the frame's recorded basis; asking for the other
+  basis on an existing frame folder REFUSES (never refit in place). The frozen encoder is not a `frozen_models` store kind;
+  its identity is this run tag.
+- **O2** (`scripts/o2_frozen.py`): a new Allen-area frame resolves to split before the identity is recorded (env.json carries
+  `FROZEN_AREA_BASIS`); its inputs pickles carry the session's area masks (image pixel ids, built at bundle time: the v8 rim
+  needs the share's brain mask), its imaging pickles keep stat + split pixels, and the O2 task refuses without them (the
+  `area_masks_for` pattern). A plain and a split frame cannot share a bundle's imaging pickles.
+- **Named-area readers: MOp -> tjM1 + MOp_rest side by side, MOs -> ALM + MOs_rest side by side (Priya: yes).**
+  `frozen_encoder.split_area_list` expands each named MOp / MOs per hemisphere in place on a split frame and returns the list
+  unchanged on a plain frame (+ twin rows): frozen_fr_compare `session_r2` and its figures (so frozen_posinfo, frozen_claims,
+  frozen_fr_musall_v2, which also gains MOs_rest / MOp_rest contra - ipsi), contest_lines, partial_refit tables + figures,
+  session_vs_frozen named-area tables + bars. Plain outputs pinned identical to the pre-11-26 code.
+- **specificity_control orofacial group on a split frame = SSp-m, SSp-n, ALM, tjM1 (both sides)**, equal weight per area as
+  before; MOs_rest / MOp_rest are NOT members; control unchanged. Plain frames keep SSp-m, SSp-n, MOp, MOs.
+- **Bonferroni: split frames correct over every area row tested (45: ALM, tjM1, MOs_rest, MOp_rest count as areas); plain
+  frames keep the Allen count (41)**, with basis-twin split rows still "not extra areas", so old outputs are byte-identical
+  (`encoder_split_rows.bonf_count` / `bonf_allen`; residual_roi, session_vs_frozen maps, frozen_peth_trial_maps). On a
+  split frame residual_roi / session_vs_frozen / specificity_control draw their maps on the split ROIs (no companion panels).
+Branch `ccb/frozen-split-default-1126` (no new frame fitted, nothing on O2). Tests `tests/test_frozen_split_basis.py`.

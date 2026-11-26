@@ -69,12 +69,14 @@ def main(argv=None) -> int:
     B = pd.concat([boot(U[U.q == q], "u").assign(frame=q, q=q) for q in U.q.unique()])
     B.to_csv(out / f"posinfo_{a.tag}.csv", index=False)
     ffc.COL.update(COLS)
+    from wfield_local.frozen_encoder import split_area_list
+    AR = split_area_list(AREAS, U.area.unique())         # split-basis frame: tjM1 + MOp_rest side by side (11-26)
     split = "split" in a.tag
     for w in WINDOWS:
         fig, axs = plt.subplots(2, 1, figsize=(15, 8.2))
         for ax, kind in zip(axs, ("unique", "alone")):
             qs = [q for q, _v, k in QS if k == kind and (B.q == q).any()]
-            bars(ax, B[(B.window == w) & B.q.isin(qs)], qs, AREAS, "change from pre (R2)",
+            bars(ax, B[(B.window == w) & B.q.isin(qs)], qs, AR, "change from pre (R2)",
                  f"{kind.upper()} R2, epoch - pre: wine = movement WITH lick-position information, indigo = WITHOUT (light = alone)")
             pre = B[(B.window == w) & B.q.isin(qs) & (B.epoch == "chronic")].set_index(["q", "area"]).ref
             ax.text(0.005, 0.03, "pre level: " + "; ".join(f"{q.split()[0]} {ALAB[ar]} {pre.get((q, ar), float('nan')):.3f}"

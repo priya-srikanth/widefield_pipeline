@@ -167,6 +167,7 @@ def main(argv=None) -> int:
     fe.check_tag(a.src, "--from")                       # the frozen design (v7g3_t3d | _spont) is in both tags
     fe.check_tag(a.tag, "relabel")
     src = E / f"frozen_encoder_{a.src}"
+    fe.adopt_frame_area_basis(src)                      # the source frame's area basis (split / plain, 11-26)
     out = E / f"frozen_relabel_{a.tag}"
     assert_writable(out)
     (out / "sessions").mkdir(parents=True, exist_ok=True)

@@ -242,6 +242,16 @@ def _reduce(name, v, label):
     targets: the same rows in the same order -> identical area means); _kin_all keeps this session's rows (its only
     reader filters by session first)."""
     import numpy as np
+    if name == "load_imaging" and _fe().area_basis() == "split":
+        # SPLIT area basis (frozen_encoder AREA BASIS, 11-26): its areas carry the v8 rim, outside the stat mask, so the
+        # kept pixels are the stat mask + every split-area pixel; pstat marks the stat pixels within them (same order, so
+        # Ub[pstat] -- cortex, spatial targets -- is the full imaging's). The masks themselves travel in the inputs pickle.
+        V, ft, Ub, flat, parea, names, shape, pstat = v
+        ps = np.asarray(pstat, bool)
+        am = _fe().area_mask_record(label, parea, ps, names, flat, shape)
+        keep = ps | np.isin(np.asarray(flat), np.concatenate([np.asarray(x) for x in am["pix"].values()]))
+        return ("imaging_reduced", (V, ft, np.ascontiguousarray(Ub[keep]), np.asarray(flat)[keep], np.asarray(parea)[keep],
+                                    names, shape, ps[keep]))
     if name == "load_imaging":
         V, ft, Ub, flat, parea, names, shape, pstat = v
         ps = np.asarray(pstat, bool)
@@ -446,6 +456,10 @@ def cmd_bundle(a) -> Path:
     for f in ("fit/pre_stats.pkl", "fit/templates.pkl"):
         if not (run / f).exists():
             raise SystemExit(f"{run / f} missing: {up} not finished")
+    # AREA BASIS (11-26): these steps are the existing PLAIN v36 frames; a split-basis frame needs its area masks in the
+    # bundle, which `scripts/o2_frozen.py` builds (it runs the partial jobs too) -- refused here, never a plain rebuild
+    if fe.adopt_frame_area_basis(run) != "plain":
+        raise SystemExit(f"{run} is a split-basis frame: bundle it with scripts/o2_frozen.py (carries the area masks)")
     repo = Path(__file__).resolve().parents[1]
     dirty = _git(repo, "status", "--porcelain", "--", "wfield_local", "configs", "scripts")
     if dirty:

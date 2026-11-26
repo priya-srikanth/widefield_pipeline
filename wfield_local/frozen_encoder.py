@@ -15,8 +15,10 @@ August pre-stroke sessions and applied, unchanged, to every session:
 - NO ORTHOGONALISATION: all groups are fitted jointly (one ridge, the encoder's penalty groups `PEN_GROUP_OF`), so no
   group is credited by ordering. The per-session encoder residualises task on movement (movement_first), a second
   reason it credits movement; this model does not;
-- target: area activity Rd = Y @ Ra (the encoder's area averages on the eroded stat mask, + "cortex"), per area name;
-  areas absent from any of the animal's sessions are dropped for that animal;
+- target: area activity Rd = Y @ Ra, per area name, + "cortex" (the eroded stat mask): a NEW frame on the ALM / tjM1
+  SPLIT area basis (11-26, `area_basis` v8 masks, as the per-session encoder), plain Allen areas on the eroded stat mask
+  for the frames before it and as robustness (AREA BASIS block, FROZEN_AREA_BASIS / --target split | plain); areas absent
+  from any of the animal's sessions are dropped for that animal;
 - penalties: per penalty group, coordinate search (2 passes over ALPHA_GRID, as the encoder) on LEAVE-ONE-PRE-SESSION-
   OUT R^2 summed over areas; pre sessions are then scored with the model fitted WITHOUT them, post sessions with the
   model fitted on all of the animal's August pre sessions.
@@ -265,6 +267,162 @@ def check_tag(tag: str, what: str = "run") -> None:
                          f"{LICKS_ALL_ENV}={LICKS_ALL} builds {design_name()}: "
                          + ("put the 'spont' segment in the tag (design_tag)" if SPONT else
                             f"set {LICKS_ALL_ENV}=split for a spont folder"))
+
+
+#: AREA BASIS OF THE ALLEN-AREA TARGET (Priya 11-26: "all our allen maps should be [the ALM / tjM1] split" -> "ok";
+#: DECISIONS 2026-11-26). The per-session encoder has used the split basis since 11-04 (`combined_encoding.area_masks_for`);
+#: the frozen encoder predicted PLAIN Allen areas (MOs / MOp whole), and the split rows came only from a basis-target twin
+#: (`scripts/encoder_split_rows`). Two area bases, ONE mask definition (`wfield_local.area_basis`, ROI v8):
+#:   split  (DEFAULT of a NEW frame) every Allen area of `area_basis.session_area_masks`' split list -- ALM / tjM1 and the
+#:          disjoint MOs_rest / MOp_rest per hemisphere replace MOs / MOp; every area on the eroded stat mask + the v8 rim,
+#:          exactly the per-session encoder's areas -- + "cortex" = the eroded STAT mask mean (the cortex row every frozen
+#:          readout is reported on, unchanged, so frozen cortex numbers stay comparable across the two bases);
+#:   plain  robustness, and every frame built before 11-26: the stat-mask Allen areas (MOs / MOp whole) + cortex.
+#: Identity: a split frame's run tag ends in "|areas-split" (`_run_tag`, stored in fit/pre_stats.pkl and every session
+#: json / trials npz), plain adds nothing, so every existing frame's run tag, statistics and outputs are byte-identical.
+#: FROZEN_AREA_BASIS = split | plain selects it; UNSET means plain everywhere EXCEPT `main` building a NEW frame (no saved
+#: statistics), which defaults to split. A run on an EXISTING frame (--reuse-stats / --fit-from / --trials-only, and the
+#: readers that rebuild a frame's designs: `adopt_frame_area_basis`) takes the basis the frame recorded. Spatial targets
+#: (basis / grid) have no area basis. SPLIT IS PRIMARY for every frozen-encoder analysis (Priya 11-26: "basically
+#: everything should use the split frame"); a NEW plain frame is robustness only and needs the explicit opt-in (logged).
+#: Readers with named MOp / MOs: `split_area_list` (tjM1 + MOp_rest, ALM + MOs_rest side by side). On O2 the masks are bundled (`o2_frozen` capture; the v8 rim needs
+#: `beta_maps.brain_mask()`, a share read), never rebuilt there (`bundled_area_masks`).
+AREA_BASIS_ENV = "FROZEN_AREA_BASIS"
+AREA_BASES = ("split", "plain")
+AREA_BASIS_NEW = "split"                                 # the default of a NEW frame (main)
+_AREA_TAG = "|areas-"
+#: the Allen-area target names of `main --target` (basis / grid are the spatial targets); "areas" = the frame's own basis
+#: for an existing frame, AREA_BASIS_NEW for a new one
+AREA_TARGETS = ("split", "plain", "areas")
+
+
+def area_basis() -> str:
+    """This environment's area basis (FROZEN_AREA_BASIS; unset = plain, the legacy frames' -- see the block comment)."""
+    v = os.environ.get(AREA_BASIS_ENV, "").strip().lower() or "plain"
+    if v not in AREA_BASES:
+        raise ValueError(f"{AREA_BASIS_ENV}={v!r}; expected one of {AREA_BASES}")
+    return v
+
+
+def area_basis_of_run_mode(run_mode) -> str:
+    """The area basis a stored run tag (pre_stats `run_mode` / session json `run_tag`) records: split iff '|areas-split'."""
+    return "split" if f"{_AREA_TAG}split" in str(run_mode) else "plain"
+
+
+def frame_area_basis(run) -> str | None:
+    """The area basis of an existing frame folder, from its fit/pre_stats.pkl run tags (None without saved statistics).
+    Mixed tags raise (a frame is one basis)."""
+    import pickle
+    sp = Path(run) / "fit" / "pre_stats.pkl"
+    if not sp.exists():
+        return None
+    got = {area_basis_of_run_mode(s_.get("run_mode", "")) for s_ in pickle.loads(sp.read_bytes())}
+    if len(got) > 1:
+        raise RuntimeError(f"{sp}: pre statistics of more than one area basis {sorted(got)}")
+    return next(iter(got), None)
+
+
+def adopt_frame_area_basis(run) -> str:
+    """Set FROZEN_AREA_BASIS to the frame's own basis (for a reader that rebuilds an existing frame's session designs) and
+    return it; a frame without saved statistics leaves the environment as it is. A conflicting explicit setting raises."""
+    fb = frame_area_basis(run)
+    if fb is None:
+        return area_basis()
+    have = os.environ.get(AREA_BASIS_ENV, "").strip().lower()
+    if have and have != fb:
+        raise SystemExit(f"{AREA_BASIS_ENV}={have} but the frame {run} is {fb}")
+    os.environ[AREA_BASIS_ENV] = fb
+    return fb
+
+
+#: {label: mask record} served instead of building the masks (O2 / replayed imaging: `bundled_area_masks`)
+_BUNDLED_AREA_MASKS: dict = {}
+_REQUIRE_BUNDLED_MASKS: list = [False]
+
+
+class bundled_area_masks:
+    """Context: the split area masks come from the bundle (``masks`` = {label: record}, see `area_mask_record`), and a
+    label without one REFUSES (``require``) instead of building them -- the v8 rim needs the share's brain mask and the
+    bundled imaging holds only the target pixels (as `combined_encoding.area_masks_for` refuses old bundles)."""
+
+    def __init__(self, masks: dict, require: bool = True):
+        self.masks, self.require = dict(masks), require
+
+    def __enter__(self):
+        self.saved = (dict(_BUNDLED_AREA_MASKS), _REQUIRE_BUNDLED_MASKS[0])
+        _BUNDLED_AREA_MASKS.update(self.masks)
+        _REQUIRE_BUNDLED_MASKS[0] = self.require
+        return self
+
+    def __exit__(self, *exc):
+        _BUNDLED_AREA_MASKS.clear()
+        _BUNDLED_AREA_MASKS.update(self.saved[0])
+        _REQUIRE_BUNDLED_MASKS[0] = self.saved[1]
+
+
+def area_mask_record(label: str, parea, pstat, names, flat, shape) -> dict:
+    """The split area masks of one session as IMAGE PIXEL IDS (values of ``flat``, so they survive a bundle's pixel
+    reduction): {"basis": "split", "version", "tag", "names": split names (area_basis order), "pix": {name: int64 ids}}.
+    From `bundled_area_masks` when given; else built here (`area_basis.session_area_masks`, the per-session encoder's
+    masks) unless the bundle requires them."""
+    if label in _BUNDLED_AREA_MASKS:
+        return _BUNDLED_AREA_MASKS[label]
+    if _REQUIRE_BUNDLED_MASKS[0]:
+        raise RuntimeError(f"{label}: the bundled inputs carry no split area_masks (a plain-basis bundle?); rebuild the "
+                           "bundle -- the split basis cannot be built from bundled imaging")
+    from wfield_local import area_basis as ab
+    am = ab.session_area_masks(parea, pstat, names, flat, shape)
+    fl = np.asarray(flat)
+    return {"basis": "split", "version": am["version"], "tag": am["tag"], "names": list(am["split"]),
+            "pix": {n: fl[am["areas"][n]].astype(np.int64) for n in am["split"]}}
+
+
+_SPLIT_PARENTS = {"MOs_left", "MOs_right", "MOp_left", "MOp_right"}
+_SPLIT_ROIS = {f"{n}_{h}" for n in ("ALM", "tjM1", "MOs_rest", "MOp_rest") for h in ("left", "right")}
+
+
+#: Priya 11-26 (decision 1): on a split frame a named MOp panel / group member becomes tjM1 + MOp_rest SIDE BY SIDE, a
+#: named MOs one ALM + MOs_rest (same hemisphere, in that order)
+SPLIT_PANELS = {"MOp": ("tjM1", "MOp_rest"), "MOs": ("ALM", "MOs_rest")}
+
+
+def is_split_area_list(frame_areas) -> bool:
+    """True for a split-basis frame's own area list: split ROIs present, their parents MOs / MOp absent."""
+    have = set(frame_areas)
+    return bool(have & _SPLIT_ROIS) and not (have & _SPLIT_PARENTS)
+
+
+def split_area_list(wanted, frame_areas) -> list:
+    """READERS WITH NAMED AREAS (Priya 11-26): the reader's area list for a frame. A split-basis frame has no whole MOs /
+    MOp, so each named ``MOp_<h>`` becomes ``tjM1_<h>, MOp_rest_<h>`` and each ``MOs_<h>`` becomes ``ALM_<h>, MOs_rest_<h>``
+    in place (`SPLIT_PANELS`); every other name stays. A PLAIN frame (or plain + basis-twin rows) gets ``wanted``
+    unchanged, so its outputs are byte-identical."""
+    wanted = list(wanted)
+    if not is_split_area_list(frame_areas):
+        return wanted
+    out = []
+    for a in wanted:
+        par, _, h = a.partition("_")
+        out += [f"{x}_{h}" for x in SPLIT_PANELS[par]] if a in _SPLIT_PARENTS else [a]
+    return out
+
+
+def split_area_targets(label: str, Ub, flat, pstat, am: dict) -> tuple:
+    """(Ra, area_names) of the split basis: each split area's pixel mean (`area_mask_record` ``am``), then the stat-mask
+    cortex mean. Pixels of a mask missing from the imaging raise (a bundle reduced without them)."""
+    fl = np.asarray(flat)
+    cols, nm, short = [], [], []
+    for n in am["names"]:
+        ids = np.asarray(am["pix"][n])
+        pos = np.flatnonzero(np.isin(fl, ids))
+        if len(pos) != len(ids):
+            short.append(n)
+        if len(pos):
+            cols.append(Ub[pos].mean(0))
+            nm.append(n)
+    if short:
+        raise RuntimeError(f"{label}: split-area pixels missing from the imaging: {short[:6]}")
+    return np.stack(cols + [Ub[pstat].mean(0)], 1), nm + ["cortex"]
 
 #: FACERHYTHM IN THE FROZEN MODEL (Priya 10-25, handoff 000t plan item 3: "should we be mixing frozen and refit encoder
 #: vs FR models" -> build the frozen pre-stroke encoder WITH FR). Opt-in: FROZEN_FR=1 plus the encoder's own FR envs
@@ -964,7 +1122,13 @@ def session_design(label: str, templates: dict | None = None, template_only: boo
     Q = np.linalg.qr(ce._slow_basis(ftr, ce.DRIFT_MIN_PERIOD_S))[0]
     X -= Q @ (Q.T @ X)
     Rx = None                                            # extra targets' weights (kept apart from the Allen ones)
-    if spatial is None:                                  # Allen-area targets (the v1-v4 default)
+    amask = None                                         # the split masks (AREA BASIS block; bundled by o2_frozen)
+    if spatial is None and area_basis() == "split":      # split Allen-area targets (11-26 default of a NEW frame)
+        if extra_targets is not None:
+            raise ValueError("extra_targets (--roi-targets) is for PLAIN-basis frames: a split frame has the ROIs as targets")
+        amask = area_mask_record(label, parea, pstat, names, _flat, _shape)
+        Ra, area_names = split_area_targets(label, Ub, _flat, pstat, amask)
+    elif spatial is None:                                # Allen-area targets, plain (the v1-v4 default)
         areas = sorted({int(a) for a in np.unique(parea[pstat]) if a != 0})
         Ra = np.stack([Ub[(parea == a) & pstat].mean(0) for a in areas] + [Ub[pstat].mean(0)], 1)
         area_names = [names.get(a, str(a)) for a in areas] + ["cortex"]
@@ -1008,7 +1172,8 @@ def session_design(label: str, templates: dict | None = None, template_only: boo
             # per-trial outputs (`write_trials`): the trial table, the frame rows, the lick sets of the lick timing
             "E": E, "ft": ft, "ridx": ridx,
             "lk_all": np.sort(np.concatenate([np.asarray(B.lick_on_s, float), np.asarray([] if ex_ is None else ex_, float)])),
-            "contact_s": np.asarray(B.contact_s, float)}
+            "contact_s": np.asarray(B.contact_s, float),
+            **({"area_masks": amask} if amask is not None else {})}   # split only (o2_frozen bundles them)
 
 
 def swap_template(M: np.ndarray, N: np.ndarray, qi: int) -> np.ndarray:
@@ -1161,7 +1326,8 @@ def _run_tag() -> str:
             + (f"|fr={os.environ['COMBINED_ENCODING_FR']}:{os.environ['COMBINED_ENCODING_FR_GROUPS']}" if FR_VARS else "")
             + ("|frsplit" if FR_SPLIT else "") + ("|lickspout" if LICKSPOUT else "") + ("|lickland" if LICKLAND else "")
             + (f"|frlags={','.join(f'{x:g}' for x in FR_LAGS)}" if FR_LAGS else "")
-            + (f"|licksall-{LICKS_ALL}" if SPONT else ""))  # the spontaneous-lick design: never a v7g3_t3d fit's stats
+            + (f"|licksall-{LICKS_ALL}" if SPONT else "")   # the spontaneous-lick design: never a v7g3_t3d fit's stats
+            + (f"{_AREA_TAG}split" if area_basis() == "split" else ""))   # AREA BASIS (11-26); plain adds nothing
 
 
 #: BACKWARD / POSTURAL TREADMILL MOVEMENT (Priya 10-23, after the side-camera clips: the negative speed at bout ends is
@@ -1924,6 +2090,10 @@ def predict_job(job):
             ts = np.asarray(d["timing_source"], dtype=str)
             meta.update({"design": design_name(), "licks_all": LICKS_ALL, "spont_counts": d["spont"],
                          "lick_timing_sources": {s_: int((ts == s_).sum()) for s_ in ("lp", "daq", "none")}})
+        if d.get("area_masks") is not None:              # split frame (plain jsons unchanged): the area basis it used
+            am_ = d["area_masks"]
+            meta["area_basis"] = {"basis": "split", "tag": am_["tag"], "roi_version": am_["version"],
+                                  "cortex": "eroded stat mask (as plain frames)"}
         (sess / f"{label}.json").write_text(json.dumps(meta, indent=1, default=str), encoding="utf-8")
         summary[variant] = r2
         summary["frozen_from"] = frozen_from
@@ -2253,6 +2423,26 @@ def fig_out(run: Path) -> Path:
     return Path(r) / Path(run).name if r else Path(run)
 
 
+def resolve_area_basis(request: str | None, frame) -> str:
+    """The area basis of a `main` run on frame folder ``frame`` (the run folder, or the --fit-from source): an EXISTING
+    frame (saved pre statistics) keeps its recorded basis -- an explicit request or FROZEN_AREA_BASIS that differs
+    REFUSES (a re-scoring cannot change the targets, and a new basis never refits over another basis' frame); a NEW
+    frame takes the request, else FROZEN_AREA_BASIS, else AREA_BASIS_NEW (split, Priya 11-26)."""
+    env = os.environ.get(AREA_BASIS_ENV, "").strip().lower() or None
+    if request and env and request != env:
+        raise SystemExit(f"--target {request} but {AREA_BASIS_ENV}={env}")
+    want = request or env
+    if want is not None and want not in AREA_BASES:
+        raise SystemExit(f"{AREA_BASIS_ENV}={want!r}; expected one of {AREA_BASES}")
+    have = frame_area_basis(frame)
+    if have is not None:
+        if want is not None and want != have:
+            raise SystemExit(f"{frame} is a {have}-basis frame (fit/pre_stats.pkl); the area basis {want} needs a NEW "
+                             "frame folder (another --tag / --out-root): a frame is never re-fitted in another basis")
+        return have
+    return want or AREA_BASIS_NEW
+
+
 def main(argv=None) -> int:
     from wfield_local import analysis_kit as ak
     from wfield_local import config, epochs
@@ -2267,8 +2457,10 @@ def main(argv=None) -> int:
     ap.add_argument("--no-drop-spout", action="store_true", help="skip the frozen drop-one-spout variants")
     ap.add_argument("--reuse-stats", action="store_true", help="reuse fit/pre_stats.pkl (skip the pre statistics pass)")
     ap.add_argument("--summarise-drop", action="store_true", help="only rebuild the drop-spout table from saved files")
-    ap.add_argument("--target", default="areas", choices=("areas", "basis", "grid"),
-                    help="Allen areas (default) | per-animal shared SVD basis | 8 x 8 pixel grid (SPATIAL TARGETS)")
+    ap.add_argument("--target", default=None, choices=(*AREA_TARGETS, "basis", "grid"),
+                    help="Allen areas: split (ALM / tjM1 split basis; the default of a NEW frame) | plain (MOs / MOp whole; "
+                         "robustness, every frame before 11-26) | areas (= the default: an existing frame's own basis, "
+                         "split for a new one) | per-animal shared SVD basis | 8 x 8 pixel grid (SPATIAL TARGETS)")
     # RE-SCORING AN EXISTING FRAME INTO A NEW FOLDER (10-28, ALM / tjM1 rows of the frozen claims: the basis runs re-run
     # with FROZEN_PIX_MUSALL=1, written next to the originals without touching them)
     ap.add_argument("--fit-from", default=None,
@@ -2296,6 +2488,9 @@ def main(argv=None) -> int:
     from wfield_local import frozen_models as _fm
     _fm.add_allow_freeze_arg(ap)                         # rule 11 (11-24): a NEW frame (pre statistics) needs it
     a = ap.parse_args(argv)
+    a.area_request = a.target if a.target in ("split", "plain") else None   # AREA BASIS (resolved once `out` is known)
+    if a.target is None or a.target in AREA_TARGETS:
+        a.target = "areas"                               # every Allen-area check below reads "areas"
     if a.basis_only and (a.target != "basis" or not a.out_root or a.fit_from or a.reuse_stats or a.trials_only):
         raise SystemExit("--basis-only: --target basis with a NEW --out-root, no --fit-from / --reuse-stats / --trials-only")
     if a.roi_targets:
@@ -2334,6 +2529,18 @@ def main(argv=None) -> int:
         raise SystemExit("--fit-from must be another run folder")
     sp = src_fit / "pre_stats.pkl"
     tp = src_fit / "templates.pkl"
+    if a.target == "areas":                              # AREA BASIS block: the frame's own, or split for a new frame
+        basis = resolve_area_basis(a.area_request, src_fit.parent)
+        os.environ[AREA_BASIS_ENV] = basis               # spawned workers + _run_tag read it
+        if a.roi_targets and basis != "plain":
+            raise SystemExit("--roi-targets re-scores a PLAIN-basis area run (a split frame has the ROIs as targets)")
+        print(f"[frozen] Allen-area targets, area basis {basis}" + (f" ({_AREA_TAG[1:]}split in the run tag)"
+                                                                     if basis == "split" else ""), flush=True)
+        if basis == "plain" and frame_area_basis(src_fit.parent) is None:   # Priya 11-26: split is primary everywhere
+            print(f"[frozen] NEW frame on the PLAIN area basis = ROBUSTNESS, explicit opt-in "
+                  f"(--target plain / {AREA_BASIS_ENV}=plain); the primary basis is split", flush=True)
+    elif os.environ.pop(AREA_BASIS_ENV, None):           # spatial targets have no area basis (run tag unchanged)
+        print(f"[frozen] {a.target} targets: {AREA_BASIS_ENV} ignored", flush=True)
     if a.basis_only:
         if any((out / "fit").glob("spatial_*.pkl")):
             raise SystemExit(f"--basis-only: {out / 'fit'} already holds spatial_*.pkl; refusing to overwrite")

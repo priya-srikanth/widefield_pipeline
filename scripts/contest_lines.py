@@ -33,7 +33,8 @@ def unique_table(tag: str, qs: dict) -> pd.DataFrame:
     """Per session x window x area unique R2 of each group: {series label: group}."""
     from wfield_local import config
     D = pd.read_csv(E / f"frozen_encoder_{tag}" / "frozen_musall_r2.csv")
-    D = D[(D.measure == "frame") & (~D.label.map(config.early_pre)) & D.area.isin(AREAS)]
+    from wfield_local.frozen_encoder import split_area_list   # split-basis frame (11-26): MOp -> tjM1 + MOp_rest
+    D = D[(D.measure == "frame") & (~D.label.map(config.early_pre)) & D.area.isin(split_area_list(AREAS, D.area.unique()))]
     W = D.pivot_table(index=["label", "animal", "epoch", "align", "area"], columns="variant", values="r2").reset_index()
     rows = []
     for lab, g in qs.items():
@@ -45,7 +46,8 @@ def remap_table(tag: str, qs: dict) -> pd.DataFrame:
     """Per session remapping index (self-fit unique - frozen unique) of each group, from session_vs_frozen/gap.csv."""
     from wfield_local import config
     G = pd.read_csv(E / f"frozen_encoder_{tag}" / "session_vs_frozen" / "gap.csv")
-    G = G[G.area.isin(AREAS) & (~G.label.map(config.early_pre))]
+    from wfield_local.frozen_encoder import split_area_list   # split-basis frame (11-26): MOp -> tjM1 + MOp_rest
+    G = G[G.area.isin(split_area_list(AREAS, G.area.unique())) & (~G.label.map(config.early_pre))]
     W = G.pivot_table(index=["label", "animal", "epoch", "window", "area"], columns="variant", values=["self", "frozen"])
     rows = []
     for lab, g in qs.items():
@@ -57,10 +59,12 @@ def remap_table(tag: str, qs: dict) -> pd.DataFrame:
 def figure(plt, T: pd.DataFrame, series, title: str, ylab: str, path) -> None:
     B = pd.concat([ffc.boot(T[T.frame == lab], "u").assign(frame=lab) for lab, _l, _c in series])
     B.to_csv(path.with_suffix(".csv"), index=False)
-    fig, axs = plt.subplots(len(ffc.WINDOWS), len(AREAS), figsize=(15, 3.3 * len(ffc.WINDOWS) + 1.3), sharey=True,
-                            squeeze=False)
+    from wfield_local.frozen_encoder import split_area_list
+    AR = split_area_list(AREAS, T.area.unique())         # split-basis frame: tjM1 + MOp_rest side by side (11-26)
+    fig, axs = plt.subplots(len(ffc.WINDOWS), len(AR), figsize=(15 * len(AR) / len(AREAS), 3.3 * len(ffc.WINDOWS) + 1.3),
+                            sharey=True, squeeze=False)
     for r, w in enumerate(ffc.WINDOWS):
-        for c, a in enumerate(AREAS):
+        for c, a in enumerate(AR):
             ax = axs[r, c]
             ffc.epoch_lines(ax, B[B.window == w], series, a)
             if r == 0:

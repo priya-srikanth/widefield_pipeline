@@ -414,12 +414,14 @@ def table(sdir: Path, measure: str = "frame", areas=AREAS) -> pd.DataFrame:
     rows = []
     for f in sorted(sdir.glob("*.json")):
         m = json.loads(f.read_text())
+        from wfield_local.frozen_encoder import split_area_list   # split-basis frame (11-26): MOp -> tjM1 + MOp_rest
+        want = m["areas"] if areas == "all" else split_area_list(areas, m["areas"])
         for v, ww in m["scores"].items():
             for w, dd in ww.items():
                 for key, vals in dd.items():
                     if key not in (measure,) and not key.startswith("spout:"):
                         continue
-                    for a in (m["areas"] if areas == "all" else areas):
+                    for a in want:
                         if a in m["areas"]:
                             rows.append((m["label"], m["animal"], m["epoch"], v, w, key, a, vals[m["areas"].index(a)]))
     return pd.DataFrame(rows, columns=["label", "animal", "epoch", "variant", "window", "measure", "area", "r2"])
@@ -435,6 +437,7 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     __import__("wfield_local.frozen_encoder", fromlist=["check_tag"]).check_tag(a.tag)   # refits: design = env (8.51)
     run = E / f"frozen_encoder_{a.tag}"
+    __import__("wfield_local.frozen_encoder", fromlist=["x"]).adopt_frame_area_basis(run)   # the frame's area basis (11-26)
     out = __import__("wfield_local.frozen_encoder", fromlist=["fig_out"]).fig_out(run) / "partial_refit"   # FROZEN_FIG_OUT (11-23)
     sdir = out / "sessions"
     sdir.mkdir(parents=True, exist_ok=True)
@@ -511,12 +514,14 @@ def summarise(run: Path, out: Path) -> None:
     cols.update({q: cp.model_color(i) for i, q in enumerate(con)})
     ffc.COL.update(cols)
     (out / "figures").mkdir(exist_ok=True)
+    from wfield_local.frozen_encoder import split_area_list
+    AR = split_area_list(AREAS, B.area.unique())         # split-basis frame: tjM1 + MOp_rest side by side (11-26)
     for w in ffc.WINDOWS:
         fig, (ax, ax2) = plt.subplots(2, 1, figsize=(15, 8.6))
-        ffc.bars(ax, B[B.window == w], [v for v in VARIANTS if (B.q == v).any()], AREAS, "R2 gain over frozen, epoch - pre",
+        ffc.bars(ax, B[B.window == w], [v for v in VARIANTS if (B.q == v).any()], AR, "R2 gain over frozen, epoch - pre",
                  "refit ONLY one set (legend; the label-shuffled nulls are the *_perm / *_shuf sets)")
         ax.legend(fontsize=8, frameon=False, loc="upper left", bbox_to_anchor=(1.0, 1.0))
-        ffc.bars(ax2, B[B.window == w], [v for v in CONTRASTS if (B.q == v).any()], AREAS, "difference of gains, epoch - pre",
+        ffc.bars(ax2, B[B.window == w], [v for v in CONTRASTS if (B.q == v).any()], AR, "difference of gains, epoch - pre",
                  "CONTRASTS (legend): each set minus its label-shuffled null; landing vs target-labeled lick kernels; "
                  "execution vs target" if TE else
                  "CONTRASTS (legend): target and executed each minus its shuffled-label null; executed minus target "
@@ -540,9 +545,9 @@ def summarise(run: Path, out: Path) -> None:
                                             ("landing lick - target lick", "landing- minus target-labeled lick kernels"),
                                             ("execution - target", "execution minus target"))
            if (B.q == q).any()]
-    areas = ["SSp-m_right", "SSp-m_left", "MOp_right", "MOp_left", "cortex"]
-    fig, axs = plt.subplots(len(ffc.WINDOWS), len(areas), figsize=(14, 3.2 * len(ffc.WINDOWS) + 1.2), sharey=True,
-                            squeeze=False)
+    areas = split_area_list(["SSp-m_right", "SSp-m_left", "MOp_right", "MOp_left", "cortex"], B.area.unique())
+    fig, axs = plt.subplots(len(ffc.WINDOWS), len(areas), figsize=(14 * len(areas) / 5, 3.2 * len(ffc.WINDOWS) + 1.2),
+                            sharey=True, squeeze=False)
     for r, w in enumerate(ffc.WINDOWS):
         for c, a_ in enumerate(areas):
             ax = axs[r, c]

@@ -131,9 +131,11 @@ def main(argv=None) -> int:
     B = pd.concat([ffc.boot(T, c, epochs=EPS).assign(q=c) for c in ("residual", "residual_z")], ignore_index=True)
     B = B[B.epoch.isin(EPS)].copy()
     import encoder_split_rows as esr
-    allen = ~B.area.isin(esr.SPLIT_AREAS)                 # split ROIs re-partition MOs / MOp: not counted (docstring)
-    n_areas = B[allen].groupby(["q", "window", "epoch"]).area.nunique()
-    B["p_bonf"] = np.minimum(B.p * B.set_index(["q", "window", "epoch"]).index.map(n_areas).to_numpy(), 1.0)
+    # split ROIs re-partition MOs / MOp: not counted (docstring); a SPLIT-basis frame (11-26) has them as its areas,
+    # primary, and corrects over every area row tested (`encoder_split_rows.bonf_count`, Priya 11-26)
+    allen = esr.primary_rows(B.area)
+    sf = esr.is_split_frame(B.area)
+    B["p_bonf"] = esr.bonf_allen(B, ["q", "window", "epoch"])
     an_cols = [c for c in ("PS92", "PS93", "PS94", "PS95") if c in B]
     B["n_same"] = [int(np.nansum(np.sign(r[an_cols].to_numpy(float)) == np.sign(r.point))) for _, r in B.iterrows()]
     B.to_csv(out / "residual_roi.csv", index=False)
@@ -150,6 +152,8 @@ def main(argv=None) -> int:
     img, nm = area_image(T.label.iloc[0])
     split = bool(B.area.isin(esr.SPLIT_AREAS).any())
     img_s, nm_s = esr.split_image(img, nm) if split else (img, nm)
+    if sf:                                               # split-basis frame: ONE row per window, drawn on the split ROIs
+        img, nm, split = img_s, nm_s, False
     img, img_s = _only_tested(img, nm, B.area), _only_tested(img_s, nm_s, B.area)
     ol, ol_s = outline(img), outline(img_s)
     # rows: per window the Allen areas, then (split) the same test with MOs / MOp drawn as ALM + MOs_rest / tjM1 +
@@ -159,7 +163,7 @@ def main(argv=None) -> int:
         fig, axs = plt.subplots(len(rows_), len(EPS), figsize=(3.6 * len(EPS), 3.5 * len(rows_) + 0.8), squeeze=False)
         for i, (w, kind) in enumerate(rows_):
             Bw = B[(B.q == q) & (B.window == w)]
-            lim = np.nanpercentile(np.abs(Bw[~Bw.area.isin(esr.SPLIT_AREAS)].point), 98) or 1.0
+            lim = np.nanpercentile(np.abs(Bw[esr.primary_rows(Bw.area)].point), 98) or 1.0
             im_, nm_, ol_ = (img, nm, ol) if kind == "allen" else (img_s, nm_s, ol_s)
             for j, ep in enumerate(EPS):
                 ax = axs[i, j]
@@ -168,7 +172,7 @@ def main(argv=None) -> int:
                 ax.imshow(ol_, cmap="Greys", vmin=0, vmax=1.2, alpha=0.6, interpolation="nearest")
                 _sig_halo(ax, im_, nm_, s.index[s.p_bonf < 0.05], s.index)   # each sig area outlined, rest faded
                 if kind == "allen":
-                    s = s[~s.index.isin(esr.SPLIT_AREAS)]
+                    s = s[esr.primary_rows(s.index)]
                     up = int(((s.p_bonf < 0.05) & (s.point > 0)).sum())
                     dn = int(((s.p_bonf < 0.05) & (s.point < 0)).sum())
                     ax.set_title(f"{w} window, {ep} minus pre\n{up + dn} / {len(s)} areas ({up} up, {dn} down)", fontsize=8.5)
@@ -214,9 +218,9 @@ def by_spout(tag: str, out_dir: str | None = None, basis_run=None) -> int:
                    for c in ("residual", "residual_z")], ignore_index=True)
     B = B[B.epoch.isin(EPS)].copy()
     import encoder_split_rows as esr
-    allen = ~B.area.isin(esr.SPLIT_AREAS)                 # Bonferroni over the Allen areas only (module docstring)
-    n_areas = B[allen].groupby(["q", "window", "spout", "epoch"]).area.nunique()
-    B["p_bonf"] = np.minimum(B.p * B.set_index(["q", "window", "spout", "epoch"]).index.map(n_areas).to_numpy(), 1.0)
+    allen = esr.primary_rows(B.area)                     # Bonferroni over the Allen areas only (module docstring; a
+    sf = esr.is_split_frame(B.area)                      # split-basis frame: over every area row tested, 11-26)
+    B["p_bonf"] = esr.bonf_allen(B, ["q", "window", "spout", "epoch"])
     an_cols = [c for c in ("PS92", "PS93", "PS94", "PS95") if c in B]
     B["n_same"] = [int(np.nansum(np.sign(r[an_cols].to_numpy(float)) == np.sign(r.point))) for _, r in B.iterrows()]
     B.to_csv(out / "residual_roi_by_spout.csv", index=False)
@@ -229,20 +233,22 @@ def by_spout(tag: str, out_dir: str | None = None, basis_run=None) -> int:
     print("== far contra (Fig 10 counterpart)\n" + fc[["window", "epoch", "area", "point", "n_same", "n"]]
           .sort_values(["window", "epoch", "point"]).round(1).to_string(index=False))
     img, nm = area_image(T.label.iloc[0])
+    if sf:                                               # split-basis frame: the one figure set drawn on the split ROIs
+        img, nm = esr.split_image(img, nm)
     img_full = img
     img = _only_tested(img_full, nm, B.area)
     ol = outline(img)
     # COMPANION '_split' figures (Priya 10-27): the same test with MOs / MOp drawn as ALM + MOs_rest / tjM1 + MOp_rest, on
     # the Allen figure's colour scale; the Allen figures (scale, counts) are computed on the Allen rows only, as before
     kinds = [("allen", img, nm, ol, "")]
-    if (~allen).any():
+    if (~allen).any():                                   # companion rows only beside their parents (plain frame)
         img_s, nm_s = esr.split_image(img_full, nm)
         img_s = _only_tested(img_s, nm_s, B.area)
         kinds.append(("split", img_s, nm_s, outline(img_s), "_split"))
     for w in WINDOWS:
         for q, unit in (("residual", "x1e3 dF/F"), ("residual_z", "pre-SD units")):
             Bw = B[(B.q == q) & (B.window == w)]
-            lim = np.nanpercentile(np.abs(Bw[~Bw.area.isin(esr.SPLIT_AREAS)].point), 98) or 1.0
+            lim = np.nanpercentile(np.abs(Bw[esr.primary_rows(Bw.area)].point), 98) or 1.0
             for kind, im_, nm_, ol_, sfx in kinds:
                 fig, axs = plt.subplots(len(EPS), len(SPOUTS), figsize=(2.6 * len(SPOUTS), 2.6 * len(EPS) + 0.9),
                                         squeeze=False)
@@ -254,7 +260,7 @@ def by_spout(tag: str, out_dir: str | None = None, basis_run=None) -> int:
                                        interpolation="nearest")
                         ax.imshow(ol_, cmap="Greys", vmin=0, vmax=1.2, alpha=0.6, interpolation="nearest")
                         _sig_halo(ax, im_, nm_, s_.index[s_.p_bonf < 0.05], s_.index)
-                        s_ = s_[s_.index.isin(esr.SPLIT_AREAS) == (kind == "split")]
+                        s_ = s_[esr.primary_rows(s_.index) != (kind == "split")]
                         up, dn = int(((s_.p_bonf < .05) & (s_.point > 0)).sum()), int(((s_.p_bonf < .05) & (s_.point < 0)).sum())
                         ax.set_title(f"{sp.replace('_', ' ')}, {ep}\n{up} up / {dn} down"
                                      + (" (split ROIs)" if kind == "split" else ""), fontsize=7.5)

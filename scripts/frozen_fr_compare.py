@@ -40,6 +40,9 @@ FR_VARIANTS = ("joint", "no_fr", "no_fr_dir", "no_fr_all")
 AREAS = ["cortex", "SSp-m_right", "SSp-m_left", "MOp_right", "MOp_left"]
 ALAB = {"cortex": "cortex", "SSp-m_right": "SSp-m contra", "SSp-m_left": "SSp-m ipsi", "MOp_right": "MOp contra",
         "MOp_left": "MOp ipsi"}
+#: split-basis frames (Priya 11-26): MOp panels -> tjM1 + MOp_rest, MOs -> ALM + MOs_rest (`frozen_encoder.split_area_list`)
+ALAB.update({f"{n}_{h}": f"{n} {s}" for n in ("ALM", "tjM1", "MOs_rest", "MOp_rest")
+             for h, s in (("right", "contra"), ("left", "ipsi"))})
 EP4 = ["pre", "acute", "subacute", "chronic"]
 EPS = EP4[1:]
 WINDOWS = ["cue", "lick"]                                 # cue before lick (Priya 10-25)
@@ -67,13 +70,15 @@ def trial_set_sentence(w: str) -> str:
 
 def session_r2(folder: str, variant: str, measure: str = "frame", areas=None) -> pd.DataFrame:
     """Per session x window x area frozen R2; measure = frame (all frames of the window) | trial (single-trial window
-    means) | avg (trial-averaged = PETH), as `frozen_encoder.musall_r2`. ``areas`` default AREAS."""
+    means) | avg (trial-averaged = PETH), as `frozen_encoder.musall_r2`. ``areas`` default AREAS. On a split-basis
+    frame (11-26) each named MOp / MOs becomes its two split ROIs side by side (`frozen_encoder.split_area_list`)."""
+    from wfield_local.frozen_encoder import split_area_list
     rows = []
     for f in sorted(glob.glob(str(E / folder / variant / "sessions" / "*.json"))):
         m = json.loads(Path(f).read_text())
         for w in WINDOWS:
             fr = m["r2_musall"][w][measure]
-            for a in (AREAS if areas is None else areas):
+            for a in split_area_list(AREAS if areas is None else areas, m["areas"]):
                 if a in m["areas"]:
                     rows.append({"label": m["label"], "animal": m["animal"], "epoch": m["epoch"], "window": w, "area": a,
                                  "r2": fr[m["areas"].index(a)]})
@@ -218,7 +223,7 @@ def lines_legend(fig, series, y: float = 0.01, split: bool = True):
                fontsize=8, columnspacing=1.2, handletextpad=0.4)
 
 
-def lines_figure(plt, w, B1, B2, B3, B4, lev, out):
+def lines_figure(plt, w, B1, B2, B3, B4, lev, out, areas=None):
     """MAIN figure (Priya 10-25: lines "much better" than grouped bars): rows = the four measures, columns = areas, one
     line per frame; the grouped-bar version stays as the supplement `frozen_fr_compare_<w>.png`."""
     fr3 = [(k, k, COL[k]) for k in RUNS]
@@ -229,10 +234,11 @@ def lines_figure(plt, w, B1, B2, B3, B4, lev, out):
             (B2[B2.window == w], fr3, 1.0, "2. residual far contra\nepoch - pre (x1e3 dF/F)"),
             (B3[B3.window == w], uq, 1.0, "3. FR unique R2\nepoch - pre"),
             (B4, [s for s in fr3 if s[0] != "FR-B"], 1.0, "4. Layer 2 change_ref\nepoch - pre_late (all windows)")]
-    fig, axs = plt.subplots(len(rows), len(AREAS), figsize=(17, 13), sharey="row")
+    AR = AREAS if areas is None else areas               # split-basis frames: `main` passes the split panels (11-26)
+    fig, axs = plt.subplots(len(rows), len(AR), figsize=(17 * len(AR) / len(AREAS), 13), sharey="row", squeeze=False)
     lv = lev[lev.window == w].groupby(["frame", "area", "epoch"]).r2.mean()
     for i, (B, ser, sc, ylab) in enumerate(rows):
-        for j, a in enumerate(AREAS):
+        for j, a in enumerate(AR):
             ax = axs[i, j]
             epoch_lines(ax, B, ser, a, sc)
             if i == 0:
@@ -269,6 +275,8 @@ def main() -> int:
     # 1. frozen R2
     R = pd.concat([session_r2(f, v).assign(frame=k) for k, (f, v) in RUNS.items()])
     R.to_csv(out / "r2_sessions.csv", index=False)
+    from wfield_local.frozen_encoder import split_area_list
+    AR = split_area_list(AREAS, set(R.area))             # the frames' panels: AREAS, or the split ROIs (11-26)
     lev = R.groupby(["frame", "window", "area", "animal", "epoch"]).r2.mean().reset_index()
     L = lev.groupby(["frame", "window", "area", "epoch"]).r2.mean().unstack("epoch")[EP4]
     print("== 1. frozen R2 level (mean of animals)\n" + L.round(3).to_string())
@@ -282,7 +290,7 @@ def main() -> int:
         t = pd.read_csv(E / f / f"residual_trend_sessions{sfx}.csv")
         res.append(t.assign(frame=k))
     Rs = pd.concat(res)
-    Rs = Rs[Rs.region.isin(AREAS)].rename(columns={"region": "area"})
+    Rs = Rs[Rs.region.isin(AR)].rename(columns={"region": "area"})
     per = Rs.groupby(["frame", "window", "area", "animal", "epoch"]).far_contra.mean().unstack("epoch")[EP4]
     print("\n== 2. residual far contra (x1e3), per animal (rule 8)\n" + per.round(1).to_string())
     B2 = pd.concat([boot(Rs[Rs.frame == k], "far_contra").assign(frame=k) for k in RUNS])
@@ -306,7 +314,7 @@ def main() -> int:
     l2 = []
     for k, d in (("noFR", _design_tag("allsession_encoder_v7g3_t3d_ref")), ("FR-A", _design_tag("allsession_encoder_v7g3_t3d_frA"))):
         t = pd.read_csv(E / d / "allsession_changes_by_session.csv")
-        t = t[(t.fit == "combined") & t.area.isin(AREAS)].copy()
+        t = t[(t.fit == "combined") & t.area.isin(AR)].copy()
         for c in [c for c in t.columns if c.startswith("change")]:
             t[c] = t[c] / 1e3
         l2.append(t.assign(frame=k))
@@ -325,7 +333,7 @@ def main() -> int:
     rl = []
     for k, d in (("noFR", _design_tag("frozen_relabel_v7g3_t3d")), ("FR-A", _design_tag("frozen_relabel_v7g3_t3d_frA"))):
         t = pd.read_csv(E / d / "relabel_by_animal.csv")
-        rl.append(t[(t.spout == "far_contra") & (t.window == "lick") & t.area.isin(AREAS)].assign(frame=k))
+        rl.append(t[(t.spout == "far_contra") & (t.window == "lick") & t.area.isin(AR)].assign(frame=k))
     RL = pd.concat(rl)
     RL["dsse"] = RL.dsse_x1e3 / 1e3
     rlm = RL.groupby(["frame", "area", "as", "epoch"]).dsse.mean().unstack("epoch")[EP4]
@@ -337,18 +345,18 @@ def main() -> int:
     for w in WINDOWS:
         fig, axs = plt.subplots(2, 2, figsize=(19, 9.5))
         b = B1[B1.window == w]
-        bars(axs[0, 0], b, list(RUNS), AREAS, "change from pre (R2)", "1. frozen held-out R2, epoch - pre")
+        bars(axs[0, 0], b, list(RUNS), AR, "change from pre (R2)", "1. frozen held-out R2, epoch - pre")
         lv = lev[(lev.window == w)].groupby(["frame", "area", "epoch"]).r2.mean()
         txt = "pre level: " + "; ".join(f"{fr} {lv[(fr, 'cortex', 'pre')]:.3f}" for fr in RUNS) + " (cortex)"
         axs[0, 0].text(0.01, 0.02, txt, transform=axs[0, 0].transAxes, fontsize=7.5)
-        bars(axs[0, 1], B2[B2.window == w], list(RUNS), AREAS, "change from pre (x1e3 dF/F)",
+        bars(axs[0, 1], B2[B2.window == w], list(RUNS), AR, "change from pre (x1e3 dF/F)",
              "2. RESIDUAL (data - full), far-contra trials, epoch - pre (> 0 = cortex responds MORE than predicted)")
         bars(axs[1, 0], B3[B3.window == w].replace({"frame": {"directionless (joint - no_fr)": "FR-B",
                                                                "direction (joint - no_fr_dir)": "FR-A",
                                                                "all FR (joint - no_fr_all)": "noFR"}}),
-             ["FR-B", "FR-A", "noFR"], AREAS, "change from pre (R2)",
+             ["FR-B", "FR-A", "noFR"], AR, "change from pre (R2)",
              "3. FR UNIQUE in the frozen frame, epoch - pre: indigo = directionless, wine = direction, gray = all FR")
-        bars(axs[1, 1], B4, ["noFR", "FR-A"], AREAS, "change_ref minus pre_late (R2)",
+        bars(axs[1, 1], B4, ["noFR", "FR-A"], AR, "change_ref minus pre_late (R2)",
              "4. LAYER 2: how much each epoch's mapping changes beyond the pre-stroke drift (pre_late), all windows")
         h, lb = axs[0, 0].get_legend_handles_labels()
         nm = {"noFR": "noFR = final frame (no FaceRhythm)", "FR-B": "FR-B = frozen + directionless FR", "FR-A": "FR-A = frozen + all FR"}
@@ -363,7 +371,7 @@ def main() -> int:
         with tst.active(None, text=trial_set_sentence(w)):                   # this figure's window
             save_png_svg(fig, out / "figures" / f"frozen_fr_compare_{w}.png", dpi=110)
         plt.close(fig)
-        lines_figure(plt, w, B1, B2, B3, B4, lev, out)
+        lines_figure(plt, w, B1, B2, B3, B4, lev, out, areas=AR)
     print("->", out)
     return 0
 

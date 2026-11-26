@@ -321,6 +321,7 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     __import__("wfield_local.frozen_encoder", fromlist=["check_tag"]).check_tag(a.tag)   # refits: design = env (8.51)
     run = E / f"frozen_encoder_{a.tag}"
+    fe.adopt_frame_area_basis(run)                      # the frame's area basis (split / plain, 11-26)
     out = run / OUT
     assert_writable(out)
     (out / "stats").mkdir(parents=True, exist_ok=True)

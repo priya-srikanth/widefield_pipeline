@@ -26,7 +26,11 @@ GUARANTEES (as o2_partial / o2_encoding): env.json = every setting, applied by t
 imported; the runner REFUSES unless the bundled code computes the recorded identity (run tag / selection / area basis +
 frozen design: design name, running-model tag incl. FR / lickspout / lickland / te, FR variables). The frozen run tag must
 equal the v36 page-lineage frame's (`V36_RUN_MODE`, read from its fit/pre_stats.pkl) -- the same frame, four-camera
-inputs. Each O2 task checks the design it builds against the digest recorded at bundle time (exact, or float-equal to
+inputs; a NEW Allen-area frame is on the ALM / tjM1 SPLIT area basis (Priya 11-26; run tag + "|areas-split", env.json
+FROZEN_AREA_BASIS=split; `resolve_frame_area_basis`), an existing frame folder keeps its recorded basis. A split frame's
+inputs pickles carry the session's area masks (`area_masks`, image pixel ids, built at bundle time: the v8 rim needs the
+share's brain mask) and its imaging pickles keep the stat mask + those pixels; the O2 task REFUSES without them. Each O2
+task checks the design it builds against the digest recorded at bundle time (exact, or float-equal to
 1e-9 of each column's sum |x|). The attempts table the per-trial files join (`lp_licks.attempts_path`) is shipped in the
 bundle (tables/trial_attempts.csv, sha recorded) and patched in on O2. Analysis-mask digest checked on every pickle.
 """
@@ -160,7 +164,22 @@ def expected_run_tag(key: str) -> str:
         raise SystemExit(f"{POSE_ENV}={layout!r}: every O2 frozen frame is on a 3-D pose layout")
     extra = f"|jaw3d|{layout}|nose3d" + (f"={os.environ['COMBINED_ENCODING_NOSE_FRAMES']}"
                                          if os.environ.get("COMBINED_ENCODING_NOSE_FRAMES") else "")
-    return V36_RUN_MODE[key].replace("|tongue3d", "|tongue3d" + extra)
+    from wfield_local import frozen_encoder as fe
+    split = f"{fe._AREA_TAG}split" if not is_basis(key) and fe.area_basis() == "split" else ""   # AREA BASIS (11-26)
+    return V36_RUN_MODE[key].replace("|tongue3d", "|tongue3d" + extra) + split
+
+
+def resolve_frame_area_basis(key: str, out_root=None) -> str | None:
+    """AREA BASIS of an Allen-area frame (`frozen_encoder.resolve_area_basis`, Priya 11-26): an existing frame folder keeps
+    its recorded basis, a NEW one is split unless the frame's env names one; set in the environment BEFORE the identity /
+    run tag are recorded (env.json carries FROZEN_AREA_BASIS to O2). Spatial-target frames: none (unset)."""
+    from wfield_local import frozen_encoder as fe
+    if is_basis(key):
+        os.environ.pop(fe.AREA_BASIS_ENV, None)
+        return None
+    b = fe.resolve_area_basis(FRAMES[key]["env"].get(fe.AREA_BASIS_ENV), frame_out(key, out_root))
+    os.environ[fe.AREA_BASIS_ENV] = b
+    return b
 
 
 def is_basis(key: str) -> bool:
@@ -237,14 +256,21 @@ def _source_pickles(sb: Path, frame: str, label: str, mask_sig: str) -> tuple[di
 
 
 def _replay_of(label: str):
-    """(context, source meta): the Replay of the source bundle's recorded loaders, or a null context without reuse."""
+    """(context, source meta): the Replay of the source bundle's recorded loaders, or a null context without reuse. The
+    replayed imaging is the source bundle's REDUCED pixel set, so split area masks come from the source inputs pickle
+    (refused when it has none: a plain bundle's imaging cannot carry a split frame)."""
     import contextlib
+
+    from wfield_local import frozen_encoder as fe
     src = _reuse_src()
     if src is None:
         return contextlib.nullcontext(), None
     r, _imdir, meta = src
     inp, img = _source_pickles(r.parent.parent, r.name, label, os.environ["O2F_MASK"])
-    return op.Replay({**img["memo"], **inp["memo"]}, inp["files"], inp["globs"]), meta
+    stack = contextlib.ExitStack()
+    stack.enter_context(op.Replay({**img["memo"], **inp["memo"]}, inp["files"], inp["globs"]))
+    stack.enter_context(fe.bundled_area_masks({label: inp["area_masks"]} if inp.get("area_masks") else {}))
+    return stack, meta
 
 
 def template_replay_job(label: str) -> dict:
@@ -264,7 +290,8 @@ def _save_capture(label: str, rec, d: dict, rdir: Path, imdir: Path, mask_sig: s
     if rec is None:
         src = _reuse_src()[2]
         out = {mask_keys.FIELD: mask_sig, "label": label, "inputs_from": src, "design": op.design_digest(d),
-               "design_sums": op.design_sums(d), "n_frames": int(len(d["X"])), "n_cols": int(d["X"].shape[1])}
+               "design_sums": op.design_sums(d), "n_frames": int(len(d["X"])), "n_cols": int(d["X"].shape[1]),
+               **({"area_masks": d["area_masks"]} if d.get("area_masks") is not None else {})}
         dst = rdir / "inputs" / f"{label}.pkl"
         tmp = dst.with_suffix(".tmp")
         tmp.write_bytes(pickle.dumps(out, protocol=5))
@@ -274,18 +301,26 @@ def _save_capture(label: str, rec, d: dict, rdir: Path, imdir: Path, mask_sig: s
     other = {k: v for k, v in rec.memo.items() if v[0] != "load_imaging"}
     ip = imdir / f"{label}.pkl"
     hemo = ce.hemo_dir()
+    # the pixels kept (o2_partial._reduce): stat mask (plain / spatial frames: no key, as before) or stat + split areas
+    pix = {"pixels": "stat+split"} if d.get("area_masks") is not None else {}
     if ip.exists():
         old = pickle.loads(ip.read_bytes())
         if old[mask_keys.FIELD] != mask_sig or old["hemo"] != hemo or set(old["memo"]) != set(imaging):
             raise RuntimeError(f"{ip}: built on other masks / hemo / keys; use a new bundle name")
+        if old.get("pixels") != pix.get("pixels"):
+            raise RuntimeError(f"{ip}: imaging reduced to {old.get('pixels', 'stat')} pixels, this frame needs "
+                               f"{pix.get('pixels', 'stat')}: a split and a plain frame need separate bundles")
     else:
         tmp = ip.with_suffix(".tmp")
-        tmp.write_bytes(pickle.dumps({mask_keys.FIELD: mask_sig, "hemo": hemo, "label": label, "memo": imaging},
+        tmp.write_bytes(pickle.dumps({mask_keys.FIELD: mask_sig, "hemo": hemo, "label": label, "memo": imaging, **pix},
                                      protocol=5))
         os.replace(tmp, ip)
     out = {mask_keys.FIELD: mask_sig, "label": label, "memo": other, "files": rec.files, "globs": rec.globs,
            "design": op.design_digest(d), "design_sums": op.design_sums(d), "n_frames": int(len(d["X"])),
-           "n_cols": int(d["X"].shape[1])}
+           "n_cols": int(d["X"].shape[1]),
+           # SPLIT frames: the session's area masks (image pixel ids), built here where the share is visible; the O2
+           # task serves them (`frozen_encoder.bundled_area_masks`) and refuses without them (11-26)
+           **({"area_masks": d["area_masks"]} if d.get("area_masks") is not None else {})}
     dst = rdir / "inputs" / f"{label}.pkl"
     tmp = dst.with_suffix(".tmp")
     tmp.write_bytes(pickle.dumps(out, protocol=5))
@@ -391,6 +426,7 @@ def cmd_bundle(a) -> Path:
     from wfield_local.paths import PathResolver
     key = a.frame
     F = FRAMES[key]
+    area_b = resolve_frame_area_basis(key, a.out_root)  # BEFORE the run tag / identity are recorded
     want = expected_run_tag(key)
     if a.labels and not a.out_root:
         raise SystemExit("a session subset needs --out-root (a TEST bundle never writes the share frame folder)")
@@ -490,6 +526,7 @@ def cmd_bundle(a) -> Path:
     st = (fit / "pre_stats.pkl").stat()
     rmeta = {"frame": key, "tag": F["tag"], "args": F["args"], "jobs": list(F["jobs"]), "basis": is_basis(key),
              "identity": ident, "run_tag": fe._run_tag(), "v36_run_mode": V36_RUN_MODE[key], "frame_dir": str(out),
+             "area_basis": area_b,
              "variants": _variants(out), "svf_variants": [v for v in SVF_VARIANTS if v in _variants(out)],
              "n_sessions": len(labels), "commit": commit, "test_out_root": str(a.out_root or ""), "attempts_table": str(att), "attempts_sha256": att_sha,
              "inputs_from": (_reuse_src()[2] if src_bundle else None),
@@ -598,7 +635,7 @@ def run_task(b, frame: str, mode: str, label: str, out=None, audit: bool = False
         if not (sb / "runs" / src["frame"] / "inputs" / f"{label}.pkl").exists():
             sb = Path(src["path"])
         full, img = _source_pickles(sb, src["frame"], label, meta[o2_bundle.MASK_FIELD])
-        inp = {**full, **{k: inp[k] for k in ("design", "design_sums", "n_frames", "n_cols")}}
+        inp = {**full, **{k: inp[k] for k in ("design", "design_sums", "n_frames", "n_cols", "area_masks") if k in inp}}
         print(f"{label}: loader values replayed from {sb} (frame {src['frame']})", flush=True)
     else:
         img = pickle.loads((b / "imaging" / f"{label}.pkl").read_bytes())
@@ -610,6 +647,9 @@ def run_task(b, frame: str, mode: str, label: str, out=None, audit: bool = False
     # reads (wave-1a2 spont_frA_basis and spont_frA_spd_basis, PS95_0812).
     _sig = meta[o2_bundle.MASK_FIELD]
     mask_keys.signature = lambda *a_, **k_: _sig
+    if rmeta.get("area_basis") == "split" and not inp.get("area_masks"):     # as combined_encoding.area_masks_for
+        raise o2_bundle.BundleMismatch(f"{label}: split-basis frame but the bundled inputs carry no area_masks; rebuild "
+                                       "the bundle -- the split basis cannot be built on O2")
     base = Path(out) if out else r
     if _done_marker(base, mode, label).exists():
         print("done already", label)
@@ -626,7 +666,7 @@ def run_task(b, frame: str, mode: str, label: str, out=None, audit: bool = False
     tp = str(r / "fit" / "templates.pkl")
     spath = str(r / "fit") if rmeta["basis"] else None
     t0 = time.time()
-    with op.Replay({**img["memo"], **inp["memo"]}, inp["files"], inp["globs"]):
+    with op.Replay({**img["memo"], **inp["memo"]}, inp["files"], inp["globs"]),             fe.bundled_area_masks({label: inp["area_masks"]} if inp.get("area_masks") else {}):
         if mode == "partial":                 # partial_refit.job rebuilds the design with patched nulls: check it first
             d0 = fe.session_design(label, fe._templates_of(tp, an))
             dd = op.same_design(d0, inp)
@@ -758,6 +798,7 @@ def cmd_collect(a) -> int:
         raise SystemExit(f"refusing: bundle {a.name} frame {key} declares no out-root (out_root / test_out_root empty; "
                          f"frame_dir {rmeta.get('frame_dir')}); collecting it would route to fe.out_root(), the "
                          "production default -- rebuild the bundle with --out-root (rule 11)")
+    resolve_frame_area_basis(key, oroot)  # the frame's recorded basis (identity below), read at the DECLARED root
     try:
         o2_bundle.verify_masks(meta)
         op.verify_identity(rmeta["identity"])
