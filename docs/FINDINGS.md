@@ -52,9 +52,14 @@ evoked response is NOT smaller (3/4 at or above pre; larger chronically everywhe
 far-contra accuracy the frozen decoder loses (Fig 4.4 pooled refit-minus-frozen gap +0.10 / +0.13 / +0.17 acute /
 subacute / chronic, 4/4, Bonferroni; four-camera 11-25). Against it, to state: the frozen far-contra decoder accuracy
 falls acutely (Fig 2.3, -0.61), so the READOUT pattern changes even where the information is retained; target and
-executed kernels are confounded by design. STATUS: CANDIDATE. Pending: the frozen-frame (wave-1 frame A) render of
-page Figs 17.1 / 17.2, the six-spout control (is the lick-part fall far-contra-specific in the decomposition?), and the
-frame-A residual check (speeds-only sensitivity frame on O2, readings 2.2 / 2.4 / 2.5 / 2.6 / 18.5 / 18.6 UNDER CHECK).
+executed kernels are confounded by design. STATUS: CANDIDATE, strengthened 11-25 late: SIX-SPOUT CONTROL (per-session G4, lick-aligned, acute - pre, SSp-m): the
+measured response RISES at the three close spouts and far ipsi (+11..+23 x1e-3, 4/4), is flat at far mid, and falls only
+at far contra (-21 ipsi 4/4); the lick part tracks the measured change at every spout; the target part is flat at all
+six (|change| <= 2.4, no 4/4 cell). FROZEN frame A (Figs 17.1 / 17.2 proper, rendered 11-25) agrees per animal on both
+claims (target +0.01 / -0.02 of pre; lick part -0.24 / -0.33, 4/4), with the refinement that its lick part falls at
+ALL six spouts graded by distance (close -2, far mid -5, far contra -10 x1e-3) and over-predicts far contra, leaving
+the positive residual everywhere (+0.37 / +0.42 chronic). Tables: run_records/2026-11-25/g4_key_results_ccB1125/
+tables/decomp_allspouts/, tables/frozen_17_frA/. Pending: the frame-A residual check (speeds-only sensitivity frame on O2, readings 2.2 / 2.4 / 2.5 / 2.6 / 18.5 / 18.6 UNDER CHECK).
 Record: vls_stroke_paper/CHANGES_SINCE_20261124.md (11-25); run_records/2026-11-25/g4_key_results_ccB1125/.
 
 **Where things stand, state-space maps with movement removed (11-09, revised after the encoder / epoch-coupling /
