@@ -95,6 +95,15 @@ FRAMES = {
                         "args": ["--target", "basis", "--no-drop-spout", "--variants", *"joint no_target no_spout "
                                  "no_task no_movement no_fr no_fr_dir no_fr_all no_lick no_exec_within no_other "
                                  "no_spont".split()], "jobs": ("predict",), "wave": 1},
+    # BASIS TWIN of spont_frA_spd (Priya 11-26, option a): spont_frA_basis's design + variants with the speed-only jaw /
+    # nose layout, so encoder_split_rows (ALM / tjM1 rows) and frozen_residual_significance (pixel residual maps) read
+    # <spd run>_basis. Built from the wave-1a2 spont_frA_basis recorded loaders (bundle --inputs-from o2f_wave1a2_20261124
+    # --inputs-frame spont_frA_basis).
+    "spont_frA_spd_basis": {"tag": "gate-attempted_v7g3_t3d_spont_frA_spd_basis",
+                            "env": {**SPLIT, **FR_A, POSE_ENV: "xyz3d_spd"},
+                            "args": ["--target", "basis", "--no-drop-spout", "--variants", *"joint no_target no_spout "
+                                     "no_task no_movement no_fr no_fr_dir no_fr_all no_lick no_exec_within no_other "
+                                     "no_spont".split()], "jobs": ("predict",), "wave": 1.5},
     "frA_te": {"tag": "gate-attempted_v7g3_t3d_frA_te", "env": {**NONE, **FR_A, "FROZEN_DESIGN": "te", **CALIB},
                "args": ["--no-drop-spout"], "jobs": ("predict",), "wave": 1},
     "frA_te_basis": {"tag": "gate-attempted_v7g3_t3d_frA_te_basis", "env": {**NONE, **FR_A, "FROZEN_DESIGN": "te", **CALIB},
@@ -127,6 +136,7 @@ V36_RUN_MODE = {
     "spont_frA_spd": f"{_K0}|tongue3d{_FRA}|licksall-split",
     "spont_frA_frlag": f"{_K0}|tongue3d{_FRA}|frlags={FR_LAGS}|licksall-split",
     "spont_frA_basis": f"{_K0}|tongue3d{_FRA}|licksall-split",
+    "spont_frA_spd_basis": f"{_K0}|tongue3d{_FRA}|licksall-split",
     "frA_te": f"{_K0}|te|tongue3d{_FRA}",
     "frA_te_basis": f"{_K0}|te|tongue3d{_FRA}",
     "spont_frA_lsland": f"{_K0}|tongue3d{_FRA}|lickspout|lickland|licksall-split",
@@ -583,6 +593,12 @@ def run_task(b, frame: str, mode: str, label: str, out=None, audit: bool = False
         img = pickle.loads((b / "imaging" / f"{label}.pkl").read_bytes())
     o2_bundle.check_inputs(meta, inp, label)
     o2_bundle.check_inputs(meta, img, label + " (imaging)")
+    # 11-26: the task's analysis-mask digest = the bundle's (just verified on every input pickle; the desktop computed it
+    # from the masks at bundle time). Recomputing it reads the brain / stat / painted masks off the share, which O2 does
+    # not have: a BASIS frame's predict (`_spatial_of` -> check_saved_masks) failed the audited check on exactly those
+    # reads (wave-1a2 spont_frA_basis and spont_frA_spd_basis, PS95_0812).
+    _sig = meta[o2_bundle.MASK_FIELD]
+    mask_keys.signature = lambda *a_, **k_: _sig
     base = Path(out) if out else r
     if _done_marker(base, mode, label).exists():
         print("done already", label)
@@ -731,6 +747,13 @@ def cmd_collect(a) -> int:
         op.verify_identity(rmeta["identity"])
     except o2_bundle.BundleMismatch as ex:
         raise SystemExit(f"refusing: this bundle is not of the current run ({ex})") from None
+    if rmeta.get("test_out_root"):
+        # 11-26: a bundle with a declared out-root (rule 11): the svf / partial summaries read `fr_musall.E`
+        # (= fe.out_root(), evaluated at THEIR import below), so route FROZEN_OUT_ROOT there too; apply_frame_env
+        # cleared it, and unset they would write <production imaging_encoding>/frozen_encoder_<tag>/...
+        if "fr_musall" in sys.modules:
+            raise SystemExit("fr_musall imported before collect set FROZEN_OUT_ROOT")
+        os.environ["FROZEN_OUT_ROOT"] = str(rmeta["test_out_root"])
     out = frame_out(key, rmeta.get("test_out_root") or None)
     if str(out) != rmeta["frame_dir"]:
         raise SystemExit(f"frame folder {out} differs from the bundle's {rmeta['frame_dir']}")
@@ -771,6 +794,10 @@ def cmd_collect(a) -> int:
          "missing": missing, "collected": datetime.datetime.now().isoformat(timespec="seconds")}, indent=1),
         encoding="utf-8")
     print(f"collected {len(rel)} files -> {dst_root}; summarising", flush=True)
+    if mode != "predict":
+        import fr_musall
+        if Path(fr_musall.E) / out.name != out:
+            raise SystemExit(f"summary root {fr_musall.E} is not the frame's parent {out.parent}: refusing")
     if mode == "predict":
         if is_basis(key) or "--no-drop-spout" in FRAMES[key]["args"]:
             pass
