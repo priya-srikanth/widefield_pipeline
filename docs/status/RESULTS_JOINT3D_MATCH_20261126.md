@@ -252,4 +252,8 @@ It removes post-stroke licks that land outside the animal's pre 3-D landing clou
 - **First launch:** it was refused by the protected-roots fence when it tried to write into `rebuild_20261123_fourcam/` without `WIDEFIELD_REBUILD_ROOT`. Nothing was written there except an empty owner marker. The tables were then copied in by `--copy-to`, run with `WIDEFIELD_REBUILD_ROOT` set.
 - **Frozen stores:** load-only (`WIDEFIELD_FROZEN_LOAD_ONLY=1`); no decoder was fit or frozen.
 - **Processes:** only PIDs 5604 (failed first launch) and 15548 were started, both CREATE_NO_WINDOW.
-- **Protected-mtime audit:** see the commit / handoff note.
+- **Protected-mtime audit** (`tools/protected_mtime_audit.py --since "2026-11-26 10:31"`, run 12:20):
+  - Every hit was in this run's own declared folder or in other windows' concurrent runs.
+  - Other windows' hits in `rebuild_20261123_fourcam`: `o2/o2f_spd_20261125`, `run_records_cd_overlap_null_ccB1126_chronic`, `figures_working/ccB_nosejaw_traj_20261126` and `ccB_spdcompare_20261126`.
+  - Other windows' hits in `vls_stroke_paper`: `ccB_fr5b_allspouts_2026-11-26`, `ccB_render_kits_2026-11-25`, 9 files in `manuscript_live/figures`, and `CHANGES_SINCE_20261124.md`.
+  - There were 0 hits in the LP_analysis production, patch or lane E reader folders this run read, and 0 hits from this run outside its two folders.
