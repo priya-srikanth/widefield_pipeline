@@ -437,8 +437,13 @@ def main(argv=None) -> int:
     nulls = load_nulls(nd, aligns=tuple(args.align), gate=args.gate)
     # THE TRIAL SET on both figures (Priya 11-09): the alignments actually drawn, under this gate
     from wfield_local import trial_set_text as tst
-    tst.declare(text=trial_set_sentence([al for al in ALIGNS if any(k[1] == al for k in got)] or list(args.align),
-                                        args.gate))
+    _ts = trial_set_sentence([al for al in ALIGNS if any(k[1] == al for k in got) and not
+                              (args.dir_lick and al == "lick")] or list(args.align), args.gate)
+    if args.dir_lick and "lick" in args.align:
+        # the LICK column comes from another arm's dumps; the sentence above is the main arm's (11-26)
+        _ts += ("; LICK column: lick-aligned success trials of the LP arm (video licks + LP-inclusive gate), dumps "
+                f"from {Path(args.dir_lick).parent.name}")
+    tst.declare(text=_ts)
     print(table(got, nulls))
     for p in problems:
         print(f"!! {p}")
