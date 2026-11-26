@@ -450,3 +450,15 @@ def test_trial_means_windows_and_missing_anchor():
     assert np.isnan(out[1]).all()                                            # no anchor (no lick)
     assert np.allclose(out[2], [18.5, 185.0])                                # frames 18, 19 (20 is outside)
     assert np.isnan(out[3]).all()                                            # window entirely outside
+
+
+def test_lick_set_label_follows_the_encoder_lick_mode(monkeypatch):
+    """Priya 11-25: a frame built on the fused four-camera train must say so in its session jsons."""
+    import numpy as np
+    from wfield_local import combined_encoding as ce, frozen_encoder as fe
+    monkeypatch.setenv(ce.LICKS_ENV, "fourcam")
+    assert fe.lick_set_label(None) == "fourcam"
+    assert fe.lick_set_label(np.zeros(3)) == "fourcam"
+    monkeypatch.setenv(ce.LICKS_ENV, "cam4")
+    assert fe.lick_set_label(None) == "cam4"
+    assert fe.lick_set_label(np.zeros(3)) == "combined"

@@ -70,6 +70,18 @@ def _run_thresh() -> float:
     return float(config.defaults()["segmentation"]["running"]["thresh_speed_mm_s"])
 
 
+def lick_set_label(ex_) -> str:
+    """The session json's `lick_set`: the encoder's lick mode (`combined_encoding.lick_mode`: "fourcam" = the fused
+    four-camera train, "fused", "combined", "cam4", ...) whenever COMBINED_ENCODING_LICKS or a fused train selects it;
+    otherwise the pre-11-22 rule ("combined" when cam1 extra licks were loaded, else "cam4"). Priya 11-25 ("update the
+    label lick set"): wave-1 frame A ran on the fused train but its jsons read "cam4" under the old rule; LINEAGE.txt
+    is the record for those; every new run labels itself from the mode."""
+    mode = _ce().lick_mode()
+    if mode != "cam4":
+        return mode
+    return "combined" if ex_ is not None and len(ex_) else "cam4"
+
+
 def _ce():
     from wfield_local import combined_encoding as ce
     return ce
@@ -959,7 +971,7 @@ def session_design(label: str, templates: dict | None = None, template_only: boo
             "X": X, "Rd": Rd, "area_names": area_names, "col_var": col_var, "pos": E.pos.to_numpy(),
             "cue_f": cue_f, "first_f": first_f, "fs": float(1.0 / np.median(np.diff(ft))), "win": win,
             "trial_id": E.trial_id.to_numpy(int),
-            "lick_set": "combined" if ex_ is not None and len(ex_) else "cam4", "n_trials": len(E),
+            "lick_set": lick_set_label(ex_), "n_trials": len(E),
             "frame_pos": pos_of, "frame_trial": tri, "pos_order": pos_order,
             "pos_counts": {str(p_): int((T.pos == p_).sum()) for p_ in pos_order},
             "Y": Y if Rd is None else None, "Ra": Ra if Rd is None else None,
