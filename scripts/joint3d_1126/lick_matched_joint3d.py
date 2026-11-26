@@ -26,8 +26,12 @@ rows); rows are paired by landing lateral + read-out (`align`).
 First step = the REPRODUCTION CHECK: the 1-D lateral reference through this code must reproduce the production
 matched_gauss_tests.csv / matched_gauss_sigma_cv.csv of both reader folders; the run stops otherwise.
 
-Writes ONLY to --out (a NEW folder) and --record (a NEW folder); refuses an existing folder it did not create.
-Usage: python scripts/joint3d_1126/lick_matched_joint3d.py --out <new folder> --record <new folder> [--jobs N]
+Writes ONLY to --record (a NEW folder; refuses an existing folder it did not create). The tables are then copied into
+the rebuild root by a second call, `--copy-to <new folder inside the rebuild root>`, run with WIDEFIELD_REBUILD_ROOT set
+(the rebuild-root fence allows writes there only in that mode, and that mode refuses the lane E input reads, so the two
+steps cannot share one process).
+Usage: python scripts/joint3d_1126/lick_matched_joint3d.py --record <new folder> [--jobs N]
+       WIDEFIELD_REBUILD_ROOT=<root> python scripts/joint3d_1126/lick_matched_joint3d.py --record <same> --copy-to <new>
 """
 from __future__ import annotations
 
@@ -158,7 +162,8 @@ def choose_joint(P: pd.DataFrame, jobs: int) -> tuple[dict, pd.DataFrame]:
     items = [((st, a), g[X3].to_numpy(float), g[ycols].to_numpy(float), g.label.to_numpy())
              for (st, a), g in Q.groupby(["set", "animal"])]
     with parallel.parent_blas_kept():          # the parent's arithmetic (reference sums) stays as without the fan-out
-        res, fail = parallel.fan_out(items, _grid_unit, jobs=jobs, label="set x animal")
+        res, fail = parallel.fan_out(items, _grid_unit, jobs=jobs, label="set x animal",
+                                     log=lambda m: print(m[:110], flush=True))
     if fail:
         raise SystemExit(f"grid search failed: {fail}")
     res = sorted((r for _it, r in res), key=lambda r: r[0])      # completion order -> (set, animal) order
@@ -340,11 +345,19 @@ def _new_dir(p: Path) -> Path:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--out", required=True, help="NEW output folder (tables)")
     ap.add_argument("--record", required=True, help="NEW run-record folder (results note, tables, figure)")
+    ap.add_argument("--copy-to", default="", help="copy the record's tables / meta into this NEW folder and exit")
     ap.add_argument("--jobs", type=int, default=6)
     a = ap.parse_args(argv)
-    out, rec = _new_dir(Path(a.out)), _new_dir(Path(a.record))
+    if a.copy_to:
+        import shutil
+        dst = _new_dir(Path(a.copy_to))
+        for f in sorted(Path(a.record).iterdir()):
+            if f.suffix in (".csv", ".json", ".md", ".png") and f.is_file():
+                shutil.copy2(f, dst / f.name)
+                print("copied", f.name, flush=True)
+        return 0
+    out = rec = _new_dir(Path(a.record))
     t0 = time.time()
     pd.set_option("display.width", 250)
     L, info = load()
@@ -409,7 +422,6 @@ def main(argv=None) -> int:
     NE = pd.concat(neff_rows, ignore_index=True)
     CV = pd.concat(cv_all, ignore_index=True)
     for name, df in (("tests_all", C), ("neff", NE), ("joint_sigma_cv", CV)):
-        df.to_csv(out / f"{name}.csv", index=False)
         df.to_csv(rec / f"{name}.csv", index=False)
     # side-by-side table of the four lick sets
     rows = []
@@ -429,14 +441,12 @@ def main(argv=None) -> int:
                             r[f"{v}_{an}"] = q.get(f"animal_{an}", np.nan)
                 rows.append(r)
     SBS = pd.DataFrame(rows)
-    SBS.to_csv(out / "side_by_side.csv", index=False)
     SBS.to_csv(rec / "side_by_side.csv", index=False)
     figure(C[C.scope == "all spouts"], SS, rec / "joint3d_vs_1d_offset.png", chosen)
     meta = dict(info=info, reproduction=repro, chosen={f"{k[0]}|{k[1]}": v for k, v in chosen.items()},
                 neff_min=NEFF_MIN, cand_cover=CAND_COVER, grid_lat=GRID_LAT, grid_fd=GRID_FD, fixed=FIXED,
                 sigma_1d_page=SIGMA_1D_PAGE, seconds=round(time.time() - t0))
-    for p in (out, rec):
-        (p / "run_meta.json").write_text(json.dumps(meta, indent=1, default=str))
+    (rec / "run_meta.json").write_text(json.dumps(meta, indent=1, default=str))
     print(SBS.round(3).to_string(index=False))
     print(f"done in {time.time() - t0:.0f} s", flush=True)
     return 0
