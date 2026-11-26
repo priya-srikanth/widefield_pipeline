@@ -98,9 +98,28 @@ def _mean_matrix(groups, pos):
     return M
 
 
-def epoch_null(tab, pos, ep, n_draw=N_DRAW, rng=None):
-    """Observed and null dM for one epoch over `n_draw` trial-matched splits of the pre sessions, or None."""
+def stratified_trials(parts, take, rng):
+    """`take` whole trials from ``parts`` (one array per session), STRATIFIED BY SESSION: proportional allocation
+    (floor), the remainder to random sessions that still have spare trials, random trials within each session."""
+    sizes = np.array([p.shape[0] for p in parts], int)
+    alloc = np.floor(take * sizes / max(1, sizes.sum())).astype(int)
+    while alloc.sum() < take:
+        free = np.flatnonzero(alloc < sizes)
+        alloc[int(rng.choice(free))] += 1
+    return np.concatenate([p[rng.choice(p.shape[0], a, replace=False)] for p, a in zip(parts, alloc) if a])
+
+
+def epoch_null(tab, pos, ep, n_draw=N_DRAW, rng=None, match_epoch=False, rng_e=None):
+    """Observed and null dM for one epoch over `n_draw` trial-matched splits of the pre sessions, or None.
+
+    `match_epoch` (Priya 11-26, chronic fix): per draw and row, the target is ``min(epoch trials, trials B holds)``
+    with B capped at half the pre sessions (~50% of the pre trials); where the epoch has MORE trials than that, its
+    row is subsampled to the target (whole trials, stratified by session) so the observed and the null share one trial
+    count. The observed dM then varies over draws; its median is the point. `rng_e` is a separate stream, so B's draws
+    are those of the unmatched run and a row that is never subsampled is unchanged.
+    """
     rng = np.random.default_rng(0) if rng is None else rng
+    rng_e = np.random.default_rng(12345) if rng_e is None else rng_e
     pre = sorted(lab for lab, d in tab.items() if d["epoch"] == "pre")
     post = sorted(lab for lab, d in tab.items() if d["epoch"] == ep)
     if len(pre) < 2 or not post:
@@ -112,7 +131,7 @@ def epoch_null(tab, pos, ep, n_draw=N_DRAW, rng=None):
     M_pre_all = _mean_matrix({tr: [tab[lab]["rows"][tr] for lab in pre if tr in tab[lab]["rows"]] for tr in pos},
                              pos)
     k_max = max(1, int(np.floor(B_MAX_FRAC * len(pre))))
-    obs, null, nB, kB = [], [], [], []
+    obs, null, nB, kB, nEs = [], [], [], [], []
     for _ in range(n_draw):
         order = [pre[i] for i in rng.permutation(len(pre))]
         B, have = [], np.zeros(n)
@@ -131,8 +150,18 @@ def epoch_null(tab, pos, ep, n_draw=N_DRAW, rng=None):
             take = int(min(n_E[i], P.shape[0]))
             gB[tr] = [P[rng.choice(P.shape[0], take, replace=False)]]
         M_B = _mean_matrix(gB, pos)
+        M_Ed = M_E
+        if match_epoch:
+            gE = {}
+            for i, tr in enumerate(pos):
+                if not E[tr]:
+                    continue
+                take = gB[tr][0].shape[0] if tr in gB else int(n_E[i])
+                gE[tr] = [stratified_trials(E[tr], take, rng_e)] if take < n_E[i] else E[tr]
+            M_Ed = _mean_matrix(gE, pos)
+            nEs.append([sum(a.shape[0] for a in gE.get(tr, [])) for tr in pos])
         M_A = _mean_matrix({tr: [tab[lab]["rows"][tr] for lab in A if tr in tab[lab]["rows"]] for tr in pos}, pos)
-        obs.append(M_E - M_A)
+        obs.append(M_Ed - M_A)
         null.append(M_B - M_A)
         nB.append([gB[tr][0].shape[0] if tr in gB else 0 for tr in pos])
         kB.append(len(B))
@@ -146,10 +175,14 @@ def epoch_null(tab, pos, ep, n_draw=N_DRAW, rng=None):
             "dM_vs_all_pre": M_E - M_pre_all, "frac_null_ge": frac_null_ge,
             "obs_med": np.nanmedian(obs, 0), "null_med": np.nanmedian(null, 0),
             "null_lo": np.nanpercentile(null, 2.5, axis=0), "null_hi": np.nanpercentile(null, 97.5, axis=0),
-            "match_frac": np.nanmedian(np.asarray(nB, float), 0) / np.where(n_E > 0, n_E, np.nan)}
+            "match_frac": np.nanmedian(np.asarray(nB, float), 0) / np.where(n_E > 0, n_E, np.nan),
+            "match_epoch": bool(match_epoch),
+            "n_E_sub": (np.asarray(nEs, float) if nEs else np.tile(n_E, (len(obs), 1))),
+            "epoch_subsampled_row": ((np.nanmedian(np.asarray(nEs, float), 0) < n_E) if nEs
+                                     else np.zeros(n, bool))}
 
 
-def run_animal(animal, align="lick", gate="lick", n_draw=N_DRAW, seed=0, verbose=True):
+def run_animal(animal, align="lick", gate="lick", n_draw=N_DRAW, seed=0, verbose=True, match_epoch=False):
     """Every post epoch's migration null for one animal, from `analyse_animal(keep_trials=True)` (load-only)."""
     from wfield_local import cd_trajectories as cdt
 
@@ -161,10 +194,12 @@ def run_animal(animal, align="lick", gate="lick", n_draw=N_DRAW, seed=0, verbose
     from scripts.cd_migration import matrices          # the published reduction, for the reproduction check
     mats = matrices(res)
     out = {"animal": animal, "align": align, "gate": gate, "positions": pos, "n_draw": int(n_draw),
+           "match_epoch": bool(match_epoch),
            "win_s": float(res["win_s"]), "basis_id": res["basis_id"], "epochs": {}, "repro": {}}
     rng = np.random.default_rng(seed)
     for ep in EPOCHS_POST:
-        r = epoch_null(tab, pos, ep, n_draw=n_draw, rng=rng)
+        r = epoch_null(tab, pos, ep, n_draw=n_draw, rng=rng, match_epoch=match_epoch,
+                       rng_e=np.random.default_rng([seed, 7, EPOCHS_POST.index(ep)]))
         if r is None:
             continue
         out["epochs"][ep] = r
@@ -370,7 +405,7 @@ def _one(item):
     from wfield_local import cd_migration_null as m
 
     out = m.run_animal(item["animal"], item["align"], item["gate"], n_draw=item["n_draw"], seed=item["seed"],
-                       verbose=False)
+                       verbose=False, match_epoch=item.get("match_epoch", False))
     m.save(out, item["out"])
     return m.report(out)
 
@@ -382,6 +417,10 @@ def main(argv=None) -> int:
     ap.add_argument("--gate", default="lick")
     ap.add_argument("--draws", type=int, default=N_DRAW)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--match-epoch", action="store_true",
+                    help="CHRONIC FIX (Priya 11-26): subsample an epoch row with more trials than B holds down to B's "
+                         "count in every draw (stratified by session). Default off = unchanged")
+    ap.add_argument("--figure-name", default=None, help="figure / table stem (default cd_migration_null_<align>)")
     ap.add_argument("--jobs", type=int, default=None)
     ap.add_argument("--out", required=True, help="a NEW folder (rule 11; there is no default)")
     ap.add_argument("--figure-only", action="store_true",
@@ -392,12 +431,13 @@ def main(argv=None) -> int:
     if args.figure_only:
         got = load_all(out, args.align, args.gate)
         df, pooled = cohort_table(got)
-        df.to_csv(out / f"cd_migration_null_{args.align}_per_animal.csv", index=False)
-        pooled.to_csv(out / f"cd_migration_null_{args.align}_pooled.csv", index=False)
-        print(f"-> {figure(got, out / f'cd_migration_null_{args.align}.png')}")
+        stem = args.figure_name or f"cd_migration_null_{args.align}"
+        df.to_csv(out / f"{stem}_per_animal.csv", index=False)
+        pooled.to_csv(out / f"{stem}_pooled.csv", index=False)
+        print(f"-> {figure(got, out / f'{stem}.png')}")
         return 0
     items = [{"animal": a, "align": args.align, "gate": args.gate, "n_draw": args.draws, "seed": args.seed,
-              "out": str(out)} for a in (args.animal or ["PS92", "PS93", "PS94", "PS95"])]
+              "out": str(out), "match_epoch": args.match_epoch} for a in (args.animal or ["PS92", "PS93", "PS94", "PS95"])]
     from wfield_local import analysis_kit as ak
 
     res, fail = ak.fan_sessions(items, _one, jobs=args.jobs, key=lambda it: it["animal"], label="animal")

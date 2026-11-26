@@ -415,6 +415,9 @@ def main(argv=None) -> int:
     ap.add_argument("--null-dir", default=None,
                     help="where `cd_overlap_null` persisted its draws (its --out); default --dir. 11-26: the null of a "
                          "rebuild root is built in its own NEW run folder (rule 11), not beside the production dumps")
+    ap.add_argument("--obs-from-null", action="store_true",
+                    help="plot the median OBSERVED statistic of the null's draws (vs reference A; subsampled epochs "
+                         "matched to B) instead of the dump's full-epoch value (Priya 11-26 chronic fix)")
     ap.add_argument("--dir-lick", default=None,
                     help="the dumps of the LICK column, when they live in another arm's folder (four-camera root: the "
                          "LP-lick + LP-gate arm, LP_licks_gateLP_<tag>/epoch); default --dir")
@@ -435,6 +438,20 @@ def main(argv=None) -> int:
         got.update(g2)
         problems += p2
     nulls = load_nulls(nd, aligns=tuple(args.align), gate=args.gate)
+    if args.obs_from_null:
+        # CHRONIC FIX (Priya 11-26): the plotted point is the MEDIAN over the null's draws of the observed statistic
+        # (epoch vs reference A; an epoch above the target is subsampled to B's trial count in each draw), so the
+        # point and its ceiling share a trial count. Cells without a null keep the dump's value and say so.
+        for (a, al), eps_ in nulls.items():
+            res = got.get((a, al))
+            if res is None:
+                continue
+            for ep, d in eps_.items():
+                for key, fld in (("cim_cos", "obs_cos"), ("cim_scale", "obs_scale")):
+                    v = np.asarray(d.get(fld) if d.get(fld) is not None else [], float)
+                    v = v[np.isfinite(v)]
+                    if v.size:
+                        res.setdefault(key, {})[ep] = float(np.median(v))
     # THE TRIAL SET on both figures (Priya 11-09): the alignments actually drawn, under this gate
     from wfield_local import trial_set_text as tst
     _ts = trial_set_sentence([al for al in ALIGNS if any(k[1] == al for k in got) and not
