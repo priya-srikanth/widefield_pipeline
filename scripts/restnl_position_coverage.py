@@ -24,11 +24,50 @@ from pathlib import Path
 
 import numpy as np
 
-SCRATCH = Path(os.environ.get("RESTNL_COV_SCRATCH",
-                              r"C:/Users/SABATI~1/AppData/Local/Temp/claude/C--Users-SabatiniLab/"
-                              r"f082ee0c-b33c-49a8-a537-dcee3bb7c84c/scratchpad/restnl_cov"))
-OUT = Path("M:/MICROSCOPE/Priya/Widefield/labcams/grant_figures/restnl_position_coverage_check")
-CACHE = Path("C:/Users/SabatiniLab/.widefield_session_cache_restnl")
+#: 11-25 (four-camera queue f4_restnl_cov_*): OUT / SCRATCH / CACHE are RESOLVED, never literal. Until 11-25 they were
+#: a production folder (labcams/grant_figures/restnl_position_coverage_check), another session's scratchpad and the
+#: legacy v36 RESTnl cache dir, so the script refused (correctly) in any tagged run. Now:
+#:   OUT      --out, else <restnl_maps.out_dir()> / restnl_position_coverage_check (the run-mode-routed RESTnl figure
+#:            root: inside the rebuild root under a render profile); a DEFAULT (untagged) run keeps the old folder.
+#:   SCRATCH  --scratch / RESTNL_COV_SCRATCH, else OUT / scratch.
+#:   CACHE    restnl_mask.cache_dir() of the env the stage runs under, files matched by restnl_mask._stem(label) (the
+#:            run's own baseline names; the legacy dir only for the untagged default run, as before).
+LEGACY_OUT = Path("M:/MICROSCOPE/Priya/Widefield/labcams/grant_figures/restnl_position_coverage_check")
+OUT = LEGACY_OUT
+SCRATCH = Path(os.environ.get("RESTNL_COV_SCRATCH", str(LEGACY_OUT / "scratch")))
+
+
+def resolve_paths(out=None, scratch=None):
+    """Set OUT / SCRATCH (module globals) for this run; see the block comment above. Returns (OUT, SCRATCH)."""
+    global OUT, SCRATCH
+    if out is not None:
+        OUT = Path(out)
+    else:
+        from wfield_local import run_mode
+        if run_mode.cache_tag():                     # a tagged run: under its own routed RESTnl root, never production
+            sys.path.insert(0, str(Path(__file__).parent))
+            import restnl_maps as rm
+            OUT = Path(rm.out_dir()) / "restnl_position_coverage_check"
+        else:
+            OUT = LEGACY_OUT
+    env = os.environ.get("RESTNL_COV_SCRATCH")
+    SCRATCH = Path(scratch) if scratch is not None else (Path(env) if env else OUT / "scratch")
+    return OUT, SCRATCH
+
+
+def cache_files(label):
+    """This run's RESTnl baseline file(s) for `label` (restnl_mask's own dir and stem)."""
+    from wfield_local import restnl_mask
+    return sorted(Path(restnl_mask.cache_dir()).glob(f"{restnl_mask._stem(label)}__*.npz"))
+
+
+def cache_labels():
+    from wfield_local import restnl_mask
+    d = Path(restnl_mask.cache_dir())
+    return sorted({f.name.split("__")[0] for f in d.glob("*.npz")
+                   if f.name.startswith(restnl_mask._stem(f.name.split("__")[0]) + "__")})
+
+
 POS = ["close_center", "close_L", "close_R", "far_center", "far_L", "far_R"]     # restnl_mask code order (0..5)
 FAR_C = 5
 ARM_ALIGNS = {"contact": [("precue", "working", "7.1"), ("cue", "working", "7.7")],
@@ -77,7 +116,7 @@ def _posmap_job(label):
     from wfield_local import restnl_mask
     from wfield_local.position_reference_maps import MAP_SHAPE  # noqa: F401
     s = restnl_mask.session_of(label)
-    fz = sorted(CACHE.glob(f"{label}__restnl__*.npz"))
+    fz = cache_files(label)
     if len(fz) != 1:
         return {"label": label, "error": f"{len(fz)} cache files"}
     z = np.load(fz[0])
@@ -102,7 +141,7 @@ def posmaps(jobs: int = 4) -> None:
     from concurrent.futures import ProcessPoolExecutor
     from wfield_local import parallel
     parallel.pin_blas()
-    labels = sorted({f.name.split("__")[0] for f in CACHE.glob("*__restnl__*.npz")})
+    labels = cache_labels()
     labels = [x for x in labels if x.split("_")[0] in ANIMALS and int(x.split("_")[1]) >= 801]
     SCRATCH.mkdir(parents=True, exist_ok=True)
     out = {}
@@ -290,13 +329,25 @@ def analyse() -> None:
 
 
 def main(argv=None) -> int:
-    from wfield_local import run_mode as _rm_guard
-    _rm_guard.require_default("restnl_position_coverage")   # unrouted share writer: refuses in a non-default run mode
     ap = argparse.ArgumentParser()
     ap.add_argument("stage", choices=("collect", "posmaps", "analyse"))
     ap.add_argument("--arm", choices=tuple(ARM_ALIGNS))
     ap.add_argument("--jobs", type=int, default=4)
+    ap.add_argument("--out", default=None, help="output folder (default: the run-routed RESTnl root / "
+                    "restnl_position_coverage_check; the old production folder only in the untagged default run)")
+    ap.add_argument("--scratch", default=None, help="intermediate maps (default OUT/scratch)")
     a = ap.parse_args(argv)
+    if a.stage == "collect" and a.arm is None:
+        ap.error("collect needs --arm")
+    if a.stage == "posmaps":                  # the contact-arm env: the DAQ-gate RESTnl baselines (as the 11-02 check)
+        sys.path.insert(0, str(Path(__file__).parent))
+        import restnl_maps as rm
+        rm.setup_env("contact", refs="restnl")
+    resolve_paths(a.out, a.scratch)
+    from wfield_local import writeguard
+    writeguard.assert_writable(OUT)
+    writeguard.assert_writable(SCRATCH)
+    print(f"[cov] OUT {OUT}  SCRATCH {SCRATCH}", flush=True)
     if a.stage == "collect":
         collect(a.arm)
     elif a.stage == "posmaps":

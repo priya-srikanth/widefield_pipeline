@@ -44,20 +44,40 @@ def session_blocks(label: str) -> list[dict]:
     return rows
 
 
+def default_out(run=None, out=None):
+    """Where the tables go (11-25, rule 11): --out, else the RUN'S OWN tagged ``imaging_encoding/<tag>/qc``
+    (`run_mode.encoding_out_root`) in a tagged run -- never the root's untagged qc, which a tagged run may not write --
+    else the untagged ``imaging_encoding/qc`` (the default run, unchanged). A tagged run refuses to replace a table."""
+    from pathlib import Path as _P
+
+    from wfield_local import lp_licks, run_mode
+    if out is not None:
+        o = _P(out)
+    elif lp_licks.output_tag():
+        o = _P(run_mode.encoding_out_root()) / "qc"
+    else:
+        from wfield_local import orofacial_cohort as oc
+        from wfield_local import orofacial_outputs as oo
+        from wfield_local.paths import PathResolver
+        return oo.encoding_root(run or oc.RUN, PathResolver()) / "qc"
+    if (o / "position_block_summary.csv").exists():
+        raise SystemExit(f"{o / 'position_block_summary.csv'} exists: not replaced (give a new --out)")
+    return o
+
+
 def main(argv=None) -> int:
-    from wfield_local import run_mode as _rm_guard
-    _rm_guard.require_default("position_block_durations")   # unrouted share writer: refuses in a non-default run mode
     from wfield_local import analysis_kit as ak
     from wfield_local import combined_encoding as ce
     from wfield_local import orofacial_cohort as oc
-    from wfield_local import orofacial_outputs as oo
     from wfield_local import writeguard
-    from wfield_local.paths import PathResolver
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--run", default=oc.RUN)
     ap.add_argument("--jobs", type=int, default=4)
+    ap.add_argument("--out", default=None, help="output folder (default: the run's own imaging_encoding/<tag>/qc in a "
+                    "tagged run, the untagged imaging_encoding/qc in the default run); never replaces an existing table "
+                    "in a tagged run")
     a = ap.parse_args(argv)
-    out = oo.encoding_root(a.run, PathResolver()) / "qc"
+    out = default_out(a.run, a.out)
     writeguard.assert_writable(out)
     out.mkdir(parents=True, exist_ok=True)
     got, fail = ak.fan_sessions(ce.sessions_available(), session_blocks, jobs=a.jobs)
