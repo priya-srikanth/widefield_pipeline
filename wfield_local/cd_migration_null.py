@@ -210,6 +210,142 @@ def save(out, out_dir):
                          "b_max_frac": B_MAX_FRAC, "clear_frac": CLEAR_FRAC})
 
 
+#: Display labels in the canonical spout order (close ipsi, mid, contra, then far); ipsi = L, contra = R here.
+LABEL = {"close_L": "close ipsi", "close_center": "close mid", "close_R": "close contra",
+         "far_L": "far ipsi", "far_center": "far mid", "far_R": "far contra"}
+
+
+def load_all(out_dir, align="lick", gate="lick", animals=("PS92", "PS93", "PS94", "PS95")):
+    from wfield_local import results_store as rs
+
+    got = {}
+    for a in animals:
+        body = rs.load(out_dir, "cd_migration_null", f"{a}_{align}_{gate}")
+        if body and body.get("epochs"):
+            got[a] = body
+    return got
+
+
+def cohort_table(got):
+    """``(per_animal, pooled)`` DataFrames: every cell per animal (rule 8), then the pooled reading with
+    ``k_clear_same_sign`` = animals whose change clears their own null in the pooled direction."""
+    import pandas as pd
+
+    recs = []
+    for a, b in sorted(got.items()):
+        nm = _names(b["positions"])
+        for ep, r in b["epochs"].items():
+            for i in range(len(nm)):
+                for j in range(len(nm)):
+                    fr = float(np.asarray(r["frac_null_ge"])[i, j])
+                    recs.append({"epoch": ep, "trials": nm[i], "on_direction": nm[j], "animal": a,
+                                 "dM_vs_all_pre_1125": float(np.asarray(r["dM_vs_all_pre"])[i, j]),
+                                 "dM_vs_A_median": float(np.asarray(r["obs_med"])[i, j]),
+                                 "null_median": float(np.asarray(r["null_med"])[i, j]),
+                                 "null_lo95": float(np.asarray(r["null_lo"])[i, j]),
+                                 "null_hi95": float(np.asarray(r["null_hi"])[i, j]),
+                                 "frac_draws_null_ge_obs": fr, "clears": bool(fr <= CLEAR_FRAC),
+                                 "n_trials_E_row": float(np.asarray(r["n_E"])[i]),
+                                 "B_match_frac_row": float(np.asarray(r["match_frac"])[i]),
+                                 "n_E_sessions": int(r["k_E"]), "n_pre_sessions": int(r["n_pre_sessions"])})
+    df = pd.DataFrame(recs)
+    if df.empty:
+        return df, df
+    keys = ["epoch", "trials", "on_direction"]
+    pooled = df.groupby(keys, sort=False).agg(
+        dM_vs_A_mean=("dM_vs_A_median", "mean"), dM_vs_all_pre_mean=("dM_vs_all_pre_1125", "mean"),
+        n_animals=("animal", "count")).reset_index()
+    ks = []
+    for _, row in pooled.iterrows():
+        sub = df[(df["epoch"] == row["epoch"]) & (df["trials"] == row["trials"])
+                 & (df["on_direction"] == row["on_direction"])]
+        sgn = np.sign(row["dM_vs_A_mean"])
+        ks.append(int(((np.sign(sub["dM_vs_A_median"]) == sgn) & sub["clears"]).sum()))
+    pooled["k_clear_same_sign"] = ks
+    return df, pooled
+
+
+def figure(got, path):
+    """Top: pooled dM (vs A) per epoch, each cell labelled k/4 = animals whose change clears their own null in the
+    pooled direction (boxed at >= 3/4). Bottom: the far-contra row per animal (open marker: shape = animal, color =
+    epoch) with that animal's null 95% band as a gray bar beside it. No stars: the fractions are not p-values."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    from wfield_local import cat_points as cp
+    from wfield_local.figure_layout import save_png_svg
+
+    df, pooled = cohort_table(got)
+    pos_names = _names(next(iter(got.values()))["positions"])
+    eps = [e for e in EPOCHS_POST if (pooled["epoch"] == e).any()]
+    fig, axes = plt.subplots(2, len(eps), figsize=(4.3 * len(eps), 8.6), squeeze=False,
+                             gridspec_kw={"height_ratios": [1.0, 0.9]}, constrained_layout=True)
+    lim = float(np.nanmax(np.abs(pooled["dM_vs_A_mean"])))
+    for c, ep in enumerate(eps):
+        ax = axes[0][c]
+        P = pooled[pooled["epoch"] == ep]
+        D = np.full((len(pos_names), len(pos_names)), np.nan)
+        K = np.zeros(D.shape, int)
+        for _, row in P.iterrows():
+            i, j = pos_names.index(row["trials"]), pos_names.index(row["on_direction"])
+            D[i, j], K[i, j] = row["dM_vs_A_mean"], row["k_clear_same_sign"]
+        im = ax.imshow(D, cmap="RdBu_r", vmin=-lim, vmax=lim)
+        for i in range(D.shape[0]):
+            for j in range(D.shape[1]):
+                if np.isfinite(D[i, j]):
+                    ax.text(j, i, f"{D[i, j]:+.2f}\n{K[i, j]}/4", ha="center", va="center", fontsize=6.5,
+                            fontweight="bold" if K[i, j] >= 3 else "normal")
+                    if K[i, j] >= 3:
+                        ax.add_patch(plt.Rectangle((j - 0.5, i - 0.5), 1, 1, fill=False, lw=1.6, ec="k"))
+        ax.set_xticks(range(len(pos_names)))
+        ax.set_xticklabels([LABEL.get(n, n) for n in pos_names], rotation=45, ha="right", fontsize=7)
+        ax.set_yticks(range(len(pos_names)))
+        ax.set_yticklabels([LABEL.get(n, n) for n in pos_names], fontsize=7)
+        ax.set_title(f"{ep}: change vs pre (A), mean of 4 animals", fontsize=9, color=cp.epoch_color(ep))
+        if c == 0:
+            ax.set_ylabel("trials at spout", fontsize=8)
+        ax.set_xlabel("projected onto the frozen pre direction of", fontsize=7)
+        if c == len(eps) - 1:
+            fig.colorbar(im, ax=ax, shrink=0.75, label="change (pole units)")
+
+        ax = axes[1][c]
+        R = df[(df["epoch"] == ep) & (df["trials"] == "far_R")]
+        animals = sorted(R["animal"].unique())
+        offs = cp.epoch_offsets(len(animals), 0.17)
+        ax.axhline(0, color="0.6", lw=0.8, ls=":")
+        for k, a in enumerate(animals):
+            for _, row in R[R["animal"] == a].iterrows():
+                x = pos_names.index(row["on_direction"]) + offs[k]
+                ax.plot([x + 0.06] * 2, [row["null_lo95"], row["null_hi95"]], color="0.6", lw=2.4,
+                        solid_capstyle="butt", zorder=1)
+                ax.plot(x, row["dM_vs_A_median"], ls="none", marker=cp.animal_marker(a), mfc="none",
+                        mec=cp.epoch_color(ep), mew=1.4, ms=6, zorder=3)
+        for j, n in enumerate(pos_names):
+            sub = P[(P["trials"] == "far_R") & (P["on_direction"] == n)]
+            if len(sub):
+                ax.text(j, 1.0, f"{int(sub['k_clear_same_sign'].iloc[0])}/4", transform=ax.get_xaxis_transform(),
+                        ha="center", va="bottom", fontsize=7.5)
+        ax.set_xticks(range(len(pos_names)))
+        ax.set_xticklabels([LABEL.get(n, n) for n in pos_names], rotation=45, ha="right", fontsize=7)
+        ax.set_xlim(-0.6, len(pos_names) - 0.4)
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        ax.set_title(f"far-contra trials, {ep}", fontsize=9, pad=14)
+        if c == 0:
+            ax.set_ylabel("change vs pre (A); gray = that animal's\ntrial-matched pre-vs-pre null, 95%", fontsize=7.5)
+            for a in animals:
+                ax.plot([], [], ls="none", marker=cp.animal_marker(a), mfc="none", mec="0.35", mew=1.2, ms=6,
+                        label=f"{a} (one value per animal; color = epoch)")
+            ax.legend(fontsize=6.5, frameon=False, loc="lower left")
+    fig.suptitle("Lick-window migration vs its trial-matched pre-vs-pre null (four-camera root)\n"
+                 "k/4 = animals whose change clears their own null (fraction of draws <= 0.025) in the pooled "
+                 "direction; boxed = 3/4 or more. Fractions of draws, not p-values.", fontsize=8.5)
+    save_png_svg(fig, Path(path), dpi=160)
+    plt.close(fig)
+    return path
+
+
 def _one(item):
     from wfield_local import cd_migration_null as m
 
@@ -228,9 +364,18 @@ def main(argv=None) -> int:
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--jobs", type=int, default=None)
     ap.add_argument("--out", required=True, help="a NEW folder (rule 11; there is no default)")
+    ap.add_argument("--figure-only", action="store_true",
+                    help="read the persisted draws under --out and write the figure + tables there")
     args = ap.parse_args(argv)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
+    if args.figure_only:
+        got = load_all(out, args.align, args.gate)
+        df, pooled = cohort_table(got)
+        df.to_csv(out / f"cd_migration_null_{args.align}_per_animal.csv", index=False)
+        pooled.to_csv(out / f"cd_migration_null_{args.align}_pooled.csv", index=False)
+        print(f"-> {figure(got, out / f'cd_migration_null_{args.align}.png')}")
+        return 0
     items = [{"animal": a, "align": args.align, "gate": args.gate, "n_draw": args.draws, "seed": args.seed,
               "out": str(out)} for a in (args.animal or ["PS92", "PS93", "PS94", "PS95"])]
     from wfield_local import analysis_kit as ak
