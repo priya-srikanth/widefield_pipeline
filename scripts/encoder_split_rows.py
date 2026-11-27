@@ -56,8 +56,26 @@ def grid() -> tuple:
     """(flat, parea, names, shape, pstat) of the shared Allen-aligned grid. The brain mask, area atlas and area names are
     byte-identical in all 114 August+ sessions (sha1, 10-27), so one session's imaging load defines it."""
     from wfield_local import combined_encoding as ce
-    _V, _ft, _Ub, flat, parea, names, shape, pstat = ce.load_imaging(il.run_labels()[0])
+    _V, _ft, _Ub, flat, parea, names, shape, pstat = ce.load_imaging(grid_label())
     return flat, parea, names, tuple(int(x) for x in shape), pstat
+
+
+def grid_label() -> str:
+    """The session whose imaging load defines `grid`: the first August+ session of the default frame-A encoder run
+    (`iti_licks.run_labels`, as before), else -- when FROZEN_OUT_ROOT holds no such run, e.g. an O2 bundle's frames/
+    folder with only the spd frame and its basis twin (CC-B 11-26) -- the first August+ session of any frozen run there
+    (the grid is identical in every August+ session, `grid` docstring). Printed; SystemExit when none is found."""
+    from wfield_local import config, frozen_encoder
+    labs = il.run_labels()
+    if labs:
+        return labs[0]
+    root = frozen_encoder.out_root()
+    for js in sorted(root.glob("frozen_encoder_*/joint/sessions/*.json")):
+        if not config.early_pre(js.stem):
+            print(f"split rows: grid from {js.stem} of {js.parent.parent.parent.name} (no default frame-A run under "
+                  f"{root})", flush=True)
+            return js.stem
+    raise SystemExit(f"no August+ frozen-run session under {root} to define the area grid; refusing")
 
 
 @lru_cache(maxsize=1)
