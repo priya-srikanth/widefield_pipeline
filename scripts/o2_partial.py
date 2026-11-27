@@ -145,11 +145,14 @@ def _fe():
 
 def _targets() -> list:
     """(owner object, attribute) of every loader: their return values are recorded / replayed."""
-    from wfield_local import config, dlc_frames
+    from wfield_local import config, dlc_frames, session_licks
     fe = _fe()
     ce = fe._ce()
+    # session_licks (11-27, A6): FROZEN_DESIGN=te reads THE session lick table at top level (te_lick_parts, the TE
+    # block's ITI frames): fused csv + manifest + cam4 windows.npz on the share -> recorded like the other loaders
     return [(ce, "load_imaging"), (fe, "load_behaviour"), (fe, "_fr_columns"), (config, "load_sessions"),
-            (fe, "lick_landing_weights"), (fe, "_kin_all"), (dlc_frames, "lick_onsets")]
+            (fe, "lick_landing_weights"), (fe, "_kin_all"), (dlc_frames, "lick_onsets"),
+            (session_licks, "session_licks")]
 
 
 def _argkey(x):
@@ -272,7 +275,11 @@ class Raised:
         self.kind, self.msg = kind, msg
 
     def throw(self):
-        raise self.TYPES[self.kind](self.msg)
+        if self.kind == "SessionLicksUnavailable":    # a FileNotFoundError subclass its callers catch by name
+            from wfield_local.session_licks import SessionLicksUnavailable as E
+        else:
+            E = self.TYPES[self.kind]
+        raise E(self.msg)
 
 
 def _expand(v):
@@ -311,7 +318,7 @@ class Replay:
                 v = _expand(me.memo[key][1])
                 if isinstance(v, Raised):
                     v.throw()
-                return copy.deepcopy(v) if _n == "load_sessions" else v
+                return copy.deepcopy(v) if _n in ("load_sessions", "session_licks") else v   # callers own a copy
             setattr(owner, name, g)
         rc, gl = pd.read_csv, pathlib.Path.glob
         self.orig += [(pd, "read_csv", rc), (pathlib.Path, "glob", gl)]
