@@ -483,7 +483,8 @@ def cmd_bundle(a) -> Path:
     t0 = time.time()
     try:
         rc = fe.main([*(a.labels or ["--all"]), "--jobs", str(a.jobs), "--tag", F["tag"], "--reuse-stats", *F["args"],
-                      *(["--out-root", str(a.out_root)] if a.out_root else [])])
+                      *(["--out-root", str(a.out_root)] if a.out_root else []),
+                      *(["--allow-freeze"] if a.allow_freeze else [])])
     finally:
         fe.stats_job, fe._fan, fe.summarise_drop, fe.summarise_musall, fe.template_job = saved
     t_main = (time.time() - t0) / 60
@@ -909,6 +910,8 @@ def main(argv=None) -> int:
     b.add_argument("--inputs-frame", default=None, help="frame of --inputs-from to replay (default: this frame's key)")
     b.add_argument("--nose-frames", default="", help="session_poses run folder of a re-triangulated 3-D nose "
                    "(COMBINED_ENCODING_NOSE_FRAMES; default the adopted run)")
+    b.add_argument("--allow-freeze", action="store_true", help="freeze a NEW frame in the out-root (CLAUDE.md rule 11: "
+                   "Priya's approval). The render profile clears WFIELD_ALLOW_FREEZE, so the env switch cannot reach it")
     b.add_argument("labels", nargs="*", help="TEST bundles only: a session subset (default --all)")
     c = sub.add_parser("check")
     c.add_argument("--frame", required=True, choices=sorted(FRAMES))
