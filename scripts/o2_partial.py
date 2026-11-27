@@ -63,7 +63,7 @@ EXEC3D = "C:/Users/SabatiniLab/wfield_cache/pose3d_inputs/pose3d_kin_licks_snaps
 EXTRA_PREFIXES = ("FROZEN_",)
 #: unlike the combined-encoding bundle no setting is "per submit" here: the queue's env (incl. COMBINED_ENCODING_ONLY /
 #: SUFFIX) is recorded as is
-LOCAL_ONLY_EXTRA = frozenset({"FROZEN_OUT_ROOT"})
+LOCAL_ONLY_EXTRA = frozenset({"FROZEN_OUT_ROOT", "WFIELD_ALLOW_FREEZE", "WIDEFIELD_FROZEN_LOAD_ONLY"})  # desktop run switches (11-27): never shipped to O2
 
 
 # ------------------------------------------------------------------------------------------------------------ env
