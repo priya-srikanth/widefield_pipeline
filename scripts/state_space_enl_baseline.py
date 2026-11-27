@@ -108,6 +108,10 @@ def main():
     print(f"{len(got)} done; trials kept (lick-free >= 1 s ENL window): median {np.median(kept) if kept else np.nan:.2f} "
           f"of rows; {len(bad)} without a baseline {bad}; {len(fail)} failed {[(i, str(e)[:80]) for i, e in fail]}")
 
+    if fail or not any(r["ok"] for _i, r in got):     # 11-26: 119/119 failed sessions exited 0 -> a false .done marker
+        sys.exit(f"{Path(__file__).name}: {len(fail)} of {len(todo)} session(s) FAILED"
+                 + ("" if got else " and none succeeded") + " -- not done; fix the cause and re-run (done sessions are kept)")
+
 
 if __name__ == "__main__":
     main()

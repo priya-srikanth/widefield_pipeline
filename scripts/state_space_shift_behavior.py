@@ -114,10 +114,14 @@ def main():
                     d[f"{reg} | {wn}"] = v[:, ix].mean(1)
             rows.append(d)
         print(f"  {an} done", flush=True)
+    if not rows:                                  # 11-25: empty rest_baseline folder -> "No objects to concatenate"
+        sys.exit(f"state_space_shift_behavior: no session has a RESTnl rest level in {C.REST} "
+                 "(run state_space_rest_baseline.py first)")
     T = pd.concat(rows, ignore_index=True).merge(F, on=["label", "trial_id"], how="left")
     reads = [f"{r} | {w}" for r in W for w in WINDOWS]
     print("trials:", len(T), "| with 3-D behavior:", int(T[BEH].notna().all(1).sum()))
     OUT.mkdir(parents=True, exist_ok=True)
+    FIGS.mkdir(parents=True, exist_ok=True)              # page_figs{RSFX} may not exist yet (11-26: chronic_maps made it)
 
     # ---- frozen pre-stroke behavior -> neural fit, per animal x readout
     coefs = []

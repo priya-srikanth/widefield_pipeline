@@ -70,6 +70,10 @@ XTAG = "hv-meegkit_hpfit_lag_refitT_swapmask_lnmfproj_pre0801"           # run_m
 WTAG = XTAG + "_sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70_daqlk"   # run_mode.tag(): tables
 ITI = str(ENCODING / "iti_licks" / XTAG / il.SESS_NAME)                 # per-trial extracts (iti_licks.XOUT / SESS_NAME)
 ITI_W = ENCODING / "iti_licks" / WTAG                                    # run tables (iti_licks.OUT_W): aim, first-lick times
+# WF_SS_TABLES (11-25, four-camera rebuild): a folder holding this arm's run tables (cued_first_lick_times.csv,
+# aim_deficit_sessions.csv, recprim_sessions.csv) when they were derived into the state-space run's own NEW folder instead
+# of the encoder tree (rule 11: no write into ITI_W). Unset = ITI_W (the v36 rebuild, unchanged).
+TABLES = Path(os.environ["WF_SS_TABLES"]) if os.environ.get("WF_SS_TABLES") else ITI_W
 LICKS3D = pose3d_dir() / _kin_name() / "licks.csv.gz"                   # 3-D first licks (landing join)
 # OUTPUTS (11-12, Priya "route outputs by run"): under the rebuild root of PROFILE, beside the encoder tree they are built
 # from -- one run, one folder. Before 11-12 they went to Widefield/state_space_recovery on the share root: outside the
@@ -94,8 +98,9 @@ LEGACY_ROOT = SHARE / "state_space_recovery"
 #     rebuild's balance next to the rebuild's aim (it read the pre-rebuild, original-hemo copy on the share before).
 #   WSD_SLOPES: the within-session-decline arm's per-session behavior slopes (scripts/within_session_decline.py OUT,
 #     on the share root; never part of the rebuild).
-RECPRIM = ITI_W / "recprim_sessions.csv"
-WSD_SLOPES = SHARE / "within_session_decline" / "tables" / "session_slopes.csv"
+RECPRIM = TABLES / "recprim_sessions.csv"
+# WF_SS_WSD (11-25): the within-session-decline slopes of the lineage being run (four-camera: within_session_decline_fourcam_20261123); unset = the production table.
+WSD_SLOPES = Path(os.environ.get("WF_SS_WSD") or SHARE / "within_session_decline" / "tables" / "session_slopes.csv")
 
 
 def require(path, what):
@@ -174,8 +179,13 @@ CACHE = ROOT / "cache"
 # reads hemispheres / areas through the basis instead: an Allen area's mean is an exact linear readout of the
 # components (the mean of U_cohort over the area's pixels, `_svd_area_weights`; Priya 11-08 "we can split right?").
 BASIS = os.environ.get("WF_SS_BASIS", "allen")
-LNMF = REBUILD / "o2" / "ss_lnmf_20261108" / "out" / "sessions"
-SVD = REBUILD / "o2" / "ss_svdbm_20261108" / "out" / "sessions"     # brain mask, no glue / bulbs (ss_svd_: superseded)
+# WF_SS_LNMF_NAME / WF_SS_SVD_NAME (11-25): the per-row extraction bundles of the lineage being run (four-camera:
+# ss_lnmf_fourcam_20261125 / ss_svdbm_fourcam_20261125, `state_space_fourcam_extract.py`); unset = the v36 bundles.
+# WF_SS_BUNDLES: the folder holding those bundles when they live outside the rebuild root (the rebuild-root write fence
+# refuses a run-declared sub-folder; 11-25 four-camera run: Widefield/state_space_fourcam_20261125/o2). Unset = <REBUILD>/o2.
+BUNDLES = Path(os.environ["WF_SS_BUNDLES"]) if os.environ.get("WF_SS_BUNDLES") else REBUILD / "o2"
+LNMF = BUNDLES / os.environ.get("WF_SS_LNMF_NAME", "ss_lnmf_20261108") / "out" / "sessions"
+SVD = BUNDLES / os.environ.get("WF_SS_SVD_NAME", "ss_svdbm_20261108") / "out" / "sessions"     # brain mask, no glue / bulbs (ss_svd_: superseded)
 BUNDLE = SVD.parents[1]                   # the SVD O2 bundle (its rest / ENL baseline products live beside out/)
 SVD_BASIS = SVD.parent / "basis"          # U_cohort, atlas, mask of the cohort SVD basis
 if BASIS not in ("allen", "lnmf", "svd"):
@@ -339,7 +349,9 @@ def _bcache():
 
 def _check_extract(z, p):
     """An Allen ITI extract (it has `cols`) must be on the current analysis masks; component files pass."""
-    if "cols" in z.files:
+    # 11-25: the BASIS decides, not the `cols` key -- the cohort-SVD files carry `cols` (svd#k_side) too, so every SVD
+    # file was refused as a mask-less Allen extract (their mask is checked by `_check_svd_mask`)
+    if BASIS == "allen" and "cols" in z.files:
         from wfield_local import mask_keys
         mask_keys.check_obj(z, p, rebuild=True)
 

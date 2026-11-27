@@ -165,6 +165,7 @@ def main():
     for tag, cov in MODELS.items():
         r2 += fit(T, reads, cov, tag)
     OUT.mkdir(parents=True, exist_ok=True)
+    FIGS.mkdir(parents=True, exist_ok=True)              # page_figs{RSFX} may not exist yet (11-26: chronic_maps made it)
     R2 = pd.DataFrame(r2)
     R2.to_csv(OUT / "r2.csv", index=False)
     print(R2.groupby(["readout", "model"]).r2_beyond_spout.mean().unstack().round(3).to_string())

@@ -77,6 +77,7 @@ def main():
         print(f"  {an} done", flush=True)
     D = pd.DataFrame(rows)
     OUT.mkdir(parents=True, exist_ok=True)
+    FIGS.mkdir(parents=True, exist_ok=True)              # page_figs{RSFX} may not exist yet (11-26: chronic_maps made it)
     D.to_csv(OUT / "sessions.csv", index=False)
     rng = np.random.default_rng(0)
 
