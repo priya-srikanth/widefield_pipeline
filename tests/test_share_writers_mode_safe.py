@@ -104,6 +104,9 @@ INDIRECT = {
     # june_drift_summary_fig and pose3d_jaw_depth_model_check left the scan -- their literal session_poses/pose3d /
     # cam1_licks reads now go through pose3d_dir / iti_licks.kin_all_path / lp_licks.cam1_events_dir
     "decoder_retention_sessions.py", "precue_class_matched.py", "recovery_timing.py",
+    # 11-25 CC-B (merged 11-27): four-camera state-space re-sampling extract; writes only under its explicit --tables /
+    # --out folders and the two named WF_SS_BUNDLES bundles in the four-camera root (WFIELD_RUN_OUT fence)
+    "state_space_fourcam_extract.py",
     # RESTnl cam4 vs cam4cam1 comparison (11-17): writes only under the rebuild root (restnl_cam1_compare_20261117/)
     "restnl_cam1_compare.py",
     # ENL / ITI cam1 census (11-18, read-only counts): writes only under the rebuild root (OUT =
