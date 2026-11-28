@@ -200,11 +200,19 @@ def pose3d_part() -> str:
     return f"p3d-{s}{t}"
 
 
+def statelab_part() -> str:
+    """``statecam`` when the behavioral-state decoder runs on CAMERA labels (`locomotor_state.STATE_LABELS_ENV` =
+    camera: fused four-camera licks + jaw-only onsets; CC-B 11-28), "" in the default DAQ mode. Output-only: it routes
+    the run's figures / tables to their own folder; the frozen spec carries the mode itself."""
+    from wfield_local import locomotor_state
+    return "statecam" if locomotor_state.camera_labels_on() else ""
+
+
 _ALL = (("hemo", hemo_part), ("lnmf", lnmf_part), ("drift", drift_part), ("pre", pre_part), ("selection", selection_part),
         ("pose3d", pose3d_part),
         ("lickdet", lickdet_part), ("emcentre", emcentre_part),
         ("refs", refs_part), ("inmem", inmem_part), ("lptrained", lptrained_part), ("projall", projall_part),
-        ("scoring", scoring_part), ("csig", csig_part))
+        ("scoring", scoring_part), ("statelab", statelab_part), ("csig", csig_part))
 _CACHE = ("hemo", "lnmf", "drift", "selection", "lickdet", "emcentre", "projall", "csig")
 #: parts that enter cache keys only, never an output path / tag
 _CACHE_ONLY = ("csig",)

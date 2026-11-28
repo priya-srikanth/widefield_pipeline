@@ -304,6 +304,18 @@ STATE_SEGMENTS = ("1 s segments of rest (behavior_events quiet periods: docked, 
                   "most 8 segments per period; no engagement or camera trial gate")
 
 
+#: the CAMERA-labeled variant (WIDEFIELD_STATE_LABELS=camera, `locomotor_state.camera_three_way_segments`, CC-B 11-28)
+STATE_SEGMENTS_CAMERA = ("CAMERA-LABELED STATES, FUSED FOUR-CAMERA LICKS: 1 s segments of rest (behavior_events quiet periods "
+                         "with no fused lick / jaw-only onset in the window or its rest lick buffer, 0.5 s before / 1.0 s "
+                         "after), running (treadmill bouts, no fused lick and no jaw-only onset in the window) and licking "
+                         "(1 s from each cue's first FUSED four-camera lick within 3.5 s); at most 8 segments per period; "
+                         "no engagement or camera trial gate")
+
+
 def state_segments() -> str:
+    from wfield_local import locomotor_state as ls
     from wfield_local import trial_set_text as tst
+    if ls.camera_labels_on():
+        return tst.frames(STATE_SEGMENTS_CAMERA, excluded=["running / licking overlaps", "segments outside imaging "
+                                                           "coverage", "segments outside the cam4 video coverage"])
     return tst.frames(STATE_SEGMENTS, excluded=["running / licking overlaps", "segments outside imaging coverage"])

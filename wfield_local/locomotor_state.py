@@ -407,3 +407,117 @@ def three_way_segments(events, *, seg_s=SEGMENT_S, cap=MAX_SEGMENTS_PER_PERIOD,
     keep = ~drop
     order = np.argsort(sample[keep], kind="stable")
     return sample[keep][order], label[keep][order], period[keep][order], int(drop.sum())
+
+
+# ---------------------------------------------------------------------------------------------
+# CAMERA-LABELED STATES (CC-B 2026-11-28; Priya: "proceed with the camera-based state decoder").
+#
+# WHY. The DAQ-labeled classes above see only CONTACT licks. The 11-28 census
+# (rebuild_20261123_fourcam/state_census_ccB1128/) found that pre-stroke ~44 % of REST segments (PS92-94; PS95 3 %)
+# hold a camera-seen dry lick or jaw-only movement inside the rest lick buffer, and up to 41 % of RUNNING segments hold
+# a DAQ contact lick (the DAQ rule drops running only where it overlaps a post-cue licking window). Contamination FALLS
+# post-stroke, so it is not neutral to the epoch comparison. The camera mode relabels with the FUSED four-camera lick
+# train (`session_licks`, the adopted train) and the jaw-only attempt onsets:
+#
+#     LICKING   1 s from each trial's first FUSED lick within LICK_MAX_LATENCY_S of the DAQ cue (same anchor logic as
+#               the DAQ mode), dropped where it overlaps a running bout -- as now
+#     RUNNING   a running-bout segment with NO fused lick and NO jaw-only onset anywhere in the window (and, as now,
+#               not overlapping a licking window)
+#     QUIET     a `behavior_events` rest-period segment with no fused lick / jaw-only onset inside the window or its
+#               rest lick buffer (segmentation.rest.lick_buffer_s: 0.5 s before, 1.0 s after each lick)
+#     all three must lie inside the video coverage (the camera says nothing about licks outside it)
+#
+# `behavior_events`, restdock05 and every shared rest definition are UNCHANGED: this only relabels the state decoder's
+# segments. DAQ is the default; the mode enters the frozen spec (`locomotor_decoder.frozen_state_models`), the run tag
+# (`run_mode`, part ``statecam``) and the figure titles, so camera and DAQ entries can never collide.
+# ---------------------------------------------------------------------------------------------
+
+#: Env switch for the state decoder's labels: ``daq`` (default, unchanged) or ``camera``.
+STATE_LABELS_ENV = "WIDEFIELD_STATE_LABELS"
+LABELS_DAQ = "daq"
+LABELS_CAMERA = "camera"
+
+
+def state_labels() -> str:
+    """``"daq"`` (default) or ``"camera"`` from `STATE_LABELS_ENV`; anything else raises."""
+    import os
+    v = os.environ.get(STATE_LABELS_ENV, LABELS_DAQ).strip().lower() or LABELS_DAQ
+    if v not in (LABELS_DAQ, LABELS_CAMERA):
+        raise ValueError(f"{STATE_LABELS_ENV}={v!r}: expected 'daq' or 'camera'")
+    return v
+
+
+def camera_labels_on() -> bool:
+    return state_labels() == LABELS_CAMERA
+
+
+#: Words for titles / captions of a camera-labeled run ("" in the DAQ mode, so every DAQ title is byte-identical).
+CAMERA_LABEL_TEXT = "camera-labeled states, fused four-camera licks"
+
+
+def label_title_suffix() -> str:
+    return f" [{CAMERA_LABEL_TEXT}]" if camera_labels_on() else ""
+
+
+def rest_lick_buffer_s() -> tuple[float, float]:
+    """``(before, after)`` the shared rest lick buffer (`segmentation.rest.lick_buffer_s`, restdock05 [0.5, 1.0])."""
+    from wfield_local import config
+    b = config.defaults()["segmentation"]["rest"]["lick_buffer_s"]
+    return float(b[0]), float(b[1])
+
+
+def _any_event_in(ev, lo, hi):
+    """Per window: is any (sorted) event sample in [lo, hi)?"""
+    ev = np.sort(np.asarray(ev, np.int64))
+    if not len(ev):
+        return np.zeros(len(lo), bool)
+    return np.searchsorted(ev, hi, "left") > np.searchsorted(ev, lo, "left")
+
+
+def _inside_cover(t0, t1, cov_lo, cov_hi):
+    """Per window: is [t0, t1) inside one coverage interval (sorted, non-overlapping)? None coverage = everywhere."""
+    if cov_lo is None:
+        return np.ones(len(t0), bool)
+    lo = np.asarray(cov_lo, np.int64)
+    hi = np.asarray(cov_hi, np.int64)
+    if not len(lo):
+        return np.zeros(len(t0), bool)
+    k = np.searchsorted(lo, t0, "right") - 1
+    return (k >= 0) & (hi[np.clip(k, 0, None)] >= t1)
+
+
+def camera_three_way_segments(events, *, cue_samples, cam_licks, jaw_onsets=(), cov_lo=None, cov_hi=None,
+                              seg_s=SEGMENT_S, cap=MAX_SEGMENTS_PER_PERIOD, lick_window_s=LICK_POSTCUE_S,
+                              buffer_s=None):
+    """``(sample, label, period_id, n_dropped, info)``: the CAMERA-labeled three-way segments (see the block above).
+
+    ``cam_licks`` / ``jaw_onsets``: fused four-camera lick onsets and jaw-only onsets, DAQ SAMPLES (same clock as
+    ``events``). ``cov_lo`` / ``cov_hi``: video coverage intervals in DAQ samples (None = no coverage cut, tests).
+    ``buffer_s``: the rest lick buffer ``(before, after)``; None = `rest_lick_buffer_s()`. ``info`` counts what each
+    camera rule removed (for the run record). The segment tiling, cap, period ids and the lick+run overlap drop are
+    `three_way_segments`' own: this calls it on ``events`` with the fused licks as the lick train, then applies the
+    camera exclusions to running and quiet."""
+    fs = float(events.get("fs", 5000.0))
+    cam = np.sort(np.asarray(cam_licks, np.int64))
+    jaw = np.sort(np.asarray(jaw_onsets, np.int64))
+    ev2 = dict(events)
+    ev2["lick_onsets"] = cam
+    smp, lab, per, n_drop = three_way_segments(ev2, seg_s=seg_s, cap=cap, lick_mode="postcue",
+                                               cue_samples=cue_samples, lick_window_s=lick_window_s)
+    if buffer_s is None:
+        buffer_s = rest_lick_buffer_s()
+    n = round(seg_s * fs)
+    t0 = smp
+    t1 = smp + n
+    both = np.concatenate([cam, jaw])
+    is_r = lab == "running"
+    is_q = lab == "quiet"
+    covered = _inside_cover(t0, t1, cov_lo, cov_hi)
+    run_bad = is_r & _any_event_in(both, t0, t1)
+    b0, b1 = round(buffer_s[0] * fs), round(buffer_s[1] * fs)
+    # a lick at L excludes [L - before, L + after] from rest -> the window is clean iff no lick in [t0 - after, t1 + before)
+    q_bad = is_q & _any_event_in(both, t0 - b1, t1 + b0)
+    keep = covered & ~run_bad & ~q_bad
+    info = {"uncovered": int((~covered).sum()), "running_cam_event": int((run_bad & covered).sum()),
+            "quiet_cam_buffer": int((q_bad & covered).sum()), "lick_run_overlap": int(n_drop)}
+    return smp[keep], lab[keep], per[keep], int(n_drop), info

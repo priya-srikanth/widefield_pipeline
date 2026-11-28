@@ -492,6 +492,7 @@ def _fig_13_state(out_dir, align, variant, wname):
     if variant != "working" or align != "cue":
         return None
     from wfield_local import locomotor_decoder as ld
+    from wfield_local import locomotor_state as _ls13      # title suffix: "" in the DAQ mode (titles unchanged)
 
     store, _days = ld.by_animal_day()
     if not store:
@@ -524,14 +525,14 @@ def _fig_13_state(out_dir, align, variant, wname):
         # is that it falls FAR LESS than position does, which is what 13n quantifies; a title
         # saying "preserved" would be contradicted by the marks on its own bars.
         title=("Does EVERYTHING degrade? Frozen pre-stroke BEHAVIORAL-STATE decoder "
-               "(quiet / running / licking), spout-position agnostic"),
+               "(quiet / running / licking), spout-position agnostic" + _ls13.label_title_suffix()),
         # `bar_row` APPENDS THE CHANCE LEVEL ITSELF, so naming it here too rendered
         # "balanced accuracy (chance 1/3) (chance 0.33)" down the side of the axes.
         ylabel="balanced accuracy", keys=["state"], values=vals, points=pts,
         tick_labels=["frozen state\ndecoder"], ylim=(0.0, 1.05), chance=1.0 / 3.0,
         notes=NOTES, session_counts=counts,
         delta_name="epoch_13delta_state_decoder_cue",
-        delta_title="Frozen state decoder, change from pre-stroke")
+        delta_title="Frozen state decoder, change from pre-stroke" + _ls13.label_title_suffix())
     if p:
         made.append(p)
 
@@ -572,7 +573,7 @@ def _fig_13_state(out_dir, align, variant, wname):
                 q = ef.bar_row(
                     cvals, out_dir, name="epoch_13n_state_vs_position_cue",
                     title=("Of the performance each readout had ABOVE CHANCE, how much survived? "
-                           "-- frozen decoders, post-cue"),
+                           "-- frozen decoders, post-cue" + _ls13.label_title_suffix()),
                     ylabel="fraction of above-chance performance retained",
                     positions=["position (6-way)", "state (3-way)"],
                     tick_labels=["position\n(6-way)", "state\n(3-way)"], ylim=(0.0, 1.05),
@@ -627,7 +628,7 @@ def _fig_13_state(out_dir, align, variant, wname):
         c = ef.confusion_row(
             conf, out_dir, name="epoch_13c_state_confusion_cue",
             title=("Frozen BEHAVIORAL-STATE decoder, confusion by epoch -- "
-                   "where do the errors go?"),
+                   "where do the errors go?" + _ls13.label_title_suffix()),
             coverage={e: dict(counts.get(e, {})) for e in conf}, delta=True,
             chance=1.0 / 3.0, labels=list(_ls.THREE_WAY))
         if c:
@@ -654,7 +655,7 @@ def _fig_13_state(out_dir, align, variant, wname):
                   f"{_q.get('acute', float('nan')):.2f} acutely)" if "pre" in _q else "")
         r = _scalar_figure(
             out_dir, name="epoch_13pos_state_decoder_by_class_cue",
-            title="Frozen state decoder, RECALL PER CLASS -- which behavioral state changed?",
+            title="Frozen state decoder, RECALL PER CLASS -- which behavioral state changed?" + _ls13.label_title_suffix(),
             ylabel="recall", keys=CLS, values=pvals, points=ppts, tick_labels=CLS,
             ylim=(0.0, 1.05), session_counts=counts, notes=[
                 NOTES[0],
@@ -669,7 +670,7 @@ def _fig_13_state(out_dir, align, variant, wname):
                 f"different state. A finding about immobility, not a failed control",
                 _state_balance_line(store)],
             delta_name="epoch_13posdelta_state_decoder_by_class_cue",
-            delta_title="State decoder recall per class, change from pre-stroke")
+            delta_title="State decoder recall per class, change from pre-stroke" + _ls13.label_title_suffix())
         if r:
             made.append(r)
     return made or None

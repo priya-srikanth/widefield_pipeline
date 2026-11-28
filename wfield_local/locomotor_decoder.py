@@ -212,7 +212,18 @@ def frozen_state_models(animal: str, basis_id: str, got: dict, scaling="env", mi
                         basis_id=basis_id, n_features=n_feat, post_s=ls.SEGMENT_S, zscore=True,
                         train_data={lab: v[:3] for lab, v in sorted(pre.items())},
                         scaling=scaling, scaling_params=params)
-    tx = {lab: train_transform(v[0], v[1], scaling) for lab, v in pre.items()}
+    if ls.camera_labels_on():
+        # CAMERA-LABELED STATES (11-28): the label mode is part of the identity, so a camera-labeled model can never be
+        # read as a DAQ-labeled one (train_fp already differs, but this states it). ADDED ONLY IN CAMERA MODE: every
+        # DAQ spec -- and its id -- is byte-identical to before. `align` carries it too, so `siblings()` (keyed on
+        # animal/kind/align/source) never reports a camera model as a SPEC-CHANGED successor of a DAQ one.
+        from wfield_local import camera_state_labels as csl
+        from wfield_local import session_licks as SL
+        spec["align"] = "segments-camlabels"
+        spec["state_labels"] = {"mode": ls.LABELS_CAMERA, "fused_run": SL.fused_run(),
+                                "jaw_only": csl.attempts_path().replace("\\", "/"),
+                                "rest_lick_buffer_s": list(ls.rest_lick_buffer_s()), "coverage": "cam4_windows"}
+    tx ={lab: train_transform(v[0], v[1], scaling) for lab, v in pre.items()}
 
     def fit():
         full = fit_frozen(np.vstack([tx[lab] for lab in pre]), np.concatenate([pre[lab][1] for lab in pre]))
@@ -385,11 +396,13 @@ def by_animal_day(fs_img=FS_IMG):
     CACHED (in process, keyed on the scaling too) BECAUSE IT PROJECTS EVERY SESSION ONTO THE JOINT BASIS, which is
     the expensive step (~10 min for the cohort) and is shared by every figure that reads this.
     """
-    return _by_animal_day(fs_img, state_scaling(), BAL_EM_MIN_MASS)
+    return _by_animal_day(fs_img, state_scaling(), BAL_EM_MIN_MASS, ls.state_labels())
 
 
 @lru_cache(maxsize=4)
-def _by_animal_day(fs_img, scaling, min_mass):
+def _by_animal_day(fs_img, scaling, min_mass, labels="daq"):
+    # ``labels`` (`locomotor_state.state_labels`, read inside `segment_features` / `frozen_state_models`) is only a
+    # cache key here: a camera-labeled and a DAQ-labeled call in one process must never share a result.
     from wfield_local.grant_figures import ANIMALS
 
     out, all_days = {}, set()

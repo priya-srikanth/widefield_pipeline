@@ -339,6 +339,9 @@ def stamp(fig) -> None:
     from wfield_local import run_mode
     if run_mode.tag():
         txt += f"; mode {run_mode.tag()}"
+    from wfield_local import locomotor_state as _ls
+    if _ls.camera_labels_on():
+        txt += f"; {_ls.CAMERA_LABEL_TEXT}"
     from wfield_local import trial_classes as _tc
     if _tc.camera_gate_on():                  # N6 (Priya 11-03): name the partially video-covered sessions
         try:

@@ -93,9 +93,21 @@ def segment_features(s, signal, events, *, fs_img, seg_s=ls.SEGMENT_S, bins=ls.S
         cues = None
         if lick_mode == "postcue":
             cues = np.asarray(_load_cue_events(s["h5"])["cue_samples"], np.int64)
-        smp, lab, per, _n_drop = ls.three_way_segments(
-            events, seg_s=seg_s, cap=cap, lick_mode=lick_mode, cue_samples=cues,
-            lick_window_s=seg_s)
+        if ls.camera_labels_on():
+            # CAMERA-LABELED STATES (WIDEFIELD_STATE_LABELS=camera; `locomotor_state.camera_three_way_segments`):
+            # fused four-camera licks + jaw-only onsets relabel the segments; post-cue anchoring only. A session
+            # without a fused lick table raises here and the caller drops it -- never a silent fall-back to DAQ licks.
+            if lick_mode != "postcue":
+                raise ValueError("camera-labeled states use lick_mode='postcue' only")
+            from wfield_local import camera_state_labels as csl
+            ce = csl.session_camera_events(s["label"], float(events.get("fs", 5000.0)))
+            smp, lab, per, _n_drop, _info = ls.camera_three_way_segments(
+                events, cue_samples=cues, cam_licks=ce["cam_licks"], jaw_onsets=ce["jaw_onsets"],
+                cov_lo=ce["cov_lo"], cov_hi=ce["cov_hi"], seg_s=seg_s, cap=cap, lick_window_s=seg_s)
+        else:
+            smp, lab, per, _n_drop = ls.three_way_segments(
+                events, seg_s=seg_s, cap=cap, lick_mode=lick_mode, cue_samples=cues,
+                lick_window_s=seg_s)
     else:
         smp, lab, per = ls.running_and_quiet_segments(events, seg_s=seg_s, cap=cap)
     if not len(smp):

@@ -106,8 +106,9 @@ def draw(tabs: dict, png: Path) -> None:
         ax.set_ylabel(yl)
         ax.spines[["top", "right"]].set_visible(False)
     axs[0].legend(frameon=False, fontsize=8)
+    from wfield_local import locomotor_state as _ls
     fig.suptitle("Per animal, session means (cue window, engaged trials; pre = leave-one-session-out). "
-                 "PS95 acute = 1 session.", fontsize=10)
+                 "PS95 acute = 1 session." + _ls.label_title_suffix(), fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.93))
     fig.savefig(png, dpi=170)
     plt.close(fig)
