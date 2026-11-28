@@ -210,6 +210,9 @@ def draw(D: pd.DataFrame, T: dict, png: Path) -> None:
                  label=e.capitalize()) for e in EPOCHS]
     fig.legend(handles=h, loc="upper center", ncol=len(h), frameon=False, fontsize=11, bbox_to_anchor=(0.5, 1.0),
                handletextpad=0.3, columnspacing=1.2, handlelength=1.6)
+    from wfield_local import locomotor_state as _ls
+    if _ls.camera_labels_on():          # camera-labeled state run only (CC-B 11-28); the DAQ figure is unchanged
+        axs[1].set_title(axs[1].get_title() + "\n" + _ls.label_title_suffix().strip(" []"), fontsize=10, pad=6)
     fig.tight_layout(rect=(0, _footer_bottom(fig), 1, 0.9), w_pad=2.0)
     save_png_svg(fig, png, dpi=200, facecolor="white")
     plt.close(fig)
