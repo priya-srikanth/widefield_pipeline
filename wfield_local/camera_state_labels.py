@@ -24,7 +24,6 @@ import numpy as np
 ATTEMPTS_ENV = "WIDEFIELD_STATE_JAW_ATTEMPTS"
 ATTEMPTS_GLOB = ("{root}/LP_analysis/*/imaging_encoding/qc/"
                  "sel-camera-cue_stop-endlick-cls-contact-incomplete-stopA2jexrt3500c70/trial_attempts.csv")
-DEFAULT_ROOT = "M:/MICROSCOPE/Priya/Widefield/rebuild_20261123_fourcam"
 #: Two cam4 trial windows closer than this are one covered stretch.
 MERGE_GAP_S = 0.008
 
@@ -33,7 +32,10 @@ def attempts_path() -> str:
     p = os.environ.get(ATTEMPTS_ENV, "").strip()
     if p:
         return p
-    root = os.environ.get("WIDEFIELD_REBUILD_ROOT", "").strip() or DEFAULT_ROOT
+    root = os.environ.get("WIDEFIELD_REBUILD_ROOT", "").strip()
+    if not root:
+        raise RuntimeError(f"camera state labels need WIDEFIELD_REBUILD_ROOT (the four-camera rebuild root) "
+                           f"or {ATTEMPTS_ENV}; no machine-specific default")
     f = sorted(glob.glob(ATTEMPTS_GLOB.format(root=root)))
     if len(f) != 1:
         raise FileNotFoundError(f"trial_attempts (jaw-only onsets): expected one match, got {f}; set {ATTEMPTS_ENV}")
