@@ -505,6 +505,15 @@ def main(argv=None) -> int:
                          "decoders, per block, never a config default); sets WIDEFIELD_PRE_FROM, outputs tagged "
                          "pre<MMDD>")
     args = ap.parse_args(argv)
+    # BLAS PINNED BEFORE ANY FAMILY RUNS (CC-B 11-28). `parallel.fan_out` pins the CALLING process to BLAS_THREADS and
+    # never restores it, so before this an arm's BLAS thread count depended on whether a fanned family (14m / 15r map
+    # collects) had run earlier in the same process. The 13s state decoder projects every session onto the joint basis
+    # in float32 BLAS: with 14m first (every full render) PS92's pre-stroke training fingerprint was c9b532f9...; with
+    # 13s alone (OpenBLAS default = 24 threads on the analysis desktop) a82a6c66... -- a new frozen id for the same
+    # data (11-27 re-freeze). Pinning here makes every family order, and every machine, use the same arithmetic as the
+    # full render (`tests/test_render_is_machine_independent.py`).
+    from wfield_local import parallel as _parallel
+    _parallel.pin_blas()
     from wfield_local import config as _config
     _config.apply_pre_from(args.pre_from)
     out = args.output or (Path(PathResolver().root("cohort_out")) / "grant_figures" / "epoch")
