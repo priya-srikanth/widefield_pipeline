@@ -313,6 +313,19 @@ def state_segment_text() -> str:
             f"sessions with < {ld.MIN_PER_CLASS} segments of any class"]
     if ls.EXCLUDE_SESSIONS:
         excl.append("sessions " + ", ".join(ls.EXCLUDE_SESSIONS))
+    if ls.camera_labels_on():
+        # CAMERA-LABELED STATES (WIDEFIELD_STATE_LABELS=camera, 11-28): its own sentence; the DAQ sentence is unchanged.
+        bb = ls.rest_lick_buffer_s()
+        excl += ["segments outside the cam4 video coverage", "sessions without a fused four-camera lick table"]
+        return tst.events(
+            f"{ls.CAMERA_LABEL_TEXT.upper()}: {ls.SEGMENT_S:g} s windows ({ls.SEGMENT_BINS} bins), at most "
+            f"{ls.MAX_SEGMENTS_PER_PERIOD} per period, of three mutually exclusive states: QUIET = {_rest_text()} "
+            f"segments with NO fused lick / jaw-only onset in the window or its rest lick buffer ({bb[0]:g} s before / "
+            f"{bb[1]:g} s after each), RUNNING = running-bout segments with NO fused lick and NO jaw-only onset in the "
+            f"window, LICKING ({ls.LICK_POSTCUE_S:g} s from each trial's first FUSED four-camera lick within "
+            f"{ls.LICK_MAX_LATENCY_S:g} s of the DAQ cue)",
+            keep=["every pre- and post-stroke session (no trial class gate)"], excluded=excl,
+            unit="segments (not trials)")
     return tst.events(
         f"{ls.SEGMENT_S:g} s windows ({ls.SEGMENT_BINS} bins), at most {ls.MAX_SEGMENTS_PER_PERIOD} per period, of "
         f"three mutually exclusive states: {_rest_text()}, LICKING ({ls.LICK_POSTCUE_S:g} s from each trial's first "
